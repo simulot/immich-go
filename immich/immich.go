@@ -5,16 +5,36 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/gabriel-vasile/mimetype"
 )
 
 type MultipartWriter interface {
 	WriteMultiPart(w *multipart.Writer) error
 }
 
-var SupportedMime = map[string]any{
+type UnsupportedMedia struct {
+	msg string
+}
+
+func (u UnsupportedMedia) Error() string {
+	return u.msg
+}
+
+func (u UnsupportedMedia) Is(target error) bool {
+	_, ok := target.(*UnsupportedMedia)
+	return ok
+}
+
+func newUnsUpportedMediaError(mime string) error {
+	return &UnsupportedMedia{
+		msg: fmt.Sprintf("unsupported mime type %s", mime),
+	}
+}
+
+var supportedMime = map[string]any{
 	// IMAGES
 	"image/heif":        nil,
 	"image/heic":        nil,
@@ -37,13 +57,13 @@ var SupportedMime = map[string]any{
 	"video/3gpp":      nil,
 }
 
-func IsMimeSupported(mime string) (string, error) {
-	_, ok := SupportedMime[mime]
+func IsMimeSupported(b []byte) (string, error) {
+	mtype := mimetype.Detect(b).String()
+	_, ok := supportedMime[mtype]
 	if !ok {
-		return "", UnsupportedMedia(fmt.Errorf("%s is not supported", mime))
+		return "", newUnsUpportedMediaError(mtype)
 	}
-	s := strings.SplitN(mime, "/", 1)
-	return s[0], nil
+	return mtype, nil
 }
 
 type PingResponse struct {

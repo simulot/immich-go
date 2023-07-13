@@ -24,6 +24,7 @@ type ImmichClient struct {
 
 // Create a new ImmichClient
 func NewImmichClient(endPoint, key, deviceUUID string) (*ImmichClient, error) {
+	// initBuffers()
 	ic := ImmichClient{
 		endPoint:     endPoint + "/api",
 		key:          key,

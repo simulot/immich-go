@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -22,6 +21,7 @@ type serverCall struct {
 	err         error
 }
 
+// serverError represents errors returned by the server
 type serverError struct {
 	StatusCode int    `json:"statusCode"`
 	Message    string `json:"message"`
@@ -82,6 +82,10 @@ func (sc *serverCall) setAccept(t string) *serverCall {
 	sc.req.Header.Add("Accept", t)
 	return sc
 }
+func (sc *serverCall) setAcceptJSON() *serverCall {
+	sc.req.Header.Add("Accept", "application/json")
+	return sc
+}
 
 func (sc *serverCall) callServer() *serverCall {
 	if sc.err != nil {
@@ -128,34 +132,20 @@ func (sc *serverCall) callServer() *serverCall {
 func (sc *serverCall) decodeJSONResponse(object any) *serverCall {
 	if sc.resp != nil && sc.resp.Body != nil {
 		sc.joinError(json.NewDecoder(sc.resp.Body).Decode(object))
+		sc.resp.Body.Close()
+		sc.resp.Body = nil
 	}
 	return sc
 }
 
-func (sc *serverCall) postFormRequest(url string, form MultipartWriter) *serverCall {
+func (sc *serverCall) postRequest(url string, contentType string, body io.Reader) *serverCall {
 	if sc.err != nil {
 		return sc
 	}
-
-	// build request body
-	body := &bytes.Buffer{}
-	w := multipart.NewWriter(body)
-	err := sc.joinError(form.WriteMultiPart(w))
-	if err != nil {
-		return sc
-	}
-	err = sc.joinError(w.Close())
-	if err != nil {
-		return sc
-	}
-
-	req, err := http.NewRequest(http.MethodPost, sc.ic.endPoint+url, nil)
+	req, err := http.NewRequest(http.MethodPost, sc.ic.endPoint+url, body)
 	if sc.joinError(err) != nil {
 		return sc
 	}
 	sc.req = req
-	sc.req.Header.Add("Content-Type", w.FormDataContentType())
-	sc.req.Header.Add("Accept", "application/json")
-	sc.req.Body = io.NopCloser(body)
 	return sc
 }

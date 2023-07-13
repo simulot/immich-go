@@ -8,15 +8,11 @@ import (
 	"io/fs"
 	"mime/multipart"
 	"net/textproto"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/gabriel-vasile/mimetype"
 )
 
-type UnsupportedMedia error
 type LocalFileError error
 
 type Asset struct {
@@ -29,16 +25,7 @@ type Asset struct {
 	FileExtension  string        `json:"fileExtension"`
 	Duration       time.Duration `json:"duration"`
 	IsReadOnly     bool          `json:"isReadOnly"`
-	files          []*FormFile
-}
-
-type FormFile struct {
-	field   string
-	info    fs.FileInfo
-	mime    string
-	headers textproto.MIMEHeader
-	r       io.Reader
-	f       io.Closer
+	files          []*formFile
 }
 
 type AssetResponse struct {
@@ -61,7 +48,7 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
-func (ic *ImmichClient) AssetUpload(file string) (AssetResponse, error) {
+func (ic *ImmichClient) AssetUpload(fsys fs.FS, file string) (AssetResponse, error) {
 	var resp AssetResponse
 
 	asset := Asset{
@@ -71,79 +58,95 @@ func (ic *ImmichClient) AssetUpload(file string) (AssetResponse, error) {
 	}
 	defer asset.Close()
 
-	s, err := os.Stat(file)
+	s, err := fs.Stat(fsys, file)
 	if err != nil {
 		return resp, LocalFileError(err)
 	}
 
-	assetData, err := newFormFile("assetData", file, s)
+	assetData, err := newFormFile("assetData", fsys, file, s)
 	if err != nil {
 		return resp, err
 	}
 	asset.files = append(asset.files, assetData)
 
 	xmp := file + ".xmp"
-	s, err = os.Stat(xmp)
+	s, err = fs.Stat(fsys, xmp)
 
 	if err != nil {
 		xmp := file + ".XMP"
-		s, err = os.Stat(xmp)
+		s, err = fs.Stat(fsys, xmp)
 
 	}
 	if err == nil {
-		sidecar, err := newFormFile("sidecarData", xmp, s)
+		sidecar, err := newFormFile("sidecarData", fsys, xmp, s)
 		if err == nil {
 			asset.files = append(asset.files, sidecar)
 		}
 	}
 
-	// set asset values based on the
-	for _, f := range asset.files {
-		if f.field == "assetData" {
-			asset.FileCreatedAt = f.info.ModTime()
-			asset.FileModifiedAt = f.info.ModTime()
-			asset.DeviceAssetID = fmt.Sprintf("%s-%d", filepath.Base(f.info.Name()), f.info.Size())
-			asset.FileExtension = strings.ToLower(filepath.Ext(f.info.Name()))
-			asset.AssetType = strings.ToUpper(strings.SplitN(f.mime, "/", 2)[0])
-		}
-	}
+	body, w := io.Pipe()
+	ctype := asset.WriteBody(w)
 
-	sc := ic.newServerCall("AssetUpload").postFormRequest("/asset/upload", asset).callServer().decodeJSONResponse(&resp)
+	sc := ic.newServerCall("AssetUpload").
+		postRequest("/asset/upload", ctype, body).
+		setAcceptJSON().
+		callServer().
+		decodeJSONResponse(&resp)
 	return resp, sc.Err()
 }
 
-func (a Asset) WriteMultiPart(w *multipart.Writer) error {
-	var err error
-	err = errors.Join(err, w.WriteField("deviceAssetId", a.DeviceAssetID))
-	err = errors.Join(err, w.WriteField("deviceId", a.DeviceID))
-	err = errors.Join(err, w.WriteField("assetType", a.AssetType))
-	err = errors.Join(err, w.WriteField("fileCreatedAt", a.FileCreatedAt.Format(time.RFC3339)))
-	err = errors.Join(err, w.WriteField("fileModifiedAt", a.FileModifiedAt.Format(time.RFC3339)))
-	err = errors.Join(err, w.WriteField("isFavorite", myBool(a.IsFavorite).String()))
-	err = errors.Join(err, w.WriteField("fileExtension", a.FileExtension))
-	err = errors.Join(err, w.WriteField("duration", formatDuration(a.Duration)))
-	err = errors.Join(err, w.WriteField("isReadOnly", myBool(a.IsReadOnly).String()))
+func (a *Asset) WriteBody(w io.WriteCloser) string {
+	m := multipart.NewWriter(w)
 
-	// Add files content
-	for _, f := range a.files {
-		fw, err := w.CreatePart(f.headers)
-		if err != nil {
-			return err
+	go func() {
+		var err error
+
+		// Set mime type field with mime of assetData
+		for _, f := range a.files {
+			if f.field == "assetData" {
+				a.FileCreatedAt = f.mod
+				a.FileModifiedAt = f.mod
+				a.DeviceAssetID = fmt.Sprintf("%s-%d", f.name, f.size)
+				a.FileExtension = strings.ToLower(filepath.Ext(f.name))
+				a.AssetType = strings.ToUpper(strings.SplitN(f.mime, "/", 2)[0])
+			}
 		}
-		_, err = io.Copy(fw, f.r)
+
+		err = errors.Join(err, m.WriteField("deviceAssetId", a.DeviceAssetID))
+		err = errors.Join(err, m.WriteField("deviceId", a.DeviceID))
+		err = errors.Join(err, m.WriteField("assetType", a.AssetType))
+		err = errors.Join(err, m.WriteField("fileCreatedAt", a.FileCreatedAt.Format(time.RFC3339)))
+		err = errors.Join(err, m.WriteField("fileModifiedAt", a.FileModifiedAt.Format(time.RFC3339)))
+		err = errors.Join(err, m.WriteField("isFavorite", myBool(a.IsFavorite).String()))
+		err = errors.Join(err, m.WriteField("fileExtension", a.FileExtension))
+		err = errors.Join(err, m.WriteField("duration", formatDuration(a.Duration)))
+		err = errors.Join(err, m.WriteField("isReadOnly", myBool(a.IsReadOnly).String()))
 		if err != nil {
-			return err
+			return
 		}
-	}
-	return err
+		for _, f := range a.files {
+			h := textproto.MIMEHeader{}
+			h.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+					escapeQuotes(f.field), escapeQuotes(filepath.Base(f.name))))
+			h.Set("Content-Type", f.mime)
+			part, err := m.CreatePart(h)
+			if err != nil {
+				return
+			}
+			if _, err = io.Copy(part, f.f); err != nil {
+				return
+			}
+		}
+	}()
+	return "multipart/form-data; boundary=" + m.Boundary()
 }
 
-func (a Asset) Close() error {
-	var err error
+func (a *Asset) Close() error {
 	for _, f := range a.files {
-		err = errors.Join(f.f.Close())
+		f.Close()
 	}
-	return err
+	return nil
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
@@ -152,37 +155,50 @@ func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
 }
 
-func newFormFile(field string, path string, info fs.FileInfo) (*FormFile, error) {
-	f, err := os.Open(path)
+type formFile struct {
+	field   string
+	name    string
+	mime    string
+	size    int64
+	mod     time.Time
+	headers textproto.MIMEHeader
+	io.Reader
+	buf *bytes.Buffer
+	f   fs.File
+}
+
+func newFormFile(field string, fsys fs.FS, path string, info fs.FileInfo) (*formFile, error) {
+	f, err := fsys.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	buf := bytes.NewBuffer([]byte{})
-	_, err = io.CopyN(buf, f, 64*1024)
+
+	ff := formFile{
+		field: field,
+		f:     f,
+		name:  filepath.Base(path),
+		size:  info.Size(),
+		mod:   info.ModTime(),
+	}
+
+	ff.buf = bytes.NewBuffer(nil)
+	_, err = io.CopyN(ff.buf, f, 4096)
+
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
 
-	mtype := mimetype.Detect(buf.Bytes())
-	_, err = IsMimeSupported(mtype.String())
+	mtype, err := IsMimeSupported(ff.buf.Bytes())
 	if err != nil {
-		return nil, UnsupportedMedia(fmt.Errorf("file type not supported: %s", filepath.Base(path)))
+		return nil, fmt.Errorf("file %q: %w", path, err)
 	}
-
-	h := textproto.MIMEHeader{}
-	h.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			escapeQuotes(field), escapeQuotes(filepath.Base(path))))
-	h.Set("Content-Type", mtype.String())
-
-	ff := FormFile{
-		field:   field,
-		headers: h,
-		info:    info,
-		mime:    mtype.String(),
-		r:       io.MultiReader(buf, f),
-		f:       f,
-	}
+	ff.mime = mtype
+	ff.Reader = io.MultiReader(ff.buf, f)
 
 	return &ff, nil
+}
+
+func (ff *formFile) Close() error {
+	ff.buf = nil
+	return ff.f.Close()
 }

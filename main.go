@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/ttacon/chalk"
 )
@@ -20,6 +21,7 @@ import (
 var stripSpaces = regexp.MustCompile(`\s+`)
 
 func main() {
+
 	app := Application{
 		Logger: log.New(os.Stdout, "", log.LstdFlags),
 	}
@@ -65,6 +67,7 @@ type Application struct {
 	Logger       *log.Logger          // Progam's logger
 	Immich       *immich.ImmichClient // Immich client
 	Worker       *Worker              // Worker to manage multitthead
+	mediaCount   atomic.Int64
 }
 
 func (app *Application) CheckParameters() error {
@@ -86,8 +89,8 @@ func (app *Application) CheckParameters() error {
 
 type localAsset struct {
 	ID   string
+	Fsys fs.FS
 	Path string
-	Mime string
 }
 
 func (app *Application) Run() error {
@@ -120,10 +123,12 @@ func (app *Application) Run() error {
 		return err
 	}
 	localAssets := []localAsset{}
-	depth := 0
 
 	for _, p := range app.Paths {
-		err = filepath.WalkDir(p, func(path string, d fs.DirEntry, err error) error {
+		fsys := os.DirFS(p)
+
+		depth := 0
+		err = fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
@@ -141,9 +146,11 @@ func (app *Application) Run() error {
 			}
 			id := stripSpaces.ReplaceAllString(filepath.Base(d.Name()+"-"+strconv.FormatInt(info.Size(), 10)), "")
 			if app.OnLineAssets.Includes(id) {
+				app.Logger.Println(chalk.Green, chalk.Dim, path, "is already uploaded", chalk.ResetColor)
 				return nil
 			}
 			localAssets = append(localAssets, localAsset{
+				Fsys: fsys.(fs.StatFS),
 				Path: path,
 				ID:   id,
 			})
@@ -192,11 +199,12 @@ func (app *Application) Upload(a localAsset) {
 			return
 		}
 		app.OnLineAssets.Push(a.ID)
-		resp, err := app.Immich.AssetUpload(a.Path)
+		resp, err := app.Immich.AssetUpload(a.Fsys, a.Path)
+		app.mediaCount.Add(1)
 
 		if err != nil {
-			if errors.Is(err, immich.LocalFileError(nil)) || errors.Is(err, immich.UnsupportedMedia(nil)) {
-				app.Logger.Println(chalk.Yellow, "Can't upload file: %s", a.Path, err, chalk.ResetColor)
+			if errors.Is(err, immich.LocalFileError(nil)) || errors.Is(err, &immich.UnsupportedMedia{}) {
+				app.Logger.Println(chalk.Yellow, "Can't upload file:", a.Path, err, chalk.ResetColor)
 			} else {
 				app.Logger.Println(chalk.Red, "Can't upload file:", a.Path, "\n", err, chalk.ResetColor)
 
@@ -205,10 +213,28 @@ func (app *Application) Upload(a localAsset) {
 			return
 
 		}
-		app.Logger.Println(chalk.Green, filepath.Base(a.Path), "uploaded.", chalk.ResetColor)
+		app.Logger.Println(chalk.Green, filepath.Base(a.Path), "uploaded.", app.mediaCount.Load(), chalk.ResetColor)
 		_ = resp
 		if app.Delete {
 			// TODO
 		}
+
 	})
+}
+
+var m runtime.MemStats
+
+// PrintMemUsage outputs the current, total and OS memory being used. As well as the number
+// of garage collection cycles completed.
+func PrintMemUsage() {
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }

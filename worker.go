@@ -45,10 +45,10 @@ func (w *Worker) Run() func() {
 	return func() {}
 }
 
-func (w *Worker) Push(task task) {
+func (w *Worker) Push(t task) {
 	if w.threads > 1 {
-		w.limiter <- task
+		w.limiter <- t
 		return
 	}
-	task()
+	t()
 }
