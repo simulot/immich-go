@@ -60,7 +60,7 @@ func TestApplication_Run(t *testing.T) {
 		EndPoint:     tb.server.URL,
 		Key:          "ABCDE",
 		Yes:          true,
-		Threads:      20,
+		Threads:      3,
 		Logger:       log.New(io.Discard, "", log.LstdFlags),
 		OnLineAssets: &immich.StringList{},
 	}

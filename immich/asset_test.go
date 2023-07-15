@@ -3,6 +3,7 @@ package immich
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -16,9 +17,14 @@ type testBed struct {
 }
 
 func newTestBed() *testBed {
+	fsys := os.DirFS("DATA")
+
 	return &testBed{
-		fsys: os.DirFS("DATA"),
+		fsys: fsys,
 		server: httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+
+			io.Copy(io.Discard, req.Body)
+			req.Body.Close()
 			ar := AssetResponse{
 				ID:        "12345",
 				Duplicate: false,
@@ -28,6 +34,7 @@ func newTestBed() *testBed {
 			json.NewEncoder(rw).Encode(ar)
 		})),
 	}
+
 }
 
 func (tb *testBed) Close() {
@@ -47,6 +54,30 @@ func BenchmarkImmichClient_AssetUpload(b *testing.B) {
 		}
 		_ = a
 	}
+}
+
+func TestImmichClient_1AssetUpload(t *testing.T) {
+	tb := newTestBed()
+	defer tb.Close()
+
+	ic, _ := NewImmichClient(tb.server.URL, "12345", "TEST")
+
+	a, err := ic.AssetUpload(tb.fsys, "Free_Test_Data_1MB_JPG.jpg")
+	if err != nil {
+		t.Log(err)
+		t.Fail()
+	}
+	_ = a
+}
+
+func TestImmichClient_PingServer(t *testing.T) {
+	tb := newTestBed()
+	defer tb.Close()
+
+	ic, _ := NewImmichClient(tb.server.URL, "12345", "TEST")
+
+	a := ic.PingServer()
+	_ = a
 }
 
 func TestImmichClient_AssetUpload(t *testing.T) {

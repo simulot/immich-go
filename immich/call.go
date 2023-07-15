@@ -11,141 +11,261 @@ import (
 	"time"
 )
 
+type TooManyInternalError struct {
+	error
+}
+
+func (e TooManyInternalError) Is(target error) bool {
+	_, ok := target.(*TooManyInternalError)
+	return ok
+}
+
 // serverCall permit to decorate request and responses in one line
 type serverCall struct {
-	method      string
-	ic          *ImmichClient
-	req         *http.Request
-	resp        *http.Response
-	serverError serverError
-	err         error
+	endPoint string
+	ic       *ImmichClient
+	err      error
 }
 
-// serverError represents errors returned by the server
-type serverError struct {
-	StatusCode int    `json:"statusCode"`
-	Message    string `json:"message"`
-	Error      string `json:"error"`
+type serverCallOption func(sc *serverCall) error
+
+// callError represents errors returned by the server
+type callError struct {
+	endPoint string
+	method   string
+	url      string
+	status   int
+	err      error
+	message  *ServerMessage
 }
 
-func (ic *ImmichClient) newServerCall(method string) *serverCall {
-	return &serverCall{
-		method: method,
-		ic:     ic,
+type ServerMessage struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
+func (u callError) Is(target error) bool {
+	_, ok := target.(*callError)
+	return ok
+}
+
+func (ce callError) Error() string {
+	b := strings.Builder{}
+	b.WriteString(ce.endPoint)
+	b.WriteString(", ")
+	b.WriteString(ce.method)
+	b.WriteString(", ")
+	b.WriteString(ce.url)
+	if ce.status > 0 {
+		b.WriteString(", ")
+		b.WriteString(fmt.Sprintf("%d %s", ce.status, http.StatusText(ce.status)))
 	}
+	b.WriteRune('\n')
+	if ce.err != nil && !errors.Is(ce.err, &callError{}) {
+		b.WriteString(ce.err.Error())
+		b.WriteRune('\n')
+	}
+	if ce.message != nil {
+		if len(ce.message.Error) > 0 {
+			b.WriteString(ce.message.Error)
+			b.WriteRune('\n')
+		}
+		if len(ce.message.Message) > 0 {
+			b.WriteString(ce.message.Message)
+			b.WriteRune('\n')
+		}
+	}
+	return b.String()
 }
 
-func (sc *serverCall) Err() error {
+func (ic *ImmichClient) newServerCall(api string, opts ...serverCallOption) *serverCall {
+	sc := &serverCall{
+		endPoint: api,
+		ic:       ic,
+	}
 	if sc.err == nil {
-		return nil
+		for _, opt := range opts {
+			sc.joinError(opt(sc))
+		}
 	}
-
-	var method, url, message string
-	if sc.req != nil {
-		method = sc.req.Method
-		url = sc.req.URL.String()
-		message = sc.serverError.Message
-	}
-
-	return fmt.Errorf("Error during the call of %q:\n%s %s\n%s\n%w", sc.method, method, url, message, sc.err)
+	return sc
 }
 
+func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerMessage) error {
+	ce := callError{
+		endPoint: sc.endPoint,
+		err:      sc.err,
+	}
+	if req != nil {
+		ce.method = req.Method
+		ce.url = req.URL.String()
+	}
+	if resp != nil {
+		ce.status = resp.StatusCode
+	}
+	ce.message = msg
+	return ce
+}
 func (sc *serverCall) joinError(err error) error {
 	sc.err = errors.Join(sc.err, err)
 	return err
 }
 
-func (sc *serverCall) getRequest(url string) *serverCall {
-	req, err := http.NewRequest(http.MethodGet, sc.ic.endPoint+url, nil)
-	sc.err = errors.Join(err)
-	sc.req = req
-	return sc
-}
+type requestFunction func(sc *serverCall) *http.Request
 
-func (sc *serverCall) addKey() error {
-	sc.req.Header.Add("x-api-key", sc.ic.key)
-	return sc.err
-}
+func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
 
-func (sc *serverCall) encodeJSONRequest(object any) *serverCall {
-	if sc.err != nil {
-		return sc
-	}
-	sc.req.Header.Add("Content-Type", "application/json")
-	buf := bytes.NewBuffer(nil)
-	sc.joinError(json.NewEncoder(buf).Encode(object))
-	sc.req.Body = io.NopCloser(buf)
-	return sc
-}
-
-func (sc *serverCall) setAccept(t string) *serverCall {
-	sc.req.Header.Add("Accept", t)
-	return sc
-}
-func (sc *serverCall) setAcceptJSON() *serverCall {
-	sc.req.Header.Add("Accept", "application/json")
-	return sc
-}
-
-func (sc *serverCall) callServer() *serverCall {
-	if sc.err != nil {
-		return sc
-	}
-	var serverError serverError
-	sc.addKey()
-	n := sc.ic.Retries
-	for n > 0 {
-		resp, err := sc.ic.client.Do(sc.req)
-
-		if err != nil {
-			sc.err = errors.Join(sc.err)
-			sc.resp = resp
-			return sc
-		}
-		if resp.StatusCode < 400 {
-			sc.resp = resp
-			return sc
-		}
-
-		if strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
-			json.NewDecoder(resp.Body).Decode(&serverError)
-			resp.Body.Close()
-			resp.Body = nil
-		}
-		if resp.StatusCode < 500 {
-			sc.resp = resp
-			sc.joinError(errors.New(sc.resp.Status))
-			sc.serverError = serverError
-			return sc
-		}
-		if resp.StatusCode >= 500 {
-			sc.resp = resp
-			n--
-			time.Sleep(sc.ic.RetriesDelay)
-		}
-	}
-	sc.serverError = serverError
-	sc.joinError(fmt.Errorf("server error: %s", sc.resp.Status))
-	return sc
-}
-
-func (sc *serverCall) decodeJSONResponse(object any) *serverCall {
-	if sc.resp != nil && sc.resp.Body != nil {
-		sc.joinError(json.NewDecoder(sc.resp.Body).Decode(object))
-		sc.resp.Body.Close()
-		sc.resp.Body = nil
-	}
-	return sc
-}
-
-func (sc *serverCall) postRequest(url string, contentType string, body io.Reader) *serverCall {
-	if sc.err != nil {
-		return sc
-	}
-	req, err := http.NewRequest(http.MethodPost, sc.ic.endPoint+url, body)
+	req, err := http.NewRequest(method, url, nil)
 	if sc.joinError(err) != nil {
-		return sc
+		return nil
 	}
-	sc.req = req
-	return sc
+
+	opts = append(opts, setAPIKey())
+	for _, opt := range opts {
+		if sc.joinError(opt(sc, req)) != nil {
+			return nil
+		}
+	}
+	return req
+}
+
+func get(url string, opts ...serverRequestOption) requestFunction {
+	return func(sc *serverCall) *http.Request {
+		if sc.err != nil {
+			return nil
+		}
+		return sc.request(http.MethodGet, sc.ic.endPoint+url, opts...)
+	}
+}
+func post(url string, ctype string, opts ...serverRequestOption) requestFunction {
+	return func(sc *serverCall) *http.Request {
+		if sc.err != nil {
+			return nil
+		}
+		return sc.request(http.MethodPost, sc.ic.endPoint+url, append(opts, setContentType(ctype))...)
+	}
+}
+
+func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
+	if sc.err != nil || fnRequest == nil {
+		return sc.Err(nil, nil, nil)
+	}
+
+	req := fnRequest(sc)
+	if sc.err != nil || req == nil {
+		return sc.Err(req, nil, nil)
+	}
+
+	var (
+		resp *http.Response
+		err  error
+	)
+	try := sc.ic.Retries
+	for {
+
+		resp, err = sc.ic.client.Do(req)
+
+		// any non nil error must be returned
+		if err != nil {
+			sc.joinError(err)
+			return sc.Err(req, nil, nil)
+		}
+
+		// Any Status below 300 is a success
+		if resp.StatusCode < 300 {
+			break
+		}
+		// Any StatusCode above 300 denote a problem
+		if resp.StatusCode >= 300 {
+			fmt.Println(try, resp.Status)
+			msg := ServerMessage{}
+			if resp.Body != nil {
+				if json.NewDecoder(resp.Body).Decode(&msg) == nil {
+					return sc.Err(req, resp, &msg)
+				}
+			}
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
+			// StatusCode below 500 are
+			if resp.StatusCode < 500 {
+				return sc.Err(req, resp, nil)
+			}
+			try--
+			if try == 0 {
+				sc.joinError(TooManyInternalError{})
+				return sc.Err(req, resp, nil)
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	// We have a success
+	for _, opt := range opts {
+		sc.joinError(opt(sc, resp))
+	}
+	if sc.err != nil {
+		return sc.Err(req, resp, nil)
+	}
+	return nil
+}
+
+type serverRequestOption func(sc *serverCall, req *http.Request) error
+
+func setBody(body io.ReadCloser) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Body = body
+		return nil
+	}
+}
+
+func setHeader(key, value string) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Set(key, value)
+		return nil
+	}
+}
+func setAcceptJSON() serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Add("Accept", "application/json")
+		return nil
+	}
+}
+
+func setAPIKey() serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Set("x-api-key", sc.ic.key)
+		return nil
+	}
+}
+
+func setJSONBody(object any) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		b := bytes.NewBuffer(nil)
+		if sc.joinError(json.NewEncoder(b).Encode(object)) == nil {
+			req.Body = io.NopCloser(b)
+		}
+		return sc.err
+	}
+}
+
+func setContentType(ctype string) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Set("Content-Type", ctype)
+		return sc.err
+	}
+}
+
+type serverResponseOption func(sc *serverCall, resp *http.Response) error
+
+func responseJSON(object any) serverResponseOption {
+	return func(sc *serverCall, resp *http.Response) error {
+		if resp != nil && resp.Body != nil {
+			defer resp.Body.Close()
+			if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
+				return sc.err
+			}
+		}
+		return nil
+	}
 }

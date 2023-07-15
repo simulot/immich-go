@@ -1,10 +1,6 @@
 package immich
 
-import (
-	"bytes"
-	"sync"
-)
-
+/*
 var bytesPool = sync.Pool{
 	New: func() any {
 		return []byte{}
@@ -36,7 +32,7 @@ func (b *Buffer) Close() error {
 	bytesPool.Put(b.b)
 	return nil
 }
-
+*/
 /*
 const buffersNumber = 20
 

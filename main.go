@@ -44,7 +44,6 @@ func main() {
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
 	flag.Parse()
 	app.Paths = flag.Args()
-
 	err = app.Run()
 	if err != nil {
 		app.Logger.Print(chalk.Red, err.Error(), chalk.ResetColor)
@@ -53,21 +52,22 @@ func main() {
 }
 
 type Application struct {
-	EndPoint     string               // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	Key          string               // API Key
-	Recursive    bool                 // Explore sub folders
-	Yes          bool                 // Assume Yes to all questions
-	Delete       bool                 // Delete original file after import
-	Threads      uint                 // Number of trheads
-	Album        string               // Create albums for assets based on the parent folder or a given name
-	Import       bool                 // Import instead of upload
-	DeviceUUID   string               // Set a device UUID
-	Paths        []string             // Path to explore
-	OnLineAssets *immich.StringList   // Keep track on published assets
-	Logger       *log.Logger          // Progam's logger
-	Immich       *immich.ImmichClient // Immich client
-	Worker       *Worker              // Worker to manage multitthead
-	mediaCount   atomic.Int64
+	EndPoint            string               // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
+	Key                 string               // API Key
+	Recursive           bool                 // Explore sub folders
+	Yes                 bool                 // Assume Yes to all questions
+	Delete              bool                 // Delete original file after import
+	Threads             uint                 // Number of threads
+	Album               string               // Create albums for assets based on the parent folder or a given name
+	Import              bool                 // Import instead of upload
+	DeviceUUID          string               // Set a device UUID
+	Paths               []string             // Path to explore
+	OnLineAssets        *immich.StringList   // Keep track on published assets
+	Logger              *log.Logger          // Program's logger
+	Immich              *immich.ImmichClient // Immich client
+	Worker              *Worker              // Worker to manage multithread
+	mediaCount          atomic.Int64         // Count uploaded medias
+	tooManyServerErrors chan any             // Signal of permanent server error condition
 }
 
 func (app *Application) CheckParameters() error {
@@ -179,15 +179,22 @@ func (app *Application) Run() error {
 
 	app.Worker = NewWorker(int(app.Threads))
 	stop := app.Worker.Run()
+	app.tooManyServerErrors = make(chan any)
 
+assetLoop:
 	for _, a := range localAssets {
-		if app.OnLineAssets.Includes(a.ID) {
-			app.Logger.Println(chalk.Yellow, filepath.Base(a.Path), "is already uploaded", chalk.ResetColor)
-			continue
+		select {
+		case <-app.tooManyServerErrors:
+			app.Logger.Println(chalk.Red, "Too many server errors")
+			break assetLoop
+		default:
+			if app.OnLineAssets.Includes(a.ID) {
+				app.Logger.Println(chalk.Yellow, filepath.Base(a.Path), "is already uploaded", chalk.ResetColor)
+				continue
+			}
+			app.Upload(a)
 		}
-		app.Upload(a)
 	}
-
 	stop()
 	return err
 }
@@ -200,19 +207,20 @@ func (app *Application) Upload(a localAsset) {
 		}
 		app.OnLineAssets.Push(a.ID)
 		resp, err := app.Immich.AssetUpload(a.Fsys, a.Path)
-		app.mediaCount.Add(1)
 
 		if err != nil {
 			if errors.Is(err, immich.LocalFileError(nil)) || errors.Is(err, &immich.UnsupportedMedia{}) {
 				app.Logger.Println(chalk.Yellow, "Can't upload file:", a.Path, err, chalk.ResetColor)
+			} else if errors.Is(err, &immich.TooManyInternalError{}) {
+				close(app.tooManyServerErrors)
 			} else {
-				app.Logger.Println(chalk.Red, "Can't upload file:", a.Path, "\n", err, chalk.ResetColor)
-
+				app.Logger.Println(chalk.Red, "Can't upload file:", a.Path)
+				app.Logger.Println(chalk.Red, err, chalk.ResetColor)
 			}
-
 			return
-
 		}
+
+		app.mediaCount.Add(1)
 		app.Logger.Println(chalk.Green, filepath.Base(a.Path), "uploaded.", app.mediaCount.Load(), chalk.ResetColor)
 		_ = resp
 		if app.Delete {

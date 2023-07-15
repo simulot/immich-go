@@ -7,10 +7,9 @@ import (
 )
 
 /*
-	Immich API documentation https://documentation.immich.app/docs/api/introduction
+ImmichClient is a proxy for immich services
 
-	ImmichClient is a proxy for immich services
-
+Immich API documentation https://documentation.immich.app/docs/api/introduction
 */
 
 type ImmichClient struct {
@@ -22,15 +21,37 @@ type ImmichClient struct {
 	RetriesDelay time.Duration // Duration between retries
 }
 
+/*
+type debugTransport struct {
+	log io.Writer
+}
+
+
+func newDebugTransport() *debugTransport {
+	return &debugTransport{}
+}
+
+func(t *debugTransport)readLogger(io.ReadCloser) io.ReadCloser {
+
+}
+
+func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+
+	reqWriter := io
+
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+*/
+
 // Create a new ImmichClient
 func NewImmichClient(endPoint, key, deviceUUID string) (*ImmichClient, error) {
-	// initBuffers()
 	ic := ImmichClient{
 		endPoint:     endPoint + "/api",
 		key:          key,
 		client:       &http.Client{},
 		DeviceUUID:   deviceUUID,
-		Retries:      3,
+		Retries:      1,
 		RetriesDelay: time.Second * 1,
 	}
 	return &ic, nil
@@ -39,9 +60,9 @@ func NewImmichClient(endPoint, key, deviceUUID string) (*ImmichClient, error) {
 // Ping server
 func (ic *ImmichClient) PingServer() error {
 	r := PingResponse{}
-	sc := ic.newServerCall("PingServer").getRequest("/server-info/ping").callServer().decodeJSONResponse(&r)
-	if sc.err != nil {
-		return sc.Err()
+	err := ic.newServerCall("PingServer").do(get("/server-info/ping", setAcceptJSON()), responseJSON(&r))
+	if err != nil {
+		return err
 	}
 	if r.Res != "pong" {
 		return fmt.Errorf("incorrect ping response: %s", r.Res)
@@ -50,25 +71,25 @@ func (ic *ImmichClient) PingServer() error {
 }
 
 // ValidateConnection
-// Validate the connection by quering the identity of the user having the given key
+// Validate the connection by querying the identity of the user having the given key
 
 func (ic *ImmichClient) ValidateConnection() (User, error) {
 	var user User
-	sc := ic.newServerCall("ValidateConnection").getRequest("/user/me").callServer().decodeJSONResponse(&user)
-	if sc.err != nil {
-		return user, sc.Err()
+	err := ic.newServerCall("ValidateConnection").
+		do(get("/user/me", setAcceptJSON()), responseJSON(&user))
+	if err != nil {
+		return user, err
 	}
-
 	return user, nil
 }
 
 // Get all asset IDs belonging to the user
 func (ic *ImmichClient) GetUserAssetsByDeviceId(deviceID string) (*StringList, error) {
 	list := StringList{}
-	sc := ic.newServerCall("GetUserAssetsByDeviceId").getRequest("/asset/" + ic.DeviceUUID).callServer().decodeJSONResponse(&list)
-	if sc.err != nil {
-		return &list, sc.Err()
+	err := ic.newServerCall("GetUserAssetsByDeviceId").
+		do(get("/asset/"+ic.DeviceUUID, setAcceptJSON()), responseJSON(&list))
+	if err != nil {
+		return &list, err
 	}
-
 	return &list, nil
 }

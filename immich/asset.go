@@ -2,7 +2,6 @@ package immich
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -25,7 +24,6 @@ type Asset struct {
 	FileExtension  string        `json:"fileExtension"`
 	Duration       time.Duration `json:"duration"`
 	IsReadOnly     bool          `json:"isReadOnly"`
-	files          []*formFile
 }
 
 type AssetResponse struct {
@@ -49,57 +47,92 @@ func formatDuration(duration time.Duration) string {
 }
 
 func (ic *ImmichClient) AssetUpload(fsys fs.FS, file string) (AssetResponse, error) {
-	var resp AssetResponse
+	var ar AssetResponse
 
-	asset := Asset{
-		DeviceID:   ic.DeviceUUID,
-		IsFavorite: false,
-		IsReadOnly: false,
-	}
-	defer asset.Close()
-
-	s, err := fs.Stat(fsys, file)
+	// Check the mime type with the first 4k of the file
+	b4k := bytes.NewBuffer(nil)
+	f, err := fsys.Open(file)
 	if err != nil {
-		return resp, LocalFileError(err)
+		return ar, LocalFileError(err)
 	}
 
-	assetData, err := newFormFile("assetData", fsys, file, s)
+	_, err = io.CopyN(b4k, f, 4096)
+	if err != nil && err != io.EOF {
+		return ar, LocalFileError(err)
+	}
+
+	mtype, err := IsMimeSupported(b4k.Bytes())
 	if err != nil {
-		return resp, err
+		return ar, err
 	}
-	asset.files = append(asset.files, assetData)
 
-	xmp := file + ".xmp"
-	s, err = fs.Stat(fsys, xmp)
+	body, pw := io.Pipe()
+	m := multipart.NewWriter(pw)
 
-	if err != nil {
-		xmp := file + ".XMP"
-		s, err = fs.Stat(fsys, xmp)
-
-	}
-	if err == nil {
-		sidecar, err := newFormFile("sidecarData", fsys, xmp, s)
-		if err == nil {
-			asset.files = append(asset.files, sidecar)
+	go func() {
+		defer func() {
+			f.Close()
+			m.Close()
+			pw.Close()
+		}()
+		s, err := f.Stat()
+		if err != nil {
+			return
 		}
-	}
+		assetType := strings.ToUpper(strings.Split(mtype, "/")[0])
 
-	body, w := io.Pipe()
-	ctype := asset.WriteBody(w)
+		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", filepath.Base(file), s.Size()))
+		m.WriteField("deviceId", ic.DeviceUUID)
+		m.WriteField("assetType", assetType)
+		m.WriteField("fileCreatedAt", s.ModTime().Format(time.RFC3339))
+		m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
+		m.WriteField("isFavorite", "false")
+		m.WriteField("fileExtension", filepath.Ext(file))
+		m.WriteField("duration", formatDuration(0))
+		m.WriteField("isReadOnly", "false")
+		h := textproto.MIMEHeader{}
+		h.Set("Content-Disposition",
+			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+				escapeQuotes("assetData"), escapeQuotes(filepath.Base(file))))
+		h.Set("Content-Type", mtype)
 
-	sc := ic.newServerCall("AssetUpload").
-		postRequest("/asset/upload", ctype, body).
-		setAcceptJSON().
-		callServer().
-		decodeJSONResponse(&resp)
-	return resp, sc.Err()
+		part, err := m.CreatePart(h)
+		if err != nil {
+			return
+		}
+		_, err = io.Copy(part, io.MultiReader(b4k, f))
+		if err != nil {
+			return
+		}
+	}()
+
+	err = ic.newServerCall("AssetUpload").
+		do(post("/asset/upload", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+
+	return ar, err
 }
 
-func (a *Asset) WriteBody(w io.WriteCloser) string {
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
+func escapeQuotes(s string) string {
+	return quoteEscaper.Replace(s)
+}
+
+/*
+func (a *Asset) Read(b []byte) (int, error) {
+	return a.r.Read(b)
+
+}
+
+func (a *Asset) makeBody() (string, io.ReadCloser, error) {
+	r, w := io.Pipe()
 	m := multipart.NewWriter(w)
 
 	go func() {
 		var err error
+		defer func() {
+			fmt.Println("End of makeBody,", err)
+		}()
 
 		// Set mime type field with mime of assetData
 		for _, f := range a.files {
@@ -125,6 +158,8 @@ func (a *Asset) WriteBody(w io.WriteCloser) string {
 			return
 		}
 		for _, f := range a.files {
+			var n int64
+			fmt.Println("File:", f.name, "Size:", f.size, "Written:", n)
 			h := textproto.MIMEHeader{}
 			h.Set("Content-Disposition",
 				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
@@ -134,38 +169,46 @@ func (a *Asset) WriteBody(w io.WriteCloser) string {
 			if err != nil {
 				return
 			}
-			if _, err = io.Copy(part, f.f); err != nil {
+			n, err = io.Copy(part, f.f)
+			if err != nil {
+				return
+			}
+			fmt.Println("File:", f.name, "Size:", f.size, "Written:", n)
+			err = f.Close()
+			if err != nil {
 				return
 			}
 		}
+
 	}()
-	return "multipart/form-data; boundary=" + m.Boundary()
+	return m.FormDataContentType(), r, nil
 }
 
 func (a *Asset) Close() error {
 	for _, f := range a.files {
 		f.Close()
 	}
-	return nil
+	return a.r.Close()
 }
 
-var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
-
-func escapeQuotes(s string) string {
-	return quoteEscaper.Replace(s)
-}
 
 type formFile struct {
-	field   string
-	name    string
-	mime    string
-	size    int64
-	mod     time.Time
-	headers textproto.MIMEHeader
+	field string
+	name  string
+	mime  string
+	size  int64
+	mod   time.Time
 	io.Reader
-	buf *bytes.Buffer
-	f   fs.File
+	// bytes4K []byte
+	// buf *bytes.Buffer
+	f fs.File
 }
+
+// var bytes4K = sync.Pool{
+// 	New: func() any {
+// 		return make([]byte, 0, 4096)
+// 	},
+// }
 
 func newFormFile(field string, fsys fs.FS, path string, info fs.FileInfo) (*formFile, error) {
 	f, err := fsys.Open(path)
@@ -181,24 +224,33 @@ func newFormFile(field string, fsys fs.FS, path string, info fs.FileInfo) (*form
 		mod:   info.ModTime(),
 	}
 
-	ff.buf = bytes.NewBuffer(nil)
-	_, err = io.CopyN(ff.buf, f, 4096)
+	// ff.bytes4K = bytes4K.Get().([]byte)
+
+	// ff.buf = bytes.NewBuffer(ff.bytes4K)
+	buf := bytes.NewBuffer(nil)
+	_, err = io.CopyN(buf, f, 4096)
 
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
 
-	mtype, err := IsMimeSupported(ff.buf.Bytes())
+	mtype, err := IsMimeSupported(buf.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("file %q: %w", path, err)
+		return nil, err
 	}
 	ff.mime = mtype
-	ff.Reader = io.MultiReader(ff.buf, f)
+	go func(){
+		ff.Reader = io.MultiReader(buf, f)
+
+	}
 
 	return &ff, nil
 }
 
 func (ff *formFile) Close() error {
-	ff.buf = nil
+	// bytes4K.Put(ff.bytes4K)
+	// ff.buf = nil
+	fmt.Println("File:", ff.name, " is closed")
 	return ff.f.Close()
 }
+*/
