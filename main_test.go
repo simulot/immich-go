@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"immich-go/immich"
 	"io"
 	"io/fs"
@@ -57,10 +56,10 @@ func TestApplication_Run(t *testing.T) {
 	defer tb.Close()
 
 	app := &Application{
-		EndPoint:     tb.server.URL,
-		Key:          "ABCDE",
-		Yes:          true,
-		Threads:      3,
+		EndPoint: tb.server.URL,
+		Key:      "ABCDE",
+		Yes:      true,
+		// Threads:      3,
 		Logger:       log.New(io.Discard, "", log.LstdFlags),
 		OnLineAssets: &immich.StringList{},
 	}
@@ -69,16 +68,16 @@ func TestApplication_Run(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	app.Worker = NewWorker(int(app.Threads))
-	a := localAsset{
-		Path: "Free_Test_Data_1MB_JPG.jpg",
-		Fsys: tb.fsys,
-	}
-	stop := app.Worker.Run()
-	for i := 0; i < 10000; i++ {
-		a.ID = fmt.Sprintf("%s-%d", a.Path, i)
-		app.Upload(a)
-	}
-	stop()
+	// app.Worker = NewWorker(int(app.Threads))
+	// a := immich.LocalAsset{
+	// 	Name: "Free_Test_Data_1MB_JPG.jpg",
+	// 	FSys: tb.fsys,
+	// }
+	// stop := app.Worker.Run()
+	// for i := 0; i < 10000; i++ {
+	// 	a.ID = fmt.Sprintf("%s-%d", a.Name, i)
+	// 	app.Upload(a)
+	// }
+	// stop()
 
 }

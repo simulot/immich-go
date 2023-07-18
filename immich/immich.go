@@ -57,7 +57,7 @@ var supportedMime = map[string]any{
 	"video/3gpp":      nil,
 }
 
-func IsMimeSupported(b []byte) (string, error) {
+func GetMimeType(b []byte) (string, error) {
 	mtype := mimetype.Detect(b).String()
 	_, ok := supportedMime[mtype]
 	if !ok {

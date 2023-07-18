@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -40,8 +41,9 @@ type callError struct {
 }
 
 type ServerMessage struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
+	Error      string   `json:"error"`
+	StatusCode string   `json:"statusCode"`
+	Message    []string `json:"message"`
 }
 
 func (u callError) Is(target error) bool {
@@ -71,8 +73,10 @@ func (ce callError) Error() string {
 			b.WriteRune('\n')
 		}
 		if len(ce.message.Message) > 0 {
-			b.WriteString(ce.message.Message)
-			b.WriteRune('\n')
+			for _, m := range ce.message.Message {
+				b.WriteString(m)
+				b.WriteRune('\n')
+			}
 		}
 	}
 	return b.String()
@@ -143,6 +147,15 @@ func post(url string, ctype string, opts ...serverRequestOption) requestFunction
 			return nil
 		}
 		return sc.request(http.MethodPost, sc.ic.endPoint+url, append(opts, setContentType(ctype))...)
+	}
+}
+
+func delete(url string, opts ...serverRequestOption) requestFunction {
+	return func(sc *serverCall) *http.Request {
+		if sc.err != nil {
+			return nil
+		}
+		return sc.request(http.MethodDelete, sc.ic.endPoint+url, opts...)
 	}
 }
 
@@ -245,6 +258,7 @@ func setJSONBody(object any) serverRequestOption {
 		if sc.joinError(json.NewEncoder(b).Encode(object)) == nil {
 			req.Body = io.NopCloser(b)
 		}
+		req.Header.Set("Content-Type", "application/json")
 		return sc.err
 	}
 }
@@ -252,6 +266,15 @@ func setJSONBody(object any) serverRequestOption {
 func setContentType(ctype string) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Header.Set("Content-Type", ctype)
+		return sc.err
+	}
+}
+
+func setUrlValues(values url.Values) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		if values != nil {
+			req.URL.RawPath = values.Encode()
+		}
 		return sc.err
 	}
 }

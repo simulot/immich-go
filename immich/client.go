@@ -2,6 +2,7 @@ package immich
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -19,30 +20,8 @@ type ImmichClient struct {
 	DeviceUUID   string        // Device
 	Retries      int           // Number of attempts on 500 errors
 	RetriesDelay time.Duration // Duration between retries
+	logger       log.Logger    // Logger from the caller
 }
-
-/*
-type debugTransport struct {
-	log io.Writer
-}
-
-
-func newDebugTransport() *debugTransport {
-	return &debugTransport{}
-}
-
-func(t *debugTransport)readLogger(io.ReadCloser) io.ReadCloser {
-
-}
-
-func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-
-	reqWriter := io
-
-	return http.DefaultTransport.RoundTrip(req)
-}
-
-*/
 
 // Create a new ImmichClient
 func NewImmichClient(endPoint, key, deviceUUID string) (*ImmichClient, error) {

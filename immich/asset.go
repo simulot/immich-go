@@ -5,25 +5,57 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"mime/multipart"
 	"net/textproto"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
-type LocalFileError error
-
+// immich Asset simplified
 type Asset struct {
-	DeviceAssetID  string        `json:"deviceAssetId"`
-	DeviceID       string        `json:"deviceId"`
-	AssetType      string        `json:"assetType"`
-	FileCreatedAt  time.Time     `json:"fileCreatedAt"`
-	FileModifiedAt time.Time     `json:"fileModifiedAt"`
-	IsFavorite     bool          `json:"isFavorite"`
-	FileExtension  string        `json:"fileExtension"`
-	Duration       time.Duration `json:"duration"`
-	IsReadOnly     bool          `json:"isReadOnly"`
+	ID            string `json:"id"`
+	DeviceAssetID string `json:"deviceAssetId"`
+	// OwnerID          string `json:"ownerId"`
+	DeviceID         string `json:"deviceId"`
+	Type             string `json:"type"`
+	OriginalPath     string `json:"originalPath"`
+	OriginalFileName string `json:"originalFileName"`
+	// Resized          bool      `json:"resized"`
+	// Thumbhash        string    `json:"thumbhash"`
+	FileCreatedAt time.Time `json:"fileCreatedAt"`
+	// FileModifiedAt time.Time `json:"fileModifiedAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	// IsFavorite     bool      `json:"isFavorite"`
+	// IsArchived     bool      `json:"isArchived"`
+	// Duration       string    `json:"duration"`
+	ExifInfo struct {
+		// 	Make             string    `json:"make"`
+		// 	Model            string    `json:"model"`
+		ExifImageWidth  int `json:"exifImageWidth"`
+		ExifImageHeight int `json:"exifImageHeight"`
+		FileSizeInByte  int `json:"fileSizeInByte"`
+		// 	Orientation      string    `json:"orientation"`
+		DateTimeOriginal time.Time `json:"dateTimeOriginal"`
+		// 	ModifyDate       time.Time `json:"modifyDate"`
+		// 	TimeZone         string    `json:"timeZone"`
+		// 	LensModel        string    `json:"lensModel"`
+		// 	FNumber          float64   `json:"fNumber"`
+		// 	FocalLength      float64   `json:"focalLength"`
+		// 	Iso              int       `json:"iso"`
+		// 	ExposureTime     string    `json:"exposureTime"`
+		// 	Latitude         float64   `json:"latitude"`
+		// 	Longitude        float64   `json:"longitude"`
+		// 	City             string    `json:"city"`
+		// 	State            string    `json:"state"`
+		// 	Country          string    `json:"country"`
+		// 	Description      string    `json:"description"`
+	} `json:"exifInfo"`
+	// LivePhotoVideoID any    `json:"livePhotoVideoId"`
+	// Tags             []any  `json:"tags"`
+	Checksum string `json:"checksum"`
 }
 
 type AssetResponse struct {
@@ -61,7 +93,7 @@ func (ic *ImmichClient) AssetUpload(fsys fs.FS, file string) (AssetResponse, err
 		return ar, LocalFileError(err)
 	}
 
-	mtype, err := IsMimeSupported(b4k.Bytes())
+	mtype, err := GetMimeType(b4k.Bytes())
 	if err != nil {
 		return ar, err
 	}
@@ -118,139 +150,211 @@ func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
 }
 
-/*
-func (a *Asset) Read(b []byte) (int, error) {
-	return a.r.Read(b)
-
+type GetAssetOptions struct {
+	UserId        string
+	IsFavorite    bool
+	IsArchived    bool
+	WithoutThumbs bool
+	Skip          string
 }
 
-func (a *Asset) makeBody() (string, io.ReadCloser, error) {
-	r, w := io.Pipe()
-	m := multipart.NewWriter(w)
-
-	go func() {
-		var err error
-		defer func() {
-			fmt.Println("End of makeBody,", err)
-		}()
-
-		// Set mime type field with mime of assetData
-		for _, f := range a.files {
-			if f.field == "assetData" {
-				a.FileCreatedAt = f.mod
-				a.FileModifiedAt = f.mod
-				a.DeviceAssetID = fmt.Sprintf("%s-%d", f.name, f.size)
-				a.FileExtension = strings.ToLower(filepath.Ext(f.name))
-				a.AssetType = strings.ToUpper(strings.SplitN(f.mime, "/", 2)[0])
-			}
-		}
-
-		err = errors.Join(err, m.WriteField("deviceAssetId", a.DeviceAssetID))
-		err = errors.Join(err, m.WriteField("deviceId", a.DeviceID))
-		err = errors.Join(err, m.WriteField("assetType", a.AssetType))
-		err = errors.Join(err, m.WriteField("fileCreatedAt", a.FileCreatedAt.Format(time.RFC3339)))
-		err = errors.Join(err, m.WriteField("fileModifiedAt", a.FileModifiedAt.Format(time.RFC3339)))
-		err = errors.Join(err, m.WriteField("isFavorite", myBool(a.IsFavorite).String()))
-		err = errors.Join(err, m.WriteField("fileExtension", a.FileExtension))
-		err = errors.Join(err, m.WriteField("duration", formatDuration(a.Duration)))
-		err = errors.Join(err, m.WriteField("isReadOnly", myBool(a.IsReadOnly).String()))
-		if err != nil {
-			return
-		}
-		for _, f := range a.files {
-			var n int64
-			fmt.Println("File:", f.name, "Size:", f.size, "Written:", n)
-			h := textproto.MIMEHeader{}
-			h.Set("Content-Disposition",
-				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-					escapeQuotes(f.field), escapeQuotes(filepath.Base(f.name))))
-			h.Set("Content-Type", f.mime)
-			part, err := m.CreatePart(h)
-			if err != nil {
-				return
-			}
-			n, err = io.Copy(part, f.f)
-			if err != nil {
-				return
-			}
-			fmt.Println("File:", f.name, "Size:", f.size, "Written:", n)
-			err = f.Close()
-			if err != nil {
-				return
-			}
-		}
-
-	}()
-	return m.FormDataContentType(), r, nil
-}
-
-func (a *Asset) Close() error {
-	for _, f := range a.files {
-		f.Close()
+func (o *GetAssetOptions) Values() url.Values {
+	if o == nil {
+		return nil
 	}
-	return a.r.Close()
+	v := url.Values{}
+	v.Add("userId", o.UserId)
+	v.Add("isFavorite", myBool(o.IsFavorite).String())
+	v.Add("isArchived", myBool(o.IsArchived).String())
+	v.Add("withoutThumbs", myBool(o.WithoutThumbs).String())
+	v.Add("skip", o.Skip)
+	return v
 }
 
-
-type formFile struct {
-	field string
-	name  string
-	mime  string
-	size  int64
-	mod   time.Time
-	io.Reader
-	// bytes4K []byte
-	// buf *bytes.Buffer
-	f fs.File
-}
-
-// var bytes4K = sync.Pool{
-// 	New: func() any {
-// 		return make([]byte, 0, 4096)
-// 	},
-// }
-
-func newFormFile(field string, fsys fs.FS, path string, info fs.FileInfo) (*formFile, error) {
-	f, err := fsys.Open(path)
+func (ic *ImmichClient) GetAllAssets(opt *GetAssetOptions) (*AssetIndex, error) {
+	r := AssetIndex{}
+	err := ic.newServerCall("GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSON(&r.assets))
 	if err != nil {
 		return nil, err
 	}
+	r.ReIndex()
+	return &r, nil
 
-	ff := formFile{
-		field: field,
-		f:     f,
-		name:  filepath.Base(path),
-		size:  info.Size(),
-		mod:   info.ModTime(),
+}
+
+type AssetIndex struct {
+	assets []*Asset
+	byHash map[string][]*Asset
+	byName map[string][]*Asset
+	byID   map[string]*Asset
+}
+
+func (ai *AssetIndex) ReIndex() {
+	ai.byHash = map[string][]*Asset{}
+	ai.byName = map[string][]*Asset{}
+	ai.byID = map[string]*Asset{}
+
+	for _, a := range ai.assets {
+		l := ai.byHash[a.Checksum]
+		l = append(l, a)
+		ai.byHash[a.Checksum] = l
+
+		n := a.OriginalFileName
+		l = ai.byName[n]
+		l = append(l, a)
+		ai.byName[n] = l
+		ai.byID[a.DeviceAssetID] = a
+	}
+}
+
+func (ai *AssetIndex) Len() int {
+	return len(ai.assets)
+}
+
+type deleteResponse []struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
+func (ic *ImmichClient) DeleteAsset(id []string) (*deleteResponse, error) {
+	req := struct {
+		IDs []string `json:"ids"`
+	}{
+		IDs: id,
 	}
 
-	// ff.bytes4K = bytes4K.Get().([]byte)
+	resp := deleteResponse{}
 
-	// ff.buf = bytes.NewBuffer(ff.bytes4K)
-	buf := bytes.NewBuffer(nil)
-	_, err = io.CopyN(buf, f, 4096)
-
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
-
-	mtype, err := IsMimeSupported(buf.Bytes())
+	err := ic.newServerCall("DeleteAsset").do(delete("/asset", setAcceptJSON(), setJSONBody(req)), responseJSON(&resp))
 	if err != nil {
 		return nil, err
 	}
-	ff.mime = mtype
-	go func(){
-		ff.Reader = io.MultiReader(buf, f)
+	return &resp, nil
+}
 
+// - - go:generate stringer -type=AdviceCode
+type AdviceCode int
+
+func (a AdviceCode) String() string {
+	switch a {
+	case IDontKnow:
+		return "IDontKnow"
+	// case SameNameOnServerButNotSure:
+	// 	return "SameNameOnServerButNotSure"
+	case SmallerOnServer:
+		return "SmallerOnServer"
+	case BetterOnServer:
+		return "BetterOnServer"
+	case SameOnServer:
+		return "SameOnServer"
+	case NotOnServer:
+		return "NotOnServer"
+	}
+	return fmt.Sprintf("advice(%d)", a)
+}
+
+const (
+	IDontKnow AdviceCode = iota
+	// SameNameOnServerButNotSure
+	SmallerOnServer
+	BetterOnServer
+	SameOnServer
+	NotOnServer
+)
+
+type Advice struct {
+	Advice      AdviceCode
+	Message     string
+	ServerAsset *Asset
+}
+
+func formatBytes(s int) string {
+	suffixes := []string{"B", "KB", "MB", "GB"}
+	bytes := float64(s)
+	base := 1024.0
+	if bytes < base {
+		return fmt.Sprintf("%.0f %s", bytes, suffixes[0])
+	}
+	exp := int64(0)
+	for bytes >= base && exp < int64(len(suffixes)-1) {
+		bytes /= base
+		exp++
+	}
+	roundedSize := math.Round(bytes*10) / 10
+	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
+}
+
+func adviceSameOnServer(sa *Asset) *Advice {
+	return &Advice{
+		Advice:      SameOnServer,
+		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		ServerAsset: sa,
+	}
+}
+func adviceSmallerOnServer(sa *Asset) *Advice {
+	return &Advice{
+		Advice:      SmallerOnServer,
+		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		ServerAsset: sa,
+	}
+}
+func adviceBetterOnServer(sa *Asset) *Advice {
+	return &Advice{
+		Advice:      BetterOnServer,
+		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		ServerAsset: sa,
+	}
+}
+func adviceNotOnServer(sa *Asset) *Advice {
+	return &Advice{
+		Advice:      NotOnServer,
+		Message:     "This a new asset, upload it.",
+		ServerAsset: sa,
+	}
+}
+
+// ShouldUpload check if the server has this asset
+//
+// The server may have different assets with the same name. This happens with photos produced by digital cameras.
+// The server may have the asset, but in lower resolution. Compare the taken date and resolution
+//
+//
+
+func (ai *AssetIndex) ShouldUpload(la *LocalAsset) (*Advice, error) {
+
+	sa := ai.byID[la.ID]
+	if sa != nil {
+		// the same ID exist on the server
+		return adviceSameOnServer(sa), nil
 	}
 
-	return &ff, nil
-}
+	var l []*Asset
+	var n string
 
-func (ff *formFile) Close() error {
-	// bytes4K.Put(ff.bytes4K)
-	// ff.buf = nil
-	fmt.Println("File:", ff.name, " is closed")
-	return ff.f.Close()
+	// check all files with the same name
+
+	// n = strings.TrimSuffix(path.Base(la.Name), path.Ext(la.Name))
+	n = filepath.Base(la.Name)
+	l = ai.byName[n]
+	if len(l) == 0 {
+		n = strings.TrimSuffix(n, filepath.Ext(n))
+		l = ai.byName[n]
+	}
+
+	if len(l) > 0 {
+		for _, sa = range l {
+			compareDate := la.DateTaken.Compare(sa.ExifInfo.DateTimeOriginal)
+			compareSize := la.FileSize - sa.ExifInfo.FileSizeInByte
+
+			switch {
+			case compareDate == 0 && compareSize == 0:
+				return adviceSameOnServer(sa), nil
+			case compareDate == 0 && compareSize > 0:
+				return adviceSmallerOnServer(sa), nil
+			case compareDate == 0 && compareSize < 0:
+				return adviceBetterOnServer(sa), nil
+			}
+		}
+	}
+	return adviceNotOnServer(nil), nil
 }
-*/

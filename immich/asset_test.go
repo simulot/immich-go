@@ -103,7 +103,7 @@ func TestImmichClient_AssetUpload(t *testing.T) {
 
 func TestUnsupportedError(t *testing.T) {
 	b := make([]byte, 1024)
-	_, err := IsMimeSupported(b)
+	_, err := GetMimeType(b)
 	if !errors.Is(err, &UnsupportedMedia{}) {
 		t.Fail()
 	}
