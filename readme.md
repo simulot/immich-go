@@ -128,6 +128,12 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
 - Photos might be compressed, potentially affecting the CLI's duplicate detection when comparing them to previously imported photos with finest details.
 
 
+# Todo list
+- [ ] read metadata
+    - [ ] png,mp4
+    - [ ] heic
+-     
+
 
 # Wish list
 - [ ] binary releases
