@@ -114,13 +114,11 @@ func LoadGooglePhotosAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetC
 			if a, ok = localAssets.bAssetID[ID]; !ok {
 				// a new one
 				a = &LocalAsset{
-					Fsys:      fsys,
-					ID:        ID,
-					Name:      name,
-					FileSize:  int(size),
-					ModTime:   s.ModTime(),
-					DateTaken: md.PhotoTakenTime.Time(),
-					Ext:       ext,
+					Fsys:     fsys,
+					ID:       ID,
+					Name:     name,
+					FileSize: int(size),
+					Ext:      ext,
 				}
 				a.DateTaken = md.PhotoTakenTime.Time()
 				localAssets.assets = append(localAssets.assets, a)
@@ -214,9 +212,10 @@ type googTimeObject struct {
 	// Formatted string    `json:"formatted"`
 }
 
-func (gt googTimeObject) Time() time.Time {
+func (gt googTimeObject) Time() *time.Time {
 	t := time.Unix(gt.Timestamp, 0)
-	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	return &t
 }
 
 func (t *googTimeObject) UnmarshalJSON(data []byte) error {

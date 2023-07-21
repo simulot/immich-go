@@ -10,27 +10,27 @@ import (
 )
 
 // ExtractDateTaken extracts the date taken from the EXIF data using the goexif/exif package.
-func ExtractDateTaken(fsys fs.FS, filePath string) (time.Time, error) {
+func ExtractDateTaken(fsys fs.FS, filePath string) (*time.Time, error) {
 	// Open the file
 	file, err := fsys.Open(filePath)
 	if err != nil {
-		return time.Time{}, err
+		return nil, err
 	}
 	defer file.Close()
 
 	// Decode the EXIF data
 	x, err := exif.Decode(io.LimitReader(file, 64*1024))
 	if err != nil && exif.IsCriticalError(err) {
-		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
+		return nil, fmt.Errorf("can't get DateTaken: %w", err)
 	}
 
 	// Get the date taken from the EXIF data
 	tm, err := x.DateTime()
 	if err != nil {
-		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
+		return nil, fmt.Errorf("can't get DateTaken: %w", err)
 	}
 	t := time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), tm.Nanosecond(), time.Local)
-	return t, nil
+	return &t, nil
 }
 
 type DateRange struct {
@@ -89,7 +89,10 @@ func (dr *DateRange) Set(s string) (err error) {
 	return fmt.Errorf("invalid date range:%w", err)
 }
 
-func (dr DateRange) InRange(d time.Time) bool {
+func (dr DateRange) InRange(d *time.Time) bool {
+	if !dr.set || d == nil {
+		return true
+	}
 	//	--------------After----------d------------Before
-	return !dr.set || (d.Compare(dr.After) >= 0 && dr.Before.Compare(d) > 0)
+	return (d.Compare(dr.After) >= 0 && dr.Before.Compare(*d) > 0)
 }

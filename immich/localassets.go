@@ -19,16 +19,15 @@ type Closer interface {
 // It could represent a file on the local file system, or another source like a Google takeout archive
 
 type LocalAsset struct {
-	Fsys      fs.FS     // The system when the file reside
-	ID        string    // The ID of the asset, used for duplicate detection
-	Name      string    // File base name
-	FileSize  int       // size in bytes, part of the ID
-	ModTime   time.Time // file time, not used
-	DateTaken time.Time // date of capture, used for filtering
-	Mime      string    // mime type of the file
-	Ext       string    // file name's extension
-	Albums    []string  // List of albums
-	Archived  bool      // Archived flag coming from Google takeout
+	Fsys      fs.FS      // The system when the file reside
+	ID        string     // The ID of the asset, used for duplicate detection
+	Name      string     // File base name
+	FileSize  int        // size in bytes, part of the ID
+	DateTaken *time.Time // date of capture, used for filtering
+	Mime      string     // mime type of the file
+	Ext       string     // file name's extension
+	Albums    []string   // List of albums
+	Archived  bool       // Archived flag coming from Google takeout
 	// XMP      string
 	// Hash string
 }
@@ -176,7 +175,6 @@ func LoadLocalAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetCollecti
 								ID:        ID,
 								Name:      name,
 								FileSize:  int(size),
-								ModTime:   s.ModTime(),
 								DateTaken: dateTaken,
 								Ext:       ext,
 							}

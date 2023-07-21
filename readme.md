@@ -142,17 +142,17 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
     - [X] but keep files with the same name: ex IMG_0201.jpg if they aren't duplicates
     - [ ] some files may have different names (ex IMG_00195.jpg and IMAGE_00195 (1).jpg) and are true duplicates
 - [X] replace the server photo, if the file to upload is better.
-- [ ] delete local file after successful upload
+- [ ] delete local file after successful upload (not for import!)
 - [ ] upload XMP sidecar files 
 - [ ] select or exclude assets to upload by
     - [ ] type photo / video
     - [ ] name pattern
-    - [ ] glob expression like ~/photos/\*/sorted/
+    - [ ] glob expression like ~/photos/\*/sorted/*.*
     - [ ] size
     - [X] date of capture within a date range
 - [ ] multithreaded 
 - [X] import from local folder
-- [ ] create albums based on folder
+    - [ ] create albums based on folder
 - [X] import from zip archives without unzipping them
 - [X] Import Google takeout
     - [X] handle archives without unzipping them
@@ -167,4 +167,5 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
 - [ ] upload from remote folders
     - [ ] ssh
     - [ ] samba
+- [ ] 
 
