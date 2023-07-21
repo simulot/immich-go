@@ -159,7 +159,7 @@ func TestDateRange_InRange(t *testing.T) {
 				if err != nil {
 					t.Errorf("can't parse check date %q fails: %s", check.date, err)
 				}
-				if got := dr.InRange(d); got != check.want {
+				if got := dr.InRange(&d); got != check.want {
 					t.Errorf("DateRange.InRange(%q) = %v, want %v", check.date, got, check.want)
 				}
 			}

@@ -59,15 +59,6 @@ func (lai *LocalAssetCollection) Close() error {
 	return err
 }
 
-// IndexerOptionsFn is a function to change Indexer parameters
-type IndexerOptionsFn func(*indexerOptions)
-
-// Indexer options
-type indexerOptions struct {
-	dateRange    DateRange // Accepted range of capture date
-	createAlbums bool      // CLI flag fore album creation
-}
-
 // Set the OptionRange
 func OptionRange(r DateRange) func(o *indexerOptions) {
 	return func(o *indexerOptions) {

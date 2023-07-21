@@ -1,6 +1,7 @@
 package immich
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
 	"path"
@@ -26,7 +27,10 @@ import (
 // Note:
 //   - The provided file systems (fss) should contain Google Photos takeout archives with metadata JSON files.
 
-func LoadGooglePhotosAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetCollection, error) {
+tupe
+
+
+func LoadGooglePhotosAssets(ctx context.Context, []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetCollection, error) {
 	var options = indexerOptions{}
 	options.dateRange.Set("")
 
