@@ -34,8 +34,8 @@ func ExtractDateTaken(fsys fs.FS, filePath string) (time.Time, error) {
 }
 
 type DateRange struct {
-	After, Before    time.Time
-	day, month, year bool
+	After, Before         time.Time
+	day, month, year, set bool
 }
 
 func (dr DateRange) String() string {
@@ -50,7 +50,7 @@ func (dr DateRange) String() string {
 }
 
 func (dr *DateRange) Set(s string) (err error) {
-
+	dr.set = true
 	switch len(s) {
 	case 0:
 		dr.Before = time.Date(999, 12, 31, 0, 0, 0, 0, time.UTC)
@@ -85,10 +85,11 @@ func (dr *DateRange) Set(s string) (err error) {
 			}
 		}
 	}
+	dr.set = false
 	return fmt.Errorf("invalid date range:%w", err)
 }
 
 func (dr DateRange) InRange(d time.Time) bool {
 	//	--------------After----------d------------Before
-	return d.Compare(dr.After) >= 0 && dr.Before.Compare(d) > 0
+	return !dr.set || (d.Compare(dr.After) >= 0 && dr.Before.Compare(d) > 0)
 }

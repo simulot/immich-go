@@ -2,8 +2,6 @@ package immich
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io/fs"
 	"path"
 	"regexp"
@@ -13,8 +11,22 @@ import (
 	"time"
 )
 
-// LoadGooglePhotosAssets
-func LoadGooglePhotosAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetIndex, error) {
+// LoadGooglePhotosAssets collects and filters assets from multiple file systems (fs.FS) to create a LocalAssetCollection.
+// The function scans all given file systems and processes JSON metadata files to extract relevant assets.
+// Assets are filtered based on optional IndexerOptionsFn provided as variadic arguments.
+//
+// Parameters:
+//   fss ([]fs.FS): A slice of file systems containing Google Photos takeout archives.
+//   opts (...IndexerOptionsFn): Optional IndexerOptionsFn functions to apply specific filtering criteria.
+//
+// Returns:
+//   *LocalAssetCollection: A pointer to the LocalAssetCollection containing the selected assets.
+//   error: An error, if encountered during the scanning, reading, or processing of the archives.
+//
+// Note:
+//   - The provided file systems (fss) should contain Google Photos takeout archives with metadata JSON files.
+
+func LoadGooglePhotosAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetCollection, error) {
 	var options = indexerOptions{}
 	options.dateRange.Set("")
 
@@ -61,7 +73,7 @@ func LoadGooglePhotosAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetI
 		return jsons[i].name < jsons[j].name
 	})
 
-	localAssets := &LocalAssetIndex{
+	localAssets := &LocalAssetCollection{
 		fss:        fss,
 		assets:     []*LocalAsset{},
 		bAssetID:   map[string]*LocalAsset{},
@@ -130,25 +142,23 @@ func LoadGooglePhotosAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetI
 
 var gp = regexp.MustCompile(`Photos from \d{4}`)
 
-type gpTimeStamp uint64
-
-func (t gpTimeStamp) Time() time.Time {
-	return time.Unix(int64(t), 0)
-}
-
-func (t *gpTimeStamp) UnmarshalJSON(b []byte) error {
-	var i int64
-	if len(b) < 2 {
-		return errors.New("invalid timestamp")
-	}
-	b = b[1 : len(b)-1]
-	err := json.Unmarshal(b, &i)
-	if err != nil {
-		return fmt.Errorf("can't marshal timestamp: %w", err)
-	}
-	(*t) = gpTimeStamp(i)
-	return nil
-}
+// readJSON reads a JSON file from the provided file system (fs.FS) with the given name and unmarshals it into the provided type T.
+//
+// Parameters:
+//   FSys (fs.FS): The file system to read the JSON file from.
+//   name (string): The name or path of the JSON file to be read.
+//
+// Type Parameters:
+//   T: The type into which the JSON data will be unmarshaled. It should be a pointer to the target object.
+//
+// Returns:
+//   *T: A pointer to the object of type T with the unmarshaled JSON data.
+//   error: An error, if any, encountered during the read or unmarshal process.
+//
+// Note:
+//   - Ensure that the file system (FSys) contains the JSON file at the specified name or path.
+//   - The provided type T should be a pointer to the object that matches the structure of the JSON data.
+//   - Any existing data in the object will be overwritten during unmarshaling.
 
 func readJSON[T any](FSys fs.FS, name string) (*T, error) {
 	var object T
@@ -227,24 +237,3 @@ func (t *googTimeObject) UnmarshalJSON(data []byte) error {
 
 	return err
 }
-
-// type googleMetaData struct {
-// 	Title        string `json:"title"`
-// 	CreationTime struct {
-// 		Timestamp gpTimeStamp `json:"timestamp"`
-// 	} `json:"creationTime"`
-// 	PhotoTakenTime struct {
-// 		Timestamp gpTimeStamp `json:"timestamp"`
-// 	} `json:"photoTakenTime"`
-// 	GooglePhotosOrigin struct {
-// 		MobileUpload *struct {
-// 			DeviceType string `json:"deviceType"`
-// 		} `json:"mobileUpload"`
-// 		FromPartnerSharing *struct {
-// 		} `json:"fromPartnerSharing"`
-// 	} `json:"googlePhotosOrigin,omitempty"`
-// 	Trashed  bool   `json:"trashed,omitempty"`
-// 	Archived bool   `json:"archived,omitempty"`
-// 	URL      string `json:"url,omitempty"`
-// 	name     string
-// }

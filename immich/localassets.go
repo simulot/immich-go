@@ -1,11 +1,7 @@
 package immich
 
 import (
-	"bytes"
-	"crypto/sha1"
-	"encoding/base64"
 	"errors"
-	"io"
 	"io/fs"
 	"path"
 	"path/filepath"
@@ -19,85 +15,42 @@ type Closer interface {
 	Close() error
 }
 
-// LocalAsset represent an asset
+// LocalAsset represent an asset to upload.
+// It could represent a file on the local file system, or another source like a Google takeout archive
+
 type LocalAsset struct {
-	Fsys      fs.FS
-	ID        string
-	Name      string
-	FileSize  int
-	ModTime   time.Time
-	DateTaken time.Time
-	Mime      string
-	Ext       string
-	Albums    []string
-	Archived  bool
+	Fsys      fs.FS     // The system when the file reside
+	ID        string    // The ID of the asset, used for duplicate detection
+	Name      string    // File base name
+	FileSize  int       // size in bytes, part of the ID
+	ModTime   time.Time // file time, not used
+	DateTaken time.Time // date of capture, used for filtering
+	Mime      string    // mime type of the file
+	Ext       string    // file name's extension
+	Albums    []string  // List of albums
+	Archived  bool      // Archived flag coming from Google takeout
 	// XMP      string
-	Hash string
+	// Hash string
 }
 
-/*
-	func (la *LocalAsset) OpenFile() (fs.File, error) {
-		f, err := la.Fsys.Open(la.Name)
-		if err != nil {
-			return nil, err
-		}
-		return &localAssetFile{
-			f: f,
-		}, nil
-	}
+// LocalAssetIndex is the collection of local assets
+// It allows efficient search by ID, Album
 
-	type localAssetFile struct {
-		f         fs.File
-		preloaded []byte
-		pos       int
-	}
-
-	func (f *localAssetFile) PreLoad(length int) ([]byte, error) {
-		if len(f.preloaded) <= length {
-			b := make([]byte, 0, length-len(f.preloaded))
-			_, err := f.f.Read(b)
-			if err != nil {
-				return nil, err
-			}
-			f.preloaded = append(f.preloaded, b...)
-		}
-		return f.preloaded[:length], nil
-	}
-
-	func (f *localAssetFile) Close() error {
-		return f.f.Close()
-	}
-
-	func (f *localAssetFile) Stat() (fs.FileInfo, error) {
-		return f.f.Stat()
-	}
-
-	func (f *localAssetFile) Read(b []byte) (int, error) {
-		if f.pos < len(f.preloaded) {
-			n := copy(b, f.preloaded[f.pos:])
-			f.pos += n
-			return n, nil
-		}
-		r, err := f.f.Read(b)
-		f.pos += r
-		return r, err
-	}
-*/
-
-type LocalAssetIndex struct {
-	totalAssets int
-	fss         []fs.FS
-	assets      []*LocalAsset
-	bAssetID    map[string]*LocalAsset
-	byAlbums    map[string][]*LocalAsset
-	extensions  map[string]int
+type LocalAssetCollection struct {
+	fss        []fs.FS                  // list of FS to browse (coming from  command line options)
+	assets     []*LocalAsset            // All assets
+	bAssetID   map[string]*LocalAsset   // ID, should be unique for the session
+	byAlbums   map[string][]*LocalAsset // collect assets that belong to each albums
+	extensions map[string]int
 }
 
-func (lai LocalAssetIndex) Len() int {
+// Number of indexed assets
+func (lai LocalAssetCollection) Len() int {
 	return len(lai.assets)
 }
 
-func (lai *LocalAssetIndex) Close() error {
+// Close opened file systems, like zip archives
+func (lai *LocalAssetCollection) Close() error {
 	var err error
 	for _, fsys := range lai.fss {
 		if fsys, ok := fsys.(Closer); ok {
@@ -107,30 +60,25 @@ func (lai *LocalAssetIndex) Close() error {
 	return err
 }
 
+// IndexerOptionsFn is a function to change Indexer parameters
 type IndexerOptionsFn func(*indexerOptions)
+
+// Indexer options
 type indexerOptions struct {
-	dateRange    DateRange
-	createAlbums bool
-	albums       map[string]any
+	dateRange    DateRange // Accepted range of capture date
+	createAlbums bool      // CLI flag fore album creation
 }
 
+// Set the OptionRange
 func OptionRange(r DateRange) func(o *indexerOptions) {
 	return func(o *indexerOptions) {
 		o.dateRange = r
 	}
 }
-func OptionCreateAlbum(album string) func(o *indexerOptions) {
-	return func(o *indexerOptions) {
-		if o.albums == nil {
-			o.albums = map[string]any{}
-		}
-		o.albums[album] = nil
-		o.createAlbums = true
-	}
-}
 
-func (lai *LocalAssetIndex) List() []*LocalAsset { return lai.assets }
+func (lai *LocalAssetCollection) List() []*LocalAsset { return lai.assets }
 
+/*
 func NewLocalAsset(fsys fs.FS, name string) (*LocalAsset, error) {
 	f, err := fsys.Open(name)
 	if err != nil {
@@ -172,8 +120,9 @@ func NewLocalAsset(fsys fs.FS, name string) (*LocalAsset, error) {
 	asset.ID = filepath.Base(name) + "-" + asset.Hash
 	return &asset, nil
 }
+*/
 
-func LoadLocalAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetIndex, error) {
+func LoadLocalAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetCollection, error) {
 	var options = indexerOptions{}
 	options.dateRange.Set("")
 
@@ -181,7 +130,7 @@ func LoadLocalAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetIndex, e
 		f(&options)
 	}
 
-	localAssets := &LocalAssetIndex{
+	localAssets := &LocalAssetCollection{
 		fss:        fss,
 		assets:     []*LocalAsset{},
 		bAssetID:   map[string]*LocalAsset{},

@@ -56,7 +56,7 @@ func (app *Application) Run() error {
 	}
 	app.Logger.Println(chalk.Green, app.AssetIndex.Len(), "assets on the server", chalk.ResetColor)
 
-	var LocalAssetIndex *immich.LocalAssetIndex
+	var LocalAssetIndex *immich.LocalAssetCollection
 	switch {
 	case app.GooglePhotos:
 		app.Logger.Println(chalk.Green, "Scanning google take out archive...", chalk.ResetColor)
@@ -154,20 +154,20 @@ func (app *Application) DeleteAssets(ids []string) {
 
 }
 
-func (a *Application) ReadGoogleTakeOut() (*immich.LocalAssetIndex, error) {
+func (a *Application) ReadGoogleTakeOut() (*immich.LocalAssetCollection, error) {
 	fss, err := a.listFS()
 	if err != nil {
 		return nil, err
 	}
-	return immich.LoadGooglePhotosAssets(fss, immich.OptionRange(a.DateRange), immich.OptionCreateAlbum(a.Album))
+	return immich.LoadGooglePhotosAssets(fss, immich.OptionRange(a.DateRange))
 }
 
-func (a *Application) ExploreLocalFolder() (*immich.LocalAssetIndex, error) {
+func (a *Application) ExploreLocalFolder() (*immich.LocalAssetCollection, error) {
 	fss, err := a.listFS()
 	if err != nil {
 		return nil, err
 	}
-	return immich.LoadLocalAssets(fss, immich.OptionRange(a.DateRange), immich.OptionCreateAlbum(a.Album))
+	return immich.LoadLocalAssets(fss, immich.OptionRange(a.DateRange))
 }
 
 func (a *Application) listFS() ([]fs.FS, error) {

@@ -7,6 +7,11 @@ import (
 	"os"
 )
 
+/*
+  To inspect requests or response request, add setTraceJSONRequest or setTraceJSONResponse to the request options
+
+*/
+
 type smartBodyCloser struct {
 	r    io.Reader
 	body io.ReadCloser
