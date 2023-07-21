@@ -167,7 +167,7 @@ func LoadLocalAssets(fss []fs.FS, opts ...IndexerOptionsFn) (*LocalAssetCollecti
 						// a new one
 						dateTaken, err := ExtractDateTaken(fsys, name)
 						if err != nil {
-							return err
+							// return err
 						}
 
 						if options.dateRange.InRange(dateTaken) {
