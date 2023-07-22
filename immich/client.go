@@ -2,7 +2,6 @@ package immich
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 )
@@ -20,7 +19,6 @@ type ImmichClient struct {
 	DeviceUUID   string        // Device
 	Retries      int           // Number of attempts on 500 errors
 	RetriesDelay time.Duration // Duration between retries
-	logger       log.Logger    // Logger from the caller
 }
 
 // Create a new ImmichClient

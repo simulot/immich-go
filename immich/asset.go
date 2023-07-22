@@ -3,12 +3,13 @@ package immich
 import (
 	"bytes"
 	"fmt"
+	"immich-go/immich/assets"
 	"io"
-	"io/fs"
 	"math"
 	"mime/multipart"
 	"net/textproto"
 	"net/url"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -78,19 +79,19 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
-func (ic *ImmichClient) AssetUpload(fsys fs.FS, file string) (AssetResponse, error) {
+func (ic *ImmichClient) AssetUpload(la *assets.LocalAssetFile) (AssetResponse, error) {
 	var ar AssetResponse
 
 	// Check the mime type with the first 4k of the file
 	b4k := bytes.NewBuffer(nil)
-	f, err := fsys.Open(file)
+	f, err := la.Open()
 	if err != nil {
-		return ar, LocalFileError(err)
+		return ar, (err)
 	}
 
-	_, err = io.CopyN(b4k, f, 4096)
+	_, err = io.CopyN(b4k, f, 16*1024)
 	if err != nil && err != io.EOF {
-		return ar, LocalFileError(err)
+		return ar, (err)
 	}
 
 	mtype, err := GetMimeType(b4k.Bytes())
@@ -103,7 +104,7 @@ func (ic *ImmichClient) AssetUpload(fsys fs.FS, file string) (AssetResponse, err
 
 	go func() {
 		defer func() {
-			f.Close()
+			// f.Close()
 			m.Close()
 			pw.Close()
 		}()
@@ -113,19 +114,19 @@ func (ic *ImmichClient) AssetUpload(fsys fs.FS, file string) (AssetResponse, err
 		}
 		assetType := strings.ToUpper(strings.Split(mtype, "/")[0])
 
-		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", filepath.Base(file), s.Size()))
+		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.FileName), s.Size()))
 		m.WriteField("deviceId", ic.DeviceUUID)
 		m.WriteField("assetType", assetType)
 		m.WriteField("fileCreatedAt", s.ModTime().Format(time.RFC3339))
 		m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
 		m.WriteField("isFavorite", "false")
-		m.WriteField("fileExtension", filepath.Ext(file))
+		m.WriteField("fileExtension", path.Ext(la.FileName))
 		m.WriteField("duration", formatDuration(0))
 		m.WriteField("isReadOnly", "false")
 		h := textproto.MIMEHeader{}
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-				escapeQuotes("assetData"), escapeQuotes(filepath.Base(file))))
+				escapeQuotes("assetData"), escapeQuotes(path.Base(la.FileName))))
 		h.Set("Content-Type", mtype)
 
 		part, err := m.CreatePart(h)
@@ -142,6 +143,7 @@ func (ic *ImmichClient) AssetUpload(fsys fs.FS, file string) (AssetResponse, err
 		do(post("/asset/upload", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
 	return ar, err
+
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
@@ -211,6 +213,18 @@ func (ai *AssetIndex) Len() int {
 	return len(ai.assets)
 }
 
+func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile) {
+	sa := &Asset{
+		ID:               fmt.Sprintf("%s-%s", path.Base(la.FileName), la.Size()),
+		OriginalFileName: path.Base(la.FileName),
+	}
+	ai.assets = append(ai.assets, sa)
+	ai.byID[sa.ID] = sa
+	l := ai.byName[sa.OriginalFileName]
+	l = append(l, sa)
+	ai.byName[sa.OriginalFileName] = l
+}
+
 type deleteResponse []struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
@@ -266,6 +280,7 @@ type Advice struct {
 	Advice      AdviceCode
 	Message     string
 	ServerAsset *Asset
+	LocalAsset  *assets.LocalAssetFile
 }
 
 func formatBytes(s int) string {
@@ -282,6 +297,14 @@ func formatBytes(s int) string {
 	}
 	roundedSize := math.Round(bytes*10) / 10
 	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
+}
+
+func adviceIDontKnow(la *assets.LocalAssetFile) *Advice {
+	return &Advice{
+		Advice:     IDontKnow,
+		Message:    fmt.Sprintf("Can't decide what to do with %q. Check this vile yourself", la.FileName),
+		LocalAsset: la,
+	}
 }
 
 func adviceSameOnServer(sa *Asset) *Advice {
@@ -320,9 +343,11 @@ func adviceNotOnServer(sa *Asset) *Advice {
 //
 //
 
-func (ai *AssetIndex) ShouldUpload(la *LocalAsset) (*Advice, error) {
+func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 
-	sa := ai.byID[la.ID]
+	ID := fmt.Sprintf("%s-%d", path.Base(la.FileName), la.Size())
+
+	sa := ai.byID[ID]
 	if sa != nil {
 		// the same ID exist on the server
 		return adviceSameOnServer(sa), nil
@@ -334,7 +359,7 @@ func (ai *AssetIndex) ShouldUpload(la *LocalAsset) (*Advice, error) {
 	// check all files with the same name
 
 	// n = strings.TrimSuffix(path.Base(la.Name), path.Ext(la.Name))
-	n = filepath.Base(la.Name)
+	n = filepath.Base(path.Base(la.FileName))
 	l = ai.byName[n]
 	if len(l) == 0 {
 		n = strings.TrimSuffix(n, filepath.Ext(n))
@@ -342,9 +367,15 @@ func (ai *AssetIndex) ShouldUpload(la *LocalAsset) (*Advice, error) {
 	}
 
 	if len(l) > 0 {
+		dateTaken, err := la.DateTaken()
+		size := int(la.Size())
+		if err != nil {
+			return adviceIDontKnow(la), nil
+
+		}
 		for _, sa = range l {
-			compareDate := la.DateTaken.Compare(sa.ExifInfo.DateTimeOriginal)
-			compareSize := la.FileSize - sa.ExifInfo.FileSizeInByte
+			compareDate := dateTaken.Compare(sa.ExifInfo.DateTimeOriginal)
+			compareSize := size - sa.ExifInfo.FileSizeInByte
 
 			switch {
 			case compareDate == 0 && compareSize == 0:

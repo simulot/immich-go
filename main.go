@@ -2,11 +2,13 @@ package main
 
 import (
 	"archive/zip"
-	"errors"
+	"context"
 	"fmt"
 	"immich-go/immich"
+	"immich-go/immich/assets"
 	"io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -17,21 +19,38 @@ import (
 var stripSpaces = regexp.MustCompile(`\s+`)
 
 func main() {
-	app, err := Start()
+	app, err := Initialize()
 	if err != nil {
 		os.Exit(1)
 	}
 
-	err = app.Run()
+	// Create a context with cancel function to gracefully handle Ctrl+C events
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Handle Ctrl+C signal (SIGINT)
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, os.Interrupt)
+
+	go func() {
+		<-signalChannel
+		fmt.Println("\nCtrl+C received. Gracefully shutting down...")
+		cancel() // Cancel the context when Ctrl+C is received
+	}()
+
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	default:
+		err = app.Run(ctx)
+	}
 	if err != nil {
 		app.Logger.Print(chalk.Red, err.Error(), chalk.ResetColor)
 		os.Exit(1)
 	}
 }
 
-func (app *Application) Run() error {
+func (app *Application) Run(ctx context.Context) error {
 	var err error
-
 	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID)
 	if err != nil {
 		return err
@@ -54,123 +73,134 @@ func (app *Application) Run() error {
 	if err != nil {
 		return err
 	}
-	app.Logger.Println(chalk.Green, app.AssetIndex.Len(), "assets on the server", chalk.ResetColor)
+	app.Logger.Println(chalk.Green, app.AssetIndex.Len(), "assets on the server.", chalk.ResetColor)
 
-	var LocalAssetIndex *immich.LocalAssetCollection
-	switch {
-	case app.GooglePhotos:
-		app.Logger.Println(chalk.Green, "Scanning google take out archive...", chalk.ResetColor)
-		LocalAssetIndex, err = app.ReadGoogleTakeOut()
-	default:
-		LocalAssetIndex, err = app.ExploreLocalFolder()
-	}
+	fsys, err := app.OpenFSs()
 	if err != nil {
 		return err
 	}
 
-	defer LocalAssetIndex.Close()
-	if LocalAssetIndex.Len() == 0 {
-		app.Logger.Println(chalk.Yellow, "No local assets found, exiting.", chalk.ResetColor)
-		return nil
+	var assetChan chan *assets.LocalAssetFile
+
+	switch {
+	case app.GooglePhotos:
+		app.Logger.Println(chalk.Green, "Browswing google take out archive...", chalk.ResetColor)
+		assetChan, err = app.ReadGoogleTakeOut(ctx, fsys)
+	default:
+		app.Logger.Println(chalk.Green, "Browswing folder(s)...", chalk.ResetColor)
+		assetChan, err = app.ExploreLocalFolder(ctx, fsys)
 	}
 
-	app.Logger.Println(chalk.Green, "Local scan completed, found", LocalAssetIndex.Len(), "assets.", chalk.ResetColor)
+assetLoop:
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
 
-	if !app.Yes {
-		var s string
-		fmt.Print("Do you want to start upload now? (y/n) ")
-		fmt.Fscanf(os.Stdin, "%s", &s)
-		if strings.ToUpper(s) != "Y" {
-			return errors.New("Abort Upload Process")
+		case a, ok := <-assetChan:
+			if !ok {
+				break assetLoop
+			}
+			err = app.handleAsset(a)
+			if err != nil {
+				return err
+			}
+
 		}
 	}
 
-	for _, a := range LocalAssetIndex.List() {
-		advice, _ := app.AssetIndex.ShouldUpload(a)
-		app.Logger.Println(a.Name, advice.Message)
-		switch advice.Advice {
-		case immich.NotOnServer:
-			app.UploadAsset(a)
-		case immich.SmallerOnServer:
-			app.UploadAsset(a)
-			app.DeleteList = append(app.DeleteList, advice.ServerAsset)
-		}
-
-		// if app.OnLineAssets.Includes(a.ID) {
-		// 	app.Logger.Println(chalk.Yellow, filepath.Base(a.Name), "is already uploaded", chalk.ResetColor)
-		// 	continue
-		// }
-	}
-
-	if len(app.DeleteList) > 0 {
+	if len(app.deleteServerList) > 0 {
 		ids := []string{}
-		for _, da := range app.DeleteList {
+		for _, da := range app.deleteServerList {
 			ids = append(ids, da.ID)
 		}
-		app.DeleteAssets(ids)
+		err := app.DeleteServerAssets(ids)
+		if err != nil {
+			return fmt.Errorf("Can't delete server's assets: %w", err)
+		}
+	}
+
+	if len(app.deleteLocalList) > 0 {
+		err = app.DeleteLocalAssets()
 	}
 	return err
 }
 
-func (app *Application) UploadAsset(a *immich.LocalAsset) {
-	resp, err := app.Immich.AssetUpload(a.Fsys, a.Name)
+func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
+	defer a.Close()
 
-	if err != nil {
-		app.Logger.Println(chalk.Yellow, "Can't upload file:", a.Name, err, chalk.ResetColor)
-		// if errors.Is(err, immich.LocalFileError(nil)) || errors.Is(err, &immich.UnsupportedMedia{}) {
-		// } else if errors.Is(err, &immich.TooManyInternalError{}) {
-		// 	close(app.tooManyServerErrors)
-		// } else {
-		// 	app.Logger.Println(chalk.Red, "Can't upload file:", a.Name)
-		// 	app.Logger.Println(chalk.Red, err, chalk.ResetColor)
-		// }
-		return
+	if !app.KeepPartner && a.FromPartner {
+		return nil
 	}
 
+	if !app.KeepTrashed && a.Trashed {
+		return nil
+	}
+
+	if len(app.ImportFromAlbum) > 0 && a.Album != app.ImportFromAlbum {
+		return nil
+	}
+
+	if app.DateRange.IsSet() {
+		d, err := a.DateTaken()
+		if err != nil {
+			app.Logger.Println(chalk.Yellow, "Can't get capture date of the file. File skiped", a.FileName, err, chalk.ResetColor)
+			return nil
+		}
+		if !app.DateRange.InRange(d) {
+			return nil
+		}
+	}
+
+	advice, _ := app.AssetIndex.ShouldUpload(a)
+	switch advice.Advice {
+	case immich.NotOnServer:
+		app.Logger.Println(chalk.Green, a.FileName, advice.Message, chalk.ResetColor)
+		app.UploadAsset(a)
+		if app.Delete {
+			app.deleteLocalList = append(app.deleteLocalList, a)
+		}
+	case immich.SmallerOnServer:
+		app.Logger.Println(chalk.Green, a.FileName, advice.Message, chalk.ResetColor)
+		app.UploadAsset(a)
+		app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
+		if app.Delete {
+			app.deleteLocalList = append(app.deleteLocalList, a)
+		}
+	case immich.SameOnServer:
+		app.Logger.Println(chalk.Blue, a.FileName, advice.Message, chalk.ResetColor)
+		if app.Delete {
+			app.deleteLocalList = append(app.deleteLocalList, a)
+		}
+	default:
+		app.Logger.Println(chalk.Blue, a.FileName, advice.Message, chalk.ResetColor)
+
+	}
+	return nil
+}
+
+func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
+	_, err := app.Immich.AssetUpload(a)
+
+	if err != nil {
+		app.Logger.Println(chalk.Yellow, "Can't upload file:", a.FileName, err, chalk.ResetColor)
+		return
+	}
+	app.AssetIndex.AddLocalAsset(a)
 	app.mediaCount.Add(1)
-	app.Logger.Println(chalk.Green, filepath.Base(a.Name), "uploaded.", app.mediaCount.Load(), chalk.ResetColor)
-	_ = resp
-	if app.Delete {
-		// TODO
-	}
+	app.Logger.Println(chalk.Green, filepath.Base(a.FileName), "uploaded.", app.mediaCount.Load(), chalk.ResetColor)
 }
 
-func (app *Application) DeleteAssets(ids []string) {
-	app.Logger.Println(chalk.Yellow, len(ids), "asset to delete.", chalk.ResetColor)
-
-	_, err := app.Immich.DeleteAsset(ids)
-
-	if err != nil {
-		app.Logger.Println(chalk.Yellow, "Can't delete assets", err, chalk.ResetColor)
-		// if errors.Is(err, immich.LocalFileError(nil)) || errors.Is(err, &immich.UnsupportedMedia{}) {
-		// } else if errors.Is(err, &immich.TooManyInternalError{}) {
-		// 	close(app.tooManyServerErrors)
-		// } else {
-		// 	app.Logger.Println(chalk.Red, "Can't upload file:", a.Name)
-		// 	app.Logger.Println(chalk.Red, err, chalk.ResetColor)
-		// }
-		return
-	}
-
+func (a *Application) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (chan *assets.LocalAssetFile, error) {
+	a.Delete = false
+	return assets.BrowseGooglePhotos(ctx, fsys), nil
 }
 
-func (a *Application) ReadGoogleTakeOut() (*immich.LocalAssetCollection, error) {
-	fss, err := a.listFS()
-	if err != nil {
-		return nil, err
-	}
-	return immich.LoadGooglePhotosAssets(fss, immich.OptionRange(a.DateRange))
+func (a *Application) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (chan *assets.LocalAssetFile, error) {
+	return assets.BrowseLocalAssets(ctx, fsys), nil
 }
 
-func (a *Application) ExploreLocalFolder() (*immich.LocalAssetCollection, error) {
-	fss, err := a.listFS()
-	if err != nil {
-		return nil, err
-	}
-	return immich.LoadLocalAssets(fss, immich.OptionRange(a.DateRange))
-}
-
-func (a *Application) listFS() ([]fs.FS, error) {
+func (a *Application) OpenFSs() (fs.FS, error) {
 	fss := []fs.FS{}
 
 	for _, p := range a.Paths {
@@ -187,9 +217,30 @@ func (a *Application) listFS() ([]fs.FS, error) {
 			}
 			fss = append(fss, fsys)
 		default:
-			fsys := os.DirFS(p)
+			fsys := DirRemoveFS(p)
 			fss = append(fss, fsys)
 		}
 	}
-	return fss, nil
+	return assets.NewMergedFS(fss), nil
+}
+
+func (app *Application) DeleteLocalAssets() error {
+	app.Logger.Println(chalk.Yellow, len(app.deleteLocalList), "local assets to delete.", chalk.ResetColor)
+
+	for _, a := range app.deleteLocalList {
+		app.Logger.Println(chalk.Yellow, "delete", a.FileName, chalk.ResetColor)
+		err := a.Remove()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (app *Application) DeleteServerAssets(ids []string) error {
+	app.Logger.Println(chalk.Yellow, len(ids), "server assets to delete.", chalk.ResetColor)
+
+	// _, err := app.Immich.DeleteAsset(ids)
+	return nil
+
 }
