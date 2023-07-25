@@ -57,7 +57,7 @@ func Initialize() (*Application, error) {
 	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)")
 	flag.StringVar(&app.Key, "key", "", "API Key")
 
-	flag.BoolVar(&app.GooglePhotos, "GooglePhotos", false, "Import GooglePhotos takeout zip files")
+	flag.BoolVar(&app.GooglePhotos, "google-photos", false, "Import GooglePhotos takeout zip files")
 	flag.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 	flag.BoolVar(&app.KeepTrashed, "keep-trashed", false, "Import also trashed items")
 	flag.BoolVar(&app.KeepPartner, "keep-partner", true, "Import also partner's items")

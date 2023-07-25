@@ -119,6 +119,7 @@ assetLoop:
 			for _, sal := range serverAlbums {
 				if sal.AlbumName == album {
 					found = true
+					app.Logger.Println(chalk.Green, "Update the album", album, chalk.ResetColor)
 					_, err := app.Immich.UpdateAlbum(sal.ID, list)
 					if err != nil {
 						return fmt.Errorf("can't update the album list from the server: %w", err)
@@ -128,6 +129,7 @@ assetLoop:
 			if found {
 				continue
 			}
+			app.Logger.Println(chalk.Green, "Create the album", album, chalk.ResetColor)
 			_, err := app.Immich.CreateAlbum(album, list)
 			if err != nil {
 				return fmt.Errorf("can't create the album list from the server: %w", err)
@@ -221,6 +223,10 @@ func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
 		l := app.updateAlbums[app.ImportIntoAlbum]
 		l = append(l, resp.ID)
 		app.updateAlbums[app.ImportIntoAlbum] = l
+	case len(app.ImportFromAlbum) > 0:
+		l := app.updateAlbums[app.ImportFromAlbum]
+		l = append(l, resp.ID)
+		app.updateAlbums[app.ImportFromAlbum] = l
 	}
 }
 
