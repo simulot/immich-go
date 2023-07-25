@@ -193,12 +193,26 @@ func (l *LocalAssetFile) readHEIFDateTaken() (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	b, err := searchPattern(r, []byte("<xmp:CreateDate>"), 60)
+	r2, err := seekReaderAtPattern(r, []byte{0x45, 0x78, 0x69, 0x66, 0, 0, 0x4d, 0x4d})
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	return TakeTimeFromName(string(b)), nil
+	filler := make([]byte, 6)
+	r2.Read(filler)
+
+	// Decode the EXIF data
+	x, err := exif.Decode(r2)
+	if err != nil && exif.IsCriticalError(err) {
+		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
+	}
+	// Get the date taken from the EXIF data
+	tm, err := x.DateTime()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
+	}
+	t := time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), tm.Nanosecond(), time.Local)
+	return t, nil
 }
 
 func (l *LocalAssetFile) readMP4DateTaken() (time.Time, error) {
@@ -209,56 +223,15 @@ func (l *LocalAssetFile) readMP4DateTaken() (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	b, err := searchPattern(r, []byte{'m', 'v', 'h', 'd'}, 112)
+	b, err := searchPattern(r, []byte{'m', 'v', 'h', 'd'}, 60)
 	if err != nil {
 		return time.Time{}, err
 	}
-
 	atom, err := decodeMvhdAtom(b)
 	if err != nil {
 		return time.Time{}, err
 	}
 	return atom.CreationTime, nil
-}
-
-func searchPattern(r io.Reader, pattern []byte, maxDataLen int) ([]byte, error) {
-	var err error
-	pos := 0
-
-	// Create a buffer to hold the chunk of data
-	bufferSize := 16 * 1024
-	buffer := make([]byte, bufferSize)
-
-	var bytesRead int
-	var offset int64
-
-	for {
-		// Read a chunk of data into the buffer
-		bytesRead, err = r.Read(buffer)
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-
-		// Search for the pattern within the buffer
-		index := bytes.Index(buffer[:bytesRead], pattern)
-		if index != -1 {
-			return buffer[index : index+maxDataLen], nil
-		}
-
-		// Slide the buffer by the pattern length minus one
-		offset += int64(bytesRead - maxDataLen + 1)
-
-		// Check if end of file is reached
-		if err == io.EOF {
-			break
-		}
-
-		// Move the remaining bytes of the current buffer to the beginning
-		copy(buffer, buffer[bytesRead-maxDataLen-1:])
-		pos += bytesRead
-	}
-
-	return nil, io.EOF
 }
 
 /*
