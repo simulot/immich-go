@@ -159,6 +159,15 @@ func delete(url string, opts ...serverRequestOption) requestFunction {
 	}
 }
 
+func put(url string, opts ...serverRequestOption) requestFunction {
+	return func(sc *serverCall) *http.Request {
+		if sc.err != nil {
+			return nil
+		}
+		return sc.request(http.MethodPut, sc.ic.endPoint+url, opts...)
+	}
+}
+
 func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
 	if sc.err != nil || fnRequest == nil {
 		return sc.Err(nil, nil, nil)

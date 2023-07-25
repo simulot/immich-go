@@ -153,6 +153,7 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
 - [ ] multithreaded 
 - [X] import from local folder
     - [ ] create albums based on folder
+    - [X] create an album with a given name
 - [X] import from zip archives without unzipping them
 - [X] Import Google takeout
     - [X] handle archives without unzipping them
@@ -163,6 +164,11 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
     - [ ] handle Archives, 
     - [ ] handle google albums in immich
     - [ ] option to include photos taken by a partner (the partner may also uses immich for her/his own photos)
+- [X] Take capture time from:
+    - [X] JPEG files
+    - [X] MP4 files
+    - [X] HEIC files
+    - [X] name of the file (fall back)
 - [ ] use tags placed in exif data
 - [ ] upload from remote folders
     - [ ] ssh

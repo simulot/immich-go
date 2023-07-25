@@ -4,16 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"mime/multipart"
 	"sync"
 	"time"
 
 	"github.com/gabriel-vasile/mimetype"
 )
-
-type MultipartWriter interface {
-	WriteMultiPart(w *multipart.Writer) error
-}
 
 type UnsupportedMedia struct {
 	msg string

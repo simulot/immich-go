@@ -23,7 +23,7 @@ type Application struct {
 	Yes                    bool      // Assume Yes to all questions
 	Delete                 bool      // Delete original file after import
 	CreateAlbumAfterFolder bool      // Create albums for assets based on the parent folder or a given name
-	ImportInAlbum          string    // All assets will be added to this album
+	ImportIntoAlbum        string    // All assets will be added to this album
 	Import                 bool      // Import instead of upload
 	DeviceUUID             string    // Set a device UUID
 	Paths                  []string  // Path to explore
@@ -40,7 +40,8 @@ type Application struct {
 	deleteServerList []*immich.Asset          // List of server assets to remove
 	deleteLocalList  []*assets.LocalAssetFile // List of local assets to remove
 	mediaCount       atomic.Int64             // Count uploaded medias
-
+	// serverAlbums     []immich.AlbumSimplified // Server's Albums
+	updateAlbums map[string][]string // Local assets albums
 }
 
 func Initialize() (*Application, error) {
@@ -50,7 +51,8 @@ func Initialize() (*Application, error) {
 	}
 
 	app := Application{
-		Logger: log.New(os.Stdout, "", log.LstdFlags),
+		Logger:       log.New(os.Stdout, "", log.LstdFlags),
+		updateAlbums: map[string][]string{},
 	}
 	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)")
 	flag.StringVar(&app.Key, "key", "", "API Key")
@@ -64,7 +66,7 @@ func Initialize() (*Application, error) {
 	// TODO KeepArchived
 	flag.BoolVar(&app.Yes, "yes", true, "Assume yes on all interactive prompts")
 	flag.BoolVar(&app.CreateAlbumAfterFolder, "create-album-folder", false, "Create albums for assets based on the parent folder or a given name")
-	flag.StringVar(&app.ImportInAlbum, "album", "", "All assets will be added to this album.")
+	flag.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
 	flag.Var(&app.DateRange, "date", "Date of capture range.")
 	flag.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album.")
 

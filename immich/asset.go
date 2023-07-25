@@ -215,7 +215,7 @@ func (ai *AssetIndex) Len() int {
 
 func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile) {
 	sa := &Asset{
-		ID:               fmt.Sprintf("%s-%s", path.Base(la.FileName), la.Size()),
+		ID:               fmt.Sprintf("%s-%d", path.Base(la.FileName), la.Size()),
 		OriginalFileName: path.Base(la.FileName),
 	}
 	ai.assets = append(ai.assets, sa)

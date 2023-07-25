@@ -109,6 +109,32 @@ assetLoop:
 		}
 	}
 
+	if len(app.updateAlbums) > 0 {
+		serverAlbums, err := app.Immich.GetAllAlbums()
+		if err != nil {
+			return fmt.Errorf("can't get the album list from the server: %w", err)
+		}
+		for album, list := range app.updateAlbums {
+			found := false
+			for _, sal := range serverAlbums {
+				if sal.AlbumName == album {
+					found = true
+					_, err := app.Immich.UpdateAlbum(sal.ID, list)
+					if err != nil {
+						return fmt.Errorf("can't update the album list from the server: %w", err)
+					}
+				}
+			}
+			if found {
+				continue
+			}
+			_, err := app.Immich.CreateAlbum(album, list)
+			if err != nil {
+				return fmt.Errorf("can't create the album list from the server: %w", err)
+			}
+		}
+	}
+
 	if len(app.deleteServerList) > 0 {
 		ids := []string{}
 		for _, da := range app.deleteServerList {
@@ -180,7 +206,7 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 }
 
 func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
-	_, err := app.Immich.AssetUpload(a)
+	resp, err := app.Immich.AssetUpload(a)
 
 	if err != nil {
 		app.Logger.Println(chalk.Yellow, "Can't upload file:", a.FileName, err, chalk.ResetColor)
@@ -189,6 +215,13 @@ func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
 	app.AssetIndex.AddLocalAsset(a)
 	app.mediaCount.Add(1)
 	app.Logger.Println(chalk.Green, filepath.Base(a.FileName), "uploaded.", app.mediaCount.Load(), chalk.ResetColor)
+
+	switch {
+	case len(app.ImportIntoAlbum) > 0:
+		l := app.updateAlbums[app.ImportIntoAlbum]
+		l = append(l, resp.ID)
+		app.updateAlbums[app.ImportIntoAlbum] = l
+	}
 }
 
 func (a *Application) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (chan *assets.LocalAssetFile, error) {
