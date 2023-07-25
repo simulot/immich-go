@@ -1,7 +1,0 @@
-goos: linux
-goarch: amd64
-pkg: immich-go/immich
-cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
-BenchmarkImmichClient_AssetUpload-12    	     146	   8231767 ns/op	 5343867 B/op	     395 allocs/op
-PASS
-ok  	immich-go/immich	5.879s
