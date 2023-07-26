@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"immich-go/immich"
 	"immich-go/immich/assets"
+	"immich-go/immich/logger"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -29,17 +28,19 @@ type Application struct {
 	Paths                  []string  // Path to explore
 	DateRange              DateRange // Set capture date range
 	ImportFromAlbum        string    // Import assets from this albums
+	CreateAlbums           bool      // Create albums when exists in the source
 	ReplaceInferiorAsset   bool      // When uploading replace server's inferior assets with the uploaded one
 	KeepTrashed            bool      // Import trashed assets
 	KeepPartner            bool      // Import partner's assets
 
 	OnLineAssets     *immich.StringList       // Keep track on published assets
-	Logger           *log.Logger              // Program's logger
+	Logger           logger.Logger            // Program's logger
 	Immich           *immich.ImmichClient     // Immich client
 	AssetIndex       *immich.AssetIndex       // List of assets present on the server
 	deleteServerList []*immich.Asset          // List of server assets to remove
 	deleteLocalList  []*assets.LocalAssetFile // List of local assets to remove
-	mediaCount       atomic.Int64             // Count uploaded medias
+	mediaUploaded    int                      // Count uploaded medias
+	mediaCount       int
 	// serverAlbums     []immich.AlbumSimplified // Server's Albums
 	updateAlbums map[string][]string // Local assets albums
 }
@@ -51,7 +52,7 @@ func Initialize() (*Application, error) {
 	}
 
 	app := Application{
-		Logger:       log.New(os.Stdout, "", log.LstdFlags),
+		Logger:       logger.Logger{},
 		updateAlbums: map[string][]string{},
 	}
 	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)")
@@ -68,7 +69,8 @@ func Initialize() (*Application, error) {
 	flag.BoolVar(&app.CreateAlbumAfterFolder, "create-album-folder", false, "Create albums for assets based on the parent folder or a given name")
 	flag.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
 	flag.Var(&app.DateRange, "date", "Date of capture range.")
-	flag.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album.")
+	flag.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
+	flag.BoolVar(&app.CreateAlbums, "create-albums", true, "Create albums like there were in the source")
 
 	// flag.BoolVar(&app.Import, "import", false, "Import instead of upload")
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")

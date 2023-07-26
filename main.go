@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"immich-go/immich"
 	"immich-go/immich/assets"
+	"immich-go/immich/logger"
 	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/ttacon/chalk"
 )
 
 var stripSpaces = regexp.MustCompile(`\s+`)
@@ -44,7 +43,7 @@ func main() {
 		err = app.Run(ctx)
 	}
 	if err != nil {
-		app.Logger.Print(chalk.Red, err.Error(), chalk.ResetColor)
+		app.Logger.Message(logger.Error, err.Error())
 		os.Exit(1)
 	}
 }
@@ -60,37 +59,41 @@ func (app *Application) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	app.Logger.Println(chalk.Green, "Server status: OK", chalk.ResetColor)
+	app.Logger.Message(logger.OK, "Server status: OK")
 
 	user, err := app.Immich.ValidateConnection()
 	if err != nil {
 		return err
 	}
-	app.Logger.Println(chalk.Green, "Connected, user:", user.Email, chalk.ResetColor)
-	app.Logger.Println(chalk.Green, "Get server's assets...", chalk.ResetColor)
+	app.Logger.Message(logger.Info, "Connected, user: %s", user.Email)
+	app.Logger.Message(logger.Info, "Get server's assets...")
 
 	app.AssetIndex, err = app.Immich.GetAllAssets(nil)
 	if err != nil {
 		return err
 	}
-	app.Logger.Println(chalk.Green, app.AssetIndex.Len(), "assets on the server.", chalk.ResetColor)
+	app.Logger.Message(logger.OK, "%d assets on the server.", app.AssetIndex.Len())
 
 	fsys, err := app.OpenFSs()
 	if err != nil {
 		return err
 	}
 
-	var assetChan chan *assets.LocalAssetFile
+	var browser assets.Browser
 
 	switch {
 	case app.GooglePhotos:
-		app.Logger.Println(chalk.Green, "Browswing google take out archive...", chalk.ResetColor)
-		assetChan, err = app.ReadGoogleTakeOut(ctx, fsys)
+		app.Logger.Message(logger.Info, "Browswing google take out archive...")
+		browser, err = app.ReadGoogleTakeOut(ctx, fsys)
 	default:
-		app.Logger.Println(chalk.Green, "Browswing folder(s)...", chalk.ResetColor)
-		assetChan, err = app.ExploreLocalFolder(ctx, fsys)
+		app.Logger.Message(logger.Info, "Browswing folder(s)...")
+		browser, err = app.ExploreLocalFolder(ctx, fsys)
 	}
 
+	if err != nil {
+		return err
+	}
+	assetChan := browser.Browse(ctx)
 assetLoop:
 	for {
 		select {
@@ -119,7 +122,7 @@ assetLoop:
 			for _, sal := range serverAlbums {
 				if sal.AlbumName == album {
 					found = true
-					app.Logger.Println(chalk.Green, "Update the album", album, chalk.ResetColor)
+					app.Logger.Message(logger.OK, "Update the album %s", album)
 					_, err := app.Immich.UpdateAlbum(sal.ID, list)
 					if err != nil {
 						return fmt.Errorf("can't update the album list from the server: %w", err)
@@ -129,7 +132,7 @@ assetLoop:
 			if found {
 				continue
 			}
-			app.Logger.Println(chalk.Green, "Create the album", album, chalk.ResetColor)
+			app.Logger.Message(logger.Info, "Create the album %s", album)
 			_, err := app.Immich.CreateAlbum(album, list)
 			if err != nil {
 				return fmt.Errorf("can't create the album list from the server: %w", err)
@@ -155,7 +158,14 @@ assetLoop:
 }
 
 func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
-	defer a.Close()
+	showCount := true
+	defer func() {
+		a.Close()
+		if showCount {
+			app.Logger.Progress("%d media scanned", app.mediaCount)
+		}
+	}()
+	app.mediaCount++
 
 	if !app.KeepPartner && a.FromPartner {
 		return nil
@@ -172,7 +182,7 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 	if app.DateRange.IsSet() {
 		d, err := a.DateTaken()
 		if err != nil {
-			app.Logger.Println(chalk.Yellow, "Can't get capture date of the file. File skiped", a.FileName, err, chalk.ResetColor)
+			app.Logger.Message(logger.Error, "Can't get capture date of the file. File %q skiped", a.FileName)
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
@@ -183,27 +193,25 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 	advice, _ := app.AssetIndex.ShouldUpload(a)
 	switch advice.Advice {
 	case immich.NotOnServer:
-		app.Logger.Println(chalk.Green, a.FileName, advice.Message, chalk.ResetColor)
+		app.Logger.Message(logger.OK, "%s: %s", a.Title, advice.Message)
 		app.UploadAsset(a)
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case immich.SmallerOnServer:
-		app.Logger.Println(chalk.Green, a.FileName, advice.Message, chalk.ResetColor)
+		app.Logger.Message(logger.OK, "%s: %s", a.Title, advice.Message)
 		app.UploadAsset(a)
 		app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case immich.SameOnServer:
-		app.Logger.Println(chalk.Blue, a.FileName, advice.Message, chalk.ResetColor)
+		app.Logger.Message(logger.OK, "%s: %s", a.Title, advice.Message)
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
-	default:
-		app.Logger.Println(chalk.Blue, a.FileName, advice.Message, chalk.ResetColor)
-
 	}
+	showCount = false
 	return nil
 }
 
@@ -211,12 +219,12 @@ func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
 	resp, err := app.Immich.AssetUpload(a)
 
 	if err != nil {
-		app.Logger.Println(chalk.Yellow, "Can't upload file:", a.FileName, err, chalk.ResetColor)
+		app.Logger.Message(logger.Error, "Can't upload file: %q, %s", a.FileName, err)
 		return
 	}
 	app.AssetIndex.AddLocalAsset(a)
-	app.mediaCount.Add(1)
-	app.Logger.Println(chalk.Green, filepath.Base(a.FileName), "uploaded.", app.mediaCount.Load(), chalk.ResetColor)
+	app.mediaUploaded += 1
+	app.Logger.Message(logger.OK, "%q uploaded, %d uploaded", a.Title, app.mediaUploaded)
 
 	switch {
 	case len(app.ImportIntoAlbum) > 0:
@@ -224,19 +232,23 @@ func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
 		l = append(l, resp.ID)
 		app.updateAlbums[app.ImportIntoAlbum] = l
 	case len(app.ImportFromAlbum) > 0:
-		l := app.updateAlbums[app.ImportFromAlbum]
+		l := app.updateAlbums[a.Album]
 		l = append(l, resp.ID)
-		app.updateAlbums[app.ImportFromAlbum] = l
+		app.updateAlbums[a.Album] = l
+	case app.CreateAlbums && len(a.Album) > 0:
+		l := app.updateAlbums[a.Album]
+		l = append(l, resp.ID)
+		app.updateAlbums[a.Album] = l
 	}
 }
 
-func (a *Application) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (chan *assets.LocalAssetFile, error) {
+func (a *Application) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
 	a.Delete = false
-	return assets.BrowseGooglePhotos(ctx, fsys), nil
+	return assets.BrowseGooglePhotosAssets(fsys), nil
 }
 
-func (a *Application) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (chan *assets.LocalAssetFile, error) {
-	return assets.BrowseLocalAssets(ctx, fsys), nil
+func (a *Application) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
+	return assets.BrowseLocalAssets(fsys), nil
 }
 
 func (a *Application) OpenFSs() (fs.FS, error) {
@@ -264,10 +276,10 @@ func (a *Application) OpenFSs() (fs.FS, error) {
 }
 
 func (app *Application) DeleteLocalAssets() error {
-	app.Logger.Println(chalk.Yellow, len(app.deleteLocalList), "local assets to delete.", chalk.ResetColor)
+	app.Logger.Message(logger.OK, "%d local assets to delete.", len(app.deleteLocalList))
 
 	for _, a := range app.deleteLocalList {
-		app.Logger.Println(chalk.Yellow, "delete", a.FileName, chalk.ResetColor)
+		app.Logger.Message(logger.Warning, "delete file %q", a.Title)
 		err := a.Remove()
 		if err != nil {
 			return err
@@ -277,9 +289,9 @@ func (app *Application) DeleteLocalAssets() error {
 }
 
 func (app *Application) DeleteServerAssets(ids []string) error {
-	app.Logger.Println(chalk.Yellow, len(ids), "server assets to delete.", chalk.ResetColor)
+	app.Logger.Message(logger.Warning, "%d server assets to delete.", len(ids))
 
-	// _, err := app.Immich.DeleteAsset(ids)
-	return nil
+	_, err := app.Immich.DeleteAsset(ids)
+	return err
 
 }

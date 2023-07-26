@@ -13,12 +13,12 @@ import (
 // The location is set to time.UTC for consistency.
 // Return the value time.Time{} when there isn't any date in the name, or if the date is invalid like 2023-02-30 20:65:00
 
-var guessTimePattern = regexp.MustCompile(`(\d{4})\D?(\d\d)\D?(\d\d)\D?(\d\d)\D?(\d\d)\D?(\d\d)`)
+var guessTimePattern = regexp.MustCompile(`(\d{4})\D?(\d\d)\D?(\d\d)\D?(\d\d)?\D?(\d\d)?\D?(\d\d)?`)
 
 func TakeTimeFromName(name string) time.Time {
 	mm := guessTimePattern.FindStringSubmatch(name)
 	m := [7]int{}
-	if len(mm) == 7 {
+	if len(mm) >= 4 {
 		for i := range mm {
 			if i > 0 {
 				m[i-1], _ = strconv.Atoi(mm[i])

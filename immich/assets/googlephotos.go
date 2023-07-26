@@ -11,10 +11,20 @@ import (
 	"time"
 )
 
+type GooglePhotosAssetBrowser struct {
+	fs.FS
+}
+
+func BrowseGooglePhotosAssets(fsys fs.FS) *GooglePhotosAssetBrowser {
+	return &GooglePhotosAssetBrowser{
+		FS: fsys,
+	}
+}
+
 // browseGooglePhotos collects and filters assets from a file systems (fs.FS) to create a channel of localFile.
 // The function scans all given file systems and processes JSON metadata files to extract relevant assets.
 
-func BrowseGooglePhotos(ctx context.Context, fsys fs.FS) chan *LocalAssetFile {
+func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 	fileChan := make(chan *LocalAssetFile)
 
 	// Start a goroutine to browse the FS and collect the list of files
@@ -38,16 +48,24 @@ func BrowseGooglePhotos(ctx context.Context, fsys fs.FS) chan *LocalAssetFile {
 				if d.IsDir() {
 					return nil
 				}
-				ext := strings.ToLower(path.Ext(name))
-				if ext != ".json" {
+
+				if strings.ToLower(path.Ext(name)) != ".json" {
 					return nil
 				}
 
 				md, err := readJSON[googleMetaData](fsys, name)
 				if err == nil && md != nil && len(md.URL) > 0 {
+					dir := path.Dir(name)
+					ext := path.Ext(md.Title)
+					base := strings.TrimSuffix(md.Title, ext)
+					if len(base) > 47 {
+						base = base[:47]
+					}
+
 					f := LocalAssetFile{
 						srcFS:       fsys,
-						FileName:    path.Join(path.Dir(name), md.Title),
+						FileName:    path.Join(dir, base+ext),
+						Title:       md.Title,
 						Trashed:     md.Trashed,
 						FromPartner: md.GooglePhotosOrigin.FromPartnerSharing != nil,
 						dateTaken:   md.PhotoTakenTime.Time(),

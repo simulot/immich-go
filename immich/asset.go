@@ -32,31 +32,33 @@ type Asset struct {
 	// IsFavorite     bool      `json:"isFavorite"`
 	// IsArchived     bool      `json:"isArchived"`
 	// Duration       string    `json:"duration"`
-	ExifInfo struct {
-		// 	Make             string    `json:"make"`
-		// 	Model            string    `json:"model"`
-		ExifImageWidth  int `json:"exifImageWidth"`
-		ExifImageHeight int `json:"exifImageHeight"`
-		FileSizeInByte  int `json:"fileSizeInByte"`
-		// 	Orientation      string    `json:"orientation"`
-		DateTimeOriginal time.Time `json:"dateTimeOriginal"`
-		// 	ModifyDate       time.Time `json:"modifyDate"`
-		// 	TimeZone         string    `json:"timeZone"`
-		// 	LensModel        string    `json:"lensModel"`
-		// 	FNumber          float64   `json:"fNumber"`
-		// 	FocalLength      float64   `json:"focalLength"`
-		// 	Iso              int       `json:"iso"`
-		// 	ExposureTime     string    `json:"exposureTime"`
-		// 	Latitude         float64   `json:"latitude"`
-		// 	Longitude        float64   `json:"longitude"`
-		// 	City             string    `json:"city"`
-		// 	State            string    `json:"state"`
-		// 	Country          string    `json:"country"`
-		// 	Description      string    `json:"description"`
-	} `json:"exifInfo"`
+	ExifInfo ExifInfo `json:"exifInfo"`
 	// LivePhotoVideoID any    `json:"livePhotoVideoId"`
 	// Tags             []any  `json:"tags"`
 	Checksum string `json:"checksum"`
+}
+
+type ExifInfo struct {
+	// 	Make             string    `json:"make"`
+	// 	Model            string    `json:"model"`
+	ExifImageWidth  int `json:"exifImageWidth"`
+	ExifImageHeight int `json:"exifImageHeight"`
+	FileSizeInByte  int `json:"fileSizeInByte"`
+	// 	Orientation      string    `json:"orientation"`
+	DateTimeOriginal time.Time `json:"dateTimeOriginal"`
+	// 	ModifyDate       time.Time `json:"modifyDate"`
+	// 	TimeZone         string    `json:"timeZone"`
+	// 	LensModel        string    `json:"lensModel"`
+	// 	FNumber          float64   `json:"fNumber"`
+	// 	FocalLength      float64   `json:"focalLength"`
+	// 	Iso              int       `json:"iso"`
+	// 	ExposureTime     string    `json:"exposureTime"`
+	// 	Latitude         float64   `json:"latitude"`
+	// 	Longitude        float64   `json:"longitude"`
+	// 	City             string    `json:"city"`
+	// 	State            string    `json:"state"`
+	// 	Country          string    `json:"country"`
+	// 	Description      string    `json:"description"`
 }
 
 type AssetResponse struct {
@@ -114,7 +116,7 @@ func (ic *ImmichClient) AssetUpload(la *assets.LocalAssetFile) (AssetResponse, e
 		}
 		assetType := strings.ToUpper(strings.Split(mtype, "/")[0])
 
-		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.FileName), s.Size()))
+		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
 		m.WriteField("deviceId", ic.DeviceUUID)
 		m.WriteField("assetType", assetType)
 		m.WriteField("fileCreatedAt", s.ModTime().Format(time.RFC3339))
@@ -123,6 +125,7 @@ func (ic *ImmichClient) AssetUpload(la *assets.LocalAssetFile) (AssetResponse, e
 		m.WriteField("fileExtension", path.Ext(la.FileName))
 		m.WriteField("duration", formatDuration(0))
 		m.WriteField("isReadOnly", "false")
+		// m.WriteField("isArchived", myBool(la.Archived).String())
 		h := textproto.MIMEHeader{}
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
@@ -215,8 +218,12 @@ func (ai *AssetIndex) Len() int {
 
 func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile) {
 	sa := &Asset{
-		ID:               fmt.Sprintf("%s-%d", path.Base(la.FileName), la.Size()),
-		OriginalFileName: path.Base(la.FileName),
+		ID:               fmt.Sprintf("%s-%d", path.Base(la.Title), la.Size()),
+		OriginalFileName: path.Base(la.Title),
+		ExifInfo: ExifInfo{
+			FileSizeInByte:   int(la.Size()),
+			DateTimeOriginal: la.DateTakenCached(),
+		},
 	}
 	ai.assets = append(ai.assets, sa)
 	ai.byID[sa.ID] = sa
@@ -345,7 +352,7 @@ func adviceNotOnServer(sa *Asset) *Advice {
 
 func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 
-	ID := fmt.Sprintf("%s-%d", path.Base(la.FileName), la.Size())
+	ID := fmt.Sprintf("%s-%d", path.Base(la.Title), la.Size())
 
 	sa := ai.byID[ID]
 	if sa != nil {
@@ -359,7 +366,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 	// check all files with the same name
 
 	// n = strings.TrimSuffix(path.Base(la.Name), path.Ext(la.Name))
-	n = filepath.Base(path.Base(la.FileName))
+	n = filepath.Base(path.Base(la.Title))
 	l = ai.byName[n]
 	if len(l) == 0 {
 		n = strings.TrimSuffix(n, filepath.Ext(n))

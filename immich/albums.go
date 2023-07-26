@@ -3,7 +3,7 @@ package immich
 import "fmt"
 
 type AlbumSimplified struct {
-	ID string `json:"id"`
+	ID string `json:"id,omitempty"`
 	// OwnerID                    string    `json:"ownerId"`
 	AlbumName string `json:"albumName"`
 	// CreatedAt                  time.Time `json:"createdAt"`
@@ -57,8 +57,8 @@ func (ic *ImmichClient) CreateAlbum(name string, assets []string) (AlbumSimplifi
 	}
 	var r AlbumSimplified
 	err := ic.newServerCall("CreateAlbum").do(
-		post("/album", "application/json", setTraceJSONRequest(), setAcceptJSON(), setJSONBody(body)),
-		setTraceJSONResponse(), responseJSON(&r))
+		post("/album", "application/json", setAcceptJSON(), setJSONBody(body)),
+		responseJSON(&r))
 	if err != nil {
 		return AlbumSimplified{}, err
 	}

@@ -7,7 +7,17 @@ import (
 	"strings"
 )
 
-func BrowseLocalAssets(ctx context.Context, fsys fs.FS) chan *LocalAssetFile {
+type LocalAssetBrowser struct {
+	fs.FS
+}
+
+func BrowseLocalAssets(fsys fs.FS) *LocalAssetBrowser {
+	return &LocalAssetBrowser{
+		FS: fsys,
+	}
+}
+
+func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 	fileChan := make(chan *LocalAssetFile)
 	// Browse all given FS to collect the list of files
 	go func(ctx context.Context) {
@@ -37,6 +47,7 @@ func BrowseLocalAssets(ctx context.Context, fsys fs.FS) chan *LocalAssetFile {
 					f := LocalAssetFile{
 						srcFS:    fsys,
 						FileName: name,
+						Title:    name,
 						size:     int(s.Size()),
 						Album:    path.Base(path.Dir(name)),
 						Err:      err,

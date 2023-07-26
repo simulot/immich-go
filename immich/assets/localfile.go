@@ -2,7 +2,6 @@ package assets
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -17,18 +16,24 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 )
 
-type Browser func(ctx context.Context, fsys fs.FS) chan *LocalAssetFile
-
 /*
 	localFile structure hold information on assets used for building immich assets.
 
-	implements fs.File
+	The asset is taken into a fs.FS system which doesn't implement anything else than a strait
+	reader.
+	fsys can be a zip file, a DirFS, or anything else.
+
+	It implements a way to read a minimal quantity of data to be able to take a decision
+	about chose a file or discard it.
+
+	implements fs.File and fs.FileInfo, Stat
 
 */
 
 type LocalAssetFile struct {
 	// Common fields
 	FileName string // The asset's path in the fsys
+	Title    string // Google Photos may a have title longer than the filename
 	Album    string // The asset's album, if any
 	Err      error  // keep errors encountered
 
@@ -49,6 +54,12 @@ type LocalAssetFile struct {
 	teeReader  io.Reader // write each read from it into the tempWriter
 	reader     io.Reader // the reader that combines the partial read and original file for full file reading
 }
+
+// partialSourceReader open a reader on the current asset.
+// each byte read from it is saved into a temporary file.
+//
+// It returns a TeeReader that writes each read byte from the source into the temporary file.
+// The temporary file is discarded when the LocalAssetFile is closed
 
 func (l *LocalAssetFile) partialSourceReader() (reader io.Reader, err error) {
 	if l.sourceFile == nil {
@@ -76,6 +87,7 @@ func (l *LocalAssetFile) partialSourceReader() (reader io.Reader, err error) {
 	return io.MultiReader(l.tempFile, l.teeReader), nil
 }
 
+// Open return fs.File that reads previously read bytes followed by the actual file content.
 func (l *LocalAssetFile) Open() (fs.File, error) {
 	var err error
 	if l.sourceFile == nil {
@@ -93,6 +105,7 @@ func (l *LocalAssetFile) Open() (fs.File, error) {
 	return l, nil
 }
 
+// Read
 func (l *LocalAssetFile) Read(b []byte) (int, error) {
 	return l.reader.Read(b)
 }
@@ -113,6 +126,7 @@ func (l LocalAssetFile) Mode() fs.FileMode  { return 0 }
 func (l LocalAssetFile) ModTime() time.Time { return l.dateTaken }
 func (l LocalAssetFile) Sys() any           { return nil }
 
+// Close close the temporary file  and close the source
 func (l *LocalAssetFile) Close() error {
 	var err error
 	if l.sourceFile != nil {
@@ -128,12 +142,26 @@ func (l *LocalAssetFile) Close() error {
 	return err
 }
 
+// Remove the temporary file
 func (l *LocalAssetFile) Remove() error {
 	if fsys, ok := l.srcFS.(Remover); ok {
 		return fsys.Remove(l.FileName)
 	}
 	return nil
 }
+
+// DateTakenCached give the previously read date
+func (l LocalAssetFile) DateTakenCached() time.Time {
+	return l.dateTaken
+}
+
+// DateTaken make it best efforts to get the date of capture based on
+// - if the name matches a at least 4 digits for the year, 2 for month, 2 for day, in this order.
+// It takes the hour, minute, second when present. Very fast
+//
+// - file content if the file includes some metadata, need read a part of the file
+//
+//
 
 func (l *LocalAssetFile) DateTaken() (time.Time, error) {
 	if !l.dateTaken.IsZero() {
@@ -161,6 +189,7 @@ func (l *LocalAssetFile) DateTaken() (time.Time, error) {
 	return l.dateTaken, err
 }
 
+// readExifDateTaken pase the file for Exif DateTaken
 func (l *LocalAssetFile) readExifDateTaken() (time.Time, error) {
 
 	// Open the file
@@ -185,6 +214,7 @@ func (l *LocalAssetFile) readExifDateTaken() (time.Time, error) {
 	return t, nil
 }
 
+// readHEIFDateTaken locate the Exif part and return the date of capture
 func (l *LocalAssetFile) readHEIFDateTaken() (time.Time, error) {
 	// Open the file
 	r, err := l.partialSourceReader()
@@ -215,6 +245,7 @@ func (l *LocalAssetFile) readHEIFDateTaken() (time.Time, error) {
 	return t, nil
 }
 
+// readMP4DateTaken locate the mvhd atom and decode the date of capture
 func (l *LocalAssetFile) readMP4DateTaken() (time.Time, error) {
 	// Open the file
 	r, err := l.partialSourceReader()
