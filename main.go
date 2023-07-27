@@ -46,7 +46,7 @@ func main() {
 		app.Logger.Error(err.Error())
 		os.Exit(1)
 	}
-	app.Logger.Info("Done.")
+	app.Logger.OK("Done.")
 }
 
 func (app *Application) Run(ctx context.Context) error {
