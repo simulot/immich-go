@@ -35,7 +35,8 @@ type Asset struct {
 	ExifInfo ExifInfo `json:"exifInfo"`
 	// LivePhotoVideoID any    `json:"livePhotoVideoId"`
 	// Tags             []any  `json:"tags"`
-	Checksum string `json:"checksum"`
+	Checksum     string `json:"checksum"`
+	JustUploaded bool   `json:"-"`
 }
 
 type ExifInfo struct {
@@ -224,6 +225,7 @@ func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile) {
 			FileSizeInByte:   int(la.Size()),
 			DateTimeOriginal: la.DateTakenCached(),
 		},
+		JustUploaded: true,
 	}
 	ai.assets = append(ai.assets, sa)
 	ai.byID[sa.ID] = sa

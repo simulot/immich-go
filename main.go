@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"immich-go/immich"
 	"immich-go/immich/assets"
-	"immich-go/immich/logger"
 	"io/fs"
 	"os"
 	"os/signal"
@@ -20,6 +19,7 @@ var stripSpaces = regexp.MustCompile(`\s+`)
 func main() {
 	app, err := Initialize()
 	if err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
@@ -43,9 +43,10 @@ func main() {
 		err = app.Run(ctx)
 	}
 	if err != nil {
-		app.Logger.Message(logger.Error, err.Error())
+		app.Logger.Error(err.Error())
 		os.Exit(1)
 	}
+	app.Logger.Info("Done.")
 }
 
 func (app *Application) Run(ctx context.Context) error {
@@ -59,20 +60,20 @@ func (app *Application) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	app.Logger.Message(logger.OK, "Server status: OK")
+	app.Logger.OK("Server status: OK")
 
 	user, err := app.Immich.ValidateConnection()
 	if err != nil {
 		return err
 	}
-	app.Logger.Message(logger.Info, "Connected, user: %s", user.Email)
-	app.Logger.Message(logger.Info, "Get server's assets...")
+	app.Logger.Info("Connected, user: %s", user.Email)
+	app.Logger.Info("Get server's assets...")
 
 	app.AssetIndex, err = app.Immich.GetAllAssets(nil)
 	if err != nil {
 		return err
 	}
-	app.Logger.Message(logger.OK, "%d assets on the server.", app.AssetIndex.Len())
+	app.Logger.OK("%d assets on the server.", app.AssetIndex.Len())
 
 	fsys, err := app.OpenFSs()
 	if err != nil {
@@ -83,10 +84,10 @@ func (app *Application) Run(ctx context.Context) error {
 
 	switch {
 	case app.GooglePhotos:
-		app.Logger.Message(logger.Info, "Browswing google take out archive...")
+		app.Logger.Info("Browswing google take out archive...")
 		browser, err = app.ReadGoogleTakeOut(ctx, fsys)
 	default:
-		app.Logger.Message(logger.Info, "Browswing folder(s)...")
+		app.Logger.Info("Browswing folder(s)...")
 		browser, err = app.ExploreLocalFolder(ctx, fsys)
 	}
 
@@ -122,7 +123,7 @@ assetLoop:
 			for _, sal := range serverAlbums {
 				if sal.AlbumName == album {
 					found = true
-					app.Logger.Message(logger.OK, "Update the album %s", album)
+					app.Logger.OK("Update the album %s", album)
 					_, err := app.Immich.UpdateAlbum(sal.ID, list)
 					if err != nil {
 						return fmt.Errorf("can't update the album list from the server: %w", err)
@@ -132,7 +133,7 @@ assetLoop:
 			if found {
 				continue
 			}
-			app.Logger.Message(logger.Info, "Create the album %s", album)
+			app.Logger.Info("Create the album %s", album)
 			_, err := app.Immich.CreateAlbum(album, list)
 			if err != nil {
 				return fmt.Errorf("can't create the album list from the server: %w", err)
@@ -182,7 +183,7 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 	if app.DateRange.IsSet() {
 		d, err := a.DateTaken()
 		if err != nil {
-			app.Logger.Message(logger.Error, "Can't get capture date of the file. File %q skiped", a.FileName)
+			app.Logger.Error("Can't get capture date of the file. File %q skiped", a.FileName)
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
@@ -193,22 +194,26 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 	advice, _ := app.AssetIndex.ShouldUpload(a)
 	switch advice.Advice {
 	case immich.NotOnServer:
-		app.Logger.Message(logger.OK, "%s: %s", a.Title, advice.Message)
+		app.Logger.Info("%s: %s", a.Title, advice.Message)
 		app.UploadAsset(a)
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case immich.SmallerOnServer:
-		app.Logger.Message(logger.OK, "%s: %s", a.Title, advice.Message)
+		app.Logger.Info("%s: %s", a.Title, advice.Message)
 		app.UploadAsset(a)
 		app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case immich.SameOnServer:
-		app.Logger.Message(logger.OK, "%s: %s", a.Title, advice.Message)
-		if app.Delete {
-			app.deleteLocalList = append(app.deleteLocalList, a)
+		if !advice.ServerAsset.JustUploaded {
+			app.Logger.Info("%s: %s", a.Title, advice.Message)
+			if app.Delete {
+				app.deleteLocalList = append(app.deleteLocalList, a)
+			}
+		} else {
+			return nil
 		}
 	}
 	showCount = false
@@ -219,12 +224,12 @@ func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
 	resp, err := app.Immich.AssetUpload(a)
 
 	if err != nil {
-		app.Logger.Message(logger.Error, "Can't upload file: %q, %s", a.FileName, err)
+		app.Logger.Error("Can't upload file: %q, %s", a.FileName, err)
 		return
 	}
 	app.AssetIndex.AddLocalAsset(a)
 	app.mediaUploaded += 1
-	app.Logger.Message(logger.OK, "%q uploaded, %d uploaded", a.Title, app.mediaUploaded)
+	app.Logger.OK("%q uploaded, %d uploaded", a.Title, app.mediaUploaded)
 
 	switch {
 	case len(app.ImportIntoAlbum) > 0:
@@ -276,10 +281,10 @@ func (a *Application) OpenFSs() (fs.FS, error) {
 }
 
 func (app *Application) DeleteLocalAssets() error {
-	app.Logger.Message(logger.OK, "%d local assets to delete.", len(app.deleteLocalList))
+	app.Logger.OK("%d local assets to delete.", len(app.deleteLocalList))
 
 	for _, a := range app.deleteLocalList {
-		app.Logger.Message(logger.Warning, "delete file %q", a.Title)
+		app.Logger.Warning("delete file %q", a.Title)
 		err := a.Remove()
 		if err != nil {
 			return err
@@ -289,7 +294,7 @@ func (app *Application) DeleteLocalAssets() error {
 }
 
 func (app *Application) DeleteServerAssets(ids []string) error {
-	app.Logger.Message(logger.Warning, "%d server assets to delete.", len(ids))
+	app.Logger.Warning("%d server assets to delete.", len(ids))
 
 	_, err := app.Immich.DeleteAsset(ids)
 	return err

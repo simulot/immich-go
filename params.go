@@ -52,7 +52,7 @@ func Initialize() (*Application, error) {
 	}
 
 	app := Application{
-		Logger:       logger.Logger{},
+		Logger:       *logger.NewLogger(logger.OK),
 		updateAlbums: map[string][]string{},
 	}
 	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)")
@@ -86,7 +86,7 @@ func Initialize() (*Application, error) {
 		err = errors.Join(err, errors.New("Must specify an API key"))
 	}
 	if len(app.Paths) == 0 {
-		err = errors.Join(err, errors.New("Must specify at least one path"))
+		err = errors.Join(err, errors.New("Must specify at least one path for local assets"))
 	}
 
 	return &app, err
