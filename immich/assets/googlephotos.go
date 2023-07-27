@@ -71,7 +71,7 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 						dateTaken:   md.PhotoTakenTime.Time(),
 					}
 					if !gp.MatchString(path.Dir(name)) {
-						f.Album = path.Base(path.Dir(name))
+						f.Album = commaAlbum.ReplaceAllString(path.Base(path.Dir(name)), "")
 					}
 
 					// Check if the context has been cancelled before sending the file
@@ -102,6 +102,7 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 }
 
 var gp = regexp.MustCompile(`Photos from \d{4}`)
+var commaAlbum = regexp.MustCompile(`^,\s+`)
 
 type googleMetaData struct {
 	Title string `json:"title"`
