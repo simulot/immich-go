@@ -136,6 +136,7 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
     - [X] but keep files with the same name: ex IMG_0201.jpg if they aren't duplicates
     - [ ] some files may have different names (ex IMG_00195.jpg and IMAGE_00195 (1).jpg) and are true duplicates
 - [X] replace the server photo, if the file to upload is better.
+    - [ ] TODO: Update any album with the new version of the asset
 - [ ] delete local file after successful upload (not for import!)
 - [ ] upload XMP sidecar files 
 - [ ] select or exclude assets to upload by
@@ -152,12 +153,12 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
 - [X] Import Google takeout
     - [X] handle archives without unzipping them
     - [X] manage multi-zip archives (related files are scattered across all zips)
+    - [X] handle google albums in immich
     - [X] manage duplicates assets (from Photo folder and Albums)
     - [X] don't import trashed files
-    - [ ] don't import failed videos
+    - [X] don't import failed videos
     - [ ] handle Archives, 
-    - [ ] handle google albums in immich
-    - [ ] option to include photos taken by a partner (the partner may also uses immich for her/his own photos)
+    - [X] option to include photos taken by a partner (the partner may also uses immich for her/his own photos)
 - [X] Take capture time from:
     - [X] JPEG files
     - [X] MP4 files

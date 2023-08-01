@@ -130,7 +130,7 @@ func (ic *ImmichClient) AssetUpload(la *assets.LocalAssetFile) (AssetResponse, e
 		h := textproto.MIMEHeader{}
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-				escapeQuotes("assetData"), escapeQuotes(path.Base(la.FileName))))
+				escapeQuotes("assetData"), escapeQuotes(path.Base(la.Title))))
 		h.Set("Content-Type", mtype)
 
 		part, err := m.CreatePart(h)
@@ -201,6 +201,7 @@ func (ai *AssetIndex) ReIndex() {
 	ai.byID = map[string]*Asset{}
 
 	for _, a := range ai.assets {
+		ID := fmt.Sprintf("%s-%d", a.OriginalFileName, a.ExifInfo.FileSizeInByte)
 		l := ai.byHash[a.Checksum]
 		l = append(l, a)
 		ai.byHash[a.Checksum] = l
@@ -209,7 +210,7 @@ func (ai *AssetIndex) ReIndex() {
 		l = ai.byName[n]
 		l = append(l, a)
 		ai.byName[n] = l
-		ai.byID[a.DeviceAssetID] = a
+		ai.byID[ID] = a
 	}
 }
 
@@ -220,15 +221,16 @@ func (ai *AssetIndex) Len() int {
 func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile) {
 	sa := &Asset{
 		ID:               fmt.Sprintf("%s-%d", path.Base(la.Title), la.Size()),
-		OriginalFileName: path.Base(la.Title),
+		OriginalFileName: strings.TrimSuffix(path.Base(la.Title), path.Ext(la.Title)),
 		ExifInfo: ExifInfo{
 			FileSizeInByte:   int(la.Size()),
 			DateTimeOriginal: la.DateTakenCached(),
 		},
 		JustUploaded: true,
 	}
+	ID := fmt.Sprintf("%s-%d", sa.OriginalFileName, sa.ExifInfo.FileSizeInByte)
 	ai.assets = append(ai.assets, sa)
-	ai.byID[sa.ID] = sa
+	ai.byID[ID] = sa
 	l := ai.byName[sa.OriginalFileName]
 	l = append(l, sa)
 	ai.byName[sa.OriginalFileName] = l
@@ -278,7 +280,6 @@ func (a AdviceCode) String() string {
 
 const (
 	IDontKnow AdviceCode = iota
-	// SameNameOnServerButNotSure
 	SmallerOnServer
 	BetterOnServer
 	SameOnServer
@@ -337,11 +338,10 @@ func adviceBetterOnServer(sa *Asset) *Advice {
 		ServerAsset: sa,
 	}
 }
-func adviceNotOnServer(sa *Asset) *Advice {
+func adviceNotOnServer() *Advice {
 	return &Advice{
-		Advice:      NotOnServer,
-		Message:     "This a new asset, upload it.",
-		ServerAsset: sa,
+		Advice:  NotOnServer,
+		Message: "This a new asset, upload it.",
 	}
 }
 
@@ -353,8 +353,16 @@ func adviceNotOnServer(sa *Asset) *Advice {
 //
 
 func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
+	filename := la.FileName
+	var err error
 
-	ID := fmt.Sprintf("%s-%d", path.Base(la.Title), la.Size())
+	if fsys, ok := la.FSys.(assets.NameResolver); ok {
+		filename, err = fsys.ResolveName(la)
+		if err != nil {
+			return nil, err
+		}
+	}
+	ID := fmt.Sprintf("%s-%d", strings.TrimSuffix(path.Base(filename), path.Ext(filename)), la.Size())
 
 	sa := ai.byID[ID]
 	if sa != nil {
@@ -367,8 +375,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 
 	// check all files with the same name
 
-	// n = strings.TrimSuffix(path.Base(la.Name), path.Ext(la.Name))
-	n = filepath.Base(path.Base(la.Title))
+	n = filepath.Base(filename)
 	l = ai.byName[n]
 	if len(l) == 0 {
 		n = strings.TrimSuffix(n, filepath.Ext(n))
@@ -396,5 +403,5 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 			}
 		}
 	}
-	return adviceNotOnServer(nil), nil
+	return adviceNotOnServer(), nil
 }

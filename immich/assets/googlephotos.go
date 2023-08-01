@@ -3,13 +3,20 @@ package assets
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+type NameResolver interface {
+	ResolveName(la *LocalAssetFile) (string, error)
+}
 
 type GooglePhotosAssetBrowser struct {
 	fs.FS
@@ -30,6 +37,9 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 	// Start a goroutine to browse the FS and collect the list of files
 	go func(ctx context.Context) {
 		defer close(fileChan) // Close the channel when the goroutine finishes
+		var hits int
+
+		_ = hits
 
 		err := fs.WalkDir(fsys, ".",
 			func(name string, d fs.DirEntry, err error) error {
@@ -55,15 +65,18 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 
 				md, err := readJSON[googleMetaData](fsys, name)
 				if err == nil && md != nil && len(md.URL) > 0 {
-					dir := path.Dir(name)
-					ext := path.Ext(md.Title)
-					base := strings.TrimSuffix(md.Title, ext)
-					if len(base) > 47 {
-						base = base[:47]
+					ext := strings.ToLower(path.Ext(md.Title))
+					switch ext {
+					case ".jpg", "jpeg", ".png", ".mp4", ".heic", ".mov", ".gif":
+					default:
+						return nil
 					}
 
+					dir := path.Dir(name)
+					base := strings.TrimSuffix(md.Title, ext)
+
 					f := LocalAssetFile{
-						srcFS:       fsys,
+						FSys:        fsys,
 						FileName:    path.Join(dir, base+ext),
 						Title:       md.Title,
 						Trashed:     md.Trashed,
@@ -72,7 +85,11 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 					}
 					if !gp.MatchString(path.Dir(name)) {
 						f.Album = commaAlbum.ReplaceAllString(path.Base(path.Dir(name)), "")
+						if f.Album == "Failed Videos" {
+							return nil
+						}
 					}
+					hits++
 
 					// Check if the context has been cancelled before sending the file
 					select {
@@ -100,6 +117,37 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 
 	return fileChan
 }
+
+func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, error) {
+	if la.isResolved {
+		return la.FileName, nil
+	}
+	ext := path.Ext(la.Title)
+	base := strings.TrimSuffix(la.Title, ext)
+	dir := path.Dir(la.FileName)
+	if len(base) >= 47 {
+		base = base[:47]
+	}
+	pattern := nameReplacer.Replace(base) + ".*"
+
+	matches, err := fs.Glob(fsys, filepath.Join(dir, pattern))
+	if err != nil {
+		return "", fmt.Errorf("can't resolve name: %w", err)
+	}
+
+	ext = strings.ToLower(ext)
+
+	for _, m := range matches {
+		if strings.Compare(ext, strings.ToLower(path.Ext(m))) == 0 {
+			la.FileName = m
+			la.isResolved = true
+			return m, nil
+		}
+	}
+	return "", os.ErrNotExist
+}
+
+var nameReplacer = strings.NewReplacer(" ", "?", "/", "?", ":", "?")
 
 var gp = regexp.MustCompile(`Photos from \d{4}`)
 var commaAlbum = regexp.MustCompile(`^,\s+`)
@@ -163,22 +211,4 @@ func (t *googTimeObject) UnmarshalJSON(data []byte) error {
 	t.Timestamp, err = strconv.ParseInt(aux.Timestamp, 10, 64)
 
 	return err
-}
-
-// readJSON reads a JSON file from the provided file system (fs.FS)
-// with the given name and unmarshals it into the provided type T.
-
-func readJSON[T any](FSys fs.FS, name string) (*T, error) {
-	var object T
-	b, err := fs.ReadFile(FSys, name)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(b, &object)
-	if err != nil {
-		return nil, err
-	}
-
-	return &object, nil
 }

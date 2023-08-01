@@ -40,12 +40,12 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 				}
 				ext := strings.ToLower(path.Ext(name))
 				switch ext {
-				case ".jpg", "jpeg", ".png", ".mp4", ".heic", ".mov", ".m4v", ".gif":
+				case ".jpg", "jpeg", ".png", ".mp4", ".heic", ".mov", ".gif":
 
 					s, err := d.Info()
 
 					f := LocalAssetFile{
-						srcFS:    fsys,
+						FSys:     fsys,
 						FileName: name,
 						Title:    name,
 						size:     int(s.Size()),

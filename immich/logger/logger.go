@@ -68,3 +68,24 @@ func (l *Logger) Progress(f string, v ...any) {
 	fmt.Printf("\r"+f, v...)
 	l.needCR = true
 }
+
+func (l *Logger) MessageContinue(level Level, f string, v ...any) {
+	if level > l.displayLevel {
+		return
+	}
+	if l.needCR {
+		fmt.Println()
+		l.needCR = false
+	}
+	fmt.Print(colorLevel[level], " ")
+	fmt.Printf(f, v...)
+}
+
+func (l *Logger) MessageTerminate(level Level, f string, v ...any) {
+	if level > l.displayLevel {
+		return
+	}
+	fmt.Print(colorLevel[level], " ")
+	fmt.Printf(f, v...)
+	fmt.Println(chalk.ResetColor)
+}

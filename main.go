@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"immich-go/immich"
 	"immich-go/immich/assets"
+	"immich-go/immich/logger"
 	"io/fs"
 	"os"
 	"os/signal"
@@ -123,20 +124,29 @@ assetLoop:
 			for _, sal := range serverAlbums {
 				if sal.AlbumName == album {
 					found = true
-					app.Logger.OK("Update the album %s", album)
-					_, err := app.Immich.UpdateAlbum(sal.ID, list)
-					if err != nil {
-						return fmt.Errorf("can't update the album list from the server: %w", err)
+					if !app.DryRun {
+						app.Logger.OK("Update the album %s", album)
+						_, err := app.Immich.UpdateAlbum(sal.ID, list)
+						if err != nil {
+							return fmt.Errorf("can't update the album list from the server: %w", err)
+						}
+					} else {
+						app.Logger.OK("Update album %s skipped - dry run mode", album)
 					}
 				}
 			}
 			if found {
 				continue
 			}
-			app.Logger.Info("Create the album %s", album)
-			_, err := app.Immich.CreateAlbum(album, list)
-			if err != nil {
-				return fmt.Errorf("can't create the album list from the server: %w", err)
+			if !app.DryRun {
+				app.Logger.Info("Create the album %s", album)
+
+				_, err := app.Immich.CreateAlbum(album, list)
+				if err != nil {
+					return fmt.Errorf("can't create the album list from the server: %w", err)
+				}
+			} else {
+				app.Logger.Info("Create the album %s skipped - dry run mode", album)
 			}
 		}
 	}
@@ -191,7 +201,11 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 		}
 	}
 
-	advice, _ := app.AssetIndex.ShouldUpload(a)
+	advice, err := app.AssetIndex.ShouldUpload(a)
+	if err != nil {
+		return err
+	}
+
 	switch advice.Advice {
 	case immich.NotOnServer:
 		app.Logger.Info("%s: %s", a.Title, advice.Message)
@@ -221,15 +235,27 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 }
 
 func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
-	resp, err := app.Immich.AssetUpload(a)
-
-	if err != nil {
-		app.Logger.Error("Can't upload file: %q, %s", a.FileName, err)
-		return
+	var resp immich.AssetResponse
+	app.Logger.MessageContinue(logger.OK, "Uploading %q...", a.FileName)
+	var err error
+	if !app.DryRun {
+		resp, err = app.Immich.AssetUpload(a)
+		if err != nil {
+			app.Logger.MessageTerminate(logger.Error, "Error: %s", err)
+			return
+		}
+		if resp.Duplicate {
+			app.Logger.MessageContinue(logger.Warning, "already exists on the server")
+		}
 	}
 	app.AssetIndex.AddLocalAsset(a)
 	app.mediaUploaded += 1
-	app.Logger.OK("%q uploaded, %d uploaded", a.Title, app.mediaUploaded)
+	if !app.DryRun {
+		app.Logger.OK("Done, total %d uploaded", app.mediaUploaded)
+	} else {
+		app.Logger.OK("Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
+
+	}
 
 	switch {
 	case len(app.ImportIntoAlbum) > 0:
@@ -284,11 +310,16 @@ func (app *Application) DeleteLocalAssets() error {
 	app.Logger.OK("%d local assets to delete.", len(app.deleteLocalList))
 
 	for _, a := range app.deleteLocalList {
-		app.Logger.Warning("delete file %q", a.Title)
-		err := a.Remove()
-		if err != nil {
-			return err
+		if !app.DryRun {
+			app.Logger.Warning("delete file %q", a.Title)
+			err := a.Remove()
+			if err != nil {
+				return err
+			}
+		} else {
+			app.Logger.Warning("file %q not delested, dry run mode", a.Title)
 		}
+
 	}
 	return nil
 }
@@ -296,7 +327,10 @@ func (app *Application) DeleteLocalAssets() error {
 func (app *Application) DeleteServerAssets(ids []string) error {
 	app.Logger.Warning("%d server assets to delete.", len(ids))
 
-	_, err := app.Immich.DeleteAsset(ids)
-	return err
-
+	if !app.DryRun {
+		_, err := app.Immich.DeleteAsset(ids)
+		return err
+	}
+	app.Logger.Warning("%d server assets to delete. skipped dry-run mode", len(ids))
+	return nil
 }

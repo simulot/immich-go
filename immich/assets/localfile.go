@@ -42,11 +42,12 @@ type LocalAssetFile struct {
 	Archived    bool // The asset is archived
 	FromPartner bool // the asset comes from a partner
 
-	// Unexported fields
+	FSys fs.FS // Asset's file system
 
-	srcFS     fs.FS
-	dateTaken time.Time // Accessible via DateTaken()
-	size      int       // Accessible via Stat()
+	// Unexported fields
+	isResolved bool      // True when the FileName is resolved
+	dateTaken  time.Time // Accessible via DateTaken()
+	size       int       // Accessible via Stat()
 
 	// buffer management
 	sourceFile fs.File   // the opened source file
@@ -63,7 +64,7 @@ type LocalAssetFile struct {
 
 func (l *LocalAssetFile) partialSourceReader() (reader io.Reader, err error) {
 	if l.sourceFile == nil {
-		l.sourceFile, err = l.srcFS.Open(l.FileName)
+		l.sourceFile, err = l.FSys.Open(l.FileName)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +92,7 @@ func (l *LocalAssetFile) partialSourceReader() (reader io.Reader, err error) {
 func (l *LocalAssetFile) Open() (fs.File, error) {
 	var err error
 	if l.sourceFile == nil {
-		l.sourceFile, err = l.srcFS.Open(l.FileName)
+		l.sourceFile, err = l.FSys.Open(l.FileName)
 		if err != nil {
 			return nil, err
 		}
@@ -110,21 +111,42 @@ func (l *LocalAssetFile) Read(b []byte) (int, error) {
 	return l.reader.Read(b)
 }
 
-func (l LocalAssetFile) Stat() (fs.FileInfo, error) {
+func (l *LocalAssetFile) Stat() (fs.FileInfo, error) {
 	return l, nil
 }
-func (l LocalAssetFile) IsDir() bool  { return false }
-func (l LocalAssetFile) Name() string { return path.Base(l.FileName) }
-func (l LocalAssetFile) Size() int64 {
+func (l *LocalAssetFile) IsDir() bool { return false }
+func (l *LocalAssetFile) Name() string {
+	filename := l.FileName
+	var err error
+	if fsys, ok := l.FSys.(NameResolver); ok && !l.isResolved {
+		filename, err = fsys.ResolveName(l)
+		if err != nil {
+			return ""
+		}
+	}
+	return filename
+}
+func (l *LocalAssetFile) Size() int64 {
 	if l.size == 0 {
-		s, _ := fs.Stat(l.srcFS, l.FileName)
+		filename := l.FileName
+		var err error
+		if fsys, ok := l.FSys.(NameResolver); ok && !l.isResolved {
+			filename, err = fsys.ResolveName(l)
+			if err != nil {
+				return 0
+			}
+		}
+		s, err := fs.Stat(l.FSys, filename)
+		if err != nil {
+			return 0
+		}
 		l.size = int(s.Size())
 	}
 	return int64(l.size)
 }
-func (l LocalAssetFile) Mode() fs.FileMode  { return 0 }
-func (l LocalAssetFile) ModTime() time.Time { return l.dateTaken }
-func (l LocalAssetFile) Sys() any           { return nil }
+func (l *LocalAssetFile) Mode() fs.FileMode  { return 0 }
+func (l *LocalAssetFile) ModTime() time.Time { return l.dateTaken }
+func (l *LocalAssetFile) Sys() any           { return nil }
 
 // Close close the temporary file  and close the source
 func (l *LocalAssetFile) Close() error {
@@ -144,7 +166,7 @@ func (l *LocalAssetFile) Close() error {
 
 // Remove the temporary file
 func (l *LocalAssetFile) Remove() error {
-	if fsys, ok := l.srcFS.(Remover); ok {
+	if fsys, ok := l.FSys.(Remover); ok {
 		return fsys.Remove(l.FileName)
 	}
 	return nil
