@@ -5,3 +5,5 @@ immich-go
 .vscode/settings.json
 immich-go
 main.go
+
+dist/
