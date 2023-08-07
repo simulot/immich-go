@@ -35,8 +35,9 @@ type Asset struct {
 	ExifInfo ExifInfo `json:"exifInfo"`
 	// LivePhotoVideoID any    `json:"livePhotoVideoId"`
 	// Tags             []any  `json:"tags"`
-	Checksum     string `json:"checksum"`
-	JustUploaded bool   `json:"-"`
+	Checksum     string            `json:"checksum"`
+	JustUploaded bool              `json:"-"`
+	Albums       []AlbumSimplified `json:"-"` // Albums that asset belong to
 }
 
 type ExifInfo struct {
@@ -126,7 +127,7 @@ func (ic *ImmichClient) AssetUpload(la *assets.LocalAssetFile) (AssetResponse, e
 		m.WriteField("fileExtension", path.Ext(la.FileName))
 		m.WriteField("duration", formatDuration(0))
 		m.WriteField("isReadOnly", "false")
-		// m.WriteField("isArchived", myBool(la.Archived).String())
+		// m.WriteField("isArchived", myBool(la.Archived).String()) // Not supported by the api
 		h := textproto.MIMEHeader{}
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
@@ -178,21 +179,45 @@ func (o *GetAssetOptions) Values() url.Values {
 }
 
 func (ic *ImmichClient) GetAllAssets(opt *GetAssetOptions) (*AssetIndex, error) {
-	r := AssetIndex{}
+	r := AssetIndex{
+		ic: ic,
+	}
 	err := ic.newServerCall("GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSON(&r.assets))
 	if err != nil {
 		return nil, err
 	}
 	r.ReIndex()
+
+	// Get server's albums
+	r.albums, err = ic.GetAllAlbums()
+	if err != nil {
+		return nil, err
+	}
+	for _, album := range r.albums {
+		info, err := ic.GetAlbumInfo(album.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, a := range info.Assets {
+			as := r.byID[a.DeviceAssetID]
+			if as != nil {
+				as.Albums = append(as.Albums, album)
+			}
+		}
+
+	}
+
 	return &r, nil
 
 }
 
 type AssetIndex struct {
+	ic     *ImmichClient
 	assets []*Asset
 	byHash map[string][]*Asset
 	byName map[string][]*Asset
 	byID   map[string]*Asset
+	albums []AlbumSimplified
 }
 
 func (ai *AssetIndex) ReIndex() {
@@ -201,7 +226,7 @@ func (ai *AssetIndex) ReIndex() {
 	ai.byID = map[string]*Asset{}
 
 	for _, a := range ai.assets {
-		ID := fmt.Sprintf("%s-%d", a.OriginalFileName, a.ExifInfo.FileSizeInByte)
+		ID := a.DeviceAssetID
 		l := ai.byHash[a.Checksum]
 		l = append(l, a)
 		ai.byHash[a.Checksum] = l
@@ -309,7 +334,7 @@ func formatBytes(s int) string {
 	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
 }
 
-func adviceIDontKnow(la *assets.LocalAssetFile) *Advice {
+func (ai *AssetIndex) adviceIDontKnow(la *assets.LocalAssetFile) *Advice {
 	return &Advice{
 		Advice:     IDontKnow,
 		Message:    fmt.Sprintf("Can't decide what to do with %q. Check this vile yourself", la.FileName),
@@ -317,28 +342,29 @@ func adviceIDontKnow(la *assets.LocalAssetFile) *Advice {
 	}
 }
 
-func adviceSameOnServer(sa *Asset) *Advice {
+func (ai *AssetIndex) adviceSameOnServer(sa *Asset) *Advice {
+
 	return &Advice{
 		Advice:      SameOnServer,
 		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
 		ServerAsset: sa,
 	}
 }
-func adviceSmallerOnServer(sa *Asset) *Advice {
+func (ai *AssetIndex) adviceSmallerOnServer(sa *Asset) *Advice {
 	return &Advice{
 		Advice:      SmallerOnServer,
 		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
 		ServerAsset: sa,
 	}
 }
-func adviceBetterOnServer(sa *Asset) *Advice {
+func (ai *AssetIndex) adviceBetterOnServer(sa *Asset) *Advice {
 	return &Advice{
 		Advice:      BetterOnServer,
 		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
 		ServerAsset: sa,
 	}
 }
-func adviceNotOnServer() *Advice {
+func (ai *AssetIndex) adviceNotOnServer() *Advice {
 	return &Advice{
 		Advice:  NotOnServer,
 		Message: "This a new asset, upload it.",
@@ -367,7 +393,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 	sa := ai.byID[ID]
 	if sa != nil {
 		// the same ID exist on the server
-		return adviceSameOnServer(sa), nil
+		return ai.adviceSameOnServer(sa), nil
 	}
 
 	var l []*Asset
@@ -386,7 +412,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 		dateTaken, err := la.DateTaken()
 		size := int(la.Size())
 		if err != nil {
-			return adviceIDontKnow(la), nil
+			return ai.adviceIDontKnow(la), nil
 
 		}
 		for _, sa = range l {
@@ -395,13 +421,13 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 
 			switch {
 			case compareDate == 0 && compareSize == 0:
-				return adviceSameOnServer(sa), nil
+				return ai.adviceSameOnServer(sa), nil
 			case compareDate == 0 && compareSize > 0:
-				return adviceSmallerOnServer(sa), nil
+				return ai.adviceSmallerOnServer(sa), nil
 			case compareDate == 0 && compareSize < 0:
-				return adviceBetterOnServer(sa), nil
+				return ai.adviceBetterOnServer(sa), nil
 			}
 		}
 	}
-	return adviceNotOnServer(), nil
+	return ai.adviceNotOnServer(), nil
 }

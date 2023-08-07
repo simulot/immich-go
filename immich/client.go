@@ -60,13 +60,13 @@ func (ic *ImmichClient) ValidateConnection() (User, error) {
 	return user, nil
 }
 
-// Get all asset IDs belonging to the user
-func (ic *ImmichClient) GetUserAssetsByDeviceId(deviceID string) (*StringList, error) {
-	list := StringList{}
-	err := ic.newServerCall("GetUserAssetsByDeviceId").
-		do(get("/asset/"+ic.DeviceUUID, setAcceptJSON()), responseJSON(&list))
-	if err != nil {
-		return &list, err
-	}
-	return &list, nil
-}
+// // Get all asset IDs belonging to the user
+// func (ic *ImmichClient) GetUserAssetsByDeviceId(deviceID string) (*StringList, error) {
+// 	list := StringList{}
+// 	err := ic.newServerCall("GetUserAssetsByDeviceId").
+// 		do(get("/asset/"+ic.DeviceUUID, setAcceptJSON()), responseJSON(&list))
+// 	if err != nil {
+// 		return &list, err
+// 	}
+// 	return &list, nil
+// }

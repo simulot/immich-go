@@ -32,10 +32,10 @@ import (
 
 type LocalAssetFile struct {
 	// Common fields
-	FileName string // The asset's path in the fsys
-	Title    string // Google Photos may a have title longer than the filename
-	Album    string // The asset's album, if any
-	Err      error  // keep errors encountered
+	FileName string   // The asset's path in the fsys
+	Title    string   // Google Photos may a have title longer than the filename
+	Album    []string // The asset's album, if any
+	Err      error    // keep errors encountered
 
 	// Google Photos flags
 	Trashed     bool // The asset is trashed
@@ -162,6 +162,24 @@ func (l *LocalAssetFile) Close() error {
 		l.tempFile = nil
 	}
 	return err
+}
+
+func (l *LocalAssetFile) AddAlbum(album string) {
+	for _, al := range l.Album {
+		if al == album {
+			return
+		}
+	}
+	l.Album = append(l.Album, album)
+}
+
+func (l *LocalAssetFile) IsInAlbum(album string) bool {
+	for _, al := range l.Album {
+		if al == album {
+			return true
+		}
+	}
+	return false
 }
 
 // Remove the temporary file

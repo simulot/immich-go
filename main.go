@@ -11,11 +11,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"strings"
-)
 
-var stripSpaces = regexp.MustCompile(`\s+`)
+	"github.com/google/uuid"
+)
 
 func main() {
 	app, err := Initialize()
@@ -95,6 +94,15 @@ func (app *Application) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	if app.CreateAlbumAfterFolder || len(app.ImportFromAlbum) > 0 {
+		app.Logger.Info("Browsing local assets for findings albums")
+		err = browser.BrowseAlbums(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	assetChan := browser.Browse(ctx)
 assetLoop:
 	for {
@@ -114,41 +122,8 @@ assetLoop:
 		}
 	}
 
-	if len(app.updateAlbums) > 0 {
-		serverAlbums, err := app.Immich.GetAllAlbums()
-		if err != nil {
-			return fmt.Errorf("can't get the album list from the server: %w", err)
-		}
-		for album, list := range app.updateAlbums {
-			found := false
-			for _, sal := range serverAlbums {
-				if sal.AlbumName == album {
-					found = true
-					if !app.DryRun {
-						app.Logger.OK("Update the album %s", album)
-						_, err := app.Immich.UpdateAlbum(sal.ID, list)
-						if err != nil {
-							return fmt.Errorf("can't update the album list from the server: %w", err)
-						}
-					} else {
-						app.Logger.OK("Update album %s skipped - dry run mode", album)
-					}
-				}
-			}
-			if found {
-				continue
-			}
-			if !app.DryRun {
-				app.Logger.Info("Create the album %s", album)
-
-				_, err := app.Immich.CreateAlbum(album, list)
-				if err != nil {
-					return fmt.Errorf("can't create the album list from the server: %w", err)
-				}
-			} else {
-				app.Logger.Info("Create the album %s skipped - dry run mode", album)
-			}
-		}
+	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportIntoAlbum) > 0 {
+		app.ManageAlbums()
 	}
 
 	if len(app.deleteServerList) > 0 {
@@ -186,7 +161,7 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 		return nil
 	}
 
-	if len(app.ImportFromAlbum) > 0 && a.Album != app.ImportFromAlbum {
+	if len(app.ImportFromAlbum) > 0 && !a.IsInAlbum(app.ImportFromAlbum) {
 		return nil
 	}
 
@@ -215,12 +190,22 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 		}
 	case immich.SmallerOnServer:
 		app.Logger.Info("%s: %s", a.Title, advice.Message)
+
+		// add the superior asset into albums of the orginal asset
+		for _, al := range advice.ServerAsset.Albums {
+			a.AddAlbum(al.AlbumName)
+		}
 		app.UploadAsset(a)
+
 		app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case immich.SameOnServer:
+		// Set add the server asset into albums determined locally
+		for _, al := range a.Album {
+			app.AddToAlbum(advice.ServerAsset.ID, al)
+		}
 		if !advice.ServerAsset.JustUploaded {
 			app.Logger.Info("%s: %s", a.Title, advice.Message)
 			if app.Delete {
@@ -228,6 +213,11 @@ func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
 			}
 		} else {
 			return nil
+		}
+	case immich.BetterOnServer:
+		// keep the server version but update albums
+		for _, al := range a.Album {
+			app.AddToAlbum(advice.ServerAsset.ID, al)
 		}
 	}
 	showCount = false
@@ -247,6 +237,8 @@ func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
 		if resp.Duplicate {
 			app.Logger.MessageContinue(logger.Warning, "already exists on the server")
 		}
+	} else {
+		resp.ID = uuid.NewString()
 	}
 	app.AssetIndex.AddLocalAsset(a)
 	app.mediaUploaded += 1
@@ -257,19 +249,28 @@ func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
 
 	}
 
+	for _, al := range a.Album {
+		app.AddToAlbum(resp.ID, al)
+	}
+}
+
+func (app *Application) AddToAlbum(ID string, album string) {
+	if !app.CreateAlbums && !app.CreateAlbumAfterFolder && len(app.ImportIntoAlbum) == 0 {
+		return
+	}
 	switch {
 	case len(app.ImportIntoAlbum) > 0:
 		l := app.updateAlbums[app.ImportIntoAlbum]
-		l = append(l, resp.ID)
+		l = append(l, ID)
 		app.updateAlbums[app.ImportIntoAlbum] = l
 	case len(app.ImportFromAlbum) > 0:
-		l := app.updateAlbums[a.Album]
-		l = append(l, resp.ID)
-		app.updateAlbums[a.Album] = l
-	case app.CreateAlbums && len(a.Album) > 0:
-		l := app.updateAlbums[a.Album]
-		l = append(l, resp.ID)
-		app.updateAlbums[a.Album] = l
+		l := app.updateAlbums[album]
+		l = append(l, ID)
+		app.updateAlbums[album] = l
+	case app.CreateAlbums && len(album) > 0:
+		l := app.updateAlbums[album]
+		l = append(l, ID)
+		app.updateAlbums[album] = l
 	}
 }
 
@@ -332,5 +333,45 @@ func (app *Application) DeleteServerAssets(ids []string) error {
 		return err
 	}
 	app.Logger.Warning("%d server assets to delete. skipped dry-run mode", len(ids))
+	return nil
+}
+
+func (app *Application) ManageAlbums() error {
+	if len(app.updateAlbums) > 0 {
+		serverAlbums, err := app.Immich.GetAllAlbums()
+		if err != nil {
+			return fmt.Errorf("can't get the album list from the server: %w", err)
+		}
+		for album, list := range app.updateAlbums {
+			found := false
+			for _, sal := range serverAlbums {
+				if sal.AlbumName == album {
+					found = true
+					if !app.DryRun {
+						app.Logger.OK("Update the album %s", album)
+						_, err := app.Immich.UpdateAlbum(sal.ID, list)
+						if err != nil {
+							return fmt.Errorf("can't update the album list from the server: %w", err)
+						}
+					} else {
+						app.Logger.OK("Update album %s skipped - dry run mode", album)
+					}
+				}
+			}
+			if found {
+				continue
+			}
+			if !app.DryRun {
+				app.Logger.OK("Create the album %s", album)
+
+				_, err := app.Immich.CreateAlbum(album, list)
+				if err != nil {
+					return fmt.Errorf("can't create the album list from the server: %w", err)
+				}
+			} else {
+				app.Logger.OK("Create the album %s skipped - dry run mode", album)
+			}
+		}
+	}
 	return nil
 }

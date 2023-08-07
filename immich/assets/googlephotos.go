@@ -20,6 +20,7 @@ type NameResolver interface {
 
 type GooglePhotosAssetBrowser struct {
 	fs.FS
+	albums map[string]string
 }
 
 func BrowseGooglePhotosAssets(fsys fs.FS) *GooglePhotosAssetBrowser {
@@ -83,11 +84,11 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 						FromPartner: md.GooglePhotosOrigin.FromPartnerSharing != nil,
 						dateTaken:   md.PhotoTakenTime.Time(),
 					}
-					if !gp.MatchString(path.Dir(name)) {
-						f.Album = commaAlbum.ReplaceAllString(path.Base(path.Dir(name)), "")
-						if f.Album == "Failed Videos" {
+					if album, ok := fsys.albums[dir]; ok {
+						if album == "Failed Videos" {
 							return nil
 						}
+						f.AddAlbum(album)
 					}
 					hits++
 
@@ -211,4 +212,59 @@ func (t *googTimeObject) UnmarshalJSON(data []byte) error {
 	t.Timestamp, err = strconv.ParseInt(aux.Timestamp, 10, 64)
 
 	return err
+}
+
+func (fsys *GooglePhotosAssetBrowser) BrowseAlbums(ctx context.Context) error {
+	fsys.albums = map[string]string{}
+
+	err := fs.WalkDir(fsys, ".",
+		func(name string, d fs.DirEntry, err error) error {
+			type MetaData struct {
+				Title string `json:"title"`
+			}
+
+			if err != nil {
+				return err
+			}
+
+			// Check if the context has been cancelled
+			select {
+			case <-ctx.Done():
+				// If the context has been cancelled, return immediately
+				return ctx.Err()
+			default:
+			}
+
+			if d.IsDir() {
+				return nil
+			}
+
+			base := path.Base(name)
+
+			// Localized metadata file names according bard. https://g.co/bard/share/bcc70cb206e2
+			switch base {
+			case "metadata.json",
+				"métadonnées.json",
+				"Metadaten.json",
+				"metadatos.json",
+				"metadati.json",
+				"metadados.json",
+				"метаданные.json",
+				"メタデータ.json",
+				"元数据.json",
+				"Metadata.json":
+			default:
+				return nil
+			}
+
+			md, err := readJSON[MetaData](fsys, name)
+			if err != nil || md.Title == "" {
+				return nil
+			}
+			fsys.albums[path.Dir(name)] = md.Title
+			return nil
+		})
+
+	return err
+
 }

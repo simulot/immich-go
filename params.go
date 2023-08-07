@@ -41,9 +41,8 @@ type Application struct {
 	deleteServerList []*immich.Asset          // List of server assets to remove
 	deleteLocalList  []*assets.LocalAssetFile // List of local assets to remove
 	mediaUploaded    int                      // Count uploaded medias
-	mediaCount       int
-	// serverAlbums     []immich.AlbumSimplified // Server's Albums
-	updateAlbums map[string][]string // Local assets albums
+	mediaCount       int                      // Count of media on the source
+	updateAlbums     map[string][]string      // track immich albums changes
 }
 
 func Initialize() (*Application, error) {
@@ -68,7 +67,7 @@ func Initialize() (*Application, error) {
 
 	// TODO flag.BoolVar(&app.Recursive, "recursive", false, "Recursive")
 	// TODO KeepArchived
-	flag.BoolVar(&app.Yes, "yes", true, "Assume yes on all interactive prompts")
+	// flag.BoolVar(&app.Yes, "yes", true, "Assume yes on all interactive prompts")
 	flag.BoolVar(&app.CreateAlbumAfterFolder, "create-album-folder", false, "Create albums for assets based on the parent folder or a given name")
 	flag.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
 	flag.Var(&app.DateRange, "date", "Date of capture range.")

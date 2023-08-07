@@ -9,6 +9,7 @@ import (
 
 type LocalAssetBrowser struct {
 	fs.FS
+	albums map[string]string
 }
 
 func BrowseLocalAssets(fsys fs.FS) *LocalAssetBrowser {
@@ -49,8 +50,10 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 						FileName: name,
 						Title:    name,
 						size:     int(s.Size()),
-						Album:    path.Base(path.Dir(name)),
 						Err:      err,
+					}
+					if fsys.albums[path.Dir(name)] != "" {
+						f.AddAlbum(fsys.albums[path.Dir(name)])
 					}
 					// Check if the context has been cancelled before sending the file
 					select {
@@ -78,4 +81,29 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 	}(ctx)
 
 	return fileChan
+}
+
+func (fsys LocalAssetBrowser) BrowseAlbums(ctx context.Context) error {
+	fsys.albums = map[string]string{}
+	err := fs.WalkDir(fsys, ".",
+		func(name string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Check if the context has been cancelled
+			select {
+			case <-ctx.Done():
+				// If the context has been cancelled, return immediately
+				return ctx.Err()
+			default:
+			}
+			if name != "." && d.IsDir() {
+				fsys.albums[name] = fsys.albums[path.Base(name)]
+				return nil
+			}
+			return nil
+		})
+
+	return err
 }
