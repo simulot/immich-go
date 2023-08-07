@@ -45,7 +45,7 @@ The `immich-go` program uses the Immich API. Hence it need the server address an
 
 
 ```sh
-immich-go -server URL -key KEY [-albums] [-GooglePhotos] [-date DATE-RANGE] folder1|zip1 folder2|zip2....  
+immich-go -server URL -key KEY [-album NAME] [-GooglePhotos] [-date DATE-RANGE] folder1|zip1 folder2|zip2....  
 ```
 
 ### switches:
