@@ -388,7 +388,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 			return nil, err
 		}
 	}
-	ID := fmt.Sprintf("%s-%d", strings.TrimSuffix(path.Base(filename), path.Ext(filename)), la.Size())
+	ID := fmt.Sprintf("%s-%d", path.Base(filename), la.Size())
 
 	sa := ai.byID[ID]
 	if sa != nil {
