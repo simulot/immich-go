@@ -15,11 +15,11 @@ import (
 )
 
 type Application struct {
-	EndPoint               string    // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	Key                    string    // API Key
-	Recursive              bool      // Explore sub folders
-	GooglePhotos           bool      // For reading Google Photos takeout files
-	Yes                    bool      // Assume Yes to all questions
+	EndPoint     string // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
+	Key          string // API Key
+	Recursive    bool   // Explore sub folders
+	GooglePhotos bool   // For reading Google Photos takeout files
+	// Yes                    bool      // Assume Yes to all questions
 	Delete                 bool      // Delete original file after import
 	CreateAlbumAfterFolder bool      // Create albums for assets based on the parent folder or a given name
 	ImportIntoAlbum        string    // All assets will be added to this album
@@ -29,10 +29,10 @@ type Application struct {
 	DateRange              DateRange // Set capture date range
 	ImportFromAlbum        string    // Import assets from this albums
 	CreateAlbums           bool      // Create albums when exists in the source
-	ReplaceInferiorAsset   bool      // When uploading replace server's inferior assets with the uploaded one
-	KeepTrashed            bool      // Import trashed assets
-	KeepPartner            bool      // Import partner's assets
-	DryRun                 bool      // Display actions but don't change anything
+	// ReplaceInferiorAsset   bool      // When uploading replace server's inferior assets with the uploaded one
+	KeepTrashed bool // Import trashed assets
+	KeepPartner bool // Import partner's assets
+	DryRun      bool // Display actions but don't change anything
 
 	OnLineAssets     *immich.StringList       // Keep track on published assets
 	Logger           logger.Logger            // Program's logger
@@ -55,7 +55,7 @@ func Initialize() (*Application, error) {
 		Logger:       *logger.NewLogger(logger.OK),
 		updateAlbums: map[string][]string{},
 	}
-	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)")
+	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
 	flag.StringVar(&app.Key, "key", "", "API Key")
 
 	flag.BoolVar(&app.DryRun, "dry-run", false, "display actions but don't touch source or destination")
@@ -76,7 +76,7 @@ func Initialize() (*Application, error) {
 
 	// flag.BoolVar(&app.Import, "import", false, "Import instead of upload")
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
-	flag.BoolVar(&app.ReplaceInferiorAsset, "replace-inferior", false, "When uploading replace server's inferior assets with the uploaded one")
+	// flag.BoolVar(&app.ReplaceInferiorAsset, "replace-inferior", false, "When uploading replace server's inferior assets with the uploaded one")
 	flag.Parse()
 	app.Paths = flag.Args()
 
