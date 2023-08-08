@@ -38,9 +38,6 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 	// Start a goroutine to browse the FS and collect the list of files
 	go func(ctx context.Context) {
 		defer close(fileChan) // Close the channel when the goroutine finishes
-		var hits int
-
-		_ = hits
 
 		err := fs.WalkDir(fsys, ".",
 			func(name string, d fs.DirEntry, err error) error {
@@ -74,6 +71,10 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 					}
 
 					dir := path.Dir(name)
+
+					if path.Base(dir) == "Failed Videos" {
+						return nil
+					}
 					base := strings.TrimSuffix(md.Title, ext)
 
 					f := LocalAssetFile{
@@ -84,13 +85,10 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 						FromPartner: md.GooglePhotosOrigin.FromPartnerSharing != nil,
 						dateTaken:   md.PhotoTakenTime.Time(),
 					}
+
 					if album, ok := fsys.albums[dir]; ok {
-						if album == "Failed Videos" {
-							return nil
-						}
 						f.AddAlbum(album)
 					}
-					hits++
 
 					// Check if the context has been cancelled before sending the file
 					select {
