@@ -95,7 +95,7 @@ func (app *Application) Run(ctx context.Context) error {
 		return err
 	}
 
-	if app.CreateAlbumAfterFolder || len(app.ImportFromAlbum) > 0 {
+	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportFromAlbum) > 0 {
 		app.Logger.Info("Browsing local assets for findings albums")
 		err = browser.BrowseAlbums(ctx)
 		if err != nil {
@@ -116,7 +116,7 @@ assetLoop:
 			}
 			err = app.handleAsset(a)
 			if err != nil {
-				return err
+				app.Logger.Warning(a.FileName, err.Error())
 			}
 
 		}
@@ -234,21 +234,21 @@ func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
 			app.Logger.MessageTerminate(logger.Error, "Error: %s", err)
 			return
 		}
-		if resp.Duplicate {
-			app.Logger.MessageContinue(logger.Warning, "already exists on the server")
-		}
 	} else {
 		resp.ID = uuid.NewString()
 	}
 	app.AssetIndex.AddLocalAsset(a)
-	app.mediaUploaded += 1
-	if !app.DryRun {
-		app.Logger.OK("Done, total %d uploaded", app.mediaUploaded)
+	if !resp.Duplicate {
+		app.mediaUploaded += 1
+		if !app.DryRun {
+			app.Logger.OK("Done, total %d uploaded", app.mediaUploaded)
+		} else {
+			app.Logger.OK("Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
+
+		}
 	} else {
-		app.Logger.OK("Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
-
+		app.Logger.MessageTerminate(logger.Warning, "already exists on the server")
 	}
-
 	for _, al := range a.Album {
 		app.AddToAlbum(resp.ID, al)
 	}
