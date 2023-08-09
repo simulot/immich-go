@@ -65,7 +65,11 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 				if err == nil && md != nil && len(md.URL) > 0 {
 					ext := strings.ToLower(path.Ext(md.Title))
 					switch ext {
-					case ".jpg", "jpeg", ".png", ".mp4", ".heic", ".mov", ".gif":
+					case ".jpg", ".jpeg", ".png", ".mp4", ".heic", ".mov", ".gif":
+					case "":
+						// Few title don't have extension. Assume .jpg
+						ext = ".jpg"
+						md.Title += ext
 					default:
 						return nil
 					}
@@ -75,11 +79,11 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 					if path.Base(dir) == "Failed Videos" {
 						return nil
 					}
-					base := strings.TrimSuffix(md.Title, ext)
+					// base := strings.TrimSuffix(md.Title, ext)
 
 					f := LocalAssetFile{
 						FSys:        fsys,
-						FileName:    path.Join(dir, base+ext),
+						FileName:    path.Join(dir, nameReplacer.Replace(md.Title)),
 						Title:       md.Title,
 						Trashed:     md.Trashed,
 						FromPartner: md.GooglePhotosOrigin.FromPartnerSharing != nil,
