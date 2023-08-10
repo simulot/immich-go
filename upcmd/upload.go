@@ -1,3 +1,5 @@
+// Command Upload
+
 package upcmd
 
 import (
@@ -10,19 +12,18 @@ import (
 	"immich-go/immich/assets"
 	"immich-go/immich/logger"
 	"io/fs"
+	"math"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
 
-/*
-Upload command handling
-*/
-
 type UpCmd struct {
 	Immich *immich.ImmichClient // Immich client
 
-	EndPoint               string           // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	Key                    string           // API Key
 	Recursive              bool             // Explore sub folders
 	GooglePhotos           bool             // For reading Google Photos takeout files
 	Delete                 bool             // Delete original file after import
@@ -38,7 +39,7 @@ type UpCmd struct {
 	KeepPartner            bool             // Import partner's assets
 	DryRun                 bool             // Display actions but don't change anything
 	// OnLineAssets           *immich.StringList       // Keep track on published assets
-	AssetIndex       *immich.AssetIndex       // List of assets present on the server
+	AssetIndex       *AssetIndex              // List of assets present on the server
 	deleteServerList []*immich.Asset          // List of server assets to remove
 	deleteLocalList  []*assets.LocalAssetFile // List of local assets to remove
 	mediaUploaded    int                      // Count uploaded medias
@@ -49,13 +50,43 @@ type UpCmd struct {
 
 func UploadCommand(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) error {
 	app, err := NewUpCmd(ctx, ic, logger, args)
-
-	logger.Info("Get server's assets...")
-	app.AssetIndex, err = app.Immich.GetAllAssets(nil)
 	if err != nil {
 		return err
 	}
+
+	logger.Info("Get server's assets...")
+	var list []*immich.Asset
+	list, err = app.Immich.GetAllAssets(nil)
+	if err != nil {
+		return err
+	}
+
 	logger.OK("%d assets on the server.", app.AssetIndex.Len())
+
+	app.AssetIndex = &AssetIndex{
+		assets: list,
+	}
+
+	app.AssetIndex.ReIndex()
+
+	// Get server's albums
+	app.AssetIndex.albums, err = ic.GetAllAlbums()
+	if err != nil {
+		return err
+	}
+	for _, album := range app.AssetIndex.albums {
+		info, err := ic.GetAlbumInfo(album.ID)
+		if err != nil {
+			return err
+		}
+		for _, a := range info.Assets {
+			as := app.AssetIndex.byID[a.DeviceAssetID]
+			if as != nil {
+				as.Albums = append(as.Albums, album)
+			}
+		}
+
+	}
 
 	fsys, err := fshelper.OpenMultiFile(app.Paths...)
 	if err != nil {
@@ -164,13 +195,13 @@ func (app *UpCmd) handleAsset(a *assets.LocalAssetFile) error {
 	}
 
 	switch advice.Advice {
-	case immich.NotOnServer:
+	case NotOnServer:
 		app.logger.Info("%s: %s", a.Title, advice.Message)
 		app.UploadAsset(a)
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
-	case immich.SmallerOnServer:
+	case SmallerOnServer:
 		app.logger.Info("%s: %s", a.Title, advice.Message)
 
 		// add the superior asset into albums of the orginal asset
@@ -183,7 +214,7 @@ func (app *UpCmd) handleAsset(a *assets.LocalAssetFile) error {
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
-	case immich.SameOnServer:
+	case SameOnServer:
 		// Set add the server asset into albums determined locally
 		for _, al := range a.Album {
 			app.AddToAlbum(advice.ServerAsset.ID, al)
@@ -196,7 +227,7 @@ func (app *UpCmd) handleAsset(a *assets.LocalAssetFile) error {
 		} else {
 			return nil
 		}
-	case immich.BetterOnServer:
+	case BetterOnServer:
 		// keep the server version but update albums
 		for _, al := range a.Album {
 			app.AddToAlbum(advice.ServerAsset.ID, al)
@@ -365,4 +396,154 @@ func (app *UpCmd) ManageAlbums() error {
 		}
 	}
 	return nil
+}
+
+// - - go:generate stringer -type=AdviceCode
+type AdviceCode int
+
+func (a AdviceCode) String() string {
+	switch a {
+	case IDontKnow:
+		return "IDontKnow"
+	// case SameNameOnServerButNotSure:
+	// 	return "SameNameOnServerButNotSure"
+	case SmallerOnServer:
+		return "SmallerOnServer"
+	case BetterOnServer:
+		return "BetterOnServer"
+	case SameOnServer:
+		return "SameOnServer"
+	case NotOnServer:
+		return "NotOnServer"
+	}
+	return fmt.Sprintf("advice(%d)", a)
+}
+
+const (
+	IDontKnow AdviceCode = iota
+	SmallerOnServer
+	BetterOnServer
+	SameOnServer
+	NotOnServer
+)
+
+type Advice struct {
+	Advice      AdviceCode
+	Message     string
+	ServerAsset *immich.Asset
+	LocalAsset  *assets.LocalAssetFile
+}
+
+func formatBytes(s int) string {
+	suffixes := []string{"B", "KB", "MB", "GB"}
+	bytes := float64(s)
+	base := 1024.0
+	if bytes < base {
+		return fmt.Sprintf("%.0f %s", bytes, suffixes[0])
+	}
+	exp := int64(0)
+	for bytes >= base && exp < int64(len(suffixes)-1) {
+		bytes /= base
+		exp++
+	}
+	roundedSize := math.Round(bytes*10) / 10
+	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
+}
+
+func (ai *AssetIndex) adviceIDontKnow(la *assets.LocalAssetFile) *Advice {
+	return &Advice{
+		Advice:     IDontKnow,
+		Message:    fmt.Sprintf("Can't decide what to do with %q. Check this vile yourself", la.FileName),
+		LocalAsset: la,
+	}
+}
+
+func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
+
+	return &Advice{
+		Advice:      SameOnServer,
+		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		ServerAsset: sa,
+	}
+}
+func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
+	return &Advice{
+		Advice:      SmallerOnServer,
+		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		ServerAsset: sa,
+	}
+}
+func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
+	return &Advice{
+		Advice:      BetterOnServer,
+		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		ServerAsset: sa,
+	}
+}
+func (ai *AssetIndex) adviceNotOnServer() *Advice {
+	return &Advice{
+		Advice:  NotOnServer,
+		Message: "This a new asset, upload it.",
+	}
+}
+
+// ShouldUpload check if the server has this asset
+//
+// The server may have different assets with the same name. This happens with photos produced by digital cameras.
+// The server may have the asset, but in lower resolution. Compare the taken date and resolution
+//
+//
+
+func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
+	filename := la.FileName
+	var err error
+
+	if fsys, ok := la.FSys.(assets.NameResolver); ok {
+		filename, err = fsys.ResolveName(la)
+		if err != nil {
+			return nil, err
+		}
+	}
+	ID := fmt.Sprintf("%s-%d", path.Base(filename), la.Size())
+
+	sa := ai.byID[ID]
+	if sa != nil {
+		// the same ID exist on the server
+		return ai.adviceSameOnServer(sa), nil
+	}
+
+	var l []*immich.Asset
+	var n string
+
+	// check all files with the same name
+
+	n = filepath.Base(filename)
+	l = ai.byName[n]
+	if len(l) == 0 {
+		n = strings.TrimSuffix(n, filepath.Ext(n))
+		l = ai.byName[n]
+	}
+
+	if len(l) > 0 {
+		dateTaken, err := la.DateTaken()
+		size := int(la.Size())
+		if err != nil {
+			return ai.adviceIDontKnow(la), nil
+
+		}
+		for _, sa = range l {
+			compareDate := dateTaken.Compare(sa.ExifInfo.DateTimeOriginal)
+			compareSize := size - sa.ExifInfo.FileSizeInByte
+
+			switch {
+			case compareDate == 0 && compareSize == 0:
+				return ai.adviceSameOnServer(sa), nil
+			case compareDate == 0 && compareSize > 0:
+				return ai.adviceSmallerOnServer(sa), nil
+			case compareDate == 0 && compareSize < 0:
+				return ai.adviceBetterOnServer(sa), nil
+			}
+		}
+	}
+	return ai.adviceNotOnServer(), nil
 }
