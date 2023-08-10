@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/yalue/merged_fs"
 )
 
 func main() {
@@ -304,7 +305,9 @@ func (a *Application) OpenFSs() (fs.FS, error) {
 			fss = append(fss, fsys)
 		}
 	}
-	return assets.NewMergedFS(fss), nil
+	return merged_fs.MergeMultiple(fss...), nil
+
+	// assets.NewMergedFS(fss), nil
 }
 
 func (app *Application) DeleteLocalAssets() error {
