@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"immich-go/fshelper"
 	"io"
 	"io/fs"
 	"os"
@@ -184,7 +185,7 @@ func (l *LocalAssetFile) IsInAlbum(album string) bool {
 
 // Remove the temporary file
 func (l *LocalAssetFile) Remove() error {
-	if fsys, ok := l.FSys.(Remover); ok {
+	if fsys, ok := l.FSys.(fshelper.Remover); ok {
 		return fsys.Remove(l.FileName)
 	}
 	return nil
