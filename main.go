@@ -1,8 +1,9 @@
 package main
 
 import (
-	"archive/zip"
 	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"immich-go/immich"
 	"immich-go/immich/assets"
@@ -10,8 +11,6 @@ import (
 	"io/fs"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -40,7 +39,7 @@ func main() {
 	case <-ctx.Done():
 		err = ctx.Err()
 	default:
-		err = app.Run(ctx)
+		err = Run(ctx)
 	}
 	if err != nil {
 		app.Logger.Error(err.Error())
@@ -49,8 +48,42 @@ func main() {
 	app.Logger.OK("Done.")
 }
 
-func (app *Application) Run(ctx context.Context) error {
+type Application struct {
+	EndPoint   string               // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
+	Key        string               // API Key
+	DeviceUUID string               // Set a device UUID
+	Immich     *immich.ImmichClient // Immich client
+	Logger     logger.Logger        // Program's logger
+
+}
+
+func Run(ctx context.Context) error {
 	var err error
+	deviceID, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
+	app := Application{
+		Logger: *logger.NewLogger(logger.OK),
+	}
+	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
+	flag.StringVar(&app.Key, "key", "", "API Key")
+	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
+
+	flag.Parse()
+	if len(app.EndPoint) == 0 {
+		err = errors.Join(err, errors.New("Must specify a server address"))
+	}
+
+	if len(app.Key) == 0 {
+		err = errors.Join(err, errors.New("Must specify an API key"))
+	}
+
+	if len(flag.Args()) == 0 {
+		err = errors.Join(err, errors.New("Missing command"))
+	}
+
 	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID)
 	if err != nil {
 		return err
@@ -67,161 +100,15 @@ func (app *Application) Run(ctx context.Context) error {
 		return err
 	}
 	app.Logger.Info("Connected, user: %s", user.Email)
-	app.Logger.Info("Get server's assets...")
 
-	app.AssetIndex, err = app.Immich.GetAllAssets(nil)
-	if err != nil {
-		return err
-	}
-	app.Logger.OK("%d assets on the server.", app.AssetIndex.Len())
-
-	fsys, err := app.OpenFSs()
-	if err != nil {
-		return err
-	}
-
-	var browser assets.Browser
-
-	switch {
-	case app.GooglePhotos:
-		app.Logger.Info("Browswing google take out archive...")
-		browser, err = app.ReadGoogleTakeOut(ctx, fsys)
+	cmd := flag.Args()[0]
+	switch cmd {
+	case "upload":
+		err = UploadCommand(ctx, app.Immich)
 	default:
-		app.Logger.Info("Browswing folder(s)...")
-		browser, err = app.ExploreLocalFolder(ctx, fsys)
+		err = fmt.Errorf("unknwon command: %q", cmd)
 	}
 
-	if err != nil {
-		return err
-	}
-
-	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportFromAlbum) > 0 {
-		app.Logger.Info("Browsing local assets for findings albums")
-		err = browser.BrowseAlbums(ctx)
-		if err != nil {
-			return err
-		}
-	}
-
-	assetChan := browser.Browse(ctx)
-assetLoop:
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-
-		case a, ok := <-assetChan:
-			if !ok {
-				break assetLoop
-			}
-			err = app.handleAsset(a)
-			if err != nil {
-				app.Logger.Warning(a.FileName, err.Error())
-			}
-
-		}
-	}
-
-	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportIntoAlbum) > 0 {
-		app.ManageAlbums()
-	}
-
-	if len(app.deleteServerList) > 0 {
-		ids := []string{}
-		for _, da := range app.deleteServerList {
-			ids = append(ids, da.ID)
-		}
-		err := app.DeleteServerAssets(ids)
-		if err != nil {
-			return fmt.Errorf("Can't delete server's assets: %w", err)
-		}
-	}
-
-	if len(app.deleteLocalList) > 0 {
-		err = app.DeleteLocalAssets()
-	}
-	return err
-}
-
-func (app *Application) handleAsset(a *assets.LocalAssetFile) error {
-	showCount := true
-	defer func() {
-		a.Close()
-		if showCount {
-			app.Logger.Progress("%d media scanned", app.mediaCount)
-		}
-	}()
-	app.mediaCount++
-
-	if !app.KeepPartner && a.FromPartner {
-		return nil
-	}
-
-	if !app.KeepTrashed && a.Trashed {
-		return nil
-	}
-
-	if len(app.ImportFromAlbum) > 0 && !a.IsInAlbum(app.ImportFromAlbum) {
-		return nil
-	}
-
-	if app.DateRange.IsSet() {
-		d, err := a.DateTaken()
-		if err != nil {
-			app.Logger.Error("Can't get capture date of the file. File %q skiped", a.FileName)
-			return nil
-		}
-		if !app.DateRange.InRange(d) {
-			return nil
-		}
-	}
-
-	advice, err := app.AssetIndex.ShouldUpload(a)
-	if err != nil {
-		return err
-	}
-
-	switch advice.Advice {
-	case immich.NotOnServer:
-		app.Logger.Info("%s: %s", a.Title, advice.Message)
-		app.UploadAsset(a)
-		if app.Delete {
-			app.deleteLocalList = append(app.deleteLocalList, a)
-		}
-	case immich.SmallerOnServer:
-		app.Logger.Info("%s: %s", a.Title, advice.Message)
-
-		// add the superior asset into albums of the orginal asset
-		for _, al := range advice.ServerAsset.Albums {
-			a.AddAlbum(al.AlbumName)
-		}
-		app.UploadAsset(a)
-
-		app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
-		if app.Delete {
-			app.deleteLocalList = append(app.deleteLocalList, a)
-		}
-	case immich.SameOnServer:
-		// Set add the server asset into albums determined locally
-		for _, al := range a.Album {
-			app.AddToAlbum(advice.ServerAsset.ID, al)
-		}
-		if !advice.ServerAsset.JustUploaded {
-			app.Logger.Info("%s: %s", a.Title, advice.Message)
-			if app.Delete {
-				app.deleteLocalList = append(app.deleteLocalList, a)
-			}
-		} else {
-			return nil
-		}
-	case immich.BetterOnServer:
-		// keep the server version but update albums
-		for _, al := range a.Album {
-			app.AddToAlbum(advice.ServerAsset.ID, al)
-		}
-	}
-	showCount = false
-	return nil
 }
 
 func (app *Application) UploadAsset(a *assets.LocalAssetFile) {
@@ -281,30 +168,6 @@ func (a *Application) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (assets
 
 func (a *Application) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
 	return assets.BrowseLocalAssets(fsys), nil
-}
-
-func (a *Application) OpenFSs() (fs.FS, error) {
-	fss := []fs.FS{}
-
-	for _, p := range a.Paths {
-		s, err := os.Stat(p)
-		if err != nil {
-			return nil, err
-		}
-
-		switch {
-		case !s.IsDir() && strings.ToLower(filepath.Ext(s.Name())) == ".zip":
-			fsys, err := zip.OpenReader(p)
-			if err != nil {
-				return nil, err
-			}
-			fss = append(fss, fsys)
-		default:
-			fsys := DirRemoveFS(p)
-			fss = append(fss, fsys)
-		}
-	}
-	return assets.NewMergedFS(fss), nil
 }
 
 func (app *Application) DeleteLocalAssets() error {
