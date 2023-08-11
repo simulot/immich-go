@@ -54,7 +54,7 @@ func UploadCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log
 		return err
 	}
 
-	log.MessageContinue(logger.Info, "Get server's assets...")
+	log.MessageContinue(logger.OK, "Get server's assets...")
 	var list []*immich.Asset
 	list, err = app.Immich.GetAllAssets(ctx, nil)
 	if err != nil {
@@ -67,7 +67,6 @@ func UploadCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log
 	}
 
 	app.AssetIndex.ReIndex()
-	log.OK("%d assets on the server.", app.AssetIndex.Len())
 
 	// Get server's albums
 	app.AssetIndex.albums, err = ic.GetAllAlbums(ctx)
