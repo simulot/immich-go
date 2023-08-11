@@ -60,7 +60,7 @@ func Run(ctx context.Context) error {
 	}
 
 	app := Application{
-		Logger: logger.NewLogger(logger.OK),
+		Logger: logger.NewLogger(logger.Info),
 	}
 	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
 	flag.StringVar(&app.Key, "key", "", "API Key")

@@ -13,7 +13,8 @@ builds:
       - linux
       - windows
       - darwin
-
+  - ldflags:
+    - -s -w -X "-extldflags=-static"
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
