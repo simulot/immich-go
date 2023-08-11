@@ -1,6 +1,9 @@
 package immich
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type AlbumSimplified struct {
 	ID string `json:"id,omitempty"`
@@ -17,9 +20,9 @@ type AlbumSimplified struct {
 	AssetIds []string `json:"assetIds,omitempty"`
 }
 
-func (ic *ImmichClient) GetAllAlbums() ([]AlbumSimplified, error) {
+func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error) {
 	var albums []AlbumSimplified
-	err := ic.newServerCall("GetAllAlbums").do(get("/album", setAcceptJSON()), responseJSON(&albums))
+	err := ic.newServerCall(ctx, "GetAllAlbums").do(get("/album", setAcceptJSON()), responseJSON(&albums))
 	if err != nil {
 		return nil, err
 	}
@@ -66,15 +69,15 @@ type AssetSimplified struct {
 	// JustUploaded bool   `json:"-"`
 }
 
-func (ic *ImmichClient) GetAlbumInfo(id string) (AlbumContent, error) {
+func (ic *ImmichClient) GetAlbumInfo(ctx context.Context, id string) (AlbumContent, error) {
 	var album AlbumContent
-	err := ic.newServerCall("GetAlbumInfo").do(get("/album/"+id, setAcceptJSON()), responseJSON(&album))
+	err := ic.newServerCall(ctx, "GetAlbumInfo").do(get("/album/"+id, setAcceptJSON()), responseJSON(&album))
 	return album, err
 }
 
-func (ic *ImmichClient) GetAssetsAlbums(id string) ([]AlbumSimplified, error) {
+func (ic *ImmichClient) GetAssetsAlbums(ctx context.Context, id string) ([]AlbumSimplified, error) {
 	var albums []AlbumSimplified
-	err := ic.newServerCall("GetAllAlbums").do(get("/album", setAcceptJSON()), responseJSON(&albums))
+	err := ic.newServerCall(ctx, "GetAllAlbums").do(get("/album", setAcceptJSON()), responseJSON(&albums))
 	if err != nil {
 		return nil, err
 	}
@@ -90,12 +93,12 @@ type UpdateAlbum struct {
 	AssetIds []string `json:"assetIds"`
 }
 
-func (ic *ImmichClient) UpdateAlbum(albumID string, assets []string) (UpdateAlbumResponse, error) {
+func (ic *ImmichClient) UpdateAlbum(ctx context.Context, albumID string, assets []string) (UpdateAlbumResponse, error) {
 	var r UpdateAlbumResponse
 	body := UpdateAlbum{
 		AssetIds: assets,
 	}
-	err := ic.newServerCall("UpdateAlbum").do(
+	err := ic.newServerCall(ctx, "UpdateAlbum").do(
 		put(fmt.Sprintf("/album/%s/assets", albumID), setAcceptJSON(),
 			setJSONBody(body)),
 		responseJSON(&r))
@@ -105,13 +108,13 @@ func (ic *ImmichClient) UpdateAlbum(albumID string, assets []string) (UpdateAlbu
 	return r, nil
 }
 
-func (ic *ImmichClient) CreateAlbum(name string, assets []string) (AlbumSimplified, error) {
+func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, assets []string) (AlbumSimplified, error) {
 	body := AlbumSimplified{
 		AlbumName: name,
 		AssetIds:  assets,
 	}
 	var r AlbumSimplified
-	err := ic.newServerCall("CreateAlbum").do(
+	err := ic.newServerCall(ctx, "CreateAlbum").do(
 		post("/album", "application/json", setAcceptJSON(), setJSONBody(body)),
 		responseJSON(&r))
 	if err != nil {

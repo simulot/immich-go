@@ -374,7 +374,7 @@ func decodeMvhdAtom(b []byte) (*MvhdAtom, error) {
 		b, _ := r.ReadSlice(8)
 		a.ModificationTime = convertTime64(binary.BigEndian.Uint64(b))
 
-		b, _ = r.ReadSlice(4)
+		b, _ = r.ReadSlice(8)
 		a.CreationTime = convertTime64(binary.BigEndian.Uint64(b))
 	}
 

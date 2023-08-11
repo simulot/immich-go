@@ -1,6 +1,7 @@
 package immich
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -35,9 +36,9 @@ func NewImmichClient(endPoint, key, deviceUUID string) (*ImmichClient, error) {
 }
 
 // Ping server
-func (ic *ImmichClient) PingServer() error {
+func (ic *ImmichClient) PingServer(ctx context.Context) error {
 	r := PingResponse{}
-	err := ic.newServerCall("PingServer").do(get("/server-info/ping", setAcceptJSON()), responseJSON(&r))
+	err := ic.newServerCall(ctx, "PingServer").do(get("/server-info/ping", setAcceptJSON()), responseJSON(&r))
 	if err != nil {
 		return err
 	}
@@ -50,9 +51,9 @@ func (ic *ImmichClient) PingServer() error {
 // ValidateConnection
 // Validate the connection by querying the identity of the user having the given key
 
-func (ic *ImmichClient) ValidateConnection() (User, error) {
+func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
 	var user User
-	err := ic.newServerCall("ValidateConnection").
+	err := ic.newServerCall(ctx, "ValidateConnection").
 		do(get("/user/me", setAcceptJSON()), responseJSON(&user))
 	if err != nil {
 		return user, err

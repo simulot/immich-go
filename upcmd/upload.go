@@ -48,34 +48,34 @@ type UpCmd struct {
 	logger           *logger.Logger
 }
 
-func UploadCommand(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) error {
-	app, err := NewUpCmd(ctx, ic, logger, args)
+func UploadCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) error {
+	app, err := NewUpCmd(ctx, ic, log, args)
 	if err != nil {
 		return err
 	}
 
-	logger.Info("Get server's assets...")
+	log.MessageContinue(logger.Info, "Get server's assets...")
 	var list []*immich.Asset
-	list, err = app.Immich.GetAllAssets(nil)
+	list, err = app.Immich.GetAllAssets(ctx, nil)
 	if err != nil {
 		return err
 	}
-
-	logger.OK("%d assets on the server.", app.AssetIndex.Len())
+	log.MessageTerminate(logger.OK, "%d received", len(list))
 
 	app.AssetIndex = &AssetIndex{
 		assets: list,
 	}
 
 	app.AssetIndex.ReIndex()
+	log.OK("%d assets on the server.", app.AssetIndex.Len())
 
 	// Get server's albums
-	app.AssetIndex.albums, err = ic.GetAllAlbums()
+	app.AssetIndex.albums, err = ic.GetAllAlbums(ctx)
 	if err != nil {
 		return err
 	}
 	for _, album := range app.AssetIndex.albums {
-		info, err := ic.GetAlbumInfo(album.ID)
+		info, err := ic.GetAlbumInfo(ctx, album.ID)
 		if err != nil {
 			return err
 		}
@@ -97,10 +97,10 @@ func UploadCommand(ctx context.Context, ic *immich.ImmichClient, logger *logger.
 
 	switch {
 	case app.GooglePhotos:
-		logger.Info("Browsing google take out archive...")
+		log.Info("Browsing google take out archive...")
 		browser, err = app.ReadGoogleTakeOut(ctx, fsys)
 	default:
-		logger.Info("Browsing folder(s)...")
+		log.Info("Browsing folder(s)...")
 		browser, err = app.ExploreLocalFolder(ctx, fsys)
 	}
 
@@ -109,7 +109,7 @@ func UploadCommand(ctx context.Context, ic *immich.ImmichClient, logger *logger.
 	}
 
 	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportFromAlbum) > 0 {
-		logger.Info("Browsing local assets for findings albums")
+		log.Info("Browsing local assets for findings albums")
 		err = browser.BrowseAlbums(ctx)
 		if err != nil {
 			return err
@@ -127,16 +127,16 @@ assetLoop:
 			if !ok {
 				break assetLoop
 			}
-			err = app.handleAsset(a)
+			err = app.handleAsset(ctx, a)
 			if err != nil {
-				logger.Warning("%s: %q", err.Error(), a.FileName)
+				log.Warning("%s: %q", err.Error(), a.FileName)
 			}
 
 		}
 	}
 
 	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportIntoAlbum) > 0 {
-		app.ManageAlbums()
+		app.ManageAlbums(ctx)
 	}
 
 	if len(app.deleteServerList) > 0 {
@@ -144,7 +144,7 @@ assetLoop:
 		for _, da := range app.deleteServerList {
 			ids = append(ids, da.ID)
 		}
-		err := app.DeleteServerAssets(ids)
+		err := app.DeleteServerAssets(ctx, ids)
 		if err != nil {
 			return fmt.Errorf("Can't delete server's assets: %w", err)
 		}
@@ -156,7 +156,7 @@ assetLoop:
 	return err
 }
 
-func (app *UpCmd) handleAsset(a *assets.LocalAssetFile) error {
+func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) error {
 	showCount := true
 	defer func() {
 		a.Close()
@@ -197,7 +197,7 @@ func (app *UpCmd) handleAsset(a *assets.LocalAssetFile) error {
 	switch advice.Advice {
 	case NotOnServer:
 		app.logger.Info("%s: %s", a.Title, advice.Message)
-		app.UploadAsset(a)
+		app.UploadAsset(ctx, a)
 		if app.Delete {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
@@ -208,7 +208,7 @@ func (app *UpCmd) handleAsset(a *assets.LocalAssetFile) error {
 		for _, al := range advice.ServerAsset.Albums {
 			a.AddAlbum(al.AlbumName)
 		}
-		app.UploadAsset(a)
+		app.UploadAsset(ctx, a)
 
 		app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
 		if app.Delete {
@@ -279,12 +279,12 @@ func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (assets.Brow
 	return assets.BrowseLocalAssets(fsys), nil
 }
 
-func (app *UpCmd) UploadAsset(a *assets.LocalAssetFile) {
+func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 	var resp immich.AssetResponse
 	app.logger.MessageContinue(logger.OK, "Uploading %q...", a.FileName)
 	var err error
 	if !app.DryRun {
-		resp, err = app.Immich.AssetUpload(a)
+		resp, err = app.Immich.AssetUpload(ctx, a)
 		if err != nil {
 			app.logger.MessageTerminate(logger.Error, "Error: %s", err)
 			return
@@ -347,20 +347,20 @@ func (app *UpCmd) DeleteLocalAssets() error {
 	return nil
 }
 
-func (app *UpCmd) DeleteServerAssets(ids []string) error {
+func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 	app.logger.Warning("%d server assets to delete.", len(ids))
 
 	if !app.DryRun {
-		_, err := app.Immich.DeleteAsset(ids)
+		_, err := app.Immich.DeleteAsset(ctx, ids)
 		return err
 	}
 	app.logger.Warning("%d server assets to delete. skipped dry-run mode", len(ids))
 	return nil
 }
 
-func (app *UpCmd) ManageAlbums() error {
+func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 	if len(app.updateAlbums) > 0 {
-		serverAlbums, err := app.Immich.GetAllAlbums()
+		serverAlbums, err := app.Immich.GetAllAlbums(ctx)
 		if err != nil {
 			return fmt.Errorf("can't get the album list from the server: %w", err)
 		}
@@ -371,7 +371,7 @@ func (app *UpCmd) ManageAlbums() error {
 					found = true
 					if !app.DryRun {
 						app.logger.OK("Update the album %s", album)
-						_, err := app.Immich.UpdateAlbum(sal.ID, list)
+						_, err := app.Immich.UpdateAlbum(ctx, sal.ID, list)
 						if err != nil {
 							return fmt.Errorf("can't update the album list from the server: %w", err)
 						}
@@ -386,7 +386,7 @@ func (app *UpCmd) ManageAlbums() error {
 			if !app.DryRun {
 				app.logger.OK("Create the album %s", album)
 
-				_, err := app.Immich.CreateAlbum(album, list)
+				_, err := app.Immich.CreateAlbum(ctx, album, list)
 				if err != nil {
 					return fmt.Errorf("can't create the album list from the server: %w", err)
 				}

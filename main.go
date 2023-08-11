@@ -26,7 +26,7 @@ func main() {
 
 	go func() {
 		<-signalChannel
-		fmt.Println("\nCtrl+C received. Gracefully shutting down...")
+		fmt.Println("\nCtrl+C received. Shutting down...")
 		cancel() // Cancel the context when Ctrl+C is received
 	}()
 
@@ -68,29 +68,32 @@ func Run(ctx context.Context) error {
 
 	flag.Parse()
 	if len(app.EndPoint) == 0 {
-		err = errors.Join(err, errors.New("Must specify a server address"))
+		err = errors.Join(err, errors.New("missing -server"))
 	}
 
 	if len(app.Key) == 0 {
-		err = errors.Join(err, errors.New("Must specify an API key"))
+		err = errors.Join(err, errors.New("missing -key"))
 	}
 
 	if len(flag.Args()) == 0 {
-		err = errors.Join(err, errors.New("Missing command"))
+		err = errors.Join(err, errors.New("missing command"))
 	}
 
+	if err != nil {
+		return err
+	}
 	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID)
 	if err != nil {
 		return err
 	}
 
-	err = app.Immich.PingServer()
+	err = app.Immich.PingServer(ctx)
 	if err != nil {
 		return err
 	}
 	app.Logger.OK("Server status: OK")
 
-	user, err := app.Immich.ValidateConnection()
+	user, err := app.Immich.ValidateConnection(ctx)
 	if err != nil {
 		return err
 	}

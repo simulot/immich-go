@@ -2,6 +2,7 @@ package immich
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +27,7 @@ type serverCall struct {
 	endPoint string
 	ic       *ImmichClient
 	err      error
+	ctx      context.Context
 }
 
 type serverCallOption func(sc *serverCall) error
@@ -82,10 +84,11 @@ func (ce callError) Error() string {
 	return b.String()
 }
 
-func (ic *ImmichClient) newServerCall(api string, opts ...serverCallOption) *serverCall {
+func (ic *ImmichClient) newServerCall(ctx context.Context, api string, opts ...serverCallOption) *serverCall {
 	sc := &serverCall{
 		endPoint: api,
 		ic:       ic,
+		ctx:      ctx,
 	}
 	if sc.err == nil {
 		for _, opt := range opts {
@@ -119,7 +122,7 @@ type requestFunction func(sc *serverCall) *http.Request
 
 func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
 
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequestWithContext(sc.ctx, method, url, nil)
 	if sc.joinError(err) != nil {
 		return nil
 	}

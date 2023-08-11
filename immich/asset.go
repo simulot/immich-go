@@ -2,6 +2,7 @@ package immich
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"immich-go/immich/assets"
 	"io"
@@ -81,7 +82,7 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
-func (ic *ImmichClient) AssetUpload(la *assets.LocalAssetFile) (AssetResponse, error) {
+func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFile) (AssetResponse, error) {
 	var ar AssetResponse
 
 	// Check the mime type with the first 4k of the file
@@ -142,7 +143,7 @@ func (ic *ImmichClient) AssetUpload(la *assets.LocalAssetFile) (AssetResponse, e
 		}
 	}()
 
-	err = ic.newServerCall("AssetUpload").
+	err = ic.newServerCall(ctx, "AssetUpload").
 		do(post("/asset/upload", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
 	return ar, err
@@ -176,10 +177,10 @@ func (o *GetAssetOptions) Values() url.Values {
 	return v
 }
 
-func (ic *ImmichClient) GetAllAssets(opt *GetAssetOptions) ([]*Asset, error) {
+func (ic *ImmichClient) GetAllAssets(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error) {
 	var r []*Asset
 
-	err := ic.newServerCall("GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSON(&r))
 	return r, err
 
 }
@@ -189,7 +190,7 @@ type deleteResponse []struct {
 	Status string `json:"status"`
 }
 
-func (ic *ImmichClient) DeleteAsset(id []string) (*deleteResponse, error) {
+func (ic *ImmichClient) DeleteAsset(ctx context.Context, id []string) (*deleteResponse, error) {
 	req := struct {
 		IDs []string `json:"ids"`
 	}{
@@ -198,7 +199,7 @@ func (ic *ImmichClient) DeleteAsset(id []string) (*deleteResponse, error) {
 
 	resp := deleteResponse{}
 
-	err := ic.newServerCall("DeleteAsset").do(delete("/asset", setAcceptJSON(), setJSONBody(req)), responseJSON(&resp))
+	err := ic.newServerCall(ctx, "DeleteAsset").do(delete("/asset", setAcceptJSON(), setJSONBody(req)), responseJSON(&resp))
 	if err != nil {
 		return nil, err
 	}
