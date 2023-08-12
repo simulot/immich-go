@@ -46,9 +46,10 @@ type LocalAssetFile struct {
 	FSys fs.FS // Asset's file system
 
 	// Unexported fields
-	isResolved bool      // True when the FileName is resolved
-	dateTaken  time.Time // Accessible via DateTaken()
-	size       int       // Accessible via Stat()
+	isResolved      bool      // True when the FileName is resolved
+	dateTaken       time.Time // Accessible via DateTaken()
+	dateAlreadyRead bool      // true when the date has been read
+	size            int       // Accessible via Stat()
 
 	// buffer management
 	sourceFile fs.File   // the opened source file
@@ -205,7 +206,7 @@ func (l LocalAssetFile) DateTakenCached() time.Time {
 //
 
 func (l *LocalAssetFile) DateTaken() (time.Time, error) {
-	if !l.dateTaken.IsZero() {
+	if l.dateAlreadyRead {
 		return l.dateTaken, nil
 	}
 
@@ -226,7 +227,7 @@ func (l *LocalAssetFile) DateTaken() (time.Time, error) {
 	default:
 		err = fmt.Errorf("can't determine the taken date from this file: %q", l.FileName)
 	}
-
+	l.dateAlreadyRead = true
 	return l.dateTaken, err
 }
 
@@ -243,6 +244,9 @@ func (l *LocalAssetFile) readExifDateTaken() (time.Time, error) {
 	// Decode the EXIF data
 	x, err := exif.Decode(r)
 	if err != nil && exif.IsCriticalError(err) {
+		if errors.Is(err, io.EOF) {
+			return time.Time{}, nil
+		}
 		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
 	}
 
