@@ -202,7 +202,6 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		}
 		// Any StatusCode above 300 denote a problem
 		if resp.StatusCode >= 300 {
-			fmt.Println(try, resp.Status)
 			msg := ServerMessage{}
 			if resp.Body != nil {
 				if json.NewDecoder(resp.Body).Decode(&msg) == nil {
@@ -214,12 +213,12 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 			}
 			// StatusCode below 500 are
 			if resp.StatusCode < 500 {
-				return sc.Err(req, resp, nil)
+				return sc.Err(req, resp, &msg)
 			}
 			try--
 			if try == 0 {
 				sc.joinError(TooManyInternalError{})
-				return sc.Err(req, resp, nil)
+				return sc.Err(req, resp, &msg)
 			}
 		}
 		time.Sleep(2 * time.Second)
