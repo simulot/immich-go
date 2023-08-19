@@ -85,25 +85,28 @@ func (ic *ImmichClient) GetAssetsAlbums(ctx context.Context, id string) ([]Album
 
 }
 
-type UpdateAlbumResponse struct {
-	SuccessfullyAdded int `json:"successfullyAdded"`
-}
-
 type UpdateAlbum struct {
-	AssetIds []string `json:"assetIds"`
+	IDS []string `json:"ids"`
 }
 
-func (ic *ImmichClient) UpdateAlbum(ctx context.Context, albumID string, assets []string) (UpdateAlbumResponse, error) {
-	var r UpdateAlbumResponse
+type UpdateAlbumResult struct {
+	ID      string `json:"id"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (ic *ImmichClient) AddAssetToAlbum(ctx context.Context, albumID string, assets []string) ([]UpdateAlbumResult, error) {
+
+	var r []UpdateAlbumResult
 	body := UpdateAlbum{
-		AssetIds: assets,
+		IDS: assets,
 	}
-	err := ic.newServerCall(ctx, "UpdateAlbum").do(
+	err := ic.newServerCall(ctx, "AddAssetToAlbum").do(
 		put(fmt.Sprintf("/album/%s/assets", albumID), setAcceptJSON(),
 			setJSONBody(body)),
 		responseJSON(&r))
 	if err != nil {
-		return UpdateAlbumResponse{}, err
+		return nil, err
 	}
 	return r, nil
 }

@@ -135,7 +135,11 @@ assetLoop:
 	}
 
 	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportIntoAlbum) > 0 {
-		app.ManageAlbums(ctx)
+		err = app.ManageAlbums(ctx)
+		if err != nil {
+			log.Error(err.Error())
+			err = nil
+		}
 	}
 
 	if len(app.deleteServerList) > 0 {
@@ -369,11 +373,20 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 				if sal.AlbumName == album {
 					found = true
 					if !app.DryRun {
-						app.logger.OK("Update the album %s", album)
-						_, err := app.Immich.UpdateAlbum(ctx, sal.ID, list)
+						rr, err := app.Immich.AddAssetToAlbum(ctx, sal.ID, list)
 						if err != nil {
 							return fmt.Errorf("can't update the album list from the server: %w", err)
 						}
+						added := 0
+						for _, r := range rr {
+							if r.Success {
+								added++
+							}
+							if !r.Success && r.Error != "duplicate" {
+								app.logger.Warning("%s: %s", r.ID, r.Error)
+							}
+						}
+						app.logger.OK("%d asset(s) added to the album %q", added, album)
 					} else {
 						app.logger.OK("Update album %s skipped - dry run mode", album)
 					}
