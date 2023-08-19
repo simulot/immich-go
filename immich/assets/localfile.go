@@ -199,7 +199,7 @@ func (l LocalAssetFile) DateTakenCached() time.Time {
 
 // DateTaken make it best efforts to get the date of capture based on
 // - if the name matches a at least 4 digits for the year, 2 for month, 2 for day, in this order.
-// It takes the hour, minute, second when present. Very fast
+//   It takes the hour, minute, second when present. Very fast
 //
 // - file content if the file includes some metadata, need read a part of the file
 //
@@ -209,7 +209,7 @@ func (l *LocalAssetFile) DateTaken() (time.Time, error) {
 	if l.dateAlreadyRead {
 		return l.dateTaken, nil
 	}
-
+	l.dateAlreadyRead = true
 	l.dateTaken = TakeTimeFromName(l.FileName)
 	if !l.dateTaken.IsZero() {
 		return l.dateTaken, nil
@@ -227,7 +227,6 @@ func (l *LocalAssetFile) DateTaken() (time.Time, error) {
 	default:
 		err = fmt.Errorf("can't determine the taken date from this file: %q", l.FileName)
 	}
-	l.dateAlreadyRead = true
 	return l.dateTaken, err
 }
 
