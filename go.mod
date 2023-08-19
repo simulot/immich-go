@@ -10,7 +10,4 @@ require (
 	github.com/yalue/merged_fs v1.2.3
 )
 
-require (
-	github.com/yalue/merged_fs v1.2.3 // indirect
-	golang.org/x/net v0.12.0 // indirect
-)
+require golang.org/x/net v0.12.0 // indirect

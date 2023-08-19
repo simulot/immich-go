@@ -13,8 +13,8 @@ builds:
       - linux
       - windows
       - darwin
-  - ldflags:
-    - -s -w -X "-extldflags=-static" -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser'
+    ldflags:
+    - -s -w "-extldflags=-static" -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser'
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
