@@ -19,7 +19,7 @@ var (
 )
 
 func main() {
-	fmt.Printf("immich-go  %s, commit %s, built at %s", version, commit, date)
+	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 	var err error
 	app := &Application{
 		Logger: logger.NewLogger(logger.Info),
