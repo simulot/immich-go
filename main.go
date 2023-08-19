@@ -12,7 +12,14 @@ import (
 	"os/signal"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
+	fmt.Printf("immich-go  %s, commit %s, built at %s", version, commit, date)
 	var err error
 	app := &Application{
 		Logger: logger.NewLogger(logger.Info),
