@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"immich-go/dupcmd"
 	"immich-go/immich"
 	"immich-go/immich/logger"
 	"immich-go/upcmd"
@@ -110,6 +111,8 @@ func Run(ctx context.Context) error {
 	switch cmd {
 	case "upload":
 		err = upcmd.UploadCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+	case "duplicate":
+		err = dupcmd.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	default:
 		err = fmt.Errorf("unknwon command: %q", cmd)
 	}

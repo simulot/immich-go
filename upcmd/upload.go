@@ -184,7 +184,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	if app.DateRange.IsSet() {
 		d, err := a.DateTaken()
 		if err != nil {
-			app.logger.Error("Can't get capture date of the file. File %q skiped", a.FileName)
+			app.logger.Error("Can't get capture date of the file. File %q skipped", a.FileName)
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
@@ -243,7 +243,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 
 func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*UpCmd, error) {
 	var err error
-	cmd := flag.NewFlagSet("generate", flag.ExitOnError)
+	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
 	app := UpCmd{
 		updateAlbums: map[string][]string{},
@@ -354,7 +354,7 @@ func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 	app.logger.Warning("%d server assets to delete.", len(ids))
 
 	if !app.DryRun {
-		_, err := app.Immich.DeleteAsset(ctx, ids)
+		_, err := app.Immich.DeleteAssets(ctx, ids)
 		return err
 	}
 	app.logger.Warning("%d server assets to delete. skipped dry-run mode", len(ids))

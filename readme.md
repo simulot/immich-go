@@ -58,6 +58,7 @@ immich-go -server URL -key KEY  COMMAND -options...  folder1|zip1 folder2|zip2..
 
 ## Command `upload`
 
+Use this command for uploading photos and videos from a local directory, a zipped folder or all zip files that google photo takeout procedure has generated.
 ### Switches and options:
 `-album "ALBUM NAME"` Import assets into the Immich album `ALBUM NAME`.<br>
 `-device-uuid VALUE` Force the device identification (default $HOSTNAME).<br>
@@ -81,13 +82,32 @@ Specialized options for Google Photos management:
 `-keep-trashed <bool>` Determines whether to import trashed images (default: FALSE).<br>
 
 
-## Example Usage
+### Example Usage: uploading a Google photos takeout archive
 
 To illustrate, here's a command importing photos from a Google Photos takeout archive captured between June 1st and June 30th, 2019, while auto-generating albums:
 
 ```sh
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ upload
 -create-albums -google-photos -date=2019-06 ~/Download/takeout-20230715T073439Z-001.zip ~/Download/takeout-20230715T073439Z-002.zip             
+```
+
+## Command `duplicate`
+
+Use this command for analyzing the content of your `immich` server to find any files that share the same file name, the  date of capture, but having different size. 
+Before deleting the inferior copies, the system get all albums they belong to, and add the superior copy to them.
+
+### Switches and options:
+`-dry-run` Preview all actions as they would be done (default: TRUE).<br> 
+
+
+### Example Usage: clean the `immich` server after having merged a google photo archive and original files
+
+This command examine the immich server content, remove less quality images, and preserve albums.
+
+NOTE: You should disable the dry run mode explicitly.
+
+```sh
+./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ duplicate -dry-run=false
 ```
 
 
@@ -208,3 +228,9 @@ Additionally, deploying a Node.js program on user machines presents challenges.
     - [ ] samba
     - [ ] import remote folder
 
+# Wanted features 
+- [ ] Import instead of Upload
+- [x] Cleaning duplicates
+- [ ] Set GPS location for images taken with a GPS-less camera based on
+    - [ ] Google location history
+    - [ ] KML,GPX track files

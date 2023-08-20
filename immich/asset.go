@@ -190,7 +190,7 @@ type deleteResponse []struct {
 	Status string `json:"status"`
 }
 
-func (ic *ImmichClient) DeleteAsset(ctx context.Context, id []string) (*deleteResponse, error) {
+func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string) (*deleteResponse, error) {
 	req := struct {
 		IDs []string `json:"ids"`
 	}{
