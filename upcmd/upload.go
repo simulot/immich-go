@@ -61,7 +61,7 @@ func UploadCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log
 	if err != nil {
 		return err
 	}
-	log.MessageTerminate(logger.OK, "%d received", len(list))
+	log.MessageTerminate(logger.OK, " %d received", len(list))
 
 	app.AssetIndex = &AssetIndex{
 		assets: list,
@@ -398,7 +398,9 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 								app.logger.Warning("%s: %s", r.ID, r.Error)
 							}
 						}
-						app.logger.OK("%d asset(s) added to the album %q", added, album)
+						if added > 0 {
+							app.logger.OK("%d asset(s) added to the album %q", added, album)
+						}
 					} else {
 						app.logger.OK("Update album %s skipped - dry run mode", album)
 					}

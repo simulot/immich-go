@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
+	"unsafe"
 )
 
 type NameResolver interface {
@@ -79,7 +82,6 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 					if path.Base(dir) == "Failed Videos" {
 						return nil
 					}
-					// base := strings.TrimSuffix(md.Title, ext)
 
 					f := LocalAssetFile{
 						FSys:        fsys,
@@ -128,10 +130,13 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 	ext := path.Ext(la.Title)
 	base := strings.TrimSuffix(la.Title, ext)
 	dir := path.Dir(la.FileName)
-	if len(base) >= 46 {
-		base = base[:46]
+	baseUnicode := utf16.Encode([]rune(base))
+
+	if len(baseUnicode) > 46 {
+		baseUnicode = baseUnicode[:46]
+		base = string(utf16.Decode(baseUnicode))
 	}
-	pattern := nameReplacer.Replace(base) + ".*"
+	pattern := nameReplacer.Replace(base) + "*.*"
 
 	matches, err := fs.Glob(fsys, filepath.Join(dir, pattern))
 	if err != nil {
@@ -150,9 +155,12 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 	return "", fmt.Errorf("can't find the image with title %q, pattern: %q: %w", la.Title, pattern, os.ErrNotExist)
 }
 
-var nameReplacer = strings.NewReplacer(" ", "?", "/", "?", ":", "?")
+func hexPrint(s string, u []uint16) {
+	fmt.Println(s, len(s))
+	fmt.Println(hex.EncodeToString(*(*[]byte)(unsafe.Pointer(&u))))
+}
 
-var gp = regexp.MustCompile(`Photos from \d{4}`)
+var nameReplacer = strings.NewReplacer(" ", "?", "/", "?", ":", "?")
 var commaAlbum = regexp.MustCompile(`^,\s+`)
 
 type googleMetaData struct {
