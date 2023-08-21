@@ -56,7 +56,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 	}
 	log.MessageTerminate(logger.OK, "%d received", len(list))
 
-	log.MessageContinue(logger.OK, "Analyzing...")
+	log.MessageContinue(logger.Info, "Analyzing...")
 	duplicate := map[duplicateKey][]*immich.Asset{}
 
 	count := 0
@@ -79,13 +79,12 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 				l = append(l, a)
 				duplicate[k] = l
 			}
-			if count%253 == 0 {
-				log.Progress("%d medias, %d duplicate(s)...", count, dupCount)
+			if true || count%253 == 0 {
+				log.Progress(logger.Info, "%d medias, %d duplicate(s)...", count, dupCount)
 			}
 		}
 	}
-	log.Progress("%d medias, %d duplicate(s)...", count, dupCount)
-	log.MessageTerminate(logger.OK, " analyze completed.")
+	log.MessageTerminate(logger.OK, "%d medias, %d duplicate(s). Analyze completed.", count, dupCount)
 
 	keys := []duplicateKey{}
 	for k, l := range duplicate {

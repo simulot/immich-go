@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ttacon/chalk"
 )
@@ -16,6 +17,33 @@ const (
 	Info
 )
 
+func (l Level) String() string {
+	switch l {
+	case Fatal:
+		return "Fatal"
+	case Error:
+		return "Error"
+	case Warning:
+		return "Warning"
+	case OK:
+		return "OK"
+	case Info:
+		return "Info"
+	default:
+		return fmt.Sprintf("Log Level %d", l)
+	}
+}
+
+func StringToLevel(s string) (Level, error) {
+	s = strings.ToLower(s)
+	for l := Fatal; l <= Info; l++ {
+		if strings.ToLower(l.String()) == s {
+			return l, nil
+		}
+	}
+	return Error, fmt.Errorf("unknown log level: %s", s)
+}
+
 var colorLevel = map[Level]string{
 	Fatal:   chalk.Red.String(),
 	Error:   chalk.Red.String(),
@@ -26,13 +54,23 @@ var colorLevel = map[Level]string{
 
 type Logger struct {
 	needCR       bool
+	needSpace    bool
 	displayLevel Level
+	noColors     bool
+	colorStrings map[Level]string
 }
 
-func NewLogger(DisplayLevel Level) *Logger {
-	return &Logger{
+func NewLogger(DisplayLevel Level, noColors bool) *Logger {
+	l := Logger{
 		displayLevel: DisplayLevel,
+		noColors:     noColors,
+		colorStrings: map[Level]string{},
 	}
+	if !noColors {
+		l.colorStrings = colorLevel
+	}
+
+	return &l
 }
 
 func (l *Logger) Info(f string, v ...any) {
@@ -59,12 +97,16 @@ func (l *Logger) Message(level Level, f string, v ...any) {
 		fmt.Println()
 		l.needCR = false
 	}
-	fmt.Print(colorLevel[level])
+	l.needSpace = false
+	fmt.Print(l.colorStrings[level])
 	fmt.Printf(f, v...)
 	fmt.Println(chalk.ResetColor)
 }
 
-func (l *Logger) Progress(f string, v ...any) {
+func (l *Logger) Progress(level Level, f string, v ...any) {
+	if level > l.displayLevel {
+		return
+	}
 	fmt.Printf("\r"+f, v...)
 	l.needCR = true
 }
@@ -77,15 +119,22 @@ func (l *Logger) MessageContinue(level Level, f string, v ...any) {
 		fmt.Println()
 		l.needCR = false
 	}
-	fmt.Print(colorLevel[level], " ")
+	if l.needSpace {
+		fmt.Print(" ")
+	}
+	fmt.Print(l.colorStrings[level])
 	fmt.Printf(f, v...)
+	l.needSpace = true
 }
 
 func (l *Logger) MessageTerminate(level Level, f string, v ...any) {
 	if level > l.displayLevel {
 		return
 	}
-	fmt.Print(colorLevel[level], " ")
+	fmt.Print("\r")
+	fmt.Print(l.colorStrings[level])
 	fmt.Printf(f, v...)
 	fmt.Println(chalk.ResetColor)
+	l.needSpace = false
+	l.needCR = false
 }

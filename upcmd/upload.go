@@ -164,7 +164,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	defer func() {
 		a.Close()
 		if showCount {
-			app.logger.Progress("%d media scanned", app.mediaCount)
+			app.logger.Progress(logger.Info, "%d media scanned...", app.mediaCount)
 		}
 	}()
 	app.mediaCount++
@@ -207,7 +207,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	case SmallerOnServer:
 		app.logger.Info("%s: %s", a.Title, advice.Message)
 
-		// add the superior asset into albums of the orginal asset
+		// add the superior asset into albums of the original asset
 		for _, al := range advice.ServerAsset.Albums {
 			a.AddAlbum(al.AlbumName)
 		}

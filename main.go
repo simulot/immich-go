@@ -22,9 +22,7 @@ var (
 func main() {
 	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 	var err error
-	app := &Application{
-		Logger: logger.NewLogger(logger.Info),
-	}
+	var log = logger.NewLogger(logger.OK, true)
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -42,13 +40,13 @@ func main() {
 	case <-ctx.Done():
 		err = ctx.Err()
 	default:
-		err = Run(ctx)
+		log, err = Run(ctx, log)
 	}
 	if err != nil {
-		app.Logger.Error(err.Error())
+		log.Error(err.Error())
 		os.Exit(1)
 	}
-	app.Logger.OK("Done.")
+	log.OK("Done.")
 }
 
 type Application struct {
@@ -58,52 +56,60 @@ type Application struct {
 	Immich     *immich.ImmichClient // Immich client
 	Logger     *logger.Logger       // Program's logger
 
+	NoLogColors bool // Disable log colors
+	LogLevel    string
 }
 
-func Run(ctx context.Context) error {
+func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	var err error
 	deviceID, err := os.Hostname()
 	if err != nil {
-		return err
+		return log, err
 	}
 
-	app := Application{
-		Logger: logger.NewLogger(logger.Info),
-	}
+	app := Application{}
 	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
 	flag.StringVar(&app.Key, "key", "", "API Key")
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
-
+	flag.BoolVar(&app.NoLogColors, "no-colors-log", false, "Disable colors on logs")
+	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
 	flag.Parse()
 	if len(app.EndPoint) == 0 {
 		err = errors.Join(err, errors.New("missing -server"))
 	}
-
 	if len(app.Key) == 0 {
 		err = errors.Join(err, errors.New("missing -key"))
+	}
+
+	logLevel, e := logger.StringToLevel(app.LogLevel)
+	if err != nil {
+		err = errors.Join(err, e)
 	}
 
 	if len(flag.Args()) == 0 {
 		err = errors.Join(err, errors.New("missing command"))
 	}
 
+	app.Logger = logger.NewLogger(logLevel, app.NoLogColors)
+
 	if err != nil {
-		return err
+		return app.Logger, err
 	}
+
 	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID)
 	if err != nil {
-		return err
+		return app.Logger, err
 	}
 
 	err = app.Immich.PingServer(ctx)
 	if err != nil {
-		return err
+		return app.Logger, err
 	}
 	app.Logger.OK("Server status: OK")
 
 	user, err := app.Immich.ValidateConnection(ctx)
 	if err != nil {
-		return err
+		return app.Logger, err
 	}
 	app.Logger.Info("Connected, user: %s", user.Email)
 
@@ -116,5 +122,5 @@ func Run(ctx context.Context) error {
 	default:
 		err = fmt.Errorf("unknwon command: %q", cmd)
 	}
-	return err
+	return app.Logger, err
 }
