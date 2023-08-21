@@ -67,7 +67,7 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 					switch ext {
 					case ".jpg", ".jpeg", ".png", ".mp4", ".heic", ".mov", ".gif":
 					case "":
-						// Few title don't have extension. Assume .jpg
+						// Few titles don't have extension. Assume .jpg
 						ext = ".jpg"
 						md.Title += ext
 					default:
@@ -147,7 +147,7 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 			return m, nil
 		}
 	}
-	return "", os.ErrNotExist
+	return "", fmt.Errorf("can't find the image with title %q, pattern: %q: %w", la.Title, pattern, os.ErrNotExist)
 }
 
 var nameReplacer = strings.NewReplacer(" ", "?", "/", "?", ":", "?")
