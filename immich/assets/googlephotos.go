@@ -128,8 +128,8 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 	ext := path.Ext(la.Title)
 	base := strings.TrimSuffix(la.Title, ext)
 	dir := path.Dir(la.FileName)
-	if len(base) >= 47 {
-		base = base[:47]
+	if len(base) >= 46 {
+		base = base[:46]
 	}
 	pattern := nameReplacer.Replace(base) + ".*"
 
