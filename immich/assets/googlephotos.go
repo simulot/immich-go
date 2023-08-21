@@ -2,19 +2,16 @@ package assets
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf16"
-	"unsafe"
 )
 
 type NameResolver interface {
@@ -155,13 +152,7 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 	return "", fmt.Errorf("can't find the image with title %q, pattern: %q: %w", la.Title, pattern, os.ErrNotExist)
 }
 
-func hexPrint(s string, u []uint16) {
-	fmt.Println(s, len(s))
-	fmt.Println(hex.EncodeToString(*(*[]byte)(unsafe.Pointer(&u))))
-}
-
-var nameReplacer = strings.NewReplacer(" ", "?", "/", "?", ":", "?")
-var commaAlbum = regexp.MustCompile(`^,\s+`)
+var nameReplacer = strings.NewReplacer(" ", "?", "/", "?", ":", "?", "&", "?")
 
 type googleMetaData struct {
 	Title string `json:"title"`
