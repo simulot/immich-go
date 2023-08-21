@@ -15,6 +15,7 @@ import (
 	"math"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -264,7 +265,18 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	if err != nil {
 		return nil, err
 	}
-	app.Paths = cmd.Args()
+
+	for _, f := range cmd.Args() {
+		if !hasMeta(f) {
+			app.Paths = append(app.Paths, f)
+		} else {
+			m, err := filepath.Glob(f)
+			if err != nil {
+				return nil, fmt.Errorf("can't use this file argument %q: %w", f, err)
+			}
+			app.Paths = append(app.Paths, m...)
+		}
+	}
 
 	if len(app.Paths) == 0 {
 		err = errors.Join(err, errors.New("Must specify at least one path for local assets"))
@@ -558,4 +570,15 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 		}
 	}
 	return ai.adviceNotOnServer(), nil
+}
+
+// hasMeta reports whether path contains any of the magic characters
+// recognized by Match.
+// shamelessly copied from stdlib/os
+func hasMeta(path string) bool {
+	magicChars := `*?[`
+	if runtime.GOOS != "windows" {
+		magicChars = `*?[\`
+	}
+	return strings.ContainsAny(path, magicChars)
 }
