@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -135,7 +134,7 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 	}
 	pattern := nameReplacer.Replace(base) + "*.*"
 
-	matches, err := fs.Glob(fsys, filepath.Join(dir, pattern))
+	matches, err := fs.Glob(fsys, path.Join(dir, pattern))
 	if err != nil {
 		return "", fmt.Errorf("can't resolve name: %w", err)
 	}
