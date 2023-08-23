@@ -37,6 +37,7 @@ type LocalAssetFile struct {
 	Title    string   // Google Photos may a have title longer than the filename
 	Album    []string // The asset's album, if any
 	Err      error    // keep errors encountered
+	SideCar  *SideCarMetadata
 
 	// Google Photos flags
 	Trashed     bool // The asset is trashed

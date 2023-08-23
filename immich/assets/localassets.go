@@ -55,6 +55,15 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 					if fsys.albums[path.Dir(name)] != "" {
 						f.AddAlbum(fsys.albums[path.Dir(name)])
 					}
+
+					_, err = fs.Stat(fsys, name+".xmp")
+					if err == nil {
+						f.SideCar = &SideCarMetadata{
+							FileName: name + ".xmp",
+							OnFSsys:  true,
+						}
+					}
+
 					// Check if the context has been cancelled before sending the file
 					select {
 					case <-ctx.Done():

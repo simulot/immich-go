@@ -141,6 +141,27 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 		if err != nil {
 			return
 		}
+
+		if la.SideCar != nil {
+			h.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+					escapeQuotes("sidecarData"), escapeQuotes(path.Base(la.SideCar.FileName))))
+			h.Set("Content-Type", "application/xml")
+
+			part, err := m.CreatePart(h)
+			if err != nil {
+				return
+			}
+			sc, err := la.SideCar.Open(la.FSys, la.FileName)
+			if err != nil {
+				return
+			}
+			defer sc.Close()
+			_, err = io.Copy(part, sc)
+			if err != nil {
+				return
+			}
+		}
 	}()
 
 	err = ic.newServerCall(ctx, "AssetUpload").
