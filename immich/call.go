@@ -172,10 +172,12 @@ func put(url string, opts ...serverRequestOption) requestFunction {
 }
 
 func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
-	if sc.err != nil || fnRequest == nil {
-		return sc.Err(nil, nil, nil)
+	if sc.err != nil {
+		return sc.err
 	}
-
+	if fnRequest == nil {
+		panic(sc.endPoint + " request function missing")
+	}
 	req := fnRequest(sc)
 	if sc.err != nil || req == nil {
 		return sc.Err(req, nil, nil)
@@ -200,26 +202,22 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		if resp.StatusCode < 300 {
 			break
 		}
-		// Any StatusCode above 300 denote a problem
-		if resp.StatusCode >= 300 {
-			msg := ServerMessage{}
-			if resp.Body != nil {
-				if json.NewDecoder(resp.Body).Decode(&msg) == nil {
-					return sc.Err(req, resp, &msg)
-				}
-			}
-			if resp.Body != nil {
+		msg := ServerMessage{}
+		if resp.Body != nil {
+			if err = json.NewDecoder(resp.Body).Decode(&msg); err == nil {
 				resp.Body.Close()
+				return sc.Err(req, resp, &msg)
 			}
+			resp.Body.Close()
 			// StatusCode below 500 are
 			if resp.StatusCode < 500 {
 				return sc.Err(req, resp, &msg)
 			}
 			try--
-			if try == 0 {
-				sc.joinError(TooManyInternalError{})
-				return sc.Err(req, resp, &msg)
-			}
+		}
+		if try == 0 {
+			sc.joinError(TooManyInternalError{})
+			return sc.Err(req, resp, &msg)
 		}
 		time.Sleep(2 * time.Second)
 	}
