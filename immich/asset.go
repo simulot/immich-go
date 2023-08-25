@@ -54,8 +54,8 @@ type ExifInfo struct {
 	// 	FocalLength      float64   `json:"focalLength"`
 	// 	Iso              int       `json:"iso"`
 	// 	ExposureTime     string    `json:"exposureTime"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
+	Latitude  string `json:"latitude"`
+	Longitude string `json:"longitude"`
 	// 	City             string    `json:"city"`
 	// 	State            string    `json:"state"`
 	// 	Country          string    `json:"country"`
