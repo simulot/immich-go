@@ -55,6 +55,7 @@ type Application struct {
 	DeviceUUID string               // Set a device UUID
 	Immich     *immich.ImmichClient // Immich client
 	Logger     *logger.Logger       // Program's logger
+	ApiTrace   bool
 
 	NoLogColors bool // Disable log colors
 	LogLevel    string
@@ -73,6 +74,7 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
 	flag.BoolVar(&app.NoLogColors, "no-colors-log", false, "Disable colors on logs")
 	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
+	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
 	flag.Parse()
 	if len(app.EndPoint) == 0 {
 		err = errors.Join(err, errors.New("missing -server"))
@@ -96,7 +98,7 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 		return app.Logger, err
 	}
 
-	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID)
+	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID, app.ApiTrace)
 	if err != nil {
 		return app.Logger, err
 	}

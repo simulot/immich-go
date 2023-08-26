@@ -18,6 +18,10 @@ func BrowseLocalAssets(fsys fs.FS) *LocalAssetBrowser {
 	}
 }
 
+func (fsys LocalAssetBrowser) Stat(name string) (fs.FileInfo, error) {
+	return fs.Stat(fsys.FS, name)
+}
+
 func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 	fileChan := make(chan *LocalAssetFile)
 	// Browse all given FS to collect the list of files

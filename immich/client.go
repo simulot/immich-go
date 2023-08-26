@@ -20,10 +20,11 @@ type ImmichClient struct {
 	DeviceUUID   string        // Device
 	Retries      int           // Number of attempts on 500 errors
 	RetriesDelay time.Duration // Duration between retries
+	ApiTrace     bool
 }
 
 // Create a new ImmichClient
-func NewImmichClient(endPoint, key, deviceUUID string) (*ImmichClient, error) {
+func NewImmichClient(endPoint, key, deviceUUID string, apiTrace bool) (*ImmichClient, error) {
 	ic := ImmichClient{
 		endPoint:     endPoint + "/api",
 		key:          key,
@@ -31,6 +32,7 @@ func NewImmichClient(endPoint, key, deviceUUID string) (*ImmichClient, error) {
 		DeviceUUID:   deviceUUID,
 		Retries:      1,
 		RetriesDelay: time.Second * 1,
+		ApiTrace:     apiTrace,
 	}
 	return &ic, nil
 }

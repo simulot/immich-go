@@ -183,6 +183,11 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		return sc.Err(req, nil, nil)
 	}
 
+	if sc.ic.ApiTrace {
+		traceRequest(req)
+		opts = append([]serverResponseOption{setTraceJSONResponse()}, opts...)
+
+	}
 	var (
 		resp *http.Response
 		err  error
@@ -264,7 +269,11 @@ func setAPIKey() serverRequestOption {
 func setJSONBody(object any) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		b := bytes.NewBuffer(nil)
-		if sc.joinError(json.NewEncoder(b).Encode(object)) == nil {
+		enc := json.NewEncoder(b)
+		if sc.ic.ApiTrace {
+			enc.SetIndent("", " ")
+		}
+		if sc.joinError(enc.Encode(object)) == nil {
 			req.Body = io.NopCloser(b)
 		}
 		req.Header.Set("Content-Type", "application/json")

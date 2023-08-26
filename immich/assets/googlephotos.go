@@ -88,6 +88,15 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 						dateTaken:   md.PhotoTakenTime.Time(),
 					}
 
+					if !md.PhotoTakenTime.Time().IsZero() || (cmpFloats(md.GeoDataExif.Latitude, 0) != 0 && cmpFloats(md.GeoDataExif.Longitude, 0) != 0) {
+						sc := SideCarMetadata{}
+						sc.DateTaken = md.PhotoTakenTime.Time()
+						sc.Latitude = md.GeoData.Latitude
+						sc.Longitude = md.GeoData.Longitude
+						sc.Elevation = md.GeoData.Altitude
+						f.SideCar = &sc
+					}
+
 					if album, ok := fsys.albums[dir]; ok {
 						f.AddAlbum(album)
 					}
@@ -145,6 +154,9 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 		if strings.Compare(ext, strings.ToLower(path.Ext(m))) == 0 {
 			la.FileName = m
 			la.isResolved = true
+			if la.SideCar != nil {
+				la.SideCar.FileName = m + ".xmp"
+			}
 			return m, nil
 		}
 	}
@@ -154,16 +166,16 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 var nameReplacer = strings.NewReplacer(" ", "?", "/", "?", ":", "?", "&", "?")
 
 type googleMetaData struct {
-	Title string `json:"title"`
-	// Description        string         `json:"description"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
 	// ImageViews         string         `json:"imageViews"`
 	// CreationTime       googTimeObject `json:"creationTime"`
-	PhotoTakenTime googTimeObject `json:"photoTakenTime"`
-	// GeoData            googGeoData    `json:"geoData"`
-	// GeoDataExif        googGeoData    `json:"geoDataExif"`
-	Trashed            bool   `json:"trashed,omitempty"`
-	Archived           bool   `json:"archived,omitempty"`
-	URL                string `json:"url"`
+	PhotoTakenTime     googTimeObject `json:"photoTakenTime"`
+	GeoData            googGeoData    `json:"geoData"`
+	GeoDataExif        googGeoData    `json:"geoDataExif"`
+	Trashed            bool           `json:"trashed,omitempty"`
+	Archived           bool           `json:"archived,omitempty"`
+	URL                string         `json:"url"`
 	GooglePhotosOrigin struct {
 		MobileUpload struct {
 			DeviceFolder struct {
@@ -176,13 +188,13 @@ type googleMetaData struct {
 	} `json:"googlePhotosOrigin"`
 }
 
-// type googGeoData struct {
-// 	Latitude      float64 `json:"latitude"`
-// 	Longitude     float64 `json:"longitude"`
-// 	Altitude      float64 `json:"altitude"`
-// 	LatitudeSpan  float64 `json:"latitudeSpan"`
-// 	LongitudeSpan float64 `json:"longitudeSpan"`
-// }
+type googGeoData struct {
+	Latitude      float64 `json:"latitude"`
+	Longitude     float64 `json:"longitude"`
+	Altitude      float64 `json:"altitude"`
+	LatitudeSpan  float64 `json:"latitudeSpan"`
+	LongitudeSpan float64 `json:"longitudeSpan"`
+}
 
 type googTimeObject struct {
 	Timestamp int64 `json:"timestamp"`

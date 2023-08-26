@@ -152,7 +152,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 			if err != nil {
 				return
 			}
-			sc, err := la.SideCar.Open(la.FSys, la.FileName)
+			sc, err := la.SideCar.Open(la.FSys, la.SideCar.FileName)
 			if err != nil {
 				return
 			}

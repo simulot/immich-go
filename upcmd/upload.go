@@ -409,15 +409,17 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 			if found {
 				continue
 			}
-			if !app.DryRun {
-				app.logger.OK("Create the album %s", album)
+			if list != nil {
+				if !app.DryRun {
+					app.logger.OK("Create the album %s", album)
 
-				_, err := app.Immich.CreateAlbum(ctx, album, list)
-				if err != nil {
-					return fmt.Errorf("can't create the album list from the server: %w", err)
+					_, err := app.Immich.CreateAlbum(ctx, album, list)
+					if err != nil {
+						return fmt.Errorf("can't create the album list from the server: %w", err)
+					}
+				} else {
+					app.logger.OK("Create the album %s skipped - dry run mode", album)
 				}
-			} else {
-				app.logger.OK("Create the album %s skipped - dry run mode", album)
 			}
 		}
 	}

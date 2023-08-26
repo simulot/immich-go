@@ -2,10 +2,11 @@ package assets
 
 import (
 	"bytes"
-	"encoding/xml"
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
+	"text/template"
 	"time"
 )
 
@@ -14,10 +15,21 @@ type SideCarMetadata struct {
 	FileName string
 	OnFSsys  bool
 
-	DateTake  *time.Time
-	Latitude  *float64
-	Longitude *float64
-	Elevation *float64
+	DateTaken time.Time
+	Latitude  float64
+	Longitude float64
+	Elevation float64
+}
+
+func cmpFloats(a, b float64) int {
+	d := a - b
+	if math.Abs(d) < 1e-5 {
+		return 0
+	}
+	if a < b {
+		return -1
+	}
+	return 1
 }
 
 func (sc *SideCarMetadata) Open(fsys fs.FS, name string) (io.ReadCloser, error) {
@@ -26,20 +38,7 @@ func (sc *SideCarMetadata) Open(fsys fs.FS, name string) (io.ReadCloser, error) 
 	}
 
 	b := bytes.NewBuffer(nil)
-	xmp := XMPMetadata{}
-	if sc.DateTake != nil {
-		xmp.CreateRDF.CreateDate = sc.DateTake.Format("2006-01-02T15:04:05")
-	}
-	if sc.Latitude != nil {
-		xmp.GPSRDF.GPSLatitude = fmt.Sprintf("%f", *sc.Latitude)
-	}
-	if sc.Longitude != nil {
-		xmp.GPSRDF.GPSLongitude = fmt.Sprintf("%f", *sc.Longitude)
-	}
-	if sc.Elevation != nil {
-		xmp.GPSRDF.GPSAltitude = fmt.Sprintf("%f", *sc.Elevation)
-	}
-	err := xml.NewEncoder(b).Encode(xmp)
+	err := sidecarTemplate.Execute(b, sc)
 	if err != nil {
 		return nil, fmt.Errorf("can't generate XMP sidecar file: %w", err)
 	}
@@ -48,20 +47,18 @@ func (sc *SideCarMetadata) Open(fsys fs.FS, name string) (io.ReadCloser, error) 
 
 }
 
-type XMPMetadata struct {
-	XMLName   xml.Name `xml:"x:xmpmeta"`
-	XmpTk     string   `xml:"x:xmptk,attr"`
-	CreateRDF RDF      `xml:"rdf:RDF"`
-	GPSRDF    RDF      `xml:"rdf:RDF"`
-}
-
-type RDF struct {
-	About        string `xml:"rdf:Description>about,attr"`
-	Xmp          string `xml:"xmlns:xmp,attr"`
-	Exif         string `xml:"xmlns:exif,attr"`
-	CreateDate   string `xml:"Description>exif:CreateDate,omitempty"`
-	GPSLatitude  string `xml:"Description>exif:GPSLatitude,omitempty"`
-	GPSLongitude string `xml:"Description>exif:GPSLongitude,omitempty"`
-	GPSAltitude  string `xml:"Description>exif:GPSAltitude,omitempty"`
-	GPSAltRef    string `xml:"Description>exif:GPSAltitudeRef,omitempty"`
-}
+var sidecarTemplate = template.Must(template.New("xmp").Parse(`<x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='Image::ExifTool 12.56'>
+<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
+ <rdf:Description rdf:about=''
+  xmlns:exif='http://ns.adobe.com/exif/1.0/'>
+  <exif:ExifVersion>0232</exif:ExifVersion>
+  <exif:DateTimeOriginal>{{((.DateTaken).Local).Format "2006-01-02T15:04:05"}}</exif:DateTimeOriginal>
+  {{if and (ne .Latitude 0.0) (ne .Longitude 0.0)}}
+  <exif:GPSAltitude>{{.Elevation}}</exif:GPSAltitude>
+  <exif:GPSLatitude>{{.Latitude}}</exif:GPSLatitude>
+  <exif:GPSLongitude>{{.Longitude}}</exif:GPSLongitude>  
+  <exif:GPSTimeStamp>{{.DateTaken.Format "2006-01-02T15:04:05+0000"}}</exif:GPSTimeStamp>
+  {{end}}
+ </rdf:Description>
+</rdf:RDF>
+</x:xmpmeta>`))

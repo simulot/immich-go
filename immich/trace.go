@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 /*
@@ -18,6 +19,7 @@ type smartBodyCloser struct {
 }
 
 func (sb *smartBodyCloser) Close() error {
+	fmt.Println("\n--- BODY ---")
 	return sb.body.Close()
 }
 func (sb *smartBodyCloser) Read(b []byte) (int, error) {
@@ -38,13 +40,33 @@ func setTraceJSONRequest() serverRequestOption {
 }
 func setTraceJSONResponse() serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
-		fmt.Println("--------------------")
-		fmt.Println(resp.Request.Method, resp.Request.URL.String())
+		fmt.Println("--- API RESPONSE -- ")
 		for h, v := range resp.Header {
-			fmt.Println(h, v)
+			fmt.Println(h, strings.Join(v, ","))
 		}
+		fmt.Println("--- RESPONSE BODY ---")
 		tr := io.TeeReader(resp.Body, os.Stdout)
 		resp.Body = &smartBodyCloser{body: resp.Body, r: tr}
 		return nil
 	}
+}
+
+func traceRequest(req *http.Request) {
+	isJSON := req.Header.Get("Content-Type") == "application/json"
+	fmt.Println("--- API CALL ---")
+	u := *req.URL
+	u.Host = "***"
+	fmt.Println(req.Method, u.String())
+	for h, vs := range req.Header {
+		if h == "X-Api-Key" {
+			vs = []string{"***"}
+		}
+		fmt.Println(h, ":", strings.Join(vs, ","))
+	}
+	if isJSON {
+		fmt.Println("--- JSON BODY ---")
+		tr := io.TeeReader(req.Body, os.Stdout)
+		req.Body = &smartBodyCloser{body: req.Body, r: tr}
+	}
+
 }
