@@ -11,6 +11,7 @@ import (
 	"immich-go/immich"
 	"immich-go/immich/assets"
 	"immich-go/immich/logger"
+	"immich-go/immich/metadata"
 	"io/fs"
 	"math"
 	"path"
@@ -25,21 +26,22 @@ import (
 type UpCmd struct {
 	Immich *immich.ImmichClient // Immich client
 
-	Recursive              bool             // Explore sub folders
-	GooglePhotos           bool             // For reading Google Photos takeout files
-	Delete                 bool             // Delete original file after import
-	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
-	ImportIntoAlbum        string           // All assets will be added to this album
-	Import                 bool             // Import instead of upload
-	DeviceUUID             string           // Set a device UUID
-	Paths                  []string         // Path to explore
-	DateRange              immich.DateRange // Set capture date range
-	ImportFromAlbum        string           // Import assets from this albums
-	CreateAlbums           bool             // Create albums when exists in the source
-	KeepTrashed            bool             // Import trashed assets
-	KeepPartner            bool             // Import partner's assets
-	DryRun                 bool             // Display actions but don't change anything
-	// OnLineAssets           *immich.StringList       // Keep track on published assets
+	Recursive               bool             // Explore sub folders
+	GooglePhotos            bool             // For reading Google Photos takeout files
+	Delete                  bool             // Delete original file after import
+	CreateAlbumAfterFolder  bool             // Create albums for assets based on the parent folder or a given name
+	ImportIntoAlbum         string           // All assets will be added to this album
+	Import                  bool             // Import instead of upload
+	DeviceUUID              string           // Set a device UUID
+	Paths                   []string         // Path to explore
+	DateRange               immich.DateRange // Set capture date range
+	ImportFromAlbum         string           // Import assets from this albums
+	CreateAlbums            bool             // Create albums when exists in the source
+	KeepTrashed             bool             // Import trashed assets
+	KeepPartner             bool             // Import partner's assets
+	DryRun                  bool             // Display actions but don't change anything
+	ForceGooglePhotoSidecar bool             // Generate a sidecar file for each file (default: TRUE)
+
 	AssetIndex       *AssetIndex              // List of assets present on the server
 	deleteServerList []*immich.Asset          // List of server assets to remove
 	deleteLocalList  []*assets.LocalAssetFile // List of local assets to remove
@@ -183,8 +185,8 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	}
 
 	if app.DateRange.IsSet() {
-		d, err := a.DateTaken()
-		if err != nil {
+		d := a.DateTaken
+		if d.IsZero() {
 			app.logger.Error("Can't get capture date of the file. File %q skipped", a.FileName)
 			return nil
 		}
@@ -261,6 +263,7 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	cmd.Var(&app.DateRange, "date", "Date of capture range.")
 	cmd.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
 	cmd.BoolVar(&app.CreateAlbums, "create-albums", true, "Create albums like there were in the source")
+	cmd.BoolVar(&app.ForceGooglePhotoSidecar, "force-sidecar-google-photos", true, "Use GP json metadata file to create a sidecar file carrying date of capture and GPS coordinates (DEFAULT true)")
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
@@ -299,6 +302,17 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 	app.logger.MessageContinue(logger.OK, "Uploading %q...", a.FileName)
 	var err error
 	if !app.DryRun {
+
+		if app.ForceGooglePhotoSidecar {
+			sc := metadata.SideCarMetadata{}
+			sc.DateTaken = a.DateTaken
+			sc.Latitude = a.Latitude
+			sc.Longitude = a.Longitude
+			sc.Elevation = a.Altitude
+			sc.FileName = a.FileName + ".xmp"
+			a.SideCar = &sc
+		}
+
 		resp, err = app.Immich.AssetUpload(ctx, a)
 		if err != nil {
 			app.logger.MessageTerminate(logger.Error, "Error: %s", err)
@@ -553,7 +567,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 	}
 
 	if len(l) > 0 {
-		dateTaken, err := la.DateTaken()
+		dateTaken := la.DateTaken
 		size := int(la.Size())
 		if err != nil {
 			return ai.adviceIDontKnow(la), nil

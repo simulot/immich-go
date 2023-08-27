@@ -85,17 +85,11 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 						Title:       md.Title,
 						Trashed:     md.Trashed,
 						FromPartner: md.GooglePhotosOrigin.FromPartnerSharing != nil,
-						dateTaken:   md.PhotoTakenTime.Time(),
+						DateTaken:   md.PhotoTakenTime.Time(),
+						Latitude:    md.GeoData.Latitude,
+						Longitude:   md.GeoData.Longitude,
+						Altitude:    md.GeoData.Altitude,
 					}
-
-					// if !md.PhotoTakenTime.Time().IsZero() || (cmpFloats(md.GeoDataExif.Latitude, 0) != 0 && cmpFloats(md.GeoDataExif.Longitude, 0) != 0) {
-					// 	sc := SideCarMetadata{}
-					// 	sc.DateTaken = md.PhotoTakenTime.Time()
-					// 	sc.Latitude = md.GeoData.Latitude
-					// 	sc.Longitude = md.GeoData.Longitude
-					// 	sc.Elevation = md.GeoData.Altitude
-					// 	f.SideCar = &sc
-					// }
 
 					if album, ok := fsys.albums[dir]; ok {
 						f.AddAlbum(album)
@@ -153,10 +147,11 @@ func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, e
 	for _, m := range matches {
 		if strings.Compare(ext, strings.ToLower(path.Ext(m))) == 0 {
 			la.FileName = m
-			la.isResolved = true
-			if la.SideCar != nil {
-				la.SideCar.FileName = m + ".xmp"
+			la.fInfo, err = fs.Stat(fsys, m)
+			if err != nil {
+				return "", err
 			}
+			la.isResolved = true
 			return m, nil
 		}
 	}

@@ -3,6 +3,7 @@ package assets
 import (
 	"context"
 	"fmt"
+	"immich-go/immich/metadata"
 	"io/fs"
 	"path"
 	"strings"
@@ -63,7 +64,7 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 
 					_, err = fs.Stat(fsys, name+".xmp")
 					if err == nil {
-						f.SideCar = &SideCarMetadata{
+						f.SideCar = &metadata.SideCarMetadata{
 							FileName: name + ".xmp",
 							OnFSsys:  true,
 						}
@@ -138,7 +139,7 @@ func ReadLocalAsset(fsys fs.FS, name string) (*LocalAssetFile, error) {
 		}
 		_, err = fs.Stat(fsys, name+".xmp")
 		if err == nil {
-			f.SideCar = &SideCarMetadata{
+			f.SideCar = &metadata.SideCarMetadata{
 				FileName: name + ".xmp",
 				OnFSsys:  true,
 			}
