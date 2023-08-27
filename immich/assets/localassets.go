@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"path"
 	"strings"
@@ -119,4 +120,31 @@ func (fsys LocalAssetBrowser) BrowseAlbums(ctx context.Context) error {
 		})
 
 	return err
+}
+
+func ReadLocalAsset(fsys fs.FS, name string) (*LocalAssetFile, error) {
+	ext := strings.ToLower(path.Ext(name))
+	switch ext {
+	case ".jpg", "jpeg", ".png", ".mp4", ".heic", ".mov", ".gif":
+		s, err := fs.Stat(fsys, name)
+		if err != nil {
+			return nil, fmt.Errorf("can't read asset: %w", err)
+		}
+		f := LocalAssetFile{
+			FSys:     fsys,
+			FileName: name,
+			Title:    name,
+			size:     int(s.Size()),
+		}
+		_, err = fs.Stat(fsys, name+".xmp")
+		if err == nil {
+			f.SideCar = &SideCarMetadata{
+				FileName: name + ".xmp",
+				OnFSsys:  true,
+			}
+		}
+		return &f, nil
+	default:
+		return nil, fmt.Errorf("%q not supported: %q", ext, name)
+	}
 }

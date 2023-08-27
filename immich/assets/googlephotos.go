@@ -88,14 +88,14 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 						dateTaken:   md.PhotoTakenTime.Time(),
 					}
 
-					if !md.PhotoTakenTime.Time().IsZero() || (cmpFloats(md.GeoDataExif.Latitude, 0) != 0 && cmpFloats(md.GeoDataExif.Longitude, 0) != 0) {
-						sc := SideCarMetadata{}
-						sc.DateTaken = md.PhotoTakenTime.Time()
-						sc.Latitude = md.GeoData.Latitude
-						sc.Longitude = md.GeoData.Longitude
-						sc.Elevation = md.GeoData.Altitude
-						f.SideCar = &sc
-					}
+					// if !md.PhotoTakenTime.Time().IsZero() || (cmpFloats(md.GeoDataExif.Latitude, 0) != 0 && cmpFloats(md.GeoDataExif.Longitude, 0) != 0) {
+					// 	sc := SideCarMetadata{}
+					// 	sc.DateTaken = md.PhotoTakenTime.Time()
+					// 	sc.Latitude = md.GeoData.Latitude
+					// 	sc.Longitude = md.GeoData.Longitude
+					// 	sc.Elevation = md.GeoData.Altitude
+					// 	f.SideCar = &sc
+					// }
 
 					if album, ok := fsys.albums[dir]; ok {
 						f.AddAlbum(album)

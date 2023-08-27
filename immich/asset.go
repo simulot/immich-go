@@ -16,50 +16,50 @@ import (
 
 // immich Asset simplified
 type Asset struct {
-	ID            string `json:"id"`
-	DeviceAssetID string `json:"deviceAssetId"`
-	// OwnerID          string `json:"ownerId"`
-	DeviceID         string `json:"deviceId"`
-	Type             string `json:"type"`
-	OriginalPath     string `json:"originalPath"`
-	OriginalFileName string `json:"originalFileName"`
-	// Resized          bool      `json:"resized"`
-	// Thumbhash        string    `json:"thumbhash"`
-	FileCreatedAt time.Time `json:"fileCreatedAt"`
-	// FileModifiedAt time.Time `json:"fileModifiedAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	// IsFavorite     bool      `json:"isFavorite"`
-	// IsArchived     bool      `json:"isArchived"`
-	// Duration       string    `json:"duration"`
-	ExifInfo ExifInfo `json:"exifInfo"`
-	// LivePhotoVideoID any    `json:"livePhotoVideoId"`
-	// Tags             []any  `json:"tags"`
-	Checksum     string            `json:"checksum"`
-	JustUploaded bool              `json:"-"`
-	Albums       []AlbumSimplified `json:"-"` // Albums that asset belong to
+	ID               string            `json:"id"`
+	DeviceAssetID    string            `json:"deviceAssetId"`
+	OwnerID          string            `json:"ownerId"`
+	DeviceID         string            `json:"deviceId"`
+	Type             string            `json:"type"`
+	OriginalPath     string            `json:"originalPath"`
+	OriginalFileName string            `json:"originalFileName"`
+	Resized          bool              `json:"resized"`
+	Thumbhash        string            `json:"thumbhash"`
+	FileCreatedAt    time.Time         `json:"fileCreatedAt"`
+	FileModifiedAt   time.Time         `json:"fileModifiedAt"`
+	UpdatedAt        time.Time         `json:"updatedAt"`
+	IsFavorite       bool              `json:"isFavorite"`
+	IsArchived       bool              `json:"isArchived"`
+	Duration         string            `json:"duration"`
+	ExifInfo         ExifInfo          `json:"exifInfo"`
+	LivePhotoVideoID any               `json:"livePhotoVideoId"`
+	Tags             []any             `json:"tags"`
+	Checksum         string            `json:"checksum"`
+	JustUploaded     bool              `json:"-"`
+	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
 }
 
 type ExifInfo struct {
-	Make            string `json:"make"`
-	Model           string `json:"model"`
-	ExifImageWidth  int    `json:"exifImageWidth"`
-	ExifImageHeight int    `json:"exifImageHeight"`
-	FileSizeInByte  int    `json:"fileSizeInByte"`
-	// 	Orientation      string    `json:"orientation"`
+	Make             string    `json:"make"`
+	Model            string    `json:"model"`
+	ExifImageWidth   int       `json:"exifImageWidth"`
+	ExifImageHeight  int       `json:"exifImageHeight"`
+	FileSizeInByte   int       `json:"fileSizeInByte"`
+	Orientation      string    `json:"orientation"`
 	DateTimeOriginal time.Time `json:"dateTimeOriginal"`
-	// 	ModifyDate       time.Time `json:"modifyDate"`
-	TimeZone string `json:"timeZone"`
-	// 	LensModel        string    `json:"lensModel"`
-	// 	FNumber          float64   `json:"fNumber"`
-	// 	FocalLength      float64   `json:"focalLength"`
-	// 	Iso              int       `json:"iso"`
-	// 	ExposureTime     string    `json:"exposureTime"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-	// 	City             string    `json:"city"`
-	// 	State            string    `json:"state"`
-	// 	Country          string    `json:"country"`
-	// 	Description      string    `json:"description"`
+	ModifyDate       time.Time `json:"modifyDate"`
+	TimeZone         string    `json:"timeZone"`
+	LensModel        string    `json:"lensModel"`
+	FNumber          float64   `json:"fNumber"`
+	FocalLength      float64   `json:"focalLength"`
+	Iso              int       `json:"iso"`
+	ExposureTime     string    `json:"exposureTime"`
+	Latitude         float64   `json:"latitude"`
+	Longitude        float64   `json:"longitude"`
+	City             string    `json:"city"`
+	State            string    `json:"state"`
+	Country          string    `json:"country"`
+	Description      string    `json:"description"`
 }
 
 type AssetResponse struct {
@@ -225,4 +225,22 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string) (*deleteR
 		return nil, err
 	}
 	return &resp, nil
+}
+
+func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
+	r := Asset{}
+	err := ic.newServerCall(ctx, "GetAssetByID").do(get("/asset/assetById/"+id, setAcceptJSON()), responseJSON(&r))
+	return &r, err
+}
+
+func (ic *ImmichClient) UpdateAsset(ctx context.Context, a *Asset) (*Asset, error) {
+	r := Asset{}
+	err := ic.newServerCall(ctx, "updateAsset").
+		do(
+			put("/asset/"+a.ID,
+				setJSONBody(a),
+				setAcceptJSON(),
+			),
+			responseJSON(&r))
+	return &r, err
 }
