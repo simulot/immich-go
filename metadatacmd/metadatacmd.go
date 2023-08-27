@@ -36,7 +36,7 @@ func (app *App) CheckCommand(ctx context.Context, ic *immich.ImmichClient, log *
 	}
 	log.MessageTerminate(logger.OK, " %d received", len(list))
 
-	app.AssetIndex = &AssetIndex{
+	app.AssetIndex = &assterAssetIndex{
 		assets: list,
 	}
 

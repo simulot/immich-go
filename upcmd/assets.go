@@ -1,11 +1,8 @@
 package upcmd
 
 import (
-	"fmt"
 	"immich-go/immich"
 	"immich-go/immich/assets"
-	"path"
-	"strings"
 )
 
 type AssetIndex struct {
@@ -40,19 +37,22 @@ func (ai *AssetIndex) Len() int {
 }
 
 func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile) {
-	sa := &immich.Asset{
-		ID:               fmt.Sprintf("%s-%d", path.Base(la.Title), la.Size()),
-		OriginalFileName: strings.TrimSuffix(path.Base(la.Title), path.Ext(la.Title)),
-		ExifInfo: immich.ExifInfo{
-			FileSizeInByte:   int(la.Size()),
-			DateTimeOriginal: la.DateTakenCached(),
-		},
-		JustUploaded: true,
-	}
-	ID := fmt.Sprintf("%s-%d", sa.OriginalFileName, sa.ExifInfo.FileSizeInByte)
-	ai.assets = append(ai.assets, sa)
-	ai.byID[ID] = sa
-	l := ai.byName[sa.OriginalFileName]
-	l = append(l, sa)
-	ai.byName[sa.OriginalFileName] = l
+	panic("todo")
+	// sa := &immich.Asset{
+	// 	ID:               fmt.Sprintf("%s-%d", path.Base(la.Title), la.Size()),
+	// 	OriginalFileName: strings.TrimSuffix(path.Base(la.Title), path.Ext(la.Title)),
+	// ExifInfo: immich.ExifInfo{
+	// 	FileSizeInByte:   int(la.Size()),
+	// 	DateTimeOriginal: la.DateTaken,
+	// 	Latitude:         la.Latitude,
+	// 	Longitude:        la.Longitude,
+	// },
+	// 	JustUploaded: true,
+	// }
+	// ID := fmt.Sprintf("%s-%d", sa.OriginalFileName, sa.ExifInfo.FileSizeInByte)
+	// ai.assets = append(ai.assets, sa)
+	// ai.byID[ID] = sa
+	// l := ai.byName[sa.OriginalFileName]
+	// l = append(l, sa)
+	// ai.byName[sa.OriginalFileName] = l
 }
