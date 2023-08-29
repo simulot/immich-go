@@ -1,7 +1,7 @@
 /*
 Check the list of photos to list and discard duplicates.
 */
-package dupcmd
+package cmdduplicate
 
 import (
 	"context"
@@ -67,9 +67,9 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 			return ctx.Err()
 		default:
 			count++
-			if app.DateRange.InRange(a.ExifInfo.DateTimeOriginal) {
+			if app.DateRange.InRange(*a.ExifInfo.DateTimeOriginal) {
 				k := duplicateKey{
-					Date: a.ExifInfo.DateTimeOriginal,
+					Date: *a.ExifInfo.DateTimeOriginal,
 					Name: a.OriginalFileName,
 				}
 				l := duplicate[k]

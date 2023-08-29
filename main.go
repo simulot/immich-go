@@ -5,10 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"immich-go/dupcmd"
+	"immich-go/cmdduplicate"
+	"immich-go/cmdmetadata"
+	"immich-go/cmdupload"
 	"immich-go/immich"
 	"immich-go/immich/logger"
-	"immich-go/upcmd"
 	"os"
 	"os/signal"
 )
@@ -118,9 +119,11 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	cmd := flag.Args()[0]
 	switch cmd {
 	case "upload":
-		err = upcmd.UploadCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = cmdupload.UploadCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	case "duplicate":
-		err = dupcmd.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = cmdduplicate.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+	case "metadata":
+		err = cmdmetadata.MetadataCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	default:
 		err = fmt.Errorf("unknwon command: %q", cmd)
 	}

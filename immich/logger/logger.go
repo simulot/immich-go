@@ -100,7 +100,10 @@ func (l *Logger) Message(level Level, f string, v ...any) {
 	l.needSpace = false
 	fmt.Print(l.colorStrings[level])
 	fmt.Printf(f, v...)
-	fmt.Println(chalk.ResetColor)
+	if !l.noColors {
+		fmt.Print(chalk.ResetColor)
+	}
+	fmt.Println()
 }
 
 func (l *Logger) Progress(level Level, f string, v ...any) {
@@ -125,16 +128,19 @@ func (l *Logger) MessageContinue(level Level, f string, v ...any) {
 	fmt.Print(l.colorStrings[level])
 	fmt.Printf(f, v...)
 	l.needSpace = true
+	l.needCR = false
 }
 
 func (l *Logger) MessageTerminate(level Level, f string, v ...any) {
 	if level > l.displayLevel {
 		return
 	}
-	fmt.Print("\r")
 	fmt.Print(l.colorStrings[level])
 	fmt.Printf(f, v...)
-	fmt.Println(chalk.ResetColor)
+	if !l.noColors {
+		fmt.Print(chalk.ResetColor)
+	}
+	fmt.Println()
 	l.needSpace = false
 	l.needCR = false
 }

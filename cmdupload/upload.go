@@ -1,6 +1,6 @@
 // Command Upload
 
-package upcmd
+package cmdupload
 
 import (
 	"context"
@@ -26,21 +26,21 @@ import (
 type UpCmd struct {
 	Immich *immich.ImmichClient // Immich client
 
-	Recursive               bool             // Explore sub folders
-	GooglePhotos            bool             // For reading Google Photos takeout files
-	Delete                  bool             // Delete original file after import
-	CreateAlbumAfterFolder  bool             // Create albums for assets based on the parent folder or a given name
-	ImportIntoAlbum         string           // All assets will be added to this album
-	Import                  bool             // Import instead of upload
-	DeviceUUID              string           // Set a device UUID
-	Paths                   []string         // Path to explore
-	DateRange               immich.DateRange // Set capture date range
-	ImportFromAlbum         string           // Import assets from this albums
-	CreateAlbums            bool             // Create albums when exists in the source
-	KeepTrashed             bool             // Import trashed assets
-	KeepPartner             bool             // Import partner's assets
-	DryRun                  bool             // Display actions but don't change anything
-	ForceGooglePhotoSidecar bool             // Generate a sidecar file for each file (default: TRUE)
+	Recursive              bool             // Explore sub folders
+	GooglePhotos           bool             // For reading Google Photos takeout files
+	Delete                 bool             // Delete original file after import
+	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
+	ImportIntoAlbum        string           // All assets will be added to this album
+	Import                 bool             // Import instead of upload
+	DeviceUUID             string           // Set a device UUID
+	Paths                  []string         // Path to explore
+	DateRange              immich.DateRange // Set capture date range
+	ImportFromAlbum        string           // Import assets from this albums
+	CreateAlbums           bool             // Create albums when exists in the source
+	KeepTrashed            bool             // Import trashed assets
+	KeepPartner            bool             // Import partner's assets
+	DryRun                 bool             // Display actions but don't change anything
+	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
 
 	AssetIndex       *AssetIndex              // List of assets present on the server
 	deleteServerList []*immich.Asset          // List of server assets to remove
@@ -263,7 +263,7 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	cmd.Var(&app.DateRange, "date", "Date of capture range.")
 	cmd.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
 	cmd.BoolVar(&app.CreateAlbums, "create-albums", true, "Create albums like there were in the source")
-	cmd.BoolVar(&app.ForceGooglePhotoSidecar, "force-sidecar-google-photos", true, "Use GP json metadata file to create a sidecar file carrying date of capture and GPS coordinates (DEFAULT true)")
+	cmd.BoolVar(&app.ForceSidecar, "force-sidecar", false, "Upload the photo and a sidecar file with known information like date and GPS coordinates. With GooglePhotos, information comes from the metadata files. (DEFAULT false)")
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
@@ -282,7 +282,7 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	}
 
 	if len(app.Paths) == 0 {
-		err = errors.Join(err, errors.New("Must specify at least one path for local assets"))
+		err = errors.Join(err, errors.New("must specify at least one path for local assets"))
 	}
 	return &app, err
 
@@ -303,7 +303,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 	var err error
 	if !app.DryRun {
 
-		if app.ForceGooglePhotoSidecar {
+		if app.ForceSidecar {
 			sc := metadata.SideCarMetadata{}
 			sc.DateTaken = a.DateTaken
 			sc.Latitude = a.Latitude
@@ -574,7 +574,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 
 		}
 		for _, sa = range l {
-			compareDate := dateTaken.Compare(sa.ExifInfo.DateTimeOriginal)
+			compareDate := dateTaken.Compare(*sa.ExifInfo.DateTimeOriginal)
 			compareSize := size - sa.ExifInfo.FileSizeInByte
 
 			switch {

@@ -40,22 +40,22 @@ type Asset struct {
 }
 
 type ExifInfo struct {
-	Make             string    `json:"make"`
-	Model            string    `json:"model"`
-	ExifImageWidth   int       `json:"exifImageWidth"`
-	ExifImageHeight  int       `json:"exifImageHeight"`
-	FileSizeInByte   int       `json:"fileSizeInByte"`
-	Orientation      string    `json:"orientation"`
-	DateTimeOriginal time.Time `json:"dateTimeOriginal"`
+	Make             string     `json:"make"`
+	Model            string     `json:"model"`
+	ExifImageWidth   int        `json:"exifImageWidth"`
+	ExifImageHeight  int        `json:"exifImageHeight"`
+	FileSizeInByte   int        `json:"fileSizeInByte"`
+	Orientation      string     `json:"orientation"`
+	DateTimeOriginal *time.Time `json:"dateTimeOriginal"`
 	// 	ModifyDate       time.Time `json:"modifyDate"`
 	TimeZone string `json:"timeZone"`
-	// 	LensModel        string    `json:"lensModel"`
+	// LensModel        string    `json:"lensModel"`
 	// 	FNumber          float64   `json:"fNumber"`
 	// 	FocalLength      float64   `json:"focalLength"`
 	// 	Iso              int       `json:"iso"`
 	// 	ExposureTime     string    `json:"exposureTime"`
-	Latitude  string `json:"latitude"`
-	Longitude string `json:"longitude"`
+	Latitude  *float64 `json:"latitude,omitempty"`
+	Longitude *float64 `json:"longitude,omitempty"`
 	// 	City             string    `json:"city"`
 	// 	State            string    `json:"state"`
 	// 	Country          string    `json:"country"`
