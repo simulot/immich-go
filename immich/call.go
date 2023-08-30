@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 type TooManyInternalError struct {
@@ -172,64 +171,41 @@ func put(url string, opts ...serverRequestOption) requestFunction {
 }
 
 func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
-	if sc.err != nil {
-		return sc.err
+	if sc.err != nil || fnRequest == nil {
+		return sc.Err(nil, nil, nil)
 	}
-	if fnRequest == nil {
-		panic(sc.endPoint + " request function missing")
-	}
+
 	req := fnRequest(sc)
 	if sc.err != nil || req == nil {
 		return sc.Err(req, nil, nil)
 	}
 
-	if sc.ic.ApiTrace {
-		traceRequest(req)
-		opts = append([]serverResponseOption{setTraceJSONResponse()}, opts...)
-
-	}
 	var (
 		resp *http.Response
 		err  error
 	)
-	try := sc.ic.Retries
-	for {
 
-		resp, err = sc.ic.client.Do(req)
+	resp, err = sc.ic.client.Do(req)
 
-		// any non nil error must be returned
-		if err != nil {
-			sc.joinError(err)
-			return sc.Err(req, nil, nil)
-		}
+	// any non nil error must be returned
+	if err != nil {
+		sc.joinError(err)
+		return sc.Err(req, nil, nil)
+	}
 
-		if resp == nil {
-			sc.joinError(errors.New("unexpected nil response"))
-			return sc.Err(req, nil, nil)
-		}
-
-		// Any Status below 300 is a success
-		if resp.StatusCode < 300 {
-			break
-		}
+	// Any StatusCode above 300 denote a problem
+	if resp.StatusCode >= 300 {
 		msg := ServerMessage{}
 		if resp.Body != nil {
-			if err = json.NewDecoder(resp.Body).Decode(&msg); err == nil {
-				resp.Body.Close()
+			if json.NewDecoder(resp.Body).Decode(&msg) == nil {
 				return sc.Err(req, resp, &msg)
 			}
+		}
+		if resp.Body != nil {
 			resp.Body.Close()
-			// StatusCode below 500 are
-			if resp.StatusCode < 500 {
-				return sc.Err(req, resp, &msg)
-			}
-			try--
 		}
-		if try == 0 {
-			sc.joinError(TooManyInternalError{})
-			return sc.Err(req, resp, &msg)
-		}
-		time.Sleep(2 * time.Second)
+		// StatusCode below 500 are
+		return sc.Err(req, resp, &msg)
 	}
 
 	// We have a success
