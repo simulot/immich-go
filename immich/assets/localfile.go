@@ -2,11 +2,13 @@ package assets
 
 import (
 	"errors"
+	"fmt"
 	"immich-go/fshelper"
 	"immich-go/immich/metadata"
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 )
@@ -192,4 +194,9 @@ func (l *LocalAssetFile) Remove() error {
 		return fsys.Remove(l.FileName)
 	}
 	return nil
+}
+
+func (l *LocalAssetFile) DeviceAssetID() string {
+	l.resolve()
+	return fmt.Sprintf("%s-%d", path.Base(l.Title), l.Size())
 }

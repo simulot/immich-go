@@ -172,6 +172,10 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	}()
 	app.mediaCount++
 
+	if _, exists := app.AssetIndex.byID[a.DeviceAssetID()]; exists {
+		return nil
+	}
+
 	if !app.KeepPartner && a.FromPartner {
 		return nil
 	}
@@ -321,8 +325,8 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 	} else {
 		resp.ID = uuid.NewString()
 	}
-	app.AssetIndex.AddLocalAsset(a)
 	if !resp.Duplicate {
+		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		app.mediaUploaded += 1
 		if !app.DryRun {
 			app.logger.OK("Done, total %d uploaded", app.mediaUploaded)
@@ -330,11 +334,11 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 			app.logger.OK("Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
 
 		}
+		for _, al := range a.Album {
+			app.AddToAlbum(resp.ID, al)
+		}
 	} else {
 		app.logger.MessageTerminate(logger.Warning, "already exists on the server")
-	}
-	for _, al := range a.Album {
-		app.AddToAlbum(resp.ID, al)
 	}
 }
 

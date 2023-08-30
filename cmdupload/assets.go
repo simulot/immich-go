@@ -1,7 +1,6 @@
 package cmdupload
 
 import (
-	"fmt"
 	"immich-go/immich"
 	"immich-go/immich/assets"
 	"path"
@@ -39,9 +38,10 @@ func (ai *AssetIndex) Len() int {
 	return len(ai.assets)
 }
 
-func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile) {
+func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile, ImmichID string) {
 	sa := &immich.Asset{
-		ID:               fmt.Sprintf("%s-%d", path.Base(la.Title), la.Size()),
+		ID:               ImmichID,
+		DeviceAssetID:    la.DeviceAssetID(),
 		OriginalFileName: strings.TrimSuffix(path.Base(la.Title), path.Ext(la.Title)),
 		ExifInfo: immich.ExifInfo{
 			FileSizeInByte:   int(la.Size()),
@@ -51,9 +51,8 @@ func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile) {
 		},
 		JustUploaded: true,
 	}
-	ID := fmt.Sprintf("%s-%d", sa.OriginalFileName, sa.ExifInfo.FileSizeInByte)
 	ai.assets = append(ai.assets, sa)
-	ai.byID[ID] = sa
+	ai.byID[sa.DeviceAssetID] = sa
 	l := ai.byName[sa.OriginalFileName]
 	l = append(l, sa)
 	ai.byName[sa.OriginalFileName] = l
