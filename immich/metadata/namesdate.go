@@ -31,6 +31,9 @@ func TakeTimeFromName(name string) time.Time {
 			// Date is invalid, return an error or default time value
 			return time.Time{}
 		}
+		if time.Since(t) < -24*time.Hour {
+			return time.Time{}
+		}
 		return t
 	}
 	return time.Time{}

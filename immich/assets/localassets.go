@@ -6,6 +6,7 @@ import (
 	"immich-go/immich/metadata"
 	"io/fs"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -52,12 +53,14 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 					s, err := d.Info()
 
 					f := LocalAssetFile{
-						FSys:     fsys,
-						FileName: name,
-						Title:    name,
-						size:     int(s.Size()),
-						Err:      err,
+						FSys:      fsys,
+						FileName:  name,
+						Title:     name,
+						size:      int(s.Size()),
+						Err:       err,
+						DateTaken: metadata.TakeTimeFromName(filepath.Base(name)),
 					}
+
 					if fsys.albums[path.Dir(name)] != "" {
 						f.AddAlbum(fsys.albums[path.Dir(name)])
 					}

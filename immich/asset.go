@@ -107,7 +107,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 
 	go func() {
 		defer func() {
-			// f.Close()
 			m.Close()
 			pw.Close()
 		}()
@@ -120,7 +119,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
 		m.WriteField("deviceId", ic.DeviceUUID)
 		m.WriteField("assetType", assetType)
-		m.WriteField("fileCreatedAt", s.ModTime().Format(time.RFC3339))
+		m.WriteField("fileCreatedAt", la.DateTaken.Format(time.RFC3339))
 		m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
 		m.WriteField("isFavorite", "false")
 		m.WriteField("fileExtension", path.Ext(la.FileName))
