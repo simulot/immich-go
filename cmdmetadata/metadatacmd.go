@@ -3,11 +3,14 @@ package cmdmetadata
 import (
 	"context"
 	"flag"
-	"fmt"
 	"immich-go/immich"
+	"immich-go/immich/docker"
 	"immich-go/immich/logger"
 	"immich-go/immich/metadata"
+	"math"
 	"path"
+	"strings"
+	"time"
 )
 
 type MetadataCmd struct {
@@ -16,6 +19,7 @@ type MetadataCmd struct {
 	DryRun                 bool
 	MissingDateDespiteName bool
 	MissingDate            bool
+	DockerHost             string
 }
 
 func NewMetadataCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*MetadataCmd, error) {
@@ -29,6 +33,7 @@ func NewMetadataCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger
 	cmd.BoolVar(&app.DryRun, "dry-run", true, "display actions, but don't touch the server assets")
 	cmd.BoolVar(&app.MissingDate, "missing-date", false, "select all assets where the date is missing")
 	cmd.BoolVar(&app.MissingDateDespiteName, "missing-date-with-name", false, "select all assets where the date is missing ut the name contains a the date")
+	cmd.StringVar(&app.DockerHost, "docker-host", "local", "Immich's docker host where to inject sidecar file as workaround for the issue #3888. 'local' for local connection, 'ssh://user:password@server' for remote host.")
 	err = cmd.Parse(args)
 	return &app, err
 }
@@ -39,6 +44,16 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		return err
 	}
 
+	var dockerConn *docker.DockerConnect
+
+	if !app.DryRun {
+		dockerConn, err = docker.NewDockerConnection(ctx, app.DockerHost, "immich_server")
+		if err != nil {
+			return err
+		}
+		app.Log.OK("Connected to the immich's docker container at %q", app.DockerHost)
+	}
+
 	app.Log.MessageContinue(logger.OK, "Get server's assets...")
 	list, err := app.Immich.GetAllAssets(ctx, nil)
 	if err != nil {
@@ -47,9 +62,13 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 	app.Log.MessageTerminate(logger.OK, " %d received", len(list))
 
 	type broken struct {
-		a      *immich.Asset
-		reason []string
+		a *immich.Asset
+		metadata.SideCar
+		fixable bool
+		reason  []string
 	}
+
+	now := time.Now().Add(time.Hour * 24)
 	brockenAssets := []broken{}
 	for _, a := range list {
 		ba := broken{a: a}
@@ -57,16 +76,21 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if (app.MissingDate) && a.ExifInfo.DateTimeOriginal == nil {
 			ba.reason = append(ba.reason, "capture date not set")
 		}
-		if (app.MissingDate) && a.ExifInfo.DateTimeOriginal != nil && a.ExifInfo.DateTimeOriginal.Year() < 1900 {
+		if (app.MissingDate) && a.ExifInfo.DateTimeOriginal != nil && (a.ExifInfo.DateTimeOriginal.Year() < 1900 || a.ExifInfo.DateTimeOriginal.Compare(now) > 0) {
 			ba.reason = append(ba.reason, "capture date invalid")
 		}
 
-		if app.MissingDateDespiteName && (a.ExifInfo.DateTimeOriginal == nil || (a.ExifInfo.DateTimeOriginal != nil && a.ExifInfo.DateTimeOriginal.Year() < 1900)) {
-			if !metadata.TakeTimeFromName(path.Base(a.OriginalPath)).IsZero() {
-				ba.reason = append(ba.reason, "capture date invalid, but the name contains a date")
+		if app.MissingDateDespiteName {
+			dt := metadata.TakeTimeFromName(path.Base(a.OriginalPath))
+			if !dt.IsZero() {
+				if (a.ExifInfo.DateTimeOriginal != nil && (math.Abs(float64(dt.Sub(*a.ExifInfo.DateTimeOriginal))) > float64(24.0*time.Hour))) || a.ExifInfo.DateTimeOriginal == nil {
+					ba.reason = append(ba.reason, "capture date invalid, but the name contains a date")
+					ba.fixable = true
+					ba.SideCar.DateTaken = dt
+				}
 			}
-
 		}
+
 		/*
 			if a.ExifInfo.Latitude == nil || a.ExifInfo.Longitude == nil {
 				ba.reason = append(ba.reason, "GPS coordinates not set")
@@ -79,20 +103,47 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		}
 	}
 
+	fixable := 0
 	for _, b := range brockenAssets {
-		fmt.Printf("docker -H ssh://root@192.168.10.17 cp 'immich_server:/usr/src/app/%s' '%s'\n", b.a.OriginalPath, path.Base(b.a.OriginalPath))
-		/*
-			app.Log.Message(logger.OK, "%s", b.a.OriginalPath)
-				if s := strings.Join([]string{b.a.ExifInfo.Make, b.a.ExifInfo.Model}, " "); s != "" {
-					app.Log.MessageContinue(logger.OK, ", %s", s)
-				}
-				app.Log.MessageTerminate(logger.OK, ", %s", strings.Join(b.reason, ", "))
-		*/
+		if b.fixable {
+			fixable++
+		}
+		app.Log.OK("%s, (%s %s): %s", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
 	}
 	app.Log.OK("%d broken assets", len(brockenAssets))
+	app.Log.OK("Among them, %d can be fixed with current settings", fixable)
+
 	if app.DryRun {
 		log.OK("Dry-run mode. Exiting")
 		return nil
+	}
+
+	if fixable == 0 {
+		return nil
+	}
+
+	uploader, err := dockerConn.BatchUpload(ctx, "/usr/src/app")
+	if err != nil {
+		return err
+	}
+
+	defer uploader.Close()
+
+	for _, b := range brockenAssets {
+		if !b.fixable {
+			continue
+		}
+		a := b.a
+		app.Log.MessageContinue(logger.OK, "Uploading sidecar for %s... ", a.OriginalPath)
+		scContent, err := b.SideCar.Bytes()
+		if err != nil {
+			return err
+		}
+		err = uploader.Upload(a.OriginalPath+".xmp", scContent)
+		if err != nil {
+			return err
+		}
+		app.Log.MessageTerminate(logger.OK, "done")
 	}
 	return nil
 }

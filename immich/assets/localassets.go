@@ -64,7 +64,7 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 
 					_, err = fs.Stat(fsys, name+".xmp")
 					if err == nil {
-						f.SideCar = &metadata.SideCarMetadata{
+						f.SideCar = &metadata.SideCar{
 							FileName: name + ".xmp",
 							OnFSsys:  true,
 						}
@@ -139,7 +139,7 @@ func ReadLocalAsset(fsys fs.FS, name string) (*LocalAssetFile, error) {
 		}
 		_, err = fs.Stat(fsys, name+".xmp")
 		if err == nil {
-			f.SideCar = &metadata.SideCarMetadata{
+			f.SideCar = &metadata.SideCar{
 				FileName: name + ".xmp",
 				OnFSsys:  true,
 			}

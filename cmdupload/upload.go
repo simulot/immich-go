@@ -304,7 +304,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 	if !app.DryRun {
 
 		if app.ForceSidecar {
-			sc := metadata.SideCarMetadata{}
+			sc := metadata.SideCar{}
 			sc.DateTaken = a.DateTaken
 			sc.Latitude = a.Latitude
 			sc.Longitude = a.Longitude

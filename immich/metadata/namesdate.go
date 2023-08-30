@@ -25,7 +25,7 @@ func TakeTimeFromName(name string) time.Time {
 			}
 
 		}
-		t := time.Date(m[0], time.Month(m[1]), m[2], m[3], m[4], m[5], 0, time.UTC)
+		t := time.Date(m[0], time.Month(m[1]), m[2], m[3], m[4], m[5], 0, time.Local)
 		if t.Year() != m[0] || t.Month() != time.Month(m[1]) || t.Day() != m[2] ||
 			t.Hour() != m[3] || t.Minute() != m[4] || t.Second() != m[5] {
 			// Date is invalid, return an error or default time value
