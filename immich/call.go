@@ -196,6 +196,11 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 			return sc.Err(req, nil, nil)
 		}
 
+		if resp == nil {
+			sc.joinError(errors.New("unexpected nil response"))
+			return sc.Err(req, nil, nil)
+		}
+
 		// Any Status below 300 is a success
 		if resp.StatusCode < 300 {
 			break
@@ -294,12 +299,14 @@ type serverResponseOption func(sc *serverCall, resp *http.Response) error
 
 func responseJSON(object any) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
-		if resp != nil && resp.Body != nil {
-			defer resp.Body.Close()
-			if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
-				return sc.err
+		if resp != nil {
+			if resp.Body != nil {
+				defer resp.Body.Close()
+				if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
+					return sc.err
+				}
 			}
 		}
-		return nil
+		return errors.New("can't decode nil response")
 	}
 }
