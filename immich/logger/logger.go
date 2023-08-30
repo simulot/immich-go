@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -15,6 +17,7 @@ const (
 	Warning
 	OK
 	Info
+	Debug
 )
 
 func (l Level) String() string {
@@ -29,6 +32,8 @@ func (l Level) String() string {
 		return "OK"
 	case Info:
 		return "Info"
+	case Debug:
+		return "Debug"
 	default:
 		return fmt.Sprintf("Log Level %d", l)
 	}
@@ -36,7 +41,7 @@ func (l Level) String() string {
 
 func StringToLevel(s string) (Level, error) {
 	s = strings.ToLower(s)
-	for l := Fatal; l <= Info; l++ {
+	for l := Fatal; l <= Debug; l++ {
 		if strings.ToLower(l.String()) == s {
 			return l, nil
 		}
@@ -50,6 +55,7 @@ var colorLevel = map[Level]string{
 	Warning: chalk.Yellow.String(),
 	OK:      chalk.Green.String(),
 	Info:    chalk.White.String(),
+	Debug:   chalk.Cyan.String(),
 }
 
 type Logger struct {
@@ -73,6 +79,24 @@ func NewLogger(DisplayLevel Level, noColors bool) *Logger {
 	return &l
 }
 
+func (l *Logger) Debug(f string, v ...any) {
+	l.Message(Debug, f, v...)
+}
+
+func (l *Logger) DebugObject(name string, v any) {
+	if Debug > l.displayLevel {
+		return
+	}
+	b := bytes.NewBuffer(nil)
+	enc := json.NewEncoder(b)
+	enc.SetIndent("", " ")
+	err := enc.Encode(v)
+	if err != nil {
+		l.Error("can't display object %s: %s", name, err)
+		return
+	}
+	l.Message(Debug, "%s:\n%s", name, b.String())
+}
 func (l *Logger) Info(f string, v ...any) {
 	l.Message(Info, f, v...)
 }

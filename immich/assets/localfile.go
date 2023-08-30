@@ -49,9 +49,10 @@ type LocalAssetFile struct {
 	FSys fs.FS // Asset's file system
 
 	// Unexported fields
-	isResolved bool // True when the FileName is resolved, for google photos
-	fInfo      fs.FileInfo
-	size       int // Accessible via Stat()
+	isResolved      bool // True when the FileName is resolved, for google photos
+	isNotResolvable bool // When the name resolution has failed
+	fInfo           fs.FileInfo
+	size            int // Accessible via Stat()
 
 	// dateTaken       time.Time // Accessible via DateTaken()
 	// dateAlreadyRead bool      // true when the date has been read
@@ -125,32 +126,46 @@ func (l *LocalAssetFile) IsDir() bool { return false }
 
 func (l *LocalAssetFile) resolve() error {
 	var err error
+	if l.isNotResolvable {
+		return os.ErrNotExist
+	}
 	if l.isResolved {
 		return nil
 	}
 	if fsys, ok := l.FSys.(NameResolver); ok && !l.isResolved {
 		l.FileName, err = fsys.ResolveName(l)
 		if err != nil {
+			l.isNotResolvable = true
 			return err
 		}
 	}
 	l.fInfo, err = fs.Stat(l.FSys, l.FileName)
+	if err != nil {
+		l.isNotResolvable = true
+		return err
+	}
 	l.isResolved = true
 	return nil
 }
 
 func (l *LocalAssetFile) Name() string {
-	l.resolve()
-	return l.FileName
+	if l.resolve() == nil {
+		return l.FileName
+	}
+	return "name not resolved"
 }
 func (l *LocalAssetFile) Size() int64 {
-	l.resolve()
-	return l.fInfo.Size()
+	if l.resolve() != nil {
+		return l.fInfo.Size()
+	}
+	return 0
 }
 func (l *LocalAssetFile) Mode() fs.FileMode { return 0 }
 func (l *LocalAssetFile) ModTime() time.Time {
-	l.resolve()
-	return l.fInfo.ModTime()
+	if err := l.resolve(); err == nil {
+		return l.fInfo.ModTime()
+	}
+	return time.Time{}
 }
 func (l *LocalAssetFile) Sys() any { return nil }
 
@@ -197,6 +212,8 @@ func (l *LocalAssetFile) Remove() error {
 }
 
 func (l *LocalAssetFile) DeviceAssetID() string {
-	l.resolve()
-	return fmt.Sprintf("%s-%d", path.Base(l.Title), l.Size())
+	if err := l.resolve(); err == nil {
+		return fmt.Sprintf("%s-%d", path.Base(l.Title), l.Size())
+	}
+	return "Not resolved"
 }

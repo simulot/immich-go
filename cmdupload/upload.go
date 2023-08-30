@@ -163,6 +163,7 @@ assetLoop:
 }
 
 func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) error {
+	app.logger.DebugObject("handleAsset: LocalAssetFile=", a)
 	showCount := true
 	defer func() {
 		a.Close()

@@ -123,6 +123,9 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 }
 
 func (fsys *GooglePhotosAssetBrowser) ResolveName(la *LocalAssetFile) (string, error) {
+	if la.isNotResolvable {
+		return "not resolved", fmt.Errorf("%s: %w", la.Title, os.ErrNotExist)
+	}
 	if la.isResolved {
 		return la.FileName, nil
 	}

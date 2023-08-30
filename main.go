@@ -74,7 +74,7 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	flag.StringVar(&app.Key, "key", "", "API Key")
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
 	flag.BoolVar(&app.NoLogColors, "no-colors-log", false, "Disable colors on logs")
-	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
+	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info|Debug), default OK")
 	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
 	flag.Parse()
 	if len(app.EndPoint) == 0 {
