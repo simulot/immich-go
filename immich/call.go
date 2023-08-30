@@ -312,6 +312,7 @@ func responseJSON(object any) serverResponseOption {
 				if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
 					return sc.err
 				}
+				return nil
 			}
 		}
 		return errors.New("can't decode nil response")
