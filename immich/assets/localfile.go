@@ -42,9 +42,10 @@ type LocalAssetFile struct {
 	Altitude  float64   // GPS Altitude
 
 	// Google Photos flags
-	Trashed     bool // The asset is trashed
-	Archived    bool // The asset is archived
-	FromPartner bool // the asset comes from a partner
+	Trashed      bool // The asset is trashed
+	Archived     bool // The asset is archived
+	FromPartner  bool // the asset comes from a partner
+	MetadataFile string
 
 	FSys fs.FS // Asset's file system
 
@@ -62,6 +63,11 @@ type LocalAssetFile struct {
 	tempFile   *os.File  // buffer that keep partial reads available for the full file reading
 	teeReader  io.Reader // write each read from it into the tempWriter
 	reader     io.Reader // the reader that combines the partial read and original file for full file reading
+}
+
+func (l LocalAssetFile) DebugObject() any {
+	l.FSys = nil
+	return l
 }
 
 // partialSourceReader open a reader on the current asset.

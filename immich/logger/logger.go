@@ -83,9 +83,16 @@ func (l *Logger) Debug(f string, v ...any) {
 	l.Message(Debug, f, v...)
 }
 
+type DebugObject interface {
+	DebugObject() any
+}
+
 func (l *Logger) DebugObject(name string, v any) {
 	if Debug > l.displayLevel {
 		return
+	}
+	if d, ok := v.(DebugObject); ok {
+		v = d.DebugObject()
 	}
 	b := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(b)

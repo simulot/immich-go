@@ -80,15 +80,16 @@ func (fsys *GooglePhotosAssetBrowser) Browse(ctx context.Context) chan *LocalAss
 					}
 
 					f := LocalAssetFile{
-						FSys:        fsys,
-						FileName:    path.Join(dir, nameReplacer.Replace(md.Title)),
-						Title:       md.Title,
-						Trashed:     md.Trashed,
-						FromPartner: md.GooglePhotosOrigin.FromPartnerSharing != nil,
-						DateTaken:   md.PhotoTakenTime.Time(),
-						Latitude:    md.GeoData.Latitude,
-						Longitude:   md.GeoData.Longitude,
-						Altitude:    md.GeoData.Altitude,
+						FSys:         fsys,
+						FileName:     path.Join(dir, nameReplacer.Replace(md.Title)),
+						Title:        md.Title,
+						Trashed:      md.Trashed,
+						FromPartner:  md.GooglePhotosOrigin.FromPartnerSharing != nil,
+						DateTaken:    md.PhotoTakenTime.Time(),
+						Latitude:     md.GeoData.Latitude,
+						Longitude:    md.GeoData.Longitude,
+						Altitude:     md.GeoData.Altitude,
+						MetadataFile: name,
 					}
 
 					if album, ok := fsys.albums[dir]; ok {
