@@ -64,13 +64,15 @@ type Logger struct {
 	displayLevel Level
 	noColors     bool
 	colorStrings map[Level]string
+	debug        bool
 }
 
-func NewLogger(DisplayLevel Level, noColors bool) *Logger {
+func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Logger {
 	l := Logger{
 		displayLevel: DisplayLevel,
 		noColors:     noColors,
 		colorStrings: map[Level]string{},
+		debug:        debug,
 	}
 	if !noColors {
 		l.colorStrings = colorLevel
@@ -88,7 +90,7 @@ type DebugObject interface {
 }
 
 func (l *Logger) DebugObject(name string, v any) {
-	if Debug > l.displayLevel {
+	if !l.debug {
 		return
 	}
 	if d, ok := v.(DebugObject); ok {
@@ -102,7 +104,17 @@ func (l *Logger) DebugObject(name string, v any) {
 		l.Error("can't display object %s: %s", name, err)
 		return
 	}
-	l.Message(Debug, "%s:\n%s", name, b.String())
+	if l.needCR {
+		fmt.Println()
+		l.needCR = false
+	}
+	l.needSpace = false
+	fmt.Print(l.colorStrings[Debug])
+	fmt.Printf("%s:\n%s", name, b.String())
+	if !l.noColors {
+		fmt.Print(chalk.ResetColor)
+	}
+	fmt.Println()
 }
 func (l *Logger) Info(f string, v ...any) {
 	l.Message(Info, f, v...)

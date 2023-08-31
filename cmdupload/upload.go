@@ -152,18 +152,18 @@ assetLoop:
 		}
 		err := app.DeleteServerAssets(ctx, ids)
 		if err != nil {
-			return fmt.Errorf("Can't delete server's assets: %w", err)
+			return fmt.Errorf("an't delete server's assets: %w", err)
 		}
 	}
 
 	if len(app.deleteLocalList) > 0 {
 		err = app.DeleteLocalAssets()
 	}
+	app.logger.OK("%d media scanned, %d uploaded.", app.mediaCount, app.mediaUploaded)
 	return err
 }
 
 func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) error {
-	app.logger.DebugObject("handleAsset: LocalAssetFile=", a)
 	showCount := true
 	defer func() {
 		a.Close()
@@ -199,6 +199,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 			return nil
 		}
 	}
+	app.logger.DebugObject("handleAsset: LocalAssetFile=", a)
 
 	advice, err := app.AssetIndex.ShouldUpload(a)
 	if err != nil {

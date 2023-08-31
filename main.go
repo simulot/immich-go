@@ -23,7 +23,7 @@ var (
 func main() {
 	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 	var err error
-	var log = logger.NewLogger(logger.OK, true)
+	var log = logger.NewLogger(logger.OK, true, false)
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -60,6 +60,7 @@ type Application struct {
 
 	NoLogColors bool // Disable log colors
 	LogLevel    string
+	Debug       bool
 }
 
 func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
@@ -74,8 +75,9 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	flag.StringVar(&app.Key, "key", "", "API Key")
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
 	flag.BoolVar(&app.NoLogColors, "no-colors-log", false, "Disable colors on logs")
-	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info|Debug), default OK")
+	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
 	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
+	flag.BoolVar(&app.Debug, "debug", false, "enable debug messages")
 	flag.Parse()
 	if len(app.EndPoint) == 0 {
 		err = errors.Join(err, errors.New("missing -server"))
@@ -93,7 +95,7 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 		err = errors.Join(err, errors.New("missing command"))
 	}
 
-	app.Logger = logger.NewLogger(logLevel, app.NoLogColors)
+	app.Logger = logger.NewLogger(logLevel, app.NoLogColors, app.Debug)
 
 	if err != nil {
 		return app.Logger, err
