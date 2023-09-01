@@ -243,8 +243,6 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 # Release notes 
 
 
-## Release 0.1.8 
+## Release 0.2.0
 - When uploading from a directory, use the date inferred from the file name as file date.  Immich uses it as date of take. This us useful for images without Exif data.
-- Can force Immich with Google Photos metadata (Date taken and GPS coordinates)
-    - but this doesn't work with immich version v1.75.2 (see [ [BUG] Sidecar file content is ignored for mp4 files #3888  ](https://github.com/immich-app/immich/issues/3888) )
-
+- `duplicate` command check immich for several version of the same image, same file name, same date of capture
