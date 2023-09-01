@@ -113,12 +113,13 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 	app.Log.OK("%d broken assets", len(brockenAssets))
 	app.Log.OK("Among them, %d can be fixed with current settings", fixable)
 
-	if app.DryRun {
-		log.OK("Dry-run mode. Exiting")
+	if fixable == 0 {
 		return nil
 	}
 
-	if fixable == 0 {
+	if app.DryRun {
+		log.OK("Dry-run mode. Exiting")
+		log.OK("use -dry-run=false after metadata command")
 		return nil
 	}
 

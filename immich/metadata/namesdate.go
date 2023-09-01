@@ -32,6 +32,7 @@ func TakeTimeFromName(name string) time.Time {
 			return time.Time{}
 		}
 		if time.Since(t) < -24*time.Hour {
+			// Discard dates in the future
 			return time.Time{}
 		}
 		return t
