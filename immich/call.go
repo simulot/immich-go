@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 type TooManyInternalError struct {
@@ -185,48 +184,28 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		resp *http.Response
 		err  error
 	)
-	try := sc.ic.Retries
-	for {
 
-		resp, err = sc.ic.client.Do(req)
+	resp, err = sc.ic.client.Do(req)
 
-		// any non nil error must be returned
-		if err != nil {
-			sc.joinError(err)
-			return sc.Err(req, nil, nil)
-		}
+	// any non nil error must be returned
+	if err != nil {
+		sc.joinError(err)
+		return sc.Err(req, nil, nil)
+	}
 
-		if resp == nil {
-			sc.joinError(errors.New("unexpected nil response"))
-			return sc.Err(req, nil, nil)
-		}
-
-		// Any Status below 300 is a success
-		if resp.StatusCode < 300 {
-			break
-		}
-		// Any StatusCode above 300 denote a problem
-		if resp.StatusCode >= 300 {
-			msg := ServerMessage{}
-			if resp.Body != nil {
-				if json.NewDecoder(resp.Body).Decode(&msg) == nil {
-					return sc.Err(req, resp, &msg)
-				}
-			}
-			if resp.Body != nil {
-				resp.Body.Close()
-			}
-			// StatusCode below 500 are
-			if resp.StatusCode < 500 {
-				return sc.Err(req, resp, &msg)
-			}
-			try--
-			if try == 0 {
-				sc.joinError(TooManyInternalError{})
+	// Any StatusCode above 300 denote a problem
+	if resp.StatusCode >= 300 {
+		msg := ServerMessage{}
+		if resp.Body != nil {
+			if json.NewDecoder(resp.Body).Decode(&msg) == nil {
 				return sc.Err(req, resp, &msg)
 			}
 		}
-		time.Sleep(2 * time.Second)
+		if resp.Body != nil {
+			resp.Body.Close()
+		}
+		// StatusCode below 500 are
+		return sc.Err(req, resp, &msg)
 	}
 
 	// We have a success
@@ -271,7 +250,11 @@ func setAPIKey() serverRequestOption {
 func setJSONBody(object any) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		b := bytes.NewBuffer(nil)
-		if sc.joinError(json.NewEncoder(b).Encode(object)) == nil {
+		enc := json.NewEncoder(b)
+		if sc.ic.ApiTrace {
+			enc.SetIndent("", " ")
+		}
+		if sc.joinError(enc.Encode(object)) == nil {
 			req.Body = io.NopCloser(b)
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -305,6 +288,7 @@ func responseJSON(object any) serverResponseOption {
 				if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
 					return sc.err
 				}
+				return nil
 			}
 		}
 		return errors.New("can't decode nil response")

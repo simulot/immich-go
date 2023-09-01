@@ -39,3 +39,7 @@ func DirRemoveFS(name string) fs.FS {
 func (fsys dirRemoveFS) Remove(name string) error {
 	return os.Remove(filepath.Join(fsys.dir, name))
 }
+
+func (fsys dirRemoveFS) Stat(name string) (fs.FileInfo, error) {
+	return os.Stat(filepath.Join(fsys.dir, name))
+}

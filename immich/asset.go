@@ -16,46 +16,46 @@ import (
 
 // immich Asset simplified
 type Asset struct {
-	ID            string `json:"id"`
-	DeviceAssetID string `json:"deviceAssetId"`
-	// OwnerID          string `json:"ownerId"`
-	DeviceID         string `json:"deviceId"`
-	Type             string `json:"type"`
-	OriginalPath     string `json:"originalPath"`
-	OriginalFileName string `json:"originalFileName"`
-	// Resized          bool      `json:"resized"`
-	// Thumbhash        string    `json:"thumbhash"`
-	FileCreatedAt time.Time `json:"fileCreatedAt"`
-	// FileModifiedAt time.Time `json:"fileModifiedAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	// IsFavorite     bool      `json:"isFavorite"`
-	// IsArchived     bool      `json:"isArchived"`
-	// Duration       string    `json:"duration"`
-	ExifInfo ExifInfo `json:"exifInfo"`
-	// LivePhotoVideoID any    `json:"livePhotoVideoId"`
-	// Tags             []any  `json:"tags"`
-	Checksum     string            `json:"checksum"`
-	JustUploaded bool              `json:"-"`
-	Albums       []AlbumSimplified `json:"-"` // Albums that asset belong to
+	ID               string            `json:"id"`
+	DeviceAssetID    string            `json:"deviceAssetId"`
+	OwnerID          string            `json:"ownerId"`
+	DeviceID         string            `json:"deviceId"`
+	Type             string            `json:"type"`
+	OriginalPath     string            `json:"originalPath"`
+	OriginalFileName string            `json:"originalFileName"`
+	Resized          bool              `json:"resized"`
+	Thumbhash        string            `json:"thumbhash"`
+	FileCreatedAt    time.Time         `json:"fileCreatedAt"`
+	FileModifiedAt   time.Time         `json:"fileModifiedAt"`
+	UpdatedAt        time.Time         `json:"updatedAt"`
+	IsFavorite       bool              `json:"isFavorite"`
+	IsArchived       bool              `json:"isArchived"`
+	Duration         string            `json:"duration"`
+	ExifInfo         ExifInfo          `json:"exifInfo"`
+	LivePhotoVideoID any               `json:"livePhotoVideoId"`
+	Tags             []any             `json:"tags"`
+	Checksum         string            `json:"checksum"`
+	JustUploaded     bool              `json:"-"`
+	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
 }
 
 type ExifInfo struct {
-	Make            string `json:"make"`
-	Model           string `json:"model"`
-	ExifImageWidth  int    `json:"exifImageWidth"`
-	ExifImageHeight int    `json:"exifImageHeight"`
-	FileSizeInByte  int    `json:"fileSizeInByte"`
-	// 	Orientation      string    `json:"orientation"`
-	DateTimeOriginal time.Time `json:"dateTimeOriginal"`
+	Make             string    `json:"make"`
+	Model            string    `json:"model"`
+	ExifImageWidth   int       `json:"exifImageWidth"`
+	ExifImageHeight  int       `json:"exifImageHeight"`
+	FileSizeInByte   int       `json:"fileSizeInByte"`
+	Orientation      string    `json:"orientation"`
+	DateTimeOriginal time.Time `json:"dateTimeOriginal,omitempty"`
 	// 	ModifyDate       time.Time `json:"modifyDate"`
 	TimeZone string `json:"timeZone"`
-	// 	LensModel        string    `json:"lensModel"`
+	// LensModel        string    `json:"lensModel"`
 	// 	FNumber          float64   `json:"fNumber"`
 	// 	FocalLength      float64   `json:"focalLength"`
 	// 	Iso              int       `json:"iso"`
 	// 	ExposureTime     string    `json:"exposureTime"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude,omitempty"`
+	Longitude float64 `json:"longitude,omitempty"`
 	// 	City             string    `json:"city"`
 	// 	State            string    `json:"state"`
 	// 	Country          string    `json:"country"`
@@ -107,7 +107,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 
 	go func() {
 		defer func() {
-			// f.Close()
 			m.Close()
 			pw.Close()
 		}()
@@ -120,7 +119,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
 		m.WriteField("deviceId", ic.DeviceUUID)
 		m.WriteField("assetType", assetType)
-		m.WriteField("fileCreatedAt", s.ModTime().Format(time.RFC3339))
+		m.WriteField("fileCreatedAt", la.DateTaken.Format(time.RFC3339))
 		m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
 		m.WriteField("isFavorite", "false")
 		m.WriteField("fileExtension", path.Ext(la.FileName))
@@ -140,6 +139,27 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 		_, err = io.Copy(part, io.MultiReader(b4k, f))
 		if err != nil {
 			return
+		}
+
+		if la.SideCar != nil {
+			h.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+					escapeQuotes("sidecarData"), escapeQuotes(path.Base(la.SideCar.FileName))))
+			h.Set("Content-Type", "application/xml")
+
+			part, err := m.CreatePart(h)
+			if err != nil {
+				return
+			}
+			sc, err := la.SideCar.Open(la.FSys, la.SideCar.FileName)
+			if err != nil {
+				return
+			}
+			defer sc.Close()
+			_, err = io.Copy(part, sc)
+			if err != nil {
+				return
+			}
 		}
 	}()
 
@@ -204,4 +224,22 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string) (*deleteR
 		return nil, err
 	}
 	return &resp, nil
+}
+
+func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
+	r := Asset{}
+	err := ic.newServerCall(ctx, "GetAssetByID").do(get("/asset/assetById/"+id, setAcceptJSON()), responseJSON(&r))
+	return &r, err
+}
+
+func (ic *ImmichClient) UpdateAsset(ctx context.Context, a *Asset) (*Asset, error) {
+	r := Asset{}
+	err := ic.newServerCall(ctx, "updateAsset").
+		do(
+			put("/asset/"+a.ID,
+				setJSONBody(a),
+				setAcceptJSON(),
+			),
+			responseJSON(&r))
+	return &r, err
 }

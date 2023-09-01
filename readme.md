@@ -69,7 +69,9 @@ Use this command for uploading photos and videos from a local directory, a zippe
 `-device-uuid VALUE` Force the device identification (default $HOSTNAME).<br>
 `-dry-run` Preview all actions as they would be done.<br> 
 `-delete` Delete local assets after successful upload. <br>
-`-create-album-folder` Generate immich albums after folder names.<br>
+`-create-album-folder <bool>` Generate immich albums after folder names.<br>
+`-force-sidecar <bool>` Force sending a .xmp sidecar file beside images. With Google photos date and GPS coordinates are taken from metadata.json files. (default: FALSE).<br>
+
 
 ### Date selection:
 Fine-tune import based on specific dates:<br>
@@ -191,7 +193,7 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
 The main reason is that my higher proficiency in GO compared to Typescript language.
 Additionally, deploying a Node.js program on user machines presents challenges.
 
-# TODO list
+# Feature list
 - [X] binary releases
 - [ ] import vs upload flag
 - [X] check in the photo doesn't exist on the server before uploading
@@ -200,7 +202,7 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 - [X] replace the server photo, if the file to upload is better.
     - [X] Update any album with the new version of the asset
 - [X] delete local file after successful upload (not for import!)
-- [ ] upload XMP sidecar files 
+- [X] upload XMP sidecar files 
 - [ ] select or exclude assets to upload by
     - [ ] type photo / video
     - [ ] name pattern
@@ -232,10 +234,17 @@ Additionally, deploying a Node.js program on user machines presents challenges.
     - [ ] ssh
     - [ ] samba
     - [ ] import remote folder
-
-# Wanted features 
+- [ ] Set GPS location for images taken with a GPS-less camera based on
+    - [X] Google location history
+    - [ ] KML,GPX track files
 - [ ] Import instead of Upload
 - [x] Cleaning duplicates
-- [ ] Set GPS location for images taken with a GPS-less camera based on
-    - [ ] Google location history
-    - [ ] KML,GPX track files
+
+# Release notes 
+
+
+## Release 0.1.8 
+- When uploading from a directory, use the date inferred from the file name as file date.  Immich uses it as date of take. This us useful for images without Exif data.
+- Can force Immich with Google Photos metadata (Date taken and GPS coordinates)
+    - but this doesn't work with immich version v1.75.2 (see [ [BUG] Sidecar file content is ignored for mp4 files #3888  ](https://github.com/immich-app/immich/issues/3888) )
+

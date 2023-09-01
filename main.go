@@ -5,10 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"immich-go/dupcmd"
+	"immich-go/cmdduplicate"
+	"immich-go/cmdmetadata"
+	"immich-go/cmdupload"
 	"immich-go/immich"
 	"immich-go/immich/logger"
-	"immich-go/upcmd"
 	"os"
 	"os/signal"
 )
@@ -22,7 +23,7 @@ var (
 func main() {
 	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 	var err error
-	var log = logger.NewLogger(logger.OK, true)
+	var log = logger.NewLogger(logger.OK, true, false)
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -55,9 +56,11 @@ type Application struct {
 	DeviceUUID string               // Set a device UUID
 	Immich     *immich.ImmichClient // Immich client
 	Logger     *logger.Logger       // Program's logger
+	ApiTrace   bool
 
 	NoLogColors bool // Disable log colors
 	LogLevel    string
+	Debug       bool
 }
 
 func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
@@ -73,6 +76,8 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
 	flag.BoolVar(&app.NoLogColors, "no-colors-log", false, "Disable colors on logs")
 	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
+	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
+	flag.BoolVar(&app.Debug, "debug", false, "enable debug messages")
 	flag.Parse()
 	if len(app.EndPoint) == 0 {
 		err = errors.Join(err, errors.New("missing -server"))
@@ -90,13 +95,13 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 		err = errors.Join(err, errors.New("missing command"))
 	}
 
-	app.Logger = logger.NewLogger(logLevel, app.NoLogColors)
+	app.Logger = logger.NewLogger(logLevel, app.NoLogColors, app.Debug)
 
 	if err != nil {
 		return app.Logger, err
 	}
 
-	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID)
+	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID, app.ApiTrace)
 	if err != nil {
 		return app.Logger, err
 	}
@@ -116,9 +121,11 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	cmd := flag.Args()[0]
 	switch cmd {
 	case "upload":
-		err = upcmd.UploadCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = cmdupload.UploadCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	case "duplicate":
-		err = dupcmd.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = cmdduplicate.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+	case "metadata":
+		err = cmdmetadata.MetadataCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	default:
 		err = fmt.Errorf("unknwon command: %q", cmd)
 	}

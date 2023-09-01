@@ -1,7 +1,7 @@
 /*
 Check the list of photos to list and discard duplicates.
 */
-package dupcmd
+package cmdduplicate
 
 import (
 	"context"

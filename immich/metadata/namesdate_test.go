@@ -1,4 +1,4 @@
-package assets
+package metadata
 
 import (
 	"reflect"
@@ -41,7 +41,7 @@ func TestTakeTimeFromName(t *testing.T) {
 		},
 		{
 			name:     "19991231",
-			expected: time.Time{},
+			expected: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			name:     "991231-125200",

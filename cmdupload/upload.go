@@ -1,6 +1,6 @@
 // Command Upload
 
-package upcmd
+package cmdupload
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"immich-go/immich"
 	"immich-go/immich/assets"
 	"immich-go/immich/logger"
+	"immich-go/immich/metadata"
 	"io/fs"
 	"math"
 	"path"
@@ -39,7 +40,8 @@ type UpCmd struct {
 	KeepTrashed            bool             // Import trashed assets
 	KeepPartner            bool             // Import partner's assets
 	DryRun                 bool             // Display actions but don't change anything
-	// OnLineAssets           *immich.StringList       // Keep track on published assets
+	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
+
 	AssetIndex       *AssetIndex              // List of assets present on the server
 	deleteServerList []*immich.Asset          // List of server assets to remove
 	deleteLocalList  []*assets.LocalAssetFile // List of local assets to remove
@@ -150,13 +152,14 @@ assetLoop:
 		}
 		err := app.DeleteServerAssets(ctx, ids)
 		if err != nil {
-			return fmt.Errorf("Can't delete server's assets: %w", err)
+			return fmt.Errorf("an't delete server's assets: %w", err)
 		}
 	}
 
 	if len(app.deleteLocalList) > 0 {
 		err = app.DeleteLocalAssets()
 	}
+	app.logger.OK("%d media scanned, %d uploaded.", app.mediaCount, app.mediaUploaded)
 	return err
 }
 
@@ -169,6 +172,10 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 		}
 	}()
 	app.mediaCount++
+
+	if _, exists := app.AssetIndex.byID[a.DeviceAssetID()]; exists {
+		return nil
+	}
 
 	if !app.KeepPartner && a.FromPartner {
 		return nil
@@ -183,8 +190,8 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	}
 
 	if app.DateRange.IsSet() {
-		d, err := a.DateTaken()
-		if err != nil {
+		d := a.DateTaken
+		if d.IsZero() {
 			app.logger.Error("Can't get capture date of the file. File %q skipped", a.FileName)
 			return nil
 		}
@@ -192,6 +199,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 			return nil
 		}
 	}
+	app.logger.DebugObject("handleAsset: LocalAssetFile=", a)
 
 	advice, err := app.AssetIndex.ShouldUpload(a)
 	if err != nil {
@@ -261,6 +269,7 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	cmd.Var(&app.DateRange, "date", "Date of capture range.")
 	cmd.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
 	cmd.BoolVar(&app.CreateAlbums, "create-albums", true, "Create albums like there were in the source")
+	cmd.BoolVar(&app.ForceSidecar, "force-sidecar", false, "Upload the photo and a sidecar file with known information like date and GPS coordinates. With GooglePhotos, information comes from the metadata files. (DEFAULT false)")
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
@@ -279,7 +288,7 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	}
 
 	if len(app.Paths) == 0 {
-		err = errors.Join(err, errors.New("Must specify at least one path for local assets"))
+		err = errors.Join(err, errors.New("must specify at least one path for local assets"))
 	}
 	return &app, err
 
@@ -299,6 +308,17 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 	app.logger.MessageContinue(logger.OK, "Uploading %q...", a.FileName)
 	var err error
 	if !app.DryRun {
+
+		if app.ForceSidecar {
+			sc := metadata.SideCar{}
+			sc.DateTaken = a.DateTaken
+			sc.Latitude = a.Latitude
+			sc.Longitude = a.Longitude
+			sc.Elevation = a.Altitude
+			sc.FileName = a.FileName + ".xmp"
+			a.SideCar = &sc
+		}
+
 		resp, err = app.Immich.AssetUpload(ctx, a)
 		if err != nil {
 			app.logger.MessageTerminate(logger.Error, "Error: %s", err)
@@ -307,8 +327,8 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 	} else {
 		resp.ID = uuid.NewString()
 	}
-	app.AssetIndex.AddLocalAsset(a)
 	if !resp.Duplicate {
+		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		app.mediaUploaded += 1
 		if !app.DryRun {
 			app.logger.OK("Done, total %d uploaded", app.mediaUploaded)
@@ -316,11 +336,11 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 			app.logger.OK("Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
 
 		}
+		for _, al := range a.Album {
+			app.AddToAlbum(resp.ID, al)
+		}
 	} else {
 		app.logger.MessageTerminate(logger.Warning, "already exists on the server")
-	}
-	for _, al := range a.Album {
-		app.AddToAlbum(resp.ID, al)
 	}
 }
 
@@ -409,15 +429,17 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 			if found {
 				continue
 			}
-			if !app.DryRun {
-				app.logger.OK("Create the album %s", album)
+			if list != nil {
+				if !app.DryRun {
+					app.logger.OK("Create the album %s", album)
 
-				_, err := app.Immich.CreateAlbum(ctx, album, list)
-				if err != nil {
-					return fmt.Errorf("can't create the album list from the server: %w", err)
+					_, err := app.Immich.CreateAlbum(ctx, album, list)
+					if err != nil {
+						return fmt.Errorf("can't create the album list from the server: %w", err)
+					}
+				} else {
+					app.logger.OK("Create the album %s skipped - dry run mode", album)
 				}
-			} else {
-				app.logger.OK("Create the album %s skipped - dry run mode", album)
 			}
 		}
 	}
@@ -551,7 +573,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 	}
 
 	if len(l) > 0 {
-		dateTaken, err := la.DateTaken()
+		dateTaken := la.DateTaken
 		size := int(la.Size())
 		if err != nil {
 			return ai.adviceIDontKnow(la), nil
