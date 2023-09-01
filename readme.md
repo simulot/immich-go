@@ -50,7 +50,7 @@ The `immich-go` program uses the Immich API. Hence it need the server address an
 
 
 ```sh
-immich-go -server URL -key KEY  COMMAND -options...  folder1|zip1 folder2|zip2....  
+immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
 ```
 
 `-server URL` URL of the Immich service, example http://<your-ip>:2283 or https://your-domain<br>
@@ -61,6 +61,8 @@ immich-go -server URL -key KEY  COMMAND -options...  folder1|zip1 folder2|zip2..
 - `WARNING`: Same as previous one plus non blocking error
 - `OK`: Same as previous plus actions
 - `INFO`: Same as previous one plus progressions
+
+
 ## Command `upload`
 
 Use this command for uploading photos and videos from a local directory, a zipped folder or all zip files that google photo takeout procedure has generated.
@@ -95,7 +97,7 @@ To illustrate, here's a command importing photos from a Google Photos takeout ar
 
 ```sh
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ upload
--create-albums -google-photos -date=2019-06 ~/Download/takeout-20230715T073439Z-001.zip ~/Download/takeout-20230715T073439Z-002.zip             
+-create-albums -google-photos -date=2019-06 ~/Download/takeout-*.zip             
 ```
 
 ## Command `duplicate`
