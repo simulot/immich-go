@@ -580,7 +580,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 
 		}
 		for _, sa = range l {
-			compareDate := dateTaken.Compare(*sa.ExifInfo.DateTimeOriginal)
+			compareDate := dateTaken.Compare(sa.ExifInfo.DateTimeOriginal)
 			compareSize := size - sa.ExifInfo.FileSizeInByte
 
 			switch {

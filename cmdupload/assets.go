@@ -45,9 +45,9 @@ func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile, ImmichID string) 
 		OriginalFileName: strings.TrimSuffix(path.Base(la.Title), path.Ext(la.Title)),
 		ExifInfo: immich.ExifInfo{
 			FileSizeInByte:   int(la.Size()),
-			DateTimeOriginal: &la.DateTaken,
-			Latitude:         &la.Latitude,
-			Longitude:        &la.Longitude,
+			DateTimeOriginal: la.DateTaken,
+			Latitude:         la.Latitude,
+			Longitude:        la.Longitude,
 		},
 		JustUploaded: true,
 	}
