@@ -246,5 +246,5 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 
 ## Release 0.2.0
-- When uploading from a directory, use the date inferred from the file name as file date.  Immich uses it as date of take. This us useful for images without Exif data.
+- When uploading from a directory, use the date inferred from the file name as file date.  Immich uses it as date of take. This is useful for images without Exif data.
 - `duplicate` command check immich for several version of the same image, same file name, same date of capture
