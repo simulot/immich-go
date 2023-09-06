@@ -406,6 +406,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 				if sal.AlbumName == album {
 					found = true
 					if !app.DryRun {
+						app.logger.OK("Update the album %s", album)
 						rr, err := app.Immich.AddAssetToAlbum(ctx, sal.ID, list)
 						if err != nil {
 							return fmt.Errorf("can't update the album list from the server: %w", err)

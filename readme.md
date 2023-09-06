@@ -245,9 +245,19 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 # Release notes 
 
 
-## Release 0.2.1
+### Release 0.2.2
+- improvement of date of capture when there isn't any exif data in the file
+    1. test the file name for a date
+    1. open the file and search for the date (.jpg, .mp4, .heic, .mov)
+    1. if still not found, give the current date
+
+> ⚠️ As of current version v1.77.0, immich fails to get the date of capture of some videos (IPhone), and place the video on the 01/01/1970.
+> 
+> You can use the -album to keep videos grouped in a same place despite the errors in date.
+
+### Release 0.2.1
 - Fix of -album option. uploaded images will be added into the album. Existing images will be added in the album if needed.
 
-## Release 0.2.0
+### Release 0.2.0
 - When uploading from a directory, use the date inferred from the file name as file date.  Immich uses it as date of take. This is useful for images without Exif data.
 - `duplicate` command check immich for several version of the same image, same file name, same date of capture
