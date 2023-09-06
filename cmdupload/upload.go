@@ -226,6 +226,9 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 		for _, al := range a.Album {
 			app.AddToAlbum(advice.ServerAsset.ID, al)
 		}
+		if app.ImportIntoAlbum != "" {
+			app.AddToAlbum(advice.ServerAsset.ID, app.ImportIntoAlbum)
+		}
 		if !advice.ServerAsset.JustUploaded {
 			app.logger.Info("%s: %s", a.Title, advice.Message)
 			if app.Delete {

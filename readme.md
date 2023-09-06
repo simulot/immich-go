@@ -245,6 +245,9 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 # Release notes 
 
 
+## Release 0.2.1
+- Fix of -album option. uploaded images will be added into the album. Existing images will be added in the album if needed.
+
 ## Release 0.2.0
 - When uploading from a directory, use the date inferred from the file name as file date.  Immich uses it as date of take. This is useful for images without Exif data.
 - `duplicate` command check immich for several version of the same image, same file name, same date of capture
