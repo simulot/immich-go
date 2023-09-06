@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -161,7 +162,7 @@ func (l *LocalAssetFile) Name() string {
 	return "name not resolved"
 }
 func (l *LocalAssetFile) Size() int64 {
-	if l.resolve() != nil {
+	if l.resolve() == nil {
 		return l.fInfo.Size()
 	}
 	return 0
@@ -219,7 +220,8 @@ func (l *LocalAssetFile) Remove() error {
 
 func (l *LocalAssetFile) DeviceAssetID() string {
 	if err := l.resolve(); err == nil {
-		return fmt.Sprintf("%s-%d", path.Base(l.Title), l.Size())
+		n := strings.TrimSuffix(path.Base(l.Title), path.Ext(l.Title))
+		return fmt.Sprintf("%s-%d", strings.ToUpper(n), l.Size())
 	}
 	return "Not resolved"
 }

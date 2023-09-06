@@ -14,7 +14,6 @@ import (
 	"immich-go/immich/metadata"
 	"io/fs"
 	"math"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -172,10 +171,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 		}
 	}()
 	app.mediaCount++
-
-	if _, exists := app.AssetIndex.byID[a.DeviceAssetID()]; exists {
-		return nil
-	}
 
 	if !app.KeepPartner && a.FromPartner {
 		return nil
@@ -338,6 +333,9 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 		}
 		for _, al := range a.Album {
 			app.AddToAlbum(resp.ID, al)
+		}
+		if app.ImportIntoAlbum != "" {
+			app.AddToAlbum(resp.ID, app.ImportIntoAlbum)
 		}
 	} else {
 		app.logger.MessageTerminate(logger.Warning, "already exists on the server")
@@ -552,7 +550,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 			return nil, err
 		}
 	}
-	ID := fmt.Sprintf("%s-%d", path.Base(la.Title), la.Size())
+	ID := la.DeviceAssetID()
 
 	sa := ai.byID[ID]
 	if sa != nil {
