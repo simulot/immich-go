@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type LocalAssetBrowser struct {
@@ -24,6 +25,8 @@ func BrowseLocalAssets(fsys fs.FS) *LocalAssetBrowser {
 func (fsys LocalAssetBrowser) Stat(name string) (fs.FileInfo, error) {
 	return fs.Stat(fsys.FS, name)
 }
+
+var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 	fileChan := make(chan *LocalAssetFile)
@@ -59,6 +62,14 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 						size:      int(s.Size()),
 						Err:       err,
 						DateTaken: metadata.TakeTimeFromName(filepath.Base(name)),
+					}
+
+					if f.DateTaken.IsZero() {
+						err = f.ReadMetadataFromFile(name)
+						_ = err
+						if f.DateTaken.Before(toOldDate) {
+							f.DateTaken = time.Now()
+						}
 					}
 
 					if fsys.albums[path.Dir(name)] != "" {
@@ -99,6 +110,22 @@ func (fsys LocalAssetBrowser) Browse(ctx context.Context) chan *LocalAssetFile {
 	}(ctx)
 
 	return fileChan
+}
+
+func (l *LocalAssetFile) ReadMetadataFromFile(name string) error {
+	ext := strings.ToLower(path.Ext(l.FileName))
+
+	// Open the file
+	r, err := l.partialSourceReader()
+
+	if err != nil {
+		return err
+	}
+	m, err := metadata.GetFromReader(r, ext)
+	if err == nil {
+		l.DateTaken = m.DateTaken
+	}
+	return err
 }
 
 func (fsys LocalAssetBrowser) BrowseAlbums(ctx context.Context) error {

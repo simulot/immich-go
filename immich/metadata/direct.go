@@ -1,18 +1,30 @@
 package metadata
 
-/*
+import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"path"
+	"time"
+
+	"github.com/rwcarlsen/goexif/exif"
+)
+
 type MetaData struct {
 	DateTaken                     time.Time
 	Latitude, Longitude, Altitude float64
 }
 
-func GetFileMetaData(fsys fs.FS, name string) (*MetaData, error) {
+func GetFileMetaData(fsys fs.FS, name string) (MetaData, error) {
 	f, err := fsys.Open(name)
 	if err != nil {
-		return nil, err
+		return MetaData{}, err
 	}
 	defer f.Close()
-	return GetMetaData(f)
+	return GetFromReader(f, path.Ext(name))
 }
 
 // GetMetaData makes its best efforts to get the date of capture based on
@@ -23,101 +35,83 @@ func GetFileMetaData(fsys fs.FS, name string) (*MetaData, error) {
 //
 //
 
-func GetMetaData(file io.Reader) (*MetaData, error) {
+func GetFromReader(r io.Reader, ext string) (MetaData, error) {
 	meta := MetaData{}
-	ext := strings.ToLower(path.Ext(l.FileName))
 	var err error
+	var dateTaken time.Time
 	switch ext {
 	case ".heic", ".heif":
-		l.dateTaken, err = l.readHEIFDateTaken()
+		dateTaken, err = readHEIFDateTaken(r)
 	case ".jpg", ".jpeg":
-		l.dateTaken, err = l.readExifDateTaken()
+		dateTaken, err = readExifDateTaken(r)
 	case ".mp4", ".mov":
-		l.dateTaken, err = l.readMP4DateTaken()
+		dateTaken, err = readMP4DateTaken(r)
 	default:
-		err = fmt.Errorf("can't determine the taken date from this file: %q", l.FileName)
+		err = errors.New("can't determine the taken date from this reader")
 	}
-	return l.dateTaken, err
+	meta.DateTaken = dateTaken
+	return meta, err
 }
-*/
-// // readExifDateTaken pase the file for Exif DateTaken
-// func (l *LocalAssetFile) readExifDateTaken() (time.Time, error) {
 
-// 	// Open the file
-// 	r, err := l.partialSourceReader()
+// readExifDateTaken pase the file for Exif DateTaken
+func readExifDateTaken(r io.Reader) (time.Time, error) {
 
-// 	if err != nil {
-// 		return time.Time{}, err
-// 	}
+	// Decode the EXIF data
+	x, err := exif.Decode(r)
+	if err != nil && exif.IsCriticalError(err) {
+		if errors.Is(err, io.EOF) {
+			return time.Time{}, nil
+		}
+		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
+	}
 
-// 	// Decode the EXIF data
-// 	x, err := exif.Decode(r)
-// 	if err != nil && exif.IsCriticalError(err) {
-// 		if errors.Is(err, io.EOF) {
-// 			return time.Time{}, nil
-// 		}
-// 		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
-// 	}
+	// Get the date taken from the EXIF data
+	tm, err := x.DateTime()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
+	}
+	t := time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), tm.Nanosecond(), time.Local)
+	return t, nil
+}
 
-// 	// Get the date taken from the EXIF data
-// 	tm, err := x.DateTime()
-// 	if err != nil {
-// 		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
-// 	}
-// 	t := time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), tm.Nanosecond(), time.Local)
-// 	return t, nil
-// }
+// readHEIFDateTaken locate the Exif part and return the date of capture
+func readHEIFDateTaken(r io.Reader) (time.Time, error) {
 
-// // readHEIFDateTaken locate the Exif part and return the date of capture
-// func (l *LocalAssetFile) readHEIFDateTaken() (time.Time, error) {
-// 	// Open the file
-// 	r, err := l.partialSourceReader()
+	r2, err := seekReaderAtPattern(r, []byte{0x45, 0x78, 0x69, 0x66, 0, 0, 0x4d, 0x4d})
+	if err != nil {
+		return time.Time{}, err
+	}
 
-// 	if err != nil {
-// 		return time.Time{}, err
-// 	}
+	filler := make([]byte, 6)
+	r2.Read(filler)
 
-// 	r2, err := seekReaderAtPattern(r, []byte{0x45, 0x78, 0x69, 0x66, 0, 0, 0x4d, 0x4d})
-// 	if err != nil {
-// 		return time.Time{}, err
-// 	}
+	// Decode the EXIF data
+	x, err := exif.Decode(r2)
+	if err != nil && exif.IsCriticalError(err) {
+		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
+	}
+	// Get the date taken from the EXIF data
+	tm, err := x.DateTime()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
+	}
+	t := time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), tm.Nanosecond(), time.Local)
+	return t, nil
+}
 
-// 	filler := make([]byte, 6)
-// 	r2.Read(filler)
+// readMP4DateTaken locate the mvhd atom and decode the date of capture
+func readMP4DateTaken(r io.Reader) (time.Time, error) {
 
-// 	// Decode the EXIF data
-// 	x, err := exif.Decode(r2)
-// 	if err != nil && exif.IsCriticalError(err) {
-// 		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
-// 	}
-// 	// Get the date taken from the EXIF data
-// 	tm, err := x.DateTime()
-// 	if err != nil {
-// 		return time.Time{}, fmt.Errorf("can't get DateTaken: %w", err)
-// 	}
-// 	t := time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), tm.Nanosecond(), time.Local)
-// 	return t, nil
-// }
-
-// // readMP4DateTaken locate the mvhd atom and decode the date of capture
-// func (l *LocalAssetFile) readMP4DateTaken() (time.Time, error) {
-// 	// Open the file
-// 	r, err := l.partialSourceReader()
-
-// 	if err != nil {
-// 		return time.Time{}, err
-// 	}
-
-// 	b, err := searchPattern(r, []byte{'m', 'v', 'h', 'd'}, 60)
-// 	if err != nil {
-// 		return time.Time{}, err
-// 	}
-// 	atom, err := decodeMvhdAtom(b)
-// 	if err != nil {
-// 		return time.Time{}, err
-// 	}
-// 	return atom.CreationTime, nil
-// }
+	b, err := searchPattern(r, []byte{'m', 'v', 'h', 'd'}, 60)
+	if err != nil {
+		return time.Time{}, err
+	}
+	atom, err := decodeMvhdAtom(b)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return atom.CreationTime, nil
+}
 
 /*
 The mvhd atom contains metadata and information about the entire movie or presentation, such as its duration,
@@ -146,74 +140,74 @@ In total, the minimum size of the mvhd atom is 108 bytes (version 0) or 112 byte
 If any of the optional fields are present, the size of the atom would increase accordingly.
 */
 
-// type MvhdAtom struct {
-// 	Marker           []byte //4 bytes
-// 	Version          uint8
-// 	Flags            []byte // 3 bytes
-// 	CreationTime     time.Time
-// 	ModificationTime time.Time
-// 	// ignored fields:
-// 	// Timescale        uint32
-// 	// Duration         uint32
-// 	// Rate             float32
-// 	// Volume           float32
-// 	// Matrix           [9]int32
-// 	// NextTrackID      uint32
-// }
+type MvhdAtom struct {
+	Marker           []byte //4 bytes
+	Version          uint8
+	Flags            []byte // 3 bytes
+	CreationTime     time.Time
+	ModificationTime time.Time
+	// ignored fields:
+	// Timescale        uint32
+	// Duration         uint32
+	// Rate             float32
+	// Volume           float32
+	// Matrix           [9]int32
+	// NextTrackID      uint32
+}
 
-// func decodeMvhdAtom(b []byte) (*MvhdAtom, error) {
-// 	r := &sliceReader{Reader: bytes.NewReader(b)}
+func decodeMvhdAtom(b []byte) (*MvhdAtom, error) {
+	r := &sliceReader{Reader: bytes.NewReader(b)}
 
-// 	a := &MvhdAtom{}
+	a := &MvhdAtom{}
 
-// 	// Read the mvhd marker (4 bytes)
-// 	a.Marker, _ = r.ReadSlice(4)
+	// Read the mvhd marker (4 bytes)
+	a.Marker, _ = r.ReadSlice(4)
 
-// 	// Read the mvhd version (1 byte)
-// 	a.Version, _ = r.ReadByte()
+	// Read the mvhd version (1 byte)
+	a.Version, _ = r.ReadByte()
 
-// 	// Read the mvhd flags (3 bytes)
-// 	a.Flags, _ = r.ReadSlice(3)
+	// Read the mvhd flags (3 bytes)
+	a.Flags, _ = r.ReadSlice(3)
 
-// 	if a.Version == 0 {
-// 		// Read the creation time (4 bytes)
-// 		b, _ := r.ReadSlice(4)
-// 		a.ModificationTime = convertTime32(binary.BigEndian.Uint32(b))
-// 		b, _ = r.ReadSlice(4)
-// 		a.CreationTime = convertTime32(binary.BigEndian.Uint32(b))
+	if a.Version == 0 {
+		// Read the creation time (4 bytes)
+		b, _ := r.ReadSlice(4)
+		a.ModificationTime = convertTime32(binary.BigEndian.Uint32(b))
+		b, _ = r.ReadSlice(4)
+		a.CreationTime = convertTime32(binary.BigEndian.Uint32(b))
 
-// 	} else {
-// 		// Read the creation time (4 bytes)
-// 		b, _ := r.ReadSlice(8)
-// 		a.ModificationTime = convertTime64(binary.BigEndian.Uint64(b))
+	} else {
+		// Read the creation time (4 bytes)
+		b, _ := r.ReadSlice(8)
+		a.ModificationTime = convertTime64(binary.BigEndian.Uint64(b))
 
-// 		b, _ = r.ReadSlice(8)
-// 		a.CreationTime = convertTime64(binary.BigEndian.Uint64(b))
-// 	}
+		b, _ = r.ReadSlice(8)
+		a.CreationTime = convertTime64(binary.BigEndian.Uint64(b))
+	}
 
-// 	return a, nil
-// }
+	return a, nil
+}
 
-// func convertTime32(timestamp uint32) time.Time {
-// 	return time.Unix(int64(timestamp)-int64(2082844800), 0).Local()
-// }
-// func convertTime64(timestamp uint64) time.Time {
-// 	// Unix epoch starts on January 1, 1970, subtracting the number of seconds from January 1, 1904 to January 1, 1970.
-// 	epochOffset := int64(2082844800)
+func convertTime32(timestamp uint32) time.Time {
+	return time.Unix(int64(timestamp)-int64(2082844800), 0).Local()
+}
+func convertTime64(timestamp uint64) time.Time {
+	// Unix epoch starts on January 1, 1970, subtracting the number of seconds from January 1, 1904 to January 1, 1970.
+	epochOffset := int64(2082844800)
 
-// 	// Convert the creation time to Unix timestamp
-// 	unixTimestamp := int64(timestamp>>32) - epochOffset
+	// Convert the creation time to Unix timestamp
+	unixTimestamp := int64(timestamp>>32) - epochOffset
 
-// 	// Convert the Unix timestamp to time.Time
-// 	return time.Unix(unixTimestamp, 0).Local()
-// }
+	// Convert the Unix timestamp to time.Time
+	return time.Unix(unixTimestamp, 0).Local()
+}
 
-// type sliceReader struct {
-// 	*bytes.Reader
-// }
+type sliceReader struct {
+	*bytes.Reader
+}
 
-// func (r *sliceReader) ReadSlice(l int) ([]byte, error) {
-// 	b := make([]byte, l)
-// 	_, err := r.Read(b)
-// 	return b, err
-// }
+func (r *sliceReader) ReadSlice(l int) ([]byte, error) {
+	b := make([]byte, l)
+	_, err := r.Read(b)
+	return b, err
+}
