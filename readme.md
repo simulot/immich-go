@@ -107,7 +107,8 @@ Use this command for analyzing the content of your `immich` server to find any f
 Before deleting the inferior copies, the system get all albums they belong to, and add the superior copy to them.
 
 ### Switches and options:
-`-dry-run` Preview all actions as they would be done (default: TRUE).<br> 
+`-yes` Assume Yes to all questions (default: FALSE).<br> 
+`-date` Check only assets have a date of capture in the given range. (default: 1850-01-04,2030-01-01)
 
 
 ### Example Usage: clean the `immich` server after having merged a google photo archive and original files
@@ -244,6 +245,10 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 - [x] Cleaning duplicates
 
 # Release notes 
+
+- Improvement of duplicate command
+  - `-yes` option to assume Yes to all questions
+  - `-date` to limit the check to a a given date range
 
 
 ### Release 0.2.2

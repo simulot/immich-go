@@ -10,6 +10,7 @@ import (
 	"immich-go/immich/logger"
 	"immich-go/ui"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,7 +19,7 @@ type DuplicateCmd struct {
 	logger *logger.Logger
 	Immich *immich.ImmichClient // Immich client
 
-	Confirm   bool             // Display actions but don't change anything
+	AssumeYes bool             // Display actions but don't change anything
 	DateRange immich.DateRange // Set capture date range
 }
 
@@ -30,14 +31,18 @@ type duplicateKey struct {
 func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*DuplicateCmd, error) {
 	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
 	validRange := immich.DateRange{}
-	validRange.Set("1850-01-04,2100-01-01")
+	validRange.Set("1850-01-04,2030-01-01")
 	app := DuplicateCmd{
 		logger:    logger,
 		Immich:    ic,
 		DateRange: validRange,
 	}
 
-	cmd.BoolVar(&app.Confirm, "confirm", true, "When true, actions must be confirmed")
+	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
+		var err error
+		app.AssumeYes, err = strconv.ParseBool(s)
+		return err
+	})
 	cmd.Var(&app.DateRange, "date", "Process only document having a	capture date in that range.")
 	err := cmd.Parse(args)
 	return &app, err
@@ -111,7 +116,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 		default:
 			app.logger.OK("There are %d copies of the asset %s, taken on %s ", len(duplicate[k]), k.Name, k.Date.Format(time.RFC3339))
 			l := duplicate[k]
-			albums := []string{}
+			albums := []immich.AlbumSimplified{}
 			delete := []string{}
 			sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
 			for p, a := range duplicate[k] {
@@ -123,27 +128,30 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 						log.Error("Can't get asset's albums: %s", err.Error())
 					} else {
 						for _, al := range r {
-							albums = append(albums, al.ID)
+							albums = append(albums, al)
 						}
 					}
 				} else {
 					log.OK("  %s %dx%d, %s, %s to be kept", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
-					yes := !app.Confirm
-					if app.Confirm {
-						r := ui.ConfirmYesNo("Proceed?", "n")
+					yes := app.AssumeYes
+					if !app.AssumeYes {
+						r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
+						if err != nil {
+							return err
+						}
 						if r == "y" {
 							yes = true
 						}
 					}
 					if yes {
-						log.OK("Asset removed")
+						log.OK("  Asset removed")
 						_, err = app.Immich.DeleteAssets(ctx, delete)
 						if err != nil {
 							log.Error("Can't delete asset: %s", err.Error())
 						}
 						for _, al := range albums {
-							log.OK("Update the album %s with the best copy", al)
-							_, err = app.Immich.AddAssetToAlbum(ctx, al, []string{a.ID})
+							log.OK("  Update the album %s with the best copy", al.AlbumName)
+							_, err = app.Immich.AddAssetToAlbum(ctx, al.ID, []string{a.ID})
 							if err != nil {
 								log.Error("Can't delete asset: %s", err.Error())
 							}
