@@ -6,12 +6,13 @@ immich-go
 immich-go
 main.go
 
+!readme.md
+
 dist/
 DATA
-notes.md
-log.txt
-idées.md
-poc/
+*.md
 *.txt
 *.log
-debug*.*
+poc/
+__debug_*.*
+*.exe
