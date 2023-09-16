@@ -121,7 +121,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 			sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
 			for p, a := range duplicate[k] {
 				if p < len(l)-1 {
-					log.OK("  %s %dx%d, %s, %s to be deleted", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+					log.OK("  delete %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
 					delete = append(delete, a.ID)
 					r, err := app.Immich.GetAssetAlbums(ctx, a.ID)
 					if err != nil {
@@ -132,7 +132,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 						}
 					}
 				} else {
-					log.OK("  %s %dx%d, %s, %s to be kept", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+					log.OK("  keep   %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
 					yes := app.AssumeYes
 					if !app.AssumeYes {
 						r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")

@@ -246,9 +246,61 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 # Release notes 
 
-- Improvement of duplicate command
+- Improvement of duplicate command (issue#13)
   - `-yes` option to assume Yes to all questions
   - `-date` to limit the check to a a given date range
+- Accept same type of files than the server (issue#15)
+    - .3fr
+    - .ari
+    - .arw
+    - .avif
+    - .cap
+    - .cin
+    - .cr2
+    - .cr3
+    - .crw
+    - .dcr
+    - .dng
+    - .erf
+    - .fff
+    - .gif
+    - .heic
+    - .heif
+    - .iiq
+    - .insp
+    - .jpeg
+    - .jpg
+    - .jxl
+    - .k25
+    - .kdc
+    - .mrw
+    - .nef
+    - .orf
+    - .ori
+    - .pef
+    - .png
+    - .raf
+    - .raw
+    - .rwl
+    - .sr2
+    - .srf
+    - .srw
+    - .tif
+    - .tiff
+    - .webp
+    - .x3f
+    - .3gp
+    - .avi
+    - .flv
+    - .insv
+    - .m2ts
+    - .mkv
+    - .mov
+    - .mp4
+    - .mpg
+    - .mts
+    - .webm
+    - .wmv"
 
 
 ### Release 0.2.2
