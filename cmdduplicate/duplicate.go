@@ -8,7 +8,9 @@ import (
 	"flag"
 	"immich-go/immich"
 	"immich-go/immich/logger"
+	"immich-go/ui"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -17,7 +19,7 @@ type DuplicateCmd struct {
 	logger *logger.Logger
 	Immich *immich.ImmichClient // Immich client
 
-	DryRun    bool             // Display actions but don't change anything
+	AssumeYes bool             // Display actions but don't change anything
 	DateRange immich.DateRange // Set capture date range
 }
 
@@ -27,16 +29,20 @@ type duplicateKey struct {
 }
 
 func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*DuplicateCmd, error) {
-	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
+	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
 	validRange := immich.DateRange{}
-	validRange.Set("1850-01-04,3000-01-01")
+	validRange.Set("1850-01-04,2030-01-01")
 	app := DuplicateCmd{
 		logger:    logger,
 		Immich:    ic,
 		DateRange: validRange,
 	}
 
-	cmd.BoolVar(&app.DryRun, "dry-run", true, "display actions but don't touch source or destination")
+	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
+		var err error
+		app.AssumeYes, err = strconv.ParseBool(s)
+		return err
+	})
 	cmd.Var(&app.DateRange, "date", "Process only document having a	capture date in that range.")
 	err := cmd.Parse(args)
 	return &app, err
@@ -108,43 +114,47 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			app.logger.Info("%s:", k.Date.Format(time.RFC3339))
+			app.logger.OK("There are %d copies of the asset %s, taken on %s ", len(duplicate[k]), k.Name, k.Date.Format(time.RFC3339))
 			l := duplicate[k]
-			albums := []string{}
+			albums := []immich.AlbumSimplified{}
 			delete := []string{}
 			sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
 			for p, a := range duplicate[k] {
 				if p < len(l)-1 {
-					log.Info("   %s(%s) %dx%d, %d bytes: delete", a.OriginalFileName, a.ID, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, a.ExifInfo.FileSizeInByte)
+					log.OK("  delete %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
 					delete = append(delete, a.ID)
 					r, err := app.Immich.GetAssetAlbums(ctx, a.ID)
 					if err != nil {
 						log.Error("Can't get asset's albums: %s", err.Error())
 					} else {
 						for _, al := range r {
-							albums = append(albums, al.ID)
+							albums = append(albums, al)
 						}
 					}
 				} else {
-					log.Info("   %s(%s) %dx%d, %d bytes: keep", a.OriginalFileName, a.ID, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, a.ExifInfo.FileSizeInByte)
-					if !app.DryRun {
-						log.OK("Deleting following assets: %s", strings.Join(delete, ","))
+					log.OK("  keep   %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+					yes := app.AssumeYes
+					if !app.AssumeYes {
+						r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
+						if err != nil {
+							return err
+						}
+						if r == "y" {
+							yes = true
+						}
+					}
+					if yes {
+						log.OK("  Asset removed")
 						_, err = app.Immich.DeleteAssets(ctx, delete)
 						if err != nil {
 							log.Error("Can't delete asset: %s", err.Error())
 						}
-					} else {
-						log.Info("Skip deleting following %s, dry run mode", strings.Join(delete, ","))
-					}
-					for _, al := range albums {
-						if !app.DryRun {
-							log.OK("Adding %s to album %s", a.ID, al)
-							_, err = app.Immich.AddAssetToAlbum(ctx, al, []string{a.ID})
+						for _, al := range albums {
+							log.OK("  Update the album %s with the best copy", al.AlbumName)
+							_, err = app.Immich.AddAssetToAlbum(ctx, al.ID, []string{a.ID})
 							if err != nil {
 								log.Error("Can't delete asset: %s", err.Error())
 							}
-						} else {
-							log.OK("Skip Adding %s to album %s, dry run mode", a.ID, al)
 						}
 					}
 				}
