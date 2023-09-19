@@ -42,12 +42,12 @@ type UpCmd struct {
 	DryRun                 bool             // Display actions but don't change anything
 	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
 
-	AssetIndex       *AssetIndex              // List of assets present on the server
-	deleteServerList []*immich.Asset          // List of server assets to remove
-	deleteLocalList  []*assets.LocalAssetFile // List of local assets to remove
-	mediaUploaded    int                      // Count uploaded medias
-	mediaCount       int                      // Count of media on the source
-	updateAlbums     map[string][]string      // track immich albums changes
+	AssetIndex       *AssetIndex               // List of assets present on the server
+	deleteServerList []*immich.Asset           // List of server assets to remove
+	deleteLocalList  []*assets.LocalAssetFile  // List of local assets to remove
+	mediaUploaded    int                       // Count uploaded medias
+	mediaCount       int                       // Count of media on the source
+	updateAlbums     map[string]map[string]any // track immich albums changes
 	logger           *logger.Logger
 }
 
@@ -264,7 +264,7 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
 	app := UpCmd{
-		updateAlbums: map[string][]string{},
+		updateAlbums: map[string]map[string]any{},
 		logger:       logger,
 		Immich:       ic,
 	}
@@ -364,7 +364,10 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 
 func (app *UpCmd) AddToAlbum(ID string, album string) {
 	l := app.updateAlbums[album]
-	l = append(l, ID)
+	if l == nil {
+		l = map[string]any{}
+	}
+	l[ID] = nil
 	app.updateAlbums[album] = l
 }
 
@@ -410,7 +413,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 					found = true
 					if !app.DryRun {
 						app.logger.OK("Update the album %s", album)
-						rr, err := app.Immich.AddAssetToAlbum(ctx, sal.ID, list)
+						rr, err := app.Immich.AddAssetToAlbum(ctx, sal.ID, keys(list))
 						if err != nil {
 							return fmt.Errorf("can't update the album list from the server: %w", err)
 						}
@@ -438,7 +441,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 				if !app.DryRun {
 					app.logger.OK("Create the album %s", album)
 
-					_, err := app.Immich.CreateAlbum(ctx, album, list)
+					_, err := app.Immich.CreateAlbum(ctx, album, keys(list))
 					if err != nil {
 						return fmt.Errorf("can't create the album list from the server: %w", err)
 					}
@@ -610,4 +613,12 @@ func hasMeta(path string) bool {
 		magicChars = `*?[\`
 	}
 	return strings.ContainsAny(path, magicChars)
+}
+
+func keys[M ~map[K]V, K comparable, V any](m M) []K {
+	r := make([]K, 0, len(m))
+	for k := range m {
+		r = append(r, k)
+	}
+	return r
 }
