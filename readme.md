@@ -89,6 +89,7 @@ Specialized options for Google Photos management:
 `-from-album "GP Album"` import assets for the given album, and mirrors it in Immich.<br>
 `-create-albums <bool>`  Controls recreation of Google Photos albums in Immich (default: TRUE).<br>
 `-keep-partner <bool>` Specifies inclusion or exclusion of partner-taken photos (default: TRUE).<br>
+`-partner-album "partner's album"` import assets from partner into given album.<br>
 `-keep-trashed <bool>` Determines whether to import trashed images (default: FALSE).<br>
 
 
@@ -246,6 +247,8 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 # Release notes 
 
+### Release 0.2.3
+
 - Improvement of duplicate command (issue#13)
   - `-yes` option to assume Yes to all questions
   - `-date` to limit the check to a a given date range
@@ -301,7 +304,8 @@ Additionally, deploying a Node.js program on user machines presents challenges.
     - .mts
     - .webm
     - .wmv"
-
+- new feature: add partner's assets to an album. Thanks to @mrwulf.
+- fix: albums creation fails sometime
 
 ### Release 0.2.2
 - improvement of date of capture when there isn't any exif data in the file
