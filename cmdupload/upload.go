@@ -274,7 +274,7 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	cmd.BoolVar(&app.KeepTrashed, "keep-trashed", false, "Import also trashed items")
 	cmd.BoolVar(&app.KeepPartner, "keep-partner", true, "Import also partner's items")
 	cmd.BoolVar(&app.CreateAlbumAfterFolder, "create-album-folder", false, "Create albums for assets based on the parent folder or a given name")
-	cmd.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album. (Must already exist)")
+	cmd.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
 	cmd.StringVar(&app.PartnerAlbum, "partner-album", "", "Assets from partner will be added to this album. (Must already exist)")
 	cmd.Var(&app.DateRange, "date", "Date of capture range.")
 	cmd.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
