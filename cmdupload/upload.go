@@ -30,6 +30,7 @@ type UpCmd struct {
 	Delete                 bool             // Delete original file after import
 	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
 	ImportIntoAlbum        string           // All assets will be added to this album
+	PartnerAlbum           string           // Partner's assets will be added to this album
 	Import                 bool             // Import instead of upload
 	DeviceUUID             string           // Set a device UUID
 	Paths                  []string         // Path to explore
@@ -136,7 +137,7 @@ assetLoop:
 		}
 	}
 
-	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportIntoAlbum) > 0 {
+	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && len(app.PartnerAlbum) > 0) || len(app.ImportIntoAlbum) > 0 {
 		err = app.ManageAlbums(ctx)
 		if err != nil {
 			log.Error(err.Error())
@@ -223,11 +224,16 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 		}
 	case SameOnServer:
 		// Set add the server asset into albums determined locally
-		for _, al := range a.Album {
-			app.AddToAlbum(advice.ServerAsset.ID, al)
+		if app.CreateAlbums {
+			for _, al := range a.Album {
+				app.AddToAlbum(advice.ServerAsset.ID, al)
+			}
 		}
 		if app.ImportIntoAlbum != "" {
 			app.AddToAlbum(advice.ServerAsset.ID, app.ImportIntoAlbum)
+		}
+		if app.PartnerAlbum != "" && a.FromPartner {
+			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 		if !advice.ServerAsset.JustUploaded {
 			app.logger.Info("%s: %s", a.Title, advice.Message)
@@ -239,8 +245,13 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 		}
 	case BetterOnServer:
 		// keep the server version but update albums
-		for _, al := range a.Album {
-			app.AddToAlbum(advice.ServerAsset.ID, al)
+		if app.CreateAlbums {
+			for _, al := range a.Album {
+				app.AddToAlbum(advice.ServerAsset.ID, al)
+			}
+		}
+		if app.PartnerAlbum != "" && a.FromPartner {
+			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 	}
 	showCount = false
@@ -263,7 +274,8 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	cmd.BoolVar(&app.KeepTrashed, "keep-trashed", false, "Import also trashed items")
 	cmd.BoolVar(&app.KeepPartner, "keep-partner", true, "Import also partner's items")
 	cmd.BoolVar(&app.CreateAlbumAfterFolder, "create-album-folder", false, "Create albums for assets based on the parent folder or a given name")
-	cmd.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
+    cmd.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
+	cmd.StringVar(&app.PartnerAlbum, "partner-album", "", "Assets from partner will be added to this album. (Must already exist)")
 	cmd.Var(&app.DateRange, "date", "Date of capture range.")
 	cmd.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
 	cmd.BoolVar(&app.CreateAlbums, "create-albums", true, "Create albums like there were in the source")
@@ -334,11 +346,16 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 			app.logger.OK("Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
 
 		}
-		for _, al := range a.Album {
-			app.AddToAlbum(resp.ID, al)
+		if app.CreateAlbums {
+			for _, al := range a.Album {
+				app.AddToAlbum(resp.ID, al)
+			}
 		}
 		if app.ImportIntoAlbum != "" {
 			app.AddToAlbum(resp.ID, app.ImportIntoAlbum)
+		}
+		if app.PartnerAlbum != "" && a.FromPartner {
+			app.AddToAlbum(resp.ID, app.PartnerAlbum)
 		}
 	} else {
 		app.logger.MessageTerminate(logger.Warning, "already exists on the server")
@@ -346,23 +363,9 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 }
 
 func (app *UpCmd) AddToAlbum(ID string, album string) {
-	if !app.CreateAlbums && !app.CreateAlbumAfterFolder && len(app.ImportIntoAlbum) == 0 {
-		return
-	}
-	switch {
-	case len(app.ImportIntoAlbum) > 0:
-		l := app.updateAlbums[app.ImportIntoAlbum]
-		l = append(l, ID)
-		app.updateAlbums[app.ImportIntoAlbum] = l
-	case len(app.ImportFromAlbum) > 0:
-		l := app.updateAlbums[album]
-		l = append(l, ID)
-		app.updateAlbums[album] = l
-	case app.CreateAlbums && len(album) > 0:
-		l := app.updateAlbums[album]
-		l = append(l, ID)
-		app.updateAlbums[album] = l
-	}
+	l := app.updateAlbums[album]
+	l = append(l, ID)
+	app.updateAlbums[album] = l
 }
 
 func (app *UpCmd) DeleteLocalAssets() error {
