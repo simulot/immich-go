@@ -26,7 +26,7 @@ For insights into the reasoning behind this alternative to `immich-cli`, please 
 
 # Installation from release:
 
-Installing `immich-go` is a straightforward process. Visit the [latest release page](/releases/latest) and select the binary file compatible with your system:
+Installing `immich-go` is a straightforward process. Visit the [latest release page](https://github.com/simulot/immich-go/releases/latest) and select the binary file compatible with your system:
 
 - Darwin arm-64, x86-64
 - Linux arm-64, x86-64, i386
