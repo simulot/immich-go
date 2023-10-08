@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -32,7 +31,7 @@ type LocalAssetFile struct {
 	// Common fields
 	FileName string   // The asset's path in the fsys
 	Title    string   // Google Photos may a have title longer than the filename
-	Album    []string // The asset's album, if any
+	Albums   []string // The asset's album, if any
 	Err      error    // keep errors encountered
 	SideCar  *metadata.SideCar
 
@@ -43,21 +42,12 @@ type LocalAssetFile struct {
 	Altitude  float64   // GPS Altitude
 
 	// Google Photos flags
-	Trashed      bool // The asset is trashed
-	Archived     bool // The asset is archived
-	FromPartner  bool // the asset comes from a partner
-	MetadataFile string
+	Trashed     bool // The asset is trashed
+	Archived    bool // The asset is archived
+	FromPartner bool // the asset comes from a partner
 
-	FSys fs.FS // Asset's file system
-
-	// Unexported fields
-	isResolved      bool // True when the FileName is resolved, for google photos
-	isNotResolvable bool // When the name resolution has failed
-	fInfo           fs.FileInfo
-	size            int // Accessible via Stat()
-
-	// dateTaken       time.Time // Accessible via DateTaken()
-	// dateAlreadyRead bool      // true when the date has been read
+	FSys     fs.FS // Asset's file system
+	FileSize int   // File size in bytes
 
 	// buffer management
 	sourceFile fs.File   // the opened source file
@@ -71,13 +61,35 @@ func (l LocalAssetFile) DebugObject() any {
 	return l
 }
 
-// partialSourceReader open a reader on the current asset.
+func (l *LocalAssetFile) AddAlbum(album string) {
+	for _, al := range l.Albums {
+		if al == album {
+			return
+		}
+	}
+	l.Albums = append(l.Albums, album)
+}
+
+// Remove the temporary file
+func (l *LocalAssetFile) Remove() error {
+	if fsys, ok := l.FSys.(fshelper.Remover); ok {
+		return fsys.Remove(l.FileName)
+	}
+	return nil
+}
+
+func (l *LocalAssetFile) DeviceAssetID() string {
+	// n := strings.TrimSuffix(path.Base(l.Title), path.Ext(l.Title))
+	return fmt.Sprintf("%s-%d", strings.ToUpper(l.Title), l.FileSize)
+}
+
+// PartialSourceReader open a reader on the current asset.
 // each byte read from it is saved into a temporary file.
 //
 // It returns a TeeReader that writes each read byte from the source into the temporary file.
 // The temporary file is discarded when the LocalAssetFile is closed
 
-func (l *LocalAssetFile) partialSourceReader() (reader io.Reader, err error) {
+func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 	if l.sourceFile == nil {
 		l.sourceFile, err = l.FSys.Open(l.FileName)
 		if err != nil {
@@ -126,56 +138,6 @@ func (l *LocalAssetFile) Read(b []byte) (int, error) {
 	return l.reader.Read(b)
 }
 
-func (l *LocalAssetFile) Stat() (fs.FileInfo, error) {
-	return l, nil
-}
-func (l *LocalAssetFile) IsDir() bool { return false }
-
-func (l *LocalAssetFile) resolve() error {
-	var err error
-	if l.isNotResolvable {
-		return os.ErrNotExist
-	}
-	if l.isResolved {
-		return nil
-	}
-	if fsys, ok := l.FSys.(NameResolver); ok && !l.isResolved {
-		l.FileName, err = fsys.ResolveName(l)
-		if err != nil {
-			l.isNotResolvable = true
-			return err
-		}
-	}
-	l.fInfo, err = fs.Stat(l.FSys, l.FileName)
-	if err != nil {
-		l.isNotResolvable = true
-		return err
-	}
-	l.isResolved = true
-	return nil
-}
-
-func (l *LocalAssetFile) Name() string {
-	if l.resolve() == nil {
-		return l.FileName
-	}
-	return "name not resolved"
-}
-func (l *LocalAssetFile) Size() int64 {
-	if l.resolve() == nil {
-		return l.fInfo.Size()
-	}
-	return 0
-}
-func (l *LocalAssetFile) Mode() fs.FileMode { return 0 }
-func (l *LocalAssetFile) ModTime() time.Time {
-	if err := l.resolve(); err == nil {
-		return l.fInfo.ModTime()
-	}
-	return time.Time{}
-}
-func (l *LocalAssetFile) Sys() any { return nil }
-
 // Close close the temporary file  and close the source
 func (l *LocalAssetFile) Close() error {
 	var err error
@@ -192,36 +154,35 @@ func (l *LocalAssetFile) Close() error {
 	return err
 }
 
-func (l *LocalAssetFile) AddAlbum(album string) {
-	for _, al := range l.Album {
-		if al == album {
-			return
-		}
-	}
-	l.Album = append(l.Album, album)
+// Stat implements the fs.FILE interface
+func (l *LocalAssetFile) Stat() (fs.FileInfo, error) {
+	return l, nil
+}
+func (l *LocalAssetFile) IsDir() bool { return false }
+
+func (l *LocalAssetFile) Name() string {
+	return l.FileName
+}
+func (l *LocalAssetFile) Size() int64 {
+	return int64(l.FileSize)
 }
 
+// Mode Implements the fs.FILE interface
+func (l *LocalAssetFile) Mode() fs.FileMode { return 0 }
+
+// ModTime implements the fs.FILE interface
+func (l *LocalAssetFile) ModTime() time.Time {
+	return l.DateTaken
+}
+
+// Sys implements the fs.FILE interface
+func (l *LocalAssetFile) Sys() any { return nil }
+
 func (l *LocalAssetFile) IsInAlbum(album string) bool {
-	for _, al := range l.Album {
+	for _, al := range l.Albums {
 		if al == album {
 			return true
 		}
 	}
 	return false
-}
-
-// Remove the temporary file
-func (l *LocalAssetFile) Remove() error {
-	if fsys, ok := l.FSys.(fshelper.Remover); ok {
-		return fsys.Remove(l.FileName)
-	}
-	return nil
-}
-
-func (l *LocalAssetFile) DeviceAssetID() string {
-	if err := l.resolve(); err == nil {
-		n := strings.TrimSuffix(path.Base(l.Title), path.Ext(l.Title))
-		return fmt.Sprintf("%s-%d", strings.ToUpper(n), l.Size())
-	}
-	return "Not resolved"
 }

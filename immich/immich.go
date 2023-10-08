@@ -3,11 +3,8 @@ package immich
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
-
-	"github.com/gabriel-vasile/mimetype"
 )
 
 type UnsupportedMedia struct {
@@ -21,44 +18,6 @@ func (u UnsupportedMedia) Error() string {
 func (u UnsupportedMedia) Is(target error) bool {
 	_, ok := target.(*UnsupportedMedia)
 	return ok
-}
-
-func newUnsUpportedMediaError(mime string) error {
-	return &UnsupportedMedia{
-		msg: fmt.Sprintf("unsupported mime type %s", mime),
-	}
-}
-
-var supportedMime = map[string]any{
-	// IMAGES
-	"image/heif":        nil,
-	"image/heic":        nil,
-	"image/jpeg":        nil,
-	"image/png":         nil,
-	"image/jpg":         nil,
-	"image/gif":         nil,
-	"image/dng":         nil,
-	"image/x-adobe-dng": nil,
-	"image/webp":        nil,
-	"image/tiff":        nil,
-	"image/nef":         nil,
-	"image/x-nikon-nef": nil,
-
-	// VIDEO
-	"video/mp4":       nil,
-	"video/webm":      nil,
-	"video/quicktime": nil,
-	"video/x-msvideo": nil,
-	"video/3gpp":      nil,
-}
-
-func GetMimeType(b []byte) (string, error) {
-	mtype := mimetype.Detect(b).String()
-	_, ok := supportedMime[mtype]
-	if !ok {
-		return "", newUnsUpportedMediaError(mtype)
-	}
-	return mtype, nil
 }
 
 type PingResponse struct {

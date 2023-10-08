@@ -1,10 +1,10 @@
 package immich
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"immich-go/immich/assets"
+	"immich-go/assets"
+	"immich-go/fshelper"
 	"io"
 	"mime/multipart"
 	"net/textproto"
@@ -84,22 +84,14 @@ func formatDuration(duration time.Duration) string {
 
 func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFile) (AssetResponse, error) {
 	var ar AssetResponse
+	mtype, err := fshelper.MimeFromExt(path.Ext(la.FileName))
+	if err != nil {
+		return ar, err
+	}
 
-	// Check the mime type with the first 4k of the file
-	b4k := bytes.NewBuffer(nil)
 	f, err := la.Open()
 	if err != nil {
 		return ar, (err)
-	}
-
-	_, err = io.CopyN(b4k, f, 16*1024)
-	if err != nil && err != io.EOF {
-		return ar, (err)
-	}
-
-	mtype, err := GetMimeType(b4k.Bytes())
-	if err != nil {
-		return ar, err
 	}
 
 	body, pw := io.Pipe()
@@ -114,7 +106,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 		if err != nil {
 			return
 		}
-		assetType := strings.ToUpper(strings.Split(mtype, "/")[0])
+		assetType := strings.ToUpper(strings.Split(mtype[0], "/")[0])
 
 		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
 		m.WriteField("deviceId", ic.DeviceUUID)
@@ -130,13 +122,13 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFi
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 				escapeQuotes("assetData"), escapeQuotes(path.Base(la.Title))))
-		h.Set("Content-Type", mtype)
+		h.Set("Content-Type", mtype[0])
 
 		part, err := m.CreatePart(h)
 		if err != nil {
 			return
 		}
-		_, err = io.Copy(part, io.MultiReader(b4k, f))
+		_, err = io.Copy(part, f)
 		if err != nil {
 			return
 		}

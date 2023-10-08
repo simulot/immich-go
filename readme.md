@@ -84,6 +84,7 @@ Fine-tune import based on specific dates:<br>
 `-date YYYY-MM-DD,YYYY-MM-DD` select photos taken within this date range.<br>
 
 ### Google photos options:
+
 Specialized options for Google Photos management:
 `-google-photos` import from a Google Photos structured archive, recreating corresponding albums.<br>
 `-from-album "GP Album"` import assets for the given album, and mirrors it in Immich.<br>
@@ -246,6 +247,53 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 - [x] Cleaning duplicates
 
 # Release notes 
+
+### Release 0.3.0
+**Refactoring of Google Photo Takeout handling**
+
+The takeout archive has flaws making the import task difficult and and error prone.
+I have rewritten this part of the program to fix most of encountered error.
+
+#### google photos: can't find image of album #11 
+Some image may miss from the album's folder. Those images files are located into the year folder. 
+This fix looks for album images in the whole archive.
+
+#### photos with same name into the year folder #12 
+Iphones and digital cameras produce images with the sequence number of 4 digits. This leads inevitably to have several images with the same number in the the year folder.
+
+Google Photos disambiguates the files name by adding a counter at the end of the image file:
+- IMG_3479.JPG
+- IMG_3479(1).JPG
+- IMG_3479(2).JPG
+
+Surprisingly, matching JSON are named as 
+- IMG_3479.JPG.json
+- IMG_3479.JPG(1).json
+- IMG_3479.JPG(2).json
+
+This special case is now handled.
+
+#### Untitled albums are now handled correctly
+Untitled albums now are named after the album's folder name.
+
+This address partially the issue #19.
+
+####  can't find the image with title "___", pattern: "___*.*": file does not exist: "___" #21 
+
+The refactoring of the code don't use anymore a file pattern to find files in the archive. 
+The image and the JSON file are quite identical, except for duplicate image (see #12) or when the file name is too long (how long is too long?).
+
+Now, the program takes the image name, check if there is a JSON that matches, open it and use the title of the image to name the upload.
+
+If the JSON isn't found, the image is uploaded with it's name in the archive, and with no date. Now all images are uploaded to immich, even when the JSON file is not found.
+
+#### MPG files not supported. #20 
+Immich-go now accepts the same list of extension as the immich-server. This list is taken from the server source code.
+
+#### immich-go detects raw and jpg as duplicates #25 
+The duplicate checker now uses the file name, its extension and the date of take to detect duplicates. 
+So the system doesn't signal `IMG_3479.JPG` and `IMG_3479.CR2` as duplicate anymore.
+
 
 ### Release 0.2.3
 

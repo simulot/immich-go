@@ -7,13 +7,16 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"immich-go/assets"
+	"immich-go/assets/files"
+	"immich-go/assets/gp"
 	"immich-go/fshelper"
 	"immich-go/immich"
-	"immich-go/immich/assets"
 	"immich-go/immich/logger"
 	"immich-go/immich/metadata"
 	"io/fs"
 	"math"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -99,24 +102,18 @@ func UploadCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log
 
 	switch {
 	case app.GooglePhotos:
-		log.Info("Browsing google take out archive...")
+		log.MessageContinue(logger.OK, "Browsing google take out archive...")
 		browser, err = app.ReadGoogleTakeOut(ctx, fsys)
 	default:
-		log.Info("Browsing folder(s)...")
+		log.MessageContinue(logger.OK, "Browsing folder(s)...")
 		browser, err = app.ExploreLocalFolder(ctx, fsys)
 	}
 
 	if err != nil {
+		log.MessageTerminate(logger.Error, err.Error())
 		return err
 	}
-
-	if app.CreateAlbums || app.CreateAlbumAfterFolder || len(app.ImportFromAlbum) > 0 {
-		log.Info("Browsing local assets for findings albums")
-		err = browser.BrowseAlbums(ctx)
-		if err != nil {
-			return err
-		}
-	}
+	log.MessageTerminate(logger.OK, "Done.")
 
 	assetChan := browser.Browse(ctx)
 assetLoop:
@@ -173,6 +170,11 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	}()
 	app.mediaCount++
 
+	ext := path.Ext(a.FileName)
+	if _, err := fshelper.MimeFromExt(ext); err != nil {
+		return nil
+	}
+
 	if !app.KeepPartner && a.FromPartner {
 		return nil
 	}
@@ -225,7 +227,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	case SameOnServer:
 		// Set add the server asset into albums determined locally
 		if app.CreateAlbums {
-			for _, al := range a.Album {
+			for _, al := range a.Albums {
 				app.AddToAlbum(advice.ServerAsset.ID, al)
 			}
 		}
@@ -246,7 +248,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	case BetterOnServer:
 		// keep the server version but update albums
 		if app.CreateAlbums {
-			for _, al := range a.Album {
+			for _, al := range a.Albums {
 				app.AddToAlbum(advice.ServerAsset.ID, al)
 			}
 		}
@@ -306,11 +308,11 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 
 func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
 	a.Delete = false
-	return assets.BrowseGooglePhotosAssets(fsys), nil
+	return gp.NewTakeout(ctx, fsys)
 }
 
 func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
-	return assets.BrowseLocalAssets(fsys), nil
+	return files.NewLocalFiles(ctx, fsys)
 }
 
 func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
@@ -347,7 +349,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 
 		}
 		if app.CreateAlbums {
-			for _, al := range a.Album {
+			for _, al := range a.Albums {
 				app.AddToAlbum(resp.ID, al)
 			}
 		}
@@ -553,13 +555,6 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 	filename := la.FileName
 	var err error
-
-	if fsys, ok := la.FSys.(assets.NameResolver); ok {
-		filename, err = fsys.ResolveName(la)
-		if err != nil {
-			return nil, err
-		}
-	}
 	ID := la.DeviceAssetID()
 
 	sa := ai.byID[ID]

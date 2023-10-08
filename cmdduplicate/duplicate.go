@@ -9,6 +9,7 @@ import (
 	"immich-go/immich"
 	"immich-go/immich/logger"
 	"immich-go/ui"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -76,7 +77,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 			if app.DateRange.InRange(a.ExifInfo.DateTimeOriginal) {
 				k := duplicateKey{
 					Date: a.ExifInfo.DateTimeOriginal,
-					Name: a.OriginalFileName,
+					Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
 				}
 				l := duplicate[k]
 				if len(l) > 0 {
@@ -127,9 +128,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 					if err != nil {
 						log.Error("Can't get asset's albums: %s", err.Error())
 					} else {
-						for _, al := range r {
-							albums = append(albums, al)
-						}
+						albums = append(albums, r...)
 					}
 				} else {
 					log.OK("  keep   %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)

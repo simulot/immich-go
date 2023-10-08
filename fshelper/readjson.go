@@ -1,4 +1,4 @@
-package assets
+package fshelper
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 // readJSON reads a JSON file from the provided file system (fs.FS)
 // with the given name and unmarshals it into the provided type T.
 
-func readJSON[T any](FSys fs.FS, name string) (*T, error) {
+func ReadJSON[T any](FSys fs.FS, name string) (*T, error) {
 	var object T
 	b, err := fs.ReadFile(FSys, name)
 	if err != nil {

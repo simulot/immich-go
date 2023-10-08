@@ -2,8 +2,8 @@ package cmdupload
 
 import (
 	"fmt"
+	"immich-go/assets"
 	"immich-go/immich"
-	"immich-go/immich/assets"
 	"path"
 	"strings"
 )
@@ -22,7 +22,8 @@ func (ai *AssetIndex) ReIndex() {
 	ai.byID = map[string]*immich.Asset{}
 
 	for _, a := range ai.assets {
-		ID := fmt.Sprintf("%s-%d", strings.ToUpper(path.Base(a.OriginalFileName)), a.ExifInfo.FileSizeInByte)
+		ext := path.Ext(a.OriginalPath)
+		ID := fmt.Sprintf("%s-%d", strings.ToUpper(path.Base(a.OriginalFileName)+ext), a.ExifInfo.FileSizeInByte)
 		l := ai.byHash[a.Checksum]
 		l = append(l, a)
 		ai.byHash[a.Checksum] = l
