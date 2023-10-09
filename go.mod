@@ -9,6 +9,7 @@ require (
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
 	github.com/yalue/merged_fs v1.2.3
+	golang.org/x/sys v0.12.0
 )
 
 require (
@@ -16,5 +17,4 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.6 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
 )
