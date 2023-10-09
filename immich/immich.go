@@ -3,6 +3,7 @@ package immich
 import (
 	"encoding/json"
 	"errors"
+	"immich-go/helpers/tzone"
 	"sync"
 	"time"
 )
@@ -84,4 +85,83 @@ func (b myBool) String() string {
 		return "true"
 	}
 	return "false"
+}
+
+// immich Asset simplified
+type Asset struct {
+	ID               string            `json:"id"`
+	DeviceAssetID    string            `json:"deviceAssetId"`
+	OwnerID          string            `json:"ownerId"`
+	DeviceID         string            `json:"deviceId"`
+	Type             string            `json:"type"`
+	OriginalPath     string            `json:"originalPath"`
+	OriginalFileName string            `json:"originalFileName"`
+	Resized          bool              `json:"resized"`
+	Thumbhash        string            `json:"thumbhash"`
+	FileCreatedAt    ImmichTime        `json:"fileCreatedAt"`
+	FileModifiedAt   ImmichTime        `json:"fileModifiedAt"`
+	UpdatedAt        ImmichTime        `json:"updatedAt"`
+	IsFavorite       bool              `json:"isFavorite"`
+	IsArchived       bool              `json:"isArchived"`
+	Duration         string            `json:"duration"`
+	ExifInfo         ExifInfo          `json:"exifInfo"`
+	LivePhotoVideoID any               `json:"livePhotoVideoId"`
+	Tags             []any             `json:"tags"`
+	Checksum         string            `json:"checksum"`
+	JustUploaded     bool              `json:"-"`
+	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
+}
+
+type ExifInfo struct {
+	Make             string     `json:"make"`
+	Model            string     `json:"model"`
+	ExifImageWidth   int        `json:"exifImageWidth"`
+	ExifImageHeight  int        `json:"exifImageHeight"`
+	FileSizeInByte   int        `json:"fileSizeInByte"`
+	Orientation      string     `json:"orientation"`
+	DateTimeOriginal ImmichTime `json:"dateTimeOriginal,omitempty"`
+	// 	ModifyDate       time.Time `json:"modifyDate"`
+	TimeZone string `json:"timeZone"`
+	// LensModel        string    `json:"lensModel"`
+	// 	FNumber          float64   `json:"fNumber"`
+	// 	FocalLength      float64   `json:"focalLength"`
+	// 	Iso              int       `json:"iso"`
+	// 	ExposureTime     string    `json:"exposureTime"`
+	Latitude  float64 `json:"latitude,omitempty"`
+	Longitude float64 `json:"longitude,omitempty"`
+	// 	City             string    `json:"city"`
+	// 	State            string    `json:"state"`
+	// 	Country          string    `json:"country"`
+	// 	Description      string    `json:"description"`
+}
+
+type ImmichTime struct {
+	time.Time
+}
+
+// ImmichTime.UnmarshalJSON read time from the JSON string.
+// The json provides a time UTC, but the server and the images dates are given in local time.
+// The get the correct time into the struct, we capture the UTC time and return it in the local zone.
+//
+// workaround for: error at connection to immich server: cannot parse "+174510-04-28T00:49:44.000Z" as "2006" #28
+// capture the error
+
+func (t *ImmichTime) UnmarshalJSON(b []byte) error {
+	local, err := tzone.Local()
+	if err != nil {
+		return err
+	}
+	var ts time.Time
+	if len(b) < 3 {
+		t.Time = time.Time{}
+		return nil
+	}
+	b = b[1 : len(b)-1]
+	ts, err = time.ParseInLocation("2006-01-02T15:04:05.000Z", string(b), time.UTC)
+	if err != nil {
+		t.Time = time.Time{}
+		return nil
+	}
+	t.Time = ts.In(local)
+	return nil
 }

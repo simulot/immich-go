@@ -3,7 +3,7 @@ package assets
 import (
 	"errors"
 	"fmt"
-	"immich-go/fshelper"
+	"immich-go/helpers/fshelper"
 	"immich-go/immich/metadata"
 	"io"
 	"io/fs"

@@ -74,9 +74,9 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 			return ctx.Err()
 		default:
 			count++
-			if app.DateRange.InRange(a.ExifInfo.DateTimeOriginal) {
+			if app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
 				k := duplicateKey{
-					Date: a.ExifInfo.DateTimeOriginal,
+					Date: a.ExifInfo.DateTimeOriginal.Time,
 					Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
 				}
 				l := duplicate[k]

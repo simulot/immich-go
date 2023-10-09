@@ -3,6 +3,7 @@ package gp
 import (
 	"encoding/json"
 	"fmt"
+	"immich-go/helpers/tzone"
 	"strconv"
 	"time"
 )
@@ -59,8 +60,9 @@ type googTimeObject struct {
 // Time return the time.Time of the epoch
 func (gt googTimeObject) Time() time.Time {
 	t := time.Unix(gt.Timestamp, 0)
-	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
-	return t
+	local, _ := tzone.Local()
+	//	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+	return t.In(local)
 }
 
 // UnmarshalJSON read the googTimeObject from the json

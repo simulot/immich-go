@@ -83,7 +83,7 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if app.MissingDateDespiteName {
 			dt := metadata.TakeTimeFromName(path.Base(a.OriginalPath))
 			if !dt.IsZero() {
-				if a.ExifInfo.DateTimeOriginal.IsZero() || (math.Abs(float64(dt.Sub(a.ExifInfo.DateTimeOriginal))) > float64(24.0*time.Hour)) {
+				if a.ExifInfo.DateTimeOriginal.IsZero() || (math.Abs(float64(dt.Sub(a.ExifInfo.DateTimeOriginal.Time))) > float64(24.0*time.Hour)) {
 					ba.reason = append(ba.reason, "capture date invalid, but the name contains a date")
 					ba.fixable = true
 					ba.SideCar.DateTaken = dt

@@ -3,7 +3,7 @@ package gp
 import (
 	"context"
 	"immich-go/assets"
-	"immich-go/fshelper"
+	"immich-go/helpers/fshelper"
 	"io/fs"
 	"path"
 	"regexp"

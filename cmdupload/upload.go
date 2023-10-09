@@ -10,7 +10,7 @@ import (
 	"immich-go/assets"
 	"immich-go/assets/files"
 	"immich-go/assets/gp"
-	"immich-go/fshelper"
+	"immich-go/helpers/fshelper"
 	"immich-go/immich"
 	"immich-go/immich/logger"
 	"immich-go/immich/metadata"
@@ -583,7 +583,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 
 		}
 		for _, sa = range l {
-			compareDate := dateTaken.Compare(sa.ExifInfo.DateTimeOriginal)
+			compareDate := compareDate(dateTaken, sa.ExifInfo.DateTimeOriginal.Time)
 			compareSize := size - sa.ExifInfo.FileSizeInByte
 
 			switch {
@@ -597,6 +597,18 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 		}
 	}
 	return ai.adviceNotOnServer(), nil
+}
+
+func compareDate(d1 time.Time, d2 time.Time) int {
+	diff := d1.Sub(d2)
+
+	switch {
+	case diff < -5*time.Minute:
+		return -1
+	case diff >= 5*time.Minute:
+		return +1
+	}
+	return 0
 }
 
 // hasMeta reports whether path contains any of the magic characters
