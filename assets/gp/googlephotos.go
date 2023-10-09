@@ -74,11 +74,7 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 			md, err := fshelper.ReadJSON[googleMetaData](fsys, name)
 			if err == nil {
 				if md.isAlbum() {
-					title := md.Title
-					if title == "" {
-						title = path.Base(dir)
-					}
-					to.albumsByDir[dir] = title
+					to.albumsByDir[dir] = path.Base(dir)
 				} else {
 					l := to.jsonByDirByBase[dir]
 					if l == nil {
