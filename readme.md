@@ -294,6 +294,10 @@ Immich-go now accepts the same list of extension as the immich-server. This list
 The duplicate checker now uses the file name, its extension and the date of take to detect duplicates. 
 So the system doesn't signal `IMG_3479.JPG` and `IMG_3479.CR2` as duplicate anymore.
 
+#### fix duplicate check before uploading #29
+The date parsing now takes into account the time zone of the machine (ex: Europe/Paris). This handles correctly summer time and winter time. 
+This isn't yet tested on Window or Mac machines.
+
 
 ### Release 0.2.3
 
