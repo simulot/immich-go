@@ -4,6 +4,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/thlib/go-timezone-local/tzlocal"
 )
 
 var (
@@ -15,7 +17,7 @@ var (
 func Local() (*time.Location, error) {
 	onceSetLocal.Do(func() {
 		var tz string
-		tz, _err = getTimezoneName()
+		tz, _err = tzlocal.RuntimeTZ()
 		if _err != nil {
 			return
 		}
