@@ -248,9 +248,10 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 # Release notes 
 
-## Release 0.3.2 and 0.3.3
+## Release 0.3.2, 0.3.3, 0.3.4
 ### Fix from #30 panic: time: missing Location in call to Time.In with release Windows_x86_64_0.3.1
 Now handle correctly windows' timezone names even on windows.
+Umm...
 
 ## Release 0.3.0 and 0.3.1
 **Refactoring of Google Photo Takeout handling**
