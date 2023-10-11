@@ -16,3 +16,4 @@ DATA
 poc/
 __debug_*.*
 *.exe
+archive.tar
