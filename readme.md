@@ -248,17 +248,21 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 # Release notes 
 
-### Release 0.3.0
+## Release 0.3.2 and 0.3.3
+### Fix from #30 panic: time: missing Location in call to Time.In with release Windows_x86_64_0.3.1
+Now handle correctly windows' timezone names even on windows.
+
+## Release 0.3.0 and 0.3.1
 **Refactoring of Google Photo Takeout handling**
 
 The takeout archive has flaws making the import task difficult and and error prone.
 I have rewritten this part of the program to fix most of encountered error.
 
-#### google photos: can't find image of album #11 
+### google photos: can't find image of album #11 
 Some image may miss from the album's folder. Those images files are located into the year folder. 
 This fix looks for album images in the whole archive.
 
-#### photos with same name into the year folder #12 
+### photos with same name into the year folder #12 
 Iphones and digital cameras produce images with the sequence number of 4 digits. This leads inevitably to have several images with the same number in the the year folder.
 
 Google Photos disambiguates the files name by adding a counter at the end of the image file:
@@ -273,12 +277,12 @@ Surprisingly, matching JSON are named as
 
 This special case is now handled.
 
-#### Untitled albums are now handled correctly
+### Untitled albums are now handled correctly
 Untitled albums now are named after the album's folder name.
 
 This address partially the issue #19.
 
-####  can't find the image with title "___", pattern: "___*.*": file does not exist: "___" #21 
+###  can't find the image with title "___", pattern: "___*.*": file does not exist: "___" #21 
 
 The refactoring of the code don't use anymore a file pattern to find files in the archive. 
 The image and the JSON file are quite identical, except for duplicate image (see #12) or when the file name is too long (how long is too long?).
@@ -287,19 +291,19 @@ Now, the program takes the image name, check if there is a JSON that matches, op
 
 If the JSON isn't found, the image is uploaded with it's name in the archive, and with no date. Now all images are uploaded to immich, even when the JSON file is not found.
 
-#### MPG files not supported. #20 
+### MPG files not supported. #20 
 Immich-go now accepts the same list of extension as the immich-server. This list is taken from the server source code.
 
-#### immich-go detects raw and jpg as duplicates #25 
+### immich-go detects raw and jpg as duplicates #25 
 The duplicate checker now uses the file name, its extension and the date of take to detect duplicates. 
 So the system doesn't signal `IMG_3479.JPG` and `IMG_3479.CR2` as duplicate anymore.
 
-#### fix duplicate check before uploading #29
+### fix duplicate check before uploading #29
 The date parsing now takes into account the time zone of the machine (ex: Europe/Paris). This handles correctly summer time and winter time. 
 This isn't yet tested on Window or Mac machines.
 
 
-### Release 0.2.3
+## Release 0.2.3
 
 - Improvement of duplicate command (issue#13)
   - `-yes` option to assume Yes to all questions
