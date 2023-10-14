@@ -4,7 +4,10 @@ import (
 	"context"
 	"immich-go/assets/gp"
 	"reflect"
+	"sort"
 	"testing"
+
+	"github.com/kr/pretty"
 )
 
 func TestBrowse(t *testing.T) {
@@ -21,14 +24,16 @@ func TestBrowse(t *testing.T) {
 		},
 		{"simpleAlbum", simpleAlbum,
 			map[string]string{
-				"TakeoutGoogle Photos/Album/PXL_20230922_144936660.jpg":            "PXL_20230922_144936660.jpg",
-				"TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144934440.jpg": "PXL_20230922_144934440.jpg",
+				"TakeoutGoogle\u00a0Photos/Photos from 2023/PXL_20230922_144936660.jpg": "PXL_20230922_144936660.jpg",
+				"TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144934440.jpg":      "PXL_20230922_144934440.jpg",
+				"TakeoutGoogle Photos/Photos from 2023/IMG_8172.jpg":                    "IMG_8172.jpg",
+				"TakeoutGoogle Photos/Photos from 2020/IMG_8172.jpg":                    "IMG_8172.jpg",
 			},
 		},
 		{"albumWithoutImage", albumWithoutImage,
 			map[string]string{
-				"TakeoutGoogle Photos/Album/PXL_20230922_144936660.jpg":            "PXL_20230922_144936660.jpg",
-				"TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144934440.jpg": "PXL_20230922_144934440.jpg",
+				"TakeoutGoogle\u00a0Photos/Photos from 2023/PXL_20230922_144936660.jpg": "PXL_20230922_144936660.jpg",
+				"TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144934440.jpg":      "PXL_20230922_144934440.jpg",
 			},
 		},
 		{"namesWithNumbers", namesWithNumbers,
@@ -78,7 +83,8 @@ func TestBrowse(t *testing.T) {
 				results[a.FileName] = a.Title
 			}
 			if !reflect.DeepEqual(results, c.results) {
-				t.Errorf("expecting %v, got %v", c.results, results)
+				t.Errorf("difference\n")
+				pretty.Ldiff(t, c.results, results)
 			}
 		})
 	}
@@ -86,7 +92,11 @@ func TestBrowse(t *testing.T) {
 }
 
 func TestAlbums(t *testing.T) {
-	type album map[string]int
+	type key struct {
+		name   string
+		length int
+	}
+	type album map[string][]key
 	tc := []struct {
 		name   string
 		gen    func() *inMemFS
@@ -101,14 +111,20 @@ func TestAlbums(t *testing.T) {
 			name: "simpleAlbum",
 			gen:  simpleAlbum,
 			albums: album{
-				"Album Name": 1,
+				"Album": []key{
+					{name: "IMG_8172.jpg", length: 52},
+					{name: "PXL_20230922_144936660.jpg", length: 10},
+				},
 			},
 		},
 		{
 			name: "albumWithoutImage",
 			gen:  albumWithoutImage,
 			albums: album{
-				"Album Name": 2,
+				"Album": []key{
+					// {name: "PXL_20230922_144934440.jpg", length: 15},
+					{name: "PXL_20230922_144936660.jpg", length: 10},
+				},
 			},
 		},
 	}
@@ -130,13 +146,23 @@ func TestAlbums(t *testing.T) {
 			for a := range b.Browse(ctx) {
 				if len(a.Albums) > 0 {
 					for _, al := range a.Albums {
-						albums[al] += 1
+						l := albums[al]
+						l = append(l, key{name: a.Title, length: a.FileSize})
+						albums[al] = l
 					}
 				}
 			}
 
+			for k, al := range albums {
+				sort.Slice(al, func(i, j int) bool {
+					return al[i].name < al[j].name
+				})
+				albums[k] = al
+			}
+
 			if !reflect.DeepEqual(albums, c.albums) {
-				t.Errorf("expecting %v, got %v", c.albums, albums)
+				t.Errorf("difference\n")
+				pretty.Ldiff(t, c.albums, albums)
 			}
 
 		})

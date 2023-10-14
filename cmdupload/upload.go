@@ -553,7 +553,10 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 //
 
 func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
-	filename := la.FileName
+	filename := la.Title
+	if path.Ext(filename) == "" {
+		filename += path.Ext(la.FileName)
+	}
 	var err error
 	ID := la.DeviceAssetID()
 
@@ -571,7 +574,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
 	n = filepath.Base(filename)
 	l = ai.byName[n]
 	if len(l) == 0 {
-		n = strings.TrimSuffix(n, filepath.Ext(n))
+		// n = strings.TrimSuffix(n, filepath.Ext(n))
 		l = ai.byName[n]
 	}
 

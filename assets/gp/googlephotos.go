@@ -29,11 +29,6 @@ type Album struct {
 	Title string
 }
 
-// type GPAsset struct {
-// 	*assets.LocalAssetFile
-// 	dirs []string // Keep track of all dirs when have seen this asset
-// }
-
 func NewTakeout(ctx context.Context, fsys fs.FS) (*Takeout, error) {
 	to := Takeout{
 		fsys:            fsys,
@@ -41,7 +36,6 @@ func NewTakeout(ctx context.Context, fsys fs.FS) (*Takeout, error) {
 		jsonByDirByBase: map[string]map[string]*googleMetaData{},
 		filesByKey:      map[key][]string{},
 		albumsByDir:     map[string]string{},
-		// assetsByKey:     map[string]*GPAsset{},
 	}
 	err := to.walk(ctx, fsys)
 
@@ -62,6 +56,9 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 		}
 		dir, base := path.Split(name)
 		dir = strings.TrimSuffix(dir, "/")
+		if dir == "" {
+			dir = "."
+		}
 		if d.IsDir() {
 			if base == "Failed Videos" {
 				return fs.SkipDir
@@ -116,6 +113,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
 			default:
 				name := f[0]
 				base := path.Base(name)
+
 				ext := path.Ext(name)
 				if _, err := fshelper.MimeFromExt(ext); err != nil {
 					continue next
@@ -131,38 +129,36 @@ func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
 
 }
 
-// checkJSONs search among JSON files, all related files to establish
+// checkJSONs search among JSON files to establish
+// - Date of taken based on the JSON content
 // - album
 // - partner
 // - archive
-//
-// Json presence induces the related image belongs to given album / year
-// But the related image can be absent from the album folder
+
 func (to *Takeout) checkJSONs(base string, paths []string) *assets.LocalAssetFile {
 	a := assets.LocalAssetFile{
-		FileName: paths[0],
-		FSys:     to.fsys,
+		// FileName: paths[0],
+		FSys:  to.fsys,
+		Title: base,
 	}
-	a.Title = base
 
-	// m := radical.FindAllStringSubmatch(base, 1)
-
+	// Search for a suitable JSON
 	for _, dup := range paths {
 		d := path.Dir(dup)
 
 		// Check if we have a the base.json file somewhere
 		if md := to.jsonMatchInDir(d, base); md != nil {
 			to.copyGoogleMDToAsset(&a, md)
-			continue
 		}
-		// }
-	}
 
-	// Check jsons from albums, image can be referenced but not present
-
-	for d, al := range to.albumsByDir {
-		if md := to.jsonMatchInDir(d, base); md != nil {
+		if al, ok := to.albumsByDir[d]; ok {
 			a.AddAlbum(al)
+			if a.FileName == "" {
+				a.FileName = path.Join(d, base)
+			}
+		} else {
+			// whenever possible, peek the main dir for the image
+			a.FileName = path.Join(d, base)
 		}
 	}
 
@@ -177,22 +173,17 @@ func (to *Takeout) jsonMatchInDir(dir, base string) *googleMetaData {
 	jsonBase += ".json"
 
 	list := to.jsonByDirByBase[dir]
-	for k, v := range list {
-		if k == jsonBase {
-			return v
-		}
+	if md, ok := list[jsonBase]; ok {
+		return md
 	}
 
 	// may be the file name has been shortened by 1 char
-	jsonBase = strings.TrimSuffix(base, path.Ext(base))
-	_, size := utf8.DecodeLastRuneInString(jsonBase)
-	jsonBase = jsonBase[:len(jsonBase)-size] + ".json"
-
-	for k, v := range list {
-		if k == jsonBase {
-			return v
-		}
+	_, size := utf8.DecodeLastRuneInString(base)
+	jsonBase = jsonBase[:len(base)-size] + ".json"
+	if md, ok := list[jsonBase]; ok {
+		return md
 	}
+
 	return nil
 }
 

@@ -119,7 +119,16 @@ func simpleAlbum() *inMemFS {
 		  }`)).
 		addJSONImage("TakeoutGoogle Photos/Album/PXL_20230922_144936660.jpg.json",
 			generateJSONTitle("PXL_20230922_144936660.jpg")).
-		addImage("TakeoutGoogle Photos/Album/PXL_20230922_144936660.jpg", 10)
+		addImage("TakeoutGoogle Photos/Album/PXL_20230922_144936660.jpg", 10).
+		addJSONImage("TakeoutGoogle Photos/Photos from 2023/IMG_8172.jpg.json",
+			generateJSONTitle("IMG_8172.jpg")).
+		addImage("TakeoutGoogle Photos/Photos from 2023/IMG_8172.jpg", 52).
+		addJSONImage("TakeoutGoogle Photos/Album/IMG_8172.jpg.json",
+			generateJSONTitle("IMG_8172.jpg")).
+		addImage("TakeoutGoogle Photos/Album/IMG_8172.jpg", 52).
+		addJSONImage("TakeoutGoogle Photos/Photos from 2020/IMG_8172.jpg.json",
+			generateJSONTitle("IMG_8172.jpg")).
+		addImage("TakeoutGoogle Photos/Photos from 2020/IMG_8172.jpg", 25)
 }
 
 func albumWithoutImage() *inMemFS {
