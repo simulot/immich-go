@@ -248,8 +248,18 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 # Release notes 
 
+## Release 0.3.5
+
+Once, I have a folder full of JSON files for an album, but it doesn't have any pictures. Instead, the pictures are in a folder organized by years. To fix this, I tried to match the JSON files with the pictures by their names.
+
+The problem is that sometimes pictures have the same name in different years, so it's hard to be sure which picture goes with which JSON file. Because of this, created album contains image found in its folder, but also images having same name, taken in different years.
+
+I decided to remove this feature. Now, if the image isn't found beside the JSON file, the JSON is ignored.
+
+### Fix for #32
+
 ## Release 0.3.2, 0.3.3, 0.3.4
-### Fix from #30 panic: time: missing Location in call to Time.In with release Windows_x86_64_0.3.1
+### Fix for #30 panic: time: missing Location in call to Time.In with release Windows_x86_64_0.3.1
 Now handle correctly windows' timezone names even on windows.
 Umm...
 
