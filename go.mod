@@ -11,7 +11,6 @@ require (
 	github.com/thlib/go-timezone-local v0.0.0-20210907160436-ef149e42d28e
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
 	github.com/yalue/merged_fs v1.2.3
-	golang.org/x/sys v0.12.0
 )
 
 require (
@@ -21,4 +20,5 @@ require (
 	github.com/pkg/sftp v1.13.6 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
 )

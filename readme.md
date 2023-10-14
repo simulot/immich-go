@@ -73,7 +73,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 `-dry-run` Preview all actions as they would be done.<br> 
 `-delete` Delete local assets after successful upload. <br>
 `-create-album-folder <bool>` Generate immich albums after folder names.<br>
-`-force-sidecar <bool>` Force sending a .xmp sidecar file beside images. With Google photos date and GPS coordinates are taken from metadata.json files. (default: FALSE).<br>
+`    <bool>` Force sending a .xmp sidecar file beside images. With Google photos date and GPS coordinates are taken from metadata.json files. (default: FALSE).<br>
 
 
 ### Date selection:
@@ -250,13 +250,13 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 ## Release 0.3.5
 
+### Fix for #35 weird name cases in google photos takeout: truncated name or jp.json
 Once, I have a folder full of JSON files for an album, but it doesn't have any pictures. Instead, the pictures are in a folder organized by years. To fix this, I tried to match the JSON files with the pictures by their names.
 
 The problem is that sometimes pictures have the same name in different years, so it's hard to be sure which picture goes with which JSON file. Because of this, created album contains image found in its folder, but also images having same name, taken in different years.
 
 I decided to remove this feature. Now, if the image isn't found beside the JSON file, the JSON is ignored.
 
-### Fix for #32
 
 ## Release 0.3.2, 0.3.3, 0.3.4
 ### Fix for #30 panic: time: missing Location in call to Time.In with release Windows_x86_64_0.3.1

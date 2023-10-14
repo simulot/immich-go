@@ -211,7 +211,9 @@ func namesTruncated() *inMemFS {
 		  }`)).
 		addImage("TakeoutGoogle Photos/Photos from 2023/😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg", 10).
 		addJSONImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGIN.json", generateJSONTitle("PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINAL.jpg")).
-		addImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg", 40)
+		addImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg", 40).
+		addJSONImage("TakeoutGoogle Photos/Photos from 2023/05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jp.json", generateJSONTitle("05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg")).
+		addImage("TakeoutGoogle Photos/Photos from 2023/05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg", 25)
 }
 
 func imagesWithoutJSON() *inMemFS {

@@ -178,8 +178,19 @@ func (to *Takeout) jsonMatchInDir(dir, base string) *googleMetaData {
 	}
 
 	// may be the file name has been shortened by 1 char
-	_, size := utf8.DecodeLastRuneInString(base)
-	jsonBase = jsonBase[:len(base)-size] + ".json"
+	// json named like  verylong.jp.json
+	jsonBase = base
+	_, size := utf8.DecodeLastRuneInString(jsonBase)
+	jsonBase = jsonBase[:len(jsonBase)-size] + ".json"
+	if md, ok := list[jsonBase]; ok {
+		return md
+	}
+
+	// may the base name without the extension is shorten by 1 char
+	ext := path.Ext(base)
+	jsonBase = strings.TrimSuffix(base, ext)
+	_, size = utf8.DecodeLastRuneInString(jsonBase)
+	jsonBase = jsonBase[:len(jsonBase)-size] + ".json"
 	if md, ok := list[jsonBase]; ok {
 		return md
 	}

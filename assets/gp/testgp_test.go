@@ -45,8 +45,9 @@ func TestBrowse(t *testing.T) {
 		},
 		{"namesTruncated", namesTruncated,
 			map[string]string{
-				"TakeoutGoogle Photos/Photos from 2023/😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg":                       "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶.jpg",
+				"TakeoutGoogle Photos/Photos from 2023/05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg":     "05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg",
 				"TakeoutGoogle Photos/Photos from 2023/PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg": "PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINAL.jpg",
+				"TakeoutGoogle Photos/Photos from 2023/😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg":                       "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶.jpg",
 			},
 		},
 		{"imagesWithoutJSON", imagesWithoutJSON,
@@ -170,48 +171,3 @@ func TestAlbums(t *testing.T) {
 	}
 
 }
-
-// func TestTruncatedNames(t *testing.T) {
-// 	type result struct {
-// 		filename string
-// 		title    string
-// 	}
-// 	tc := []struct {
-// 		name    string
-// 		gen     func() *inMemFS
-// 		results []result
-// 	}{
-// 		{"namesTruncated", namesTruncated, []result{
-// 			{filename: "TakeoutGoogle Photos/Photos from 2023/😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg",
-// 				title: "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶.jpg",
-// 			},
-// 		}},
-// 	}
-
-// 	for _, c := range tc {
-// 		t.Run(c.name, func(t *testing.T) {
-
-// 			fsys := c.gen()
-// 			if fsys.err != nil {
-// 				t.Error(fsys.err)
-// 				return
-// 			}
-// 			ctx := context.Background()
-
-// 			b, err := gp.NewTakeout(ctx, fsys)
-// 			if err != nil {
-// 				t.Error(err)
-// 			}
-
-// 			results := []result{}
-// 			for a := range b.Browse(ctx) {
-// 				results = append(results, result{a.FileName, a.Title})
-// 			}
-
-// 			if !reflect.DeepEqual(results, c.results) {
-// 				t.Errorf("expecting %v, got %v", c.results, results)
-// 			}
-// 		})
-// 	}
-
-// }
