@@ -250,7 +250,27 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 ## Release 0.3.5
 
-### Fix for #35 weird name cases in google photos takeout: truncated name or jp.json
+### Fix #35: weird name cases in google photos takeout: truncated name or jp.json
+Here are some weird cases found in takeout archives
+
+example:
+image title: 😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶.jpg
+image file: 😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg
+json file: 😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json
+
+example:
+image title: PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINAL.jpg
+image file: PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg
+json file: PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGIN.json
+
+example:
+image title: 05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg
+image file: 05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg
+json file: 05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jp.json
+
+
+
+### Fix #32: Albums contains album's images and all images having the same name
 Once, I have a folder full of JSON files for an album, but it doesn't have any pictures. Instead, the pictures are in a folder organized by years. To fix this, I tried to match the JSON files with the pictures by their names.
 
 The problem is that sometimes pictures have the same name in different years, so it's hard to be sure which picture goes with which JSON file. Because of this, created album contains image found in its folder, but also images having same name, taken in different years.
