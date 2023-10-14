@@ -8,6 +8,7 @@ require (
 	github.com/melbahja/goph v1.3.1
 	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
+	github.com/thlib/go-timezone-local v0.0.0-20210907160436-ef149e42d28e
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
 	github.com/yalue/merged_fs v1.2.3
 	golang.org/x/sys v0.12.0
