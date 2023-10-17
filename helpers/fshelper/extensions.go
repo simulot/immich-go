@@ -29,6 +29,7 @@ var supportedExtensions = map[string][]string{
 	".insp": {"image/jpeg"},
 	".jpeg": {"image/jpeg"},
 	".jpg":  {"image/jpeg"},
+	".jpe":  {"image/jpeg"},
 	".jxl":  {"image/jxl"},
 	".k25":  {"image/k25", "image/x-kodak-k25"},
 	".kdc":  {"image/kdc", "image/x-kodak-kdc"},
