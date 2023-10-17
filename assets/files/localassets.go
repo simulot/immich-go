@@ -48,7 +48,9 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 				default:
 				}
 				if d.IsDir() {
-					la.addAlbum(name)
+					if name != "." {
+						la.addAlbum(name)
+					}
 					return nil
 				}
 				s, err := d.Info()
@@ -62,9 +64,10 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 					FileSize:  int(s.Size()),
 					Err:       err,
 					DateTaken: metadata.TakeTimeFromName(filepath.Base(name)),
-					Albums:    []string{path.Base(dir)},
 				}
-
+				if dir != "." {
+					f.Albums = []string{path.Base(dir)}
+				}
 				if f.DateTaken.IsZero() {
 					err = la.ReadMetadataFromFile(&f)
 					_ = err
@@ -80,14 +83,8 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 					}
 				}
 
-				// Check if the context has been cancelled before sending the file
-				select {
-				case <-ctx.Done():
-					// If the context has been cancelled, return immediately
-					return ctx.Err()
-				case fileChan <- &f:
-				}
-				return err
+				fileChan <- &f
+				return nil
 			})
 		if err != nil {
 			// Check if the context has been cancelled before sending the error
