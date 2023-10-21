@@ -285,6 +285,9 @@ func responseJSON(object any) serverResponseOption {
 		if resp != nil {
 			if resp.Body != nil {
 				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusNoContent {
+					return nil
+				}
 				if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
 					return sc.err
 				}
