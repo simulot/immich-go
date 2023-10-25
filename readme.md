@@ -20,8 +20,59 @@ The `immich-go` tool will help you to import massive Google Photos archives and 
 ⚠️ This an early version, not yet extensively tested<br>
 ⚠️ Keep a backup copy of your files for safety<br>
 
-
 For insights into the reasoning behind this alternative to `immich-cli`, please refer to the [Motivation](#motivation) section below.
+
+
+# The Google photos takeout case
+
+This project aims to make the process of importing Google photos takeouts as easy and accurate as possible. But keep in mind that 
+Google takeout structure is complex and not documented. Some information may miss or even is wrong. 
+
+## Here is the structure of the takeout archives I have encountered while doing this project
+
+### Folders
+  - The Year folder contains all image taken that year
+  - Albums are in separate folders named as the album
+  - album's actual name in stored into a metadata json file
+  - not always, the title can be empty.
+  - the json file name is in the user's language
+  - The trash folder is names in the user's language
+  - Hopefully, the JSON has a Trashed field.
+  - The "Failed Videos" contains unreadable videos
+
+### Images have a companion JSON file
+  - the JSON contains some information on the image
+  - The title has the original image name (that can be totally different of the image name in the archive)
+  - the date of capture (epoch)
+  - the GPS coordinates
+  - Trashed flag
+  - Partner flag
+
+### The JSON file and the image name matches with some weird rules
+  - The name length of the image can be shorter by 1 char compared to the name of the JSON.
+
+### 2+ different images having the same name taken the same year are placed into the same folder with a number
+  - IMG_3479.JPG
+  - IMG_3479(1).JPG
+  - IMG_3479(2).JPG
+
+#### In that case, the JSONs are named:
+  - IMG_3479.JPG.json
+  - IMG_3479.JPG(1).json
+  - IMG_3479.JPG(2).json
+
+### Edited images may not have corresponding JSON.
+  - PXL_20220405_090123740.PORTRAIT.jpg
+  - PXL_20220405_090123740.PORTRAIT-modifié.jpg
+but one JSON
+  - PXL_20220405_090123740.PORTRAIT.jpg.json
+Note that edited name is localized.
+
+
+## What if you have problems with a takeout archive?
+Please open an issue with details. You cna share your files using Discord DM @`simulot`.
+I'll check if I can improve the program.
+Sometime a manual import is the best option.
 
 
 # Installation from release:
@@ -247,6 +298,24 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 - [x] Cleaning duplicates
 
 # Release notes 
+
+## Release next
+
+### Fix #39: another problems with Takeout archives
+Thank to @bobokun for sharing details.
+
+I have reworked the Google takeout import to handle @bobokun case. Following cases are now handled:
+- normal FILE.jpg.json -> FILE.jpg
+- less normal FILE.**jp**.json -> FILE.jpg
+- long names truncated FIL.json -> FIL**E**.jpg
+- long name with number and truncated VERY-LONG-NAM(150).json -> VERY-LONG-NAM**E**(150).jpg
+- duplicates names in same folder FILE.JPG(3).json -> FILE**(3)**.JPG
+- edited images FILE.JSON -> FILE.JPG and FILE**-edited**.JPG
+
+
+
+## Release 0.3.6
+### Fix #40: Error 204 when deleting assets
 
 ## Release 0.3.5
 

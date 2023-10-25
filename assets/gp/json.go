@@ -11,15 +11,16 @@ import (
 type googleMetaData struct {
 	Title              string         `json:"title"`
 	Description        string         `json:"description"`
-	DatePresent        googIsPresent  `json:"date"` // "date" field is a marker of metadata files
+	DatePresent        googIsPresent  `json:"date"` // true when the file is a folder metadata
 	PhotoTakenTime     googTimeObject `json:"photoTakenTime"`
 	GeoDataExif        googGeoData    `json:"geoDataExif"`
 	Trashed            bool           `json:"trashed,omitempty"`
 	Archived           bool           `json:"archived,omitempty"`
-	URLPresent         googIsPresent  `json:"url"` // url fields is a marker of asset description
+	URLPresent         googIsPresent  `json:"url"` // true when the file is an asset metadata
 	GooglePhotosOrigin struct {
-		FromPartnerSharing googIsPresent `json:"fromPartnerSharing"`
+		FromPartnerSharing googIsPresent `json:"fromPartnerSharing"` // true when this is a partner's asset
 	} `json:"googlePhotosOrigin"`
+	foundInPaths []string // Not in the JSON, keep track of paths where the json has been found
 }
 
 func (gmd googleMetaData) isAlbum() bool {
@@ -33,13 +34,19 @@ func (gmd googleMetaData) isPartner() bool {
 // Key return an expected unique key for the asset
 // based on the title and the timestamp
 func (md googleMetaData) Key() string {
-	return fmt.Sprintf("%s,%d", md.Title, md.PhotoTakenTime.Timestamp)
+	return fmt.Sprintf("%s,%s", md.Title, md.PhotoTakenTime.Timestamp)
 }
 
 // googIsPresent is set when the field is present. The content of the field is not relevant
 type googIsPresent bool
 
 func (p *googIsPresent) UnmarshalJSON(b []byte) error {
+	var bl bool
+	err := json.Unmarshal(b, &bl)
+	if err == nil {
+		return nil
+	}
+
 	*p = len(b) > 0
 	return nil
 }
@@ -53,37 +60,38 @@ type googGeoData struct {
 
 // googTimeObject to handle the epoch timestamp
 type googTimeObject struct {
-	Timestamp int64 `json:"timestamp"`
+	Timestamp string `json:"timestamp"`
 	// Formatted string    `json:"formatted"`
 }
 
 // Time return the time.Time of the epoch
 func (gt googTimeObject) Time() time.Time {
-	t := time.Unix(gt.Timestamp, 0)
+	ts, _ := strconv.ParseInt(gt.Timestamp, 10, 64)
+	t := time.Unix(ts, 0)
 	local, _ := tzone.Local()
 	//	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 	return t.In(local)
 }
 
-// UnmarshalJSON read the googTimeObject from the json
-func (t *googTimeObject) UnmarshalJSON(data []byte) error {
-	type Alias googTimeObject
-	aux := &struct {
-		Timestamp string `json:"timestamp"`
-		*Alias
-	}{
-		Alias: (*Alias)(t),
-	}
+// // UnmarshalJSON read the googTimeObject from the json
+// func (t *googTimeObject) UnmarshalJSON(data []byte) error {
+// 	type Alias googTimeObject
+// 	aux := &struct {
+// 		Timestamp string `json:"timestamp"`
+// 		*Alias
+// 	}{
+// 		Alias: (*Alias)(t),
+// 	}
 
-	err := json.Unmarshal(data, &aux)
-	if err != nil {
-		return err
-	}
+// 	err := json.Unmarshal(data, &aux)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	t.Timestamp, err = strconv.ParseInt(aux.Timestamp, 10, 64)
+// 	t.Timestamp, err = strconv.ParseInt(aux.Timestamp, 10, 64)
 
-	return err
-}
+// 	return err
+// }
 
 /*
 	Typical metadata json

@@ -18,8 +18,6 @@ import (
 	"math"
 	"path"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -288,7 +286,7 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 	}
 
 	for _, f := range cmd.Args() {
-		if !hasMeta(f) {
+		if !fshelper.HasMagic(f) {
 			app.Paths = append(app.Paths, f)
 		} else {
 			m, err := filepath.Glob(f)
@@ -612,17 +610,6 @@ func compareDate(d1 time.Time, d2 time.Time) int {
 		return +1
 	}
 	return 0
-}
-
-// hasMeta reports whether path contains any of the magic characters
-// recognized by Match.
-// shamelessly copied from stdlib/os
-func hasMeta(path string) bool {
-	magicChars := `*?[`
-	if runtime.GOOS != "windows" {
-		magicChars = `*?[\`
-	}
-	return strings.ContainsAny(path, magicChars)
 }
 
 func keys[M ~map[K]V, K comparable, V any](m M) []K {

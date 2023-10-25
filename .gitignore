@@ -17,3 +17,5 @@ poc/
 __debug_*.*
 *.exe
 archive.tar
+*.out
+*.test

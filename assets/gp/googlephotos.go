@@ -2,6 +2,7 @@ package gp
 
 import (
 	"context"
+	"fmt"
 	"immich-go/assets"
 	"immich-go/helpers/fshelper"
 	"io/fs"
@@ -12,30 +13,31 @@ import (
 )
 
 type Takeout struct {
-	fsys            fs.FS
-	filesByDir      map[string][]string                   // files name mapped by dir
-	filesByKey      map[key][]string                      // files name mapped by key (base name + length)
-	jsonByDirByBase map[string]map[string]*googleMetaData // json files per dir and title
-	// assetsByKey     map[string]*GPAsset                   // assets mapped by key (name+date)
-	albumsByDir map[string]string // album title mapped by dir
+	fsys        fs.FS
+	filesByDir  map[string][]fileKey        // files name mapped by dir
+	jsonByYear  map[jsonKey]*googleMetaData // JSON by year of capture and full path
+	albumsByDir map[string]string           // album title mapped by dir
 }
 
-type key struct {
+type fileKey struct {
 	name string
 	size int64
 }
 
+type jsonKey struct {
+	year int
+	name string
+}
 type Album struct {
 	Title string
 }
 
 func NewTakeout(ctx context.Context, fsys fs.FS) (*Takeout, error) {
 	to := Takeout{
-		fsys:            fsys,
-		filesByDir:      map[string][]string{},
-		jsonByDirByBase: map[string]map[string]*googleMetaData{},
-		filesByKey:      map[key][]string{},
-		albumsByDir:     map[string]string{},
+		fsys:        fsys,
+		filesByDir:  map[string][]fileKey{},
+		jsonByYear:  map[jsonKey]*googleMetaData{},
+		albumsByDir: map[string]string{},
 	}
 	err := to.walk(ctx, fsys)
 
@@ -73,27 +75,34 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 				if md.isAlbum() {
 					to.albumsByDir[dir] = path.Base(dir)
 				} else {
-					l := to.jsonByDirByBase[dir]
-					if l == nil {
-						l = map[string]*googleMetaData{}
+					key := jsonKey{
+						year: md.PhotoTakenTime.Time().Year(),
+						name: base,
 					}
-					l[base] = md
-					to.jsonByDirByBase[dir] = l
+					if prevMD, exists := to.jsonByYear[key]; exists {
+						// if prevMD.PhotoTakenTime != md.PhotoTakenTime {
+						// 	fmt.Println("!surprise! 1+ json with different date", base)
+						// }
+						// if prevMD.Title != md.Title {
+						// 	fmt.Println("!surprise! 1+ json with different title", base)
+						// }
+						prevMD.foundInPaths = append(prevMD.foundInPaths, dir)
+						to.jsonByYear[key] = prevMD
+					} else {
+						md.foundInPaths = append(md.foundInPaths, dir)
+						to.jsonByYear[key] = md
+					}
 				}
 			}
 		default:
-			// build the list of files by directory
-			l := to.filesByDir[dir]
-			to.filesByDir[dir] = append(l, base)
-
-			// keep the list of directory where the asset is found
 			info, err := d.Info()
 			if err != nil {
 				return err
 			}
-			key := key{name: strings.ToUpper(base), size: info.Size()}
-			l = to.filesByKey[key]
-			to.filesByKey[key] = append(l, name)
+			key := fileKey{name: base, size: info.Size()}
+			l := to.filesByDir[dir]
+			l = append(l, key)
+			to.filesByDir[dir] = l
 		}
 		return nil
 	})
@@ -101,26 +110,25 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 	return err
 }
 
+// Browse gives back to the main program the list of assets with resolution of file name, album, dates...
 func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
 	c := make(chan *assets.LocalAssetFile)
+	passed := map[fileKey]any{}
 	go func() {
 		defer close(c)
-	next:
-		for k, f := range to.filesByKey {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				name := f[0]
-				base := path.Base(name)
-
-				ext := path.Ext(name)
-				if _, err := fshelper.MimeFromExt(ext); err != nil {
-					continue next
+		for k, md := range to.jsonByYear {
+			assets := to.jsonAssets(k, md)
+			for _, a := range assets {
+				fk := fileKey{name: path.Base(a.FileName), size: int64(a.FileSize)}
+				if _, exist := passed[fk]; !exist {
+					passed[fk] = nil
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						c <- a
+					}
 				}
-				a := to.checkJSONs(base, f)
-				a.FileSize = int(k.size)
-				c <- a
 			}
 		}
 	}()
@@ -129,86 +137,180 @@ func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
 
 }
 
-// checkJSONs search among JSON files to establish
-// - Date of taken based on the JSON content
-// - album
-// - partner
-// - archive
+// jsonAssets search assets that are linked to this JSON
+//
+//   the asset is named after the JSON name
+//   the asset name can be 1 char shorter than the JSON name
+//   but several assets can match with the JSON 🤯
+//   the asset can be placed in another folder than the JSON
+//   when the JSON is found in an album dir, the asset belongs to the album
+//		but the image can be found in year's folder 🤯
+//   the asset name is the JSON title field
 
-func (to *Takeout) checkJSONs(base string, paths []string) *assets.LocalAssetFile {
-	a := assets.LocalAssetFile{
-		// FileName: paths[0],
-		FSys:  to.fsys,
-		Title: base,
+func (to *Takeout) jsonAssets(key jsonKey, md *googleMetaData) []*assets.LocalAssetFile {
+
+	var list []*assets.LocalAssetFile
+
+	yearDir := path.Join(path.Dir(md.foundInPaths[0]), fmt.Sprintf("Photos from %d", md.PhotoTakenTime.Time().Year()))
+
+	jsonInYear := false
+	paths := md.foundInPaths
+	for _, d := range md.foundInPaths {
+		if d == yearDir {
+			jsonInYear = true
+			break
+		}
+	}
+	if !jsonInYear {
+		paths = append(paths, yearDir)
 	}
 
-	// Search for a suitable JSON
-	for _, dup := range paths {
-		d := path.Dir(dup)
+	// Search for the assets in folders where the JSON has been found
+	for _, d := range paths {
+		l := to.filesByDir[d]
 
-		// Check if we have a the base.json file somewhere
-		if md := to.jsonMatchInDir(d, base); md != nil {
-			to.copyGoogleMDToAsset(&a, md)
-		}
+		for _, f := range l {
 
-		if al, ok := to.albumsByDir[d]; ok {
-			a.AddAlbum(al)
-			if a.FileName == "" {
-				a.FileName = path.Join(d, base)
+			matched := normalMatch(key.name, f.name)
+			matched = matched || matchWithOneCharOmitted(key.name, f.name)
+			matched = matched || matchVeryLongNameWithNumber(key.name, f.name)
+			matched = matched || matchDuplicateInYear(key.name, f.name)
+			matched = matched || matchEditedName(key.name, f.name)
+
+			if matched {
+				list = append(list, to.copyGoogleMDToAsset(md, path.Join(d, f.name), int(f.size)))
 			}
-		} else {
-			// whenever possible, peek the main dir for the image
-			a.FileName = path.Join(d, base)
 		}
 	}
+	return list
+}
 
+// normalMatch
+//
+//	PXL_20230922_144936660.jpg.json
+//	PXL_20230922_144936660.jpg
+//
+//	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jp.json
+//	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg
+func normalMatch(jsonName string, fileName string) bool {
+	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	ext := path.Ext(base)
+	if ext == ".jp" {
+		base += "g"
+	}
+
+	return base == fileName
+}
+
+// matchWithOneCharOmitted
+//
+//	PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGIN.json
+//	PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg
+func matchWithOneCharOmitted(jsonName string, fileName string) bool {
+	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	ext := path.Ext(base)
+	switch ext {
+	case "":
+	default:
+		if _, err := fshelper.MimeFromExt(ext); err == nil {
+			return false
+		}
+	}
+	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
+	_, s := utf8.DecodeLastRuneInString(fileName)
+	fileName = fileName[:len(fileName)-s]
+	return base == fileName
+}
+
+// matchVeryLongNameWithNumber
+//
+//	Backyard_ceremony_wedding_photography_xxxxxxx_(494).json
+//	Backyard_ceremony_wedding_photography_xxxxxxx_m(494).jpg
+func matchVeryLongNameWithNumber(jsonName string, fileName string) bool {
+	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
+
+	p1JSON := strings.Index(jsonName, "(")
+	if p1JSON < 0 {
+		return false
+	}
+	p2JSON := strings.Index(jsonName, ")")
+	if p2JSON < 0 || p2JSON != len(jsonName)-1 {
+		return false
+	}
+	p1File := strings.Index(fileName, "(")
+	if p1File < 0 || p1File != p1JSON+1 {
+		return false
+	}
+	if jsonName[:p1JSON] != fileName[:p1JSON] {
+		return false
+	}
+	p2File := strings.Index(fileName, ")")
+	return jsonName[p1JSON+1:p2JSON] == fileName[p1File+1:p2File]
+}
+
+// matchDuplicateInYear
+//
+//	IMG_3479.JPG(2).json
+//	IMG_3479(2).JPG
+func matchDuplicateInYear(jsonName string, fileName string) bool {
+	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	p1JSON := strings.Index(jsonName, "(")
+	if p1JSON < 1 {
+		return false
+	}
+	p2JSON := strings.Index(jsonName, ")")
+	if p2JSON < 0 || p2JSON != len(jsonName)-1 {
+		return false
+	}
+
+	num := jsonName[p1JSON:]
+	jsonName = strings.TrimSuffix(jsonName, num)
+	ext := path.Ext(jsonName)
+	jsonName = strings.TrimSuffix(jsonName, ext) + num + ext
+	return jsonName == fileName
+}
+
+// matchEditedName
+//   PXL_20220405_090123740.PORTRAIT.jpg.json
+//   PXL_20220405_090123740.PORTRAIT.jpg
+//   PXL_20220405_090123740.PORTRAIT-modifié.jpg
+
+func matchEditedName(jsonName string, fileName string) bool {
+	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	ext := path.Ext(base)
+	if ext != "" {
+		if _, err := fshelper.MimeFromExt(ext); err == nil {
+			base := strings.TrimSuffix(base, ext)
+			fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
+			return strings.HasPrefix(fileName, base)
+		}
+	}
+	return false
+}
+
+func (to *Takeout) copyGoogleMDToAsset(md *googleMetaData, filename string, length int) *assets.LocalAssetFile {
+	a := assets.LocalAssetFile{
+		FileName:    filename,
+		FileSize:    length,
+		Title:       md.Title,
+		Altitude:    md.GeoDataExif.Altitude,
+		Latitude:    md.GeoDataExif.Latitude,
+		Longitude:   md.GeoDataExif.Longitude,
+		Archived:    md.Archived,
+		FromPartner: md.isPartner(),
+		Trashed:     md.Trashed,
+		DateTaken:   md.PhotoTakenTime.Time(),
+	}
+	for _, p := range md.foundInPaths {
+		if album, exists := to.albumsByDir[p]; exists {
+			a.Albums = append(a.Albums, album)
+		}
+
+	}
 	return &a
 }
 
-func (to *Takeout) jsonMatchInDir(dir, base string) *googleMetaData {
-	jsonBase := base
-	if numberedName.MatchString(jsonBase) {
-		jsonBase = numberedName.ReplaceAllString(jsonBase, "$1$3$2")
-	}
-	jsonBase += ".json"
-
-	list := to.jsonByDirByBase[dir]
-	if md, ok := list[jsonBase]; ok {
-		return md
-	}
-
-	// may be the file name has been shortened by 1 char
-	// json named like  verylong.jp.json
-	jsonBase = base
-	_, size := utf8.DecodeLastRuneInString(jsonBase)
-	jsonBase = jsonBase[:len(jsonBase)-size] + ".json"
-	if md, ok := list[jsonBase]; ok {
-		return md
-	}
-
-	// may the base name without the extension is shorten by 1 char
-	ext := path.Ext(base)
-	jsonBase = strings.TrimSuffix(base, ext)
-	_, size = utf8.DecodeLastRuneInString(jsonBase)
-	jsonBase = jsonBase[:len(jsonBase)-size] + ".json"
-	if md, ok := list[jsonBase]; ok {
-		return md
-	}
-
-	return nil
-}
-
-func (to *Takeout) copyGoogleMDToAsset(a *assets.LocalAssetFile, md *googleMetaData) {
-	a.Title = md.Title
-	a.Altitude = md.GeoDataExif.Altitude
-	a.Latitude = md.GeoDataExif.Latitude
-	a.Longitude = md.GeoDataExif.Longitude
-	a.Archived = md.Archived
-	a.FromPartner = md.isPartner()
-	a.Trashed = md.Trashed
-	a.DateTaken = md.PhotoTakenTime.Time()
-}
-
 var (
-	numberedName = regexp.MustCompile(`(?m)(.*)(\(\d+\))(\.\w+)$`)
+	numberedName         = regexp.MustCompile(`(?m)(.*)(\..+)(\(\d+\))(\.\w+)$`)
+	veryLongNumberedName = regexp.MustCompile(`(?m)(.+)(.)(\(\.+\))(\.\w+$)`)
 )
