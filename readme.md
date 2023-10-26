@@ -138,12 +138,12 @@ Fine-tune import based on specific dates:<br>
 
 Specialized options for Google Photos management:
 `-google-photos` import from a Google Photos structured archive, recreating corresponding albums.<br>
-`-from-album "GP Album"` import assets for the given album, and mirrors it in Immich.<br>
-`-create-albums <bool>`  Controls recreation of Google Photos albums in Immich (default: TRUE).<br>
+`-from-album "GP Album"` Create the album in `immich` and import album's assets.<br>
+`-create-albums <bool>`  Controls creation of Google Photos albums in Immich (default TRUE). <br>
+`-keep-untitled-albums <bool>` Untitled albums are imported into `immich` whit the name of the folder as title.<br>
 `-keep-partner <bool>` Specifies inclusion or exclusion of partner-taken photos (default: TRUE).<br>
 `-partner-album "partner's album"` import assets from partner into given album.<br>
 `-keep-trashed <bool>` Determines whether to import trashed images (default: FALSE).<br>
-
 
 ### Example Usage: uploading a Google photos takeout archive
 
@@ -301,17 +301,21 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 ## Release next
 
+### Fix #42: better handling of GP albums
+
+
+
+
 ### Fix #39: another problems with Takeout archives
 Thank to @bobokun for sharing details.
 
-I have reworked the Google takeout import to handle @bobokun case. Following cases are now handled:
+I have reworked the Google takeout import to handle #39 case. Following cases are now handled:
 - normal FILE.jpg.json -> FILE.jpg
-- less normal FILE.**jp**.json -> FILE.jpg
-- long names truncated FIL.json -> FIL**E**.jpg
-- long name with number and truncated VERY-LONG-NAM(150).json -> VERY-LONG-NAM**E**(150).jpg
-- duplicates names in same folder FILE.JPG(3).json -> FILE**(3)**.JPG
-- edited images FILE.JSON -> FILE.JPG and FILE**-edited**.JPG
-
+- less normal FILE.jp.json -> FILE.jpg
+- long names truncated FIL.json -> FILE.jpg
+- long name with number and truncated VERY-LONG-NAM(150).json -> VERY-LONG-NAME(150).jpg
+- duplicates names in same folder FILE.JPG(3).json -> FILE(3).JPG
+- edited images FILE.JSON -> FILE.JPG and FILE-edited.JPG
 
 
 ## Release 0.3.6
