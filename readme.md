@@ -299,7 +299,7 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 # Release notes 
 
-## Release next
+## Release 0.4.0
 
 ### Fix #44: duplicate is not working?
 
