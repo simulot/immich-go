@@ -302,16 +302,19 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 ## Release next
 
 ### Fix #39: another problems with Takeout archives
-Thank to @bobokun for sharing details.
 
-I have reworked the Google takeout import to handle @bobokun case. Following cases are now handled:
+I have reworked the Google takeout import to handle #39 cases. Following cases are now handled:
 - normal FILE.jpg.json -> FILE.jpg
 - less normal FILE.**jp**.json -> FILE.jpg
 - long names truncated FIL.json -> FIL**E**.jpg
-- long name with number and truncated VERY-LONG-NAM(150).json -> VERY-LONG-NAM**E**(150).jpg
-- duplicates names in same folder FILE.JPG(3).json -> FILE**(3)**.JPG
-- edited images FILE.JSON -> FILE.JPG and FILE**-edited**.JPG
+- long name with number and truncated VERY-LONG-NAM(150).json -> VERY-LONG-**NAME**(150).jpg
+- duplicates names in same folder FILE.JPG(3).json -> **FILE(3)**.JPG
+- edited images FILE.JSON -> FILE.JPG and **FILE-edited**.JPG
 
+Also, there are cases where the image JSON's title is totally not related to the JSON name or the asset name.
+Images are uploaded with the name found in the JSON's title field.
+
+Thank to @bobokun for sharing details.
 
 
 ## Release 0.3.6
