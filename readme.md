@@ -301,6 +301,13 @@ Additionally, deploying a Node.js program on user machines presents challenges.
 
 ## Release next
 
+### Fix #44: duplicate is not working?
+
+At 1st run of the duplicate command, low quality images are moved to the trash and not deleted as before 1.82.
+At next run, the trashed files are still seen as duplicate.
+The fix consist in not considering trashed files during duplicate detection
+
+
 ### Fix #39: another problems with Takeout archives
 
 I have reworked the Google takeout import to handle #39 cases. Following cases are now handled:

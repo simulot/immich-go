@@ -73,6 +73,9 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			if a.IsTrashed {
+				continue
+			}
 			count++
 			if app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
 				k := duplicateKey{
@@ -143,16 +146,17 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 						}
 					}
 					if yes {
-						log.OK("  Asset removed")
 						_, err = app.Immich.DeleteAssets(ctx, delete)
 						if err != nil {
 							log.Error("Can't delete asset: %s", err.Error())
-						}
-						for _, al := range albums {
-							log.OK("  Update the album %s with the best copy", al.AlbumName)
-							_, err = app.Immich.AddAssetToAlbum(ctx, al.ID, []string{a.ID})
-							if err != nil {
-								log.Error("Can't delete asset: %s", err.Error())
+						} else {
+							log.OK("  Asset removed")
+							for _, al := range albums {
+								log.OK("  Update the album %s with the best copy", al.AlbumName)
+								_, err = app.Immich.AddAssetToAlbum(ctx, al.ID, []string{a.ID})
+								if err != nil {
+									log.Error("Can't delete asset: %s", err.Error())
+								}
 							}
 						}
 					}
