@@ -149,6 +149,11 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context, opt *GetAssetOptions) 
 
 }
 
+func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, opt *GetAssetOptions, filter func(*Asset)) error {
+	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSONWithFilter(filter))
+	return err
+}
+
 type deleteResponse []struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`

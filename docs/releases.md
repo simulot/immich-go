@@ -2,6 +2,10 @@
 
 ## Release next
 
+### Readme resturcturation
+
+### Better getAssets handling
+
 
 ## Release 0.4.0
 

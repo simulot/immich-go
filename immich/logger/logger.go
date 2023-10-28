@@ -153,7 +153,7 @@ func (l *Logger) Progress(level Level, f string, v ...any) {
 	if level > l.displayLevel {
 		return
 	}
-	fmt.Printf("\r"+f, v...)
+	fmt.Printf("\r\033[2K"+f, v...)
 	l.needCR = true
 }
 
