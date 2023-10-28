@@ -280,7 +280,7 @@ func setUrlValues(values url.Values) serverRequestOption {
 
 type serverResponseOption func(sc *serverCall, resp *http.Response) error
 
-func responseJSON(object any) serverResponseOption {
+func responseJSON[T any](object *T) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
 		if resp != nil {
 			if resp.Body != nil {
@@ -288,6 +288,7 @@ func responseJSON(object any) serverResponseOption {
 				if resp.StatusCode == http.StatusNoContent {
 					return nil
 				}
+
 				if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
 					return sc.err
 				}
