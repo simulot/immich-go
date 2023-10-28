@@ -58,13 +58,18 @@ func UploadCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log
 		return err
 	}
 
-	log.MessageContinue(logger.OK, "Get server's assets...")
+	log.OK("Ask for server's assets...")
 	var list []*immich.Asset
-	list, err = app.Immich.GetAllAssets(ctx, nil)
+	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+		if a.IsTrashed {
+			return
+		}
+		list = append(list, a)
+	})
 	if err != nil {
 		return err
 	}
-	log.MessageTerminate(logger.OK, " %d received", len(list))
+	log.OK("%d asset(s) received", len(list))
 
 	app.AssetIndex = &AssetIndex{
 		assets: list,
@@ -293,6 +298,9 @@ func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logge
 			if err != nil {
 				return nil, fmt.Errorf("can't use this file argument %q: %w", f, err)
 			}
+			if len(m) == 0 {
+				return nil, fmt.Errorf("no file matches %q", f)
+			}
 			app.Paths = append(app.Paths, m...)
 		}
 	}
@@ -382,7 +390,7 @@ func (app *UpCmd) DeleteLocalAssets() error {
 				return err
 			}
 		} else {
-			app.logger.Warning("file %q not delested, dry run mode", a.Title)
+			app.logger.Warning("file %q not deleted, dry run mode", a.Title)
 		}
 
 	}

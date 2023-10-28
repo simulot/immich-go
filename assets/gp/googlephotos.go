@@ -300,6 +300,7 @@ func (to *Takeout) copyGoogleMDToAsset(md *googleMetaData, filename string, leng
 		FromPartner: md.isPartner(),
 		Trashed:     md.Trashed,
 		DateTaken:   md.PhotoTakenTime.Time(),
+		FSys:        to.fsys,
 	}
 	for _, p := range md.foundInPaths {
 		if album, exists := to.albumsByDir[p]; exists {

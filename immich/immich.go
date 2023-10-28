@@ -103,6 +103,7 @@ type Asset struct {
 	UpdatedAt        ImmichTime        `json:"updatedAt"`
 	IsFavorite       bool              `json:"isFavorite"`
 	IsArchived       bool              `json:"isArchived"`
+	IsTrashed        bool              `json:"isTrashed"`
 	Duration         string            `json:"duration"`
 	ExifInfo         ExifInfo          `json:"exifInfo"`
 	LivePhotoVideoID any               `json:"livePhotoVideoId"`
