@@ -10,7 +10,6 @@ main.go
 
 dist/
 DATA
-*.md
 *.txt
 *.log
 poc/
