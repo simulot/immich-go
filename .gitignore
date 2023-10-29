@@ -9,7 +9,6 @@ main.go
 !readme.md
 
 dist/
-DATA
 *.md
 *.txt
 *.log
@@ -19,3 +18,4 @@ __debug_*.*
 archive.tar
 *.out
 *.test
+.env
