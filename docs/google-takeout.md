@@ -7,10 +7,13 @@ Google takeout structure is complex and not documented. Some information may mis
   - Albums are in separate folders named as the album
     - A json file contains the album title
     - The title can be empty
-    - The JSON is named in the user's language : metadata.json métadonnées.json ...
+    - The JSON is named in the user's language : metadata.json métadonnées.json, metadatos.json, metadades.json ...
+    - Contains all a album's images, most of the tile
+    - Images are also in the year folders if you have them. 
   - The trash folder is names in the user's language Trash, Corbeille..
     - Hopefully, the JSON has a Trashed field.
   - The "Failed Videos" contains unreadable videos
+  - Untitled albums are named in the user's language and a number: Untitled, Sin título, Sans Titre 
 
 ## Images have a JSON companion file
   - the JSON contains some information on the image
@@ -19,6 +22,7 @@ Google takeout structure is complex and not documented. Some information may mis
     - the GPS coordinates
   - Trashed flag
   - Partner flag
+  - But not all images have a JSON companion
 
 ## The JSON file and the image name matches with some weird rules
 The name length of the image can be shorter by 1 char compared to the name of the JSON.
@@ -34,12 +38,14 @@ The name length of the image can be shorter by 1 char compared to the name of th
   - IMG_3479.JPG(2).json
 
 ### Edited images may not have corresponding JSON.
+two images
   - PXL_20220405_090123740.PORTRAIT.jpg
   - PXL_20220405_090123740.PORTRAIT-modifié.jpg
+
 but one JSON
   - PXL_20220405_090123740.PORTRAIT.jpg.json
-Note that edited name is localized.
 
+Note that "edited" name is localized.
 
 
 # What if you have problems with a takeout archive?

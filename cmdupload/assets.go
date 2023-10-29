@@ -13,7 +13,7 @@ type AssetIndex struct {
 	byHash map[string][]*immich.Asset
 	byName map[string][]*immich.Asset
 	byID   map[string]*immich.Asset
-	albums []immich.AlbumSimplified
+	// albums []immich.AlbumSimplified
 }
 
 func (ai *AssetIndex) ReIndex() {

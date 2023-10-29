@@ -7,7 +7,6 @@ import (
 	"immich-go/helpers/fshelper"
 	"io/fs"
 	"path"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -80,12 +79,6 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 						name: base,
 					}
 					if prevMD, exists := to.jsonByYear[key]; exists {
-						// if prevMD.PhotoTakenTime != md.PhotoTakenTime {
-						// 	fmt.Println("!surprise! 1+ json with different date", base)
-						// }
-						// if prevMD.Title != md.Title {
-						// 	fmt.Println("!surprise! 1+ json with different title", base)
-						// }
 						prevMD.foundInPaths = append(prevMD.foundInPaths, dir)
 						to.jsonByYear[key] = prevMD
 					} else {
@@ -310,8 +303,3 @@ func (to *Takeout) copyGoogleMDToAsset(md *googleMetaData, filename string, leng
 	}
 	return &a
 }
-
-var (
-	numberedName         = regexp.MustCompile(`(?m)(.*)(\..+)(\(\d+\))(\.\w+)$`)
-	veryLongNumberedName = regexp.MustCompile(`(?m)(.+)(.)(\(\.+\))(\.\w+$)`)
-)

@@ -18,11 +18,11 @@ Give a try to the `immich-go` tool.
 - remove duplicated assets, based on the file name, date of capture, and file size
 - no installation, no dependencies.
 
-⚠️ This an early version, not yet extensively tested<br>
-⚠️ Keep a backup copy of your files for safety<br>
+> ⚠️ This an early version, not yet extensively tested<br>
+> ⚠️ Keep a backup copy of your files for safety<br>
 
 
-For insights into the reasoning behind this alternative to `immich-cli`, please refer to the [Motivation](docs/motivation.md) section below.
+For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
 
 
 # Executing `immich-go`
@@ -67,12 +67,15 @@ Fine-tune import based on specific dates:<br>
 
 Specialized options for Google Photos management:
 `-google-photos` import from a Google Photos structured archive, recreating corresponding albums.<br>
-`-from-album "GP Album"` import assets for the given album, and mirrors it in Immich.<br>
-`-create-albums <bool>`  Controls recreation of Google Photos albums in Immich (default: TRUE).<br>
+`-from-album "GP Album"` Create the album in `immich` and import album's assets.<br>
+`-create-albums <bool>`  Controls creation of Google Photos albums in Immich (default TRUE). <br>
+`-keep-untitled-albums <bool>` Untitled albums are imported into `immich` with the name of the folder as title (default: FALSE).<br>
+`-use-album-folder-as-name <bool>` Use the folder's name instead of the album title (default: FALSE).<br>
 `-keep-partner <bool>` Specifies inclusion or exclusion of partner-taken photos (default: TRUE).<br>
 `-partner-album "partner's album"` import assets from partner into given album.<br>
 `-keep-trashed <bool>` Determines whether to import trashed images (default: FALSE).<br>
 
+Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
 
 ### Example Usage: uploading a Google photos takeout archive
 
