@@ -3,8 +3,8 @@ package cmdmetadata
 import (
 	"context"
 	"flag"
+	"immich-go/helpers/docker"
 	"immich-go/immich"
-	"immich-go/immich/docker"
 	"immich-go/immich/logger"
 	"immich-go/immich/metadata"
 	"math"

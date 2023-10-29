@@ -186,7 +186,7 @@ func (d *DockerConnect) Upload(ctx context.Context, file string, size int64, r i
 }
 
 func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUploader, error) {
-	f, _ := os.Create("archive.tar")
+	f := bytes.NewBuffer(nil)
 
 	cmd, err := d.proxy.docker(ctx, "cp", "-", d.Container+":"+dir)
 	if err != nil {
@@ -212,7 +212,7 @@ func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUplo
 		var err error
 		tw := tar.NewWriter(mw)
 		defer func() {
-			f.Close()
+			//f.Close()
 			tw.Close()
 			in.Close()
 			cmd.Wait()
@@ -275,4 +275,23 @@ func (b *batchUploader) Close() error {
 type file struct {
 	name    string
 	content []byte
+}
+
+func (d *DockerConnect) Command(ctx context.Context, args ...string) (string, error) {
+	cmd, err := d.proxy.docker(ctx, args...)
+	if err != nil {
+		return "", err
+	}
+
+	buffOut := bytes.NewBuffer(nil)
+
+	out, err := cmd.StdoutPipe()
+	go func() {
+		io.Copy(buffOut, out)
+	}()
+	err = cmd.Run()
+	if err != nil {
+		return "", err
+	}
+	return buffOut.String(), nil
 }

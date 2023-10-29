@@ -124,11 +124,14 @@ assetLoop:
 			if !ok {
 				break assetLoop
 			}
-			err = app.handleAsset(ctx, a)
-			if err != nil {
+			if a.Err != nil {
 				log.Warning("%s: %q", err.Error(), a.FileName)
+			} else {
+				err = app.handleAsset(ctx, a)
+				if err != nil {
+					log.Warning("%s: %q", err.Error(), a.FileName)
+				}
 			}
-
 		}
 	}
 

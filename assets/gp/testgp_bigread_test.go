@@ -1,5 +1,5 @@
-//go:build fulltest
-// +build fulltest
+//go:build e2e
+// +build e2e
 
 package gp
 
@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestBigRead(t *testing.T) {
+func TestReadBigTakeout(t *testing.T) {
 	m, err := filepath.Glob("../../../test-data/full_takeout/*.zip")
 	if err != nil {
 		t.Error(err)
