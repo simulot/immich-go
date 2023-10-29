@@ -2,6 +2,10 @@
 
 ## Release next
 
+### Readme resturcturation
+
+### Better getAssets handling
+Filter out trashed asset when getting the list from the server
 
 ## Release 0.4.0
 

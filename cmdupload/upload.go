@@ -40,6 +40,8 @@ type UpCmd struct {
 	CreateAlbums           bool             // Create albums when exists in the source
 	KeepTrashed            bool             // Import trashed assets
 	KeepPartner            bool             // Import partner's assets
+	KeepUntitled           bool             // Keep untitled albums
+	UseFolderAsAlbumName   bool             // Use folder's name instead of metadata's title as Album name
 	DryRun                 bool             // Display actions but don't change anything
 	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
 
@@ -50,6 +52,56 @@ type UpCmd struct {
 	mediaCount       int                       // Count of media on the source
 	updateAlbums     map[string]map[string]any // track immich albums changes
 	logger           *logger.Logger
+}
+
+func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*UpCmd, error) {
+	var err error
+	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
+
+	app := UpCmd{
+		updateAlbums: map[string]map[string]any{},
+		logger:       logger,
+		Immich:       ic,
+	}
+	cmd.BoolVar(&app.DryRun, "dry-run", false, "display actions but don't touch source or destination")
+	cmd.BoolVar(&app.GooglePhotos, "google-photos", false, "Import GooglePhotos takeout zip files")
+	cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
+	cmd.BoolVar(&app.KeepTrashed, "keep-trashed", false, "Import also trashed items")
+	cmd.BoolVar(&app.KeepPartner, "keep-partner", true, "Import also partner's items")
+	cmd.BoolVar(&app.CreateAlbumAfterFolder, "create-album-folder", false, "Create albums for assets based on the parent folder or a given name")
+	cmd.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
+	cmd.StringVar(&app.PartnerAlbum, "partner-album", "", "Assets from partner will be added to this album. (Must already exist)")
+	cmd.Var(&app.DateRange, "date", "Date of capture range.")
+	cmd.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
+	cmd.BoolVar(&app.CreateAlbums, "create-albums", true, "Create albums like there were in the source")
+	cmd.BoolVar(&app.ForceSidecar, "force-sidecar", false, "Upload the photo and a sidecar file with known information like date and GPS coordinates. With GooglePhotos, information comes from the metadata files. (DEFAULT false)")
+	cmd.BoolVar(&app.KeepUntitled, "keep-untitled-albums", false, "Keep Untitled albums and imports their contain")
+	cmd.BoolVar(&app.CreateAlbumAfterFolder, "use-album-folder-as-name", false, "Use the folder's name instead of the album title")
+	err = cmd.Parse(args)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, f := range cmd.Args() {
+		if !fshelper.HasMagic(f) {
+			app.Paths = append(app.Paths, f)
+		} else {
+			m, err := filepath.Glob(f)
+			if err != nil {
+				return nil, fmt.Errorf("can't use this file argument %q: %w", f, err)
+			}
+			if len(m) == 0 {
+				return nil, fmt.Errorf("no file matches %q", f)
+			}
+			app.Paths = append(app.Paths, m...)
+		}
+	}
+
+	if len(app.Paths) == 0 {
+		err = errors.Join(err, errors.New("must specify at least one path for local assets"))
+	}
+	return &app, err
+
 }
 
 func UploadCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) error {
@@ -71,25 +123,6 @@ func UploadCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log
 	}
 
 	app.AssetIndex.ReIndex()
-
-	// Get server's albums
-	app.AssetIndex.albums, err = ic.GetAllAlbums(ctx)
-	if err != nil {
-		return err
-	}
-	for _, album := range app.AssetIndex.albums {
-		info, err := ic.GetAlbumInfo(ctx, album.ID)
-		if err != nil {
-			return err
-		}
-		for _, a := range info.Assets {
-			as := app.AssetIndex.byID[a.DeviceAssetID]
-			if as != nil {
-				as.Albums = append(as.Albums, album)
-			}
-		}
-
-	}
 
 	fsys, err := fshelper.OpenMultiFile(app.Paths...)
 	if err != nil {
@@ -256,51 +289,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	}
 	showCount = false
 	return nil
-
-}
-
-func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*UpCmd, error) {
-	var err error
-	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
-
-	app := UpCmd{
-		updateAlbums: map[string]map[string]any{},
-		logger:       logger,
-		Immich:       ic,
-	}
-	cmd.BoolVar(&app.DryRun, "dry-run", false, "display actions but don't touch source or destination")
-	cmd.BoolVar(&app.GooglePhotos, "google-photos", false, "Import GooglePhotos takeout zip files")
-	cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
-	cmd.BoolVar(&app.KeepTrashed, "keep-trashed", false, "Import also trashed items")
-	cmd.BoolVar(&app.KeepPartner, "keep-partner", true, "Import also partner's items")
-	cmd.BoolVar(&app.CreateAlbumAfterFolder, "create-album-folder", false, "Create albums for assets based on the parent folder or a given name")
-	cmd.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
-	cmd.StringVar(&app.PartnerAlbum, "partner-album", "", "Assets from partner will be added to this album. (Must already exist)")
-	cmd.Var(&app.DateRange, "date", "Date of capture range.")
-	cmd.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
-	cmd.BoolVar(&app.CreateAlbums, "create-albums", true, "Create albums like there were in the source")
-	cmd.BoolVar(&app.ForceSidecar, "force-sidecar", false, "Upload the photo and a sidecar file with known information like date and GPS coordinates. With GooglePhotos, information comes from the metadata files. (DEFAULT false)")
-	err = cmd.Parse(args)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, f := range cmd.Args() {
-		if !fshelper.HasMagic(f) {
-			app.Paths = append(app.Paths, f)
-		} else {
-			m, err := filepath.Glob(f)
-			if err != nil {
-				return nil, fmt.Errorf("can't use this file argument %q: %w", f, err)
-			}
-			app.Paths = append(app.Paths, m...)
-		}
-	}
-
-	if len(app.Paths) == 0 {
-		err = errors.Join(err, errors.New("must specify at least one path for local assets"))
-	}
-	return &app, err
 
 }
 
