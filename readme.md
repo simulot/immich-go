@@ -183,5 +183,5 @@ Kudos to the Immich team for they stunning project!🤩
 This program use following 3rd party libraries:
 - github.com/rwcarlsen/goexif to get date of capture from JPEG files
 - github.com/ttacon/chalk for having logs nicely colored 
-	github.com/thlib/go-timezone-local for its windows timezone management
-	github.com/yalue/merged_fs v1.2.3 for its FS merging capability
+-	github.com/thlib/go-timezone-local for its windows timezone management
+-	github.com/yalue/merged_fs v1.2.3 for its FS merging capability

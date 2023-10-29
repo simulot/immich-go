@@ -1,0 +1,17 @@
+{
+  "title": "Album test 6/10/23",
+  "description": "",
+  "access": "protected",
+  "date": {
+    "timestamp": "1697872351",
+    "formatted": "21 oct. 2023, 07:12:31 UTC"
+  },
+  "location": "",
+  "geoData": {
+    "latitude": 48.8583736,
+    "longitude": 2.291901,
+    "altitude": 0.0,
+    "latitudeSpan": 0.0,
+    "longitudeSpan": 0.0
+  }
+}

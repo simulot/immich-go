@@ -53,36 +53,41 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 					}
 					return nil
 				}
-				s, err := d.Info()
-				dir := path.Dir(name)
 
 				f := assets.LocalAssetFile{
 					FSys:     la.fsys,
 					FileName: name,
 					Title:    path.Base(name),
 
-					FileSize:  int(s.Size()),
+					FileSize:  0,
 					Err:       err,
 					DateTaken: metadata.TakeTimeFromName(filepath.Base(name)),
 				}
-				if dir != "." {
-					f.Albums = []string{path.Base(dir)}
-				}
-				if f.DateTaken.IsZero() {
-					err = la.ReadMetadataFromFile(&f)
-					_ = err
-					if f.DateTaken.Before(toOldDate) {
-						f.DateTaken = time.Now()
-					}
-				}
-				_, err = fs.Stat(la.fsys, name+".xmp")
-				if err == nil {
-					f.SideCar = &metadata.SideCar{
-						FileName: name + ".xmp",
-						OnFSsys:  true,
-					}
-				}
 
+				s, err := d.Info()
+				if err != nil {
+					f.Err = err
+				} else {
+					f.FileSize = int(s.Size())
+					dir := path.Dir(name)
+					if dir != "." {
+						f.Albums = []string{path.Base(dir)}
+					}
+					if f.DateTaken.IsZero() {
+						err = la.ReadMetadataFromFile(&f)
+						_ = err
+						if f.DateTaken.Before(toOldDate) {
+							f.DateTaken = time.Now()
+						}
+					}
+					_, err = fs.Stat(la.fsys, name+".xmp")
+					if err == nil {
+						f.SideCar = &metadata.SideCar{
+							FileName: name + ".xmp",
+							OnFSsys:  true,
+						}
+					}
+				}
 				fileChan <- &f
 				return nil
 			})

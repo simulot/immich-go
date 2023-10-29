@@ -2,6 +2,8 @@
 
 ## Release next
 
+### Fix #47: error when importing from a folder
+PANIC when a file wasn't readable because of rights.
 
 ## Release 0.4.0
 

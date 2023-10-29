@@ -9,7 +9,6 @@ main.go
 !readme.md
 
 dist/
-DATA
 *.txt
 *.log
 poc/
@@ -18,3 +17,4 @@ __debug_*.*
 archive.tar
 *.out
 *.test
+.env
