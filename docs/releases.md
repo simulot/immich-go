@@ -2,15 +2,14 @@
 
 ## Release next
 
-<<<<<<< HEAD
 ### Fix #47: error when importing from a folder
 PANIC when a file wasn't readable because of rights.
-=======
 ### Readme resturcturation
 
 ### Better getAssets handling
 Filter out trashed asset when getting the list from the server
->>>>>>> Use-the-new-stacking-feature-to-group-jpg-and-raw-images,-same-for-burst-#45
+
+### Use-the-new-stacking-feature-to-group-jpg-and-raw-images,-same-for-burst-#45
 
 ## Release 0.4.0
 

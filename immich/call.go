@@ -280,7 +280,7 @@ func setUrlValues(values url.Values) serverRequestOption {
 
 type serverResponseOption func(sc *serverCall, resp *http.Response) error
 
-func responseJSON(object any) serverResponseOption {
+func responseJSON[T any](object *T) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
 		if resp != nil {
 			if resp.Body != nil {
@@ -288,7 +288,45 @@ func responseJSON(object any) serverResponseOption {
 				if resp.StatusCode == http.StatusNoContent {
 					return nil
 				}
+
 				if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
+					return sc.err
+				}
+				return nil
+			}
+		}
+		return errors.New("can't decode nil response")
+	}
+}
+
+func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
+	return func(sc *serverCall, resp *http.Response) error {
+		if resp != nil {
+			if resp.Body != nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusNoContent {
+					return nil
+				}
+				dec := json.NewDecoder(resp.Body)
+				// read open bracket "["
+				_, err := dec.Token()
+				if sc.joinError(err) != nil {
+					return sc.err
+				}
+
+				// while the array contains values
+				for dec.More() {
+					var o T
+					// decode an array value (Message)
+					err := dec.Decode(&o)
+					if sc.joinError(err) != nil {
+						return sc.err
+					}
+					filter(&o)
+				}
+				// read closing bracket "]"
+				_, err = dec.Token()
+				if sc.joinError(err) != nil {
 					return sc.err
 				}
 				return nil
