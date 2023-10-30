@@ -1,10 +1,21 @@
 # Release notes 
 
-## Release next
+## Release 0.5.0
+
+### Use the new stacking feature to group jpg and raw images, same for burst
+
+Command `stack` added to stack images present in immich
 
 ### Fix #47: error when importing from a folder
+
 PANIC when a file wasn't readable because of rights.
-### Readme resturcturation
+
+### Readme restructured
+
+The Readme was too massive. It's now split in parts:
+- [readme.md](../readme.md)
+- [doc/google-takeout.md](./google-takeout.mdgoo)
+- [doc/motivation.md](./motivation.md)
 
 ### Better getAssets handling
 Filter out trashed asset when getting the list from the server

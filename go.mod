@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/google/uuid v1.3.1
+	github.com/joho/godotenv v1.5.1
 	github.com/kr/pretty v0.3.1
 	github.com/melbahja/goph v1.3.1
 	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
@@ -14,7 +15,6 @@ require (
 )
 
 require (
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
