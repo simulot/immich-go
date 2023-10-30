@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"immich-go/cmdduplicate"
 	"immich-go/cmdmetadata"
+	"immich-go/cmdstack"
 	"immich-go/cmdupload"
 	"immich-go/immich"
 	"immich-go/immich/logger"
@@ -126,6 +127,8 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 		err = cmdduplicate.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	case "metadata":
 		err = cmdmetadata.MetadataCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+	case "stack":
+		err = cmdstack.NewStackCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	default:
 		err = fmt.Errorf("unknwon command: %q", cmd)
 	}

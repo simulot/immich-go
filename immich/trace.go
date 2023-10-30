@@ -33,8 +33,10 @@ func setTraceJSONRequest() serverRequestOption {
 		for h, v := range req.Header {
 			fmt.Println(h, v)
 		}
-		tr := io.TeeReader(req.Body, os.Stdout)
-		req.Body = &smartBodyCloser{body: req.Body, r: tr}
+		if req.Body != nil {
+			tr := io.TeeReader(req.Body, os.Stdout)
+			req.Body = &smartBodyCloser{body: req.Body, r: tr}
+		}
 		return nil
 	}
 }

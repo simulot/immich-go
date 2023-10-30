@@ -300,54 +300,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 
 }
 
-func NewUpCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*UpCmd, error) {
-	var err error
-	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
-
-	app := UpCmd{
-		updateAlbums: map[string]map[string]any{},
-		logger:       logger,
-		Immich:       ic,
-	}
-	cmd.BoolVar(&app.DryRun, "dry-run", false, "display actions but don't touch source or destination")
-	cmd.BoolVar(&app.GooglePhotos, "google-photos", false, "Import GooglePhotos takeout zip files")
-	cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
-	cmd.BoolVar(&app.KeepTrashed, "keep-trashed", false, "Import also trashed items")
-	cmd.BoolVar(&app.KeepPartner, "keep-partner", true, "Import also partner's items")
-	cmd.BoolVar(&app.CreateAlbumAfterFolder, "create-album-folder", false, "Create albums for assets based on the parent folder or a given name")
-	cmd.StringVar(&app.ImportIntoAlbum, "album", "", "All assets will be added to this album.")
-	cmd.StringVar(&app.PartnerAlbum, "partner-album", "", "Assets from partner will be added to this album. (Must already exist)")
-	cmd.Var(&app.DateRange, "date", "Date of capture range.")
-	cmd.StringVar(&app.ImportFromAlbum, "from-album", "", "Import only from this album")
-	cmd.BoolVar(&app.CreateAlbums, "create-albums", true, "Create albums like there were in the source")
-	cmd.BoolVar(&app.ForceSidecar, "force-sidecar", false, "Upload the photo and a sidecar file with known information like date and GPS coordinates. With GooglePhotos, information comes from the metadata files. (DEFAULT false)")
-	err = cmd.Parse(args)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, f := range cmd.Args() {
-		if !fshelper.HasMagic(f) {
-			app.Paths = append(app.Paths, f)
-		} else {
-			m, err := filepath.Glob(f)
-			if err != nil {
-				return nil, fmt.Errorf("can't use this file argument %q: %w", f, err)
-			}
-			if len(m) == 0 {
-				return nil, fmt.Errorf("no file matches %q", f)
-			}
-			app.Paths = append(app.Paths, m...)
-		}
-	}
-
-	if len(app.Paths) == 0 {
-		err = errors.Join(err, errors.New("must specify at least one path for local assets"))
-	}
-	return &app, err
-
-}
-
 func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
 	a.Delete = false
 	return gp.NewTakeout(ctx, fsys)

@@ -125,7 +125,6 @@ func (sc *serverCall) request(method string, url string, opts ...serverRequestOp
 	if sc.joinError(err) != nil {
 		return nil
 	}
-
 	opts = append(opts, setAPIKey())
 	for _, opt := range opts {
 		if sc.joinError(opt(sc, req)) != nil {
@@ -180,11 +179,14 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		return sc.Err(req, nil, nil)
 	}
 
+	if sc.ic.ApiTrace /* && req.Header.Get("Content-Type") == "application/json"*/ {
+		setTraceJSONRequest()(sc, req)
+	}
+
 	var (
 		resp *http.Response
 		err  error
 	)
-
 	resp, err = sc.ic.client.Do(req)
 
 	// any non nil error must be returned

@@ -181,14 +181,21 @@ func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, er
 	return &r, err
 }
 
-func (ic *ImmichClient) UpdateAsset(ctx context.Context, a *Asset) (*Asset, error) {
-	r := Asset{}
-	err := ic.newServerCall(ctx, "updateAsset").
-		do(
-			put("/asset/"+a.ID,
-				setJSONBody(a),
-				setAcceptJSON(),
-			),
-			responseJSON(&r))
-	return &r, err
+func (ic *ImmichClient) UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, removeParent bool, stackParentId string) error {
+	type updAssets struct {
+		IDs           []string `json:"ids"`
+		IsArchived    bool     `json:"isArchived"`
+		IsFavorite    bool     `json:"isFavorite"`
+		RemoveParent  bool     `json:"removeParent"`
+		StackParentId string   `json:"stackParentId,omitempty"`
+	}
+
+	param := updAssets{
+		IDs:           IDs,
+		IsArchived:    isArchived,
+		IsFavorite:    isFavorite,
+		RemoveParent:  removeParent,
+		StackParentId: stackParentId,
+	}
+	return ic.newServerCall(ctx, "updAssets").do(put("/asset", setJSONBody(param)))
 }
