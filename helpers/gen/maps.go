@@ -9,3 +9,13 @@ func MapKeys[K comparable, T any](m map[K]T) []K {
 	}
 	return r
 }
+
+func MapFilterKeys[K comparable, T any](m map[K]T, f func(i T) bool) []K {
+	r := make([]K, 0, len(m))
+	for k, v := range m {
+		if f(v) {
+			r = append(r, k)
+		}
+	}
+	return r
+}

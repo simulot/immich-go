@@ -74,6 +74,9 @@ func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 	log.MessageContinue(logger.OK, "Get server's assets...")
 
 	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+		if a.IsTrashed {
+			return
+		}
 		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
 			return
 		}
@@ -147,13 +150,16 @@ func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		}
 	}
 
-	if len(app.newStacks) == 0 {
+	keys := gen.MapFilterKeys(app.newStacks, func(i newStack) bool {
+		return len(i.stackedID) > 1
+	})
+
+	if len(keys) == 0 {
 		log.OK("No possibility of stack detected")
 		return nil
 	}
 
-	log.OK("%d possible stack(s) detected", len(app.newStacks))
-	keys := gen.MapKeys(app.newStacks)
+	log.OK("%d possible stack(s) detected", len(keys))
 	sort.Slice(keys, func(i, j int) bool {
 		c := keys[i].date.Compare(keys[j].date)
 		switch c {

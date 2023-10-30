@@ -106,6 +106,30 @@ NOTE: You should disable the dry run mode explicitly.
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ duplicate -dry-run=false
 ```
 
+## Command `stack`
+
+The possibility to stack images has been introduced with `immich` version 1.83. 
+Let use it to group burst  and jpg/raw images together.
+
+### Switches and options:
+`-yes` Assume Yes to all questions (default: FALSE).<br> 
+`-date` Check only assets have a date of capture in the given range. (default: 1850-01-04,2030-01-01)
+
+
+### Burst detection
+Currently the bursts following this schema are detected:
+- xxxxx_BURSTnnn.*
+- xxxxx_BURSTnnn_COVER.*
+
+All images must be taken during the same minute.
+The COVER image will be the parent image of the stack
+
+### couple jpg/raw detection
+Both images should been taken in the same minute.
+The JPG image will be the cover. 
+
+
+Please open an issue to cover more possibilities.
 
 
 
