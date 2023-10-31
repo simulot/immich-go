@@ -1,5 +1,13 @@
 # Release notes 
 
+## Release 0.5.1
+
+### Fix #50:  Duplicate detection fails when timezone of both images differs
+Imported duplicated images with same name, but different timezone wasn't seen as duplicates.
+The `-ignore-tz-errors=true` compares the time on date, and minute and ignores the hour of capture.
+
+
+
 ## Release 0.5.0
 
 ### Use the new stacking feature to group jpg and raw images, same for burst

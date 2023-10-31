@@ -6,6 +6,7 @@ package cmdduplicate
 import (
 	"context"
 	"flag"
+	"immich-go/helpers/gen"
 	"immich-go/immich"
 	"immich-go/immich/logger"
 	"immich-go/ui"
@@ -20,8 +21,12 @@ type DuplicateCmd struct {
 	logger *logger.Logger
 	Immich *immich.ImmichClient // Immich client
 
-	AssumeYes bool             // Display actions but don't change anything
-	DateRange immich.DateRange // Set capture date range
+	AssumeYes      bool             // Display actions but don't change anything
+	DateRange      immich.DateRange // Set capture date range
+	IgnoreTZErrors bool             // Enable TZ error tolerance
+
+	assetsById          map[string]*immich.Asset
+	assetsByBaseAndDate map[duplicateKey][]*immich.Asset
 }
 
 type duplicateKey struct {
@@ -34,17 +39,20 @@ func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logge
 	validRange := immich.DateRange{}
 	validRange.Set("1850-01-04,2030-01-01")
 	app := DuplicateCmd{
-		logger:    logger,
-		Immich:    ic,
-		DateRange: validRange,
+		logger:              logger,
+		Immich:              ic,
+		DateRange:           validRange,
+		assetsById:          map[string]*immich.Asset{},
+		assetsByBaseAndDate: map[duplicateKey][]*immich.Asset{},
 	}
 
+	cmd.BoolVar(&app.IgnoreTZErrors, "ignore-tz-errors", false, "Ignore timezone difference to check duplicates (default: FALSE).")
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
 		var err error
 		app.AssumeYes, err = strconv.ParseBool(s)
 		return err
 	})
-	cmd.Var(&app.DateRange, "date", "Process only document having a	capture date in that range.")
+	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
 	err := cmd.Parse(args)
 	return &app, err
 }
@@ -55,62 +63,54 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 		return err
 	}
 
+	dupCount := 0
 	log.MessageContinue(logger.OK, "Get server's assets...")
-	var list []*immich.Asset
-	list, err = app.Immich.GetAllAssets(ctx, nil)
+	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+		if a.IsTrashed {
+			return
+		}
+		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
+			return
+		}
+		app.assetsById[a.ID] = a
+		d := a.ExifInfo.DateTimeOriginal.Time.Round(time.Minute)
+		if app.IgnoreTZErrors {
+			d = time.Date(d.Year(), d.Month(), d.Day(), 0, d.Minute(), d.Second(), 0, time.UTC)
+		}
+		k := duplicateKey{
+			Date: d,
+			Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
+		}
+
+		l := app.assetsByBaseAndDate[k]
+		if len(l) > 0 {
+			dupCount++
+		}
+		app.assetsByBaseAndDate[k] = append(l, a)
+	})
 	if err != nil {
 		return err
 	}
-	log.MessageTerminate(logger.OK, "%d received", len(list))
+	log.MessageTerminate(logger.OK, "%d received", len(app.assetsById))
+	log.MessageTerminate(logger.OK, "%d duplicate(s) determined.", dupCount)
 
-	log.MessageContinue(logger.Info, "Analyzing...")
-	duplicate := map[duplicateKey][]*immich.Asset{}
-
-	count := 0
-	dupCount := 0
-	for _, a := range list {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			if a.IsTrashed {
-				continue
-			}
-			count++
-			if app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
-				k := duplicateKey{
-					Date: a.ExifInfo.DateTimeOriginal.Time,
-					Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
-				}
-				l := duplicate[k]
-				if len(l) > 0 {
-					dupCount++
-				}
-				l = append(l, a)
-				duplicate[k] = l
-			}
-			if true || count%253 == 0 {
-				log.Progress(logger.Info, "%d medias, %d duplicate(s)...", count, dupCount)
-			}
-		}
-	}
-	log.MessageTerminate(logger.OK, "%d medias, %d duplicate(s). Analyze completed.", count, dupCount)
-
-	keys := []duplicateKey{}
-	for k, l := range duplicate {
-		if len(l) < 2 {
-			continue
-		}
-		keys = append(keys, k)
-	}
+	keys := gen.MapFilterKeys(app.assetsByBaseAndDate, func(i []*immich.Asset) bool {
+		return len(i) > 1
+	})
 	sort.Slice(keys, func(i, j int) bool {
-		switch keys[i].Date.Compare(keys[j].Date) {
+		c := keys[i].Date.Compare(keys[j].Date)
+		switch c {
 		case -1:
 			return true
 		case +1:
 			return false
 		}
-		return strings.Compare(keys[i].Name, keys[j].Name) == -1
+		c = strings.Compare(keys[i].Name, keys[j].Name)
+		switch c {
+		case -1:
+			return true
+		}
+		return false
 	})
 
 	for _, k := range keys {
@@ -118,12 +118,12 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			app.logger.OK("There are %d copies of the asset %s, taken on %s ", len(duplicate[k]), k.Name, k.Date.Format(time.RFC3339))
-			l := duplicate[k]
+			l := app.assetsByBaseAndDate[k]
+			app.logger.OK("There are %d copies of the asset %s, taken on %s ", len(l), k.Name, l[0].ExifInfo.DateTimeOriginal.Format(time.RFC3339))
 			albums := []immich.AlbumSimplified{}
 			delete := []string{}
 			sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
-			for p, a := range duplicate[k] {
+			for p, a := range l {
 				if p < len(l)-1 {
 					log.OK("  delete %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
 					delete = append(delete, a.ID)

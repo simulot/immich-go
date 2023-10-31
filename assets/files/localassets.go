@@ -47,6 +47,9 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 					return ctx.Err()
 				default:
 				}
+				if name == "." {
+					return nil
+				}
 				if d.IsDir() {
 					if name != "." {
 						la.addAlbum(name)

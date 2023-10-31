@@ -94,16 +94,14 @@ Before deleting the inferior copies, the system get all albums they belong to, a
 ### Switches and options:
 `-yes` Assume Yes to all questions (default: FALSE).<br> 
 `-date` Check only assets have a date of capture in the given range. (default: 1850-01-04,2030-01-01)
-
+`-ignore-tz-errors <bool>` Ignore timezone difference when searching for duplicates (default: FALSE)
 
 ### Example Usage: clean the `immich` server after having merged a google photo archive and original files
 
 This command examine the immich server content, remove less quality images, and preserve albums.
 
-NOTE: You should disable the dry run mode explicitly.
-
 ```sh
-./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ duplicate -dry-run=false
+./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ duplicate -yes
 ```
 
 ## Command `stack`
