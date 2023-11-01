@@ -1,5 +1,9 @@
 # Release notes 
 
+
+### Fix #51 Import a single file doesn't work
+It's now possible to import one file.
+
 ## Release 0.5.0
 
 ### Use the new stacking feature to group jpg and raw images, same for burst
