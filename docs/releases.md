@@ -1,5 +1,6 @@
 # Release notes 
 
+## Release next
 
 ### Fix #51 Import a single file doesn't work
 It's now possible to import one file.
