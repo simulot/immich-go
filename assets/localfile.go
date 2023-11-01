@@ -27,12 +27,17 @@ import (
 
 */
 
+type LocalAlbum struct {
+	Path string // As found in the files
+	Name string // As found in metadata
+}
+
 type LocalAssetFile struct {
 	// Common fields
-	FileName string   // The asset's path in the fsys
-	Title    string   // Google Photos may a have title longer than the filename
-	Albums   []string // The asset's album, if any
-	Err      error    // keep errors encountered
+	FileName string       // The asset's path in the fsys
+	Title    string       // Google Photos may a have title longer than the filename
+	Albums   []LocalAlbum // The asset's album, if any
+	Err      error        // keep errors encountered
 	SideCar  *metadata.SideCar
 
 	// Common metadata
@@ -61,7 +66,7 @@ func (l LocalAssetFile) DebugObject() any {
 	return l
 }
 
-func (l *LocalAssetFile) AddAlbum(album string) {
+func (l *LocalAssetFile) AddAlbum(album LocalAlbum) {
 	for _, al := range l.Albums {
 		if al == album {
 			return
@@ -177,12 +182,3 @@ func (l *LocalAssetFile) ModTime() time.Time {
 
 // Sys implements the fs.FILE interface
 func (l *LocalAssetFile) Sys() any { return nil }
-
-func (l *LocalAssetFile) IsInAlbum(album string) bool {
-	for _, al := range l.Albums {
-		if al == album {
-			return true
-		}
-	}
-	return false
-}

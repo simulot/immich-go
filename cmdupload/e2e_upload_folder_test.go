@@ -12,7 +12,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func TestUpload(t *testing.T) {
+func TestE2eUpload(t *testing.T) {
 
 	var myEnv map[string]string
 	myEnv, err := godotenv.Read("../.env")

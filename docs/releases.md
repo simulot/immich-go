@@ -1,6 +1,26 @@
 # Release notes 
 
-## Release next
+## Release 0.6.0
+
+New options for Google Phots albums:
+`-keep-untitled-albums <bool>` Untitled albums are imported into `immich` with the name of the folder as title (default: FALSE).<br>
+`-use-album-folder-as-name <bool>` Use the folder's name instead of the album title (default: FALSE).<br>
+
+### More integration tests
+- For the command upload
+- For Date based on file names
+
+
+### Fix #53 import from folders always creates albums
+Now albums are created only when requested.
+
+### Fix #48: Import from google takeout duplicates albums with special characters
+By default, Album are named after their title in JSON file, Special characters are allowed.
+The option `-use-album-folder-as-name=TRUE` names albums after the folder name instead of their title
+
+### Fix #42 [google photos] Lots of "No title" albums created with 1 file each  
+By default untitled albums are not created.
+Use the option `-keep-untitled-albums=TRUE` to keep them. 
 
 ### Fix #51 Import a single file doesn't work
 It's now possible to import one file.

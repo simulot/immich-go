@@ -51,8 +51,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 `-album "ALBUM NAME"` Import assets into the Immich album `ALBUM NAME`.<br>
 `-device-uuid VALUE` Force the device identification (default $HOSTNAME).<br>
 `-dry-run` Preview all actions as they would be done.<br> 
-`-delete` Delete local assets after successful upload. <br>
-`-create-album-folder <bool>` Generate immich albums after folder names.<br>
+`-create-album-folder <bool>` Generate immich albums after folder names (default FALSE).<br>
 `-force-sidecar <bool>` Force sending a .xmp sidecar file beside images. With Google photos date and GPS coordinates are taken from metadata.json files. (default: FALSE).<br>
 
 
@@ -73,7 +72,6 @@ Specialized options for Google Photos management:
 `-use-album-folder-as-name <bool>` Use the folder's name instead of the album title (default: FALSE).<br>
 `-keep-partner <bool>` Specifies inclusion or exclusion of partner-taken photos (default: TRUE).<br>
 `-partner-album "partner's album"` import assets from partner into given album.<br>
-`-keep-trashed <bool>` Determines whether to import trashed images (default: FALSE).<br>
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
 
