@@ -118,7 +118,7 @@ func TestPresentFields(t *testing.T) {
 
 	for _, c := range tcs {
 		t.Run(c.name, func(t *testing.T) {
-			var md googleMetaData
+			var md GoogleMetaData
 			err := json.NewDecoder(strings.NewReader(c.json)).Decode(&md)
 			if err != nil {
 				t.Errorf("unexpected error: %s", err)

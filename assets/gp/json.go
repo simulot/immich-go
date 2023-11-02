@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type googleMetaData struct {
+type GoogleMetaData struct {
 	Title              string         `json:"title"`
 	Description        string         `json:"description"`
 	DatePresent        googIsPresent  `json:"date"` // true when the file is a folder metadata
@@ -23,17 +23,17 @@ type googleMetaData struct {
 	foundInPaths []string // Not in the JSON, keep track of paths where the json has been found
 }
 
-func (gmd googleMetaData) isAlbum() bool {
+func (gmd GoogleMetaData) isAlbum() bool {
 	return bool(gmd.DatePresent)
 }
 
-func (gmd googleMetaData) isPartner() bool {
+func (gmd GoogleMetaData) isPartner() bool {
 	return bool(gmd.GooglePhotosOrigin.FromPartnerSharing)
 }
 
 // Key return an expected unique key for the asset
 // based on the title and the timestamp
-func (md googleMetaData) Key() string {
+func (md GoogleMetaData) Key() string {
 	return fmt.Sprintf("%s,%s", md.Title, md.PhotoTakenTime.Timestamp)
 }
 

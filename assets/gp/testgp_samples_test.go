@@ -44,16 +44,16 @@ func (mfs *inMemFS) addImage(name string, len int) *inMemFS {
 	return mfs
 }
 
-type jsonFn func(md *googleMetaData)
+type jsonFn func(md *GoogleMetaData)
 
-func takenTime(date string) func(md *googleMetaData) {
-	return func(md *googleMetaData) {
+func takenTime(date string) func(md *GoogleMetaData) {
+	return func(md *GoogleMetaData) {
 		md.PhotoTakenTime.Timestamp = strconv.FormatInt(metadata.TakeTimeFromName(date).Unix(), 10)
 	}
 }
 
 func (mfs *inMemFS) addJSONImage(name string, title string, modifiers ...jsonFn) *inMemFS {
-	md := googleMetaData{
+	md := GoogleMetaData{
 		Title: title,
 	}
 	md.PhotoTakenTime.Timestamp = strconv.FormatInt(time.Date(2023, 10, 23, 15, 0, 0, 0, time.Local).Unix(), 10)
@@ -122,7 +122,7 @@ func simpleAlbum() *inMemFS {
 		addImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144936660.jpg", 10).
 		addJSONImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144934440.jpg.json", "PXL_20230922_144934440.jpg", takenTime("PXL_20230922_144934440")).
 		addImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144934440.jpg", 15).
-		addJSONAlbum("TakeoutGoogle Photos/Album/anyname.json", "").
+		addJSONAlbum("TakeoutGoogle Photos/Album/anyname.json", "Album").
 		addJSONImage("TakeoutGoogle Photos/Album/PXL_20230922_144936660.jpg.json", "PXL_20230922_144936660.jpg", takenTime("PXL_20230922_144936660")).
 		addImage("TakeoutGoogle Photos/Album/PXL_20230922_144936660.jpg", 10).
 		addJSONImage("TakeoutGoogle Photos/Photos from 2023/IMG_8172.jpg.json", "IMG_8172.jpg", takenTime("20230922102100")).

@@ -13,9 +13,9 @@ import (
 
 type Takeout struct {
 	fsys        fs.FS
-	filesByDir  map[string][]fileKey        // files name mapped by dir
-	jsonByYear  map[jsonKey]*googleMetaData // JSON by year of capture and full path
-	albumsByDir map[string]string           // album title mapped by dir
+	filesByDir  map[string][]fileKey         // files name mapped by dir
+	jsonByYear  map[jsonKey]*GoogleMetaData  // JSON by year of capture and full path
+	albumsByDir map[string]assets.LocalAlbum // album title mapped by dir
 }
 
 type fileKey struct {
@@ -35,8 +35,8 @@ func NewTakeout(ctx context.Context, fsys fs.FS) (*Takeout, error) {
 	to := Takeout{
 		fsys:        fsys,
 		filesByDir:  map[string][]fileKey{},
-		jsonByYear:  map[jsonKey]*googleMetaData{},
-		albumsByDir: map[string]string{},
+		jsonByYear:  map[jsonKey]*GoogleMetaData{},
+		albumsByDir: map[string]assets.LocalAlbum{},
 	}
 	err := to.walk(ctx, fsys)
 
@@ -69,10 +69,13 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 		ext := strings.ToLower(path.Ext(name))
 		switch ext {
 		case ".json":
-			md, err := fshelper.ReadJSON[googleMetaData](fsys, name)
+			md, err := fshelper.ReadJSON[GoogleMetaData](fsys, name)
 			if err == nil {
 				if md.isAlbum() {
-					to.albumsByDir[dir] = path.Base(dir)
+					to.albumsByDir[dir] = assets.LocalAlbum{
+						Path: path.Base(dir),
+						Name: md.Title,
+					}
 				} else {
 					key := jsonKey{
 						year: md.PhotoTakenTime.Time().Year(),
@@ -140,7 +143,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
 //		but the image can be found in year's folder 🤯
 //   the asset name is the JSON title field
 
-func (to *Takeout) jsonAssets(key jsonKey, md *googleMetaData) []*assets.LocalAssetFile {
+func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*assets.LocalAssetFile {
 
 	var list []*assets.LocalAssetFile
 
@@ -281,7 +284,7 @@ func matchEditedName(jsonName string, fileName string) bool {
 	return false
 }
 
-func (to *Takeout) copyGoogleMDToAsset(md *googleMetaData, filename string, length int) *assets.LocalAssetFile {
+func (to *Takeout) copyGoogleMDToAsset(md *GoogleMetaData, filename string, length int) *assets.LocalAssetFile {
 	a := assets.LocalAssetFile{
 		FileName:    filename,
 		FileSize:    length,

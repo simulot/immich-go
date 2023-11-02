@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/ttacon/chalk"
@@ -65,6 +67,7 @@ type Logger struct {
 	noColors     bool
 	colorStrings map[Level]string
 	debug        bool
+	out          io.Writer
 }
 
 func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Logger {
@@ -73,15 +76,23 @@ func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Logger {
 		noColors:     noColors,
 		colorStrings: map[Level]string{},
 		debug:        debug,
+		out:          os.Stdout,
 	}
 	if !noColors {
 		l.colorStrings = colorLevel
 	}
-
 	return &l
 }
 
+func (l *Logger) Writer(w io.Writer) *Logger {
+	l.out = w
+	return l
+}
+
 func (l *Logger) Debug(f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	l.Message(Debug, f, v...)
 }
 
@@ -91,6 +102,9 @@ type DebugObject interface {
 
 func (l *Logger) DebugObject(name string, v any) {
 	if !l.debug {
+		return
+	}
+	if l.out == nil {
 		return
 	}
 	if d, ok := v.(DebugObject); ok {
@@ -109,81 +123,108 @@ func (l *Logger) DebugObject(name string, v any) {
 		l.needCR = false
 	}
 	l.needSpace = false
-	fmt.Print(l.colorStrings[Debug])
-	fmt.Printf("%s:\n%s", name, b.String())
+	fmt.Fprint(l.out, l.colorStrings[Debug])
+	fmt.Fprintf(l.out, "%s:\n%s", name, b.String())
 	if !l.noColors {
-		fmt.Print(chalk.ResetColor)
+		fmt.Fprint(l.out, chalk.ResetColor)
 	}
-	fmt.Println()
+	fmt.Fprintln(l.out)
 }
 func (l *Logger) Info(f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	l.Message(Info, f, v...)
 }
 func (l *Logger) OK(f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	l.Message(OK, f, v...)
 }
 func (l *Logger) Warning(f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	l.Message(Warning, f, v...)
 }
 func (l *Logger) Error(f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	l.Message(Error, f, v...)
 }
 func (l *Logger) Fatal(f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	l.Message(Fatal, f, v...)
 }
 
 func (l *Logger) Message(level Level, f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	if level > l.displayLevel {
 		return
 	}
 	if l.needCR {
-		fmt.Println()
+		fmt.Fprintln(l.out)
 		l.needCR = false
 	}
 	l.needSpace = false
-	fmt.Print(l.colorStrings[level])
-	fmt.Printf(f, v...)
+	fmt.Fprint(l.out, l.colorStrings[level])
+	fmt.Fprintf(l.out, f, v...)
 	if !l.noColors {
-		fmt.Print(chalk.ResetColor)
+		fmt.Fprint(l.out, chalk.ResetColor)
 	}
-	fmt.Println()
+	fmt.Fprintln(l.out)
 }
 
 func (l *Logger) Progress(level Level, f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	if level > l.displayLevel {
 		return
 	}
-	fmt.Printf("\r\033[2K"+f, v...)
+	fmt.Fprintf(l.out, "\r\033[2K"+f, v...)
 	l.needCR = true
 }
 
 func (l *Logger) MessageContinue(level Level, f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	if level > l.displayLevel {
 		return
 	}
 	if l.needCR {
-		fmt.Println()
+		fmt.Fprintln(l.out)
 		l.needCR = false
 	}
 	if l.needSpace {
 		fmt.Print(" ")
 	}
-	fmt.Print(l.colorStrings[level])
-	fmt.Printf(f, v...)
+	fmt.Fprint(l.out, l.colorStrings[level])
+	fmt.Fprintf(l.out, f, v...)
 	l.needSpace = true
 	l.needCR = false
 }
 
 func (l *Logger) MessageTerminate(level Level, f string, v ...any) {
+	if l.out == nil {
+		return
+	}
 	if level > l.displayLevel {
 		return
 	}
-	fmt.Print(l.colorStrings[level])
-	fmt.Printf(f, v...)
+	fmt.Fprint(l.out, l.colorStrings[level])
+	fmt.Fprintf(l.out, f, v...)
 	if !l.noColors {
-		fmt.Print(chalk.ResetColor)
+		fmt.Fprint(l.out, chalk.ResetColor)
 	}
-	fmt.Println()
+	fmt.Fprintln(l.out)
 	l.needSpace = false
 	l.needCR = false
 }

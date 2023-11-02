@@ -154,25 +154,14 @@ func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, opt *GetAsse
 	return err
 }
 
-type deleteResponse []struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
-}
-
-func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string) (*deleteResponse, error) {
+func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string) error {
 	req := struct {
 		IDs []string `json:"ids"`
 	}{
 		IDs: id,
 	}
 
-	resp := deleteResponse{}
-
-	err := ic.newServerCall(ctx, "DeleteAsset").do(delete("/asset", setAcceptJSON(), setJSONBody(req)), responseJSON(&resp))
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	return ic.newServerCall(ctx, "DeleteAsset").do(delete("/asset", setAcceptJSON(), setJSONBody(req)))
 }
 
 func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
