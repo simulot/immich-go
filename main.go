@@ -52,16 +52,18 @@ func main() {
 }
 
 type Application struct {
-	EndPoint   string               // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	Key        string               // API Key
-	DeviceUUID string               // Set a device UUID
-	Immich     *immich.ImmichClient // Immich client
-	Logger     *logger.Logger       // Program's logger
-	ApiTrace   bool
+	Server      string // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
+	API         string // Immich api endpoint (http://container_ip:3301)
+	Key         string // API Key
+	DeviceUUID  string // Set a device UUID
+	ApiTrace    bool   // Enable API call traces
+	NoLogColors bool   // Disable log colors
+	LogLevel    string // Idicate the log level
+	Debug       bool   // Enable the debug mode
 
-	NoLogColors bool // Disable log colors
-	LogLevel    string
-	Debug       bool
+	Immich *immich.ImmichClient // Immich client
+	Logger *logger.Logger       // Program's logger
+
 }
 
 func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
@@ -72,7 +74,8 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	}
 
 	app := Application{}
-	flag.StringVar(&app.EndPoint, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
+	flag.StringVar(&app.Server, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
+	flag.StringVar(&app.API, "api", "", "Immich api endpoint (http://container_ip:3301)")
 	flag.StringVar(&app.Key, "key", "", "API Key")
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
 	flag.BoolVar(&app.NoLogColors, "no-colors-log", false, "Disable colors on logs")
@@ -80,8 +83,12 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
 	flag.BoolVar(&app.Debug, "debug", false, "enable debug messages")
 	flag.Parse()
-	if len(app.EndPoint) == 0 {
-		err = errors.Join(err, errors.New("missing -server"))
+
+	switch {
+	case len(app.Server) == 0 && len(app.API) == 0:
+		err = errors.Join(err, errors.New("missing -server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
+	case len(app.Server) > 0 && len(app.API) > 0:
+		err = errors.Join(err, errors.New("give either the -server or the -api option"))
 	}
 	if len(app.Key) == 0 {
 		err = errors.Join(err, errors.New("missing -key"))
@@ -93,7 +100,7 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	}
 
 	if len(flag.Args()) == 0 {
-		err = errors.Join(err, errors.New("missing command"))
+		err = errors.Join(err, errors.New("missing command upload|duplicate|stack"))
 	}
 
 	app.Logger = logger.NewLogger(logLevel, app.NoLogColors, app.Debug)
@@ -102,9 +109,15 @@ func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 		return app.Logger, err
 	}
 
-	app.Immich, err = immich.NewImmichClient(app.EndPoint, app.Key, app.DeviceUUID, app.ApiTrace)
+	app.Immich, err = immich.NewImmichClient(app.Server, app.Key)
 	if err != nil {
 		return app.Logger, err
+	}
+	if app.API != "" {
+		app.Immich.SetEndPoint(app.API)
+	}
+	if app.ApiTrace {
+		app.Immich.EnableAppTrace(true)
 	}
 
 	err = app.Immich.PingServer(ctx)

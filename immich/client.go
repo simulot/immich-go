@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -23,8 +24,29 @@ type ImmichClient struct {
 	ApiTrace     bool
 }
 
+func (ic *ImmichClient) SetEndPoint(endPoint string) *ImmichClient {
+	ic.endPoint = endPoint
+	return ic
+}
+
+func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) *ImmichClient {
+	ic.DeviceUUID = deviceUUID
+	return ic
+}
+
+func (ic *ImmichClient) EnableAppTrace(state bool) *ImmichClient {
+	ic.ApiTrace = state
+	return ic
+}
+
 // Create a new ImmichClient
-func NewImmichClient(endPoint, key, deviceUUID string, apiTrace bool) (*ImmichClient, error) {
+func NewImmichClient(endPoint string, key string) (*ImmichClient, error) {
+	var err error
+	deviceUUID, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
 	ic := ImmichClient{
 		endPoint:     endPoint + "/api",
 		key:          key,
@@ -32,7 +54,6 @@ func NewImmichClient(endPoint, key, deviceUUID string, apiTrace bool) (*ImmichCl
 		DeviceUUID:   deviceUUID,
 		Retries:      1,
 		RetriesDelay: time.Second * 1,
-		ApiTrace:     apiTrace,
 	}
 	return &ic, nil
 }
