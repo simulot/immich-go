@@ -408,9 +408,9 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		app.mediaUploaded += 1
 		if !app.DryRun {
-			app.log.OK("Done, total %d uploaded", app.mediaUploaded)
+			app.log.Progress(logger.OK, "Done, total %d uploaded", app.mediaUploaded)
 		} else {
-			app.log.OK("Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
+			app.log.Progress(logger.OK, "Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
 
 		}
 
@@ -449,14 +449,15 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 					Names = append(Names, Name)
 				}
 				if len(Names) > 0 {
-					app.log.MessageContinue(logger.OK, " add in folder(s) ")
+					app.log.Progress(logger.OK, " added in albums(s) ")
 					for _, n := range Names {
-						app.log.MessageContinue(logger.OK, " %s", n)
+						app.log.Progress(logger.OK, " %s", n)
 						app.AddToAlbum(resp.ID, n)
 					}
 				}
 			}
 		}
+		app.log.MessageTerminate(logger.OK, "")
 	} else {
 		app.log.MessageTerminate(logger.Warning, "already exists on the server")
 	}

@@ -224,7 +224,7 @@ func (l *Logger) MessageTerminate(level Level, f string, v ...any) {
 	if !l.noColors {
 		fmt.Fprint(l.out, chalk.ResetColor)
 	}
-	fmt.Println(l.out)
+	fmt.Fprintln(l.out)
 	l.needSpace = false
 	l.needCR = false
 }
