@@ -1,6 +1,12 @@
 # Release notes 
 
-## Release next
+## Release 0.7.0
+
+### Fix #52: Duplicate command fails with 504 timeout
+A new option enable the possibility of calling directly the immich-server once it's port is published.
+
+`-api URL` URL of the Immich api endpoint (http://container_ip:3301)<br>
+
 
 ### Fix #50:  Duplicate detection fails when timezone of both images differs
 Imported duplicated images with same name, but different timezone wasn't seen as duplicates.

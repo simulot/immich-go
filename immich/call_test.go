@@ -68,11 +68,12 @@ func TestCall(t *testing.T) {
 			server := httptest.NewServer(&tst.server)
 			defer server.Close()
 			ctx := context.Background()
-			ic, err := NewImmichClient(server.URL, "1234", "tester", true)
+			ic, err := NewImmichClient(server.URL, "1234")
 			if err != nil {
 				t.Fail()
 				return
 			}
+			ic.EnableAppTrace(true)
 			r := map[string]string{}
 			err = ic.newServerCall(ctx, tst.name).do(tst.requestFn, responseJSON(&r))
 			if tst.expectedErr && err == nil {
