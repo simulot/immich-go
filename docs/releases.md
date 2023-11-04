@@ -1,5 +1,11 @@
 # Release notes 
 
+## Release next
+
+### New feature: command tool album delete \[regexp pattern\]
+
+Delete albums that match with the regexp pattern. 
+
 ## Release 0.7.0
 
 ### Fix #52: Duplicate command fails with 504 timeout

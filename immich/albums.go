@@ -133,3 +133,7 @@ func (ic *ImmichClient) GetAssetAlbums(ctx context.Context, id string) ([]AlbumS
 		responseJSON(&r))
 	return r, err
 }
+
+func (ic *ImmichClient) DeleteAlbum(ctx context.Context, id string) error {
+	return ic.newServerCall(ctx, "DeleteAlbum").do(delete("/album/" + id))
+}

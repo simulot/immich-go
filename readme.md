@@ -129,6 +129,24 @@ The JPG image will be the cover.
 
 Please open an issue to cover more possibilities.
 
+## Command `tool`
+
+This command introduce command line tools to manipulate you `immich` server
+
+### Sub command `album delete`
+
+This command deletes albums that match with the given pattern
+
+#### Switches 
+`-yes` Assume Yes to all questions (default: FALSE).<br> 
+
+#### Example
+
+```sh
+./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ tool album delete \d{4}-\d{2}-\d{2}
+```
+
+This command deletes all albums created with de pattern YYYY-MM-DD
 
 
 # Installation

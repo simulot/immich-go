@@ -21,7 +21,7 @@ type DuplicateCmd struct {
 	logger *logger.Logger
 	Immich *immich.ImmichClient // Immich client
 
-	AssumeYes      bool             // Display actions but don't change anything
+	AssumeYes      bool             // When true, doesn't ask to the user
 	DateRange      immich.DateRange // Set capture date range
 	IgnoreTZErrors bool             // Enable TZ error tolerance
 
