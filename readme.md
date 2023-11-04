@@ -131,9 +131,9 @@ Please open an issue to cover more possibilities.
 
 ## Command `tool`
 
-This command introduce command line tools to manipulate you `immich` server
+This command introduce command line tools to manipulate your `immich` server
 
-### Sub command `album delete`
+### Sub command `album delete [regexp]`
 
 This command deletes albums that match with the given pattern
 
