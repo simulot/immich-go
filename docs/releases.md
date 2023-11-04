@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release next
+## Release 0.8.0
 
 ### New feature: create stacks when uploading images
 The option `-create-stacks <bool>` drive the creation of stack of images for couples JPG/RAW or bursts of photos. The option is enabled by default.
