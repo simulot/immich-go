@@ -1,0 +1,98 @@
+package cmdstack
+
+import (
+	"context"
+	"flag"
+	"immich-go/helpers/gen"
+	"immich-go/helpers/stacking"
+	"immich-go/immich"
+	"immich-go/immich/logger"
+	"immich-go/ui"
+	"path"
+	"sort"
+	"strconv"
+)
+
+type StackCmd struct {
+	Immich *immich.ImmichClient // Immich client
+	logger *logger.Logger
+
+	AssumeYes bool
+	DateRange immich.DateRange // Set capture date range
+}
+
+func initSack(xtx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) (*StackCmd, error) {
+	cmd := flag.NewFlagSet("stack", flag.ExitOnError)
+	validRange := immich.DateRange{}
+
+	validRange.Set("1850-01-04,2030-01-01")
+	app := StackCmd{
+		logger:    log,
+		Immich:    ic,
+		DateRange: validRange,
+	}
+
+	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
+		var err error
+		app.AssumeYes, err = strconv.ParseBool(s)
+		return err
+	})
+	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
+	err := cmd.Parse(args)
+	return &app, err
+}
+func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) error {
+	app, err := initSack(ctx, ic, log, args)
+	if err != nil {
+		return err
+	}
+
+	sb := stacking.NewStackBuilder()
+	log.MessageContinue(logger.OK, "Get server's assets...")
+	assetCount := 0
+
+	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+		if a.IsTrashed {
+			return
+		}
+		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
+			return
+		}
+		assetCount += 1
+		sb.ProcessAsset(a.ID, a.OriginalFileName+path.Ext(a.OriginalPath), a.ExifInfo.DateTimeOriginal.Time)
+	})
+	if err != nil {
+		return err
+	}
+	stacks := sb.Stacks()
+	log.MessageTerminate(logger.OK, " %d received, %d stack(s) possible", assetCount, len(stacks))
+
+	for _, s := range stacks {
+		log.OK("Stack following images taken on %s", s.Date)
+		cover := s.CoverID
+		IDs := gen.DeleteItem[string](s.IDs, cover)
+		names := s.Names
+		sort.Strings(names)
+		for _, n := range names {
+			log.OK("  %s", n)
+		}
+		yes := app.AssumeYes
+		if !app.AssumeYes {
+			r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
+			if err != nil {
+				return err
+			}
+			if r == "y" {
+				yes = true
+			}
+		}
+		if yes {
+			err := app.Immich.UpdateAssets(ctx, IDs, false, false, false, cover)
+			if err != nil {
+				log.Warning("Can't stack images: %s", err)
+			}
+		}
+	}
+
+	return nil
+}
