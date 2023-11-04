@@ -50,6 +50,11 @@ func TestGetFromReader(t *testing.T) {
 			filename: "../../../test-data/burst/PXL6/PXL_20231029_062723981.dng",
 			want:     mustParse("2023:10:29 07:27:24+01:00"),
 		},
+		{
+			name:     "cr2",
+			filename: "../../../test-data/burst/IMG_4879.CR2",
+			want:     mustParse("2023:02:24 18:59:09+01:00"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
