@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"immich-go/helpers/tzone"
 	"io"
 	"io/fs"
 	"path"
@@ -42,9 +43,9 @@ func GetFromReader(r io.Reader, ext string) (MetaData, error) {
 	switch ext {
 	case ".heic", ".heif":
 		dateTaken, err = readHEIFDateTaken(r)
-	case ".jpg", ".jpeg":
+	case ".jpg", ".jpeg", ".cr2":
 		dateTaken, err = readExifDateTaken(r)
-	case ".mp4", ".mov":
+	case ".mp4", ".mov", ".cr3":
 		dateTaken, err = readMP4DateTaken(r)
 	default:
 		err = errors.New("can't determine the taken date from this reader")
@@ -189,9 +190,11 @@ func decodeMvhdAtom(b []byte) (*MvhdAtom, error) {
 }
 
 func convertTime32(timestamp uint32) time.Time {
-	return time.Unix(int64(timestamp)-int64(2082844800), 0).Local()
+	local, _ := tzone.Local()
+	return time.Unix(int64(timestamp)-int64(2082844800), 0).In(local)
 }
 func convertTime64(timestamp uint64) time.Time {
+	local, _ := tzone.Local()
 	// Unix epoch starts on January 1, 1970, subtracting the number of seconds from January 1, 1904 to January 1, 1970.
 	epochOffset := int64(2082844800)
 
@@ -199,7 +202,7 @@ func convertTime64(timestamp uint64) time.Time {
 	unixTimestamp := int64(timestamp>>32) - epochOffset
 
 	// Convert the Unix timestamp to time.Time
-	return time.Unix(unixTimestamp, 0).Local()
+	return time.Unix(unixTimestamp, 0).In(local)
 }
 
 type sliceReader struct {

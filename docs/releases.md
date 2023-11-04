@@ -5,6 +5,11 @@
 ### New feature: create stacks when uploading images
 The option `-create-stacks <bool>` drive the creation of stack of images for couples JPG/RAW or bursts of photos. The option is enabled by default
 
+Example:
+```sh
+./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ upload
+-create-albums -google-photos -date=2019-06 ~/Download/takeout-*.zip             
+```
 ### New feature: command tool album delete \[regexp pattern\]
 
 Delete albums that match with the regexp pattern. 

@@ -10,6 +10,7 @@ import (
 	"immich-go/cmdstack"
 	"immich-go/cmdtool"
 	"immich-go/cmdupload"
+	"immich-go/helpers/tzone"
 	"immich-go/immich"
 	"immich-go/immich/logger"
 	"os"
@@ -70,6 +71,10 @@ type Application struct {
 func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
 	var err error
 	deviceID, err := os.Hostname()
+	if err != nil {
+		return log, err
+	}
+	_, err = tzone.Local()
 	if err != nil {
 		return log, err
 	}

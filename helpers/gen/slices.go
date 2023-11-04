@@ -9,3 +9,13 @@ func DeleteItem[T comparable](s []T, delete T) []T {
 	}
 	return r
 }
+
+func Filter[T any](s []T, f func(i T) bool) []T {
+	var r []T
+	for _, i := range s {
+		if f(i) {
+			r = append(r, i)
+		}
+	}
+	return r
+}

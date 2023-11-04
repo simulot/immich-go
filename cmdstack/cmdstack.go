@@ -3,7 +3,6 @@ package cmdstack
 import (
 	"context"
 	"flag"
-	"immich-go/helpers/gen"
 	"immich-go/helpers/stacking"
 	"immich-go/immich"
 	"immich-go/immich/logger"
@@ -70,7 +69,6 @@ func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 	for _, s := range stacks {
 		log.OK("Stack following images taken on %s", s.Date)
 		cover := s.CoverID
-		IDs := gen.DeleteItem[string](s.IDs, cover)
 		names := s.Names
 		sort.Strings(names)
 		for _, n := range names {
@@ -87,7 +85,7 @@ func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 			}
 		}
 		if yes {
-			err := app.Immich.UpdateAssets(ctx, IDs, false, false, false, cover)
+			err := app.Immich.UpdateAssets(ctx, s.IDs, false, false, false, cover)
 			if err != nil {
 				log.Warning("Can't stack images: %s", err)
 			}

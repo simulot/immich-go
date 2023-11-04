@@ -250,9 +250,9 @@ assetLoop:
 		if len(stacks) > 0 {
 			log.OK("Creating stacks")
 			for _, s := range stacks {
-				log.OK("Stacking %s...", strings.Join(s.Names, ","))
+				log.OK("  Stacking %s...", strings.Join(s.Names, ", "))
 				if !app.DryRun {
-					err := app.client.UpdateAssets(ctx, s.IDs, false, false, false, s.CoverID)
+					err = app.client.UpdateAssets(ctx, s.IDs, false, false, false, s.CoverID)
 					if err != nil {
 						log.Warning("Can't stack images: %s", err)
 					}
@@ -262,6 +262,7 @@ assetLoop:
 	}
 
 	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && len(app.PartnerAlbum) > 0) || len(app.ImportIntoAlbum) > 0 {
+		log.OK("Managing albums")
 		err = app.ManageAlbums(ctx)
 		if err != nil {
 			log.Error(err.Error())

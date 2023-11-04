@@ -45,7 +45,8 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 	base := strings.TrimSuffix(path.Base(fileName), ext)
 	ext = strings.ToLower(ext)
 
-	if idx := strings.Index(base, "_BURST"); idx > 1 {
+	idx := strings.Index(base, "_BURST")
+	if idx > 1 {
 		base = base[:idx]
 	}
 
@@ -60,7 +61,7 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 	}
 	s.IDs = append(s.IDs, ID)
 	s.Names = append(s.Names, path.Base(fileName))
-	if slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext) || strings.Contains(fileName, "COVER.") {
+	if (idx == -1 && slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext)) || strings.Contains(fileName, "COVER.") {
 		s.CoverID = ID
 	}
 	sb.stacks[k] = s
@@ -71,26 +72,30 @@ func (sb *StackBuilder) Stacks() []Stack {
 		return len(i.IDs) > 1
 	})
 
-	r := []Stack{}
-	for _, v := range sb.stacks {
-		if len(v.IDs) > 1 {
-			r = append(r, v)
-		}
+	var stacks []Stack
+	for _, k := range keys {
+		s := sb.stacks[k]
+		ids := gen.Filter(s.IDs, func(id string) bool {
+			return id != s.CoverID
+		})
+		s.IDs = ids
+		stacks = append(stacks, s)
+
 	}
-	sort.Slice(r, func(i, j int) bool {
-		c := keys[i].date.Compare(keys[j].date)
+	sort.Slice(stacks, func(i, j int) bool {
+		c := stacks[i].Date.Compare(stacks[j].Date)
 		switch c {
 		case -1:
 			return true
 		case +1:
 			return false
 		}
-		c = strings.Compare(keys[i].baseName, keys[j].baseName)
+		c = strings.Compare(stacks[i].Names[0], stacks[j].Names[0])
 		switch c {
 		case -1:
 			return true
 		}
 		return false
 	})
-	return r
+	return stacks
 }
