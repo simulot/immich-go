@@ -3,13 +3,31 @@
 ## Release next
 
 ### New feature: create stacks when uploading images
-The option `-create-stacks <bool>` drive the creation of stack of images for couples JPG/RAW or bursts of photos. The option is enabled by default
+The option `-create-stacks <bool>` drive the creation of stack of images for couples JPG/RAW or bursts of photos. The option is enabled by default.
+
+Your asset must have the date of capture in the metadata.
 
 Example:
 ```sh
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ upload
--create-albums -google-photos -date=2019-06 ~/Download/takeout-*.zip             
+ ~/mnt/sdcard/           
+
+Server status: OK
+Ask for server's assets...
+....
+Done, total 12 uploaded
+Creating stacks
+  Stacking 3H2A0018.CR3, 3H2A0018.JPG...
+  Stacking 3H2A0019.CR3, 3H2A0019.JPG...
+  Stacking 3H2A0020.CR3, 3H2A0020.JPG...
+  Stacking 3H2A0021.CR3, 3H2A0021.JPG...
+  Stacking 3H2A0022.CR3, 3H2A0022.JPG...
+  Stacking 3H2A0023.CR3, 3H2A0023.JPG...
+12 media scanned, 12 uploaded.
+Done.
 ```
+
+
 ### New feature: command tool album delete \[regexp pattern\]
 
 Delete albums that match with the regexp pattern. 

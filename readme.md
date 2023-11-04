@@ -55,7 +55,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 `-dry-run` Preview all actions as they would be done.<br> 
 `-create-album-folder <bool>` Generate immich albums after folder names (default FALSE).<br>
 `-force-sidecar <bool>` Force sending a .xmp sidecar file beside images. With Google photos date and GPS coordinates are taken from metadata.json files. (default: FALSE).<br>
-`-create-stacks <bool>`Stack jpg/raw or bursts  (default TRUE).<br>
+`-create-stacks <bool>`Stack jpg/raw or bursts (default TRUE).<br>
 
 
 ### Date selection:
