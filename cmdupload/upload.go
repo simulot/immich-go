@@ -11,6 +11,7 @@ import (
 	"immich-go/assets/files"
 	"immich-go/assets/gp"
 	"immich-go/helpers/fshelper"
+	"immich-go/helpers/stacking"
 	"immich-go/immich"
 	"immich-go/immich/logger"
 	"immich-go/immich/metadata"
@@ -18,6 +19,7 @@ import (
 	"math"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +34,7 @@ type iClient interface {
 	GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]immich.UpdateAlbumResult, error)
 	CreateAlbum(context.Context, string, []string) (immich.AlbumSimplified, error)
+	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, removeParent bool, stackParentId string) error
 }
 
 type UpCmd struct {
@@ -57,6 +60,7 @@ type UpCmd struct {
 	UseFolderAsAlbumName   bool             // Use folder's name instead of metadata's title as Album name
 	DryRun                 bool             // Display actions but don't change anything
 	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
+	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
 
 	AssetIndex       *AssetIndex               // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
@@ -64,6 +68,7 @@ type UpCmd struct {
 	mediaUploaded    int                       // Count uploaded medias
 	mediaCount       int                       // Count of media on the source
 	updateAlbums     map[string]map[string]any // track immich albums changes
+	stacks           *stacking.StackBuilder
 }
 
 func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string) (*UpCmd, error) {
@@ -126,6 +131,11 @@ func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string
 		false,
 		" google-photos only: Use folder name and ignore albums' title")
 
+	cmd.BoolVar(&app.CreateStacks,
+		"create-stacks",
+		true,
+		"Stack jpg/raw or bursts  (default TRUE)")
+
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 	err = cmd.Parse(args)
 	if err != nil {
@@ -151,6 +161,9 @@ func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string
 		return nil, errors.Join(err, errors.New("must specify at least one path for local assets"))
 	}
 
+	if app.CreateStacks {
+		app.stacks = stacking.NewStackBuilder()
+	}
 	log.OK("Ask for server's assets...")
 	var list []*immich.Asset
 	err = app.client.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
@@ -227,6 +240,22 @@ assetLoop:
 				err = app.handleAsset(ctx, a)
 				if err != nil {
 					log.Warning("%s: %q", err.Error(), a.FileName)
+				}
+			}
+		}
+	}
+
+	if app.CreateStacks {
+		stacks := app.stacks.Stacks()
+		if len(stacks) > 0 {
+			log.OK("Creating stacks")
+			for _, s := range stacks {
+				log.OK("Stacking %s...", strings.Join(s.Names, ","))
+				if !app.DryRun {
+					err := app.client.UpdateAssets(ctx, s.IDs, false, false, false, s.CoverID)
+					if err != nil {
+						log.Warning("Can't stack images: %s", err)
+					}
 				}
 			}
 		}
@@ -411,7 +440,9 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 			app.log.Progress(logger.OK, "Done, total %d uploaded", app.mediaUploaded)
 		} else {
 			app.log.Progress(logger.OK, "Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
-
+		}
+		if app.CreateStacks {
+			app.stacks.ProcessAsset(resp.ID, a.FileName, a.DateTaken)
 		}
 
 		if app.ImportIntoAlbum != "" ||

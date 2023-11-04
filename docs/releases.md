@@ -2,6 +2,9 @@
 
 ## Release next
 
+### New feature: create stacks when uploading images
+The option `-create-stacks <bool>` drive the creation of stack of images for couples JPG/RAW or bursts of photos. The option is enabled by default
+
 ### New feature: command tool album delete \[regexp pattern\]
 
 Delete albums that match with the regexp pattern. 
