@@ -71,12 +71,15 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 		case ".json":
 			md, err := fshelper.ReadJSON[GoogleMetaData](fsys, name)
 			if err == nil {
-				if md.isAlbum() {
+				switch {
+				case md.isAlbum():
 					to.albumsByDir[dir] = assets.LocalAlbum{
 						Path: path.Base(dir),
 						Name: md.Title,
 					}
-				} else {
+				case md.Category != "":
+					return nil
+				default:
 					key := jsonKey{
 						year: md.PhotoTakenTime.Time().Year(),
 						name: base,

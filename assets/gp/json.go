@@ -11,6 +11,7 @@ import (
 type GoogleMetaData struct {
 	Title              string         `json:"title"`
 	Description        string         `json:"description"`
+	Category           string         `json:"category"`
 	DatePresent        googIsPresent  `json:"date"` // true when the file is a folder metadata
 	PhotoTakenTime     googTimeObject `json:"photoTakenTime"`
 	GeoDataExif        googGeoData    `json:"geoDataExif"`

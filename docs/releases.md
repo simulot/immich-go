@@ -1,5 +1,15 @@
 # Release notes 
 
+## Release 0.8.1
+
+### workaround for #62
+This prevents the error:
+```
+Bad Request
+albumName should not be empty
+```
+Still working on the root cause
+
 ## Release 0.8.0
 
 ### New feature: create stacks when uploading images

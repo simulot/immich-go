@@ -438,9 +438,9 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		app.mediaUploaded += 1
 		if !app.DryRun {
-			app.log.Progress(logger.OK, "Done, total %d uploaded", app.mediaUploaded)
+			app.log.MessageContinue(logger.OK, "Done, total %d uploaded", app.mediaUploaded)
 		} else {
-			app.log.Progress(logger.OK, "Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
+			app.log.MessageContinue(logger.OK, "Skipped - dry run mode, total %d uploaded", app.mediaUploaded)
 		}
 		if app.CreateStacks {
 			app.stacks.ProcessAsset(resp.ID, a.FileName, a.DateTaken)
@@ -474,6 +474,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 				Names := []string{}
 				for _, al := range albums {
 					Name := app.albumName(al)
+					app.log.DebugObject("Add asset to the album:", al)
 
 					if app.GooglePhotos && Name == "" {
 						continue
@@ -481,9 +482,9 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 					Names = append(Names, Name)
 				}
 				if len(Names) > 0 {
-					app.log.Progress(logger.OK, " added in albums(s) ")
+					app.log.MessageContinue(logger.OK, " added in albums(s) %s", strings.Join(Names, ", "))
 					for _, n := range Names {
-						app.log.Progress(logger.OK, " %s", n)
+						app.log.MessageContinue(logger.OK, " %s", n)
 						app.AddToAlbum(resp.ID, n)
 					}
 				}
@@ -496,6 +497,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 }
 
 func (app *UpCmd) albumName(al assets.LocalAlbum) string {
+	app.log.DebugObject("albumName: ", al)
 	Name := al.Name
 	if app.GooglePhotos {
 		switch {
@@ -504,6 +506,9 @@ func (app *UpCmd) albumName(al assets.LocalAlbum) string {
 		case app.KeepUntitled && Name == "":
 			Name = al.Path
 		}
+	}
+	if Name == "" {
+		Name = "Untitled"
 	}
 	return Name
 }
