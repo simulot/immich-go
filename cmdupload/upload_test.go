@@ -72,6 +72,9 @@ func (c *icCatchUploadsAssets) AddAssetToAlbum(ctx context.Context, album string
 	return nil, nil
 }
 func (c *icCatchUploadsAssets) CreateAlbum(ctx context.Context, album string, ids []string) (immich.AlbumSimplified, error) {
+	if album == "" {
+		panic("can't create album without name")
+	}
 	if c.albums == nil {
 		c.albums = map[string][]string{}
 	}
@@ -91,37 +94,66 @@ func TestUpload(t *testing.T) {
 		expectedAssets []string
 		expectedAlbums map[string][]string
 	}{
-		/*
-			{
-				name: "Simple file",
-				args: []string{
-					"TEST_DATA/folder/low/PXL_20231006_063000139.jpg",
-				},
-				expectedErr:    false,
-				expectedAssets: []string{"PXL_20231006_063000139.jpg"},
-				expectedAlbums: map[string][]string{},
+		{
+			name: "Simple file",
+			args: []string{
+				"TEST_DATA/folder/low/PXL_20231006_063000139.jpg",
 			},
-			{
-				name: "Simple file in an album",
-				args: []string{
-					"-album=the album",
-					"TEST_DATA/folder/low/PXL_20231006_063000139.jpg",
-				},
-				expectedErr: false,
-				expectedAssets: []string{
-					"PXL_20231006_063000139.jpg",
-				},
-				expectedAlbums: map[string][]string{
-					"the album": {"PXL_20231006_063000139.jpg"},
-				},
+			expectedErr:    false,
+			expectedAssets: []string{"PXL_20231006_063000139.jpg"},
+			expectedAlbums: map[string][]string{},
+		},
+		{
+			name: "Simple file in an album",
+			args: []string{
+				"-album=the album",
+				"TEST_DATA/folder/low/PXL_20231006_063000139.jpg",
 			},
-			{
-				name: "Folders, no album creation",
-				args: []string{
-					"TEST_DATA/folder/high",
-				},
-				expectedErr: false,
-				expectedAssets: []string{
+			expectedErr: false,
+			expectedAssets: []string{
+				"PXL_20231006_063000139.jpg",
+			},
+			expectedAlbums: map[string][]string{
+				"the album": {"PXL_20231006_063000139.jpg"},
+			},
+		},
+		{
+			name: "Folders, no album creation",
+			args: []string{
+				"TEST_DATA/folder/high",
+			},
+			expectedErr: false,
+			expectedAssets: []string{
+				"AlbumA/PXL_20231006_063000139.jpg",
+				"AlbumA/PXL_20231006_063029647.jpg",
+				"AlbumA/PXL_20231006_063108407.jpg",
+				"AlbumA/PXL_20231006_063121958.jpg",
+				"AlbumA/PXL_20231006_063357420.jpg",
+				"AlbumB/PXL_20231006_063528961.jpg",
+				"AlbumB/PXL_20231006_063536303.jpg",
+				"AlbumB/PXL_20231006_063851485.jpg",
+			},
+			expectedAlbums: map[string][]string{},
+		},
+		{
+			name: "Folders, in given album",
+			args: []string{
+				"-album=the album",
+				"TEST_DATA/folder/high",
+			},
+			expectedErr: false,
+			expectedAssets: []string{
+				"AlbumA/PXL_20231006_063000139.jpg",
+				"AlbumA/PXL_20231006_063029647.jpg",
+				"AlbumA/PXL_20231006_063108407.jpg",
+				"AlbumA/PXL_20231006_063121958.jpg",
+				"AlbumA/PXL_20231006_063357420.jpg",
+				"AlbumB/PXL_20231006_063528961.jpg",
+				"AlbumB/PXL_20231006_063536303.jpg",
+				"AlbumB/PXL_20231006_063851485.jpg",
+			},
+			expectedAlbums: map[string][]string{
+				"the album": {
 					"AlbumA/PXL_20231006_063000139.jpg",
 					"AlbumA/PXL_20231006_063029647.jpg",
 					"AlbumA/PXL_20231006_063108407.jpg",
@@ -131,78 +163,59 @@ func TestUpload(t *testing.T) {
 					"AlbumB/PXL_20231006_063536303.jpg",
 					"AlbumB/PXL_20231006_063851485.jpg",
 				},
-				expectedAlbums: map[string][]string{},
 			},
-			{
-				name: "Folders, in given album",
-				args: []string{
-					"-album=the album",
-					"TEST_DATA/folder/high",
-				},
-				expectedErr: false,
-				expectedAssets: []string{
+		},
+		{
+			name: "Folders, album after folder",
+			args: []string{
+				"-create-album-folder=TRUE",
+				"TEST_DATA/folder/high",
+			},
+			expectedErr: false,
+			expectedAssets: []string{
+				"AlbumA/PXL_20231006_063000139.jpg",
+				"AlbumA/PXL_20231006_063029647.jpg",
+				"AlbumA/PXL_20231006_063108407.jpg",
+				"AlbumA/PXL_20231006_063121958.jpg",
+				"AlbumA/PXL_20231006_063357420.jpg",
+				"AlbumB/PXL_20231006_063528961.jpg",
+				"AlbumB/PXL_20231006_063536303.jpg",
+				"AlbumB/PXL_20231006_063851485.jpg",
+			},
+			expectedAlbums: map[string][]string{
+				"AlbumA": {
 					"AlbumA/PXL_20231006_063000139.jpg",
 					"AlbumA/PXL_20231006_063029647.jpg",
 					"AlbumA/PXL_20231006_063108407.jpg",
 					"AlbumA/PXL_20231006_063121958.jpg",
 					"AlbumA/PXL_20231006_063357420.jpg",
+				},
+				"AlbumB": {
 					"AlbumB/PXL_20231006_063528961.jpg",
 					"AlbumB/PXL_20231006_063536303.jpg",
 					"AlbumB/PXL_20231006_063851485.jpg",
 				},
-				expectedAlbums: map[string][]string{
-					"the album": {
-						"AlbumA/PXL_20231006_063000139.jpg",
-						"AlbumA/PXL_20231006_063029647.jpg",
-						"AlbumA/PXL_20231006_063108407.jpg",
-						"AlbumA/PXL_20231006_063121958.jpg",
-						"AlbumA/PXL_20231006_063357420.jpg",
-						"AlbumB/PXL_20231006_063528961.jpg",
-						"AlbumB/PXL_20231006_063536303.jpg",
-						"AlbumB/PXL_20231006_063851485.jpg",
-					},
-				},
 			},
-			{
-				name: "Folders, album after folder",
-				args: []string{
-					"-create-album-folder=TRUE",
-					"TEST_DATA/folder/high",
-				},
-				expectedErr: false,
-				expectedAssets: []string{
-					"AlbumA/PXL_20231006_063000139.jpg",
-					"AlbumA/PXL_20231006_063029647.jpg",
-					"AlbumA/PXL_20231006_063108407.jpg",
-					"AlbumA/PXL_20231006_063121958.jpg",
-					"AlbumA/PXL_20231006_063357420.jpg",
-					"AlbumB/PXL_20231006_063528961.jpg",
-					"AlbumB/PXL_20231006_063536303.jpg",
-					"AlbumB/PXL_20231006_063851485.jpg",
-				},
-				expectedAlbums: map[string][]string{
-					"AlbumA": {
-						"AlbumA/PXL_20231006_063000139.jpg",
-						"AlbumA/PXL_20231006_063029647.jpg",
-						"AlbumA/PXL_20231006_063108407.jpg",
-						"AlbumA/PXL_20231006_063121958.jpg",
-						"AlbumA/PXL_20231006_063357420.jpg",
-					},
-					"AlbumB": {
-						"AlbumB/PXL_20231006_063528961.jpg",
-						"AlbumB/PXL_20231006_063536303.jpg",
-						"AlbumB/PXL_20231006_063851485.jpg",
-					},
-				},
+		},
+		{
+			name: "google photos, default options",
+			args: []string{
+				"-google-photos",
+				"TEST_DATA/Takeout1",
 			},
-			{
-				name: "google photos, default options",
-				args: []string{
-					"-google-photos",
-					"TEST_DATA/Takeout1",
-				},
-				expectedErr: false,
-				expectedAssets: []string{
+			expectedErr: false,
+			expectedAssets: []string{
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063000139.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063029647.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063108407.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063121958.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063357420.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063536303.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063851485.jpg",
+				"Google Photos/Album test 6-10-23/PXL_20231006_063909898.LS.mp4",
+			},
+			expectedAlbums: map[string][]string{
+				"Album test 6/10/23": {
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063000139.jpg",
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063029647.jpg",
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063108407.jpg",
@@ -212,28 +225,28 @@ func TestUpload(t *testing.T) {
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063851485.jpg",
 					"Google Photos/Album test 6-10-23/PXL_20231006_063909898.LS.mp4",
 				},
-				expectedAlbums: map[string][]string{
-					"Album test 6/10/23": {
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063000139.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063029647.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063108407.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063121958.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063357420.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063536303.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063851485.jpg",
-						"Google Photos/Album test 6-10-23/PXL_20231006_063909898.LS.mp4",
-					},
-				},
 			},
-			{
-				name: "google photos, album name from folder",
-				args: []string{
-					"-google-photos",
-					"--use-album-folder-as-name=TRUE",
-					"TEST_DATA/Takeout1",
-				},
-				expectedErr: false,
-				expectedAssets: []string{
+		},
+		{
+			name: "google photos, album name from folder",
+			args: []string{
+				"-google-photos",
+				"--use-album-folder-as-name=TRUE",
+				"TEST_DATA/Takeout1",
+			},
+			expectedErr: false,
+			expectedAssets: []string{
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063000139.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063029647.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063108407.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063121958.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063357420.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063536303.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063851485.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063909898.LS.mp4",
+			},
+			expectedAlbums: map[string][]string{
+				"Album test 6-10-23": {
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063000139.jpg",
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063029647.jpg",
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063108407.jpg",
@@ -243,20 +256,8 @@ func TestUpload(t *testing.T) {
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063851485.jpg",
 					"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063909898.LS.mp4",
 				},
-				expectedAlbums: map[string][]string{
-					"Album test 6-10-23": {
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063000139.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063029647.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063108407.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063121958.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063357420.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063536303.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063851485.jpg",
-						"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063909898.LS.mp4",
-					},
-				},
 			},
-		*/
+		},
 		{
 			name: "google photo, ignore untitled, discard partner",
 			args: []string{

@@ -11,6 +11,7 @@ import (
 	"immich-go/assets/files"
 	"immich-go/assets/gp"
 	"immich-go/helpers/fshelper"
+	"immich-go/helpers/gen"
 	"immich-go/helpers/stacking"
 	"immich-go/immich"
 	"immich-go/immich/logger"
@@ -142,7 +143,7 @@ func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string
 		return nil, err
 	}
 
-	app.fsys, err = fshelper.ParsePath(cmd.Args())
+	app.fsys, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +309,13 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 			return nil
 		}
 	}
+
+	if !app.KeepUntitled {
+		a.Albums = gen.Filter(a.Albums, func(i assets.LocalAlbum) bool {
+			return i.Name != ""
+		})
+	}
+
 	app.log.DebugObject("handleAsset: LocalAssetFile=", a)
 
 	advice, err := app.AssetIndex.ShouldUpload(a)
@@ -490,9 +498,6 @@ func (app *UpCmd) albumName(al assets.LocalAlbum) string {
 			Name = al.Path
 		}
 	}
-	if Name == "" {
-		Name = "Untitled"
-	}
 	return Name
 }
 
@@ -541,6 +546,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 			return fmt.Errorf("can't get the album list from the server: %w", err)
 		}
 		for album, list := range app.updateAlbums {
+
 			found := false
 			for _, sal := range serverAlbums {
 				if sal.AlbumName == album {

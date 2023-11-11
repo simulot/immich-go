@@ -11,17 +11,19 @@ import (
 )
 
 type argParser struct {
-	files       []string
-	paths       map[string][]string
-	zips        []string
-	unsupported map[string]any
-	err         error
+	googlePhotos bool
+	files        []string
+	paths        map[string][]string
+	zips         []string
+	unsupported  map[string]any
+	err          error
 }
 
-func ParsePath(args []string) ([]fs.FS, error) {
+func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 	p := argParser{
-		unsupported: map[string]any{},
-		paths:       map[string][]string{},
+		googlePhotos: googlePhoto,
+		unsupported:  map[string]any{},
+		paths:        map[string][]string{},
 	}
 
 	for _, f := range args {
@@ -95,6 +97,13 @@ func (p *argParser) handleFile(f string) {
 	ext := strings.ToLower(filepath.Ext(f))
 	if ext == ".zip" {
 		p.zips = append(p.zips, f)
+		return
+	}
+	if ext == ".tgz" {
+		p.unsupported[ext] = nil
+		return
+	}
+	if p.googlePhotos {
 		return
 	}
 	if _, err = MimeFromExt(ext); err == nil {

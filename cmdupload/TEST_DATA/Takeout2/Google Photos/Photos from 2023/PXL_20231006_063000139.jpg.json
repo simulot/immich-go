@@ -27,6 +27,10 @@
   "url": "https://photos.google.com/photo/--redacted--",
   "googlePhotosOrigin": {
     "fromPartnerSharing": {
-    }
+    },
+    "deviceFolder": {
+      "localFolderName": ""
+    },
+    "deviceType": "ANDROID_PHONE"
   }
 }
