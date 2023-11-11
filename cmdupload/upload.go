@@ -40,7 +40,7 @@ type iClient interface {
 type UpCmd struct {
 	client iClient        // Immich client
 	log    *logger.Logger // Application loader
-	fsys   fs.FS          // pseudo file system to browse
+	fsys   []fs.FS        // pseudo file system to browse
 
 	Recursive              bool             // Explore sub folders
 	GooglePhotos           bool             // For reading Google Photos takeout files
@@ -142,23 +142,9 @@ func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string
 		return nil, err
 	}
 
-	for _, f := range cmd.Args() {
-		if !fshelper.HasMagic(f) {
-			app.Paths = append(app.Paths, f)
-		} else {
-			m, err := filepath.Glob(f)
-			if err != nil {
-				return nil, fmt.Errorf("can't use this file argument %q: %w", f, err)
-			}
-			if len(m) == 0 {
-				return nil, fmt.Errorf("no file matches %q", f)
-			}
-			app.Paths = append(app.Paths, m...)
-		}
-	}
-
-	if len(app.Paths) == 0 {
-		return nil, errors.Join(err, errors.New("must specify at least one path for local assets"))
+	app.fsys, err = fshelper.ParsePath(cmd.Args())
+	if err != nil {
+		return nil, err
 	}
 
 	if app.CreateStacks {
@@ -183,11 +169,6 @@ func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string
 
 	app.AssetIndex.ReIndex()
 
-	app.fsys, err = fshelper.OpenMultiFile(app.Paths...)
-	if err != nil {
-		return nil, err
-	}
-
 	return &app, err
 
 }
@@ -198,11 +179,13 @@ func UploadCommand(ctx context.Context, ic iClient, log *logger.Logger, args []s
 		return err
 	}
 
-	return app.Run(ctx)
+	for _, fsys := range app.fsys {
+		err = errors.Join(app.Run(ctx, fsys))
+	}
+	return err
 }
 
-func (app *UpCmd) Run(ctx context.Context) error {
-	fsys := app.fsys
+func (app *UpCmd) Run(ctx context.Context, fsys fs.FS) error {
 	log := app.log
 
 	var browser assets.Browser
@@ -235,7 +218,7 @@ assetLoop:
 				break assetLoop
 			}
 			if a.Err != nil {
-				log.Warning("%s: %q", err.Error(), a.FileName)
+				log.Warning("%s: %q", a.Err, a.FileName)
 			} else {
 				err = app.handleAsset(ctx, a)
 				if err != nil {
