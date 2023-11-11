@@ -1,5 +1,13 @@
 # Release notes 
 
+## Release 0.8.2
+
+### Fix for #64: segfault when using *.jpg
+
+The error is fixed.
+I'll add later an option for selecting only an extension.
+
+
 ## Release 0.8.1
 
 ### workaround for #62
