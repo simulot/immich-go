@@ -16,16 +16,18 @@ func TestReadBigTakeout(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	fsys, err := fshelper.OpenMultiFile(m...)
-	to, err := NewTakeout(context.Background(), fsys)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
 	cnt := 0
-	for range to.Browse(context.Background()) {
-		cnt++
+	fsyss, err := fshelper.ParsePath(m, true)
+	for _, fsys := range fsyss {
+		to, err := NewTakeout(context.Background(), fsys)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		for range to.Browse(context.Background()) {
+			cnt++
+		}
 	}
 	t.Logf("seen %d files", cnt)
 }

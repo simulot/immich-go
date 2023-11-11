@@ -30,7 +30,7 @@ import (
 type iClient interface {
 	GetAllAssetsWithFilter(context.Context, *immich.GetAssetOptions, func(*immich.Asset)) error
 	AssetUpload(context.Context, *assets.LocalAssetFile) (immich.AssetResponse, error)
-	DeleteAssets(context.Context, []string) error
+	DeleteAssets(context.Context, []string, bool) error
 
 	GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]immich.UpdateAlbumResult, error)
@@ -261,7 +261,7 @@ assetLoop:
 		}
 		err := app.DeleteServerAssets(ctx, ids)
 		if err != nil {
-			return fmt.Errorf("an't delete server's assets: %w", err)
+			return fmt.Errorf("can't delete server's assets: %w", err)
 		}
 	}
 
@@ -532,7 +532,7 @@ func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 	app.log.Warning("%d server assets to delete.", len(ids))
 
 	if !app.DryRun {
-		err := app.client.DeleteAssets(ctx, ids)
+		err := app.client.DeleteAssets(ctx, ids, false)
 		return err
 	}
 	app.log.Warning("%d server assets to delete. skipped dry-run mode", len(ids))

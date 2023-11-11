@@ -6,6 +6,7 @@ import (
 	"immich-go/helpers/gen"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -41,8 +42,11 @@ func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 				continue
 			}
 
-			for _, f := range globs {
-				p.handleFile(f)
+			for _, g := range globs {
+				if p.googlePhotos && strings.ToLower(path.Ext(g)) != ".zip" {
+					return nil, fmt.Errorf("wildcard '%s' not allowed with the google-photos options", filepath.Base(f))
+				}
+				p.handleFile(g)
 			}
 		}
 	}

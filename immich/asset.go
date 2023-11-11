@@ -154,11 +154,13 @@ func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, opt *GetAsse
 	return err
 }
 
-func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string) error {
+func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDelete bool) error {
 	req := struct {
-		IDs []string `json:"ids"`
+		Force bool     `json:"force"`
+		IDs   []string `json:"ids"`
 	}{
-		IDs: id,
+		IDs:   id,
+		Force: forceDelete,
 	}
 
 	return ic.newServerCall(ctx, "DeleteAsset").do(delete("/asset", setAcceptJSON(), setJSONBody(req)))

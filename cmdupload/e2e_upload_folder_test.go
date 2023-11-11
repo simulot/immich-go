@@ -5,9 +5,12 @@ package cmdupload
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"immich-go/immich"
 	"immich-go/immich/logger"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -33,28 +36,61 @@ func TestE2eUpload(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        []string
+		resetImmich bool
 		expectError bool
 	}{
+		/*
+			{
+				name: "upload google photos",
+				args: []string{
+					"-google-photos",
+					"../../test-data/low_high/Takeout",
+				},
+				resetImmich: true,
+				expectError: false,
+			},
+			{
+				name: "upload folder",
+				args: []string{
+					"../../test-data/low_high/high",
+				},
+				// resetImmich: true,
+
+				expectError: false,
+			},
+			{
+				name: "upload folder",
+				args: []string{
+					"../../test-data/low_high/high",
+				},
+
+				// resetImmich: true,
+				expectError: false,
+			},
+		*/
 		{
-			name: "upload google photos",
+			name: "upload folder *.jpg",
 			args: []string{
 				"-google-photos",
-				"../../test-data/low_high/Takeout",
+				"../../test-data/test_folder/*.jpg",
 			},
-			expectError: false,
+
+			resetImmich: true,
+			expectError: true,
 		},
 		{
-			name: "upload folder",
+			name: "upload folder *.jpg",
 			args: []string{
-				"-google-photos",
-				"../../test-data/low_high/high",
+				"../../test-data/test_folder/*/*.jpg",
 			},
+
+			// resetImmich: true,
 			expectError: false,
 		},
 	}
 
 	logger := logger.NewLogger(logger.Debug, true, false)
-	app, err := immich.NewImmichClient(host, key)
+	ic, err := immich.NewImmichClient(host, key)
 
 	if err != nil {
 		t.Error(err)
@@ -64,11 +100,73 @@ func TestE2eUpload(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err = UploadCommand(ctx, app, logger, tc.args)
+			if tc.resetImmich {
+				err := resetImmich(ic, "debug@example.com")
+				if err != nil {
+					t.Error(err)
+					return
+				}
+			}
+			err = UploadCommand(ctx, ic, logger, tc.args)
 			if (tc.expectError && err == nil) || (!tc.expectError && err != nil) {
 				t.Errorf("unexpected err: %v", err)
 				return
 			}
 		})
 	}
+}
+
+// ResetImmich
+// ⛔: will remove the content of the server.‼️
+// Give the user of the connection to confirm the server instance: debug@example.com
+//
+
+func resetImmich(ic *immich.ImmichClient, user string) error {
+	u, err := ic.ValidateConnection(context.Background())
+	if err != nil {
+		return err
+	}
+	if u.Email != user {
+		return fmt.Errorf("Not the debug server")
+	}
+
+	albums, err := ic.GetAllAlbums(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, album := range albums {
+		err = ic.DeleteAlbum(context.Background(), album.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	assets, err := ic.GetAllAssets(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	ids := []string{}
+	for _, a := range assets {
+		ids = append(ids, a.ID)
+	}
+	err = ic.DeleteAssets(context.Background(), ids, true)
+	if err != nil {
+		return nil
+	}
+
+	attempts := 5
+	for attempts > 0 {
+		assets, err := ic.GetAllAssets(context.Background(), nil)
+		if err != nil {
+			return err
+		}
+		if len(assets) == 0 {
+			return nil
+		}
+		time.Sleep(5 * time.Second)
+		attempts--
+	}
+
+	return errors.New("can't reset immich")
 }

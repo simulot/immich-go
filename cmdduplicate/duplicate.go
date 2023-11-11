@@ -146,7 +146,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 						}
 					}
 					if yes {
-						err = app.Immich.DeleteAssets(ctx, delete)
+						err = app.Immich.DeleteAssets(ctx, delete, false)
 						if err != nil {
 							log.Error("Can't delete asset: %s", err.Error())
 						} else {

@@ -24,7 +24,7 @@ func (c *stubIC) GetAllAssetsWithFilter(context.Context, *immich.GetAssetOptions
 func (c *stubIC) AssetUpload(context.Context, *assets.LocalAssetFile) (immich.AssetResponse, error) {
 	return immich.AssetResponse{}, nil
 }
-func (c *stubIC) DeleteAssets(context.Context, []string) error {
+func (c *stubIC) DeleteAssets(context.Context, []string, bool) error {
 	return nil
 }
 func (c *stubIC) GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error) {
