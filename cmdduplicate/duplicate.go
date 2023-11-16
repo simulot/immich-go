@@ -8,7 +8,7 @@ import (
 	"flag"
 	"immich-go/helpers/gen"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 	"immich-go/ui"
 	"path"
 	"sort"

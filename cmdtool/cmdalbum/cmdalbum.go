@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 	"immich-go/ui"
 	"regexp"
 	"sort"

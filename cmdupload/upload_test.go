@@ -7,7 +7,7 @@ import (
 	"immich-go/assets"
 	"immich-go/helpers/gen"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 	"reflect"
 	"slices"
 	"testing"

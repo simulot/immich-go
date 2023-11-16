@@ -12,7 +12,7 @@ import (
 	"immich-go/cmdupload"
 	"immich-go/helpers/tzone"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 	"os"
 	"os/signal"
 )

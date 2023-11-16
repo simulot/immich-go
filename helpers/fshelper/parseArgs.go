@@ -61,11 +61,15 @@ func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 	}
 
 	for pa, l := range p.paths {
-		f, err := newPathFS(pa, l)
-		if err != nil {
-			p.err = errors.Join(err)
+		if len(l) > 0 {
+			f, err := newPathFS(pa, l)
+			if err != nil {
+				p.err = errors.Join(err)
+			} else {
+				fsys = append(fsys, f)
+			}
 		} else {
-			fsys = append(fsys, f)
+			fsys = append(fsys, os.DirFS(pa))
 		}
 	}
 

@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 	"testing"
 	"time"
 
@@ -39,35 +39,33 @@ func TestE2eUpload(t *testing.T) {
 		resetImmich bool
 		expectError bool
 	}{
-		/*
-			{
-				name: "upload google photos",
-				args: []string{
-					"-google-photos",
-					"../../test-data/low_high/Takeout",
-				},
-				resetImmich: true,
-				expectError: false,
+		{
+			name: "upload google photos",
+			args: []string{
+				"-google-photos",
+				"../../test-data/low_high/Takeout",
 			},
-			{
-				name: "upload folder",
-				args: []string{
-					"../../test-data/low_high/high",
-				},
-				// resetImmich: true,
+			resetImmich: true,
+			expectError: false,
+		},
+		{
+			name: "upload folder",
+			args: []string{
+				"../../test-data/low_high/high",
+			},
+			// resetImmich: true,
 
-				expectError: false,
+			expectError: false,
+		},
+		{
+			name: "upload folder",
+			args: []string{
+				"../../test-data/low_high/high",
 			},
-			{
-				name: "upload folder",
-				args: []string{
-					"../../test-data/low_high/high",
-				},
 
-				// resetImmich: true,
-				expectError: false,
-			},
-		*/
+			// resetImmich: true,
+			expectError: false,
+		},
 		{
 			name: "upload folder *.jpg",
 			args: []string{
@@ -82,6 +80,17 @@ func TestE2eUpload(t *testing.T) {
 			name: "upload folder *.jpg",
 			args: []string{
 				"../../test-data/test_folder/*/*.jpg",
+			},
+
+			// resetImmich: true,
+			expectError: false,
+		},
+
+		{
+			name: "upload folder *.jpg - dry run",
+			args: []string{
+				"-dry-run",
+				"../../test-data/full_takeout (copy)/Takeout/Google Photos/Photos from 2023",
 			},
 
 			// resetImmich: true,

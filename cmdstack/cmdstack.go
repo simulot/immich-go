@@ -5,7 +5,7 @@ import (
 	"flag"
 	"immich-go/helpers/stacking"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 	"immich-go/ui"
 	"path"
 	"sort"
