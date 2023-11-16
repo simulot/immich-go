@@ -30,11 +30,11 @@ func searchPattern(r io.Reader, pattern []byte, maxDataLen int) ([]byte, error) 
 			}
 			ofs = index
 		} else {
-			ofs = bytesRead - maxDataLen - 1
+			ofs = max(bytesRead-maxDataLen-1, 0)
 		}
 
 		// Check if end of file is reached
-		if err == io.EOF {
+		if err == io.EOF || ofs > bytesRead {
 			break
 		}
 
