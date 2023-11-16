@@ -3,7 +3,9 @@ package files
 import (
 	"context"
 	"immich-go/assets"
+	"immich-go/helpers/fshelper"
 	"immich-go/immich/metadata"
+	"immich-go/logger"
 	"io/fs"
 	"path"
 	"path/filepath"
@@ -14,12 +16,14 @@ import (
 type LocalAssetBrowser struct {
 	fsys   fs.FS
 	albums map[string]string
+	log    logger.Logger
 }
 
-func NewLocalFiles(ctx context.Context, fsys fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, fsys fs.FS, log logger.Logger) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
 		fsys:   fsys,
 		albums: map[string]string{},
+		log:    log,
 	}, nil
 }
 
@@ -54,6 +58,11 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 					return nil
 				}
 
+				ext := path.Ext(name)
+				if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
+					return nil
+				}
+				la.log.Debug("file '%s'", name)
 				f := assets.LocalAssetFile{
 					FSys:     la.fsys,
 					FileName: name,
@@ -76,12 +85,8 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 							f.DateTaken = time.Now()
 						}
 					}
-					_, err = fs.Stat(la.fsys, name+".xmp")
-					if err == nil {
-						f.SideCar = &metadata.SideCar{
-							FileName: name + ".xmp",
-							OnFSsys:  true,
-						}
+					if !la.checkSidecar(&f, name+".xmp") {
+						la.checkSidecar(&f, strings.TrimSuffix(name, ext)+".xmp")
 					}
 				}
 				fileChan <- &f
@@ -102,6 +107,19 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 	}(ctx)
 
 	return fileChan
+}
+
+func (la *LocalAssetBrowser) checkSidecar(f *assets.LocalAssetFile, name string) bool {
+	_, err := fs.Stat(la.fsys, name+".xmp")
+	if err == nil {
+		la.log.Debug("  found sidecar: '%s'", name)
+		f.SideCar = &metadata.SideCar{
+			FileName: name + ".xmp",
+			OnFSsys:  true,
+		}
+		return true
+	}
+	return false
 }
 
 func (la *LocalAssetBrowser) addAlbum(dir string) {

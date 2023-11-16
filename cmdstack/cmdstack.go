@@ -14,13 +14,13 @@ import (
 
 type StackCmd struct {
 	Immich *immich.ImmichClient // Immich client
-	logger *logger.Logger
+	logger *logger.Log
 
 	AssumeYes bool
 	DateRange immich.DateRange // Set capture date range
 }
 
-func initSack(xtx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) (*StackCmd, error) {
+func initSack(xtx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) (*StackCmd, error) {
 	cmd := flag.NewFlagSet("stack", flag.ExitOnError)
 	validRange := immich.DateRange{}
 
@@ -40,7 +40,7 @@ func initSack(xtx context.Context, ic *immich.ImmichClient, log *logger.Logger, 
 	err := cmd.Parse(args)
 	return &app, err
 }
-func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) error {
+func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
 	app, err := initSack(ctx, ic, log, args)
 	if err != nil {
 		return err

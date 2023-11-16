@@ -39,9 +39,9 @@ type iClient interface {
 }
 
 type UpCmd struct {
-	client iClient        // Immich client
-	log    *logger.Logger // Application loader
-	fsys   []fs.FS        // pseudo file system to browse
+	client iClient       // Immich client
+	log    logger.Logger // Application loader
+	fsys   []fs.FS       // pseudo file system to browse
 
 	Recursive              bool             // Explore sub folders
 	GooglePhotos           bool             // For reading Google Photos takeout files
@@ -73,7 +73,7 @@ type UpCmd struct {
 	stacks           *stacking.StackBuilder
 }
 
-func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string) (*UpCmd, error) {
+func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string) (*UpCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
@@ -196,7 +196,7 @@ func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string
 
 }
 
-func UploadCommand(ctx context.Context, ic iClient, log *logger.Logger, args []string) error {
+func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []string) error {
 	app, err := NewUpCmd(ctx, ic, log, args)
 	if err != nil {
 		return err
@@ -413,11 +413,11 @@ func (app *UpCmd) isInAlbum(a *assets.LocalAssetFile, album string) bool {
 
 func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
 	a.Delete = false
-	return gp.NewTakeout(ctx, fsys)
+	return gp.NewTakeout(ctx, fsys, a.log)
 }
 
 func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
-	return files.NewLocalFiles(ctx, fsys)
+	return files.NewLocalFiles(ctx, fsys, a.log)
 }
 
 // UploadAsset upload the asset on the server

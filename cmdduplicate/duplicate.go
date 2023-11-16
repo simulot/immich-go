@@ -18,7 +18,7 @@ import (
 )
 
 type DuplicateCmd struct {
-	logger *logger.Logger
+	logger *logger.Log
 	Immich *immich.ImmichClient // Immich client
 
 	AssumeYes      bool             // When true, doesn't ask to the user
@@ -34,7 +34,7 @@ type duplicateKey struct {
 	Name string
 }
 
-func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*DuplicateCmd, error) {
+func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Log, args []string) (*DuplicateCmd, error) {
 	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
 	validRange := immich.DateRange{}
 	validRange.Set("1850-01-04,2030-01-01")
@@ -57,7 +57,7 @@ func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logge
 	return &app, err
 }
 
-func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) error {
+func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
 	app, err := NewDuplicateCmd(ctx, ic, log, args)
 	if err != nil {
 		return err

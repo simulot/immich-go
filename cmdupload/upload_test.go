@@ -336,7 +336,7 @@ func TestUpload(t *testing.T) {
 			ic := &icCatchUploadsAssets{
 				albums: map[string][]string{},
 			}
-			log := logger.NewLogger(logger.OK, false, false).Writer(nil)
+			log := logger.NoLogger{}
 			ctx := context.Background()
 
 			app, err := NewUpCmd(ctx, ic, log, tc.args)
