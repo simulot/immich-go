@@ -1,5 +1,11 @@
 # Release notes 
 
+## Release 0.8.3
+
+### Fiw for #69: Panic: runtime error: slice bounds out of range
+Rewriting searchPattern
+Add tests
+
 ## Release 0.8.2
 
 ### Fix for #64: segfault when using *.jpg

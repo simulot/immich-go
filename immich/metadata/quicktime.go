@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"bytes"
 	"encoding/binary"
 	"time"
 )
@@ -48,8 +47,7 @@ type MvhdAtom struct {
 	// NextTrackID      uint32
 }
 
-func decodeMvhdAtom(b []byte) (*MvhdAtom, error) {
-	r := &sliceReader{Reader: bytes.NewReader(b)}
+func decodeMvhdAtom(r *sliceReader) (*MvhdAtom, error) {
 
 	a := &MvhdAtom{}
 
@@ -93,14 +91,4 @@ func convertTime64(timestamp uint64) time.Time {
 
 	// Convert the Unix timestamp to time.Time
 	return time.Unix(unixTimestamp, 0)
-}
-
-type sliceReader struct {
-	*bytes.Reader
-}
-
-func (r *sliceReader) ReadSlice(l int) ([]byte, error) {
-	b := make([]byte, l)
-	_, err := r.Read(b)
-	return b, err
 }

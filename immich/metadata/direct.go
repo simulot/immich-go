@@ -31,7 +31,8 @@ func GetFileMetaData(fsys fs.FS, name string) (MetaData, error) {
 //
 //
 
-func GetFromReader(r io.Reader, ext string) (MetaData, error) {
+func GetFromReader(rd io.Reader, ext string) (MetaData, error) {
+	r := newSliceReader(rd)
 	meta := MetaData{}
 	var err error
 	var dateTaken time.Time
@@ -58,10 +59,12 @@ func readExifDateTaken(r io.Reader) (time.Time, error) {
 	return md.DateTaken, err
 }
 
-// readHEIFDateTaken locate the Exif part and return the date of capture
-func readHEIFDateTaken(r io.Reader) (time.Time, error) {
+const searchBufferSize = 32 * 1024
 
-	r, err := seekReaderAtPattern(r, []byte{0x45, 0x78, 0x69, 0x66, 0, 0, 0x4d, 0x4d})
+// readHEIFDateTaken locate the Exif part and return the date of capture
+func readHEIFDateTaken(r *sliceReader) (time.Time, error) {
+	b := make([]byte, searchBufferSize)
+	r, err := searchPattern(r, []byte{0x45, 0x78, 0x69, 0x66, 0, 0, 0x4d, 0x4d}, b)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -74,21 +77,24 @@ func readHEIFDateTaken(r io.Reader) (time.Time, error) {
 }
 
 // readMP4DateTaken locate the mvhd atom and decode the date of capture
-func readMP4DateTaken(r io.Reader) (time.Time, error) {
+func readMP4DateTaken(r *sliceReader) (time.Time, error) {
+	b := make([]byte, searchBufferSize)
 
-	b, err := searchPattern(r, []byte{'m', 'v', 'h', 'd'}, 60)
+	r, err := searchPattern(r, []byte{'m', 'v', 'h', 'd'}, b)
 	if err != nil {
 		return time.Time{}, err
 	}
-	atom, err := decodeMvhdAtom(b)
+	atom, err := decodeMvhdAtom(r)
 	if err != nil {
 		return time.Time{}, err
 	}
 	return atom.CreationTime, nil
 }
 
-func readCR3DateTaken(r io.Reader) (time.Time, error) {
-	r, err := seekReaderAtPattern(r, []byte("CMT1"))
+func readCR3DateTaken(r *sliceReader) (time.Time, error) {
+	b := make([]byte, searchBufferSize)
+
+	r, err := searchPattern(r, []byte("CMT1"), b)
 	if err != nil {
 		return time.Time{}, err
 	}

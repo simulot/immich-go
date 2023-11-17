@@ -1,87 +1,52 @@
 package metadata
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 )
 
-const searchBufferSize = 32 * 1024
-
-func searchPattern(r io.Reader, pattern []byte, maxDataLen int) ([]byte, error) {
-	var err error
-	pos := 0
-	// Create a buffer to hold the chunk of dataZ
-	buffer := make([]byte, searchBufferSize)
-	ofs := 0
-
-	var bytesRead int
-	for {
-		// Read a chunk of data into the buffer
-		bytesRead, err = r.Read(buffer[bytesRead-ofs:])
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-
-		// Search for the pattern within the buffer
-		index := bytes.Index(buffer, pattern)
-		if index >= 0 {
-			if index < searchBufferSize-maxDataLen {
-				return buffer[index : index+maxDataLen], nil
-			}
-			ofs = index
-		} else {
-			ofs = max(bytesRead-maxDataLen-1, 0)
-		}
-
-		// Check if end of file is reached
-		if err == io.EOF || ofs > bytesRead {
-			break
-		}
-
-		// Move the remaining bytes of the current buffer to the beginning
-		copy(buffer, buffer[ofs:bytesRead])
-		pos += bytesRead
-	}
-
-	return nil, io.EOF
+type sliceReader struct {
+	bufio.Reader
 }
 
-func seekReaderAtPattern(r io.Reader, pattern []byte) (io.Reader, error) {
+func newSliceReader(r io.Reader) *sliceReader {
+	return &sliceReader{
+		Reader: *bufio.NewReader(r),
+	}
+}
+
+func (r *sliceReader) ReadSlice(l int) ([]byte, error) {
+	b := make([]byte, l)
+	_, err := r.Read(b)
+	return b, err
+}
+
+func searchPattern(r io.Reader, pattern []byte, buffer []byte) (*sliceReader, error) {
 
 	var err error
 	pos := 0
-	// Create a buffer to hold the chunk of dataZ
-	buffer := make([]byte, searchBufferSize)
 	ofs := 0
 
 	var bytesRead int
 	for {
 		// Read a chunk of data into the buffer
-		bytesRead, err = r.Read(buffer[bytesRead-ofs:])
-		if err != nil && err != io.EOF {
+		bytesRead, err = r.Read(buffer[ofs:])
+		if err != nil {
 			return nil, err
 		}
 
 		// Search for the pattern within the buffer
-		index := bytes.Index(buffer, pattern)
+		index := bytes.Index(buffer[:ofs+bytesRead], pattern)
 		if index >= 0 {
-			if index < searchBufferSize-len(pattern) {
-				return io.MultiReader(bytes.NewReader(buffer[index:]), r), nil
-			}
-			ofs = index
-		} else {
-			ofs = bytesRead - len(pattern) - 1
-		}
-
-		// Check if end of file is reached
-		if err == io.EOF {
-			break
+			return newSliceReader(io.MultiReader(bytes.NewReader(buffer[index:]), r)), nil
 		}
 
 		// Move the remaining bytes of the current buffer to the beginning
-		copy(buffer, buffer[ofs:bytesRead])
+		p := bytesRead + ofs - len(pattern) + 1
+
+		copy(buffer, buffer[p:bytesRead+ofs])
+		ofs = len(pattern) - 1
 		pos += bytesRead
 	}
-
-	return nil, io.EOF
 }
