@@ -60,7 +60,7 @@ var colorLevel = map[Level]string{
 	Debug:   chalk.Cyan.String(),
 }
 
-type Logger struct {
+type Log struct {
 	needCR       bool
 	needSpace    bool
 	displayLevel Level
@@ -70,8 +70,8 @@ type Logger struct {
 	out          io.Writer
 }
 
-func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Logger {
-	l := Logger{
+func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Log {
+	l := Log{
 		displayLevel: DisplayLevel,
 		noColors:     noColors,
 		colorStrings: map[Level]string{},
@@ -84,13 +84,15 @@ func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Logger {
 	return &l
 }
 
-func (l *Logger) Writer(w io.Writer) *Logger {
-	l.out = w
+func (l *Log) Writer(w io.Writer) *Log {
+	if l != nil {
+		l.out = w
+	}
 	return l
 }
 
-func (l *Logger) Debug(f string, v ...any) {
-	if l.out == nil {
+func (l *Log) Debug(f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(Debug, f, v...)
@@ -100,8 +102,8 @@ type DebugObject interface {
 	DebugObject() any
 }
 
-func (l *Logger) DebugObject(name string, v any) {
-	if !l.debug {
+func (l *Log) DebugObject(name string, v any) {
+	if l == nil || !l.debug {
 		return
 	}
 	if l.out == nil {
@@ -130,39 +132,39 @@ func (l *Logger) DebugObject(name string, v any) {
 	}
 	fmt.Fprintln(l.out)
 }
-func (l *Logger) Info(f string, v ...any) {
-	if l.out == nil {
+func (l *Log) Info(f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(Info, f, v...)
 }
-func (l *Logger) OK(f string, v ...any) {
-	if l.out == nil {
+func (l *Log) OK(f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(OK, f, v...)
 }
-func (l *Logger) Warning(f string, v ...any) {
-	if l.out == nil {
+func (l *Log) Warning(f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(Warning, f, v...)
 }
-func (l *Logger) Error(f string, v ...any) {
-	if l.out == nil {
+func (l *Log) Error(f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(Error, f, v...)
 }
-func (l *Logger) Fatal(f string, v ...any) {
-	if l.out == nil {
+func (l *Log) Fatal(f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(Fatal, f, v...)
 }
 
-func (l *Logger) Message(level Level, f string, v ...any) {
-	if l.out == nil {
+func (l *Log) Message(level Level, f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	if level > l.displayLevel {
@@ -181,8 +183,8 @@ func (l *Logger) Message(level Level, f string, v ...any) {
 	fmt.Fprintln(l.out)
 }
 
-func (l *Logger) Progress(level Level, f string, v ...any) {
-	if l.out == nil {
+func (l *Log) Progress(level Level, f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	if level > l.displayLevel {
@@ -192,8 +194,8 @@ func (l *Logger) Progress(level Level, f string, v ...any) {
 	l.needCR = true
 }
 
-func (l *Logger) MessageContinue(level Level, f string, v ...any) {
-	if l.out == nil {
+func (l *Log) MessageContinue(level Level, f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	if level > l.displayLevel {
@@ -212,8 +214,8 @@ func (l *Logger) MessageContinue(level Level, f string, v ...any) {
 	l.needCR = false
 }
 
-func (l *Logger) MessageTerminate(level Level, f string, v ...any) {
-	if l.out == nil {
+func (l *Log) MessageTerminate(level Level, f string, v ...any) {
+	if l == nil || l.out == nil {
 		return
 	}
 	if level > l.displayLevel {

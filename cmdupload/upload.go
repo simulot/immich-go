@@ -14,8 +14,8 @@ import (
 	"immich-go/helpers/gen"
 	"immich-go/helpers/stacking"
 	"immich-go/immich"
-	"immich-go/immich/logger"
 	"immich-go/immich/metadata"
+	"immich-go/logger"
 	"io/fs"
 	"math"
 	"path"
@@ -39,9 +39,9 @@ type iClient interface {
 }
 
 type UpCmd struct {
-	client iClient        // Immich client
-	log    *logger.Logger // Application loader
-	fsys   []fs.FS        // pseudo file system to browse
+	client iClient       // Immich client
+	log    logger.Logger // Application loader
+	fsys   []fs.FS       // pseudo file system to browse
 
 	Recursive              bool             // Explore sub folders
 	GooglePhotos           bool             // For reading Google Photos takeout files
@@ -62,6 +62,7 @@ type UpCmd struct {
 	DryRun                 bool             // Display actions but don't change anything
 	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
 	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
+	SelectTypes            StringList       // List of extensions to be imported
 
 	AssetIndex       *AssetIndex               // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
@@ -72,7 +73,7 @@ type UpCmd struct {
 	stacks           *stacking.StackBuilder
 }
 
-func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string) (*UpCmd, error) {
+func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string) (*UpCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
@@ -138,9 +139,30 @@ func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string
 		"Stack jpg/raw or bursts  (default TRUE)")
 
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
+
+	cmd.Var(&app.SelectTypes, "select-types", "list of selected extensions separated by a comma")
+
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(app.SelectTypes) > 0 {
+		l := []string{}
+		for _, e := range app.SelectTypes {
+			if !strings.HasPrefix(e, ".") {
+				e = "." + e
+			}
+			e = strings.ToLower(e)
+			if _, err = fshelper.MimeFromExt(e); err != nil {
+				err = errors.Join(err, fmt.Errorf("unsupported extension '%s'", e))
+			}
+			l = append(l, e)
+		}
+		if err != nil {
+			return nil, err
+		}
+		app.SelectTypes = l
 	}
 
 	app.fsys, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
@@ -174,7 +196,7 @@ func NewUpCmd(ctx context.Context, ic iClient, log *logger.Logger, args []string
 
 }
 
-func UploadCommand(ctx context.Context, ic iClient, log *logger.Logger, args []string) error {
+func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []string) error {
 	app, err := NewUpCmd(ctx, ic, log, args)
 	if err != nil {
 		return err
@@ -391,11 +413,11 @@ func (app *UpCmd) isInAlbum(a *assets.LocalAssetFile, album string) bool {
 
 func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
 	a.Delete = false
-	return gp.NewTakeout(ctx, fsys)
+	return gp.NewTakeout(ctx, fsys, a.log)
 }
 
 func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
-	return files.NewLocalFiles(ctx, fsys)
+	return files.NewLocalFiles(ctx, fsys, a.log)
 }
 
 // UploadAsset upload the asset on the server
@@ -757,4 +779,16 @@ func keys[M ~map[K]V, K comparable, V any](m M) []K {
 		r = append(r, k)
 	}
 	return r
+}
+
+type StringList []string
+
+func (sl *StringList) Set(s string) error {
+	l := strings.Split(s, ",")
+	(*sl) = append((*sl), l...)
+	return nil
+}
+
+func (sl StringList) String() string {
+	return strings.Join(sl, ", ")
 }

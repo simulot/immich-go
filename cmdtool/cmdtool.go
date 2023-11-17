@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"immich-go/cmdtool/cmdalbum"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 )
 
-func CommandTool(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) error {
+func CommandTool(ctx context.Context, ic *immich.ImmichClient, logger *logger.Log, args []string) error {
 	if len(args) > 0 {
 		cmd := args[0]
 		args = args[1:]

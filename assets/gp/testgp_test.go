@@ -2,6 +2,7 @@ package gp
 
 import (
 	"context"
+	"immich-go/logger"
 	"path"
 	"reflect"
 	"testing"
@@ -85,7 +86,7 @@ func TestBrowse(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := NewTakeout(ctx, fsys)
+			b, err := NewTakeout(ctx, fsys, logger.NoLogger{})
 			if err != nil {
 				t.Error(err)
 			}
@@ -160,7 +161,7 @@ func TestAlbums(t *testing.T) {
 				t.Error(fsys.err)
 				return
 			}
-			b, err := NewTakeout(ctx, fsys)
+			b, err := NewTakeout(ctx, fsys, logger.NoLogger{})
 			if err != nil {
 				t.Error(err)
 			}

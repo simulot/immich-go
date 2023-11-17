@@ -5,14 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 	"immich-go/ui"
 	"regexp"
 	"sort"
 	"strconv"
 )
 
-func AlbumCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) error {
+func AlbumCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
 	if len(args) > 0 {
 		cmd := args[0]
 		args = args[1:]
@@ -26,13 +26,13 @@ func AlbumCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Logg
 }
 
 type DeleteAlbumCmd struct {
-	log       *logger.Logger
+	log       *logger.Log
 	Immich    *immich.ImmichClient // Immich client
 	pattern   *regexp.Regexp       // album pattern
 	AssumeYes bool
 }
 
-func deleteAlbum(ctx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) error {
+func deleteAlbum(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
 	app := &DeleteAlbumCmd{
 		log:    log,
 		Immich: ic,

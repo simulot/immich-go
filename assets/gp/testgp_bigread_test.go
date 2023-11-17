@@ -6,6 +6,7 @@ package gp
 import (
 	"context"
 	"immich-go/helpers/fshelper"
+	"immich-go/logger"
 	"path/filepath"
 	"testing"
 )
@@ -19,7 +20,7 @@ func TestReadBigTakeout(t *testing.T) {
 	cnt := 0
 	fsyss, err := fshelper.ParsePath(m, true)
 	for _, fsys := range fsyss {
-		to, err := NewTakeout(context.Background(), fsys)
+		to, err := NewTakeout(context.Background(), fsys, logger.NoLogger{})
 		if err != nil {
 			t.Error(err)
 			return

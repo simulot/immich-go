@@ -76,8 +76,6 @@ func (l *List[T]) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &l.list)
 }
 
-type StringList struct{ List[string] }
-
 type myBool bool
 
 func (b myBool) String() string {

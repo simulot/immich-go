@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"immich-go/assets/files"
+	"immich-go/logger"
 	"path"
 	"reflect"
 	"sort"
@@ -73,7 +74,7 @@ func TestLocalAssets(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := files.NewLocalFiles(ctx, fsys)
+			b, err := files.NewLocalFiles(ctx, fsys, logger.NoLogger{})
 			if err != nil {
 				t.Error(err)
 			}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"immich-go/assets"
 	"immich-go/helpers/fshelper"
+	"immich-go/logger"
 	"io/fs"
 	"path"
 	"strings"
@@ -16,6 +17,7 @@ type Takeout struct {
 	filesByDir  map[string][]fileKey         // files name mapped by dir
 	jsonByYear  map[jsonKey]*GoogleMetaData  // JSON by year of capture and full path
 	albumsByDir map[string]assets.LocalAlbum // album title mapped by dir
+	log         logger.Logger
 }
 
 type fileKey struct {
@@ -31,12 +33,13 @@ type Album struct {
 	Title string
 }
 
-func NewTakeout(ctx context.Context, fsys fs.FS) (*Takeout, error) {
+func NewTakeout(ctx context.Context, fsys fs.FS, log logger.Logger) (*Takeout, error) {
 	to := Takeout{
 		fsys:        fsys,
 		filesByDir:  map[string][]fileKey{},
 		jsonByYear:  map[jsonKey]*GoogleMetaData{},
 		albumsByDir: map[string]assets.LocalAlbum{},
+		log:         log,
 	}
 	err := to.walk(ctx, fsys)
 
@@ -49,6 +52,7 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
+		to.log.Debug("walk file '%s'", name)
 		select {
 		case <-ctx.Done():
 			// Check if the context has been cancelled
@@ -116,10 +120,12 @@ func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
 	go func() {
 		defer close(c)
 		for k, md := range to.jsonByYear {
+			to.log.Debug("Checking '%s', %d", k.name, k.year)
 			assets := to.jsonAssets(k, md)
 			for _, a := range assets {
 				fk := fileKey{name: path.Base(a.FileName), size: int64(a.FileSize)}
 				if _, exist := passed[fk]; !exist {
+					to.log.Debug("  associated with '%s'", fk.name)
 					passed[fk] = nil
 					select {
 					case <-ctx.Done():
@@ -127,6 +133,8 @@ func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
 					default:
 						c <- a
 					}
+				} else {
+					to.log.Debug("  associated with '%s', but already seen", fk.name)
 				}
 			}
 		}

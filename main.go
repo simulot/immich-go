@@ -12,7 +12,7 @@ import (
 	"immich-go/cmdupload"
 	"immich-go/helpers/tzone"
 	"immich-go/immich"
-	"immich-go/immich/logger"
+	"immich-go/logger"
 	"os"
 	"os/signal"
 )
@@ -64,11 +64,11 @@ type Application struct {
 	Debug       bool   // Enable the debug mode
 
 	Immich *immich.ImmichClient // Immich client
-	Logger *logger.Logger       // Program's logger
+	Logger *logger.Log          // Program's logger
 
 }
 
-func Run(ctx context.Context, log *logger.Logger) (*logger.Logger, error) {
+func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	var err error
 	deviceID, err := os.Hostname()
 	if err != nil {

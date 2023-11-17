@@ -5,8 +5,8 @@ import (
 	"flag"
 	"immich-go/helpers/docker"
 	"immich-go/immich"
-	"immich-go/immich/logger"
 	"immich-go/immich/metadata"
+	"immich-go/logger"
 	"math"
 	"path"
 	"strings"
@@ -15,14 +15,14 @@ import (
 
 type MetadataCmd struct {
 	Immich                 *immich.ImmichClient // Immich client
-	Log                    *logger.Logger
+	Log                    *logger.Log
 	DryRun                 bool
 	MissingDateDespiteName bool
 	MissingDate            bool
 	DockerHost             string
 }
 
-func NewMetadataCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Logger, args []string) (*MetadataCmd, error) {
+func NewMetadataCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Log, args []string) (*MetadataCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("metadata", flag.ExitOnError)
 	app := MetadataCmd{
@@ -38,7 +38,7 @@ func NewMetadataCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger
 	return &app, err
 }
 
-func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Logger, args []string) error {
+func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
 	app, err := NewMetadataCmd(ctx, ic, log, args)
 	if err != nil {
 		return err
