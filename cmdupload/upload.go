@@ -7,9 +7,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"immich-go/assets"
-	"immich-go/assets/files"
-	"immich-go/assets/gp"
+	"immich-go/browser"
+	"immich-go/browser/files"
+	"immich-go/browser/gp"
 	"immich-go/helpers/fshelper"
 	"immich-go/helpers/gen"
 	"immich-go/helpers/stacking"
@@ -29,7 +29,7 @@ import (
 // iClient is an interface that implements the minimal immich client set of features for uploading
 type iClient interface {
 	GetAllAssetsWithFilter(context.Context, *immich.GetAssetOptions, func(*immich.Asset)) error
-	AssetUpload(context.Context, *assets.LocalAssetFile) (immich.AssetResponse, error)
+	AssetUpload(context.Context, *browser.LocalAssetFile) (immich.AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
 	GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error)
@@ -43,7 +43,6 @@ type UpCmd struct {
 	log    logger.Logger // Application loader
 	fsys   []fs.FS       // pseudo file system to browse
 
-	Recursive              bool             // Explore sub folders
 	GooglePhotos           bool             // For reading Google Photos takeout files
 	Delete                 bool             // Delete original file after import
 	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
@@ -62,11 +61,12 @@ type UpCmd struct {
 	DryRun                 bool             // Display actions but don't change anything
 	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
 	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
-	SelectTypes            StringList       // List of extensions to be imported
+
+	BrowserConfig browser.Configuration
 
 	AssetIndex       *AssetIndex               // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
-	deleteLocalList  []*assets.LocalAssetFile  // List of local assets to remove
+	deleteLocalList  []*browser.LocalAssetFile // List of local assets to remove
 	mediaUploaded    int                       // Count uploaded medias
 	mediaCount       int                       // Count of media on the source
 	updateAlbums     map[string]map[string]any // track immich albums changes
@@ -140,29 +140,16 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 
-	cmd.Var(&app.SelectTypes, "select-types", "list of selected extensions separated by a comma")
+	cmd.Var(&app.BrowserConfig.SelectExtensions, "select-types", "list of selected extensions separated by a comma")
+	cmd.Var(&app.BrowserConfig.ExcludeExtensions, "exclude-types", "list of excluded extensions separated by a comma")
 
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(app.SelectTypes) > 0 {
-		l := []string{}
-		for _, e := range app.SelectTypes {
-			if !strings.HasPrefix(e, ".") {
-				e = "." + e
-			}
-			e = strings.ToLower(e)
-			if _, err = fshelper.MimeFromExt(e); err != nil {
-				err = errors.Join(err, fmt.Errorf("unsupported extension '%s'", e))
-			}
-			l = append(l, e)
-		}
-		if err != nil {
-			return nil, err
-		}
-		app.SelectTypes = l
+	if err = app.BrowserConfig.IsValid(); err != nil {
+		return nil, err
 	}
 
 	app.fsys, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
@@ -211,7 +198,7 @@ func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []st
 func (app *UpCmd) Run(ctx context.Context, fsys fs.FS) error {
 	log := app.log
 
-	var browser assets.Browser
+	var browser browser.Browser
 	var err error
 
 	switch {
@@ -294,7 +281,7 @@ assetLoop:
 	return err
 }
 
-func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) error {
+func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) error {
 	showCount := true
 	defer func() {
 		a.Close()
@@ -333,7 +320,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 	}
 
 	if !app.KeepUntitled {
-		a.Albums = gen.Filter(a.Albums, func(i assets.LocalAlbum) bool {
+		a.Albums = gen.Filter(a.Albums, func(i browser.LocalAlbum) bool {
 			return i.Name != ""
 		})
 	}
@@ -357,7 +344,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 
 		// add the superior asset into albums of the original asset
 		for _, al := range advice.ServerAsset.Albums {
-			a.AddAlbum(assets.LocalAlbum{Name: al.AlbumName})
+			a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
 		}
 		app.UploadAsset(ctx, a)
 
@@ -402,7 +389,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *assets.LocalAssetFile) err
 
 }
 
-func (app *UpCmd) isInAlbum(a *assets.LocalAssetFile, album string) bool {
+func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
 	for _, al := range a.Albums {
 		if app.albumName(al) == album {
 			return true
@@ -411,19 +398,19 @@ func (app *UpCmd) isInAlbum(a *assets.LocalAssetFile, album string) bool {
 	return false
 }
 
-func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
+func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (browser.Browser, error) {
 	a.Delete = false
-	return gp.NewTakeout(ctx, fsys, a.log)
+	return gp.NewTakeout(ctx, fsys, a.log, &a.BrowserConfig)
 }
 
-func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (assets.Browser, error) {
-	return files.NewLocalFiles(ctx, fsys, a.log)
+func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (browser.Browser, error) {
+	return files.NewLocalFiles(ctx, fsys, a.log, &a.BrowserConfig)
 }
 
 // UploadAsset upload the asset on the server
 // Add the assets into listed albums
 
-func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
+func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 	var resp immich.AssetResponse
 	app.log.MessageContinue(logger.OK, "Uploading %q...", a.FileName)
 	var err error
@@ -462,10 +449,10 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 		if app.ImportIntoAlbum != "" ||
 			(app.GooglePhotos && (app.CreateAlbums || app.PartnerAlbum != "")) ||
 			(!app.GooglePhotos && app.CreateAlbumAfterFolder) {
-			albums := []assets.LocalAlbum{}
+			albums := []browser.LocalAlbum{}
 
 			if app.ImportIntoAlbum != "" {
-				albums = append(albums, assets.LocalAlbum{Path: app.ImportIntoAlbum, Name: app.ImportIntoAlbum})
+				albums = append(albums, browser.LocalAlbum{Path: app.ImportIntoAlbum, Name: app.ImportIntoAlbum})
 			} else {
 				switch {
 				case app.GooglePhotos:
@@ -473,12 +460,12 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 						albums = append(albums, al)
 					}
 					if app.PartnerAlbum != "" && a.FromPartner {
-						albums = append(albums, assets.LocalAlbum{Path: app.PartnerAlbum, Name: app.PartnerAlbum})
+						albums = append(albums, browser.LocalAlbum{Path: app.PartnerAlbum, Name: app.PartnerAlbum})
 					}
 				case !app.GooglePhotos && app.CreateAlbumAfterFolder:
 					album := path.Base(path.Dir(a.FileName))
 					if album != "" && album != "." {
-						albums = append(albums, assets.LocalAlbum{Path: album, Name: album})
+						albums = append(albums, browser.LocalAlbum{Path: album, Name: album})
 					}
 				}
 			}
@@ -509,7 +496,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *assets.LocalAssetFile) {
 	}
 }
 
-func (app *UpCmd) albumName(al assets.LocalAlbum) string {
+func (app *UpCmd) albumName(al browser.LocalAlbum) string {
 	app.log.DebugObject("albumName: ", al)
 	Name := al.Name
 	if app.GooglePhotos {
@@ -649,7 +636,7 @@ type Advice struct {
 	Advice      AdviceCode
 	Message     string
 	ServerAsset *immich.Asset
-	LocalAsset  *assets.LocalAssetFile
+	LocalAsset  *browser.LocalAssetFile
 }
 
 func formatBytes(s int) string {
@@ -668,7 +655,7 @@ func formatBytes(s int) string {
 	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
 }
 
-func (ai *AssetIndex) adviceIDontKnow(la *assets.LocalAssetFile) *Advice {
+func (ai *AssetIndex) adviceIDontKnow(la *browser.LocalAssetFile) *Advice {
 	return &Advice{
 		Advice:     IDontKnow,
 		Message:    fmt.Sprintf("Can't decide what to do with %q. Check this vile yourself", la.FileName),
@@ -712,7 +699,7 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 //
 //
 
-func (ai *AssetIndex) ShouldUpload(la *assets.LocalAssetFile) (*Advice, error) {
+func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) {
 	filename := la.Title
 	if path.Ext(filename) == "" {
 		filename += path.Ext(la.FileName)
@@ -779,16 +766,4 @@ func keys[M ~map[K]V, K comparable, V any](m M) []K {
 		r = append(r, k)
 	}
 	return r
-}
-
-type StringList []string
-
-func (sl *StringList) Set(s string) error {
-	l := strings.Split(s, ",")
-	(*sl) = append((*sl), l...)
-	return nil
-}
-
-func (sl StringList) String() string {
-	return strings.Join(sl, ", ")
 }

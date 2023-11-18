@@ -2,7 +2,7 @@ package cmdupload
 
 import (
 	"fmt"
-	"immich-go/assets"
+	"immich-go/browser"
 	"immich-go/immich"
 	"path"
 	"strings"
@@ -40,7 +40,7 @@ func (ai *AssetIndex) Len() int {
 	return len(ai.assets)
 }
 
-func (ai *AssetIndex) AddLocalAsset(la *assets.LocalAssetFile, ImmichID string) {
+func (ai *AssetIndex) AddLocalAsset(la *browser.LocalAssetFile, ImmichID string) {
 	sa := &immich.Asset{
 		ID:               ImmichID,
 		DeviceAssetID:    la.DeviceAssetID(),

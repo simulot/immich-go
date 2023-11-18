@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	"immich-go/assets"
+	"immich-go/browser"
 	"immich-go/helpers/gen"
 	"immich-go/immich"
 	"immich-go/logger"
@@ -21,7 +21,7 @@ type stubIC struct {
 func (c *stubIC) GetAllAssetsWithFilter(context.Context, *immich.GetAssetOptions, func(*immich.Asset)) error {
 	return nil
 }
-func (c *stubIC) AssetUpload(context.Context, *assets.LocalAssetFile) (immich.AssetResponse, error) {
+func (c *stubIC) AssetUpload(context.Context, *browser.LocalAssetFile) (immich.AssetResponse, error) {
 	return immich.AssetResponse{}, nil
 }
 func (c *stubIC) DeleteAssets(context.Context, []string, bool) error {
@@ -62,7 +62,7 @@ type icCatchUploadsAssets struct {
 	albums map[string][]string
 }
 
-func (c *icCatchUploadsAssets) AssetUpload(ctx context.Context, a *assets.LocalAssetFile) (immich.AssetResponse, error) {
+func (c *icCatchUploadsAssets) AssetUpload(ctx context.Context, a *browser.LocalAssetFile) (immich.AssetResponse, error) {
 	c.assets = append(c.assets, a.FileName)
 	return immich.AssetResponse{
 		ID: a.FileName,

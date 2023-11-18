@@ -2,7 +2,7 @@ package files
 
 import (
 	"context"
-	"immich-go/assets"
+	"immich-go/browser"
 	"immich-go/helpers/fshelper"
 	"immich-go/immich/metadata"
 	"immich-go/logger"
@@ -17,13 +17,15 @@ type LocalAssetBrowser struct {
 	fsys   fs.FS
 	albums map[string]string
 	log    logger.Logger
+	conf   *browser.Configuration
 }
 
-func NewLocalFiles(ctx context.Context, fsys fs.FS, log logger.Logger) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, fsys fs.FS, log logger.Logger, conf *browser.Configuration) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
 		fsys:   fsys,
 		albums: map[string]string{},
 		log:    log,
+		conf:   conf,
 	}, nil
 }
 
@@ -33,8 +35,8 @@ func NewLocalFiles(ctx context.Context, fsys fs.FS, log logger.Logger) (*LocalAs
 
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
-func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAssetFile {
-	fileChan := make(chan *assets.LocalAssetFile)
+func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAssetFile {
+	fileChan := make(chan *browser.LocalAssetFile)
 	// Browse all given FS to collect the list of files
 	go func(ctx context.Context) {
 		defer close(fileChan)
@@ -63,7 +65,7 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 					return nil
 				}
 				la.log.Debug("file '%s'", name)
-				f := assets.LocalAssetFile{
+				f := browser.LocalAssetFile{
 					FSys:     la.fsys,
 					FileName: name,
 					Title:    path.Base(name),
@@ -98,7 +100,7 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 			case <-ctx.Done():
 				// If the context has been cancelled, return immediately
 				return
-			case fileChan <- &assets.LocalAssetFile{
+			case fileChan <- &browser.LocalAssetFile{
 				Err: err,
 			}:
 			}
@@ -109,7 +111,7 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.LocalAsset
 	return fileChan
 }
 
-func (la *LocalAssetBrowser) checkSidecar(f *assets.LocalAssetFile, name string) bool {
+func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, name string) bool {
 	_, err := fs.Stat(la.fsys, name+".xmp")
 	if err == nil {
 		la.log.Debug("  found sidecar: '%s'", name)
@@ -127,7 +129,7 @@ func (la *LocalAssetBrowser) addAlbum(dir string) {
 	la.albums[dir] = base
 }
 
-func (la *LocalAssetBrowser) ReadMetadataFromFile(a *assets.LocalAssetFile) error {
+func (la *LocalAssetBrowser) ReadMetadataFromFile(a *browser.LocalAssetFile) error {
 	ext := strings.ToLower(path.Ext(a.FileName))
 
 	// Open the file

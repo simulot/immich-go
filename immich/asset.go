@@ -3,7 +3,7 @@ package immich
 import (
 	"context"
 	"fmt"
-	"immich-go/assets"
+	"immich-go/browser"
 	"immich-go/helpers/fshelper"
 	"io"
 	"mime/multipart"
@@ -34,7 +34,7 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
-func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.LocalAssetFile) (AssetResponse, error) {
+func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetFile) (AssetResponse, error) {
 	var ar AssetResponse
 	mtype, err := fshelper.MimeFromExt(path.Ext(la.FileName))
 	if err != nil {

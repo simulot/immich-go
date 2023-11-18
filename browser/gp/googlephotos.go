@@ -3,7 +3,7 @@ package gp
 import (
 	"context"
 	"fmt"
-	"immich-go/assets"
+	"immich-go/browser"
 	"immich-go/helpers/fshelper"
 	"immich-go/logger"
 	"io/fs"
@@ -14,10 +14,11 @@ import (
 
 type Takeout struct {
 	fsys        fs.FS
-	filesByDir  map[string][]fileKey         // files name mapped by dir
-	jsonByYear  map[jsonKey]*GoogleMetaData  // JSON by year of capture and full path
-	albumsByDir map[string]assets.LocalAlbum // album title mapped by dir
+	filesByDir  map[string][]fileKey          // files name mapped by dir
+	jsonByYear  map[jsonKey]*GoogleMetaData   // JSON by year of capture and full path
+	albumsByDir map[string]browser.LocalAlbum // album title mapped by dir
 	log         logger.Logger
+	conf        *browser.Configuration
 }
 
 type fileKey struct {
@@ -33,13 +34,14 @@ type Album struct {
 	Title string
 }
 
-func NewTakeout(ctx context.Context, fsys fs.FS, log logger.Logger) (*Takeout, error) {
+func NewTakeout(ctx context.Context, fsys fs.FS, log logger.Logger, conf *browser.Configuration) (*Takeout, error) {
 	to := Takeout{
 		fsys:        fsys,
 		filesByDir:  map[string][]fileKey{},
 		jsonByYear:  map[jsonKey]*GoogleMetaData{},
-		albumsByDir: map[string]assets.LocalAlbum{},
+		albumsByDir: map[string]browser.LocalAlbum{},
 		log:         log,
+		conf:        conf,
 	}
 	err := to.walk(ctx, fsys)
 
@@ -77,7 +79,7 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 			if err == nil {
 				switch {
 				case md.isAlbum():
-					to.albumsByDir[dir] = assets.LocalAlbum{
+					to.albumsByDir[dir] = browser.LocalAlbum{
 						Path: path.Base(dir),
 						Name: md.Title,
 					}
@@ -114,8 +116,8 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 }
 
 // Browse gives back to the main program the list of assets with resolution of file name, album, dates...
-func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
-	c := make(chan *assets.LocalAssetFile)
+func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
+	c := make(chan *browser.LocalAssetFile)
 	passed := map[fileKey]any{}
 	go func() {
 		defer close(c)
@@ -154,9 +156,9 @@ func (to *Takeout) Browse(ctx context.Context) chan *assets.LocalAssetFile {
 //		but the image can be found in year's folder 🤯
 //   the asset name is the JSON title field
 
-func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*assets.LocalAssetFile {
+func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalAssetFile {
 
-	var list []*assets.LocalAssetFile
+	var list []*browser.LocalAssetFile
 
 	yearDir := path.Join(path.Dir(md.foundInPaths[0]), fmt.Sprintf("Photos from %d", md.PhotoTakenTime.Time().Year()))
 
@@ -295,8 +297,8 @@ func matchEditedName(jsonName string, fileName string) bool {
 	return false
 }
 
-func (to *Takeout) copyGoogleMDToAsset(md *GoogleMetaData, filename string, length int) *assets.LocalAssetFile {
-	a := assets.LocalAssetFile{
+func (to *Takeout) copyGoogleMDToAsset(md *GoogleMetaData, filename string, length int) *browser.LocalAssetFile {
+	a := browser.LocalAssetFile{
 		FileName:    filename,
 		FileSize:    length,
 		Title:       md.Title,
