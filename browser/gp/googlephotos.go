@@ -125,6 +125,15 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 			to.log.Debug("Checking '%s', %d", k.name, k.year)
 			assets := to.jsonAssets(k, md)
 			for _, a := range assets {
+				ext := path.Ext(a.FileName)
+				if !to.conf.SelectExtensions.Include(ext) {
+					to.log.Debug("file not selected: '%s'", a.FileName)
+					continue
+				}
+				if to.conf.ExcludeExtensions.Exclude(ext) {
+					to.log.Debug("file excluded: '%s'", a.FileName)
+					continue
+				}
 				fk := fileKey{name: path.Base(a.FileName), size: int64(a.FileSize)}
 				if _, exist := passed[fk]; !exist {
 					to.log.Debug("  associated with '%s'", fk.name)

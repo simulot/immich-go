@@ -329,6 +329,66 @@ func TestUpload(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "google photo, includes .mp4",
+			args: []string{
+				"-google-photos",
+				"-create-albums=FALSE",
+				"-select-types=.mp4",
+				"TEST_DATA/Takeout1",
+			},
+			expectedErr: false,
+			expectedAssets: []string{
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063909898.LS.mp4",
+			},
+		},
+		{
+			name: "google photo, exclude .mp4",
+			args: []string{
+				"-google-photos",
+				"-create-albums=FALSE",
+				"-exclude-types=.mp4",
+				"TEST_DATA/Takeout1",
+			},
+			expectedErr: false,
+			expectedAssets: []string{
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063000139.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063029647.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063108407.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063121958.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063357420.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063536303.jpg",
+				"Google\u00a0Photos/Album test 6-10-23/PXL_20231006_063851485.jpg",
+			},
+		},
+		{
+			name: "folder, includes .mp4",
+			args: []string{
+				"-select-types=.mp4",
+				"TEST_DATA/Takeout1/Google\u00a0Photos/Album test 6-10-23",
+			},
+			expectedErr: false,
+			expectedAssets: []string{
+				"PXL_20231006_063909898.LS.mp4",
+			},
+		},
+		{
+			name: "folder, exclude .mp4",
+			args: []string{
+				"-exclude-types=.mp4",
+				"TEST_DATA/Takeout1/Google\u00a0Photos/Album test 6-10-23",
+			},
+			expectedErr: false,
+			expectedAssets: []string{
+				"PXL_20231006_063000139.jpg",
+				"PXL_20231006_063029647.jpg",
+				"PXL_20231006_063108407.jpg",
+				"PXL_20231006_063121958.jpg",
+				"PXL_20231006_063357420.jpg",
+				"PXL_20231006_063536303.jpg",
+				"PXL_20231006_063851485.jpg",
+			},
+		},
 	}
 
 	for _, tc := range testCases {

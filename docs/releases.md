@@ -2,6 +2,16 @@
 
 ## Release 0.8.3
 
+### New features include / exclude list of extensions
+`-select-types .ext,.ext,.ext...` List of accepted extensions. <br>
+`-exclude-types .ext,.ext,.ext...` List of excluded extensions. <br>
+
+It's now possible to import only .jpg and .heic
+
+Or it's possible to import everything but .heic
+
+## Release 0.8.3
+
 ### Fiw for #69: Panic: runtime error: slice bounds out of range
 Rewriting searchPattern
 Add tests

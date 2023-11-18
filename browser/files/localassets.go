@@ -62,6 +62,15 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 
 				ext := path.Ext(name)
 				if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
+					la.log.Debug("%s", err)
+					return nil
+				}
+				if !la.conf.SelectExtensions.Include(ext) {
+					la.log.Debug("file not selected (%s)", ext)
+					return nil
+				}
+				if la.conf.ExcludeExtensions.Exclude(ext) {
+					la.log.Debug("file excluded (%s)", ext)
 					return nil
 				}
 				la.log.Debug("file '%s'", name)

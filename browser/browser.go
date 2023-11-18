@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"immich-go/helpers/fshelper"
+	"slices"
 	"strings"
 )
 
@@ -24,8 +25,9 @@ func (c *Configuration) IsValid() error {
 		err  error
 	)
 
-	c.SelectExtensions, err = checkExtensions(c.SelectExtensions)
-	jerr = errors.Join(jerr, fmt.Errorf("some selected extensions are unknown: %w", err))
+	if c.SelectExtensions, err = checkExtensions(c.SelectExtensions); err != nil {
+		jerr = errors.Join(jerr, fmt.Errorf("some selected extensions are unknown: %w", err))
+	}
 
 	c.ExcludeExtensions, _ = checkExtensions(c.ExcludeExtensions)
 
@@ -65,4 +67,18 @@ func (sl *StringList) Set(s string) error {
 
 func (sl StringList) String() string {
 	return strings.Join(sl, ", ")
+}
+
+func (sl StringList) Include(s string) bool {
+	if len(sl) == 0 {
+		return true
+	}
+	return slices.Contains(sl, strings.ToLower(s))
+}
+
+func (sl StringList) Exclude(s string) bool {
+	if len(sl) == 0 {
+		return false
+	}
+	return slices.Contains(sl, strings.ToLower(s))
 }

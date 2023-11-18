@@ -3,7 +3,8 @@ package files_test
 import (
 	"context"
 	"errors"
-	"immich-go/assets/files"
+	"immich-go/browser"
+	"immich-go/browser/files"
 	"immich-go/logger"
 	"path"
 	"reflect"
@@ -74,7 +75,7 @@ func TestLocalAssets(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := files.NewLocalFiles(ctx, fsys, logger.NoLogger{})
+			b, err := files.NewLocalFiles(ctx, fsys, logger.NoLogger{}, &browser.Configuration{})
 			if err != nil {
 				t.Error(err)
 			}
