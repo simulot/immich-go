@@ -91,11 +91,6 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 		_, err := fshelper.MimeFromExt(ext)
 		if strings.ToLower(ext) == ".xmp" || err == nil {
 			base := strings.TrimSuffix(e.Name(), ext)
-			if strings.ToLower(ext) == ".xmp" {
-				if ext := path.Ext(base); len(ext) > 0 {
-					base = strings.TrimSuffix(base, ext)
-				}
-			}
 			fileMap[base] = append(fileMap[base], e)
 		}
 	}

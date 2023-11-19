@@ -124,8 +124,42 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 		for k, md := range to.jsonByYear {
 			to.log.Debug("Checking '%s', %d", k.name, k.year)
 			assets := to.jsonAssets(k, md)
+
+			hasHEIC := 0
+			hasMP4 := 0
+			hasJPG := 0
+			hasXMP := 0
+			hasOther := 0
+			livePhotoBin := ""
+
+			for _, a := range assets {
+				// Same base, different extensions
+
+				n := a.FileName
+				ext := strings.ToLower(path.Ext(n))
+				switch ext {
+				case ".heic":
+					hasHEIC++
+				case ".mp4":
+					hasMP4++
+					livePhotoBin = n
+				case ".jpg":
+					hasJPG++
+				case ".xmp":
+					hasXMP++
+				default:
+					hasOther++
+				}
+			}
+
+			isLivePhoto := hasMP4 == 1 && ((hasHEIC == 1 && hasJPG == 0) || (hasHEIC == 0 && hasJPG == 1)) && hasOther == 0
+
 			for _, a := range assets {
 				ext := path.Ext(a.FileName)
+				if isLivePhoto && strings.ToLower(ext) == ".mp4" {
+					to.log.Debug("live photo: '%s'", a.FileName)
+					continue
+				}
 				if !to.conf.SelectExtensions.Include(ext) {
 					to.log.Debug("file not selected: '%s'", a.FileName)
 					continue
@@ -142,6 +176,9 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 					case <-ctx.Done():
 						return
 					default:
+						if isLivePhoto {
+							a.LivePhotoData = livePhotoBin
+						}
 						c <- a
 					}
 				} else {
