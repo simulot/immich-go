@@ -15,6 +15,8 @@ Give a try to the `immich-go` tool.
     - use date of capture found in the json files
     - create albums based on Google Photos albums or folder names.
 - import photos taken within a date range.
+- import and stack couples jpg/raw photos or bursts
+- import IPhone live photos
 - remove duplicated assets, based on the file name, date of capture, and file size
 - no installation, no dependencies.
 

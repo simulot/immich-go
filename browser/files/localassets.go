@@ -52,9 +52,9 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 					// If the context has been cancelled, return immediately
 					return ctx.Err()
 				default:
-				}
-				if d.IsDir() {
-					return la.handleFolder(ctx, fileChan, name)
+					if d.IsDir() {
+						return la.handleFolder(ctx, fileChan, name)
+					}
 				}
 				return nil
 
@@ -133,20 +133,20 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 			ext := path.Ext(name)
 			if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
 				la.log.Debug("%s", err)
-				return nil
+				continue
 			}
 			if !la.conf.SelectExtensions.Include(ext) {
 				la.log.Debug("file not selected (%s)", ext)
-				return nil
+				continue
 			}
 			if la.conf.ExcludeExtensions.Exclude(ext) {
 				la.log.Debug("file excluded (%s)", ext)
-				return nil
+				continue
 			}
 			la.log.Debug("file '%s'", name)
 			f := browser.LocalAssetFile{
 				FSys:          la.fsys,
-				FileName:      name,
+				FileName:      path.Join(folder, name),
 				Title:         path.Base(name),
 				LivePhotoData: livePhotoBin,
 				FileSize:      0,
@@ -175,8 +175,8 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 			case <-ctx.Done():
 				// If the context has been cancelled, return immediately
 				return ctx.Err()
-			case fileChan <- &f:
 			default:
+				fileChan <- &f
 			}
 		}
 	}
