@@ -51,6 +51,9 @@ type LocalAssetFile struct {
 	Archived    bool // The asset is archived
 	FromPartner bool // the asset comes from a partner
 
+	// Live Photos
+	LivePhotoData string // Filename of MP4 file associated
+
 	FSys     fs.FS // Asset's file system
 	FileSize int   // File size in bytes
 

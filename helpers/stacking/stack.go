@@ -75,6 +75,31 @@ func (sb *StackBuilder) Stacks() []Stack {
 	var stacks []Stack
 	for _, k := range keys {
 		s := sb.stacks[k]
+
+		// Exclude live photos
+		hasHEIC := 0
+		hasMP4 := 0
+		hasJPG := 0
+		hasOther := 0
+
+		for _, n := range s.Names {
+			ext := strings.ToLower(path.Ext(n))
+			switch ext {
+			case ".heic":
+				hasHEIC++
+			case ".mp4":
+				hasMP4++
+			case ".jpg":
+				hasJPG++
+			default:
+				hasOther++
+			}
+		}
+
+		if hasOther == 0 && (hasHEIC == 1 || hasJPG == 1) && hasMP4 == 1 {
+			continue
+		}
+
 		ids := gen.Filter(s.IDs, func(id string) bool {
 			return id != s.CoverID
 		})
