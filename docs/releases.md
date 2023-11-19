@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release next
+## Release 0.8.4
 
 ###  fix for #67 : Live photos files are stacked and not recognized as live photos
 Live photos are recognized when importing folders and google takeout archives
