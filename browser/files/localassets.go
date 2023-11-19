@@ -54,7 +54,7 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 				default:
 				}
 				if d.IsDir() {
-					return la.handleFolder(fileChan, name)
+					return la.handleFolder(ctx, fileChan, name)
 				}
 				return nil
 
@@ -76,58 +76,116 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 	return fileChan
 }
 
-func (la *LocalAssetBrowser) handleFolder(fileChan chan *browser.LocalAssetFile, name string) error {
-	entries, err := fs.ReadDir(la.fsys, name)
+func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *browser.LocalAssetFile, folder string) error {
+	entries, err := fs.ReadDir(la.fsys, folder)
 	if err != nil {
 		return err
 	}
 
+	fileMap := map[string][]fs.DirEntry{}
 	for _, e := range entries {
-
-		ext := path.Ext(name)
-		if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
-			la.log.Debug("%s", err)
-			return nil
+		if e.IsDir() {
+			continue
 		}
-		if !la.conf.SelectExtensions.Include(ext) {
-			la.log.Debug("file not selected (%s)", ext)
-			return nil
-		}
-		if la.conf.ExcludeExtensions.Exclude(ext) {
-			la.log.Debug("file excluded (%s)", ext)
-			return nil
-		}
-		la.log.Debug("file '%s'", name)
-		f := browser.LocalAssetFile{
-			FSys:     la.fsys,
-			FileName: name,
-			Title:    path.Base(name),
-
-			FileSize:  0,
-			Err:       err,
-			DateTaken: metadata.TakeTimeFromName(filepath.Base(name)),
-		}
-
-		s, err := d.Info()
-		if err != nil {
-			f.Err = err
-		} else {
-			f.FileSize = int(s.Size())
-			if f.DateTaken.IsZero() {
-				err = la.ReadMetadataFromFile(&f)
-				_ = err
-				if f.DateTaken.Before(toOldDate) {
-					f.DateTaken = time.Now()
+		ext := path.Ext(e.Name())
+		_, err := fshelper.MimeFromExt(ext)
+		if strings.ToLower(ext) == ".xmp" || err == nil {
+			base := strings.TrimSuffix(e.Name(), ext)
+			if strings.ToLower(ext) == ".xmp" {
+				if ext := path.Ext(base); len(ext) > 0 {
+					base = strings.TrimSuffix(base, ext)
 				}
 			}
-			if !la.checkSidecar(&f, name+".xmp") {
-				la.checkSidecar(&f, strings.TrimSuffix(name, ext)+".xmp")
-			}
+			fileMap[base] = append(fileMap[base], e)
 		}
-		fileChan <- &f
-		return nil
 	}
 
+	for _, es := range fileMap {
+		hasHEIC := 0
+		hasMP4 := 0
+		hasJPG := 0
+		hasXMP := 0
+		hasOther := 0
+		// Same base, different extensions
+
+		livePhotoBin := ""
+		for _, e := range es {
+			n := e.Name()
+			ext := strings.ToLower(path.Ext(n))
+			switch ext {
+			case ".heic":
+				hasHEIC++
+			case ".mp4":
+				hasMP4++
+				livePhotoBin = e.Name()
+			case ".jpg":
+				hasJPG++
+			case ".xmp":
+				hasXMP++
+			default:
+				hasOther++
+			}
+		}
+
+		isLivePhoto := hasMP4 == 1 && ((hasHEIC == 1 && hasJPG == 0) || (hasHEIC == 0 && hasJPG == 1)) && hasOther == 0
+
+		for _, e := range es {
+			name := e.Name()
+			if isLivePhoto && e.Name() == livePhotoBin {
+				// Don't sent the mp4 part of the live photo as a separate asset
+				continue
+			}
+			ext := path.Ext(name)
+			if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
+				la.log.Debug("%s", err)
+				return nil
+			}
+			if !la.conf.SelectExtensions.Include(ext) {
+				la.log.Debug("file not selected (%s)", ext)
+				return nil
+			}
+			if la.conf.ExcludeExtensions.Exclude(ext) {
+				la.log.Debug("file excluded (%s)", ext)
+				return nil
+			}
+			la.log.Debug("file '%s'", name)
+			f := browser.LocalAssetFile{
+				FSys:          la.fsys,
+				FileName:      name,
+				Title:         path.Base(name),
+				LivePhotoData: livePhotoBin,
+				FileSize:      0,
+				Err:           err,
+				DateTaken:     metadata.TakeTimeFromName(filepath.Base(name)),
+			}
+
+			s, err := e.Info()
+			if err != nil {
+				f.Err = err
+			} else {
+				f.FileSize = int(s.Size())
+				if f.DateTaken.IsZero() {
+					err = la.ReadMetadataFromFile(&f)
+					_ = err
+					if f.DateTaken.Before(toOldDate) {
+						f.DateTaken = time.Now()
+					}
+				}
+				if !la.checkSidecar(&f, name+".xmp") {
+					la.checkSidecar(&f, strings.TrimSuffix(name, ext)+".xmp")
+				}
+			}
+			// Check if the context has been cancelled
+			select {
+			case <-ctx.Done():
+				// If the context has been cancelled, return immediately
+				return ctx.Err()
+			case fileChan <- &f:
+			default:
+			}
+		}
+	}
+	return nil
 }
 
 func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, name string) bool {

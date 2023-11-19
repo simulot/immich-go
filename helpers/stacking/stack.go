@@ -97,6 +97,7 @@ func (sb *StackBuilder) Stacks() []Stack {
 		}
 
 		if hasOther == 0 && (hasHEIC == 1 || hasJPG == 1) && hasMP4 == 1 {
+			// oh, a live photo!
 			continue
 		}
 
