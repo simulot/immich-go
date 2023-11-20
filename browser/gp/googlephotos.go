@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"immich-go/browser"
 	"immich-go/helpers/fshelper"
+	"immich-go/journal"
 	"immich-go/logger"
 	"io/fs"
 	"path"
@@ -54,7 +55,6 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
-		to.log.Debug("walk file '%s'", name)
 		select {
 		case <-ctx.Done():
 			// Check if the context has been cancelled
@@ -72,6 +72,7 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 			}
 			return nil
 		}
+		to.log.Debug("walk file '%s'", name)
 		ext := strings.ToLower(path.Ext(name))
 		switch ext {
 		case ".json":
@@ -100,6 +101,7 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 				}
 			}
 		default:
+			to.conf.Journal.AddEntry(name, journal.SCANNED, "")
 			info, err := d.Info()
 			if err != nil {
 				return err
@@ -157,20 +159,18 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 			for _, a := range assets {
 				ext := path.Ext(a.FileName)
 				if isLivePhoto && strings.ToLower(ext) == ".mp4" {
-					to.log.Debug("live photo: '%s'", a.FileName)
 					continue
 				}
 				if !to.conf.SelectExtensions.Include(ext) {
-					to.log.Debug("file not selected: '%s'", a.FileName)
+					to.conf.Journal.AddEntry(a.FileName, journal.DISCARDED, "because of select-type option")
 					continue
 				}
 				if to.conf.ExcludeExtensions.Exclude(ext) {
-					to.log.Debug("file excluded: '%s'", a.FileName)
+					to.conf.Journal.AddEntry(a.FileName, journal.DISCARDED, "because of exclude-type option")
 					continue
 				}
 				fk := fileKey{name: path.Base(a.FileName), size: int64(a.FileSize)}
 				if _, exist := passed[fk]; !exist {
-					to.log.Debug("  associated with '%s'", fk.name)
 					passed[fk] = nil
 					select {
 					case <-ctx.Done():
@@ -182,7 +182,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 						c <- a
 					}
 				} else {
-					to.log.Debug("  associated with '%s', but already seen", fk.name)
+					to.conf.Journal.AddEntry(a.FileName, journal.LOCAL_DUPLICATE, "duplicate in the takeout")
 				}
 			}
 		}

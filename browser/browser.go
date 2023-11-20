@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"immich-go/helpers/fshelper"
+	"immich-go/journal"
 	"slices"
 	"strings"
 )
@@ -14,6 +15,7 @@ type Browser interface {
 }
 
 type Configuration struct {
+	Journal           *journal.Journal
 	SelectExtensions  StringList
 	ExcludeExtensions StringList
 	Recursive         bool

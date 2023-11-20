@@ -5,6 +5,7 @@ import (
 	"immich-go/browser"
 	"immich-go/helpers/fshelper"
 	"immich-go/immich/metadata"
+	"immich-go/journal"
 	"immich-go/logger"
 	"io/fs"
 	"path"
@@ -28,10 +29,6 @@ func NewLocalFiles(ctx context.Context, fsys fs.FS, log logger.Logger, conf *bro
 		conf:   conf,
 	}, nil
 }
-
-// func (la *LocalAssetBrowser) Stat(name string) (fs.FileInfo, error) {
-// 	return fs.Stat(fsys.FS, name)
-// }
 
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -121,12 +118,13 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 				hasOther++
 			}
 		}
-
 		isLivePhoto := hasMP4 == 1 && ((hasHEIC == 1 && hasJPG == 0) || (hasHEIC == 0 && hasJPG == 1)) && hasOther == 0
 
 		for _, e := range es {
+			fileName := path.Join(folder, e.Name())
+			la.conf.Journal.AddEntry(fileName, journal.SCANNED, "")
 			name := e.Name()
-			if isLivePhoto && e.Name() == livePhotoBin {
+			if isLivePhoto && name == livePhotoBin {
 				// Don't sent the mp4 part of the live photo as a separate asset
 				continue
 			}
@@ -136,17 +134,19 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 				continue
 			}
 			if !la.conf.SelectExtensions.Include(ext) {
+				la.conf.Journal.AddEntry(fileName, journal.DISCARDED, "because of select-type option")
 				la.log.Debug("file not selected (%s)", ext)
 				continue
 			}
 			if la.conf.ExcludeExtensions.Exclude(ext) {
+				la.conf.Journal.AddEntry(fileName, journal.DISCARDED, "because of exclude-type option")
 				la.log.Debug("file excluded (%s)", ext)
 				continue
 			}
 			la.log.Debug("file '%s'", name)
 			f := browser.LocalAssetFile{
 				FSys:          la.fsys,
-				FileName:      path.Join(folder, name),
+				FileName:      fileName,
 				Title:         path.Base(name),
 				LivePhotoData: livePhotoBin,
 				FileSize:      0,
