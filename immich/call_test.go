@@ -88,5 +88,4 @@ func TestCall(t *testing.T) {
 			t.Logf("response received: %#v", r)
 		})
 	}
-
 }

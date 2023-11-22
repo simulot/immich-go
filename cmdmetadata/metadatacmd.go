@@ -3,14 +3,15 @@ package cmdmetadata
 import (
 	"context"
 	"flag"
-	"immich-go/helpers/docker"
-	"immich-go/immich"
-	"immich-go/immich/metadata"
-	"immich-go/logger"
 	"math"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/docker"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/immich/metadata"
+	"github.com/simulot/immich-go/logger"
 )
 
 type MetadataCmd struct {

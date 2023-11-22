@@ -3,9 +3,10 @@ package gp
 import (
 	"encoding/json"
 	"fmt"
-	"immich-go/helpers/tzone"
 	"strconv"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/tzone"
 )
 
 type GoogleMetaData struct {

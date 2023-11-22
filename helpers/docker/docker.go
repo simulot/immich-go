@@ -103,7 +103,6 @@ func (d *DockerConnect) connect(ctx context.Context, host string, container stri
 
 // Download a file from the docker container
 func (d *DockerConnect) Download(ctx context.Context, hostFile string) (io.Reader, error) {
-
 	cmd, err := d.proxy.docker(ctx, "cp", d.Container+":"+hostFile, "-")
 	if err != nil {
 		return nil, err
@@ -164,7 +163,7 @@ func (d *DockerConnect) Upload(ctx context.Context, file string, size int64, r i
 		}()
 		hdr := tar.Header{
 			Name:    path.Base(file),
-			Mode:    0644,
+			Mode:    0o644,
 			Size:    size,
 			ModTime: time.Now(),
 		}
@@ -212,13 +211,12 @@ func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUplo
 		var err error
 		tw := tar.NewWriter(mw)
 		defer func() {
-			//f.Close()
+			// f.Close()
 			tw.Close()
 			in.Close()
 			cmd.Wait()
 		}()
 		for {
-
 			select {
 			case <-ctx.Done():
 				return
@@ -229,7 +227,7 @@ func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUplo
 
 				hdr := tar.Header{
 					Name:    f.name,
-					Mode:    0644,
+					Mode:    0o644,
 					Size:    int64(len(f.content)),
 					ModTime: time.Now(),
 				}
@@ -267,6 +265,7 @@ func (b *batchUploader) Upload(name string, content []byte) error {
 	err := <-b.fileErr
 	return err
 }
+
 func (b *batchUploader) Close() error {
 	close(b.fileChannel)
 	return nil

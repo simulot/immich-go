@@ -2,15 +2,16 @@ package files
 
 import (
 	"context"
-	"immich-go/browser"
-	"immich-go/helpers/fshelper"
-	"immich-go/immich/metadata"
-	"immich-go/logger"
 	"io/fs"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/immich/metadata"
+	"github.com/simulot/immich-go/logger"
 )
 
 type LocalAssetBrowser struct {
@@ -57,7 +58,6 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 					}
 				}
 				return nil
-
 			})
 		if err != nil {
 			// Check if the context has been cancelled before sending the error
@@ -70,7 +70,6 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 			}:
 			}
 		}
-
 	}(ctx)
 
 	return fileChan
@@ -206,7 +205,6 @@ func (la *LocalAssetBrowser) ReadMetadataFromFile(a *browser.LocalAssetFile) err
 
 	// Open the file
 	r, err := a.PartialSourceReader()
-
 	if err != nil {
 		return err
 	}

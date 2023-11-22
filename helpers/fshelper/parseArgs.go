@@ -3,12 +3,13 @@ package fshelper
 import (
 	"errors"
 	"fmt"
-	"immich-go/helpers/gen"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/simulot/immich-go/helpers/gen"
 )
 
 type argParser struct {

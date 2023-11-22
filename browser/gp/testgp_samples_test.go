@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"immich-go/immich/metadata"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/immich/metadata"
 
 	"github.com/psanford/memfs"
 )
@@ -30,8 +31,8 @@ func (mfs *inMemFS) addFile(name string, content []byte) *inMemFS {
 		return mfs
 	}
 	dir := path.Dir(name)
-	mfs.err = errors.Join(mfs.err, mfs.MkdirAll(dir, 0777))
-	mfs.err = errors.Join(mfs.err, mfs.WriteFile(name, content, 0777))
+	mfs.err = errors.Join(mfs.err, mfs.MkdirAll(dir, 0o777))
+	mfs.err = errors.Join(mfs.err, mfs.WriteFile(name, content, 0o777))
 	return mfs
 }
 
@@ -113,7 +114,6 @@ func simpleYear() *inMemFS {
 		addImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144936660.jpg", 10).
 		addJSONImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144956000.jpg.json", "PXL_20230922_144956000.jpg").
 		addImage("TakeoutGoogle Photos/Photos from 2023/PXL_20230922_144956000.jpg", 20)
-
 }
 
 func simpleAlbum() *inMemFS {
@@ -179,7 +179,6 @@ func titlesWithForbiddenChars() *inMemFS {
 		addImage("TakeoutGoogle Photos/Photos from 2012/27_06_12 - 1.mov", 52)
 	// addJSONImage("TakeoutGoogle Photos/Photos from 2012/27_06_12 - 1.json", "27/06/12 - 1").
 	// addImage("TakeoutGoogle Photos/Photos from 2012/27_06_12 - 1.jpg", 24)
-
 }
 
 func namesIssue39() *inMemFS {

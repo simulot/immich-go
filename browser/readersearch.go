@@ -47,7 +47,6 @@ func searchPattern(r io.Reader, pattern []byte, maxDataLen int) ([]byte, error) 
 }
 
 func seekReaderAtPattern(r io.Reader, pattern []byte) (io.Reader, error) {
-
 	var err error
 	pos := 0
 	// Create a buffer to hold the chunk of dataZ

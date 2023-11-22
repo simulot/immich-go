@@ -27,7 +27,6 @@ func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, er
 		return nil, err
 	}
 	return albums, nil
-
 }
 
 type AlbumContent struct {
@@ -82,7 +81,6 @@ func (ic *ImmichClient) GetAssetsAlbums(ctx context.Context, id string) ([]Album
 		return nil, err
 	}
 	return albums, nil
-
 }
 
 type UpdateAlbum struct {
@@ -96,7 +94,6 @@ type UpdateAlbumResult struct {
 }
 
 func (ic *ImmichClient) AddAssetToAlbum(ctx context.Context, albumID string, assets []string) ([]UpdateAlbumResult, error) {
-
 	var r []UpdateAlbumResult
 	body := UpdateAlbum{
 		IDS: assets,

@@ -5,16 +5,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"immich-go/cmdduplicate"
-	"immich-go/cmdmetadata"
-	"immich-go/cmdstack"
-	"immich-go/cmdtool"
-	"immich-go/cmdupload"
-	"immich-go/helpers/tzone"
-	"immich-go/immich"
-	"immich-go/logger"
 	"os"
 	"os/signal"
+
+	"github.com/simulot/immich-go/cmdduplicate"
+	"github.com/simulot/immich-go/cmdmetadata"
+	"github.com/simulot/immich-go/cmdstack"
+	"github.com/simulot/immich-go/cmdtool"
+	"github.com/simulot/immich-go/cmdupload"
+	"github.com/simulot/immich-go/helpers/tzone"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
 )
 
 var (
@@ -26,7 +27,7 @@ var (
 func main() {
 	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 	var err error
-	var log = logger.NewLogger(logger.OK, true, false)
+	log := logger.NewLogger(logger.OK, true, false)
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -65,7 +66,6 @@ type Application struct {
 
 	Immich *immich.ImmichClient // Immich client
 	Logger *logger.Log          // Program's logger
-
 }
 
 func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {

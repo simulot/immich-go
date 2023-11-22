@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"immich-go/immich"
-	"immich-go/logger"
-	"immich-go/ui"
 	"regexp"
 	"sort"
 	"strconv"
+
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui"
 )
 
 func AlbumCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {

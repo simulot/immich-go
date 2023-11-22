@@ -16,7 +16,7 @@ func GenRandomBytes(size int) (blk []byte) {
 }
 
 func Test_searchPattern(t *testing.T) {
-	var searchBufferSize = 20
+	searchBufferSize := 20
 	tests := []struct {
 		name    string
 		r       io.Reader

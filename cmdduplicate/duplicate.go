@@ -6,15 +6,16 @@ package cmdduplicate
 import (
 	"context"
 	"flag"
-	"immich-go/helpers/gen"
-	"immich-go/immich"
-	"immich-go/logger"
-	"immich-go/ui"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui"
 )
 
 type DuplicateCmd struct {

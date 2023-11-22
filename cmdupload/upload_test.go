@@ -4,38 +4,44 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	"immich-go/browser"
-	"immich-go/helpers/gen"
-	"immich-go/immich"
-	"immich-go/logger"
 	"reflect"
 	"slices"
 	"testing"
 
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
+
 	"github.com/kr/pretty"
 )
 
-type stubIC struct {
-}
+type stubIC struct{}
 
 func (c *stubIC) GetAllAssetsWithFilter(context.Context, *immich.GetAssetOptions, func(*immich.Asset)) error {
 	return nil
 }
+
 func (c *stubIC) AssetUpload(context.Context, *browser.LocalAssetFile) (immich.AssetResponse, error) {
 	return immich.AssetResponse{}, nil
 }
+
 func (c *stubIC) DeleteAssets(context.Context, []string, bool) error {
 	return nil
 }
+
 func (c *stubIC) GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error) {
 	return nil, nil
 }
+
 func (c *stubIC) AddAssetToAlbum(context.Context, string, []string) ([]immich.UpdateAlbumResult, error) {
 	return nil, nil
 }
+
 func (c *stubIC) CreateAlbum(context.Context, string, []string) (immich.AlbumSimplified, error) {
 	return immich.AlbumSimplified{}, nil
 }
+
 func (c *stubIC) UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, removeParent bool, stackParentId string) error {
 	return nil
 }
@@ -68,9 +74,11 @@ func (c *icCatchUploadsAssets) AssetUpload(ctx context.Context, a *browser.Local
 		ID: a.FileName,
 	}, nil
 }
+
 func (c *icCatchUploadsAssets) AddAssetToAlbum(ctx context.Context, album string, ids []string) ([]immich.UpdateAlbumResult, error) {
 	return nil, nil
 }
+
 func (c *icCatchUploadsAssets) CreateAlbum(ctx context.Context, album string, ids []string) (immich.AlbumSimplified, error) {
 	if album == "" {
 		panic("can't create album without name")

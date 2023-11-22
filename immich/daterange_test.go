@@ -6,7 +6,6 @@ import (
 )
 
 func TestDateRange_InRange(t *testing.T) {
-
 	tests := []struct {
 		name  string
 		check []struct {

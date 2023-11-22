@@ -23,7 +23,6 @@ func (r *sliceReader) ReadSlice(l int) ([]byte, error) {
 }
 
 func searchPattern(r io.Reader, pattern []byte, buffer []byte) (*sliceReader, error) {
-
 	var err error
 	pos := 0
 	ofs := 0

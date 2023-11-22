@@ -112,6 +112,7 @@ func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerMes
 	ce.message = msg
 	return ce
 }
+
 func (sc *serverCall) joinError(err error) error {
 	sc.err = errors.Join(sc.err, err)
 	return err
@@ -120,7 +121,6 @@ func (sc *serverCall) joinError(err error) error {
 type requestFunction func(sc *serverCall) *http.Request
 
 func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
-
 	req, err := http.NewRequestWithContext(sc.ctx, method, url, nil)
 	if sc.joinError(err) != nil {
 		return nil
@@ -142,6 +142,7 @@ func get(url string, opts ...serverRequestOption) requestFunction {
 		return sc.request(http.MethodGet, sc.ic.endPoint+url, opts...)
 	}
 }
+
 func post(url string, ctype string, opts ...serverRequestOption) requestFunction {
 	return func(sc *serverCall) *http.Request {
 		if sc.err != nil {
@@ -235,6 +236,7 @@ func setHeader(key, value string) serverRequestOption {
 		return nil
 	}
 }
+
 func setAcceptJSON() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Header.Add("Accept", "application/json")

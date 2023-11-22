@@ -3,8 +3,6 @@ package immich
 import (
 	"context"
 	"fmt"
-	"immich-go/browser"
-	"immich-go/helpers/fshelper"
 	"io"
 	"mime/multipart"
 	"net/textproto"
@@ -12,6 +10,9 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fshelper"
 )
 
 type AssetResponse struct {
@@ -131,7 +132,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		do(post("/asset/upload", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
 	return ar, err
-
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
@@ -166,7 +166,6 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context, opt *GetAssetOptions) 
 
 	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSON(&r))
 	return r, err
-
 }
 
 func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, opt *GetAssetOptions, filter func(*Asset)) error {

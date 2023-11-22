@@ -3,7 +3,6 @@ package browser
 import "testing"
 
 func TestStringList_Include(t *testing.T) {
-
 	tests := []struct {
 		name string
 		sl   StringList
@@ -51,7 +50,6 @@ func TestStringList_Include(t *testing.T) {
 }
 
 func TestStringList_Exclude(t *testing.T) {
-
 	tests := []struct {
 		name string
 		sl   StringList

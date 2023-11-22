@@ -7,16 +7,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"immich-go/immich"
-	"immich-go/logger"
 	"testing"
 	"time"
+
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
 
 	"github.com/joho/godotenv"
 )
 
 func TestE2eUpload(t *testing.T) {
-
 	var myEnv map[string]string
 	myEnv, err := godotenv.Read("../.env")
 	if err != nil {
@@ -100,7 +100,6 @@ func TestE2eUpload(t *testing.T) {
 
 	logger := logger.NoLogger{}
 	ic, err := immich.NewImmichClient(host, key)
-
 	if err != nil {
 		t.Error(err)
 		return
