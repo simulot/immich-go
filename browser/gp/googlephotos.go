@@ -55,24 +55,29 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
+
 		to.log.Debug("walk file '%s'", name)
+
 		select {
 		case <-ctx.Done():
 			// Check if the context has been cancelled
 			return ctx.Err()
 		default:
 		}
+
 		dir, base := path.Split(name)
 		dir = strings.TrimSuffix(dir, "/")
 		if dir == "" {
 			dir = "."
 		}
+
 		if d.IsDir() {
 			if base == "Failed Videos" {
 				return fs.SkipDir
 			}
 			return nil
 		}
+
 		ext := strings.ToLower(path.Ext(name))
 		switch ext {
 		case ".json":
@@ -91,6 +96,7 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 						year: md.PhotoTakenTime.Time().Year(),
 						name: base,
 					}
+
 					if prevMD, exists := to.jsonByYear[key]; exists {
 						prevMD.foundInPaths = append(prevMD.foundInPaths, dir)
 						to.jsonByYear[key] = prevMD
@@ -105,11 +111,15 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 			if err != nil {
 				return err
 			}
+
 			key := fileKey{name: base, size: info.Size()}
+
 			l := to.filesByDir[dir]
 			l = append(l, key)
+
 			to.filesByDir[dir] = l
 		}
+
 		return nil
 	})
 
@@ -118,10 +128,12 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 
 // Browse gives back to the main program the list of assets with resolution of file name, album, dates...
 func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
-	c := make(chan *browser.LocalAssetFile)
+	c := make(chan *browser.LocalAssetFile, 1024) // 1024 elements should be enough
 	passed := map[fileKey]any{}
+
 	go func() {
 		defer close(c)
+
 		for k, md := range to.jsonByYear {
 			to.log.Debug("Checking '%s', %d", k.name, k.year)
 			assets := to.jsonAssets(k, md)
@@ -135,10 +147,9 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 
 			for _, a := range assets {
 				// Same base, different extensions
-
 				n := a.FileName
-				ext := strings.ToLower(path.Ext(n))
-				switch ext {
+
+				switch ext := strings.ToLower(path.Ext(n)); ext {
 				case ".heic":
 					hasHEIC++
 				case ".mp4":
@@ -161,18 +172,22 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 					to.log.Debug("live photo: '%s'", a.FileName)
 					continue
 				}
+
 				if !to.conf.SelectExtensions.Include(ext) {
 					to.log.Debug("file not selected: '%s'", a.FileName)
 					continue
 				}
+
 				if to.conf.ExcludeExtensions.Exclude(ext) {
 					to.log.Debug("file excluded: '%s'", a.FileName)
 					continue
 				}
+
 				fk := fileKey{name: path.Base(a.FileName), size: int64(a.FileSize)}
 				if _, exist := passed[fk]; !exist {
 					to.log.Debug("  associated with '%s'", fk.name)
 					passed[fk] = nil
+
 					select {
 					case <-ctx.Done():
 						return
@@ -180,6 +195,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 						if isLivePhoto {
 							a.LivePhotoData = livePhotoBin
 						}
+
 						c <- a
 					}
 				} else {
@@ -194,14 +210,13 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 
 // jsonAssets search assets that are linked to this JSON
 //
-//   the asset is named after the JSON name
-//   the asset name can be 1 char shorter than the JSON name
-//   but several assets can match with the JSON 🤯
-//   the asset can be placed in another folder than the JSON
-//   when the JSON is found in an album dir, the asset belongs to the album
-//		but the image can be found in year's folder 🤯
-//   the asset name is the JSON title field
-
+//   - the asset is named after the JSON name
+//   - the asset name can be 1 char shorter than the JSON name
+//   - but several assets can match with the JSON 🤯
+//   - the asset can be placed in another folder than the JSON
+//   - when the JSON is found in an album dir, the asset belongs to the album
+//     but the image can be found in year's folder 🤯
+//   - the asset name is the JSON title field
 func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalAssetFile {
 	var list []*browser.LocalAssetFile
 
@@ -224,7 +239,6 @@ func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalA
 		l := to.filesByDir[d]
 
 		for _, f := range l {
-
 			matched := normalMatch(key.name, f.name)
 			matched = matched || matchWithOneCharOmitted(key.name, f.name)
 			matched = matched || matchVeryLongNameWithNumber(key.name, f.name)
@@ -236,6 +250,7 @@ func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalA
 			}
 		}
 	}
+
 	return list
 }
 

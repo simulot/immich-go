@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/helpers/gen"
@@ -24,6 +25,8 @@ type Stack struct {
 }
 
 type StackBuilder struct {
+	lo sync.Mutex
+
 	dateRange immich.DateRange // Set capture date range
 	stacks    map[Key]Stack
 }
@@ -38,9 +41,13 @@ func NewStackBuilder() *StackBuilder {
 }
 
 func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate time.Time) {
+	sb.lo.Lock()
+	defer sb.lo.Unlock()
+
 	if !sb.dateRange.InRange(captureDate) {
 		return
 	}
+
 	ext := path.Ext(fileName)
 	base := strings.TrimSuffix(path.Base(fileName), ext)
 	ext = strings.ToLower(ext)
@@ -64,15 +71,19 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 	if (idx == -1 && slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext)) || strings.Contains(fileName, "COVER.") {
 		s.CoverID = ID
 	}
+
 	sb.stacks[k] = s
 }
 
 func (sb *StackBuilder) Stacks() []Stack {
+	sb.lo.Lock()
+	defer sb.lo.Unlock()
+
 	keys := gen.MapFilterKeys(sb.stacks, func(i Stack) bool {
 		return len(i.IDs) > 1
 	})
 
-	var stacks []Stack
+	stacks := make([]Stack, 0, len(keys))
 	for _, k := range keys {
 		s := sb.stacks[k]
 
@@ -104,10 +115,12 @@ func (sb *StackBuilder) Stacks() []Stack {
 		ids := gen.Filter(s.IDs, func(id string) bool {
 			return id != s.CoverID
 		})
+
 		s.IDs = ids
 		stacks = append(stacks, s)
 
 	}
+
 	sort.Slice(stacks, func(i, j int) bool {
 		c := stacks[i].Date.Compare(stacks[j].Date)
 		switch c {
@@ -116,6 +129,7 @@ func (sb *StackBuilder) Stacks() []Stack {
 		case +1:
 			return false
 		}
+
 		c = strings.Compare(stacks[i].Names[0], stacks[j].Names[0])
 		switch c {
 		case -1:
@@ -123,5 +137,6 @@ func (sb *StackBuilder) Stacks() []Stack {
 		}
 		return false
 	})
+
 	return stacks
 }

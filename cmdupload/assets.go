@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/immich"
 )
 
 type AssetIndex struct {
+	lo sync.Mutex
+
 	assets []*immich.Asset
 	byHash map[string][]*immich.Asset
 	byName map[string][]*immich.Asset
@@ -18,9 +21,13 @@ type AssetIndex struct {
 }
 
 func (ai *AssetIndex) ReIndex() {
-	ai.byHash = map[string][]*immich.Asset{}
-	ai.byName = map[string][]*immich.Asset{}
-	ai.byID = map[string]*immich.Asset{}
+	ai.lo.Lock()
+	defer ai.lo.Unlock()
+
+	elems := len(ai.assets)
+	ai.byHash = make(map[string][]*immich.Asset, elems)
+	ai.byName = make(map[string][]*immich.Asset, elems)
+	ai.byID = make(map[string]*immich.Asset, elems)
 
 	for _, a := range ai.assets {
 		ext := path.Ext(a.OriginalPath)
@@ -38,10 +45,16 @@ func (ai *AssetIndex) ReIndex() {
 }
 
 func (ai *AssetIndex) Len() int {
+	ai.lo.Lock()
+	defer ai.lo.Unlock()
+
 	return len(ai.assets)
 }
 
 func (ai *AssetIndex) AddLocalAsset(la *browser.LocalAssetFile, ImmichID string) {
+	ai.lo.Lock()
+	defer ai.lo.Unlock()
+
 	sa := &immich.Asset{
 		ID:               ImmichID,
 		DeviceAssetID:    la.DeviceAssetID(),
@@ -54,9 +67,39 @@ func (ai *AssetIndex) AddLocalAsset(la *browser.LocalAssetFile, ImmichID string)
 		},
 		JustUploaded: true,
 	}
+
 	ai.assets = append(ai.assets, sa)
 	ai.byID[sa.DeviceAssetID] = sa
+
 	l := ai.byName[sa.OriginalFileName]
 	l = append(l, sa)
+
 	ai.byName[sa.OriginalFileName] = l
+}
+
+// ByName returns a list of [immich.Asset]s based on the given name.
+// If no entity could be found, nil is returned.
+func (ai *AssetIndex) ByName(name string) []*immich.Asset {
+	ai.lo.Lock()
+	defer ai.lo.Unlock()
+
+	return ai.byName[name]
+}
+
+// ByHash returns a list of [immich.Asset]s based on the given hash.
+// If no entity could be found, nil is returned.
+func (ai *AssetIndex) ByHash(hash string) []*immich.Asset {
+	ai.lo.Lock()
+	defer ai.lo.Unlock()
+
+	return ai.byHash[hash]
+}
+
+// ByID returns the [immich.Asset] based on the given ID.
+// If no entity could be found, nil is returned.
+func (ai *AssetIndex) ByID(id string) *immich.Asset {
+	ai.lo.Lock()
+	defer ai.lo.Unlock()
+
+	return ai.byID[id]
 }
