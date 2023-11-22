@@ -1,16 +1,16 @@
 package metadata
 
 import (
-	"immich-go/helpers/tzone"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/tzone"
 )
 
 func TestTakeTimeFromName(t *testing.T) {
 	os.Setenv("TZ", "Europe/Paris")
 	local, err := tzone.Local()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -45,7 +45,7 @@ func TestTakeTimeFromName(t *testing.T) {
 		},
 		{
 			name:     "2023_07_20_10_09_20.mp4",
-			expected: time.Date(2023, 07, 20, 12, 9, 20, 0, local),
+			expected: time.Date(2023, 0o7, 20, 12, 9, 20, 0, local),
 		},
 		{
 			name:     "19991231",

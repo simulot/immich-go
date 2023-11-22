@@ -5,11 +5,12 @@ package gp
 
 import (
 	"context"
-	"immich-go/browser"
-	"immich-go/helpers/fshelper"
-	"immich-go/logger"
 	"path/filepath"
 	"testing"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/logger"
 )
 
 func TestReadBigTakeout(t *testing.T) {

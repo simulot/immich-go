@@ -2,11 +2,12 @@ package gp
 
 import (
 	"context"
-	"immich-go/browser"
-	"immich-go/logger"
 	"path"
 	"reflect"
 	"testing"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/logger"
 
 	"github.com/kr/pretty"
 )
@@ -17,14 +18,16 @@ func TestBrowse(t *testing.T) {
 		gen     func() *inMemFS
 		results []fileResult // file name / title
 	}{
-		{"simpleYear", simpleYear,
+		{
+			"simpleYear", simpleYear,
 			sortFileResult([]fileResult{
 				{name: "PXL_20230922_144936660.jpg", size: 10, title: "PXL_20230922_144936660.jpg"},
 				{name: "PXL_20230922_144956000.jpg", size: 20, title: "PXL_20230922_144956000.jpg"},
 			}),
 		},
 
-		{"simpleAlbum", simpleAlbum,
+		{
+			"simpleAlbum", simpleAlbum,
 			sortFileResult([]fileResult{
 				{name: "PXL_20230922_144936660.jpg", size: 10, title: "PXL_20230922_144936660.jpg"},
 				{name: "PXL_20230922_144934440.jpg", size: 15, title: "PXL_20230922_144934440.jpg"},
@@ -33,14 +36,16 @@ func TestBrowse(t *testing.T) {
 			}),
 		},
 
-		{"albumWithoutImage", albumWithoutImage,
+		{
+			"albumWithoutImage", albumWithoutImage,
 			sortFileResult([]fileResult{
 				{name: "PXL_20230922_144936660.jpg", size: 10, title: "PXL_20230922_144936660.jpg"},
 				{name: "PXL_20230922_144934440.jpg", size: 15, title: "PXL_20230922_144934440.jpg"},
 			}),
 		},
 
-		{"namesWithNumbers", namesWithNumbers,
+		{
+			"namesWithNumbers", namesWithNumbers,
 			sortFileResult([]fileResult{
 				{name: "IMG_3479.JPG", size: 10, title: "IMG_3479.JPG"},
 				{name: "IMG_3479(1).JPG", size: 12, title: "IMG_3479.JPG"},
@@ -48,7 +53,8 @@ func TestBrowse(t *testing.T) {
 			}),
 		},
 
-		{"namesTruncated", namesTruncated,
+		{
+			"namesTruncated", namesTruncated,
 			sortFileResult([]fileResult{
 				{name: "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg", size: 10, title: "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶.jpg"},
 				{name: "PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg", size: 40, title: "PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINAL.jpg"},
@@ -56,20 +62,23 @@ func TestBrowse(t *testing.T) {
 			}),
 		},
 
-		{"imagesWithoutJSON", imagesEditedJSON,
+		{
+			"imagesWithoutJSON", imagesEditedJSON,
 			sortFileResult([]fileResult{
 				{name: "PXL_20220405_090123740.PORTRAIT.jpg", size: 41, title: "PXL_20220405_090123740.PORTRAIT.jpg"},
 				{name: "PXL_20220405_090123740.PORTRAIT-modifié.jpg", size: 21, title: "PXL_20220405_090123740.PORTRAIT.jpg"},
 			}),
 		},
 
-		{"titlesWithForbiddenChars", titlesWithForbiddenChars,
+		{
+			"titlesWithForbiddenChars", titlesWithForbiddenChars,
 			sortFileResult([]fileResult{
 				{name: "27_06_12 - 1.mov", size: 52, title: "27/06/12 - 1.mov"},
 				// {name: "27_06_12 - 1.jpg", size: 24, title: "27/06/12 - 1"},
 			}),
 		},
-		{"namesIssue39", namesIssue39,
+		{
+			"namesIssue39", namesIssue39,
 			sortFileResult([]fileResult{
 				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m.jpg", size: 1, title: "Backyard_ceremony_wedding_photography_xxxxxxx_magnoliastudios-371.jpg"},
 				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m(1).jpg", size: 181, title: "Backyard_ceremony_wedding_photography_xxxxxxx_magnoliastudios-181.jpg"},
@@ -79,7 +88,6 @@ func TestBrowse(t *testing.T) {
 	}
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-
 			fsys := c.gen()
 			if fsys.err != nil {
 				t.Error(fsys.err)
@@ -104,11 +112,9 @@ func TestBrowse(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestAlbums(t *testing.T) {
-
 	type album map[string][]fileResult
 	tc := []struct {
 		name   string
@@ -155,7 +161,6 @@ func TestAlbums(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-
 			ctx := context.Background()
 			fsys := c.gen()
 			if fsys.err != nil {
@@ -185,7 +190,6 @@ func TestAlbums(t *testing.T) {
 				t.Errorf("difference\n")
 				pretty.Ldiff(t, c.albums, albums)
 			}
-
 		})
 	}
 }

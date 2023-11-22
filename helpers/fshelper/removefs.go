@@ -28,7 +28,6 @@ type dirRemoveFS struct {
 }
 
 func DirRemoveFS(name string) fs.FS {
-
 	fsys := &dirRemoveFS{
 		FS:  os.DirFS(name),
 		dir: name,
@@ -36,6 +35,7 @@ func DirRemoveFS(name string) fs.FS {
 
 	return fsys
 }
+
 func (fsys dirRemoveFS) Remove(name string) error {
 	return os.Remove(filepath.Join(fsys.dir, name))
 }

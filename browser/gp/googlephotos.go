@@ -3,13 +3,14 @@ package gp
 import (
 	"context"
 	"fmt"
-	"immich-go/browser"
-	"immich-go/helpers/fshelper"
-	"immich-go/logger"
 	"io/fs"
 	"path"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/logger"
 )
 
 type Takeout struct {
@@ -189,7 +190,6 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 	}()
 
 	return c
-
 }
 
 // jsonAssets search assets that are linked to this JSON
@@ -203,7 +203,6 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 //   the asset name is the JSON title field
 
 func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalAssetFile {
-
 	var list []*browser.LocalAssetFile
 
 	yearDir := path.Join(path.Dir(md.foundInPaths[0]), fmt.Sprintf("Photos from %d", md.PhotoTakenTime.Time().Year()))
@@ -361,7 +360,6 @@ func (to *Takeout) copyGoogleMDToAsset(md *GoogleMetaData, filename string, leng
 		if album, exists := to.albumsByDir[p]; exists {
 			a.Albums = append(a.Albums, album)
 		}
-
 	}
 	return &a
 }

@@ -132,30 +132,35 @@ func (l *Log) DebugObject(name string, v any) {
 	}
 	fmt.Fprintln(l.out)
 }
+
 func (l *Log) Info(f string, v ...any) {
 	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(Info, f, v...)
 }
+
 func (l *Log) OK(f string, v ...any) {
 	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(OK, f, v...)
 }
+
 func (l *Log) Warning(f string, v ...any) {
 	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(Warning, f, v...)
 }
+
 func (l *Log) Error(f string, v ...any) {
 	if l == nil || l.out == nil {
 		return
 	}
 	l.Message(Error, f, v...)
 }
+
 func (l *Log) Fatal(f string, v ...any) {
 	if l == nil || l.out == nil {
 		return

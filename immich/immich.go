@@ -3,9 +3,10 @@ package immich
 import (
 	"encoding/json"
 	"errors"
-	"immich-go/helpers/tzone"
 	"sync"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/tzone"
 )
 
 type UnsupportedMedia struct {

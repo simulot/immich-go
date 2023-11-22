@@ -7,21 +7,22 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"immich-go/browser"
-	"immich-go/browser/files"
-	"immich-go/browser/gp"
-	"immich-go/helpers/fshelper"
-	"immich-go/helpers/gen"
-	"immich-go/helpers/stacking"
-	"immich-go/immich"
-	"immich-go/immich/metadata"
-	"immich-go/logger"
 	"io/fs"
 	"math"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/browser/files"
+	"github.com/simulot/immich-go/browser/gp"
+	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/helpers/stacking"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/immich/metadata"
+	"github.com/simulot/immich-go/logger"
 
 	"github.com/google/uuid"
 )
@@ -180,7 +181,6 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 	app.AssetIndex.ReIndex()
 
 	return &app, err
-
 }
 
 func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []string) error {
@@ -386,7 +386,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	}
 	showCount = false
 	return nil
-
 }
 
 func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
@@ -532,7 +531,6 @@ func (app *UpCmd) DeleteLocalAssets() error {
 		} else {
 			app.log.Warning("file %q not deleted, dry run mode", a.Title)
 		}
-
 	}
 	return nil
 }
@@ -664,13 +662,13 @@ func (ai *AssetIndex) adviceIDontKnow(la *browser.LocalAssetFile) *Advice {
 }
 
 func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
-
 	return &Advice{
 		Advice:      SameOnServer,
 		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
 		ServerAsset: sa,
 	}
 }
+
 func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
 		Advice:      SmallerOnServer,
@@ -678,6 +676,7 @@ func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
 		ServerAsset: sa,
 	}
 }
+
 func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
 		Advice:      BetterOnServer,
@@ -685,6 +684,7 @@ func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
 		ServerAsset: sa,
 	}
 }
+
 func (ai *AssetIndex) adviceNotOnServer() *Advice {
 	return &Advice{
 		Advice:  NotOnServer,
@@ -729,7 +729,6 @@ func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) 
 		size := int(la.Size())
 		if err != nil {
 			return ai.adviceIDontKnow(la), nil
-
 		}
 		for _, sa = range l {
 			compareDate := compareDate(dateTaken, sa.ExifInfo.DateTimeOriginal.Time)

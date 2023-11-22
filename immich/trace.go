@@ -22,6 +22,7 @@ func (sb *smartBodyCloser) Close() error {
 	fmt.Println("\n--- BODY ---")
 	return sb.body.Close()
 }
+
 func (sb *smartBodyCloser) Read(b []byte) (int, error) {
 	return sb.r.Read(b)
 }
@@ -40,6 +41,7 @@ func setTraceJSONRequest() serverRequestOption {
 		return nil
 	}
 }
+
 func setTraceJSONResponse() serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
 		fmt.Println("--- API RESPONSE -- ")
@@ -70,5 +72,4 @@ func traceRequest(req *http.Request) {
 		tr := io.TeeReader(req.Body, os.Stdout)
 		req.Body = &smartBodyCloser{body: req.Body, r: tr}
 	}
-
 }

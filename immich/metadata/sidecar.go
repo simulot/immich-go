@@ -44,11 +44,9 @@ func (sc *SideCar) Open(fsys fs.FS, name string) (io.ReadCloser, error) {
 	}
 
 	return io.NopCloser(b), nil
-
 }
 
 func (sc *SideCar) Bytes() ([]byte, error) {
-
 	b := bytes.NewBuffer(nil)
 	err := sidecarTemplate.Execute(b, sc)
 	if err != nil {

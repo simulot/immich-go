@@ -2,10 +2,11 @@ package cmdupload
 
 import (
 	"fmt"
-	"immich-go/browser"
-	"immich-go/immich"
 	"path"
 	"strings"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/immich"
 )
 
 type AssetIndex struct {

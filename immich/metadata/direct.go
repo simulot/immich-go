@@ -54,7 +54,6 @@ func GetFromReader(rd io.Reader, ext string) (MetaData, error) {
 
 // readExifDateTaken pase the file for Exif DateTaken
 func readExifDateTaken(r io.Reader) (time.Time, error) {
-
 	md, err := getExifFromReader(r)
 	return md.DateTaken, err
 }
@@ -104,5 +103,4 @@ func readCR3DateTaken(r *sliceReader) (time.Time, error) {
 
 	md, err := getExifFromReader(r)
 	return md.DateTaken, err
-
 }

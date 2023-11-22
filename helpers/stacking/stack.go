@@ -1,13 +1,14 @@
 package stacking
 
 import (
-	"immich-go/helpers/gen"
-	"immich-go/immich"
 	"path"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/immich"
 )
 
 type Key struct {
@@ -34,7 +35,6 @@ func NewStackBuilder() *StackBuilder {
 	sb.dateRange.Set("1850-01-04,2030-01-01")
 
 	return &sb
-
 }
 
 func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate time.Time) {

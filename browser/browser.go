@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"immich-go/helpers/fshelper"
 	"slices"
 	"strings"
+
+	"github.com/simulot/immich-go/helpers/fshelper"
 )
 
 type Browser interface {
@@ -32,7 +33,6 @@ func (c *Configuration) IsValid() error {
 	c.ExcludeExtensions, _ = checkExtensions(c.ExcludeExtensions)
 
 	return jerr
-
 }
 
 func checkExtensions(l StringList) (StringList, error) {
