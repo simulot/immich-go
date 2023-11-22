@@ -18,6 +18,16 @@ func Test_matchEditedName(t *testing.T) {
 			fileName: "PXL_20220405_100123740.PORTRAIT-modifié.jpg",
 			want:     false,
 		},
+		{
+			jsonName: "DSC_0238.JPG.json",
+			fileName: "DSC_0238.JPG",
+			want:     true,
+		},
+		{
+			jsonName: "DSC_0238.JPG.json",
+			fileName: "DSC_0238(1).JPG",
+			want:     false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {

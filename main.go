@@ -27,6 +27,9 @@ func main() {
 	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 	var err error
 	var log = logger.NewLogger(logger.OK, true, false)
+	o, _ := os.Create("out.txt")
+	log.Writer(o)
+	defer o.Close()
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
 

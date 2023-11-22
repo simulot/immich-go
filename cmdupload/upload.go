@@ -19,6 +19,7 @@ import (
 	"immich-go/logger"
 	"io/fs"
 	"math"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -287,6 +288,7 @@ assetLoop:
 	if len(app.deleteLocalList) > 0 {
 		err = app.DeleteLocalAssets()
 	}
+	app.BrowserConfig.Journal.WriteJournal(os.Stdout)
 	app.BrowserConfig.Journal.Report()
 	return err
 }
@@ -444,7 +446,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 		resp.ID = uuid.NewString()
 	}
 	if !resp.Duplicate {
-		app.journalAsset(a, journal.UPLOADED, "")
+		app.journalAsset(a, journal.UPLOADED, a.Title)
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		app.mediaUploaded += 1
 		if app.CreateStacks {
@@ -487,7 +489,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 					Names = append(Names, Name)
 				}
 				if len(Names) > 0 {
-					app.journalAsset(a, journal.ALBUM, "added to albums "+strings.Join(Names, ", "))
+					app.journalAsset(a, journal.ALBUM, strings.Join(Names, ", "))
 					for _, n := range Names {
 						app.AddToAlbum(resp.ID, n)
 					}

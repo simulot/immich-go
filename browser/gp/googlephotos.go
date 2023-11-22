@@ -67,12 +67,8 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 			dir = "."
 		}
 		if d.IsDir() {
-			if base == "Failed Videos" {
-				return fs.SkipDir
-			}
 			return nil
 		}
-		to.log.Debug("walk file '%s'", name)
 		ext := strings.ToLower(path.Ext(name))
 		switch ext {
 		case ".json":
@@ -102,6 +98,10 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 			}
 		default:
 			to.conf.Journal.AddEntry(name, journal.SCANNED, "")
+			if strings.Contains(name, "Failed Videos") {
+				to.conf.Journal.AddEntry(name, journal.FAILED_VIDEO, "")
+				return nil
+			}
 			info, err := d.Info()
 			if err != nil {
 				return err
@@ -182,7 +182,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 						c <- a
 					}
 				} else {
-					to.conf.Journal.AddEntry(a.FileName, journal.LOCAL_DUPLICATE, "duplicate in the takeout")
+					to.conf.Journal.AddEntry(a.FileName, journal.LOCAL_DUPLICATE, fk.name)
 				}
 			}
 		}

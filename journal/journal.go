@@ -1,7 +1,11 @@
 package journal
 
 import (
+	"fmt"
+	"immich-go/helpers/gen"
 	"immich-go/logger"
+	"io"
+	"sort"
 	"sync"
 	"time"
 )
@@ -25,14 +29,15 @@ const (
 	SCANNED          Action = "Scanned"
 	DISCARDED        Action = "Discarded"
 	UPLOADED         Action = "Uploaded"
-	UPGRADED         Action = "Server's photo upgraded"
+	UPGRADED         Action = "Server photo upgraded"
 	ERROR            Action = "Error"
 	LOCAL_DUPLICATE  Action = "Local duplicate"
-	SERVER_DUPLICATE Action = "Server's has photo"
+	SERVER_DUPLICATE Action = "Server has photo"
 	STACKED          Action = "Stacked"
-	SERVER_BETTER    Action = "Server's is better"
+	SERVER_BETTER    Action = "Server photo is better"
 	ALBUM            Action = "Added to an album"
 	LIVE_PHOTO       Action = "Live photo"
+	FAILED_VIDEO     Action = "Failed video"
 )
 
 func NewJournal(log logger.Logger) *Journal {
@@ -72,6 +77,7 @@ func (j *Journal) Report() {
 	j.log.OK("Upload report:")
 	j.log.OK("%6d errors", counts[ERROR])
 	j.log.OK("%6d files scanned", counts[SCANNED])
+	j.log.OK("%6d files discarded because in folder failed videos", counts[FAILED_VIDEO])
 	j.log.OK("%6d files discarded because of options", counts[DISCARDED])
 	j.log.OK("%6d files discarded because server has a better image", counts[SERVER_BETTER])
 	j.log.OK("%6d files duplicated locally", counts[LOCAL_DUPLICATE])
@@ -79,5 +85,21 @@ func (j *Journal) Report() {
 
 	j.log.OK("%6d files uploaded on the server", counts[UPLOADED])
 	j.log.OK("%6d files upgraded on the server", counts[UPGRADED])
+
+}
+
+func (j *Journal) WriteJournal(w io.Writer) {
+	keys := gen.MapKeys(j.Files)
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Fprintln(w, "File:", k)
+		for _, e := range j.Files[k] {
+			fmt.Fprint(w, "\t", e.action)
+			if len(e.comment) > 0 {
+				fmt.Fprint(w, ", ", e.comment)
+			}
+			fmt.Fprintln(w)
+		}
+	}
 
 }
