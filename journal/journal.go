@@ -48,8 +48,12 @@ func NewJournal(log logger.Logger) *Journal {
 }
 
 func (j *Journal) AddEntry(file string, action Action, comment string) {
+	if j == nil {
+		return
+	}
 	if j.log != nil {
 		switch action {
+
 		case ERROR:
 			j.log.Error("%-40s: %s: %s", action, file, comment)
 		case UPLOADED:
@@ -57,9 +61,6 @@ func (j *Journal) AddEntry(file string, action Action, comment string) {
 		default:
 			j.log.Info("%-40s: %s: %s", action, file, comment)
 		}
-	}
-	if j == nil {
-		return
 	}
 	j.Lock()
 	defer j.Unlock()

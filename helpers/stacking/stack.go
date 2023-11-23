@@ -1,6 +1,7 @@
 package stacking
 
 import (
+	"immich-go/helpers/fshelper"
 	"immich-go/helpers/gen"
 	"immich-go/immich"
 	"path"
@@ -77,26 +78,23 @@ func (sb *StackBuilder) Stacks() []Stack {
 		s := sb.stacks[k]
 
 		// Exclude live photos
-		hasHEIC := 0
-		hasMP4 := 0
-		hasJPG := 0
-		hasOther := 0
+		hasPhoto := 0
+		hasVideo := 0
 
 		for _, n := range s.Names {
-			ext := strings.ToLower(path.Ext(n))
-			switch ext {
-			case ".heic":
-				hasHEIC++
-			case ".mp4":
-				hasMP4++
-			case ".jpg":
-				hasJPG++
-			default:
-				hasOther++
+			mime, err := fshelper.MimeFromExt(path.Ext(n))
+			if err != nil {
+				continue
+			}
+			switch mime[0] {
+			case "video":
+				hasVideo++
+			case "photo":
+				hasPhoto++
 			}
 		}
 
-		if hasOther == 0 && (hasHEIC == 1 || hasJPG == 1) && hasMP4 == 1 {
+		if hasPhoto == 1 && hasVideo == 1 {
 			// oh, a live photo!
 			continue
 		}

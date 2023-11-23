@@ -93,41 +93,11 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 	}
 
 	for _, es := range fileMap {
-		hasHEIC := 0
-		hasMP4 := 0
-		hasJPG := 0
-		hasXMP := 0
-		hasOther := 0
-		// Same base, different extensions
-
-		livePhotoBin := ""
-		for _, e := range es {
-			n := e.Name()
-			ext := strings.ToLower(path.Ext(n))
-			switch ext {
-			case ".heic":
-				hasHEIC++
-			case ".mp4":
-				hasMP4++
-				livePhotoBin = e.Name()
-			case ".jpg":
-				hasJPG++
-			case ".xmp":
-				hasXMP++
-			default:
-				hasOther++
-			}
-		}
-		isLivePhoto := hasMP4 == 1 && ((hasHEIC == 1 && hasJPG == 0) || (hasHEIC == 0 && hasJPG == 1)) && hasOther == 0
 
 		for _, e := range es {
 			fileName := path.Join(folder, e.Name())
 			la.conf.Journal.AddEntry(fileName, journal.SCANNED, "")
 			name := e.Name()
-			if isLivePhoto && name == livePhotoBin {
-				// Don't sent the mp4 part of the live photo as a separate asset
-				continue
-			}
 			ext := path.Ext(name)
 			if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
 				la.log.Debug("%s", err)
@@ -145,13 +115,12 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 			}
 			la.log.Debug("file '%s'", name)
 			f := browser.LocalAssetFile{
-				FSys:          la.fsys,
-				FileName:      fileName,
-				Title:         path.Base(name),
-				LivePhotoData: livePhotoBin,
-				FileSize:      0,
-				Err:           err,
-				DateTaken:     metadata.TakeTimeFromName(filepath.Base(name)),
+				FSys:      la.fsys,
+				FileName:  path.Join(folder, name),
+				Title:     path.Base(name),
+				FileSize:  0,
+				Err:       err,
+				DateTaken: metadata.TakeTimeFromName(filepath.Base(name)),
 			}
 
 			s, err := e.Info()

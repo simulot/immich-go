@@ -1,5 +1,12 @@
 # Release notes 
 
+## Release 0.8.5
+
+### fix for #78: mp4-files do not get imported
+
+Thanks to @Zack and @jrasm91 to have nailed the problem.
+ 
+
 ## Release 0.8.4
 
 ###  fix for #67 : Live photos files are stacked and not recognized as live photos
