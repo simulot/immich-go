@@ -27,6 +27,11 @@ Give a try to the `immich-go` tool.
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
 
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=simulot/immich-go&type=Date)](https://star-history.com/#simulot/immich-go&Date)
+
+
 # Executing `immich-go`
 The `immich-go` program uses the Immich API. Hence it need the server address and a valid API key.
 
