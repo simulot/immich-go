@@ -1,5 +1,54 @@
 # Release notes 
 
+## Release 0.8.6
+
+### fix for #68: A lot of images skipped from Google Photos Takeout
+
+The Google takeout archive is full of traps. The difficulty is to associate all images with a JSON.
+Now more files are now imported. There still few missing files, but they are now listed.
+
+The program now reports how files are handled, or discarded.
+
+```
+Upload report:
+ 53998 scanned files
+ 53993 handled files
+ 26937 metadata files
+   535 uploaded files on the server
+    49 upgraded files on the server
+  1540 duplicated files in the input
+  8382 files already on the server
+    77 discarded files because in folder failed videos
+     1 discarded files because of options
+ 16470 discarded files because server has a better image
+     1 files type not supported
+     1 errors
+     5 files without metadata file
+7 files can't be handled
+File: Takeout/Google Photos/Photos from 2019/1556189729458-8d2e2d13-bca5-467e-a242-9e4cb238e(1).jpg
+        File unhandled, missing JSON
+File: Takeout/Google Photos/Photos from 2022/original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg
+        File unhandled, missing JSON
+File: Takeout/Google Photos/Photos from 2022/original_af12c386-e334-4c57-88be-fdfadea71f16_P(1).jpg
+        File unhandled, missing JSON
+File: Takeout/Google Photos/Photos from 2022/original_ec8d7b93-cbec-49c8-8707-38841db5e37d_P(1).jpg
+        File unhandled, missing JSON
+File: Takeout/Google Photos/Photos from 2023/original_d3671642-c937-49c0-917a-8ef9cbb449c5_P(1).jpg
+        File unhandled, missing JSON
+File: Takeout/Google Photos/user-generated-memory-titles.json
+        Error , json: cannot unmarshal array into Go struct field GoogleMetaData.title of type string
+File: Takeout/archive_browser.html
+        File type not supported
+Done.
+```
+
+
+The plenty of rules for associating image to JSON are somewhat contradictory. I have to rethink the system for applying  
+rules from the most common to the strangest ones.
+
+Still lot of work to deliver.
+
+
 ## Release 0.8.5
 
 ### fix for #78: mp4-files do not get imported
@@ -24,7 +73,7 @@ Or it's possible to import everything but .heic
 
 ## Release 0.8.3
 
-### Fiw for #69: Panic: runtime error: slice bounds out of range
+### Fix for #69: Panic: runtime error: slice bounds out of range
 Rewriting searchPattern
 Add tests
 
