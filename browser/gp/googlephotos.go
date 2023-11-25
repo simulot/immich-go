@@ -16,7 +16,7 @@ import (
 type Takeout struct {
 	fsys        fs.FS
 	filesByDir  map[string][]fileKey          // files name mapped by dir
-	jsonByYear  map[jsonKey]*GoogleMetaData   // JSON by year of capture and full path
+	jsonByYear  map[jsonKey]*GoogleMetaData   // assets by year of capture and full path
 	albumsByDir map[string]browser.LocalAlbum // album title mapped by dir
 	log         logger.Logger
 	conf        *browser.Configuration
@@ -80,7 +80,9 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 						Path: path.Base(dir),
 						Name: md.Title,
 					}
+					to.conf.Journal.AddEntry(name, journal.METADATA, "Album title: "+md.Title)
 				case md.Category != "":
+					to.conf.Journal.AddEntry(name, journal.METADATA, "unknown json file")
 					return nil
 				default:
 					key := jsonKey{
@@ -94,10 +96,18 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 						md.foundInPaths = append(md.foundInPaths, dir)
 						to.jsonByYear[key] = md
 					}
+					to.conf.Journal.AddEntry(name, journal.METADATA, "Title: "+md.Title)
 				}
+			} else {
+				to.conf.Journal.AddEntry(name, journal.ERROR, "Error : "+err.Error())
 			}
 		default:
 			to.conf.Journal.AddEntry(name, journal.SCANNED, "")
+			if _, err := fshelper.MimeFromExt(ext); err != nil {
+				to.conf.Journal.AddEntry(name, journal.NOT_SUPPORTED, "")
+				return nil
+			}
+
 			if strings.Contains(name, "Failed Videos") {
 				to.conf.Journal.AddEntry(name, journal.FAILED_VIDEO, "")
 				return nil
@@ -166,6 +176,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 //   when the JSON is found in an album dir, the asset belongs to the album
 //		but the image can be found in year's folder 🤯
 //   the asset name is the JSON title field
+//   When there are more thant one asset, asset names must be derived from the json title.
 
 func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalAssetFile {
 
@@ -182,6 +193,8 @@ func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalA
 		}
 	}
 	if !jsonInYear {
+		// add the Year folder to the list to search files there as well
+		// TODO: is it needed for real archives?
 		paths = append(paths, yearDir)
 	}
 
@@ -196,6 +209,8 @@ func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalA
 			matched = matched || matchVeryLongNameWithNumber(key.name, f.name)
 			matched = matched || matchDuplicateInYear(key.name, f.name)
 			matched = matched || matchEditedName(key.name, f.name)
+			matched = matched || matchMPNames(key.name, f.name)
+			// matched = matched || matchForgottenDuplicates(key.name, f.name)
 
 			if matched {
 				list = append(list, to.copyGoogleMDToAsset(md, path.Join(d, f.name), int(f.size)))
@@ -209,16 +224,8 @@ func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalA
 //
 //	PXL_20230922_144936660.jpg.json
 //	PXL_20230922_144936660.jpg
-//
-//	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jp.json
-//	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg
 func normalMatch(jsonName string, fileName string) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	ext := path.Ext(base)
-	if ext == ".jp" {
-		base += "g"
-	}
-
 	return base == fileName
 }
 
@@ -226,20 +233,27 @@ func normalMatch(jsonName string, fileName string) bool {
 //
 //	PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGIN.json
 //	PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg
+//
+//	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jp.json
+//	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg
+//
+//  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json
+//  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg
+
 func matchWithOneCharOmitted(jsonName string, fileName string) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	ext := path.Ext(base)
-	switch ext {
-	case "":
-	default:
-		if _, err := fshelper.MimeFromExt(ext); err == nil {
-			return false
+	if strings.HasPrefix(fileName, base) {
+		if fshelper.IsExtensionPrefix(path.Ext(base)) {
+			// Trim only if the EXT is known extension, and not .COVER or .ORIGINAL
+			base = strings.TrimSuffix(base, path.Ext(base))
+		}
+		fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
+		a, b := utf8.RuneCountInString(fileName), utf8.RuneCountInString(base)
+		if a-b <= 1 {
+			return true
 		}
 	}
-	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
-	_, s := utf8.DecodeLastRuneInString(fileName)
-	fileName = fileName[:len(fileName)-s]
-	return base == fileName
+	return false
 }
 
 // matchVeryLongNameWithNumber
@@ -308,11 +322,66 @@ func matchEditedName(jsonName string, fileName string) bool {
 	return false
 }
 
+// matchMPNames
+//  PXL_20221228_185930354.MP.jpg.json
+//  PXL_20221228_185930354.MP
+//  PXL_20221228_185930354.MP.jpg
+
+func matchMPNames(jsonName string, fileName string) bool {
+	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	ext := path.Ext(base)
+	if ext != "" {
+		if _, err := fshelper.MimeFromExt(ext); err == nil {
+			base := strings.TrimSuffix(base, ext)
+			// fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
+			if strings.HasPrefix(fileName, base) {
+				return true
+			}
+			base = strings.TrimSuffix(base, path.Ext(base))
+			return strings.HasPrefix(fileName, base)
+		}
+	}
+	return false
+}
+
+/*
+TODO: This one interferes with matchVeryLongNameWithNumber
+
+// matchForgottenDuplicates
+// original_1d4caa6f-16c6-4c3d-901b-9387de10e528_.json
+// original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg
+// original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg
+
+func matchForgottenDuplicates(jsonName string, fileName string) bool {
+	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
+	if strings.HasPrefix(fileName, jsonName) {
+		a, b := utf8.RuneCountInString(jsonName), utf8.RuneCountInString(fileName)
+		if b-a < 10 {
+			return true
+		}
+	}
+	return false
+}
+*/
+
 func (to *Takeout) copyGoogleMDToAsset(md *GoogleMetaData, filename string, length int) *browser.LocalAssetFile {
+	// Change file's title with the asset's title and the actual file's extension
+	title := md.Title
+	titleExt := path.Ext(title)
+	fileExt := path.Ext(filename)
+	if titleExt != fileExt {
+		title = strings.TrimSuffix(title, titleExt)
+		titleExt = path.Ext(title)
+		if titleExt != fileExt {
+			title = strings.TrimSuffix(title, titleExt) + fileExt
+		}
+	}
+
 	a := browser.LocalAssetFile{
 		FileName:    filename,
 		FileSize:    length,
-		Title:       md.Title,
+		Title:       title,
 		Altitude:    md.GeoDataExif.Altitude,
 		Latitude:    md.GeoDataExif.Latitude,
 		Longitude:   md.GeoDataExif.Longitude,

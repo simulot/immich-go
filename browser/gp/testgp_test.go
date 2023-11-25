@@ -47,7 +47,6 @@ func TestBrowse(t *testing.T) {
 				{name: "IMG_3479(2).JPG", size: 15, title: "IMG_3479.JPG"},
 			}),
 		},
-
 		{"namesTruncated", namesTruncated,
 			sortFileResult([]fileResult{
 				{name: "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg", size: 10, title: "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶.jpg"},
@@ -66,7 +65,7 @@ func TestBrowse(t *testing.T) {
 		{"titlesWithForbiddenChars", titlesWithForbiddenChars,
 			sortFileResult([]fileResult{
 				{name: "27_06_12 - 1.mov", size: 52, title: "27/06/12 - 1.mov"},
-				// {name: "27_06_12 - 1.jpg", size: 24, title: "27/06/12 - 1"},
+				{name: "27_06_12 - 1.jpg", size: 24, title: "27/06/12 - 1.jpg"},
 			}),
 		},
 		{"namesIssue39", namesIssue39,
@@ -76,6 +75,25 @@ func TestBrowse(t *testing.T) {
 				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m(494).jpg", size: 494, title: "Backyard_ceremony_wedding_photography_markham_magnoliastudios-19.jpg"},
 			}),
 		},
+		{"issue68MPFiles", issue68MPFiles,
+			sortFileResult([]fileResult{
+				{name: "PXL_20221228_185930354.MP", size: 1, title: "PXL_20221228_185930354.MP"},
+				{name: "PXL_20221228_185930354.MP.jpg", size: 2, title: "PXL_20221228_185930354.MP.jpg"},
+			}),
+		},
+		{"issue68LongExposure", issue68LongExposure,
+			sortFileResult([]fileResult{
+				{name: "PXL_20230814_201154491.LONG_EXPOSURE-01.COVER.jpg", size: 1, title: "PXL_20230814_201154491.LONG_EXPOSURE-01.COVER.jpg"},
+				{name: "PXL_20230814_201154491.LONG_EXPOSURE-02.ORIGINA.jpg", size: 2, title: "PXL_20230814_201154491.LONG_EXPOSURE-02.ORIGINAL.jpg"},
+			}),
+		},
+		// {
+		// 	"issue68ForgottenDuplicates", issue68ForgottenDuplicates,
+		// 	sortFileResult([]fileResult{
+		// 		{name: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg", size: 1, title: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_PXL_20220516_164814158.jpg"},
+		// 		{name: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg", size: 2, title: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_PXL_20220516_164814158.jpg"},
+		// 	}),
+		// },
 	}
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {

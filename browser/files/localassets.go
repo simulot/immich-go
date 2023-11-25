@@ -100,20 +100,17 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 			name := e.Name()
 			ext := path.Ext(name)
 			if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
-				la.log.Debug("%s", err)
+				la.conf.Journal.AddEntry(fileName, journal.NOT_SUPPORTED, "")
 				continue
 			}
 			if !la.conf.SelectExtensions.Include(ext) {
 				la.conf.Journal.AddEntry(fileName, journal.DISCARDED, "because of select-type option")
-				la.log.Debug("file not selected (%s)", ext)
 				continue
 			}
 			if la.conf.ExcludeExtensions.Exclude(ext) {
 				la.conf.Journal.AddEntry(fileName, journal.DISCARDED, "because of exclude-type option")
-				la.log.Debug("file excluded (%s)", ext)
 				continue
 			}
-			la.log.Debug("file '%s'", name)
 			f := browser.LocalAssetFile{
 				FSys:      la.fsys,
 				FileName:  path.Join(folder, name),

@@ -2,13 +2,14 @@ package fshelper
 
 import (
 	"fmt"
+	"immich-go/helpers/gen"
 	"strings"
 )
 
 // List from immich code:
 // https://github.com/immich-app/immich/blob/8d5bf933601a3f2787a78c40e4c11862b96566e0/server/src/domain/domain.constant.ts#L26C17-L89C3
 
-var supportedExtensions = map[string][]string{
+var supportedExtensionsAndMime = map[string][]string{
 	".3fr":  {"image/3fr", "image/x-hasselblad-3fr"},
 	".ari":  {"image/ari", "image/x-arriflex-ari"},
 	".arw":  {"image/arw", "image/x-sony-arw"},
@@ -64,13 +65,30 @@ var supportedExtensions = map[string][]string{
 	".mts":  {"video/mp2t"},
 	".webm": {"video/webm"},
 	".wmv":  {"video/x-ms-wmv"},
+
+	".mp": {"video/mp4"}, // Add support for MP format
 }
+
+var supportedExtensions = gen.MapKeys(supportedExtensionsAndMime)
 
 // MimeFromExt return the mime type of the extension. Return an error is the extension is not handled by the server.
 func MimeFromExt(ext string) ([]string, error) {
 	ext = strings.ToLower(ext)
-	if l, ok := supportedExtensions[ext]; ok {
+	if l, ok := supportedExtensionsAndMime[ext]; ok {
 		return l, nil
 	}
 	return nil, fmt.Errorf("unsupported extension %s", ext)
+}
+
+// IsExtensionPrefix
+// Check if the string is first part of an known extension as needed for Google Takeout
+
+func IsExtensionPrefix(ext string) bool {
+	ext = strings.ToLower(ext)
+	for _, e := range supportedExtensions {
+		if ext == e[:len(e)-1] {
+			return true
+		}
+	}
+	return false
 }
