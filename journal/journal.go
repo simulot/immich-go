@@ -1,10 +1,9 @@
 package journal
 
 import (
-	"fmt"
 	"immich-go/helpers/gen"
 	"immich-go/logger"
-	"io"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -12,8 +11,9 @@ import (
 
 type Journal struct {
 	sync.RWMutex
-	Files map[string]Entries
-	log   logger.Logger
+	files  map[string]Entries
+	counts map[Action]int
+	log    logger.Logger
 }
 
 type Entries struct {
@@ -43,13 +43,15 @@ const (
 	ALBUM            Action = "Added to an album"
 	LIVE_PHOTO       Action = "Live photo"
 	FAILED_VIDEO     Action = "Failed video"
-	NOT_SUPPORTED    Action = "File type not supported"
+	UNSUPPORTED      Action = "File type not supported"
 	METADATA         Action = "Metadata files"
+	UNHANDLED        Action = "File unhandled"
+	HANDLED          Action = "File handled"
 )
 
 func NewJournal(log logger.Logger) *Journal {
 	return &Journal{
-		Files: map[string]Entries{},
+		files: map[string]Entries{},
 		log:   log,
 	}
 }
@@ -62,34 +64,33 @@ func (j *Journal) AddEntry(file string, action Action, comment string) {
 		switch action {
 
 		case ERROR:
-			j.log.Error("%-40s: %s: %s", action, file, comment)
+			j.log.Error("%-25s: %s: %s", action, file, comment)
 		case UPLOADED:
-			j.log.OK("%-40s: %s: %s", action, file, comment)
+			j.log.OK("%-25s: %s: %s", action, file, comment)
 		default:
-			j.log.Info("%-40s: %s: %s", action, file, comment)
+			j.log.Info("%-25s: %s: %s", action, file, comment)
 		}
 	}
 	j.Lock()
 	defer j.Unlock()
-	e := j.Files[file]
+	e := j.files[file]
 
 	switch action {
-	case DISCARDED, UPGRADED, UPLOADED, LOCAL_DUPLICATE, SERVER_DUPLICATE, SERVER_BETTER, FAILED_VIDEO, NOT_SUPPORTED, METADATA, ERROR:
+	case DISCARDED, UPGRADED, UPLOADED, LOCAL_DUPLICATE, SERVER_DUPLICATE, SERVER_BETTER, FAILED_VIDEO, UNSUPPORTED, METADATA, ERROR:
 		if e.terminated {
 			return
-			// j.log.Error("%-40s: Already terminated %s: %s", action, file, comment)
 		}
 		e.terminated = true
 	}
 	e.entries = append(e.entries, Entry{ts: time.Now(), action: action, comment: comment})
-	j.Files[file] = e
+	j.files[file] = e
 }
 
-func (j *Journal) Report() {
+func (j *Journal) Counters() map[Action]int {
 	counts := map[Action]int{}
 	terminated := 0
 
-	for _, es := range j.Files {
+	for _, es := range j.files {
 		for _, e := range es.entries {
 			counts[e.action]++
 		}
@@ -97,9 +98,17 @@ func (j *Journal) Report() {
 			terminated++
 		}
 	}
+	counts[HANDLED] = terminated
+	counts[UNHANDLED] = len(j.files) - terminated
+	return counts
+}
+
+func (j *Journal) Report() {
+	counts := j.Counters()
+
 	j.log.OK("Upload report:")
-	j.log.OK("%6d scanned files", len(j.Files))
-	j.log.OK("%6d handled files", terminated)
+	j.log.OK("%6d scanned files", len(j.files))
+	j.log.OK("%6d handled files", counts[HANDLED])
 	j.log.OK("%6d metadata files", counts[METADATA])
 	j.log.OK("%6d uploaded files on the server", counts[UPLOADED])
 	j.log.OK("%6d upgraded files on the server", counts[UPGRADED])
@@ -109,24 +118,40 @@ func (j *Journal) Report() {
 	j.log.OK("%6d discarded files because in folder failed videos", counts[FAILED_VIDEO])
 	j.log.OK("%6d discarded files because of options", counts[DISCARDED])
 	j.log.OK("%6d discarded files because server has a better image", counts[SERVER_BETTER])
-	j.log.OK("%6d files type not supported", counts[NOT_SUPPORTED])
+	j.log.OK("%6d files type not supported", counts[UNSUPPORTED])
 	j.log.OK("%6d errors", counts[ERROR])
+	j.log.OK("%6d files without metadata file", counts[UNHANDLED])
 
 }
 
-func (j *Journal) WriteJournal(w io.Writer) {
-	keys := gen.MapKeys(j.Files)
+func (j *Journal) WriteJournal(events ...Action) {
+	keys := gen.MapKeys(j.files)
+	writeUnhandled := slices.Contains(events, UNHANDLED)
 	sort.Strings(keys)
 	for _, k := range keys {
-		if !j.Files[k].terminated {
-			fmt.Fprintln(w, "File:", k)
-			for _, e := range j.Files[k].entries {
-				fmt.Fprint(w, "\t", e.action)
-				if len(e.comment) > 0 {
-					fmt.Fprint(w, ", ", e.comment)
+		es := j.files[k]
+		printFile := true
+		mustTerminate := false
+		for _, e := range es.entries {
+			if slices.Contains(events, e.action) || (writeUnhandled && !es.terminated) {
+				mustTerminate = true
+				if printFile {
+					j.log.OK("File: %s", k)
+					printFile = false
 				}
-				fmt.Fprintln(w)
 			}
+			if slices.Contains(events, e.action) {
+				j.log.MessageContinue(logger.OK, "\t%s", e.action)
+				if len(e.comment) > 0 {
+					j.log.MessageContinue(logger.OK, ", %s", e.comment)
+				}
+			}
+		}
+		if writeUnhandled && !es.terminated {
+			j.log.MessageContinue(logger.OK, "\t%s, missing JSON", UNHANDLED)
+		}
+		if mustTerminate {
+			j.log.MessageTerminate(logger.OK, "")
 		}
 	}
 }

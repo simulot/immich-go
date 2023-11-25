@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"immich-go/browser"
 	"immich-go/helpers/fshelper"
+	"immich-go/helpers/gen"
 	"immich-go/journal"
 	"immich-go/logger"
 	"io/fs"
 	"path"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -51,6 +53,7 @@ func NewTakeout(ctx context.Context, fsys fs.FS, log logger.Logger, conf *browse
 
 // walk the given FS to collect images file names and metadata files
 func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
+	to.log.OK("Scanning the Google Photos takeout")
 	err := fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -99,12 +102,12 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 					to.conf.Journal.AddEntry(name, journal.METADATA, "Title: "+md.Title)
 				}
 			} else {
-				to.conf.Journal.AddEntry(name, journal.ERROR, "Error : "+err.Error())
+				to.conf.Journal.AddEntry(name, journal.ERROR, err.Error())
 			}
 		default:
 			to.conf.Journal.AddEntry(name, journal.SCANNED, "")
 			if _, err := fshelper.MimeFromExt(ext); err != nil {
-				to.conf.Journal.AddEntry(name, journal.NOT_SUPPORTED, "")
+				to.conf.Journal.AddEntry(name, journal.UNSUPPORTED, "")
 				return nil
 			}
 
@@ -123,7 +126,7 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 		}
 		return nil
 	})
-
+	to.log.OK("Scanning the Google Photos takeout completed.")
 	return err
 }
 
@@ -133,7 +136,14 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 	passed := map[fileKey]any{}
 	go func() {
 		defer close(c)
-		for k, md := range to.jsonByYear {
+
+		jsonFile := gen.MapKeys(to.jsonByYear)
+		sort.Slice(jsonFile, func(i, j int) bool {
+			return to.jsonByYear[jsonFile[i]].foundInPaths[0] < to.jsonByYear[jsonFile[j]].foundInPaths[0]
+		})
+
+		for _, k := range jsonFile {
+			md := to.jsonByYear[k]
 			to.log.Debug("Checking '%s', %d", k.name, k.year)
 			assets := to.jsonAssets(k, md)
 

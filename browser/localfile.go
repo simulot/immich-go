@@ -87,7 +87,6 @@ func (l *LocalAssetFile) Remove() error {
 }
 
 func (l *LocalAssetFile) DeviceAssetID() string {
-	// n := strings.TrimSuffix(path.Base(l.Title), path.Ext(l.Title))
 	return fmt.Sprintf("%s-%d", strings.ToUpper(l.Title), l.FileSize)
 }
 

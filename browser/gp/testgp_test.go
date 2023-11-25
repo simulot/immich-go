@@ -39,7 +39,6 @@ func TestBrowse(t *testing.T) {
 				{name: "PXL_20230922_144934440.jpg", size: 15, title: "PXL_20230922_144934440.jpg"},
 			}),
 		},
-
 		{"namesWithNumbers", namesWithNumbers,
 			sortFileResult([]fileResult{
 				{name: "IMG_3479.JPG", size: 10, title: "IMG_3479.JPG"},

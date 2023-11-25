@@ -19,7 +19,6 @@ import (
 	"immich-go/logger"
 	"io/fs"
 	"math"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -288,8 +287,15 @@ assetLoop:
 	if len(app.deleteLocalList) > 0 {
 		err = app.DeleteLocalAssets()
 	}
-	app.BrowserConfig.Journal.WriteJournal(os.Stdout)
+
 	app.BrowserConfig.Journal.Report()
+	counts := app.BrowserConfig.Journal.Counters()
+
+	if c := counts[journal.UNHANDLED] + counts[journal.ERROR] + counts[journal.UNSUPPORTED]; c > 0 {
+		app.log.Warning("%d files can't be handled", c)
+		app.BrowserConfig.Journal.WriteJournal(journal.UNHANDLED, journal.ERROR, journal.UNSUPPORTED)
+	}
+
 	return err
 }
 
@@ -365,7 +371,11 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		}
 	case SameOnServer:
 		// Set add the server asset into albums determined locally
-		app.journalAsset(a, journal.SERVER_DUPLICATE, "")
+		if !advice.ServerAsset.JustUploaded {
+			app.journalAsset(a, journal.SERVER_DUPLICATE, "")
+		} else {
+			app.journalAsset(a, journal.LOCAL_DUPLICATE, "")
+		}
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))

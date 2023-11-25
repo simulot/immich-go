@@ -100,7 +100,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 			name := e.Name()
 			ext := path.Ext(name)
 			if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
-				la.conf.Journal.AddEntry(fileName, journal.NOT_SUPPORTED, "")
+				la.conf.Journal.AddEntry(fileName, journal.UNSUPPORTED, "")
 				continue
 			}
 			if !la.conf.SelectExtensions.Include(ext) {
