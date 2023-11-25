@@ -86,6 +86,11 @@ func TestBrowse(t *testing.T) {
 				{name: "PXL_20230814_201154491.LONG_EXPOSURE-02.ORIGINA.jpg", size: 2, title: "PXL_20230814_201154491.LONG_EXPOSURE-02.ORIGINAL.jpg"},
 			}),
 		},
+
+		// {"namesWithNumbersBut1", namesWithNumbersBut1,
+		// 	sortFileResult([]fileResult{}),
+		// },
+
 		// {
 		// 	"issue68ForgottenDuplicates", issue68ForgottenDuplicates,
 		// 	sortFileResult([]fileResult{

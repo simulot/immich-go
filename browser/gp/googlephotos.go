@@ -339,6 +339,10 @@ func matchEditedName(jsonName string, fileName string) bool {
 
 func matchMPNames(jsonName string, fileName string) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	fileExt := strings.ToLower(path.Ext(fileName))
+	if fileExt != ".mp" {
+		return false
+	}
 	ext := path.Ext(base)
 	if ext != "" {
 		if _, err := fshelper.MimeFromExt(ext); err == nil {
