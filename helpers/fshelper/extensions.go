@@ -65,8 +65,6 @@ var supportedExtensionsAndMime = map[string][]string{
 	".mts":  {"video/mp2t"},
 	".webm": {"video/webm"},
 	".wmv":  {"video/x-ms-wmv"},
-
-	".mp": {"video/mp4"}, // Add support for MP format
 }
 
 var supportedExtensions = gen.MapKeys(supportedExtensionsAndMime)
