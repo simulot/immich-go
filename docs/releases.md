@@ -1,5 +1,39 @@
 # Release notes 
 
+## Release 0.8.7
+
+### fix for #82: PM files causing server's bad request 
+Android Live photos are delivered as one JPG and a MP files.
+MP is the small movie.
+The JPG files embeds this movie. 
+
+The Immich server detects live photos without the help of the MP files. Just ignore them.
+
+### Log Improvement
+
+It's always difficult to understand how any file is handled. 
+
+By setting the `-log-level=INFO`, immich-go now produce a comprehensive report on actions done with each files.
+Example:
+```
+...
+Server has photo         : Takeout/Google Photos/Photos from 2022/IMG_0135.HEIC: An asset with the same name:"IMG_0135", date:"2022-03-02 21:16:50" and size:3.5 MB exists on the server. No need to upload.
+Server's asset is better : Takeout/Google Photos/Photos from 2022/PXL_20220916_140005541.jpg: An asset with the same name:"PXL_20220916_140005541" and date:"2022-09-16 16:00:05" but with bigger size:2.4 MB exists on the server. No need to upload.
+Server has photo         : Takeout/Google Photos/Photos from 2022/PXL_20220807_181842919.jpg: An asset with the same name:"PXL_20220807_181842919", date:"2022-08-07 20:18:42" and size:881.1 KB exists on the server. No need to upload.
+Server's asset is better : Takeout/Google Photos/Photos from 2022/PXL_20220907_081516648.jpg: An asset with the same name:"PXL_20220907_081516648" and date:"2022-09-07 10:15:16" but with bigger size:1.9 MB exists on the server. No need to upload.
+Server's asset is better : Takeout/Google Photos/Photos from 2022/PXL_20220620_063743673.jpg: An asset with the same name:"PXL_20220620_063743673" and date:"2022-06-20 08:37:43" but with bigger size:1.8 MB exists on the server. No need to upload.
+Local duplicate          : Takeout/Google Photos/Cat🐱/PXL_20220428_204810437.jpg: PXL_20220428_204810437.jpg
+Uploaded                 : Takeout/Google Photos/Photos from 2022/PXL_20220428_204810437.jpg: PXL_20220428_204810437.jpg
+Added to an album        : Takeout/Google Photos/Photos from 2022/PXL_20220428_204810437.jpg: Cat🐱
+Server's asset is better : Takeout/Google Photos/Photos from 2022/PXL_20220526_181202808.jpg: An asset with the same name:"PXL_20220526_181202808" and date:"2022-05-26 20:12:02" but with bigger size:2.5 MB exists on the server. No need to upload.
+... 
+```
+
+### Write log into a file
+
+With the option `-log-file filename`, immich-go write all messages into the given file.
+
+
 ## Release 0.8.6
 
 ### fix for #68: A lot of images skipped from Google Photos Takeout

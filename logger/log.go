@@ -67,7 +67,7 @@ type Log struct {
 	noColors     bool
 	colorStrings map[Level]string
 	debug        bool
-	out          io.Writer
+	out          io.WriteCloser
 }
 
 func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Log {
@@ -84,9 +84,39 @@ func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Log {
 	return &l
 }
 
-func (l *Log) Writer(w io.Writer) *Log {
-	if l != nil {
+func (l *Log) Close() error {
+	if l.out != os.Stdout {
+		return l.out.Close()
+	}
+	return nil
+}
+
+func (l *Log) SetDebugFlag(flag bool) {
+	l.debug = flag
+}
+
+func (l *Log) SetLevel(level Level) {
+	l.displayLevel = level
+}
+
+func (l *Log) SetColors(flag bool) {
+	if l.out != os.Stdout {
+		flag = false
+	}
+	if flag {
+		l.colorStrings = colorLevel
+		l.noColors = false
+	} else {
+		l.colorStrings = map[Level]string{}
+		l.noColors = true
+	}
+}
+
+func (l *Log) SetWriter(w io.WriteCloser) *Log {
+	if l != nil && w != nil {
 		l.out = w
+		l.noColors = true
+		l.colorStrings = map[Level]string{}
 	}
 	return l
 }

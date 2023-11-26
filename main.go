@@ -24,12 +24,11 @@ var (
 )
 
 func main() {
-	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 	var err error
 	var log = logger.NewLogger(logger.OK, true, false)
-	o, _ := os.Create("out.txt")
-	log.Writer(o)
-	defer o.Close()
+	defer log.Close()
+	log.OK("immich-go  %s, commit %s, built at %s\n", version, commit, date)
+
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -66,12 +65,14 @@ type Application struct {
 	LogLevel    string // Idicate the log level
 	Debug       bool   // Enable the debug mode
 
-	Immich *immich.ImmichClient // Immich client
-	Logger *logger.Log          // Program's logger
+	Immich  *immich.ImmichClient // Immich client
+	Logger  *logger.Log          // Program's logger
+	LogFile string               //Log file
 
 }
 
 func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
+
 	var err error
 	deviceID, err := os.Hostname()
 	if err != nil {
@@ -89,9 +90,19 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
 	flag.BoolVar(&app.NoLogColors, "no-colors-log", false, "Disable colors on logs")
 	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
+	flag.StringVar(&app.LogFile, "log-file", "", "Write log messages into the file")
 	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
 	flag.BoolVar(&app.Debug, "debug", false, "enable debug messages")
 	flag.Parse()
+
+	if len(app.LogFile) > 0 {
+		flog, err := os.Create(app.LogFile)
+		if err != nil {
+			return log, fmt.Errorf("can't open the log file: %w", err)
+		}
+		log.SetWriter(flog)
+		log.OK("immich-go  %s, commit %s, built at %s\n", version, commit, date)
+	}
 
 	switch {
 	case len(app.Server) == 0 && len(app.API) == 0:
@@ -112,7 +123,11 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 		err = errors.Join(err, errors.New("missing command upload|duplicate|stack"))
 	}
 
-	app.Logger = logger.NewLogger(logLevel, app.NoLogColors, app.Debug)
+	log.SetLevel(logLevel)
+	log.SetColors(!app.NoLogColors)
+	log.SetDebugFlag(app.Debug)
+
+	app.Logger = log
 
 	if err != nil {
 		return app.Logger, err
