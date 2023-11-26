@@ -5,6 +5,7 @@ import (
 	"immich-go/logger"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -34,12 +35,12 @@ const (
 	SCANNED          Action = "Scanned"
 	DISCARDED        Action = "Discarded"
 	UPLOADED         Action = "Uploaded"
-	UPGRADED         Action = "Server photo upgraded"
+	UPGRADED         Action = "Server's asset upgraded"
 	ERROR            Action = "Error"
 	LOCAL_DUPLICATE  Action = "Local duplicate"
 	SERVER_DUPLICATE Action = "Server has photo"
 	STACKED          Action = "Stacked"
-	SERVER_BETTER    Action = "Server photo is better"
+	SERVER_BETTER    Action = "Server's asset is better"
 	ALBUM            Action = "Added to an album"
 	LIVE_PHOTO       Action = "Live photo"
 	FAILED_VIDEO     Action = "Failed video"
@@ -47,6 +48,7 @@ const (
 	METADATA         Action = "Metadata files"
 	UNHANDLED        Action = "File unhandled"
 	HANDLED          Action = "File handled"
+	INFO             Action = "Info"
 )
 
 func NewJournal(log logger.Logger) *Journal {
@@ -56,19 +58,19 @@ func NewJournal(log logger.Logger) *Journal {
 	}
 }
 
-func (j *Journal) AddEntry(file string, action Action, comment string) {
+func (j *Journal) AddEntry(file string, action Action, comment ...string) {
 	if j == nil {
 		return
 	}
+	c := strings.Join(comment, ", ")
 	if j.log != nil {
 		switch action {
-
 		case ERROR:
-			j.log.Error("%-25s: %s: %s", action, file, comment)
+			j.log.Error("%-25s: %s: %s", action, file, c)
 		case UPLOADED:
-			j.log.OK("%-25s: %s: %s", action, file, comment)
+			j.log.OK("%-25s: %s: %s", action, file, c)
 		default:
-			j.log.Info("%-25s: %s: %s", action, file, comment)
+			j.log.Info("%-25s: %s: %s", action, file, c)
 		}
 	}
 	j.Lock()
@@ -82,7 +84,7 @@ func (j *Journal) AddEntry(file string, action Action, comment string) {
 		}
 		e.terminated = true
 	}
-	e.entries = append(e.entries, Entry{ts: time.Now(), action: action, comment: comment})
+	e.entries = append(e.entries, Entry{ts: time.Now(), action: action, comment: c})
 	j.files[file] = e
 }
 

@@ -198,11 +198,8 @@ func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []st
 	return err
 }
 
-func (app *UpCmd) journalAsset(a *browser.LocalAssetFile, action journal.Action, comment string) {
-	app.BrowserConfig.Journal.AddEntry(a.FileName, action, comment)
-	if len(a.LivePhotoData) > 0 {
-		app.BrowserConfig.Journal.AddEntry(a.LivePhotoData, action, comment)
-	}
+func (app *UpCmd) journalAsset(a *browser.LocalAssetFile, action journal.Action, comment ...string) {
+	app.BrowserConfig.Journal.AddEntry(a.FileName, action, comment...)
 }
 
 func (app *UpCmd) Run(ctx context.Context, fsys fs.FS) error {
@@ -322,7 +319,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	}
 
 	if len(app.ImportFromAlbum) > 0 && !app.isInAlbum(a, app.ImportFromAlbum) {
-		app.journalAsset(a, journal.DISCARDED, "not in requested album")
+		app.journalAsset(a, journal.DISCARDED, "not in the requested album")
 		return nil
 	}
 
@@ -358,9 +355,10 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case SmallerOnServer:
-		app.journalAsset(a, journal.UPGRADED, "")
+		app.journalAsset(a, journal.UPGRADED, advice.Message)
 		// add the superior asset into albums of the original asset
 		for _, al := range advice.ServerAsset.Albums {
+			app.journalAsset(a, journal.INFO, "Added to album: "+al.AlbumName)
 			a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
 		}
 		app.UploadAsset(ctx, a)
@@ -372,23 +370,25 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	case SameOnServer:
 		// Set add the server asset into albums determined locally
 		if !advice.ServerAsset.JustUploaded {
-			app.journalAsset(a, journal.SERVER_DUPLICATE, "")
+			app.journalAsset(a, journal.SERVER_DUPLICATE, advice.Message)
 		} else {
-			app.journalAsset(a, journal.LOCAL_DUPLICATE, "")
+			app.journalAsset(a, journal.LOCAL_DUPLICATE)
 		}
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
+				app.journalAsset(a, journal.INFO, "Added to album: "+al.Name)
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
 			}
 		}
 		if app.ImportIntoAlbum != "" {
+			app.journalAsset(a, journal.INFO, "Added to album: "+app.ImportIntoAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.ImportIntoAlbum)
 		}
 		if app.PartnerAlbum != "" && a.FromPartner {
+			app.journalAsset(a, journal.INFO, "Added to album: "+app.PartnerAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 		if !advice.ServerAsset.JustUploaded {
-			app.log.Info("%s: %s", a.Title, advice.Message)
 			if app.Delete {
 				app.deleteLocalList = append(app.deleteLocalList, a)
 			}
@@ -396,14 +396,16 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			return nil
 		}
 	case BetterOnServer:
-		app.journalAsset(a, journal.SERVER_BETTER, "")
+		app.journalAsset(a, journal.SERVER_BETTER, advice.Message)
 		// keep the server version but update albums
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
+				app.journalAsset(a, journal.INFO, "Added to album: "+al.Name)
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
 			}
 		}
 		if app.PartnerAlbum != "" && a.FromPartner {
+			app.journalAsset(a, journal.INFO, "Added to album: "+app.PartnerAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 	}
@@ -512,7 +514,6 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 }
 
 func (app *UpCmd) albumName(al browser.LocalAlbum) string {
-	app.log.DebugObject("albumName: ", al)
 	Name := al.Name
 	if app.GooglePhotos {
 		switch {
@@ -577,7 +578,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 					found = true
 					if !app.DryRun {
 						app.log.OK("Update the album %s", album)
-						rr, err := app.client.AddAssetToAlbum(ctx, sal.ID, keys(list))
+						rr, err := app.client.AddAssetToAlbum(ctx, sal.ID, gen.MapKeys(list))
 						if err != nil {
 							return fmt.Errorf("can't update the album list from the server: %w", err)
 						}
@@ -605,7 +606,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 				if !app.DryRun {
 					app.log.OK("Create the album %s", album)
 
-					_, err := app.client.CreateAlbum(ctx, album, keys(list))
+					_, err := app.client.CreateAlbum(ctx, album, gen.MapKeys(list))
 					if err != nil {
 						return fmt.Errorf("can't create the album list from the server: %w", err)
 					}
@@ -673,7 +674,7 @@ func formatBytes(s int) string {
 func (ai *AssetIndex) adviceIDontKnow(la *browser.LocalAssetFile) *Advice {
 	return &Advice{
 		Advice:     IDontKnow,
-		Message:    fmt.Sprintf("Can't decide what to do with %q. Check this vile yourself", la.FileName),
+		Message:    fmt.Sprintf("Can't decide what to do with %q. Check this file", la.FileName),
 		LocalAsset: la,
 	}
 }
@@ -773,12 +774,4 @@ func compareDate(d1 time.Time, d2 time.Time) int {
 		return +1
 	}
 	return 0
-}
-
-func keys[M ~map[K]V, K comparable, V any](m M) []K {
-	r := make([]K, 0, len(m))
-	for k := range m {
-		r = append(r, k)
-	}
-	return r
 }
