@@ -64,6 +64,7 @@ type Application struct {
 	NoLogColors bool   // Disable log colors
 	LogLevel    string // Idicate the log level
 	Debug       bool   // Enable the debug mode
+	TimeZone    string // Override default TZ
 
 	Immich  *immich.ImmichClient // Immich client
 	Logger  *logger.Log          // Program's logger
@@ -78,10 +79,6 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	if err != nil {
 		return log, err
 	}
-	_, err = tzone.Local()
-	if err != nil {
-		return log, err
-	}
 
 	app := Application{}
 	flag.StringVar(&app.Server, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
@@ -93,7 +90,13 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	flag.StringVar(&app.LogFile, "log-file", "", "Write log messages into the file")
 	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
 	flag.BoolVar(&app.Debug, "debug", false, "enable debug messages")
+	flag.StringVar(&app.TimeZone, "time-zone", "", "Override the system time zone")
 	flag.Parse()
+
+	_, err = tzone.SetLocal(app.TimeZone)
+	if err != nil {
+		return log, err
+	}
 
 	if len(app.LogFile) > 0 {
 		flog, err := os.Create(app.LogFile)

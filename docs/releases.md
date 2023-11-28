@@ -1,5 +1,15 @@
 # Release notes 
 
+## Release 0.8.8
+
+### fix for #86: unknown time zone Argentina/Buenos_Aires
+
+On some systems, the time zone name is not well recognized.
+
+The new command line option set the time zone used by the program.
+`-time-zone=time_zone_name`
+
+
 ## Release 0.8.7
 
 ### fix for #82: PM files causing server's bad request 
