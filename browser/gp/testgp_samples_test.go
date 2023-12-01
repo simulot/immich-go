@@ -155,12 +155,6 @@ func namesWithNumbers() *inMemFS {
 		addImage("Takeout/Google Photos/Photos from 2009/IMG_3479(2).JPG", 15)
 }
 
-// func namesWithNumbersBut1() *inMemFS {
-// 	return newInMemFS().
-// 		addJSONImage("Takeout/Google Photos/Photos from 2009/IMG_3479.JPG.json", "IMG_3479.JPG").
-// 		addImage("Takeout/Google Photos/Photos from 2009/IMG_3479_1.JPG", 10)
-// }
-
 func namesTruncated() *inMemFS {
 	return newInMemFS().
 		addJSONImage("Takeout/Google Photos/Photos from 2023/😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json", "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🥸🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶.jpg").

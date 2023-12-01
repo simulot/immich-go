@@ -6,10 +6,22 @@
 
 Improvement for the takeout import. 
 - The log indicate with JSON is associated to an file.
-- Fix the JSON association for very long file name and duplicated
+- JSON and files are associated by applying successively rules from the most common to the strangest one
+   
+   Each JSON is checked. JSON is duplicated in albums folder.<br>
+   Associated files with the JSON can be found in the JSON's folder, or in the Year photos.<br>
 
-
-## Release 0.8.8
+   Once associated and sent to the main program, files are tagged for not been associated with an other one JSON.<br>
+   Association is done with the help of a set of matcher functions. Each one implement a rule<br>
+   1 JSON can be associated with 1+ files that have a part of their name in common.<br>
+   -   the file is named after the JSON name<br>
+   -   the file name can be 1 UTF-16 char shorter (🤯) than the JSON name<br>
+   -   the file name is longer than 46 UTF-16 chars (🤯) is truncated. But the truncation can creates duplicates,  then a number is added.
+   -   if there are several files with same original name, the first instance kept as it is, the next have a a sequence number. File is renamed as IMG_1234(1).JPG and the JSON is renamed as IMG_1234.JPG(1).JSON
+   -   of course those rules are likely to collide. They have to be applied from the most common to the least one.<br>
+   -   sometimes the file isn't in the same folder than the json... It can be found in Year's photos folder<br>
+   The duplicates files (same name, same length in bytes) found in the local source are discarded before been <br>presented to the immich server.
+ Release 0.8.8<br>
 
 ### fix for #86: unknown time zone Argentina/Buenos_Aires
 
