@@ -17,6 +17,7 @@ func TestBrowse(t *testing.T) {
 		gen     func() *inMemFS
 		results []fileResult // file name / title
 	}{
+
 		{"simpleYear", simpleYear,
 			sortFileResult([]fileResult{
 				{name: "PXL_20230922_144936660.jpg", size: 10, title: "PXL_20230922_144936660.jpg"},
@@ -76,7 +77,6 @@ func TestBrowse(t *testing.T) {
 		},
 		{"issue68MPFiles", issue68MPFiles,
 			sortFileResult([]fileResult{
-				{name: "PXL_20221228_185930354.MP", size: 1, title: "PXL_20221228_185930354.MP"},
 				{name: "PXL_20221228_185930354.MP.jpg", size: 2, title: "PXL_20221228_185930354.MP.jpg"},
 			}),
 		},
@@ -87,17 +87,13 @@ func TestBrowse(t *testing.T) {
 			}),
 		},
 
-		// {"namesWithNumbersBut1", namesWithNumbersBut1,
-		// 	sortFileResult([]fileResult{}),
-		// },
-
-		// {
-		// 	"issue68ForgottenDuplicates", issue68ForgottenDuplicates,
-		// 	sortFileResult([]fileResult{
-		// 		{name: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg", size: 1, title: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_PXL_20220516_164814158.jpg"},
-		// 		{name: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg", size: 2, title: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_PXL_20220516_164814158.jpg"},
-		// 	}),
-		// },
+		{
+			"issue68ForgottenDuplicates", issue68ForgottenDuplicates,
+			sortFileResult([]fileResult{
+				{name: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg", size: 1, title: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_PXL_20220516_164814158.jpg"},
+				{name: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg", size: 2, title: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_PXL_20220516_164814158.jpg"},
+			}),
+		},
 	}
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {

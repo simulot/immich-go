@@ -17,13 +17,17 @@ import (
 
 type Takeout struct {
 	fsys        fs.FS
-	filesByDir  map[string][]fileKey          // files name mapped by dir
+	filesByDir  map[string][]fileReference    // files name mapped by dir
 	jsonByYear  map[jsonKey]*GoogleMetaData   // assets by year of capture and full path
 	albumsByDir map[string]browser.LocalAlbum // album title mapped by dir
 	log         logger.Logger
 	conf        *browser.Configuration
 }
 
+type fileReference struct {
+	fileKey
+	taken bool // True, when the file as been associated to a json and sent to the uploader
+}
 type fileKey struct {
 	name string
 	size int64
@@ -40,7 +44,7 @@ type Album struct {
 func NewTakeout(ctx context.Context, fsys fs.FS, log logger.Logger, conf *browser.Configuration) (*Takeout, error) {
 	to := Takeout{
 		fsys:        fsys,
-		filesByDir:  map[string][]fileKey{},
+		filesByDir:  map[string][]fileReference{},
 		jsonByYear:  map[jsonKey]*GoogleMetaData{},
 		albumsByDir: map[string]browser.LocalAlbum{},
 		log:         log,
@@ -119,7 +123,7 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 			if err != nil {
 				return err
 			}
-			key := fileKey{name: base, size: info.Size()}
+			key := fileReference{fileKey: fileKey{name: base, size: info.Size()}}
 			l := to.filesByDir[dir]
 			l = append(l, key)
 			to.filesByDir[dir] = l
@@ -130,7 +134,42 @@ func (to *Takeout) walk(ctx context.Context, fsys fs.FS) error {
 	return err
 }
 
+type matcherFn func(jsonName string, fileName string) bool
+
+// matchers is a list of matcherFn from the most likely to be used to the least one
+var matchers = []matcherFn{
+	normalMatch,
+	matchWithOneCharOmitted,
+	matchVeryLongNameWithNumber,
+	matchDuplicateInYear,
+	matchEditedName,
+	matchForgottenDuplicates,
+}
+
 // Browse gives back to the main program the list of assets with resolution of file name, album, dates...
+//
+// JSON files give important information about the relative photos / movies:
+//   - The original name (useful when it as been truncated)
+//   - The date of capture (useful when the files doesn't have this date)
+//   - The GPS coordinates (will be useful in a future release)
+//
+// Each JSON is checked. JSON is duplicated in albums folder.
+// Associated files with the JSON can be found in the JSON's folder, or in the Year photos.
+// Once associated and sent to the main program, files are tagged for not been associated with an other one JSON.
+// Association is done with the help of a set of matcher functions. Each one implement a rule
+//
+// 1 JSON can be associated with 1+ files that have a part of their name in common.
+// -   the file is named after the JSON name
+// -   the file name can be 1 UTF-16 char shorter (🤯) than the JSON name
+// -   the file name is longer than 46 UTF-16 chars (🤯) is truncated. But the truncation can creates duplicates, then a number is added.
+// -   if there are several files with same original name, the first instance kept as it is, the next have a a sequence number.
+//       File is renamed ads IMG_1234(1).JPG and the JSON is renamed as IMG_1234.JPG(1).JSON
+// -   of course those rules are likely to collide. They have to be applied from the most common to the least one.
+// -   sometimes the file isn't in the same folder than the json... It can be found in Year's photos folder
+//
+// The duplicates files (same name, same length in bytes) found in the local source are discarded before been presented to the immich server.
+//
+
 func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 	c := make(chan *browser.LocalAssetFile)
 	passed := map[fileKey]any{}
@@ -142,53 +181,59 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 			return to.jsonByYear[jsonFile[i]].foundInPaths[0] < to.jsonByYear[jsonFile[j]].foundInPaths[0]
 		})
 
-		for _, k := range jsonFile {
-			md := to.jsonByYear[k]
-			to.log.Debug("Checking '%s', %d", k.name, k.year)
-			assets := to.jsonAssets(k, md)
+		// For the most common matcher to the least,
+		// Check files that match each json files
+		for _, matcher := range matchers {
+			for _, k := range jsonFile {
+				md := to.jsonByYear[k]
+				assets := to.jsonAssets(k, md, matcher)
 
-			for _, a := range assets {
-				ext := path.Ext(a.FileName)
-				if !to.conf.SelectExtensions.Include(ext) {
-					to.conf.Journal.AddEntry(a.FileName, journal.DISCARDED, "because of select-type option")
-					continue
-				}
-				if to.conf.ExcludeExtensions.Exclude(ext) {
-					to.conf.Journal.AddEntry(a.FileName, journal.DISCARDED, "because of exclude-type option")
-					continue
-				}
-				fk := fileKey{name: path.Base(a.FileName), size: int64(a.FileSize)}
-				if _, exist := passed[fk]; !exist {
-					passed[fk] = nil
-					select {
-					case <-ctx.Done():
-						return
-					default:
-						c <- a
+				for _, a := range assets {
+					to.conf.Journal.AddEntry(a.FileName, journal.JSON, k.name)
+					ext := path.Ext(a.FileName)
+					if !to.conf.SelectExtensions.Include(ext) {
+						to.conf.Journal.AddEntry(a.FileName, journal.DISCARDED, "because of select-type option")
+						continue
 					}
-				} else {
-					to.conf.Journal.AddEntry(a.FileName, journal.LOCAL_DUPLICATE, fk.name)
+					if to.conf.ExcludeExtensions.Exclude(ext) {
+						to.conf.Journal.AddEntry(a.FileName, journal.DISCARDED, "because of exclude-type option")
+						continue
+					}
+					fk := fileKey{name: path.Base(a.FileName), size: int64(a.FileSize)}
+					if _, exist := passed[fk]; !exist {
+						passed[fk] = nil
+						select {
+						case <-ctx.Done():
+							return
+						default:
+							c <- a
+						}
+					} else {
+						to.conf.Journal.AddEntry(a.FileName, journal.LOCAL_DUPLICATE, fk.name)
+					}
 				}
 			}
 		}
+
+		leftOver := 0
+		for _, l := range to.filesByDir {
+			for _, f := range l {
+				if !f.taken {
+					leftOver++
+				}
+			}
+		}
+		to.log.Error("%d files left over", leftOver)
+
 	}()
 
 	return c
 
 }
 
-// jsonAssets search assets that are linked to this JSON
-//
-//   the asset is named after the JSON name
-//   the asset name can be 1 char shorter than the JSON name
-//   but several assets can match with the JSON 🤯
-//   the asset can be placed in another folder than the JSON
-//   when the JSON is found in an album dir, the asset belongs to the album
-//		but the image can be found in year's folder 🤯
-//   the asset name is the JSON title field
-//   When there are more thant one asset, asset names must be derived from the json title.
+// jsonAssets search assets that are linked to this JSON using the given matcher
 
-func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalAssetFile {
+func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData, matcher matcherFn) []*browser.LocalAssetFile {
 
 	var list []*browser.LocalAssetFile
 
@@ -203,8 +248,6 @@ func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalA
 		}
 	}
 	if !jsonInYear {
-		// add the Year folder to the list to search files there as well
-		// TODO: is it needed for real archives?
 		paths = append(paths, yearDir)
 	}
 
@@ -212,18 +255,10 @@ func (to *Takeout) jsonAssets(key jsonKey, md *GoogleMetaData) []*browser.LocalA
 	for _, d := range paths {
 		l := to.filesByDir[d]
 
-		for _, f := range l {
-
-			matched := normalMatch(key.name, f.name)
-			matched = matched || matchWithOneCharOmitted(key.name, f.name)
-			matched = matched || matchVeryLongNameWithNumber(key.name, f.name)
-			matched = matched || matchDuplicateInYear(key.name, f.name)
-			matched = matched || matchEditedName(key.name, f.name)
-			matched = matched || matchMPNames(key.name, f.name)
-			// matched = matched || matchForgottenDuplicates(key.name, f.name)
-
-			if matched {
+		for i, f := range l {
+			if !f.taken && matcher(key.name, f.name) {
 				list = append(list, to.copyGoogleMDToAsset(md, path.Join(d, f.name), int(f.size)))
+				l[i].taken = true
 			}
 		}
 	}
@@ -325,41 +360,14 @@ func matchEditedName(jsonName string, fileName string) bool {
 	if ext != "" {
 		if _, err := fshelper.MimeFromExt(ext); err == nil {
 			base := strings.TrimSuffix(base, ext)
-			fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
-			return strings.HasPrefix(fileName, base)
+			fname := strings.TrimSuffix(fileName, path.Ext(fileName))
+			return strings.HasPrefix(fname, base)
 		}
 	}
 	return false
 }
 
-// matchMPNames
-//  PXL_20221228_185930354.MP.jpg.json
-//  PXL_20221228_185930354.MP
-//  PXL_20221228_185930354.MP.jpg
-
-func matchMPNames(jsonName string, fileName string) bool {
-	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	fileExt := strings.ToLower(path.Ext(fileName))
-	if fileExt != ".mp" {
-		return false
-	}
-	ext := path.Ext(base)
-	if ext != "" {
-		if _, err := fshelper.MimeFromExt(ext); err == nil {
-			base := strings.TrimSuffix(base, ext)
-			// fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
-			if strings.HasPrefix(fileName, base) {
-				return true
-			}
-			base = strings.TrimSuffix(base, path.Ext(base))
-			return strings.HasPrefix(fileName, base)
-		}
-	}
-	return false
-}
-
-/*
-TODO: This one interferes with matchVeryLongNameWithNumber
+//TODO: This one interferes with matchVeryLongNameWithNumber
 
 // matchForgottenDuplicates
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_.json
@@ -377,7 +385,6 @@ func matchForgottenDuplicates(jsonName string, fileName string) bool {
 	}
 	return false
 }
-*/
 
 func (to *Takeout) copyGoogleMDToAsset(md *GoogleMetaData, filename string, length int) *browser.LocalAssetFile {
 	// Change file's title with the asset's title and the actual file's extension

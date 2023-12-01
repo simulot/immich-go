@@ -49,6 +49,7 @@ const (
 	UNHANDLED        Action = "File unhandled"
 	HANDLED          Action = "File handled"
 	INFO             Action = "Info"
+	JSON             Action = "Associated JSON"
 )
 
 func NewJournal(log logger.Logger) *Journal {
