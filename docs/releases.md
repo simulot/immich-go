@@ -1,5 +1,14 @@
 # Release notes 
 
+## Release 0.8.9
+
+### fix: A lot of images skipped from Google Photos Takeout #68
+
+Improvement for the takeout import. 
+- The log indicate with JSON is associated to an file.
+- Fix the JSON association for very long file name and duplicated
+
+
 ## Release 0.8.8
 
 ### fix for #86: unknown time zone Argentina/Buenos_Aires
