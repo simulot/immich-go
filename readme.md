@@ -163,7 +163,7 @@ This command deletes all albums created with de pattern YYYY-MM-DD
 
 # Installation
 
-## Installation from release:
+## Installation from the github release:
 
 Installing `immich-go` is a straightforward process. Visit the [latest release page](https://github.com/simulot/immich-go/releases/latest) and select the binary file compatible with your system:
 
@@ -172,8 +172,9 @@ Installing `immich-go` is a straightforward process. Visit the [latest release p
 - Windows arm-64, x86-64
 - Freebsd arm-64, x86-64
 
-The installation process involves copying and decompressing the corresponding binary executable onto your system. Open a shell and run the command `immich-go`.
+Download the archive corresponding to your OS/Architecture on your machine, and decompress it. 
 
+Open a command windows, go to the directory where immich-go resides, and type the command `immich-go` with mandatory parameters and command.
 
 ⚠️ Please note that the linux x86-64 version is the only one tested.
 
