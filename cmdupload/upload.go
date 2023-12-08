@@ -712,8 +712,6 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 //
 // The server may have different assets with the same name. This happens with photos produced by digital cameras.
 // The server may have the asset, but in lower resolution. Compare the taken date and resolution
-//
-//
 
 func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) {
 	filename := la.Title

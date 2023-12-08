@@ -1,5 +1,11 @@
 # Release notes 
 
+## Release next
+
+### feat: transfer google-photo favorite to immich
+The favorite status in google photos is now replicated in immich.
+
+
 ## Release 0.8.9
 
 ### fix: A lot of images skipped from Google Photos Takeout #68

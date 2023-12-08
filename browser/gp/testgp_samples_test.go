@@ -52,6 +52,12 @@ func takenTime(date string) func(md *GoogleMetaData) {
 	}
 }
 
+func descriptionField(description string) jsonFn {
+	return func(md *GoogleMetaData) {
+		md.Description = description
+	}
+}
+
 func (mfs *inMemFS) addJSONImage(name string, title string, modifiers ...jsonFn) *inMemFS {
 	md := GoogleMetaData{
 		Title: title,

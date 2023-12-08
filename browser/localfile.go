@@ -34,11 +34,12 @@ type LocalAlbum struct {
 
 type LocalAssetFile struct {
 	// Common fields
-	FileName string       // The asset's path in the fsys
-	Title    string       // Google Photos may a have title longer than the filename
-	Albums   []LocalAlbum // The asset's album, if any
-	Err      error        // keep errors encountered
-	SideCar  *metadata.SideCar
+	FileName    string       // The asset's path in the fsys
+	Title       string       // Google Photos may a have title longer than the filename
+	Description string       // Google Photos description
+	Albums      []LocalAlbum // The asset's album, if any
+	Err         error        // keep errors encountered
+	SideCar     *metadata.SideCar
 
 	// Common metadata
 	DateTaken time.Time // the date of capture
@@ -50,6 +51,7 @@ type LocalAssetFile struct {
 	Trashed     bool // The asset is trashed
 	Archived    bool // The asset is archived
 	FromPartner bool // the asset comes from a partner
+	Favorite    bool
 
 	// Live Photos
 	LivePhotoData string // Filename of MP4 file associated

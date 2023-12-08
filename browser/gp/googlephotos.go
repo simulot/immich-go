@@ -403,6 +403,7 @@ func (to *Takeout) copyGoogleMDToAsset(md *GoogleMetaData, filename string, leng
 		FileName:    filename,
 		FileSize:    length,
 		Title:       title,
+		Description: md.Description,
 		Altitude:    md.GeoDataExif.Altitude,
 		Latitude:    md.GeoDataExif.Latitude,
 		Longitude:   md.GeoDataExif.Longitude,
@@ -410,6 +411,7 @@ func (to *Takeout) copyGoogleMDToAsset(md *GoogleMetaData, filename string, leng
 		FromPartner: md.isPartner(),
 		Trashed:     md.Trashed,
 		DateTaken:   md.PhotoTakenTime.Time(),
+		Favorite:    md.Favorited,
 		FSys:        to.fsys,
 	}
 	for _, p := range md.foundInPaths {

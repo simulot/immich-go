@@ -65,7 +65,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		m.WriteField("assetType", assetType)
 		m.WriteField("fileCreatedAt", la.DateTaken.Format(time.RFC3339))
 		m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
-		m.WriteField("isFavorite", "false")
+		m.WriteField("isFavorite", myBool(la.Favorite).String())
 		m.WriteField("fileExtension", path.Ext(la.FileName))
 		m.WriteField("duration", formatDuration(0))
 		m.WriteField("isReadOnly", "false")

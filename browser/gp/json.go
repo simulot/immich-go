@@ -17,7 +17,8 @@ type GoogleMetaData struct {
 	GeoDataExif        googGeoData    `json:"geoDataExif"`
 	Trashed            bool           `json:"trashed,omitempty"`
 	Archived           bool           `json:"archived,omitempty"`
-	URLPresent         googIsPresent  `json:"url"` // true when the file is an asset metadata
+	URLPresent         googIsPresent  `json:"url"`                 // true when the file is an asset metadata
+	Favorited          bool           `json:"favorited,omitempty"` // true when starred in GP
 	GooglePhotosOrigin struct {
 		FromPartnerSharing googIsPresent `json:"fromPartnerSharing"` // true when this is a partner's asset
 	} `json:"googlePhotosOrigin"`

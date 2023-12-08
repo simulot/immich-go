@@ -33,7 +33,7 @@ func TestE2eUpload(t *testing.T) {
 		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable DEBUG_IMMICH_KEY")
 	}
 
-	user := myEnv["IMMIXH_DEBUGUSER"]
+	user := myEnv["IMMICH_DEBUGUSER"]
 	if user == "" {
 		user = "debug.example.com"
 	}
@@ -45,20 +45,11 @@ func TestE2eUpload(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name: "upload google photos",
-			args: []string{
-				"-google-photos",
-				"../../test-data/low_high/Takeout",
-			},
-			resetImmich: true,
-			expectError: false,
-		},
-		{
 			name: "upload folder",
 			args: []string{
 				"../../test-data/low_high/high",
 			},
-			// resetImmich: true,
+			resetImmich: true,
 
 			expectError: false,
 		},
@@ -98,6 +89,15 @@ func TestE2eUpload(t *testing.T) {
 				"../../test-data/full_takeout (copy)/Takeout/Google Photos/Photos from 2023",
 			},
 
+			// resetImmich: true,
+			expectError: false,
+		},
+		{
+			name: "upload google photos",
+			args: []string{
+				"-google-photos",
+				"../../test-data/low_high/Takeout",
+			},
 			// resetImmich: true,
 			expectError: false,
 		},
