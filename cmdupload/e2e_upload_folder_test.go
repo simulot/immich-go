@@ -33,6 +33,11 @@ func TestE2eUpload(t *testing.T) {
 		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable DEBUG_IMMICH_KEY")
 	}
 
+	user := myEnv["IMMICH_DEBUGUSER"]
+	if user == "" {
+		user = "debug.example.com"
+	}
+
 	tests := []struct {
 		name        string
 		args        []string
@@ -110,7 +115,7 @@ func TestE2eUpload(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.resetImmich {
-				err := resetImmich(ic, "debug@example.com")
+				err := resetImmich(ic, user)
 				if err != nil {
 					t.Error(err)
 					return
