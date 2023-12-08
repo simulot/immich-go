@@ -132,7 +132,7 @@ type ExifInfo struct {
 	// 	City             string    `json:"city"`
 	// 	State            string    `json:"state"`
 	// 	Country          string    `json:"country"`
-	// 	Description      string    `json:"description"`
+	Description string `json:"description"`
 }
 
 type ImmichTime struct {

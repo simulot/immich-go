@@ -36,7 +36,11 @@ func (c *stubIC) AddAssetToAlbum(context.Context, string, []string) ([]immich.Up
 func (c *stubIC) CreateAlbum(context.Context, string, []string) (immich.AlbumSimplified, error) {
 	return immich.AlbumSimplified{}, nil
 }
-func (c *stubIC) UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, removeParent bool, stackParentId string) error {
+func (c *stubIC) UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentId string) error {
+	return nil
+}
+
+func (c *stubIC) StackAssets(ctx context.Context, cover string, IDs []string) error {
 	return nil
 }
 

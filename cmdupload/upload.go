@@ -36,7 +36,8 @@ type iClient interface {
 	GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]immich.UpdateAlbumResult, error)
 	CreateAlbum(context.Context, string, []string) (immich.AlbumSimplified, error)
-	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, removeParent bool, stackParentId string) error
+	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentId string) error
+	StackAssets(ctx context.Context, cover string, IDs []string) error
 }
 
 type UpCmd struct {
@@ -252,10 +253,11 @@ assetLoop:
 			for _, s := range stacks {
 				log.OK("  Stacking %s...", strings.Join(s.Names, ", "))
 				if !app.DryRun {
-					err = app.client.UpdateAssets(ctx, s.IDs, false, false, false, s.CoverID)
+					err = app.client.StackAssets(ctx, s.CoverID, s.IDs)
 					if err != nil {
 						log.Warning("Can't stack images: %s", err)
 					}
+
 				}
 			}
 		}
@@ -475,9 +477,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 			} else {
 				switch {
 				case app.GooglePhotos:
-					for _, al := range a.Albums {
-						albums = append(albums, al)
-					}
+					albums = append(albums, a.Albums...)
 					if app.PartnerAlbum != "" && a.FromPartner {
 						albums = append(albums, browser.LocalAlbum{Path: app.PartnerAlbum, Name: app.PartnerAlbum})
 					}

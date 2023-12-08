@@ -192,11 +192,16 @@ func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, er
 	return &r, err
 }
 
-func (ic *ImmichClient) UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, removeParent bool, stackParentId string) error {
+func (ic *ImmichClient) UpdateAssets(ctx context.Context, IDs []string,
+	isArchived bool, isFavorite bool,
+	latitude float64, longitude float64,
+	removeParent bool, stackParentId string) error {
 	type updAssets struct {
 		IDs           []string `json:"ids"`
 		IsArchived    bool     `json:"isArchived"`
 		IsFavorite    bool     `json:"isFavorite"`
+		Latitude      float64  `json:"latitude"`
+		Longitude     float64  `json:"longitude"`
 		RemoveParent  bool     `json:"removeParent"`
 		StackParentId string   `json:"stackParentId,omitempty"`
 	}
@@ -205,8 +210,40 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, IDs []string, isArchiv
 		IDs:           IDs,
 		IsArchived:    isArchived,
 		IsFavorite:    isFavorite,
+		Latitude:      latitude,
+		Longitude:     longitude,
 		RemoveParent:  removeParent,
 		StackParentId: stackParentId,
 	}
-	return ic.newServerCall(ctx, "updAssets").do(put("/asset", setJSONBody(param)))
+	return ic.newServerCall(ctx, "updateAssets").do(put("/asset", setJSONBody(param)))
+}
+
+func (ic *ImmichClient) UpdateAsset(ctx context.Context, ID string,
+	dateTimeOriginal time.Time, description string, isArchived bool, isFavorite bool,
+	latitude float64, longitude float64) (*Asset, error) {
+
+	type updAsset struct {
+		IsArchived bool    `json:"isArchived"`
+		IsFavorite bool    `json:"isFavorite"`
+		Latitude   float64 `json:"latitude"`
+		Longitude  float64 `json:"longitude"`
+	}
+	param := updAsset{
+		IsArchived: isArchived,
+		IsFavorite: isFavorite,
+		Latitude:   latitude,
+		Longitude:  longitude,
+	}
+	r := Asset{}
+	err := ic.newServerCall(ctx, "updateAsset").do(put("/asset/"+ID, setJSONBody(param)), responseJSON(&r))
+	return &r, err
+}
+
+func (ic *ImmichClient) StackAssets(ctx context.Context, coverID string, IDs []string) error {
+	cover, err := ic.GetAssetByID(ctx, coverID)
+	if err != nil {
+		return err
+	}
+
+	return ic.UpdateAssets(ctx, IDs, cover.IsArchived, cover.IsFavorite, cover.ExifInfo.Latitude, cover.ExifInfo.Longitude, false, coverID)
 }

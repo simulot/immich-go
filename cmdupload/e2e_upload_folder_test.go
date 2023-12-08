@@ -101,6 +101,14 @@ func TestE2eUpload(t *testing.T) {
 			// resetImmich: true,
 			expectError: false,
 		},
+		{
+			name: "upload burst PIXEL6",
+			args: []string{
+				"../../test-data/burst/PXL6",
+			},
+			// resetImmich: true,
+			expectError: false,
+		},
 	}
 
 	logger := logger.NoLogger{}

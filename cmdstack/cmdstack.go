@@ -85,7 +85,7 @@ func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 			}
 		}
 		if yes {
-			err := app.Immich.UpdateAssets(ctx, s.IDs, false, false, false, cover)
+			err := app.Immich.StackAssets(ctx, cover, s.IDs)
 			if err != nil {
 				log.Warning("Can't stack images: %s", err)
 			}
