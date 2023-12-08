@@ -1,10 +1,11 @@
 package metadata
 
 import (
-	"immich-go/helpers/tzone"
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/tzone"
 )
 
 // TakeTimeFromName extracts time components from the given name string and returns a time.Time value.

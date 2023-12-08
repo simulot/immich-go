@@ -2,8 +2,9 @@ package fshelper
 
 import (
 	"fmt"
-	"immich-go/helpers/gen"
 	"strings"
+
+	"github.com/simulot/immich-go/helpers/gen"
 )
 
 // List from immich code:

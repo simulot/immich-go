@@ -4,11 +4,12 @@
 package metadata
 
 import (
-	"immich-go/helpers/tzone"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/tzone"
 )
 
 func mustParse(s string) time.Time {

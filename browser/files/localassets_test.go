@@ -3,13 +3,14 @@ package files_test
 import (
 	"context"
 	"errors"
-	"immich-go/browser"
-	"immich-go/browser/files"
-	"immich-go/logger"
 	"path"
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/browser/files"
+	"github.com/simulot/immich-go/logger"
 
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"

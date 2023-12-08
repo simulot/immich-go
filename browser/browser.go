@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"immich-go/helpers/fshelper"
-	"immich-go/journal"
 	"slices"
 	"strings"
+
+	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/journal"
 )
 
 type Browser interface {

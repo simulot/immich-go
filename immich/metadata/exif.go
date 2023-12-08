@@ -3,10 +3,11 @@ package metadata
 import (
 	"errors"
 	"fmt"
-	"immich-go/helpers/tzone"
 	"io"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/tzone"
 
 	"github.com/rwcarlsen/goexif/exif"
 )

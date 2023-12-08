@@ -5,16 +5,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"immich-go/cmdduplicate"
-	"immich-go/cmdmetadata"
-	"immich-go/cmdstack"
-	"immich-go/cmdtool"
-	"immich-go/cmdupload"
-	"immich-go/helpers/tzone"
-	"immich-go/immich"
-	"immich-go/logger"
 	"os"
 	"os/signal"
+
+	"github.com/simulot/immich-go/cmdduplicate"
+	"github.com/simulot/immich-go/cmdmetadata"
+	"github.com/simulot/immich-go/cmdstack"
+	"github.com/simulot/immich-go/cmdtool"
+	"github.com/simulot/immich-go/cmdupload"
+	"github.com/simulot/immich-go/helpers/tzone"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
 )
 
 var (

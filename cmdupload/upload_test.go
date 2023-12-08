@@ -4,13 +4,14 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	"immich-go/browser"
-	"immich-go/helpers/gen"
-	"immich-go/immich"
-	"immich-go/logger"
 	"reflect"
 	"slices"
 	"testing"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
 
 	"github.com/kr/pretty"
 )

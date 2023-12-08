@@ -1,10 +1,11 @@
 package metadata
 
 import (
-	"immich-go/helpers/tzone"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/tzone"
 )
 
 func TestTakeTimeFromName(t *testing.T) {

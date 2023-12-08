@@ -3,14 +3,15 @@ package browser
 import (
 	"errors"
 	"fmt"
-	"immich-go/helpers/fshelper"
-	"immich-go/immich/metadata"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/immich/metadata"
 )
 
 /*
@@ -110,7 +111,7 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 		if err != nil {
 			return nil, err
 		}
-		tempDir = filepath.Join(tempDir, "immich-go")
+		tempDir = filepath.Join(tempDir, "github.com/simulot/immich-go")
 		os.Mkdir(tempDir, 0700)
 		l.tempFile, err = os.CreateTemp(tempDir, "")
 		if err != nil {

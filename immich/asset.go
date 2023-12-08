@@ -3,8 +3,6 @@ package immich
 import (
 	"context"
 	"fmt"
-	"immich-go/browser"
-	"immich-go/helpers/fshelper"
 	"io"
 	"mime/multipart"
 	"net/textproto"
@@ -12,6 +10,9 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fshelper"
 )
 
 type AssetResponse struct {

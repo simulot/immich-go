@@ -3,16 +3,17 @@ package gp
 import (
 	"context"
 	"fmt"
-	"immich-go/browser"
-	"immich-go/helpers/fshelper"
-	"immich-go/helpers/gen"
-	"immich-go/journal"
-	"immich-go/logger"
 	"io/fs"
 	"path"
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/journal"
+	"github.com/simulot/immich-go/logger"
 )
 
 type Takeout struct {

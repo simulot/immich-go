@@ -1,13 +1,14 @@
 package journal
 
 import (
-	"immich-go/helpers/gen"
-	"immich-go/logger"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/logger"
 )
 
 type Journal struct {

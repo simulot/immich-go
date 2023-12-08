@@ -1,14 +1,15 @@
 package stacking
 
 import (
-	"immich-go/helpers/fshelper"
-	"immich-go/helpers/gen"
-	"immich-go/immich"
 	"path"
 	"slices"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/immich"
 )
 
 type Key struct {

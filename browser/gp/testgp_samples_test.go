@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"immich-go/immich/metadata"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/immich/metadata"
 
 	"github.com/psanford/memfs"
 )

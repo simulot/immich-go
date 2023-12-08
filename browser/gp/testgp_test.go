@@ -2,11 +2,12 @@ package gp
 
 import (
 	"context"
-	"immich-go/browser"
-	"immich-go/logger"
 	"path"
 	"reflect"
 	"testing"
+
+	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/logger"
 
 	"github.com/kr/pretty"
 )

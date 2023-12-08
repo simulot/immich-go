@@ -3,13 +3,14 @@ package cmdstack
 import (
 	"context"
 	"flag"
-	"immich-go/helpers/stacking"
-	"immich-go/immich"
-	"immich-go/logger"
-	"immich-go/ui"
 	"path"
 	"sort"
 	"strconv"
+
+	"github.com/simulot/immich-go/helpers/stacking"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui"
 )
 
 type StackCmd struct {

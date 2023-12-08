@@ -7,10 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"immich-go/immich"
-	"immich-go/logger"
 	"testing"
 	"time"
+
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
 
 	"github.com/joho/godotenv"
 )
