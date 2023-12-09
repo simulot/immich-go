@@ -133,10 +133,11 @@ func (sb *StackBuilder) Stacks() []Stack {
 			if err != nil {
 				continue
 			}
-			switch mime[0] {
+			s := strings.Split(mime[0], "/")
+			switch s[0] {
 			case "video":
 				hasVideo++
-			case "photo":
+			case "image":
 				hasPhoto++
 			}
 		}

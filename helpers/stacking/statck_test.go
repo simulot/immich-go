@@ -30,6 +30,13 @@ func Test_Stack(t *testing.T) {
 			},
 		},
 		{
+			name: "issue #67",
+			input: []asset{
+				{ID: "1", FileName: "IMG_5580.HEIC", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.15.00")},
+				{ID: "2", FileName: "IMG_5580.MP4", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.15.00")},
+			},
+		},
+		{
 			name: "stack JPG+DNG",
 			input: []asset{
 				{ID: "1", FileName: "IMG_1234.JPG", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.15.00")},
