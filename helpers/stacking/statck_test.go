@@ -2,6 +2,7 @@ package stacking
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ func Test_Stack(t *testing.T) {
 				{ID: "1", FileName: "IMG_1234.JPG", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.15.00")},
 				{ID: "2", FileName: "IMG_1234.DNG", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.15.00")},
 			},
+
 			want: []Stack{
 				{
 					CoverID: "1",
@@ -60,6 +62,7 @@ func Test_Stack(t *testing.T) {
 				},
 			},
 		},
+
 		{
 			name: "stack JPG+CR3",
 			input: []asset{
@@ -83,6 +86,67 @@ func Test_Stack(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "issue #12 example1",
+			input: []asset{
+				{ID: "1", FileName: "PXL_20231026_210642603.dng", DateTaken: metadata.TakeTimeFromName("PXL_20231026_210642603.dng")},
+				{ID: "2", FileName: "PXL_20231026_210642603.jpg", DateTaken: metadata.TakeTimeFromName("PXL_20231026_210642603.jpg")},
+			},
+			want: []Stack{
+				{
+					CoverID: "2",
+					IDs:     []string{"1"},
+					Date:    metadata.TakeTimeFromName("PXL_20231026_210642603.dng"),
+					Names:   []string{"PXL_20231026_210642603.dng", "PXL_20231026_210642603.jpg"},
+				},
+			},
+		},
+		{
+			name: "issue #12 example 2",
+			input: []asset{
+				{ID: "3", FileName: "20231026_205755225.dng", DateTaken: metadata.TakeTimeFromName("20231026_205755225.dng")},
+				{ID: "4", FileName: "20231026_205755225.MP.jpg", DateTaken: metadata.TakeTimeFromName("20231026_205755225.MP.jpg")},
+			},
+			want: []Stack{
+				{
+					CoverID: "4",
+					IDs:     []string{"3"},
+					Date:    metadata.TakeTimeFromName("20231026_205755225.MP.jpg"),
+					Names:   []string{"20231026_205755225.dng", "20231026_205755225.MP.jpg"},
+				},
+			},
+		},
+		{
+			name: "issue #12 example 3",
+			input: []asset{
+				{ID: "3", FileName: "20231026_205755225.dng", DateTaken: metadata.TakeTimeFromName("20231026_205755225.dng")},
+				{ID: "4", FileName: "20231026_205755225.MP.jpg", DateTaken: metadata.TakeTimeFromName("20231026_205755225.MP.jpg")},
+				{ID: "5", FileName: "PXL_20231207_032111247.RAW-02.ORIGINAL.dng", DateTaken: metadata.TakeTimeFromName("PXL_20231207_032111247.RAW-02.ORIGINAL.dng")},
+				{ID: "6", FileName: "PXL_20231207_032111247.RAW-01.COVER.jpg", DateTaken: metadata.TakeTimeFromName("PXL_20231207_032111247.RAW-01.COVER.jpg")},
+				{ID: "7", FileName: "PXL_20231207_032108788.RAW-02.ORIGINAL.dng", DateTaken: metadata.TakeTimeFromName("PXL_20231207_032108788.RAW-02.ORIGINAL.dng")},
+				{ID: "8", FileName: "PXL_20231207_032108788.RAW-01.MP.COVER.jpg", DateTaken: metadata.TakeTimeFromName("PXL_20231207_032108788.RAW-01.MP.COVER.jpg")},
+			},
+			want: []Stack{
+				{
+					CoverID: "4",
+					IDs:     []string{"3"},
+					Date:    metadata.TakeTimeFromName("20231026_205755225.dng"),
+					Names:   []string{"20231026_205755225.dng", "20231026_205755225.MP.jpg"},
+				},
+				{
+					CoverID: "6",
+					IDs:     []string{"5"},
+					Date:    metadata.TakeTimeFromName("PXL_20231207_032111247.RAW-02.ORIGINAL.dng"),
+					Names:   []string{"PXL_20231207_032111247.RAW-02.ORIGINAL.dng", "PXL_20231207_032111247.RAW-01.COVER.jpg"},
+				},
+				{
+					CoverID: "8",
+					IDs:     []string{"7"},
+					Date:    metadata.TakeTimeFromName("PXL_20231207_032108788.RAW-02.ORIGINAL.dng"),
+					Names:   []string{"PXL_20231207_032108788.RAW-02.ORIGINAL.dng", "PXL_20231207_032108788.RAW-01.MP.COVER.jpg"},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tc {
@@ -93,6 +157,9 @@ func Test_Stack(t *testing.T) {
 			}
 
 			got := sb.Stacks()
+			sort.Slice(got, func(i, j int) bool {
+				return got[i].CoverID < got[j].CoverID
+			})
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("difference\n")
 				pretty.Ldiff(t, tt.want, got)

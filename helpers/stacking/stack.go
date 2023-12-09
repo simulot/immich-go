@@ -2,6 +2,7 @@ package stacking
 
 import (
 	"path"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -43,13 +44,28 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 	if !sb.dateRange.InRange(captureDate) {
 		return
 	}
+	cover := false
+	burst := false
 	ext := path.Ext(fileName)
 	base := strings.TrimSuffix(path.Base(fileName), ext)
 	ext = strings.ToLower(ext)
 
-	idx := strings.Index(base, "_BURST")
-	if idx > 1 {
-		base = base[:idx]
+	// Do we recognize a burst pattern?
+	for _, matcherFn := range stackMatchers {
+		if isBurst, theBase, isCover := matcherFn(path.Base(fileName)); isBurst {
+			base = theBase
+			cover = isCover
+			burst = isBurst
+			break
+		}
+	}
+
+	// may be .MP.jpg
+	if !burst {
+		ext := path.Ext(base)
+		if ext == ".MP" {
+			base = strings.TrimSuffix(base, ext)
+		}
 	}
 
 	k := Key{
@@ -63,10 +79,40 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 	}
 	s.IDs = append(s.IDs, ID)
 	s.Names = append(s.Names, path.Base(fileName))
-	if (idx < 0 && slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext)) || strings.Contains(fileName, "COVER.") {
+	if cover {
+		s.CoverID = ID
+	} else if !burst && slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext) {
 		s.CoverID = ID
 	}
 	sb.stacks[k] = s
+}
+
+// stackMatcher analyze the name and return
+// bool -> true when name is a part of burst
+// string -> base name of the burst
+// bool -> is this is the cover if the burst
+type stackMatcher func(name string) (bool, string, bool)
+
+var stackMatchers = []stackMatcher{huaweiBurst, pixelBurst}
+
+var huaweiBurstRE = regexp.MustCompile(`^(.*)(_BURST\d+)(_COVER)?(\..*)$`)
+
+func huaweiBurst(name string) (bool, string, bool) {
+	parts := huaweiBurstRE.FindStringSubmatch(name)
+	if len(parts) == 0 {
+		return false, "", false
+	}
+	return true, parts[1], len(parts[3]) > 0
+}
+
+var pixelBurstRE = regexp.MustCompile(`^(.*)(.RAW-\d+)(\.MP)?(\.COVER)?(\..*)$`)
+
+func pixelBurst(name string) (bool, string, bool) {
+	parts := pixelBurstRE.FindStringSubmatch(name)
+	if len(parts) == 0 {
+		return false, "", false
+	}
+	return true, parts[1], len(parts[4]) > 0
 }
 
 func (sb *StackBuilder) Stacks() []Stack {

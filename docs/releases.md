@@ -5,6 +5,9 @@
 ### feat: transfer google-photo favorite to immich
 The favorite status in google photos is now replicated in immich.
 
+### fix: jpg must be the cover of a raw+jpg stack
+
+### fix: stack: for Pixel 5 and Pixel 8 Pro naming schemes #94 
 
 ## Release 0.8.9
 
