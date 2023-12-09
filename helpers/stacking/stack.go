@@ -63,7 +63,7 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 	}
 	s.IDs = append(s.IDs, ID)
 	s.Names = append(s.Names, path.Base(fileName))
-	if (idx == -1 && slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext)) || strings.Contains(fileName, "COVER.") {
+	if (idx < 0 && slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext)) || strings.Contains(fileName, "COVER.") {
 		s.CoverID = ID
 	}
 	sb.stacks[k] = s
