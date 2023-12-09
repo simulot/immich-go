@@ -10,10 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
-
-	"github.com/joho/godotenv"
 )
 
 func TestE2eUpload(t *testing.T) {
@@ -103,11 +102,13 @@ func TestE2eUpload(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "upload burst PIXEL6",
+			name: "upload burst Huawei",
 			args: []string{
-				"../../test-data/burst/PXL6",
+				"-stack-burst=FALSE",
+				"-stack-jpg-raw=TRUE",
+				"../../test-data/burst/Tel",
 			},
-			// resetImmich: true,
+			resetImmich: true,
 			expectError: false,
 		},
 	}

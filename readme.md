@@ -66,6 +66,8 @@ Use this command for uploading photos and videos from a local directory, a zippe
 `-create-album-folder <bool>` Generate immich albums after folder names (default FALSE).<br>
 `-force-sidecar <bool>` Force sending a .xmp sidecar file beside images. With Google photos date and GPS coordinates are taken from metadata.json files. (default: FALSE).<br>
 `-create-stacks <bool>`Stack jpg/raw or bursts (default TRUE).<br>
+`-stack-jpg-raw <bool>`Control the stacking of jpg/raw photos (default TRUE).<br>
+`-stack-burst <bool>`Control the stacking bursts (default TRUE).<br>
 `-select-types .ext,.ext,.ext...` List of accepted extensions. <br>
 `-exclude-types .ext,.ext,.ext...` List of excluded extensions. <br>
 
@@ -88,6 +90,22 @@ Specialized options for Google Photos management:
 `-partner-album "partner's album"` import assets from partner into given album.<br>
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
+
+### Burst detection
+Currently the bursts following this schema are detected:
+- xxxxx_BURSTnnn.*
+- xxxxx_BURSTnnn_COVER.*
+- xxxxx.RAW-01.COVER.jpg and xxxxx.RAW-02.ORIGINAL.dng
+- xxxxx.RAW-01.MP.COVER.jpg and xxxxx.RAW-02.ORIGINAL.dng
+
+All images must be taken during the same minute.
+The COVER image will be the parent image of the stack
+
+### couple jpg/raw detection
+Both images should been taken in the same minute.
+The JPG image will be the cover. 
+
+Please open an issue to cover more possibilities.
 
 ### Example Usage: uploading a Google photos takeout archive
 
@@ -125,21 +143,6 @@ Let use it to group burst  and jpg/raw images together.
 `-yes` Assume Yes to all questions (default: FALSE).<br> 
 `-date` Check only assets have a date of capture in the given range. (default: 1850-01-04,2030-01-01)
 
-
-### Burst detection
-Currently the bursts following this schema are detected:
-- xxxxx_BURSTnnn.*
-- xxxxx_BURSTnnn_COVER.*
-
-All images must be taken during the same minute.
-The COVER image will be the parent image of the stack
-
-### couple jpg/raw detection
-Both images should been taken in the same minute.
-The JPG image will be the cover. 
-
-
-Please open an issue to cover more possibilities.
 
 ## Command `tool`
 

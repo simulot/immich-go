@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/browser/gp"
@@ -24,11 +25,10 @@ import (
 	"github.com/simulot/immich-go/immich/metadata"
 	"github.com/simulot/immich-go/journal"
 	"github.com/simulot/immich-go/logger"
-
-	"github.com/google/uuid"
 )
 
 // iClient is an interface that implements the minimal immich client set of features for uploading
+// interface used to mock up the client
 type iClient interface {
 	GetAllAssetsWithFilter(context.Context, *immich.GetAssetOptions, func(*immich.Asset)) error
 	AssetUpload(context.Context, *browser.LocalAssetFile) (immich.AssetResponse, error)
@@ -64,6 +64,8 @@ type UpCmd struct {
 	DryRun                 bool             // Display actions but don't change anything
 	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
 	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
+	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
+	StackBurst             bool             // Stack burst (Default: TRUE)
 
 	BrowserConfig browser.Configuration
 
@@ -141,6 +143,15 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 		true,
 		"Stack jpg/raw or bursts  (default TRUE)")
 
+	cmd.BoolVar(&app.StackJpgRaws,
+		"stack-jpg-raw",
+		true,
+		"Control the stacking of jpg/raw photos (default TRUE)")
+	cmd.BoolVar(&app.StackBurst,
+		"stack-burst",
+		true,
+		"Control the stacking bursts (default TRUE)")
+
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 
 	cmd.Var(&app.BrowserConfig.SelectExtensions, "select-types", "list of selected extensions separated by a comma")
@@ -162,7 +173,11 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 		return nil, err
 	}
 
-	if app.CreateStacks {
+	if app.StackBurst || app.StackJpgRaws {
+		app.CreateStacks = true
+	}
+
+	if app.CreateStacks || app.StackBurst || app.StackJpgRaws {
 		app.stacks = stacking.NewStackBuilder()
 	}
 	log.OK("Ask for server's assets...")
@@ -251,14 +266,20 @@ assetLoop:
 		stacks := app.stacks.Stacks()
 		if len(stacks) > 0 {
 			log.OK("Creating stacks")
+		nextStack:
 			for _, s := range stacks {
+				switch {
+				case !app.StackBurst && s.StackType == stacking.StackBurst:
+					continue nextStack
+				case !app.StackJpgRaws && s.StackType == stacking.StackRawJpg:
+					continue nextStack
+				}
 				log.OK("  Stacking %s...", strings.Join(s.Names, ", "))
 				if !app.DryRun {
 					err = app.client.StackAssets(ctx, s.CoverID, s.IDs)
 					if err != nil {
 						log.Warning("Can't stack images: %s", err)
 					}
-
 				}
 			}
 		}

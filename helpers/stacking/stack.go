@@ -19,11 +19,19 @@ type Key struct {
 }
 
 type Stack struct {
-	CoverID string
-	IDs     []string
-	Date    time.Time
-	Names   []string
+	CoverID   string
+	StackType StackType
+	IDs       []string
+	Date      time.Time
+	Names     []string
 }
+
+type StackType int
+
+const (
+	StackRawJpg StackType = iota
+	StackBurst
+)
 
 type StackBuilder struct {
 	dateRange immich.DateRange // Set capture date range
@@ -79,6 +87,9 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 	}
 	s.IDs = append(s.IDs, ID)
 	s.Names = append(s.Names, path.Base(fileName))
+	if burst {
+		s.StackType = StackBurst
+	}
 	if cover {
 		s.CoverID = ID
 	} else if !burst && slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext) {

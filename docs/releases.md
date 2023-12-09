@@ -1,9 +1,16 @@
 # Release notes 
 
-## Release next
+## Release 0.9.0
 
-### feat: transfer google-photo favorite to immich
+### feat:transfer google-photo favorite to immich
 The favorite status in google photos is now replicated in immich.
+
+### feat:  Add a flag to enable only stacking of RAW+JPG and NOT bursts #83 
+It's now possible to control if stacks must be created for:
+- couples raw + jpg
+- burst of photos
+
+
 
 ### fixes: 
 - jpg must be the cover of a raw+jpg stack
