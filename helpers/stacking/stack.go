@@ -104,7 +104,7 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 // bool -> is this is the cover if the burst
 type stackMatcher func(name string) (bool, string, bool)
 
-var stackMatchers = []stackMatcher{huaweiBurst, pixelBurst, samsungBurst}
+var stackMatchers = []stackMatcher{nexusBurst, huaweiBurst, pixelBurst, samsungBurst}
 
 var huaweiBurstRE = regexp.MustCompile(`^(.*)(_BURST\d+)(_COVER)?(\..*)$`)
 
@@ -130,6 +130,16 @@ var samsungBurstRE = regexp.MustCompile(`^(\d{8}_\d{6})_(\d{3})\..{3}$`)
 
 func samsungBurst(name string) (bool, string, bool) {
 	parts := samsungBurstRE.FindStringSubmatch(name)
+	if len(parts) == 0 {
+		return false, "", false
+	}
+	return true, parts[1], parts[2] == "001"
+}
+
+var nexusBurstRE = regexp.MustCompile(`^\d{5}IMG_\d{5}_(BURST\d{14})(_COVER)?\..{3}$`)
+
+func nexusBurst(name string) (bool, string, bool) {
+	parts := nexusBurstRE.FindStringSubmatch(name)
 	if len(parts) == 0 {
 		return false, "", false
 	}

@@ -60,6 +60,10 @@ func TestTakeTimeFromName(t *testing.T) {
 			name:     "20223112-125200",
 			expected: time.Time{},
 		},
+		{
+			name:     "00015IMG_00015_BURST20171111030039_COVER.jpg",
+			expected: time.Date(2017, 11, 11, 4, 0, 39, 0, local),
+		},
 	}
 
 	for _, tt := range tests {

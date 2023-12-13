@@ -17,13 +17,20 @@ import (
 // Return the value time.Time{} when there isn't any date in the name, or if the date is invalid like 2023-02-30 20:65:00
 
 var guessTimePattern = regexp.MustCompile(`(\d{4})\D?(\d\d)\D?(\d\d)\D?(\d\d)?\D?(\d\d)?\D?(\d\d)?`)
+var nexusBurstRE = regexp.MustCompile(`^\d{5}IMG_\d{5}_BURST(\d{14})(_COVER)?\..{3}$`)
 
 func TakeTimeFromName(name string) time.Time {
 	local, err := tzone.Local()
 	if err != nil {
 		panic(err)
 	}
-	mm := guessTimePattern.FindStringSubmatch(name)
+
+	// check for known exceptions...
+	mm := nexusBurstRE.FindStringSubmatch(name)
+	if len(mm) > 2 {
+		name = mm[1]
+	}
+	mm = guessTimePattern.FindStringSubmatch(name)
 	m := [7]int{}
 	if len(mm) >= 4 {
 		for i := range mm {

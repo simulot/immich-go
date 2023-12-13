@@ -97,6 +97,8 @@ Currently the bursts following this schema are detected:
 - xxxxx_BURSTnnn_COVER.*
 - xxxxx.RAW-01.COVER.jpg and xxxxx.RAW-02.ORIGINAL.dng
 - xxxxx.RAW-01.MP.COVER.jpg and xxxxx.RAW-02.ORIGINAL.dng
+- xxxxxIMG_xxxxx_BURSTyyyymmddhhmmss.jpg and xxxxxIMG_xxxxx_BURSTyyyymmddhhmmss_COVER.jpg (Huawei Nexus 6P)
+- yyyymmdd_hhmmss_xxx.jpg (Samsung)
 
 All images must be taken during the same minute.
 The COVER image will be the parent image of the stack

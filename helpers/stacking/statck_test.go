@@ -181,6 +181,23 @@ func Test_Stack(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: " stack: Huawei Nexus 6P #100 ",
+			input: []asset{
+				{ID: "1", FileName: "00001IMG_00001_BURST20171111030039.jpg", DateTaken: metadata.TakeTimeFromName("00001IMG_00001_BURST20171111030039.jpg")},
+				{ID: "2", FileName: "00002IMG_00002_BURST20171111030039.jpg", DateTaken: metadata.TakeTimeFromName("00002IMG_00002_BURST20171111030039.jpg")},
+				{ID: "3", FileName: "00003IMG_00003_BURST20171111030039_COVER.jpg", DateTaken: metadata.TakeTimeFromName("00003IMG_00003_BURST20171111030039_COVER.jpg")},
+			},
+			want: []Stack{
+				{
+					CoverID:   "1",
+					IDs:       []string{"2", "3"},
+					Date:      metadata.TakeTimeFromName("00001IMG_00001_BURST20171111030039.jpg"),
+					Names:     []string{"00001IMG_00001_BURST20171111030039.jpg", "00002IMG_00002_BURST20171111030039.jpg", "00003IMG_00003_BURST20171111030039_COVER.jpg"},
+					StackType: StackBurst,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tc {

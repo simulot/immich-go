@@ -2,6 +2,15 @@
 
 ## Release 0.9.0
 
+### fix: stack: Samsung #99 
+Now,Samsung bursts are detected
+
+### fix:stack: Huawei Nexus 6P #100 
+Now, Huawei bursts are detected
+
+
+## Release 0.9.0
+
 ### feat:transfer google-photo favorite to immich
 The favorite status in google photos is now replicated in immich.
 
