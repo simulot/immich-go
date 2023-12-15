@@ -4,7 +4,6 @@ immich-go
 .vscode/launch.json
 .vscode/settings.json
 immich-go
-main.go
 
 !readme.md
 
