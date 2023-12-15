@@ -1,6 +1,14 @@
 # Release notes 
 
-## Release 0.9.0
+## Release 0.9.2
+
+### fix Trim leading slashes from -server flag
+This fixes the error invalid character '<' looking for beginning of value when the URL of the service ends with a `/`.
+
+### fix .gitignore mistake
+
+
+## Release 0.9.1
 
 ### fix: stack: Samsung #99 
 Now,Samsung bursts are detected
