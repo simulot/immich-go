@@ -1,11 +1,20 @@
 # Release notes 
 
+## Release 0.9.3
+
+### feat: added ability to skip ssl verification (#103) 
+The flag `-skip-verify-ssl=TRUE` permit a connection with an immich server using a self signed certificate.
+
+Thank to sigmahour
+
 ## Release 0.9.2
 
 ### fix Trim leading slashes from -server flag
 This fixes the error invalid character '<' looking for beginning of value when the URL of the service ends with a `/`.
 
 ### fix .gitignore mistake
+
+Thank to Erikas
 
 
 ## Release 0.9.1
