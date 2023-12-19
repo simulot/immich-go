@@ -2,6 +2,7 @@ package immich
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -40,21 +41,28 @@ func (ic *ImmichClient) EnableAppTrace(state bool) *ImmichClient {
 }
 
 // Create a new ImmichClient
-func NewImmichClient(endPoint string, key string) (*ImmichClient, error) {
+func NewImmichClient(endPoint string, key string, sslVerify bool) (*ImmichClient, error) {
 	var err error
 	deviceUUID, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
 
+	// Create a custom HTTP client with SSL verification disabled
+	transportOptions := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: !sslVerify},
+	}
+	tlsClient := &http.Client{Transport: transportOptions}
+
 	ic := ImmichClient{
 		endPoint:     endPoint + "/api",
 		key:          key,
-		client:       &http.Client{},
+		client:       tlsClient,
 		DeviceUUID:   deviceUUID,
 		Retries:      1,
 		RetriesDelay: time.Second * 1,
 	}
+
 	return &ic, nil
 }
 

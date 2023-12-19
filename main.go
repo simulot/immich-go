@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 
 	"github.com/simulot/immich-go/cmdduplicate"
 	"github.com/simulot/immich-go/cmdmetadata"
@@ -67,6 +66,7 @@ type Application struct {
 	LogLevel    string // Idicate the log level
 	Debug       bool   // Enable the debug mode
 	TimeZone    string // Override default TZ
+	SkipSSL     bool   // Skip SSL Verification
 
 	Immich  *immich.ImmichClient // Immich client
 	Logger  *logger.Log          // Program's logger
@@ -93,9 +93,8 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
 	flag.BoolVar(&app.Debug, "debug", false, "enable debug messages")
 	flag.StringVar(&app.TimeZone, "time-zone", "", "Override the system time zone")
+	flag.BoolVar(&app.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
 	flag.Parse()
-
-	app.Server = strings.TrimSuffix(app.Server, "/")
 
 	_, err = tzone.SetLocal(app.TimeZone)
 	if err != nil {
@@ -140,7 +139,7 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 		return app.Logger, err
 	}
 
-	app.Immich, err = immich.NewImmichClient(app.Server, app.Key)
+	app.Immich, err = immich.NewImmichClient(app.Server, app.Key, app.SkipSSL)
 	if err != nil {
 		return app.Logger, err
 	}
