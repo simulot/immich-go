@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/simulot/immich-go/cmdduplicate"
 	"github.com/simulot/immich-go/cmdmetadata"
@@ -95,6 +96,8 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	flag.StringVar(&app.TimeZone, "time-zone", "", "Override the system time zone")
 	flag.BoolVar(&app.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
 	flag.Parse()
+
+	app.Server = strings.TrimSuffix(app.Server, "/")
 
 	_, err = tzone.SetLocal(app.TimeZone)
 	if err != nil {
