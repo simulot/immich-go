@@ -114,7 +114,7 @@ func TestE2eUpload(t *testing.T) {
 	}
 
 	logger := logger.NoLogger{}
-	ic, err := immich.NewImmichClient(host, key)
+	ic, err := immich.NewImmichClient(host, key, false)
 
 	if err != nil {
 		t.Error(err)
