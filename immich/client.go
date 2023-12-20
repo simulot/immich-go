@@ -50,7 +50,7 @@ func NewImmichClient(endPoint string, key string, sslVerify bool) (*ImmichClient
 
 	// Create a custom HTTP client with SSL verification disabled
 	transportOptions := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: !sslVerify},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: sslVerify},
 	}
 	tlsClient := &http.Client{Transport: transportOptions}
 
