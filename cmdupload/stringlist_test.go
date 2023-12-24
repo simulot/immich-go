@@ -1,4 +1,4 @@
-package browser
+package cmdupload
 
 import "testing"
 

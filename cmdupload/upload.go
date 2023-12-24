@@ -22,7 +22,7 @@ import (
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
-	"github.com/simulot/immich-go/journal"
+
 	"github.com/simulot/immich-go/logger"
 )
 
@@ -41,9 +41,10 @@ type iClient interface {
 }
 
 type UpCmd struct {
-	client iClient       // Immich client
-	log    logger.Logger // Application loader
-	fsys   []fs.FS       // pseudo file system to browse
+	client  iClient         // Immich client
+	Journal *logger.Journal // Log and journal
+
+	fsys []fs.FS // pseudo file system to browse
 
 	GooglePhotos           bool             // For reading Google Photos takeout files
 	Delete                 bool             // Delete original file after import
@@ -66,7 +67,7 @@ type UpCmd struct {
 	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
 	StackBurst             bool             // Stack burst (Default: TRUE)
 
-	BrowserConfig browser.Configuration
+	BrowserConfig Configuration
 
 	AssetIndex       *AssetIndex               // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
@@ -83,7 +84,7 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 
 	app := UpCmd{
 		updateAlbums: map[string]map[string]any{},
-		log:          log,
+		Journal:      logger.NewJournal(log),
 		client:       ic,
 	}
 	cmd.BoolVar(&app.DryRun,
@@ -165,7 +166,7 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 		return nil, err
 	}
 
-	app.BrowserConfig.Journal = journal.NewJournal(app.log)
+	app.Journal = logger.NewJournal(log)
 
 	app.fsys, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
 	if err != nil {
@@ -211,30 +212,29 @@ func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []st
 
 }
 
-func (app *UpCmd) journalAsset(a *browser.LocalAssetFile, action journal.Action, comment ...string) {
-	app.BrowserConfig.Journal.AddEntry(a.FileName, action, comment...)
+func (app *UpCmd) journalAsset(a *browser.LocalAssetFile, action logger.Action, comment ...string) {
+	app.Journal.AddEntry(a.FileName, action, comment...)
 }
 
 func (app *UpCmd) Run(ctx context.Context, fsyss []fs.FS) error {
-	log := app.log
 
 	var browser browser.Browser
 	var err error
 
 	switch {
 	case app.GooglePhotos:
-		log.Message(logger.OK, "Browsing google take out archive...")
+		app.Journal.Message(logger.OK, "Browsing google take out archive...")
 		browser, err = app.ReadGoogleTakeOut(ctx, fsyss)
 	default:
-		log.Message(logger.OK, "Browsing folder(s)...")
+		app.Journal.Message(logger.OK, "Browsing folder(s)...")
 		browser, err = app.ExploreLocalFolder(ctx, fsyss)
 	}
 
 	if err != nil {
-		log.Message(logger.Error, err.Error())
+		app.Journal.Message(logger.Error, err.Error())
 		return err
 	}
-	log.Message(logger.OK, "Done.")
+	app.Journal.Message(logger.OK, "Done.")
 
 	assetChan := browser.Browse(ctx)
 assetLoop:
@@ -248,11 +248,11 @@ assetLoop:
 				break assetLoop
 			}
 			if a.Err != nil {
-				app.journalAsset(a, journal.ERROR, err.Error())
+				app.journalAsset(a, logger.ERROR, err.Error())
 			} else {
 				err = app.handleAsset(ctx, a)
 				if err != nil {
-					app.journalAsset(a, journal.ERROR, err.Error())
+					app.journalAsset(a, logger.ERROR, err.Error())
 				}
 			}
 		}
@@ -261,7 +261,7 @@ assetLoop:
 	if app.CreateStacks {
 		stacks := app.stacks.Stacks()
 		if len(stacks) > 0 {
-			log.OK("Creating stacks")
+			app.Journal.OK("Creating stacks")
 		nextStack:
 			for _, s := range stacks {
 				switch {
@@ -270,11 +270,11 @@ assetLoop:
 				case !app.StackJpgRaws && s.StackType == stacking.StackRawJpg:
 					continue nextStack
 				}
-				log.OK("  Stacking %s...", strings.Join(s.Names, ", "))
+				app.Journal.OK("  Stacking %s...", strings.Join(s.Names, ", "))
 				if !app.DryRun {
 					err = app.client.StackAssets(ctx, s.CoverID, s.IDs)
 					if err != nil {
-						log.Warning("Can't stack images: %s", err)
+						app.Journal.Warning("Can't stack images: %s", err)
 					}
 				}
 			}
@@ -282,10 +282,10 @@ assetLoop:
 	}
 
 	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && len(app.PartnerAlbum) > 0) || len(app.ImportIntoAlbum) > 0 {
-		log.OK("Managing albums")
+		app.Journal.OK("Managing albums")
 		err = app.ManageAlbums(ctx)
 		if err != nil {
-			log.Error(err.Error())
+			app.Journal.Error(err.Error())
 			err = nil
 		}
 	}
@@ -305,7 +305,7 @@ assetLoop:
 		err = app.DeleteLocalAssets()
 	}
 
-	app.BrowserConfig.Journal.Report()
+	app.Journal.Report()
 
 	return err
 }
@@ -318,33 +318,33 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 
 	ext := path.Ext(a.FileName)
 	if _, err := fshelper.MimeFromExt(ext); err != nil {
-		app.journalAsset(a, journal.DISCARDED, "not recognized extension")
+		app.journalAsset(a, logger.DISCARDED, "not recognized extension")
 		return nil
 	}
 
 	if !app.KeepPartner && a.FromPartner {
-		app.journalAsset(a, journal.DISCARDED, "partners discarded")
+		app.journalAsset(a, logger.DISCARDED, "partners discarded")
 		return nil
 	}
 
 	if !app.KeepTrashed && a.Trashed {
-		app.journalAsset(a, journal.DISCARDED, "trashed discarded")
+		app.journalAsset(a, logger.DISCARDED, "trashed discarded")
 		return nil
 	}
 
 	if len(app.ImportFromAlbum) > 0 && !app.isInAlbum(a, app.ImportFromAlbum) {
-		app.journalAsset(a, journal.DISCARDED, "not in the requested album")
+		app.journalAsset(a, logger.DISCARDED, "not in the requested album")
 		return nil
 	}
 
 	if app.DateRange.IsSet() {
 		d := a.DateTaken
 		if d.IsZero() {
-			app.journalAsset(a, journal.DISCARDED, "date range import, impossible to get the date of capture")
+			app.journalAsset(a, logger.DISCARDED, "date range import, impossible to get the date of capture")
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
-			app.journalAsset(a, journal.DISCARDED, "date of capture out of the date range")
+			app.journalAsset(a, logger.DISCARDED, "date of capture out of the date range")
 			return nil
 		}
 	}
@@ -355,7 +355,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		})
 	}
 
-	app.log.DebugObject("handleAsset: LocalAssetFile=", a)
+	app.Journal.DebugObject("handleAsset: LocalAssetFile=", a)
 
 	advice, err := app.AssetIndex.ShouldUpload(a)
 	if err != nil {
@@ -369,10 +369,10 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case SmallerOnServer:
-		app.journalAsset(a, journal.UPGRADED, advice.Message)
+		app.journalAsset(a, logger.UPGRADED, advice.Message)
 		// add the superior asset into albums of the original asset
 		for _, al := range advice.ServerAsset.Albums {
-			app.journalAsset(a, journal.INFO, "Added to album: "+al.AlbumName)
+			app.journalAsset(a, logger.INFO, "Added to album: "+al.AlbumName)
 			a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
 		}
 		app.UploadAsset(ctx, a)
@@ -384,22 +384,22 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	case SameOnServer:
 		// Set add the server asset into albums determined locally
 		if !advice.ServerAsset.JustUploaded {
-			app.journalAsset(a, journal.SERVER_DUPLICATE, advice.Message)
+			app.journalAsset(a, logger.SERVER_DUPLICATE, advice.Message)
 		} else {
-			app.journalAsset(a, journal.LOCAL_DUPLICATE)
+			app.journalAsset(a, logger.LOCAL_DUPLICATE)
 		}
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
-				app.journalAsset(a, journal.INFO, "Added to album: "+al.Name)
+				app.journalAsset(a, logger.INFO, "Added to album: "+al.Name)
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
 			}
 		}
 		if app.ImportIntoAlbum != "" {
-			app.journalAsset(a, journal.INFO, "Added to album: "+app.ImportIntoAlbum)
+			app.journalAsset(a, logger.INFO, "Added to album: "+app.ImportIntoAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.ImportIntoAlbum)
 		}
 		if app.PartnerAlbum != "" && a.FromPartner {
-			app.journalAsset(a, journal.INFO, "Added to album: "+app.PartnerAlbum)
+			app.journalAsset(a, logger.INFO, "Added to album: "+app.PartnerAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 		if !advice.ServerAsset.JustUploaded {
@@ -410,16 +410,16 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			return nil
 		}
 	case BetterOnServer:
-		app.journalAsset(a, journal.SERVER_BETTER, advice.Message)
+		app.journalAsset(a, logger.SERVER_BETTER, advice.Message)
 		// keep the server version but update albums
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
-				app.journalAsset(a, journal.INFO, "Added to album: "+al.Name)
+				app.journalAsset(a, logger.INFO, "Added to album: "+al.Name)
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
 			}
 		}
 		if app.PartnerAlbum != "" && a.FromPartner {
-			app.journalAsset(a, journal.INFO, "Added to album: "+app.PartnerAlbum)
+			app.journalAsset(a, logger.INFO, "Added to album: "+app.PartnerAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 	}
@@ -438,11 +438,11 @@ func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
 
 func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
 	a.Delete = false
-	return gp.NewTakeout(ctx, a.log, &a.BrowserConfig, fsyss...)
+	return gp.NewTakeout(ctx, a.Journal, fsyss...)
 }
 
 func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
-	return files.NewLocalFiles(ctx, a.log, &a.BrowserConfig, fsyss...)
+	return files.NewLocalFiles(ctx, a.Journal, fsyss...)
 }
 
 // UploadAsset upload the asset on the server
@@ -465,14 +465,14 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 
 		resp, err = app.client.AssetUpload(ctx, a)
 		if err != nil {
-			app.journalAsset(a, journal.ERROR, err.Error())
+			app.journalAsset(a, logger.ERROR, err.Error())
 			return
 		}
 	} else {
 		resp.ID = uuid.NewString()
 	}
 	if !resp.Duplicate {
-		app.journalAsset(a, journal.UPLOADED, a.Title)
+		app.journalAsset(a, logger.UPLOADED, a.Title)
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		app.mediaUploaded += 1
 		if app.CreateStacks {
@@ -505,7 +505,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 				Names := []string{}
 				for _, al := range albums {
 					Name := app.albumName(al)
-					app.log.DebugObject("Add asset to the album:", al)
+					app.Journal.DebugObject("Add asset to the album:", al)
 
 					if app.GooglePhotos && Name == "" {
 						continue
@@ -513,7 +513,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 					Names = append(Names, Name)
 				}
 				if len(Names) > 0 {
-					app.journalAsset(a, journal.ALBUM, strings.Join(Names, ", "))
+					app.journalAsset(a, logger.ALBUM, strings.Join(Names, ", "))
 					for _, n := range Names {
 						app.AddToAlbum(resp.ID, n)
 					}
@@ -521,7 +521,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 			}
 		}
 	} else {
-		app.journalAsset(a, journal.SERVER_DUPLICATE, "already on the server")
+		app.journalAsset(a, logger.SERVER_DUPLICATE, "already on the server")
 	}
 }
 
@@ -548,17 +548,17 @@ func (app *UpCmd) AddToAlbum(ID string, album string) {
 }
 
 func (app *UpCmd) DeleteLocalAssets() error {
-	app.log.OK("%d local assets to delete.", len(app.deleteLocalList))
+	app.Journal.OK("%d local assets to delete.", len(app.deleteLocalList))
 
 	for _, a := range app.deleteLocalList {
 		if !app.DryRun {
-			app.log.Warning("delete file %q", a.Title)
+			app.Journal.Warning("delete file %q", a.Title)
 			err := a.Remove()
 			if err != nil {
 				return err
 			}
 		} else {
-			app.log.Warning("file %q not deleted, dry run mode", a.Title)
+			app.Journal.Warning("file %q not deleted, dry run mode", a.Title)
 		}
 
 	}
@@ -566,13 +566,13 @@ func (app *UpCmd) DeleteLocalAssets() error {
 }
 
 func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
-	app.log.Warning("%d server assets to delete.", len(ids))
+	app.Journal.Warning("%d server assets to delete.", len(ids))
 
 	if !app.DryRun {
 		err := app.client.DeleteAssets(ctx, ids, false)
 		return err
 	}
-	app.log.Warning("%d server assets to delete. skipped dry-run mode", len(ids))
+	app.Journal.Warning("%d server assets to delete. skipped dry-run mode", len(ids))
 	return nil
 }
 
@@ -589,7 +589,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 				if sal.AlbumName == album {
 					found = true
 					if !app.DryRun {
-						app.log.OK("Update the album %s", album)
+						app.Journal.OK("Update the album %s", album)
 						rr, err := app.client.AddAssetToAlbum(ctx, sal.ID, gen.MapKeys(list))
 						if err != nil {
 							return fmt.Errorf("can't update the album list from the server: %w", err)
@@ -600,14 +600,14 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 								added++
 							}
 							if !r.Success && r.Error != "duplicate" {
-								app.log.Warning("%s: %s", r.ID, r.Error)
+								app.Journal.Warning("%s: %s", r.ID, r.Error)
 							}
 						}
 						if added > 0 {
-							app.log.OK("%d asset(s) added to the album %q", added, album)
+							app.Journal.OK("%d asset(s) added to the album %q", added, album)
 						}
 					} else {
-						app.log.OK("Update album %s skipped - dry run mode", album)
+						app.Journal.OK("Update album %s skipped - dry run mode", album)
 					}
 				}
 			}
@@ -616,14 +616,14 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 			}
 			if list != nil {
 				if !app.DryRun {
-					app.log.OK("Create the album %s", album)
+					app.Journal.OK("Create the album %s", album)
 
 					_, err := app.client.CreateAlbum(ctx, album, gen.MapKeys(list))
 					if err != nil {
 						return fmt.Errorf("can't create the album list from the server: %w", err)
 					}
 				} else {
-					app.log.OK("Create the album %s skipped - dry run mode", album)
+					app.Journal.OK("Create the album %s skipped - dry run mode", album)
 				}
 			}
 		}

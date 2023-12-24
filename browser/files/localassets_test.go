@@ -8,7 +8,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/logger"
 
@@ -76,7 +75,7 @@ func TestLocalAssets(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := files.NewLocalFiles(ctx, logger.NoLogger{}, &browser.Configuration{}, fsys)
+			b, err := files.NewLocalFiles(ctx, logger.NewJournal(logger.NoLogger{}), fsys)
 			if err != nil {
 				t.Error(err)
 			}

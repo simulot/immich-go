@@ -11,23 +11,20 @@ import (
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/immich/metadata"
-	"github.com/simulot/immich-go/journal"
 	"github.com/simulot/immich-go/logger"
 )
 
 type LocalAssetBrowser struct {
 	fsyss  []fs.FS
 	albums map[string]string
-	log    logger.Logger
-	conf   *browser.Configuration
+	log    *logger.Journal
 }
 
-func NewLocalFiles(ctx context.Context, log logger.Logger, conf *browser.Configuration, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, log *logger.Journal, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
 		fsyss:  fsyss,
 		albums: map[string]string{},
 		log:    log,
-		conf:   conf,
 	}, nil
 }
 
@@ -99,22 +96,14 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 
 		for _, e := range es {
 			fileName := path.Join(folder, e.Name())
-			la.conf.Journal.AddEntry(fileName, journal.DISCOVERED_FILE, "")
+			la.log.AddEntry(fileName, logger.DISCOVERED_FILE, "")
 			name := e.Name()
 			ext := strings.ToLower(path.Ext(name))
 			if fshelper.IsIgnoredExt(ext) {
-
+				continue
 			}
 			if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
-				la.conf.Journal.AddEntry(fileName, journal.UNSUPPORTED, "")
-				continue
-			}
-			if !la.conf.SelectExtensions.Include(ext) {
-				la.conf.Journal.AddEntry(fileName, journal.DISCARDED, "because of select-type option")
-				continue
-			}
-			if la.conf.ExcludeExtensions.Exclude(ext) {
-				la.conf.Journal.AddEntry(fileName, journal.DISCARDED, "because of exclude-type option")
+				la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
 				continue
 			}
 			f := browser.LocalAssetFile{

@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/logger"
 
 	"github.com/kr/pretty"
@@ -106,7 +105,7 @@ func TestBrowse(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := NewTakeout(ctx, logger.NoLogger{}, &browser.Configuration{}, fsys)
+			b, err := NewTakeout(ctx, logger.NewJournal(logger.NoLogger{}), fsys)
 			if err != nil {
 				t.Error(err)
 			}
@@ -181,7 +180,7 @@ func TestAlbums(t *testing.T) {
 				t.Error(fsys.err)
 				return
 			}
-			b, err := NewTakeout(ctx, logger.NoLogger{}, &browser.Configuration{}, fsys)
+			b, err := NewTakeout(ctx, logger.NewJournal(logger.NoLogger{}), fsys)
 			if err != nil {
 				t.Error(err)
 			}
