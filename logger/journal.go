@@ -76,6 +76,7 @@ func (j *Journal) Report() {
 	j.Logger.OK("--------------------------------------------------------")
 
 	j.Logger.OK("%6d files with metadata", j.counts[ASSOCIATED_META])
+	j.Logger.OK("%6d discarded files because of options", j.counts[NOT_SELECTED])
 	j.Logger.OK("%6d discarded files because duplicated in the input", j.counts[LOCAL_DUPLICATE])
 	j.Logger.OK("%6d files already on the server", j.counts[SERVER_DUPLICATE])
 	j.Logger.OK("%6d uploaded files on the server", j.counts[UPLOADED])

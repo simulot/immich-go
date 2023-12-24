@@ -316,35 +316,35 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	}()
 	app.mediaCount++
 
-	ext := path.Ext(a.FileName)
-	if _, err := fshelper.MimeFromExt(ext); err != nil {
-		app.journalAsset(a, logger.DISCARDED, "not recognized extension")
-		return nil
-	}
+	// ext := path.Ext(a.FileName)
+	// if _, err := fshelper.MimeFromExt(ext); err != nil {
+	// 	app.journalAsset(a, logger.NOT_SELECTED, "not recognized extension")
+	// 	return nil
+	// }
 
 	if !app.KeepPartner && a.FromPartner {
-		app.journalAsset(a, logger.DISCARDED, "partners discarded")
+		app.journalAsset(a, logger.NOT_SELECTED, "partners asset excluded")
 		return nil
 	}
 
 	if !app.KeepTrashed && a.Trashed {
-		app.journalAsset(a, logger.DISCARDED, "trashed discarded")
+		app.journalAsset(a, logger.NOT_SELECTED, "trashed asset excluded")
 		return nil
 	}
 
 	if len(app.ImportFromAlbum) > 0 && !app.isInAlbum(a, app.ImportFromAlbum) {
-		app.journalAsset(a, logger.DISCARDED, "not in the requested album")
+		app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because not from the required album")
 		return nil
 	}
 
 	if app.DateRange.IsSet() {
 		d := a.DateTaken
 		if d.IsZero() {
-			app.journalAsset(a, logger.DISCARDED, "date range import, impossible to get the date of capture")
+			app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because  the date of capture is unknown and a date range is required.")
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
-			app.journalAsset(a, logger.DISCARDED, "date of capture out of the date range")
+			app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because the date of capture out of the date range")
 			return nil
 		}
 	}
