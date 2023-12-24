@@ -16,15 +16,15 @@ import (
 )
 
 type LocalAssetBrowser struct {
-	fsys   fs.FS
+	fsyss  []fs.FS
 	albums map[string]string
 	log    logger.Logger
 	conf   *browser.Configuration
 }
 
-func NewLocalFiles(ctx context.Context, fsys fs.FS, log logger.Logger, conf *browser.Configuration) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, log logger.Logger, conf *browser.Configuration, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
-		fsys:   fsys,
+		fsyss:  fsyss,
 		albums: map[string]string{},
 		log:    log,
 		conf:   conf,
@@ -38,34 +38,36 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 	// Browse all given FS to collect the list of files
 	go func(ctx context.Context) {
 		defer close(fileChan)
-		err := fs.WalkDir(la.fsys, ".",
-			func(name string, d fs.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
+		for _, fsys := range la.fsyss {
+			err := fs.WalkDir(fsys, ".",
+				func(name string, d fs.DirEntry, err error) error {
+					if err != nil {
+						return err
+					}
 
-				// Check if the context has been cancelled
+					// Check if the context has been cancelled
+					select {
+					case <-ctx.Done():
+						// If the context has been cancelled, return immediately
+						return ctx.Err()
+					default:
+						if d.IsDir() {
+							return la.handleFolder(ctx, fsys, fileChan, name)
+						}
+					}
+					return nil
+
+				})
+			if err != nil {
+				// Check if the context has been cancelled before sending the error
 				select {
 				case <-ctx.Done():
 					// If the context has been cancelled, return immediately
-					return ctx.Err()
-				default:
-					if d.IsDir() {
-						return la.handleFolder(ctx, fileChan, name)
-					}
+					return
+				case fileChan <- &browser.LocalAssetFile{
+					Err: err,
+				}:
 				}
-				return nil
-
-			})
-		if err != nil {
-			// Check if the context has been cancelled before sending the error
-			select {
-			case <-ctx.Done():
-				// If the context has been cancelled, return immediately
-				return
-			case fileChan <- &browser.LocalAssetFile{
-				Err: err,
-			}:
 			}
 		}
 
@@ -74,8 +76,8 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 	return fileChan
 }
 
-func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *browser.LocalAssetFile, folder string) error {
-	entries, err := fs.ReadDir(la.fsys, folder)
+func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileChan chan *browser.LocalAssetFile, folder string) error {
+	entries, err := fs.ReadDir(fsys, folder)
 	if err != nil {
 		return err
 	}
@@ -97,9 +99,12 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 
 		for _, e := range es {
 			fileName := path.Join(folder, e.Name())
-			la.conf.Journal.AddEntry(fileName, journal.SCANNED, "")
+			la.conf.Journal.AddEntry(fileName, journal.DISCOVERED_FILE, "")
 			name := e.Name()
-			ext := path.Ext(name)
+			ext := strings.ToLower(path.Ext(name))
+			if fshelper.IsIgnoredExt(ext) {
+
+			}
 			if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
 				la.conf.Journal.AddEntry(fileName, journal.UNSUPPORTED, "")
 				continue
@@ -113,7 +118,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 				continue
 			}
 			f := browser.LocalAssetFile{
-				FSys:      la.fsys,
+				FSys:      fsys,
 				FileName:  path.Join(folder, name),
 				Title:     path.Base(name),
 				FileSize:  0,
@@ -133,8 +138,8 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 						f.DateTaken = time.Now()
 					}
 				}
-				if !la.checkSidecar(&f, name+".xmp") {
-					la.checkSidecar(&f, strings.TrimSuffix(name, ext)+".xmp")
+				if !la.checkSidecar(fsys, &f, name+".xmp") {
+					la.checkSidecar(fsys, &f, strings.TrimSuffix(name, ext)+".xmp")
 				}
 			}
 			// Check if the context has been cancelled
@@ -150,8 +155,8 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fileChan chan *br
 	return nil
 }
 
-func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, name string) bool {
-	_, err := fs.Stat(la.fsys, name+".xmp")
+func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile, name string) bool {
+	_, err := fs.Stat(fsys, name+".xmp")
 	if err == nil {
 		la.log.Debug("  found sidecar: '%s'", name)
 		f.SideCar = &metadata.SideCar{

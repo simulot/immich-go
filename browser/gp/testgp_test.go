@@ -106,7 +106,7 @@ func TestBrowse(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := NewTakeout(ctx, fsys, logger.NoLogger{}, &browser.Configuration{})
+			b, err := NewTakeout(ctx, logger.NoLogger{}, &browser.Configuration{}, fsys)
 			if err != nil {
 				t.Error(err)
 			}
@@ -181,7 +181,7 @@ func TestAlbums(t *testing.T) {
 				t.Error(fsys.err)
 				return
 			}
-			b, err := NewTakeout(ctx, fsys, logger.NoLogger{}, &browser.Configuration{})
+			b, err := NewTakeout(ctx, logger.NoLogger{}, &browser.Configuration{}, fsys)
 			if err != nil {
 				t.Error(err)
 			}

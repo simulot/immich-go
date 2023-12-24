@@ -5,6 +5,7 @@ package gp
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,6 +15,12 @@ import (
 )
 
 func TestReadBigTakeout(t *testing.T) {
+	f, err := os.Create("bigread.log")
+	if err != nil {
+		panic(err)
+	}
+	l := logger.NewLogger(logger.Info, true, false)
+	l.SetWriter(f)
 	m, err := filepath.Glob("../../../test-data/full_takeout/*.zip")
 	if err != nil {
 		t.Error(err)
@@ -21,16 +28,15 @@ func TestReadBigTakeout(t *testing.T) {
 	}
 	cnt := 0
 	fsyss, err := fshelper.ParsePath(m, true)
-	for _, fsys := range fsyss {
-		to, err := NewTakeout(context.Background(), fsys, logger.NoLogger{}, &browser.Configuration{})
-		if err != nil {
-			t.Error(err)
-			return
-		}
-
-		for range to.Browse(context.Background()) {
-			cnt++
-		}
+	to, err := NewTakeout(context.Background(), l, &browser.Configuration{}, fsyss...)
+	if err != nil {
+		t.Error(err)
+		return
 	}
+
+	for range to.Browse(context.Background()) {
+		cnt++
+	}
+	to.conf.Journal.Report()
 	t.Logf("seen %d files", cnt)
 }

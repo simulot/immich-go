@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"io/fs"
 	"reflect"
 	"slices"
 	"testing"
@@ -425,7 +426,7 @@ func TestUpload(t *testing.T) {
 			}
 
 			for _, fsys := range app.fsys {
-				err = errors.Join(app.Run(ctx, fsys))
+				err = errors.Join(app.Run(ctx, []fs.FS{fsys}))
 			}
 			if (tc.expectedErr && err == nil) || (!tc.expectedErr && err != nil) {
 				t.Errorf("unexpected error condition: %v,%s", tc.expectedErr, err)

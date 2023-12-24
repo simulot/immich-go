@@ -61,7 +61,8 @@ func descriptionField(description string) jsonFn {
 
 func (mfs *inMemFS) addJSONImage(name string, title string, modifiers ...jsonFn) *inMemFS {
 	md := GoogleMetaData{
-		Title: title,
+		Title:      title,
+		URLPresent: true,
 	}
 	md.PhotoTakenTime.Timestamp = strconv.FormatInt(time.Date(2023, 10, 23, 15, 0, 0, 0, time.Local).Unix(), 10)
 	for _, f := range modifiers {
@@ -69,7 +70,10 @@ func (mfs *inMemFS) addJSONImage(name string, title string, modifiers ...jsonFn)
 	}
 	content := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(content)
-	enc.Encode(md)
+	err := enc.Encode(md)
+	if err != nil {
+		panic(err)
+	}
 	mfs.addFile(name, []byte(content.Bytes()))
 	return mfs
 }

@@ -85,7 +85,7 @@ func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 	if len(p.unsupported) > 0 {
 		keys := gen.MapKeys(p.unsupported)
 		for _, k := range keys {
-			p.err = errors.Join(fmt.Errorf("files with extension '%s' are not supported", k))
+			p.err = errors.Join(fmt.Errorf("files with extension '%s' are not supported. Check the discussion here https://github.com/simulot/immich-go/discussions/109", k))
 		}
 	}
 	return fsys, p.err

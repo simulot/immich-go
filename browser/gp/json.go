@@ -13,21 +13,25 @@ type GoogleMetaData struct {
 	Title              string         `json:"title"`
 	Description        string         `json:"description"`
 	Category           string         `json:"category"`
-	DatePresent        googIsPresent  `json:"date"` // true when the file is a folder metadata
+	DatePresent        googIsPresent  `json:"date,omitempty"` // true when the file is a folder metadata
 	PhotoTakenTime     googTimeObject `json:"photoTakenTime"`
 	GeoDataExif        googGeoData    `json:"geoDataExif"`
 	Trashed            bool           `json:"trashed,omitempty"`
 	Archived           bool           `json:"archived,omitempty"`
-	URLPresent         googIsPresent  `json:"url"`                 // true when the file is an asset metadata
+	URLPresent         googIsPresent  `json:"url,omitempty"`       // true when the file is an asset metadata
 	Favorited          bool           `json:"favorited,omitempty"` // true when starred in GP
 	GooglePhotosOrigin struct {
-		FromPartnerSharing googIsPresent `json:"fromPartnerSharing"` // true when this is a partner's asset
+		FromPartnerSharing googIsPresent `json:"fromPartnerSharing,omitempty"` // true when this is a partner's asset
 	} `json:"googlePhotosOrigin"`
 	foundInPaths []string // Not in the JSON, keep track of paths where the json has been found
 }
 
 func (gmd GoogleMetaData) isAlbum() bool {
 	return bool(gmd.DatePresent)
+}
+
+func (gmd GoogleMetaData) isAsset() bool {
+	return bool(gmd.URLPresent)
 }
 
 func (gmd GoogleMetaData) isPartner() bool {
@@ -52,6 +56,13 @@ func (p *googIsPresent) UnmarshalJSON(b []byte) error {
 
 	*p = len(b) > 0
 	return nil
+}
+
+func (p googIsPresent) MarshalJSON() ([]byte, error) {
+	if p {
+		return json.Marshal("present")
+	}
+	return json.Marshal(struct{}{})
 }
 
 // googGeoData contains GPS coordinates

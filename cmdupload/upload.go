@@ -4,7 +4,6 @@ package cmdupload
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -208,18 +207,15 @@ func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []st
 	if err != nil {
 		return err
 	}
+	return app.Run(ctx, app.fsys)
 
-	for _, fsys := range app.fsys {
-		err = errors.Join(app.Run(ctx, fsys))
-	}
-	return err
 }
 
 func (app *UpCmd) journalAsset(a *browser.LocalAssetFile, action journal.Action, comment ...string) {
 	app.BrowserConfig.Journal.AddEntry(a.FileName, action, comment...)
 }
 
-func (app *UpCmd) Run(ctx context.Context, fsys fs.FS) error {
+func (app *UpCmd) Run(ctx context.Context, fsyss []fs.FS) error {
 	log := app.log
 
 	var browser browser.Browser
@@ -228,10 +224,10 @@ func (app *UpCmd) Run(ctx context.Context, fsys fs.FS) error {
 	switch {
 	case app.GooglePhotos:
 		log.Message(logger.OK, "Browsing google take out archive...")
-		browser, err = app.ReadGoogleTakeOut(ctx, fsys)
+		browser, err = app.ReadGoogleTakeOut(ctx, fsyss)
 	default:
 		log.Message(logger.OK, "Browsing folder(s)...")
-		browser, err = app.ExploreLocalFolder(ctx, fsys)
+		browser, err = app.ExploreLocalFolder(ctx, fsyss)
 	}
 
 	if err != nil {
@@ -310,12 +306,6 @@ assetLoop:
 	}
 
 	app.BrowserConfig.Journal.Report()
-	counts := app.BrowserConfig.Journal.Counters()
-
-	if c := counts[journal.UNHANDLED] + counts[journal.ERROR] + counts[journal.UNSUPPORTED]; c > 0 {
-		app.log.Warning("%d files can't be handled", c)
-		app.BrowserConfig.Journal.WriteJournal(journal.UNHANDLED, journal.ERROR, journal.UNSUPPORTED)
-	}
 
 	return err
 }
@@ -446,13 +436,13 @@ func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
 	return false
 }
 
-func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsys fs.FS) (browser.Browser, error) {
+func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
 	a.Delete = false
-	return gp.NewTakeout(ctx, fsys, a.log, &a.BrowserConfig)
+	return gp.NewTakeout(ctx, a.log, &a.BrowserConfig, fsyss...)
 }
 
-func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsys fs.FS) (browser.Browser, error) {
-	return files.NewLocalFiles(ctx, fsys, a.log, &a.BrowserConfig)
+func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
+	return files.NewLocalFiles(ctx, a.log, &a.BrowserConfig, fsyss...)
 }
 
 // UploadAsset upload the asset on the server
@@ -540,9 +530,9 @@ func (app *UpCmd) albumName(al browser.LocalAlbum) string {
 	if app.GooglePhotos {
 		switch {
 		case app.UseFolderAsAlbumName:
-			Name = al.Path
+			Name = path.Base(al.Path)
 		case app.KeepUntitled && Name == "":
-			Name = al.Path
+			Name = path.Base(al.Path)
 		}
 	}
 	return Name
