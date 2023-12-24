@@ -11,6 +11,7 @@ import (
 
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/journal"
 	"github.com/simulot/immich-go/logger"
 )
 
@@ -20,6 +21,7 @@ func TestReadBigTakeout(t *testing.T) {
 		panic(err)
 	}
 	l := logger.NewLogger(logger.Info, true, false)
+	j := journal.NewJournal(l)
 	l.SetWriter(f)
 	m, err := filepath.Glob("../../../test-data/full_takeout/*.zip")
 	if err != nil {
@@ -28,7 +30,7 @@ func TestReadBigTakeout(t *testing.T) {
 	}
 	cnt := 0
 	fsyss, err := fshelper.ParsePath(m, true)
-	to, err := NewTakeout(context.Background(), l, &browser.Configuration{}, fsyss...)
+	to, err := NewTakeout(context.Background(), l, &browser.Configuration{Journal: j}, fsyss...)
 	if err != nil {
 		t.Error(err)
 		return

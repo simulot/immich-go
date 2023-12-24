@@ -61,7 +61,7 @@ func (j *Journal) AddEntry(file string, action Action, comment ...string) {
 }
 func (j *Journal) Report() {
 
-	checkFiles := j.counts[SCANNED_IMAGE] + j.counts[SCANNED_VIDEO] + j.counts[METADATA] + j.counts[UNSUPPORTED] + j.counts[FAILED_VIDEO] + j.counts[ERROR]
+	checkFiles := j.counts[SCANNED_IMAGE] + j.counts[SCANNED_VIDEO] + j.counts[METADATA] + j.counts[UNSUPPORTED] + j.counts[FAILED_VIDEO] + j.counts[ERROR] + j.counts[DISCARDED]
 
 	j.log.OK("Scan of the sources:")
 	j.log.OK("%6d files in the input", j.counts[DISCOVERED_FILE])
@@ -69,6 +69,7 @@ func (j *Journal) Report() {
 	j.log.OK("%6d photos", j.counts[SCANNED_IMAGE])
 	j.log.OK("%6d videos", j.counts[SCANNED_VIDEO])
 	j.log.OK("%6d metadata files", j.counts[METADATA])
+	j.log.OK("%6d discarded files", j.counts[DISCARDED])
 	j.log.OK("%6d files having a type not supported", j.counts[UNSUPPORTED])
 	j.log.OK("%6d discarded files because in folder failed videos", j.counts[FAILED_VIDEO])
 	j.log.OK("%6d errors", j.counts[ERROR])
@@ -80,7 +81,6 @@ func (j *Journal) Report() {
 	j.log.OK("%6d files already on the server", j.counts[SERVER_DUPLICATE])
 	j.log.OK("%6d uploaded files on the server", j.counts[UPLOADED])
 	j.log.OK("%6d upgraded files on the server", j.counts[UPGRADED])
-	j.log.OK("%6d discarded files because of options", j.counts[DISCARDED])
 	j.log.OK("%6d discarded files because server has a better image", j.counts[SERVER_BETTER])
 
 }

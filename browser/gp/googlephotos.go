@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -117,6 +118,11 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
 
+			if slices.Contains(uselessFiles, base) {
+				to.conf.Journal.AddEntry(name, journal.DISCARDED, "Useless file")
+				return nil
+			}
+
 			dirCatalog := to.catalogs[w][dir]
 			if dirCatalog.files == nil {
 				dirCatalog.files = map[string]fileInfo{}
@@ -137,11 +143,11 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 						to.albums[dir] = md.Title
 						to.conf.Journal.AddEntry(name, journal.METADATA, "Album title: "+md.Title)
 					default:
-						to.conf.Journal.AddEntry(name, journal.ERROR, "Unknown json file")
+						to.conf.Journal.AddEntry(name, journal.DISCARDED, "Unknown json file")
 						return nil
 					}
 				} else {
-					to.conf.Journal.AddEntry(name, journal.ERROR, "Unknown json file")
+					to.conf.Journal.AddEntry(name, journal.DISCARDED, "Unknown json file")
 					return nil
 				}
 			default:
@@ -518,4 +524,11 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, key fileKey, fsys fs.FS, 
 		}
 	}
 	return &a
+}
+
+var uselessFiles = []string{
+	"archive_browser.html",
+	"print-subscriptions.json",
+	"shared_album_comments.json",
+	"user-generated-memory-titles.json",
 }
