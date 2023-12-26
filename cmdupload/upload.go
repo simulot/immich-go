@@ -38,6 +38,7 @@ type iClient interface {
 	CreateAlbum(context.Context, string, []string) (immich.AlbumSimplified, error)
 	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentId string) error
 	StackAssets(ctx context.Context, cover string, IDs []string) error
+	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*immich.Asset, error)
 }
 
 type UpCmd struct {
@@ -340,7 +341,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	if app.DateRange.IsSet() {
 		d := a.DateTaken
 		if d.IsZero() {
-			app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because  the date of capture is unknown and a date range is required.")
+			app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because the date of capture is unknown and a date range is given")
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
@@ -362,10 +363,11 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		return err
 	}
 
+	var ID string
 	switch advice.Advice {
 	case NotOnServer:
-		app.UploadAsset(ctx, a)
-		if app.Delete {
+		ID, err = app.UploadAsset(ctx, a)
+		if app.Delete && err == nil {
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case SmallerOnServer:
@@ -375,11 +377,13 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.journalAsset(a, logger.INFO, "Added to album: "+al.AlbumName)
 			a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
 		}
-		app.UploadAsset(ctx, a)
+		ID, err = app.UploadAsset(ctx, a)
 
-		app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
-		if app.Delete {
-			app.deleteLocalList = append(app.deleteLocalList, a)
+		if err != nil {
+			app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
+			if app.Delete {
+				app.deleteLocalList = append(app.deleteLocalList, a)
+			}
 		}
 	case SameOnServer:
 		// Set add the server asset into albums determined locally
@@ -388,6 +392,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		} else {
 			app.journalAsset(a, logger.LOCAL_DUPLICATE)
 		}
+		ID = advice.ServerAsset.ID
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
 				app.journalAsset(a, logger.INFO, "Added to album: "+al.Name)
@@ -411,6 +416,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		}
 	case BetterOnServer:
 		app.journalAsset(a, logger.SERVER_BETTER, advice.Message)
+		ID = advice.ServerAsset.ID
 		// keep the server version but update albums
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
@@ -423,6 +429,65 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 	}
+
+	if err != nil {
+		return nil
+	}
+
+	if app.ImportIntoAlbum != "" ||
+		(app.GooglePhotos && (app.CreateAlbums || app.PartnerAlbum != "")) ||
+		(!app.GooglePhotos && app.CreateAlbumAfterFolder) {
+		albums := []browser.LocalAlbum{}
+
+		if app.ImportIntoAlbum != "" {
+			albums = append(albums, browser.LocalAlbum{Path: app.ImportIntoAlbum, Name: app.ImportIntoAlbum})
+		} else {
+			switch {
+			case app.GooglePhotos:
+				albums = append(albums, a.Albums...)
+				if app.PartnerAlbum != "" && a.FromPartner {
+					albums = append(albums, browser.LocalAlbum{Path: app.PartnerAlbum, Name: app.PartnerAlbum})
+				}
+			case !app.GooglePhotos && app.CreateAlbumAfterFolder:
+				album := path.Base(path.Dir(a.FileName))
+				if album != "" && album != "." {
+					albums = append(albums, browser.LocalAlbum{Path: album, Name: album})
+				}
+			}
+		}
+
+		if len(albums) > 0 {
+			Names := []string{}
+			for _, al := range albums {
+				Name := app.albumName(al)
+				app.Journal.DebugObject("Add asset to the album:", al)
+
+				if app.GooglePhotos && Name == "" {
+					continue
+				}
+				Names = append(Names, Name)
+			}
+			if len(Names) > 0 {
+				app.journalAsset(a, logger.ALBUM, strings.Join(Names, ", "))
+				for _, n := range Names {
+					app.AddToAlbum(ID, n)
+				}
+			}
+		}
+	}
+
+	shouldUpdate := len(a.Description) > 0
+	shouldUpdate = shouldUpdate || a.Favorite
+	shouldUpdate = shouldUpdate || a.Longitude != 0 || a.Latitude != 0
+	shouldUpdate = shouldUpdate || !a.DateTaken.IsZero()
+
+	if !app.DryRun && shouldUpdate {
+		_, err := app.client.UpdateAsset(ctx, ID, a)
+		if err != nil {
+			app.Journal.Error("can't update the asset '%s': ", err)
+		}
+	}
+
 	return nil
 
 }
@@ -447,8 +512,9 @@ func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.
 
 // UploadAsset upload the asset on the server
 // Add the assets into listed albums
+// return ID of the asset
 
-func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
+func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (string, error) {
 	var resp immich.AssetResponse
 	var err error
 	if !app.DryRun {
@@ -464,12 +530,12 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 		}
 
 		resp, err = app.client.AssetUpload(ctx, a)
-		if err != nil {
-			app.journalAsset(a, logger.ERROR, err.Error())
-			return
-		}
 	} else {
 		resp.ID = uuid.NewString()
+	}
+	if err != nil {
+		app.journalAsset(a, logger.SERVER_ERROR, err.Error())
+		return "", err
 	}
 	if !resp.Duplicate {
 		app.journalAsset(a, logger.UPLOADED, a.Title)
@@ -479,50 +545,11 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) {
 			app.stacks.ProcessAsset(resp.ID, a.FileName, a.DateTaken)
 		}
 
-		if app.ImportIntoAlbum != "" ||
-			(app.GooglePhotos && (app.CreateAlbums || app.PartnerAlbum != "")) ||
-			(!app.GooglePhotos && app.CreateAlbumAfterFolder) {
-			albums := []browser.LocalAlbum{}
-
-			if app.ImportIntoAlbum != "" {
-				albums = append(albums, browser.LocalAlbum{Path: app.ImportIntoAlbum, Name: app.ImportIntoAlbum})
-			} else {
-				switch {
-				case app.GooglePhotos:
-					albums = append(albums, a.Albums...)
-					if app.PartnerAlbum != "" && a.FromPartner {
-						albums = append(albums, browser.LocalAlbum{Path: app.PartnerAlbum, Name: app.PartnerAlbum})
-					}
-				case !app.GooglePhotos && app.CreateAlbumAfterFolder:
-					album := path.Base(path.Dir(a.FileName))
-					if album != "" && album != "." {
-						albums = append(albums, browser.LocalAlbum{Path: album, Name: album})
-					}
-				}
-			}
-
-			if len(albums) > 0 {
-				Names := []string{}
-				for _, al := range albums {
-					Name := app.albumName(al)
-					app.Journal.DebugObject("Add asset to the album:", al)
-
-					if app.GooglePhotos && Name == "" {
-						continue
-					}
-					Names = append(Names, Name)
-				}
-				if len(Names) > 0 {
-					app.journalAsset(a, logger.ALBUM, strings.Join(Names, ", "))
-					for _, n := range Names {
-						app.AddToAlbum(resp.ID, n)
-					}
-				}
-			}
-		}
 	} else {
 		app.journalAsset(a, logger.SERVER_DUPLICATE, "already on the server")
 	}
+
+	return resp.ID, nil
 }
 
 func (app *UpCmd) albumName(al browser.LocalAlbum) string {

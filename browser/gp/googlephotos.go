@@ -83,14 +83,12 @@ func (to *Takeout) passOne(ctx context.Context) error {
 	to.catalogs = map[fs.FS]walkerCatalog{}
 	for _, w := range to.fsyss {
 		to.catalogs[w] = walkerCatalog{}
-		wName := "" //w.Name()
-		to.jnl.OK("Scanning the Google Photos takeout: %s", wName)
+		// wName := "" //w.Name()
 		err := to.passOneFsWalk(ctx, w)
 		if err != nil {
 			return err
 		}
 	}
-	to.jnl.OK("Scanning the Google Photos takeout, pass one completed.")
 	return nil
 }
 
@@ -232,7 +230,7 @@ var matchers = []matcherFn{
 //
 
 func (to *Takeout) solvePuzzle(ctx context.Context) error {
-	to.jnl.OK("Analyzing ...")
+	to.jnl.OK("Associating JSON and assets...")
 	jsonKeys := gen.MapKeys(to.jsonByYear)
 	sort.Slice(jsonKeys, func(i, j int) bool {
 		yd := jsonKeys[i].year - jsonKeys[j].year

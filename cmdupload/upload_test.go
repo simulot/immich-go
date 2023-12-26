@@ -46,6 +46,10 @@ func (c *stubIC) StackAssets(ctx context.Context, cover string, IDs []string) er
 	return nil
 }
 
+func (c *stubIC) UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*immich.Asset, error) {
+	return nil, nil
+}
+
 // type mockedBrowser struct {
 // 	assets []assets.LocalAssetFile
 // }

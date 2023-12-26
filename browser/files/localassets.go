@@ -100,12 +100,21 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 			name := e.Name()
 			ext := strings.ToLower(path.Ext(name))
 			if fshelper.IsIgnoredExt(ext) {
-				continue
-			}
-			if _, err := fshelper.MimeFromExt(strings.ToLower(ext)); err != nil {
 				la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
 				continue
 			}
+			m, err := fshelper.MimeFromExt(strings.ToLower(ext))
+			if err != nil {
+				la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
+				continue
+			}
+			ss := strings.Split(m[0], "/")
+			if ss[0] == "image" {
+				la.log.AddEntry(name, logger.SCANNED_IMAGE, "")
+			} else {
+				la.log.AddEntry(name, logger.SCANNED_VIDEO, "")
+			}
+
 			f := browser.LocalAssetFile{
 				FSys:      fsys,
 				FileName:  path.Join(folder, name),
@@ -147,7 +156,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile, name string) bool {
 	_, err := fs.Stat(fsys, name+".xmp")
 	if err == nil {
-		la.log.Debug("  found sidecar: '%s'", name)
+		la.log.AddEntry(name, logger.METADATA, "")
 		f.SideCar = &metadata.SideCar{
 			FileName: name + ".xmp",
 			OnFSsys:  true,

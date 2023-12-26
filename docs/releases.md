@@ -1,5 +1,39 @@
 # Release notes 
 
+## Release next
+
+### fix: #108 less alarming message for unsupported file types
+
+### feat: better import journal
+
+The 1st section of the report gives information on the files found in the input.
+The 2nd section explain what immich-go did with the files
+
+```
+Scan of the sources:
+ 53998 files in the input
+--------------------------------------------------------
+ 25420 photos
+  1447 videos
+ 26934 metadata files
+ 26867 files with metadata
+   120 discarded files
+     0 files having a type not supported
+    77 discarded files because in folder failed videos
+ 53998 input total (difference 0)
+--------------------------------------------------------
+ 11409 uploaded files on the server
+    12 upgraded files on the server
+   173 files already on the server
+     1 discarded files because of options
+  1529 discarded files because duplicated in the input
+ 13743 discarded files because server has a better image
+     0 errors when uploading
+ 26867 handled total (difference 0)
+```
+### feat: #95 transfer GP description and favorite to immich
+
+
 ## Release 0.9.3
 
 ### feat: added ability to skip ssl verification (#103) 

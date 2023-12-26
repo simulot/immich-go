@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -15,7 +16,14 @@ import (
 	"github.com/simulot/immich-go/logger"
 )
 
-func TestE2eUpload(t *testing.T) {
+type testCase struct {
+	name        string
+	args        []string
+	resetImmich bool
+	expectError bool
+}
+
+func runCase(t *testing.T, tc testCase) {
 
 	var myEnv map[string]string
 	myEnv, err := godotenv.Read("../.env")
@@ -38,12 +46,40 @@ func TestE2eUpload(t *testing.T) {
 		user = "debug.example.com"
 	}
 
-	tests := []struct {
-		name        string
-		args        []string
-		resetImmich bool
-		expectError bool
-	}{
+	lf, err := os.Create(tc.name + ".log")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer lf.Close()
+	jnl := logger.NewJournal(logger.NewLogger(logger.Info, true, false).SetWriter(lf))
+
+	ic, err := immich.NewImmichClient(host, key, false)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ctx := context.Background()
+
+	if tc.resetImmich {
+		err := resetImmich(ic, user)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}
+	err = UploadCommand(ctx, ic, jnl, tc.args)
+	if (tc.expectError && err == nil) || (!tc.expectError && err != nil) {
+		t.Errorf("unexpected err: %v", err)
+		return
+	}
+
+}
+
+func TestE2eUpload(t *testing.T) {
+
+	tests := []testCase{
 		{
 			name: "upload folder",
 			args: []string{
@@ -112,32 +148,36 @@ func TestE2eUpload(t *testing.T) {
 			expectError: false,
 		},
 	}
-
-	logger := logger.NoLogger{}
-	ic, err := immich.NewImmichClient(host, key, false)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	ctx := context.Background()
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.resetImmich {
-				err := resetImmich(ic, user)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-			}
-			err = UploadCommand(ctx, ic, logger, tc.args)
-			if (tc.expectError && err == nil) || (!tc.expectError && err != nil) {
-				t.Errorf("unexpected err: %v", err)
-				return
-			}
-		})
+		runCase(t, tc)
 	}
+}
+
+func Test_DescriptionAndFavorite(t *testing.T) {
+
+	tc := testCase{
+		name: "Test_DescriptionAndFavorite",
+		args: []string{
+			"-google-photos",
+			"TEST_DATA/Takeout1",
+		},
+		resetImmich: true,
+		expectError: false,
+	}
+	runCase(t, tc)
+}
+
+func Test_PermissionError(t *testing.T) {
+
+	tc := testCase{
+		name: "Test_PermissionError",
+		args: []string{
+			"../../test-data/low_high/high",
+		},
+		resetImmich: true,
+		expectError: false,
+	}
+	runCase(t, tc)
 }
 
 // ResetImmich
