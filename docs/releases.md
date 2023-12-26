@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release next
+## Release 0.9.5
 
 ### fix: panic: runtime error: invalid memory address or nil pointer dereference at github.com/simulot/immich-go/cmdupload/upload.go:255
 
