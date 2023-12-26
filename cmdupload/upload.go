@@ -252,7 +252,7 @@ assetLoop:
 				break assetLoop
 			}
 			if a.Err != nil {
-				app.journalAsset(a, journal.ERROR, err.Error())
+				app.journalAsset(a, journal.ERROR, a.Err.Error())
 			} else {
 				err = app.handleAsset(ctx, a)
 				if err != nil {

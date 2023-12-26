@@ -1,5 +1,13 @@
 # Release notes 
 
+## Release next
+
+### fix: panic: runtime error: invalid memory address or nil pointer dereference at github.com/simulot/immich-go/cmdupload/upload.go:255
+
+## Release 0.9.4
+
+### fix: fixed incorrect bool value (#105)
+
 ## Release 0.9.3
 
 ### feat: added ability to skip ssl verification (#103) 
