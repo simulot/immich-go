@@ -400,6 +400,27 @@ func TestUpload(t *testing.T) {
 				"PXL_20231006_063851485.jpg",
 			},
 		},
+		{
+			name: "folder and albums creation",
+			args: []string{
+				"-create-album-folder=TRUE",
+				"TEST_DATA/Takeout2",
+			},
+			expectedAssets: []string{
+				"Google\u00a0Photos/Photos from 2023/PXL_20231006_063528961.jpg",
+				"Google\u00a0Photos/Photos from 2023/PXL_20231006_063000139.jpg",
+				"Google\u00a0Photos/Sans titre(9)/PXL_20231006_063108407.jpg",
+			},
+			expectedAlbums: map[string][]string{
+				"Photos from 2023": {
+					"Google\u00a0Photos/Photos from 2023/PXL_20231006_063000139.jpg",
+					"Google\u00a0Photos/Photos from 2023/PXL_20231006_063528961.jpg",
+				},
+				"Sans titre(9)": {
+					"Google\u00a0Photos/Sans titre(9)/PXL_20231006_063108407.jpg",
+				},
+			},
+		},
 		// {
 		// 	name: "google photo, homonyms, keep partner",
 		// 	args: []string{

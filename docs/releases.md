@@ -1,5 +1,13 @@
 # Release notes 
 
+## Release 0.9.5
+
+### fix: panic: runtime error: invalid memory address or nil pointer dereference at github.com/simulot/immich-go/cmdupload/upload.go:255
+
+## Release 0.9.4
+
+### fix: fixed incorrect bool value (#105)
+
 ## Release next
 
 ### fix: #108 less alarming message for unsupported file types
