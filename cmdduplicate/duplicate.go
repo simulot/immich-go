@@ -8,10 +8,10 @@ import (
 	"flag"
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/simulot/immich-go/helpers/fshelper/myflag"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
@@ -47,12 +47,8 @@ func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logge
 		assetsByBaseAndDate: map[duplicateKey][]*immich.Asset{},
 	}
 
-	cmd.BoolVar(&app.IgnoreTZErrors, "ignore-tz-errors", false, "Ignore timezone difference to check duplicates (default: FALSE).")
-	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
-		var err error
-		app.AssumeYes, err = strconv.ParseBool(s)
-		return err
-	})
+	cmd.BoolFunc("ignore-tz-errors", "Ignore timezone difference to check duplicates (default: FALSE).", myflag.BoolFlagFn(&app.IgnoreTZErrors, false))
+	cmd.BoolFunc("yes", "When true, assume Yes to all actions", myflag.BoolFlagFn(&app.AssumeYes, false))
 	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
 	err := cmd.Parse(args)
 	return &app, err
