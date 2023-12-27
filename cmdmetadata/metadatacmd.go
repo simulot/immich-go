@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/helpers/docker"
+	"github.com/simulot/immich-go/helpers/fshelper/myflag"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 	"github.com/simulot/immich-go/logger"
@@ -31,9 +32,9 @@ func NewMetadataCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger
 		Log:    logger,
 	}
 
-	cmd.BoolVar(&app.DryRun, "dry-run", true, "display actions, but don't touch the server assets")
-	cmd.BoolVar(&app.MissingDate, "missing-date", false, "select all assets where the date is missing")
-	cmd.BoolVar(&app.MissingDateDespiteName, "missing-date-with-name", false, "select all assets where the date is missing ut the name contains a the date")
+	cmd.BoolFunc("dry-run", "display actions, but don't touch the server assets", myflag.BoolFlagFn(&app.DryRun, false))
+	cmd.BoolFunc("missing-date", "select all assets where the date is missing", myflag.BoolFlagFn(&app.MissingDate, false))
+	cmd.BoolFunc("missing-date-with-name", "select all assets where the date is missing but the name contains a the date", myflag.BoolFlagFn(&app.MissingDateDespiteName, false))
 	cmd.StringVar(&app.DockerHost, "docker-host", "local", "Immich's docker host where to inject sidecar file as workaround for the issue #3888. 'local' for local connection, 'ssh://user:password@server' for remote host.")
 	err = cmd.Parse(args)
 	return &app, err

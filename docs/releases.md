@@ -1,5 +1,18 @@
 # Release notes 
 
+## Release next
+
+### feat: better handling of boolean flags
+Just mention the `-flag` to activate the functionality
+
+Example:
+`... upload -create-album-folder  ...` is now sufficient to activate the create album based on folder option
+create-albums
+
+Example: to deactivate a flag that is on by default:
+`... upload -create-albums=FALSE ...` deactivate the album creation from google photos 
+
+
 ## Release 0.9.5
 
 ### fix: panic: runtime error: invalid memory address or nil pointer dereference at github.com/simulot/immich-go/cmdupload/upload.go:255

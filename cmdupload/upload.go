@@ -18,6 +18,7 @@ import (
 	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/browser/gp"
 	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/helpers/fshelper/myflag"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
@@ -88,10 +89,10 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 		Journal:      logger.NewJournal(log),
 		client:       ic,
 	}
-	cmd.BoolVar(&app.DryRun,
+	cmd.BoolFunc(
 		"dry-run",
-		false,
-		"display actions but don't touch source or destination")
+		"display actions but don't touch source or destination",
+		myflag.BoolFlagFn(&app.DryRun, false))
 	cmd.Var(&app.DateRange,
 		"date",
 		"Date of capture range.")
@@ -99,59 +100,52 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 		"album",
 		"",
 		"All assets will be added to this album.")
-	cmd.BoolVar(&app.ForceSidecar,
+	cmd.BoolFunc(
 		"force-sidecar",
-		false,
-		"Upload the photo and a sidecar file with known information like date and GPS coordinates. With google-photos, information comes from the metadata files. (DEFAULT false)")
-	cmd.BoolVar(&app.CreateAlbumAfterFolder,
+		"Upload the photo and a sidecar file with known information like date and GPS coordinates. With google-photos, information comes from the metadata files. (DEFAULT false)",
+		myflag.BoolFlagFn(&app.ForceSidecar, false))
+	cmd.BoolFunc(
 		"create-album-folder",
-		false,
-		" folder import only: Create albums for assets based on the parent folder")
-
-	cmd.BoolVar(&app.GooglePhotos,
+		" folder import only: Create albums for assets based on the parent folder",
+		myflag.BoolFlagFn(&app.CreateAlbumAfterFolder, false))
+	cmd.BoolFunc(
 		"google-photos",
-		false,
-		"Import GooglePhotos takeout zip files")
-	cmd.BoolVar(&app.CreateAlbums,
+		"Import GooglePhotos takeout zip files",
+		myflag.BoolFlagFn(&app.GooglePhotos, false))
+	cmd.BoolFunc(
 		"create-albums",
-		true,
-		" google-photos only: Create albums like there were in the source")
+		" google-photos only: Create albums like there were in the source (default: TRUE)",
+		myflag.BoolFlagFn(&app.CreateAlbums, true))
 	cmd.StringVar(&app.PartnerAlbum,
 		"partner-album",
 		"",
 		" google-photos only: Assets from partner will be added to this album. (ImportIntoAlbum, must already exist)")
-	cmd.BoolVar(&app.KeepPartner,
+	cmd.BoolFunc(
 		"keep-partner",
-		true,
-		" google-photos only: Import also partner's items")
+		" google-photos only: Import also partner's items (default: TRUE)", myflag.BoolFlagFn(&app.KeepPartner, true))
 	cmd.StringVar(&app.ImportFromAlbum,
 		"from-album",
 		"",
 		" google-photos only: Import only from this album")
 
-	cmd.BoolVar(&app.KeepUntitled,
+	cmd.BoolFunc(
 		"keep-untitled-albums",
-		false,
-		" google-photos only: Keep Untitled albums and imports their contain")
+		" google-photos only: Keep Untitled albums and imports their contain (default: FALSE)", myflag.BoolFlagFn(&app.KeepUntitled, false))
 
-	cmd.BoolVar(&app.UseFolderAsAlbumName,
+	cmd.BoolFunc(
 		"use-album-folder-as-name",
-		false,
-		" google-photos only: Use folder name and ignore albums' title")
+		" google-photos only: Use folder name and ignore albums' title (default:FALSE)", myflag.BoolFlagFn(&app.UseFolderAsAlbumName, false))
 
-	cmd.BoolVar(&app.CreateStacks,
+	cmd.BoolFunc(
 		"create-stacks",
-		true,
-		"Stack jpg/raw or bursts  (default TRUE)")
+		"Stack jpg/raw or bursts  (default TRUE)", myflag.BoolFlagFn(&app.CreateStacks, true))
 
-	cmd.BoolVar(&app.StackJpgRaws,
+	cmd.BoolFunc(
 		"stack-jpg-raw",
-		true,
-		"Control the stacking of jpg/raw photos (default TRUE)")
-	cmd.BoolVar(&app.StackBurst,
+		"Control the stacking of jpg/raw photos (default TRUE)", myflag.BoolFlagFn(&app.StackJpgRaws, true))
+	cmd.BoolFunc(
 		"stack-burst",
-		true,
-		"Control the stacking bursts (default TRUE)")
+		"Control the stacking bursts (default TRUE)", myflag.BoolFlagFn(&app.StackBurst, true))
 
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 

@@ -14,6 +14,7 @@ import (
 	"github.com/simulot/immich-go/cmdstack"
 	"github.com/simulot/immich-go/cmdtool"
 	"github.com/simulot/immich-go/cmdupload"
+	"github.com/simulot/immich-go/helpers/fshelper/myflag"
 	"github.com/simulot/immich-go/helpers/tzone"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
@@ -88,13 +89,13 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	flag.StringVar(&app.API, "api", "", "Immich api endpoint (http://container_ip:3301)")
 	flag.StringVar(&app.Key, "key", "", "API Key")
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
-	flag.BoolVar(&app.NoLogColors, "no-colors-log", false, "Disable colors on logs")
+	flag.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, false))
 	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
 	flag.StringVar(&app.LogFile, "log-file", "", "Write log messages into the file")
-	flag.BoolVar(&app.ApiTrace, "api-trace", false, "enable api call traces")
-	flag.BoolVar(&app.Debug, "debug", false, "enable debug messages")
+	flag.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.ApiTrace, false))
+	flag.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, false))
 	flag.StringVar(&app.TimeZone, "time-zone", "", "Override the system time zone")
-	flag.BoolVar(&app.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
+	flag.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, false))
 	flag.Parse()
 
 	app.Server = strings.TrimSuffix(app.Server, "/")
