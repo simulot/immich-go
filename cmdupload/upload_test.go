@@ -173,7 +173,7 @@ func TestUpload(t *testing.T) {
 		{
 			name: "Folders, album after folder",
 			args: []string{
-				"-create-album-folder=TRUE",
+				"-create-album-folder",
 				"TEST_DATA/folder/high",
 			},
 			expectedErr: false,
@@ -236,7 +236,7 @@ func TestUpload(t *testing.T) {
 			name: "google photos, album name from folder",
 			args: []string{
 				"-google-photos",
-				"--use-album-folder-as-name=TRUE",
+				"-use-album-folder-as-name",
 				"TEST_DATA/Takeout1",
 			},
 			expectedErr: false,
@@ -316,7 +316,7 @@ func TestUpload(t *testing.T) {
 			name: "google photo, keep untitled",
 			args: []string{
 				"-google-photos",
-				"-keep-untitled-albums=TRUE",
+				"-keep-untitled-albums",
 				"-partner-album=partner",
 				"TEST_DATA/Takeout2",
 			},
@@ -352,7 +352,7 @@ func TestUpload(t *testing.T) {
 			name: "google photo, exclude .mp4",
 			args: []string{
 				"-google-photos",
-				"-create-albums=FALSE",
+				"-create-albums=false",
 				"-exclude-types=.mp4",
 				"TEST_DATA/Takeout1",
 			},
@@ -398,7 +398,7 @@ func TestUpload(t *testing.T) {
 		{
 			name: "folder and albums creation",
 			args: []string{
-				"-create-album-folder=TRUE",
+				"-create-album-folder",
 				"TEST_DATA/Takeout2",
 			},
 			expectedAssets: []string{
