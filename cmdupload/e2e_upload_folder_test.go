@@ -153,6 +153,8 @@ func TestE2eUpload(t *testing.T) {
 	}
 }
 
+// PXL_20231006_063536303 should be archived
+// Google Photos/Album test 6-10-23/PXL_20231006_063851485.jpg.json is favorite and has a description
 func Test_DescriptionAndFavorite(t *testing.T) {
 
 	tc := testCase{
