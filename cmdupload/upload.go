@@ -68,6 +68,7 @@ type UpCmd struct {
 	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
 	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
 	StackBurst             bool             // Stack burst (Default: TRUE)
+	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
 
 	BrowserConfig Configuration
 
@@ -135,6 +136,10 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 	cmd.BoolFunc(
 		"use-album-folder-as-name",
 		" google-photos only: Use folder name and ignore albums' title (default:FALSE)", myflag.BoolFlagFn(&app.UseFolderAsAlbumName, false))
+
+	cmd.BoolFunc(
+		"discard-archived",
+		" google-photos only: Do not import archived photos (default FALSE)", myflag.BoolFlagFn(&app.DiscardArchived, false))
 
 	cmd.BoolFunc(
 		"create-stacks",
@@ -332,6 +337,11 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		return nil
 	}
 
+	if app.DiscardArchived && a.Archived {
+		app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because archives are discarded")
+		return nil
+	}
+
 	if app.DateRange.IsSet() {
 		d := a.DateTaken
 		if d.IsZero() {
@@ -474,6 +484,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	shouldUpdate = shouldUpdate || a.Favorite
 	shouldUpdate = shouldUpdate || a.Longitude != 0 || a.Latitude != 0
 	shouldUpdate = shouldUpdate || !a.DateTaken.IsZero()
+	shouldUpdate = shouldUpdate || a.Archived
 
 	if !app.DryRun && shouldUpdate {
 		_, err := app.client.UpdateAsset(ctx, ID, a)

@@ -161,6 +161,7 @@ func Test_DescriptionAndFavorite(t *testing.T) {
 		name: "Test_DescriptionAndFavorite",
 		args: []string{
 			"-google-photos",
+			"-discard-archived",
 			"TEST_DATA/Takeout1",
 		},
 		resetImmich: true,

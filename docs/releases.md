@@ -1,6 +1,9 @@
 # Release notes 
 
-## Release next
+## Release 0.9.6
+
+### feat: control archived Google photos
+`-discard-archived` deactivate the import of archived photos.
 
 ### feat: better handling of boolean flags
 Just mention the `-flag` to activate the functionality
