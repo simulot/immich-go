@@ -53,8 +53,8 @@ immich-go -server URL -key KEY -general_options COMMAND -command_options... {fil
 - `OK`: Same as previous plus actions
 - `INFO`: Same as previous one plus progressions <br>
 
-`- log-file=file` Write all messages to the file<br>
-`- time-zone=time_zone_name` Set the time zone<br>
+`-log-file=file` Write all messages to the file<br>
+`-time-zone=time_zone_name` Set the time zone<br>
 
 ## Command `upload`
 
