@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release 
+## Release 0.9.7
 
 ### fix: Logs should not use colors code by default under windows OS #117
 Most of windows terminals are still not able to understand ANSI colors sequences.
