@@ -483,7 +483,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	shouldUpdate := len(a.Description) > 0
 	shouldUpdate = shouldUpdate || a.Favorite
 	shouldUpdate = shouldUpdate || a.Longitude != 0 || a.Latitude != 0
-	shouldUpdate = shouldUpdate || !a.DateTaken.IsZero()
 	shouldUpdate = shouldUpdate || a.Archived
 
 	if !app.DryRun && shouldUpdate {

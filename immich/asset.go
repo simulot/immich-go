@@ -85,26 +85,27 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-
-		if la.LivePhotoData != "" {
-			h.Set("Content-Disposition",
-				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-					escapeQuotes("livePhotoData"), escapeQuotes(path.Base(la.LivePhotoData))))
-			h.Set("Content-Type", "application/binary")
-			part, err := m.CreatePart(h)
-			if err != nil {
-				return
+		/*
+			if la.LivePhotoData != "" {
+				h.Set("Content-Disposition",
+					fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+						escapeQuotes("livePhotoData"), escapeQuotes(path.Base(la.LivePhotoData))))
+				h.Set("Content-Type", "application/binary")
+				part, err := m.CreatePart(h)
+				if err != nil {
+					return
+				}
+				b, err := la.FSys.Open(la.LivePhotoData)
+				if err != nil {
+					return
+				}
+				defer b.Close()
+				_, err = io.Copy(part, b)
+				if err != nil {
+					return
+				}
 			}
-			b, err := la.FSys.Open(la.LivePhotoData)
-			if err != nil {
-				return
-			}
-			defer b.Close()
-			_, err = io.Copy(part, b)
-			if err != nil {
-				return
-			}
-		}
+		*/
 
 		if la.SideCar != nil {
 			h.Set("Content-Disposition",
@@ -126,6 +127,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 				return
 			}
 		}
+
 	}()
 
 	err = ic.newServerCall(ctx, "AssetUpload").
@@ -224,9 +226,9 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, ID string, a *browser.L
 	type updAsset struct {
 		IsArchived  bool    `json:"isArchived"`
 		IsFavorite  bool    `json:"isFavorite"`
-		Latitude    float64 `json:"latitude"`
-		Longitude   float64 `json:"longitude"`
-		Description string  `json:"description"`
+		Latitude    float64 `json:"latitude,omitempty"`
+		Longitude   float64 `json:"longitude,omitempty"`
+		Description string  `json:"description,omitempty"`
 	}
 	param := updAsset{
 		Description: a.Description,

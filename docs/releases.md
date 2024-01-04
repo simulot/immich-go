@@ -2,6 +2,9 @@
 
 ## Release 
 
+### fix: XMP files are generated and uploaded to immich with importing strait folders #118 
+In some conditions, and additional call is made to update the asset. This creates an XMP file on the server, with coordinate 0,0
+
 ### fix: Logs should not use colors code by default under windows OS #117
 Most of windows terminals are still not able to understand ANSI colors sequences.
 
