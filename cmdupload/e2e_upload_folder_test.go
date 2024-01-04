@@ -20,6 +20,7 @@ type testCase struct {
 	name        string
 	args        []string
 	resetImmich bool
+	APITrace    bool
 	expectError bool
 }
 
@@ -60,6 +61,9 @@ func runCase(t *testing.T, tc testCase) {
 		return
 	}
 
+	if tc.APITrace {
+		ic.EnableAppTrace(true)
+	}
 	ctx := context.Background()
 
 	if tc.resetImmich {
@@ -179,6 +183,21 @@ func Test_PermissionError(t *testing.T) {
 		},
 		resetImmich: true,
 		expectError: false,
+	}
+	runCase(t, tc)
+}
+
+func Test_CreateAlbumFolder(t *testing.T) {
+
+	tc := testCase{
+		name: "Test_CreateAlbumFolder",
+		args: []string{
+			"-create-album-folder",
+			"../../test-data/albums",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
 	}
 	runCase(t, tc)
 }
