@@ -1,5 +1,11 @@
 # Release notes 
 
+## Release 
+
+### fix: Logs should not use colors code by default under windows OS #117
+Most of windows terminals are still not able to understand ANSI colors sequences.
+
+
 ## Release 0.9.6
 
 ### feat: control archived Google photos

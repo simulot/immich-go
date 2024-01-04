@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 
 	"github.com/simulot/immich-go/cmdduplicate"
@@ -89,7 +90,7 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	flag.StringVar(&app.API, "api", "", "Immich api endpoint (http://container_ip:3301)")
 	flag.StringVar(&app.Key, "key", "", "API Key")
 	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
-	flag.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, false))
+	flag.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, runtime.GOOS == "windows"))
 	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
 	flag.StringVar(&app.LogFile, "log-file", "", "Write log messages into the file")
 	flag.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.ApiTrace, false))
