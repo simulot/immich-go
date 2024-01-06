@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/helpers/docker"
-	"github.com/simulot/immich-go/helpers/fshelper/myflag"
+	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 	"github.com/simulot/immich-go/logger"

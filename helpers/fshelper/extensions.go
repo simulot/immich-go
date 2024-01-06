@@ -100,3 +100,11 @@ var ignoredExtensions = []string{
 func IsIgnoredExt(ext string) bool {
 	return slices.Contains(ignoredExtensions, ext)
 }
+
+var metaDataExtensions = []string{
+	".json", ".xmp",
+}
+
+func IsMetadataExt(ext string) bool {
+	return slices.Contains(metaDataExtensions, ext)
+}

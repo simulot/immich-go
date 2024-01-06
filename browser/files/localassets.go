@@ -79,88 +79,91 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		return err
 	}
 
-	fileMap := map[string][]fs.DirEntry{}
+	// fileMap := map[string][]fs.DirEntry{}
+	// for _, e := range entries {
+	// 	if e.IsDir() {
+	// 		continue
+	// 	}
+	// 	ext := path.Ext(e.Name())
+	// 	_, err := fshelper.MimeFromExt(ext)
+	// 	if strings.ToLower(ext) == ".xmp" || err == nil {
+	// 		base := strings.TrimSuffix(e.Name(), ext)
+	// 		fileMap[base] = append(fileMap[base], e)
+	// 	}
+	// }
+
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		ext := path.Ext(e.Name())
-		_, err := fshelper.MimeFromExt(ext)
-		if strings.ToLower(ext) == ".xmp" || err == nil {
-			base := strings.TrimSuffix(e.Name(), ext)
-			fileMap[base] = append(fileMap[base], e)
+		fileName := path.Join(folder, e.Name())
+		la.log.AddEntry(fileName, logger.DISCOVERED_FILE, "")
+		name := e.Name()
+		ext := strings.ToLower(path.Ext(name))
+		if fshelper.IsMetadataExt(ext) {
+			continue
+		} else if fshelper.IsIgnoredExt(ext) {
+			la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
+			continue
 		}
-	}
+		m, err := fshelper.MimeFromExt(strings.ToLower(ext))
+		if err != nil {
+			la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
+			continue
+		}
+		ss := strings.Split(m[0], "/")
+		if ss[0] == "image" {
+			la.log.AddEntry(name, logger.SCANNED_IMAGE, "")
+		} else {
+			la.log.AddEntry(name, logger.SCANNED_VIDEO, "")
+		}
 
-	for _, es := range fileMap {
+		f := browser.LocalAssetFile{
+			FSys:      fsys,
+			FileName:  path.Join(folder, name),
+			Title:     path.Base(name),
+			FileSize:  0,
+			Err:       err,
+			DateTaken: metadata.TakeTimeFromName(filepath.Base(name)),
+		}
 
-		for _, e := range es {
-			fileName := path.Join(folder, e.Name())
-			la.log.AddEntry(fileName, logger.DISCOVERED_FILE, "")
-			name := e.Name()
-			ext := strings.ToLower(path.Ext(name))
-			if fshelper.IsIgnoredExt(ext) {
-				la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
-				continue
-			}
-			m, err := fshelper.MimeFromExt(strings.ToLower(ext))
-			if err != nil {
-				la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
-				continue
-			}
-			ss := strings.Split(m[0], "/")
-			if ss[0] == "image" {
-				la.log.AddEntry(name, logger.SCANNED_IMAGE, "")
-			} else {
-				la.log.AddEntry(name, logger.SCANNED_VIDEO, "")
-			}
-
-			f := browser.LocalAssetFile{
-				FSys:      fsys,
-				FileName:  path.Join(folder, name),
-				Title:     path.Base(name),
-				FileSize:  0,
-				Err:       err,
-				DateTaken: metadata.TakeTimeFromName(filepath.Base(name)),
-			}
-
-			s, err := e.Info()
-			if err != nil {
-				f.Err = err
-			} else {
-				f.FileSize = int(s.Size())
-				if f.DateTaken.IsZero() {
-					err = la.ReadMetadataFromFile(&f)
-					_ = err
-					if f.DateTaken.Before(toOldDate) {
-						f.DateTaken = time.Now()
-					}
-				}
-				if !la.checkSidecar(fsys, &f, name+".xmp") {
-					la.checkSidecar(fsys, &f, strings.TrimSuffix(name, ext)+".xmp")
+		s, err := e.Info()
+		if err != nil {
+			f.Err = err
+		} else {
+			f.FileSize = int(s.Size())
+			if f.DateTaken.IsZero() {
+				err = la.ReadMetadataFromFile(&f)
+				_ = err
+				if f.DateTaken.Before(toOldDate) {
+					f.DateTaken = time.Now()
 				}
 			}
-			// Check if the context has been cancelled
-			select {
-			case <-ctx.Done():
-				// If the context has been cancelled, return immediately
-				return ctx.Err()
-			default:
-				fileChan <- &f
+			if !la.checkSidecar(fsys, &f, path.Join(folder, name)+".xmp") {
+				la.checkSidecar(fsys, &f, strings.TrimSuffix(path.Join(folder, name), ext)+".xmp")
 			}
 		}
+		// Check if the context has been cancelled
+		select {
+		case <-ctx.Done():
+			// If the context has been cancelled, return immediately
+			return ctx.Err()
+		default:
+			fileChan <- &f
+		}
+
 	}
 	return nil
 }
 
 func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile, name string) bool {
-	_, err := fs.Stat(fsys, name+".xmp")
+	_, err := fs.Stat(fsys, name)
 	if err == nil {
-		la.log.AddEntry(name, logger.METADATA, "")
 		f.SideCar = &metadata.SideCar{
-			FileName: name + ".xmp",
+			FileName: name,
 			OnFSsys:  true,
 		}
+		la.log.AddEntry(name, logger.METADATA, "")
 		return true
 	}
 	return false

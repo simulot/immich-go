@@ -202,6 +202,20 @@ func Test_CreateAlbumFolder(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_XMP(t *testing.T) {
+
+	tc := testCase{
+		name: "Test_XMP",
+		args: []string{
+			"../../test-data/xmp/files",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 // ResetImmich
 // ⛔: will remove the content of the server.‼️
 // Give the user of the connection to confirm the server instance: debug@example.com

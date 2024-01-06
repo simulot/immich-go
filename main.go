@@ -15,7 +15,7 @@ import (
 	"github.com/simulot/immich-go/cmdstack"
 	"github.com/simulot/immich-go/cmdtool"
 	"github.com/simulot/immich-go/cmdupload"
-	"github.com/simulot/immich-go/helpers/fshelper/myflag"
+	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/helpers/tzone"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
