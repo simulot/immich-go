@@ -1,5 +1,10 @@
 # Release notes 
 
+## Release 
+
+### fix: XMP are rejected #120 
+xmp files present aside assets are now correctly uploaded to immich.
+
 ## Release 0.9.7
 
 ### fix: XMP files are generated and uploaded to immich with importing strait folders #118 
