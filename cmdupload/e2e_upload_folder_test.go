@@ -228,24 +228,37 @@ func Test_XMP(t *testing.T) {
 }
 
 func Test_Album_Issue_119(t *testing.T) {
-	tc := testCase{
-		name: "Test_XMP",
-		args: []string{
-			"-album=The Album",
-			"../../test-data/xmp/files",
+	tc := []testCase{
+		{
+			name: "Test_Album 1",
+			args: []string{
+				"-album", "The Album",
+				"../../test-data/xmp/files",
+			},
+			setup: func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T) {
+				_, err := ic.CreateAlbum(ctx, "The Album", nil)
+				if err != nil {
+					t.Error(err)
+				}
+				return nil
+			},
+			resetImmich: true,
+			expectError: false,
+			APITrace:    false,
 		},
-		setup: func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T) {
-			_, err := ic.CreateAlbum(ctx, "The Album", nil)
-			if err != nil {
-				t.Error(err)
-			}
-			return nil
+		{
+			name: "Test_Album 2",
+			args: []string{
+				"-album", "The Album",
+				"../../test-data/albums/Album test 6-10-23",
+			},
+			resetImmich: false,
+			expectError: false,
+			APITrace:    false,
 		},
-		resetImmich: true,
-		expectError: false,
-		APITrace:    false,
 	}
-	runCase(t, tc)
+	runCase(t, tc[0])
+	runCase(t, tc[1])
 }
 
 // ResetImmich
