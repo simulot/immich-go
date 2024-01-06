@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release 
+## Release 0.9.8
 
 ### fix: XMP are rejected #120 
 xmp files present aside assets are now correctly uploaded to immich.
