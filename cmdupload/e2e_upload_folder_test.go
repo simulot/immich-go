@@ -16,10 +16,13 @@ import (
 	"github.com/simulot/immich-go/logger"
 )
 
+type immichSetupFunc func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T)
+
 type testCase struct {
 	name        string
 	args        []string
 	resetImmich bool
+	setup       immichSetupFunc
 	APITrace    bool
 	expectError bool
 }
@@ -73,6 +76,14 @@ func runCase(t *testing.T, tc testCase) {
 			return
 		}
 	}
+
+	if tc.setup != nil {
+		teardown := tc.setup(ctx, t, ic)
+		if teardown != nil {
+			defer teardown(t)
+		}
+	}
+
 	err = UploadCommand(ctx, ic, jnl, tc.args)
 	if (tc.expectError && err == nil) || (!tc.expectError && err != nil) {
 		t.Errorf("unexpected err: %v", err)
@@ -208,6 +219,27 @@ func Test_XMP(t *testing.T) {
 		name: "Test_XMP",
 		args: []string{
 			"../../test-data/xmp/files",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
+func Test_Album_Issue_119(t *testing.T) {
+	tc := testCase{
+		name: "Test_XMP",
+		args: []string{
+			"-album=The Album",
+			"../../test-data/xmp/files",
+		},
+		setup: func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T) {
+			_, err := ic.CreateAlbum(ctx, "The Album", nil)
+			if err != nil {
+				t.Error(err)
+			}
+			return nil
 		},
 		resetImmich: true,
 		expectError: false,
