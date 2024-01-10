@@ -321,6 +321,15 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	// 	app.journalAsset(a, logger.NOT_SELECTED, "not recognized extension")
 	// 	return nil
 	// }
+	ext := path.Ext(a.FileName)
+	if app.BrowserConfig.ExcludeExtensions.Exclude(ext) {
+		app.journalAsset(a, logger.NOT_SELECTED, "extension excluded")
+		return nil
+	}
+	if !app.BrowserConfig.SelectExtensions.Include(ext) {
+		app.journalAsset(a, logger.NOT_SELECTED, "extension not selected")
+		return nil
+	}
 
 	if !app.KeepPartner && a.FromPartner {
 		app.journalAsset(a, logger.NOT_SELECTED, "partners asset excluded")

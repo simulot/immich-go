@@ -261,6 +261,38 @@ func Test_Album_Issue_119(t *testing.T) {
 	runCase(t, tc[1])
 }
 
+func Test_Issue_126A(t *testing.T) {
+
+	tc := testCase{
+		name: "Test_Issue_126A",
+		args: []string{
+			"-exclude-types",
+			".dng,.cr2,.arw,.rw2,.tif,.tiff,.gif,.psd",
+			"../../test-data/burst/PXL6",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
+func Test_Issue_126B(t *testing.T) {
+
+	tc := testCase{
+		name: "Test_Issue_126B",
+		args: []string{
+			"-select-types",
+			".jpg",
+			"../../test-data/burst/PXL6",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 // ResetImmich
 // ⛔: will remove the content of the server.‼️
 // Give the user of the connection to confirm the server instance: debug@example.com

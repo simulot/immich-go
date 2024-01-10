@@ -1,5 +1,10 @@
 # Release notes 
 
+## Release next
+
+### fix: #129 BUG -exclude-types is not working
+Command line options `-exclude-types` and `-select-types` are functional again.
+
 ## Release 0.9.8
 
 ### fix: XMP are rejected #120 
