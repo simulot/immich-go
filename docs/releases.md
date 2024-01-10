@@ -2,6 +2,9 @@
 
 ## Release next
 
+### fix: #123 Trying to use your go module
+Removing utf-8 from tests file names
+
 ### fix: #129 BUG -exclude-types is not working
 Command line options `-exclude-types` and `-select-types` are functional again.
 

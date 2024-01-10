@@ -133,16 +133,17 @@ func TestE2eUpload(t *testing.T) {
 			expectError: false,
 		},
 
-		{
-			name: "upload folder *.jpg - dry run",
-			args: []string{
-				"-dry-run",
-				"../../test-data/full_takeout (copy)/Takeout/Google Photos/Photos from 2023",
-			},
+		// {
+		// 	name: "upload folder *.jpg - dry run",
+		// 	args: []string{
+		// 		"-dry-run",
+		// 		"../../test-data/full_takeout (copy)/Takeout/Google Photos/Photos from 2023",
+		// 	},
 
-			// resetImmich: true,
-			expectError: false,
-		},
+		// 	// resetImmich: true,
+		// 	expectError: false,
+		// },
+
 		{
 			name: "upload google photos",
 			args: []string{
