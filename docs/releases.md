@@ -1,6 +1,9 @@
 # Release notes 
 
-## Release next
+## Release 0.9.9
+
+### fix: #123 Trying to use your go module
+Removing utf-8 from tests file names
 
 ### fix: #123 Trying to use your go module
 Removing utf-8 from tests file names
