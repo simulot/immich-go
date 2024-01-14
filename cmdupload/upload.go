@@ -173,10 +173,6 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 		return nil, err
 	}
 
-	if app.StackBurst || app.StackJpgRaws {
-		app.CreateStacks = true
-	}
-
 	if app.CreateStacks || app.StackBurst || app.StackJpgRaws {
 		app.stacks = stacking.NewStackBuilder()
 	}

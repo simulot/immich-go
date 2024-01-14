@@ -1,5 +1,9 @@
 # Release notes 
 
+## Release next
+
+### fix: flag -create-stacks not honoured
+
 ## Release 0.9.9
 
 ### fix: #123 Trying to use your go module
