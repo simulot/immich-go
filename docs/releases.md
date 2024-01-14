@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release next
+## Release 0.9.10
 
 ### fix: #128 Parenthesis Name Only Error?
 Some google photos users have lot of files named .jpg, (1).jpg, (x).jpg. Those names aren't makes immich-server crashing or timeout.
