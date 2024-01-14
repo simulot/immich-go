@@ -310,6 +310,21 @@ func Test_Issue_129(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_Issue_128(t *testing.T) {
+
+	tc := testCase{
+		name: "Test_Issue_128",
+		args: []string{
+			"-google-photos",
+			"../../test-data/Issue 128",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 // ResetImmich
 // ⛔: will remove the content of the server.‼️
 // Give the user of the connection to confirm the server instance: debug@example.com

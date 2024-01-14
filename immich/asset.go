@@ -60,6 +60,10 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 			return
 		}
 		assetType := strings.ToUpper(strings.Split(mtype[0], "/")[0])
+		ext := path.Ext(la.Title)
+		if strings.TrimSuffix(la.Title, ext) == "" {
+			la.Title = "No Name" + ext // fix #88, #128
+		}
 
 		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
 		m.WriteField("deviceId", ic.DeviceUUID)
@@ -67,7 +71,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		m.WriteField("fileCreatedAt", la.DateTaken.Format(time.RFC3339))
 		m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
 		m.WriteField("isFavorite", myBool(la.Favorite).String())
-		m.WriteField("fileExtension", path.Ext(la.FileName))
+		m.WriteField("fileExtension", ext)
 		m.WriteField("duration", formatDuration(0))
 		m.WriteField("isReadOnly", "false")
 		// m.WriteField("isArchived", myBool(la.Archived).String()) // Not supported by the api

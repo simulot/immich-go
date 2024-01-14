@@ -2,6 +2,9 @@
 
 ## Release next
 
+### fix: #128 Parenthesis Name Only Error?
+Some google photos users have lot of files named .jpg, (1).jpg, (x).jpg. Those names aren't makes immich-server crashing or timeout.
+When such files are encountered, they are now uploaded with the name "No Name".
 
 ### fix: #125 XMP filenames don't always match what is expected 
 
