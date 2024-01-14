@@ -2,6 +2,18 @@
 
 ## Release next
 
+
+### fix: #125 XMP filenames don't always match what is expected 
+
+For an named ABC.jpg, immich-go will check the presence of a XMP files in the following order
+
+1. ABC.jpg.xmp
+2. ABC.xmp
+3. ABC.*.xmp
+
+The latest allow the take a XMP file named ABC.RAW.xmp and associate it with the ABC.jpg
+Note: when stacking is used, the xmp is visible only withe the cover file (immich-server behavior). 
+
 ### fix: flag -create-stacks not honoured
 
 ## Release 0.9.9

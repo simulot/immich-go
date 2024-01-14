@@ -101,6 +101,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		name := e.Name()
 		ext := strings.ToLower(path.Ext(name))
 		if fshelper.IsMetadataExt(ext) {
+			la.log.AddEntry(name, logger.METADATA, "")
 			continue
 		} else if fshelper.IsIgnoredExt(ext) {
 			la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
@@ -139,9 +140,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 					f.DateTaken = time.Now()
 				}
 			}
-			if !la.checkSidecar(fsys, &f, path.Join(folder, name)+".xmp") {
-				la.checkSidecar(fsys, &f, strings.TrimSuffix(path.Join(folder, name), ext)+".xmp")
-			}
+			la.checkSidecar(fsys, &f, entries, folder, name)
 		}
 		// Check if the context has been cancelled
 		select {
@@ -156,17 +155,46 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 	return nil
 }
 
-func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile, name string) bool {
-	_, err := fs.Stat(fsys, name)
-	if err == nil {
-		f.SideCar = &metadata.SideCar{
-			FileName: name,
-			OnFSsys:  true,
+func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
+	assetBase := baseNames(name)
+
+	for _, name := range assetBase {
+		xmp := name + ".[xX][mM][pP]"
+		for _, e := range entries {
+			m, err := path.Match(xmp, e.Name())
+			if err != nil {
+				panic(err)
+			}
+			if m {
+				f.SideCar = &metadata.SideCar{
+					FileName: path.Join(dir, e.Name()),
+					OnFSsys:  true,
+				}
+				la.log.AddEntry(name, logger.ASSOCIATED_META, "")
+				return true
+			}
+
 		}
-		la.log.AddEntry(name, logger.METADATA, "")
-		return true
 	}
 	return false
+}
+
+func baseNames(n string) []string {
+	names := []string{n}
+	ext := path.Ext(n)
+	for {
+		if ext == "" {
+			return names
+		}
+		_, err := fshelper.MimeFromExt(ext)
+		if err != nil {
+			return names
+		}
+		n = strings.TrimSuffix(n, ext)
+		names = append(names, n)
+		names = append(names, n+".*")
+		ext = path.Ext(n)
+	}
 }
 
 func (la *LocalAssetBrowser) addAlbum(dir string) {

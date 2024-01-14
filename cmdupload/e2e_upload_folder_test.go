@@ -219,7 +219,8 @@ func Test_XMP(t *testing.T) {
 	tc := testCase{
 		name: "Test_XMP",
 		args: []string{
-			"../../test-data/xmp/files",
+			"-create-stacks=false",
+			"../../test-data/xmp",
 		},
 		resetImmich: true,
 		expectError: false,

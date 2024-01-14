@@ -108,9 +108,10 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		*/
 
 		if la.SideCar != nil {
+			scName := path.Base(la.FileName) + ".xmp"
 			h.Set("Content-Disposition",
 				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-					escapeQuotes("sidecarData"), escapeQuotes(path.Base(la.SideCar.FileName))))
+					escapeQuotes("sidecarData"), escapeQuotes(scName)))
 			h.Set("Content-Type", "application/xml")
 
 			part, err := m.CreatePart(h)
