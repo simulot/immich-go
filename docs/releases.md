@@ -1,5 +1,11 @@
 # Release notes 
 
+## Release 0.9.11
+
+### fix: #130 Support RW2  
+Add the support of Panasonic RW2 file format
+
+
 ## Release 0.9.10
 
 ### fix: #128 Parenthesis Name Only Error?
