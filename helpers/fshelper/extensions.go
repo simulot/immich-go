@@ -45,6 +45,7 @@ var supportedExtensionsAndMime = map[string][]string{
 	".psd":  {"image/psd", "image/vnd.adobe.photoshop"},
 	".raf":  {"image/raf", "image/x-fuji-raf"},
 	".raw":  {"image/raw", "image/x-panasonic-raw"},
+	".rw2":  {"image/rw2', 'image/x-panasonic-rw2"},
 	".rwl":  {"image/rwl", "image/x-leica-rwl"},
 	".sr2":  {"image/sr2", "image/x-sony-sr2"},
 	".srf":  {"image/srf", "image/x-sony-srf"},
