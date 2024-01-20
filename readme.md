@@ -71,7 +71,9 @@ Use this command for uploading photos and videos from a local directory, a zippe
 `-stack-burst <bool>`Control the stacking bursts (default TRUE).<br>
 `-select-types .ext,.ext,.ext...` List of accepted extensions. <br>
 `-exclude-types .ext,.ext,.ext...` List of excluded extensions. <br>
-`-exclude-dirs dir-regex,dir-regex...` List of directories (specified by regular expression, separated by commas) to exclude.  Not working for GP - only local directories<br> 
+`-exclude-dirs dir-regex,dir-regex...` List of directories (specified by regular expression, separated by commas) to exclude.  Not working for GP - only local directories.
+  Note that the regular expression will match any portion of the string if not started with ^.  So, for example, 1980 will match MyFiles-1980-Etc.  If you just wanted to match
+  explicitly, say, directories starting with 1980, use ^1980.*<br> 
 
 ### Date selection:
 Fine-tune import based on specific dates:<br>
