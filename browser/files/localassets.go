@@ -49,6 +49,10 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context, excludePaths []string) 
 						return ctx.Err()
 					default:
 						if d.IsDir() {
+							// TODO:  We're just matching the directory name, here.  If you wanted to be
+							//        more configurable, you could match the full path (i.e., the name variable).
+							//        Probably the best implementation for this would be to have separate -exclude-dirs
+							//        and -exclude-paths, for simplicity.
 							if browser.Matches(d.Name(), excludePaths) {
 								return fs.SkipDir
 							}
