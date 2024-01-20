@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -180,6 +181,7 @@ func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile,
 }
 
 func baseNames(n string) []string {
+	n = escapeName(n)
 	names := []string{n}
 	ext := path.Ext(n)
 	for {
@@ -195,6 +197,21 @@ func baseNames(n string) []string {
 		names = append(names, n+".*")
 		ext = path.Ext(n)
 	}
+}
+func escapeName(n string) string {
+	b := strings.Builder{}
+	for _, c := range n {
+		switch c {
+		case '*', '?', '[', ']', '^':
+			b.WriteRune('\\')
+		case '\\':
+			if runtime.GOOS != "windows" {
+				b.WriteRune('\\')
+			}
+		}
+		b.WriteRune(c)
+	}
+	return b.String()
 }
 
 func (la *LocalAssetBrowser) addAlbum(dir string) {

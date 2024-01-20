@@ -1,5 +1,12 @@
 # Release notes 
 
+## Release 0.9.12
+
+### fix: #131 panic syntax error in pattern
+
+Some file names trigger a panic when checking the existence of XMP file
+
+
 ## Release 0.9.11
 
 ### fix: #130 Support RW2  
