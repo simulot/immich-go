@@ -403,13 +403,19 @@ func matchForgottenDuplicates(jsonName string, fileName string) bool {
 // Walkers are rewind, and scanned again
 // each file net yet sent to immich is sent with associated metadata
 
-func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
+func (to *Takeout) Browse(ctx context.Context, excludePaths []string) chan *browser.LocalAssetFile {
 	to.uploaded = map[fileKey]any{}
 	assetChan := make(chan *browser.LocalAssetFile)
 
 	go func() {
 		defer close(assetChan)
 		for _, w := range to.fsyss {
+
+			// TODO:  UpDryTwist, 2024-01-19:  Should be processing the path exclusion using something like:
+			//        if browser.Matches(dirName, excludePatterns) then don't process this directory further.
+			//        However, I don't have a Google Photos account set up to test this, so not implementing at
+			//        this point . . .
+
 			err := to.passTwoWalk(ctx, w, assetChan)
 			if err != nil {
 				assetChan <- &browser.LocalAssetFile{Err: err}

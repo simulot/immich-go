@@ -71,6 +71,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 `-stack-burst <bool>`Control the stacking bursts (default TRUE).<br>
 `-select-types .ext,.ext,.ext...` List of accepted extensions. <br>
 `-exclude-types .ext,.ext,.ext...` List of excluded extensions. <br>
+`-exclude-dirs dir-regex,dir-regex...` List of directories (specified by regular expression, separated by commas) to exclude.  Not working for GP - only local directories<br> 
 
 ### Date selection:
 Fine-tune import based on specific dates:<br>
