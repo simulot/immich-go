@@ -167,6 +167,9 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 	}
 
 	app.ExcludePaths = strings.Split(excludePaths, ",")
+	for i, str := range app.ExcludePaths {
+		app.ExcludePaths[i] = strings.TrimSpace(str)
+	}
 
 	if err = app.BrowserConfig.IsValid(); err != nil {
 		return nil, err
