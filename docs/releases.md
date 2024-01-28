@@ -1,5 +1,13 @@
 # Release notes 
 
+## Release 
+
+### fix: #135 feat: use the searchAssets API to workaround server's timeout
+
+immich-go calls the endpoint `searchAssets` that provides a pagination system. 
+This will avoid any timeout at the start of immich-go.
+
+
 ## Release 0.9.11
 
 ### fix: #130 Support RW2  

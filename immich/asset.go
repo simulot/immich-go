@@ -158,7 +158,7 @@ type GetAssetOptions struct {
 
 func (o *GetAssetOptions) Values() url.Values {
 	if o == nil {
-		return nil
+		return url.Values{}
 	}
 	v := url.Values{}
 	v.Add("userId", o.UserId)
@@ -169,17 +169,56 @@ func (o *GetAssetOptions) Values() url.Values {
 	return v
 }
 
+// GetAllAssets get all user's assets using the paged API searchAssets
+//
+// It calls the server for IMAGE, VIDEO, normal item, trashed Items
+
 func (ic *ImmichClient) GetAllAssets(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error) {
 	var r []*Asset
 
-	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSON(&r))
-	return r, err
-
+	for _, t := range []string{"IMAGE", "VIDEO", "AUDIO", "OTHER"} {
+		values := opt.Values()
+		values.Set("type", t)
+		values.Set("withExif", "true")
+		values.Set("isVisible", "true")
+		values.Del("trashedBefore")
+		err := ic.newServerCall(ctx, "GetAllAssets", setPaginator("page", 1)).do(get("/assets", setUrlValues(values), setAcceptJSON()), responseAccumulateJSON(&r))
+		if err != nil {
+			return r, err
+		}
+		values.Set("trashedBefore", "9999-01-01")
+		err = ic.newServerCall(ctx, "GetAllAssets", setPaginator("page", 1)).do(get("/assets", setUrlValues(values), setAcceptJSON()), responseAccumulateJSON(&r))
+		if err != nil {
+			return r, err
+		}
+	}
+	return r, nil
 }
 
+// GetAllAssetsWithFilter get all user's assets using the paged API searchAssets and apply a filter
+// TODO: rename this function, it's not a filter, it uses a callback function for each item
+//
+// It calls the server for IMAGE, VIDEO, normal item, trashed Items
 func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, opt *GetAssetOptions, filter func(*Asset)) error {
-	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSONWithFilter(filter))
-	return err
+
+	for _, t := range []string{"IMAGE", "VIDEO", "AUDIO", "OTHER"} {
+		values := opt.Values()
+		values.Set("type", t)
+		values.Set("withExif", "true")
+		values.Set("isVisible", "true")
+		values.Del("trashedBefore")
+		err := ic.newServerCall(ctx, "GetAllAssets", setPaginator("page", 1)).do(get("/assets", setUrlValues(values), setAcceptJSON()), responseJSONWithFilter(filter))
+		if err != nil {
+			return err
+		}
+		values.Set("trashedBefore", "9999-01-01")
+		err = ic.newServerCall(ctx, "GetAllAssets", setPaginator("page", 1)).do(get("/assets", setUrlValues(values), setAcceptJSON()), responseJSONWithFilter(filter))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDelete bool) error {

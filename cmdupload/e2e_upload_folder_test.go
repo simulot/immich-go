@@ -36,16 +36,16 @@ func runCase(t *testing.T, tc testCase) {
 		return
 	}
 
-	host := myEnv["IMMICH_HOST"]
+	host := myEnv["IMMICH_E2E_HOST"]
 	if host == "" {
 		host = "http://localhost:2283"
 	}
-	key := myEnv["IMMICH_KEY"]
+	key := myEnv["IMMICH_E2E_KEY"]
 	if key == "" {
-		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable DEBUG_IMMICH_KEY")
+		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable IMMICH_E2E_KEY")
 	}
 
-	user := myEnv["IMMICH_DEBUGUSER"]
+	user := myEnv["IMMICH_E2E_USER"]
 	if user == "" {
 		user = "debug.example.com"
 	}

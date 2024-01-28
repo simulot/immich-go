@@ -91,3 +91,27 @@ func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
 	}
 	return user, nil
 }
+
+type ServerStatistics struct {
+	Photos      int   `json:"photos"`
+	Videos      int   `json:"videos"`
+	Usage       int64 `json:"usage"`
+	UsageByUser []struct {
+		UserID           string `json:"userId"`
+		UserName         string `json:"userName"`
+		Photos           int    `json:"photos"`
+		Videos           int    `json:"videos"`
+		Usage            int64  `json:"usage"`
+		QuotaSizeInBytes any    `json:"quotaSizeInBytes"`
+	} `json:"usageByUser"`
+}
+
+// getServerStatistics
+// Get server stats
+
+func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatistics, error) {
+	var s ServerStatistics
+
+	err := ic.newServerCall(ctx, "GetServerStatistics").do(get("/server-info/statistics", setAcceptJSON()), responseJSON(&s))
+	return s, err
+}

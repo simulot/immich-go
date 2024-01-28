@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -27,6 +28,7 @@ type serverCall struct {
 	ic       *ImmichClient
 	err      error
 	ctx      context.Context
+	p        *paginator
 }
 
 type serverCallOption func(sc *serverCall) error
@@ -117,6 +119,32 @@ func (sc *serverCall) joinError(err error) error {
 	return err
 }
 
+// paginator controls the paged API calls
+type paginator struct {
+	pageNumber    int    // current page
+	pageParameter string // page parameter name on the URL
+	EOF           bool   // true when the last page was empty
+}
+
+func (p paginator) setPage(v url.Values) {
+	v.Set(p.pageParameter, strconv.Itoa(p.pageNumber))
+}
+
+func (p *paginator) nextPage() {
+	p.pageNumber++
+}
+
+func setPaginator(pageParameter string, startPage int) serverCallOption {
+	return func(sc *serverCall) error {
+		p := paginator{
+			pageParameter: pageParameter,
+			pageNumber:    startPage,
+		}
+		sc.p = &p
+		return nil
+	}
+}
+
 type requestFunction func(sc *serverCall) *http.Request
 
 func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
@@ -168,25 +196,45 @@ func put(url string, opts ...serverRequestOption) requestFunction {
 		return sc.request(http.MethodPut, sc.ic.endPoint+url, opts...)
 	}
 }
-
 func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
 	if sc.err != nil || fnRequest == nil {
 		return sc.Err(nil, nil, nil)
 	}
+
+	if sc.p == nil {
+		return sc._callDo(fnRequest, opts...)
+	}
+
+	for !sc.p.EOF {
+		err := sc._callDo(fnRequest, opts...)
+		if err != nil {
+			return err
+		}
+		sc.p.nextPage()
+	}
+	return nil
+}
+
+func (sc *serverCall) _callDo(fnRequest requestFunction, opts ...serverResponseOption) error {
+	var (
+		resp *http.Response
+		err  error
+	)
 
 	req := fnRequest(sc)
 	if sc.err != nil || req == nil {
 		return sc.Err(req, nil, nil)
 	}
 
+	if sc.p != nil {
+		v := req.URL.Query()
+		sc.p.setPage(v)
+		req.URL.RawQuery = v.Encode()
+	}
 	if sc.ic.ApiTrace /* && req.Header.Get("Content-Type") == "application/json"*/ {
 		setTraceJSONRequest()(sc, req)
 	}
 
-	var (
-		resp *http.Response
-		err  error
-	)
 	resp, err = sc.ic.client.Do(req)
 
 	// any non nil error must be returned
@@ -274,7 +322,13 @@ func setContentType(ctype string) serverRequestOption {
 func setUrlValues(values url.Values) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		if values != nil {
-			req.URL.RawPath = values.Encode()
+			rValues := req.URL.Query()
+			for k, v := range values {
+				for _, s := range v {
+					rValues.Set(k, s)
+				}
+			}
+			req.URL.RawQuery = rValues.Encode()
 		}
 		return sc.err
 	}
@@ -301,8 +355,37 @@ func responseJSON[T any](object *T) serverResponseOption {
 	}
 }
 
+func responseAccumulateJSON[T any](acc *[]T) serverResponseOption {
+	return func(sc *serverCall, resp *http.Response) error {
+		if sc.p != nil {
+			sc.p.EOF = true
+		}
+		if resp != nil {
+			if resp.Body != nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusNoContent {
+					return nil
+				}
+				arr := []T{}
+				if sc.joinError(json.NewDecoder(resp.Body).Decode(&arr)) != nil {
+					return sc.err
+				}
+				if len(arr) > 0 && sc.p != nil {
+					sc.p.EOF = false
+				}
+				(*acc) = append((*acc), arr...)
+				return nil
+			}
+		}
+		return errors.New("can't decode nil response")
+	}
+}
+
 func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
+		if sc.p != nil {
+			sc.p.EOF = true
+		}
 		if resp != nil {
 			if resp.Body != nil {
 				defer resp.Body.Close()
@@ -324,6 +407,9 @@ func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
 					if sc.joinError(err) != nil {
 						return sc.err
 					}
+					if sc.p != nil {
+						sc.p.EOF = false
+					}
 					filter(&o)
 				}
 				// read closing bracket "]"
@@ -331,6 +417,7 @@ func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
 				if sc.joinError(err) != nil {
 					return sc.err
 				}
+
 				return nil
 			}
 		}

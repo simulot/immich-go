@@ -105,7 +105,7 @@ type Asset struct {
 	IsTrashed        bool              `json:"isTrashed"`
 	Duration         string            `json:"duration"`
 	ExifInfo         ExifInfo          `json:"exifInfo"`
-	LivePhotoVideoID any               `json:"livePhotoVideoId"`
+	LivePhotoVideoID string            `json:"livePhotoVideoId"`
 	Tags             []any             `json:"tags"`
 	Checksum         string            `json:"checksum"`
 	StackParentId    string            `json:"stackParentId"`
