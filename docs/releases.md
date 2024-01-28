@@ -1,11 +1,19 @@
 # Release notes 
 
-## Release 
+## Release 0.10.0
 
 ### fix: #135 feat: use the searchAssets API to workaround server's timeout
 
 immich-go calls the endpoint `searchAssets` that provides a pagination system. 
-This will avoid any timeout at the start of immich-go.
+This will avoid timeouts at the start of immich-go whit a busy server.
+
+
+## Release 0.9.12
+
+### fix: #131 panic syntax error in pattern
+
+Some file names trigger a panic when checking the existence of XMP file
+
 
 
 ## Release 0.9.11
