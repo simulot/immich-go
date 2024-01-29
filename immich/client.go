@@ -30,8 +30,8 @@ func (ic *ImmichClient) SetEndPoint(endPoint string) *ImmichClient {
 	return ic
 }
 
-func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) *ImmichClient {
-	ic.DeviceUUID = deviceUUID
+func (ic *ImmichClient) SetDeviceUUID(DeviceUUID string) *ImmichClient {
+	ic.DeviceUUID = DeviceUUID
 	return ic
 }
 
@@ -43,7 +43,7 @@ func (ic *ImmichClient) EnableAppTrace(state bool) *ImmichClient {
 // Create a new ImmichClient
 func NewImmichClient(endPoint string, key string, sslVerify bool) (*ImmichClient, error) {
 	var err error
-	deviceUUID, err := os.Hostname()
+	DeviceUUID, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func NewImmichClient(endPoint string, key string, sslVerify bool) (*ImmichClient
 		endPoint:     endPoint + "/api",
 		key:          key,
 		client:       tlsClient,
-		DeviceUUID:   deviceUUID,
+		DeviceUUID:   DeviceUUID,
 		Retries:      1,
 		RetriesDelay: time.Second * 1,
 	}
