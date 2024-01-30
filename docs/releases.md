@@ -1,5 +1,10 @@
 # Release notes 
 
+## Release next
+
+### fix: #140 Device UUID is not set
+The option `-device-uuid VALUE` was not functional.
+
 ## Release 0.10.0
 
 ### fix: #135 feat: use the searchAssets API to workaround server's timeout

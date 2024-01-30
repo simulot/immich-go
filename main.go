@@ -80,16 +80,12 @@ type Application struct {
 func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 
 	var err error
-	deviceID, err := os.Hostname()
-	if err != nil {
-		return log, err
-	}
 
 	app := Application{}
 	flag.StringVar(&app.Server, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
 	flag.StringVar(&app.API, "api", "", "Immich api endpoint (http://container_ip:3301)")
 	flag.StringVar(&app.Key, "key", "", "API Key")
-	flag.StringVar(&app.DeviceUUID, "device-uuid", deviceID, "Set a device UUID")
+	flag.StringVar(&app.DeviceUUID, "device-uuid", "", "Set a device UUID")
 	flag.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, runtime.GOOS == "windows"))
 	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
 	flag.StringVar(&app.LogFile, "log-file", "", "Write log messages into the file")
@@ -153,6 +149,9 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	}
 	if app.ApiTrace {
 		app.Immich.EnableAppTrace(true)
+	}
+	if app.DeviceUUID != "" {
+		app.Immich.SetDeviceUUID(app.DeviceUUID)
 	}
 
 	err = app.Immich.PingServer(ctx)
