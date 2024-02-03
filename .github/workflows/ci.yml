@@ -42,8 +42,6 @@ jobs:
 
           CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o immich-darwin-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
           CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o immich-darwin-arm64.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm GOARM=6 go build -o immich-darwin-arm6.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm GOARM=7 go build -o immich-darwin-arm7.exe -ldflags="-s -w -extldflags=-static" main.go
 
           CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build -o immich-freebsd-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
           CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 go build -o immich-freebsd-arm64.exe -ldflags="-s -w -extldflags=-static" main.go
