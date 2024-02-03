@@ -6,7 +6,7 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/joho/godotenv v1.5.1
 	github.com/kr/pretty v0.3.1
-	github.com/melbahja/goph v1.3.1
+	github.com/melbahja/goph v1.4.0
 	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/thlib/go-timezone-local v0.0.0-20210907160436-ef149e42d28e
