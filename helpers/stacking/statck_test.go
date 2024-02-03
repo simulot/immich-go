@@ -216,6 +216,5 @@ func Test_Stack(t *testing.T) {
 				pretty.Ldiff(t, tt.want, got)
 			}
 		})
-
 	}
 }

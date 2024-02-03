@@ -14,8 +14,7 @@ func CommandTool(ctx context.Context, ic *immich.ImmichClient, logger *logger.Lo
 		cmd := args[0]
 		args = args[1:]
 
-		switch cmd {
-		case "album":
+		if cmd == "album" {
 			return cmdalbum.AlbumCommand(ctx, ic, logger, args)
 		}
 	}

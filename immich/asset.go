@@ -132,14 +132,12 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 				return
 			}
 		}
-
 	}()
 
 	err = ic.newServerCall(ctx, "AssetUpload").
 		do(post("/asset/upload", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
 	return ar, err
-
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
@@ -200,7 +198,6 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context, opt *GetAssetOptions) 
 //
 // It calls the server for IMAGE, VIDEO, normal item, trashed Items
 func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, opt *GetAssetOptions, filter func(*Asset)) error {
-
 	for _, t := range []string{"IMAGE", "VIDEO", "AUDIO", "OTHER"} {
 		values := opt.Values()
 		values.Set("type", t)
@@ -239,7 +236,7 @@ func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, er
 	return &r, err
 }
 
-func (ic *ImmichClient) UpdateAssets(ctx context.Context, IDs []string,
+func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 	isArchived bool, isFavorite bool,
 	latitude float64, longitude float64,
 	removeParent bool, stackParentId string) error {
@@ -254,7 +251,7 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, IDs []string,
 	}
 
 	param := updAssets{
-		IDs:           IDs,
+		IDs:           ids,
 		IsArchived:    isArchived,
 		IsFavorite:    isFavorite,
 		Latitude:      latitude,
@@ -265,8 +262,7 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, IDs []string,
 	return ic.newServerCall(ctx, "updateAssets").do(put("/asset", setJSONBody(param)))
 }
 
-func (ic *ImmichClient) UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*Asset, error) {
-
+func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*Asset, error) {
 	type updAsset struct {
 		IsArchived  bool    `json:"isArchived"`
 		IsFavorite  bool    `json:"isFavorite"`
@@ -282,15 +278,15 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, ID string, a *browser.L
 		Longitude:   a.Longitude,
 	}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "updateAsset").do(put("/asset/"+ID, setJSONBody(param)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "updateAsset").do(put("/asset/"+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
 
-func (ic *ImmichClient) StackAssets(ctx context.Context, coverID string, IDs []string) error {
+func (ic *ImmichClient) StackAssets(ctx context.Context, coverID string, ids []string) error {
 	cover, err := ic.GetAssetByID(ctx, coverID)
 	if err != nil {
 		return err
 	}
 
-	return ic.UpdateAssets(ctx, IDs, cover.IsArchived, cover.IsFavorite, cover.ExifInfo.Latitude, cover.ExifInfo.Longitude, false, coverID)
+	return ic.UpdateAssets(ctx, ids, cover.IsArchived, cover.IsFavorite, cover.ExifInfo.Latitude, cover.ExifInfo.Longitude, false, coverID)
 }

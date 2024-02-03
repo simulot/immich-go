@@ -103,11 +103,8 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 			return false
 		}
 		c = strings.Compare(keys[i].Name, keys[j].Name)
-		switch c {
-		case -1:
-			return true
-		}
-		return false
+
+		return c == -1
 	})
 
 	for _, k := range keys {
@@ -118,12 +115,12 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 			l := app.assetsByBaseAndDate[k]
 			app.logger.OK("There are %d copies of the asset %s, taken on %s ", len(l), k.Name, l[0].ExifInfo.DateTimeOriginal.Format(time.RFC3339))
 			albums := []immich.AlbumSimplified{}
-			delete := []string{}
+			assetsToDelete := []string{}
 			sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
 			for p, a := range l {
 				if p < len(l)-1 {
 					log.OK("  delete %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
-					delete = append(delete, a.ID)
+					assetsToDelete = append(assetsToDelete, a.ID)
 					r, err := app.Immich.GetAssetAlbums(ctx, a.ID)
 					if err != nil {
 						log.Error("Can't get asset's albums: %s", err.Error())
@@ -143,7 +140,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 						}
 					}
 					if yes {
-						err = app.Immich.DeleteAssets(ctx, delete, false)
+						err = app.Immich.DeleteAssets(ctx, assetsToDelete, false)
 						if err != nil {
 							log.Error("Can't delete asset: %s", err.Error())
 						} else {

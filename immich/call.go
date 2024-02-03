@@ -148,8 +148,7 @@ func setPaginator(pageParameter string, startPage int) serverCallOption {
 type requestFunction func(sc *serverCall) *http.Request
 
 func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
-
-	req, err := http.NewRequestWithContext(sc.ctx, method, url, nil)
+	req, err := http.NewRequestWithContext(sc.ctx, method, url, http.NoBody)
 	if sc.joinError(err) != nil {
 		return nil
 	}

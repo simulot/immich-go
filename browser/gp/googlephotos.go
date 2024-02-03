@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/simulot/immich-go/browser"
-
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/logger"
@@ -94,7 +93,6 @@ func (to *Takeout) passOne(ctx context.Context) error {
 
 func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 	err := fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
-
 		if err != nil {
 			return err
 		}
@@ -474,7 +472,6 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		}
 		return nil
 	})
-
 }
 
 // googleMDToAsset makes a localAssetFile based on the google metadata

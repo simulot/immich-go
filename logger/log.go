@@ -70,9 +70,9 @@ type Log struct {
 	out          io.WriteCloser
 }
 
-func NewLogger(DisplayLevel Level, noColors bool, debug bool) *Log {
+func NewLogger(displayLevel Level, noColors bool, debug bool) *Log {
 	l := Log{
-		displayLevel: DisplayLevel,
+		displayLevel: displayLevel,
 		noColors:     noColors,
 		colorStrings: map[Level]string{},
 		debug:        debug,

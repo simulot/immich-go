@@ -8,9 +8,9 @@ import (
 // readJSON reads a JSON file from the provided file system (fs.FS)
 // with the given name and unmarshals it into the provided type T.
 
-func ReadJSON[T any](FSys fs.FS, name string) (*T, error) {
+func ReadJSON[T any](fsys fs.FS, name string) (*T, error) {
 	var object T
-	b, err := fs.ReadFile(FSys, name)
+	b, err := fs.ReadFile(fsys, name)
 	if err != nil {
 		return nil, err
 	}

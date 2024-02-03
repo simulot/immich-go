@@ -8,11 +8,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/simulot/immich-go/browser/files"
-	"github.com/simulot/immich-go/logger"
-
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
+	"github.com/simulot/immich-go/browser/files"
+	"github.com/simulot/immich-go/logger"
 )
 
 type inMemFS struct {
@@ -91,8 +90,6 @@ func TestLocalAssets(t *testing.T) {
 				t.Errorf("difference\n")
 				pretty.Ldiff(t, c.expected, results)
 			}
-
 		})
-
 	}
 }

@@ -1,9 +1,9 @@
 package gen
 
-func DeleteItem[T comparable](s []T, delete T) []T {
+func DeleteItem[T comparable](s []T, item T) []T {
 	r := make([]T, 0, len(s))
 	for i := range s {
-		if s[i] != delete {
+		if s[i] != item {
 			r = append(r, s[i])
 		}
 	}

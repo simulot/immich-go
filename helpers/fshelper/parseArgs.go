@@ -57,8 +57,7 @@ func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 	for _, f := range p.files {
 		d, b := filepath.Split(f)
 		d = filepath.Clean(d)
-		l := append(p.paths[d], b)
-		p.paths[d] = l
+		p.paths[d] = append(p.paths[d], b)
 	}
 
 	for pa, l := range p.paths {

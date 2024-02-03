@@ -54,7 +54,8 @@ func main() {
 	}
 	if err != nil {
 		log.Error(err.Error())
-		os.Exit(1)
+		log.Close()
+		os.Exit(1) //nolint:gocritic
 	}
 	log.OK("Done.")
 }
@@ -73,12 +74,11 @@ type Application struct {
 
 	Immich  *immich.ImmichClient // Immich client
 	Logger  *logger.Log          // Program's logger
-	LogFile string               //Log file
+	LogFile string               // Log file
 
 }
 
 func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
-
 	var err error
 
 	app := Application{}
@@ -112,12 +112,12 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	}
 
 	switch {
-	case len(app.Server) == 0 && len(app.API) == 0:
+	case app.Server == "" && app.API == "":
 		err = errors.Join(err, errors.New("missing -server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
 	case len(app.Server) > 0 && len(app.API) > 0:
 		err = errors.Join(err, errors.New("give either the -server or the -api option"))
 	}
-	if len(app.Key) == 0 {
+	if app.Key == "" {
 		err = errors.Join(err, errors.New("missing -key"))
 	}
 
@@ -179,7 +179,7 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	case "tool":
 		err = cmdtool.CommandTool(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	default:
-		err = fmt.Errorf("unknwon command: %q", cmd)
+		err = fmt.Errorf("unknown command: %q", cmd)
 	}
 	return app.Logger, err
 }
