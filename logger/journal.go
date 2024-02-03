@@ -62,14 +62,14 @@ func (j *Journal) AddEntry(file string, action Action, comment ...string) {
 		}
 	}
 	j.mut.Lock()
-	j.counts[action] = j.counts[action] + 1
+	j.counts[action]++
 	if action == UPGRADED {
 		j.counts[UPLOADED]--
 	}
 	j.mut.Unlock()
 }
-func (j *Journal) Report() {
 
+func (j *Journal) Report() {
 	checkFiles := j.counts[SCANNED_IMAGE] + j.counts[SCANNED_VIDEO] + j.counts[METADATA] + j.counts[UNSUPPORTED] + j.counts[FAILED_VIDEO] + j.counts[DISCARDED]
 	handledFiles := j.counts[NOT_SELECTED] + j.counts[LOCAL_DUPLICATE] + j.counts[SERVER_DUPLICATE] + j.counts[SERVER_BETTER] + j.counts[UPLOADED] + j.counts[UPGRADED] + j.counts[SERVER_ERROR]
 	j.Logger.OK("Scan of the sources:")
@@ -95,5 +95,4 @@ func (j *Journal) Report() {
 	j.Logger.OK("%6d errors when uploading", j.counts[SERVER_ERROR])
 
 	j.Logger.OK("%6d handled total (difference %d)", handledFiles, j.counts[SCANNED_IMAGE]+j.counts[SCANNED_VIDEO]-handledFiles)
-
 }

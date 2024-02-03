@@ -7,7 +7,6 @@ import (
 )
 
 func TestPresentFields(t *testing.T) {
-
 	tcs := []struct {
 		name      string
 		json      string
@@ -132,5 +131,4 @@ func TestPresentFields(t *testing.T) {
 			}
 		})
 	}
-
 }

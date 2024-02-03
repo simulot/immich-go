@@ -45,10 +45,9 @@ func NewStackBuilder() *StackBuilder {
 	sb.dateRange.Set("1850-01-04,2030-01-01")
 
 	return &sb
-
 }
 
-func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate time.Time) {
+func (sb *StackBuilder) ProcessAsset(id string, fileName string, captureDate time.Time) {
 	if !sb.dateRange.InRange(captureDate) {
 		return
 	}
@@ -82,18 +81,18 @@ func (sb *StackBuilder) ProcessAsset(ID string, fileName string, captureDate tim
 	}
 	s, ok := sb.stacks[k]
 	if !ok {
-		s.CoverID = ID
+		s.CoverID = id
 		s.Date = captureDate
 	}
-	s.IDs = append(s.IDs, ID)
+	s.IDs = append(s.IDs, id)
 	s.Names = append(s.Names, path.Base(fileName))
 	if burst {
 		s.StackType = StackBurst
 	}
 	if cover {
-		s.CoverID = ID
+		s.CoverID = id
 	} else if !burst && slices.Contains([]string{".jpeg", ".jpg", ".jpe"}, ext) {
-		s.CoverID = ID
+		s.CoverID = id
 	}
 	sb.stacks[k] = s
 }
@@ -183,7 +182,6 @@ func (sb *StackBuilder) Stacks() []Stack {
 		})
 		s.IDs = ids
 		stacks = append(stacks, s)
-
 	}
 	sort.Slice(stacks, func(i, j int) bool {
 		c := stacks[i].Date.Compare(stacks[j].Date)
@@ -194,11 +192,8 @@ func (sb *StackBuilder) Stacks() []Stack {
 			return false
 		}
 		c = strings.Compare(stacks[i].Names[0], stacks[j].Names[0])
-		switch c {
-		case -1:
-			return true
-		}
-		return false
+
+		return c == -1
 	})
 	return stacks
 }

@@ -37,7 +37,6 @@ func TakeTimeFromName(name string) time.Time {
 			if i > 0 {
 				m[i-1], _ = strconv.Atoi(mm[i])
 			}
-
 		}
 		t := time.Date(m[0], time.Month(m[1]), m[2], m[3], m[4], m[5], 0, time.UTC)
 		if t.Year() != m[0] || t.Month() != time.Month(m[1]) || t.Day() != m[2] ||

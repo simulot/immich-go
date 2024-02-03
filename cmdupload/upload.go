@@ -23,7 +23,6 @@ import (
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
-
 	"github.com/simulot/immich-go/logger"
 )
 
@@ -196,7 +195,6 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 	app.AssetIndex.ReIndex()
 
 	return &app, err
-
 }
 
 func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []string) error {
@@ -205,7 +203,6 @@ func UploadCommand(ctx context.Context, ic iClient, log logger.Logger, args []st
 		return err
 	}
 	return app.Run(ctx, app.fsys)
-
 }
 
 func (app *UpCmd) journalAsset(a *browser.LocalAssetFile, action logger.Action, comment ...string) {
@@ -213,7 +210,6 @@ func (app *UpCmd) journalAsset(a *browser.LocalAssetFile, action logger.Action, 
 }
 
 func (app *UpCmd) Run(ctx context.Context, fsyss []fs.FS) error {
-
 	var browser browser.Browser
 	var err error
 
@@ -498,7 +494,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	}
 
 	return nil
-
 }
 
 func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
@@ -527,7 +522,6 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 	var resp immich.AssetResponse
 	var err error
 	if !app.DryRun {
-
 		if app.ForceSidecar {
 			sc := metadata.SideCar{}
 			sc.DateTaken = a.DateTaken
@@ -553,7 +547,6 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		if app.CreateStacks {
 			app.stacks.ProcessAsset(resp.ID, a.FileName, a.DateTaken)
 		}
-
 	} else {
 		app.journalAsset(a, logger.SERVER_DUPLICATE, "already on the server")
 	}
@@ -574,12 +567,12 @@ func (app *UpCmd) albumName(al browser.LocalAlbum) string {
 	return Name
 }
 
-func (app *UpCmd) AddToAlbum(ID string, album string) {
+func (app *UpCmd) AddToAlbum(id string, album string) {
 	l := app.updateAlbums[album]
 	if l == nil {
 		l = map[string]any{}
 	}
-	l[ID] = nil
+	l[id] = nil
 	app.updateAlbums[album] = l
 }
 
@@ -596,7 +589,6 @@ func (app *UpCmd) DeleteLocalAssets() error {
 		} else {
 			app.Journal.Warning("file %q not deleted, dry run mode", a.Title)
 		}
-
 	}
 	return nil
 }
@@ -619,7 +611,6 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 			return fmt.Errorf("can't get the album list from the server: %w", err)
 		}
 		for album, list := range app.updateAlbums {
-
 			found := false
 			for _, sal := range serverAlbums {
 				if sal.AlbumName == album {
@@ -728,7 +719,6 @@ func (ai *AssetIndex) adviceIDontKnow(la *browser.LocalAssetFile) *Advice {
 }
 
 func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
-
 	return &Advice{
 		Advice:      SameOnServer,
 		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
@@ -791,7 +781,6 @@ func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) 
 		size := int(la.Size())
 		if err != nil {
 			return ai.adviceIDontKnow(la), nil
-
 		}
 		for _, sa = range l {
 			compareDate := compareDate(dateTaken, sa.ExifInfo.DateTimeOriginal.Time)

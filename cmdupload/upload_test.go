@@ -9,12 +9,11 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
-
-	"github.com/kr/pretty"
 )
 
 type stubIC struct {
@@ -38,15 +37,15 @@ func (c *stubIC) AddAssetToAlbum(context.Context, string, []string) ([]immich.Up
 func (c *stubIC) CreateAlbum(context.Context, string, []string) (immich.AlbumSimplified, error) {
 	return immich.AlbumSimplified{}, nil
 }
-func (c *stubIC) UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentId string) error {
+func (c *stubIC) UpdateAssets(ctx context.Context, ids []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentId string) error {
 	return nil
 }
 
-func (c *stubIC) StackAssets(ctx context.Context, cover string, IDs []string) error {
+func (c *stubIC) StackAssets(ctx context.Context, cover string, ids []string) error {
 	return nil
 }
 
-func (c *stubIC) UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*immich.Asset, error) {
+func (c *stubIC) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*immich.Asset, error) {
 	return nil, nil
 }
 

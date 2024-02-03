@@ -70,5 +70,4 @@ func traceRequest(req *http.Request) {
 		tr := io.TeeReader(req.Body, os.Stdout)
 		req.Body = &smartBodyCloser{body: req.Body, r: tr}
 	}
-
 }

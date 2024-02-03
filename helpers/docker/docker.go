@@ -96,14 +96,12 @@ func (d *DockerConnect) connect(ctx context.Context, host string, container stri
 		if l[:len(l)-1] == d.Container {
 			return nil
 		}
-
 	}
 	return fmt.Errorf("container 'immich_server' not found: %w", err)
 }
 
 // Download a file from the docker container
 func (d *DockerConnect) Download(ctx context.Context, hostFile string) (io.Reader, error) {
-
 	cmd, err := d.proxy.docker(ctx, "cp", d.Container+":"+hostFile, "-")
 	if err != nil {
 		return nil, err
@@ -173,6 +171,9 @@ func (d *DockerConnect) Upload(ctx context.Context, file string, size int64, r i
 			return
 		}
 		_, err = io.Copy(tw, r)
+		if err != nil {
+			return
+		}
 	}()
 
 	err = cmd.Start()
@@ -194,6 +195,9 @@ func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUplo
 	}
 
 	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
 	go func() {
 		io.Copy(os.Stdout, out)
 	}()
@@ -212,13 +216,12 @@ func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUplo
 		var err error
 		tw := tar.NewWriter(mw)
 		defer func() {
-			//f.Close()
+			// f.Close()
 			tw.Close()
 			in.Close()
 			cmd.Wait()
 		}()
 		for {
-
 			select {
 			case <-ctx.Done():
 				return
@@ -286,6 +289,9 @@ func (d *DockerConnect) Command(ctx context.Context, args ...string) (string, er
 	buffOut := bytes.NewBuffer(nil)
 
 	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
 	go func() {
 		io.Copy(buffOut, out)
 	}()

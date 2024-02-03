@@ -1,0 +1,51 @@
+run:
+  timeout: 3m
+
+issues:
+  max-issues-per-linter: 100
+  max-same-issues: 100
+
+linters-settings:
+  gocritic:
+    enabled-checks:
+      - captLocal
+      - singleCaseSwitch
+      - switchTrue
+      - httpNoBody
+      - emptyStringTest
+      - builtinShadow
+      - exposedSyncMutex
+    enabled-tags:
+      - diagnostic
+    disabled-tags:
+      - performance
+      - style
+      - experimental
+      - opinionated
+
+linters:
+  disable-all: true
+  enable:
+    - gocritic
+    - gosimple
+    # - errcheck
+    - govet
+    - ineffassign
+    - misspell
+    # - stylecheck
+    - whitespace
+    - gci
+    - gofmt
+    - goimports
+    - loggercheck
+    - asasalint
+    - contextcheck
+    - decorder
+    - dogsled
+    - errchkjson
+    - exportloopref
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    - goprintffuncname
+    - mirror
+    - nakedret

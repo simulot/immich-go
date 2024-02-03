@@ -28,7 +28,6 @@ type dirRemoveFS struct {
 }
 
 func DirRemoveFS(name string) fs.FS {
-
 	fsys := &dirRemoveFS{
 		FS:  os.DirFS(name),
 		dir: name,

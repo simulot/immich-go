@@ -10,9 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/immich/metadata"
-
 	"github.com/psanford/memfs"
+	"github.com/simulot/immich-go/immich/metadata"
 )
 
 type inMemFS struct {
@@ -36,9 +35,9 @@ func (mfs *inMemFS) addFile(name string, content []byte) *inMemFS {
 	return mfs
 }
 
-func (mfs *inMemFS) addImage(name string, len int) *inMemFS {
-	b := make([]byte, len)
-	for i := 0; i < len; i++ {
+func (mfs *inMemFS) addImage(name string, length int) *inMemFS {
+	b := make([]byte, length)
+	for i := 0; i < length; i++ {
 		b[i] = byte(i % 256)
 	}
 	mfs.addFile(name, b)
@@ -124,7 +123,6 @@ func simpleYear() *inMemFS {
 		addImage("Takeout/Google Photos/Photos from 2023/PXL_20230922_144936660.jpg", 10).
 		addJSONImage("Takeout/Google Photos/Photos from 2023/PXL_20230922_144956000.jpg.json", "PXL_20230922_144956000.jpg").
 		addImage("Takeout/Google Photos/Photos from 2023/PXL_20230922_144956000.jpg", 20)
-
 }
 
 func simpleAlbum() *inMemFS {
@@ -190,7 +188,6 @@ func titlesWithForbiddenChars() *inMemFS {
 		addImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 1.mov", 52).
 		addJSONImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 1.json", "27/06/12 - 1").
 		addImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 1.jpg", 24)
-
 }
 
 func namesIssue39() *inMemFS {

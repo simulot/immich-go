@@ -6,9 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/simulot/immich-go/logger"
-
 	"github.com/kr/pretty"
+	"github.com/simulot/immich-go/logger"
 )
 
 func TestBrowse(t *testing.T) {
@@ -97,7 +96,6 @@ func TestBrowse(t *testing.T) {
 	}
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-
 			fsys := c.gen()
 			if fsys.err != nil {
 				t.Error(fsys.err)
@@ -122,11 +120,9 @@ func TestBrowse(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestAlbums(t *testing.T) {
-
 	type album map[string][]fileResult
 	tc := []struct {
 		name   string
@@ -173,7 +169,6 @@ func TestAlbums(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-
 			ctx := context.Background()
 			fsys := c.gen()
 			if fsys.err != nil {
@@ -203,7 +198,6 @@ func TestAlbums(t *testing.T) {
 				t.Errorf("difference\n")
 				pretty.Ldiff(t, c.albums, albums)
 			}
-
 		})
 	}
 }

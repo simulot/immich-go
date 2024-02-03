@@ -33,7 +33,7 @@ If any of the optional fields are present, the size of the atom would increase a
 */
 
 type MvhdAtom struct {
-	Marker           []byte //4 bytes
+	Marker           []byte // 4 bytes
 	Version          uint8
 	Flags            []byte // 3 bytes
 	CreationTime     time.Time
@@ -48,7 +48,6 @@ type MvhdAtom struct {
 }
 
 func decodeMvhdAtom(r *sliceReader) (*MvhdAtom, error) {
-
 	a := &MvhdAtom{}
 
 	// Read the mvhd marker (4 bytes)
@@ -66,7 +65,6 @@ func decodeMvhdAtom(r *sliceReader) (*MvhdAtom, error) {
 		a.ModificationTime = convertTime32(binary.BigEndian.Uint32(b))
 		b, _ = r.ReadSlice(4)
 		a.CreationTime = convertTime32(binary.BigEndian.Uint32(b))
-
 	} else {
 		// Read the creation time (4 bytes)
 		b, _ := r.ReadSlice(8)

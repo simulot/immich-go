@@ -41,9 +41,9 @@ func (ai *AssetIndex) Len() int {
 	return len(ai.assets)
 }
 
-func (ai *AssetIndex) AddLocalAsset(la *browser.LocalAssetFile, ImmichID string) {
+func (ai *AssetIndex) AddLocalAsset(la *browser.LocalAssetFile, immichID string) {
 	sa := &immich.Asset{
-		ID:               ImmichID,
+		ID:               immichID,
 		DeviceAssetID:    la.DeviceAssetID(),
 		OriginalFileName: strings.TrimSuffix(path.Base(la.Title), path.Ext(la.Title)),
 		ExifInfo: immich.ExifInfo{

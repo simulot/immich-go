@@ -54,7 +54,6 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 						}
 					}
 					return nil
-
 				})
 			if err != nil {
 				// Check if the context has been cancelled before sending the error
@@ -68,7 +67,6 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 				}
 			}
 		}
-
 	}(ctx)
 
 	return fileChan
@@ -151,7 +149,6 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		default:
 			fileChan <- &f
 		}
-
 	}
 	return nil
 }
@@ -174,7 +171,6 @@ func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile,
 				la.log.AddEntry(name, logger.ASSOCIATED_META, "")
 				return true
 			}
-
 		}
 	}
 	return false
@@ -193,8 +189,7 @@ func baseNames(n string) []string {
 			return names
 		}
 		n = strings.TrimSuffix(n, ext)
-		names = append(names, n)
-		names = append(names, n+".*")
+		names = append(names, n, n+".*")
 		ext = path.Ext(n)
 	}
 }

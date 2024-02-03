@@ -12,14 +12,16 @@ type DateRange struct {
 }
 
 func (dr DateRange) String() string {
-	if dr.day {
+	switch {
+	case dr.day:
 		return dr.After.Format("2006-01-02")
-	} else if dr.month {
+	case dr.month:
 		return dr.After.Format("2006-01")
-	} else if dr.year {
+	case dr.year:
 		return dr.After.Format("2006")
+	default:
+		return dr.After.Format("2006-01-02") + "," + dr.Before.AddDate(0, 0, -1).Format("2006-01-02")
 	}
-	return dr.After.Format("2006-01-02") + "," + dr.Before.AddDate(0, 0, -1).Format("2006-01-02")
 }
 
 func (dr *DateRange) Set(s string) (err error) {
@@ -32,21 +34,21 @@ func (dr *DateRange) Set(s string) (err error) {
 		dr.After, err = time.ParseInLocation("2006", s, time.UTC)
 		if err == nil {
 			dr.Before = dr.After.AddDate(1, 0, 0)
-			return
+			return nil
 		}
 	case 7:
 		dr.month = true
 		dr.After, err = time.ParseInLocation("2006-01", s, time.UTC)
 		if err == nil {
 			dr.Before = dr.After.AddDate(0, 1, 0)
-			return
+			return nil
 		}
 	case 10:
 		dr.day = true
 		dr.After, err = time.ParseInLocation("2006-01-02", s, time.UTC)
 		if err == nil {
 			dr.Before = dr.After.AddDate(0, 0, 1)
-			return
+			return nil
 		}
 	case 21:
 		dr.After, err = time.ParseInLocation("2006-01-02", s[:10], time.UTC)
@@ -54,7 +56,7 @@ func (dr *DateRange) Set(s string) (err error) {
 			dr.Before, err = time.ParseInLocation("2006-01-02", s[11:], time.UTC)
 			if err == nil {
 				dr.Before = dr.Before.AddDate(0, 0, 1)
-				return
+				return nil
 			}
 		}
 	}

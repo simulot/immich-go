@@ -12,7 +12,6 @@ import (
 func BoolFlagFn(b *bool, defaultValue bool) func(string) error {
 	*b = defaultValue
 	return func(v string) error {
-
 		switch strings.ToLower(v) {
 		case "":
 			*b = true
@@ -26,5 +25,4 @@ func BoolFlagFn(b *bool, defaultValue bool) func(string) error {
 			return err
 		}
 	}
-
 }

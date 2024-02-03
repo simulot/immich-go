@@ -28,7 +28,6 @@ func (c *Configuration) IsValid() error {
 	c.ExcludeExtensions, _ = checkExtensions(c.ExcludeExtensions)
 
 	return jerr
-
 }
 
 func checkExtensions(l StringList) (StringList, error) {

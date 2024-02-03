@@ -18,8 +18,7 @@ func AlbumCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log,
 		cmd := args[0]
 		args = args[1:]
 
-		switch cmd {
-		case "delete":
+		if cmd == "delete" {
 			return deleteAlbum(ctx, ic, log, args)
 		}
 	}

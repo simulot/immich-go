@@ -22,7 +22,7 @@ var (
 
 func SetLocal(tz string) (*time.Location, error) {
 	onceSetLocal.Do(func() {
-		if len(tz) == 0 {
+		if tz == "" {
 			tz, _err = tzlocal.RuntimeTZ()
 			if _err != nil {
 				return
@@ -31,7 +31,6 @@ func SetLocal(tz string) (*time.Location, error) {
 		_local, _err = time.LoadLocation(strings.TrimSuffix(tz, "\n"))
 	})
 	return _local, _err
-
 }
 
 func Local() (*time.Location, error) {
