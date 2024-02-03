@@ -28,11 +28,9 @@ linters:
   enable:
     - gocritic
     - gosimple
-    # - errcheck
     - govet
     - ineffassign
     - misspell
-    # - stylecheck
     - whitespace
     - gci
     - gofmt
