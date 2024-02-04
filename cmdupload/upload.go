@@ -383,7 +383,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
 		}
 		ID, err = app.UploadAsset(ctx, a)
-
 		if err != nil {
 			app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
 			if app.Delete {
@@ -725,6 +724,7 @@ func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
 		ServerAsset: sa,
 	}
 }
+
 func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
 		Advice:      SmallerOnServer,
@@ -732,6 +732,7 @@ func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
 		ServerAsset: sa,
 	}
 }
+
 func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
 		Advice:      BetterOnServer,
@@ -739,6 +740,7 @@ func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
 		ServerAsset: sa,
 	}
 }
+
 func (ai *AssetIndex) adviceNotOnServer() *Advice {
 	return &Advice{
 		Advice:  NotOnServer,

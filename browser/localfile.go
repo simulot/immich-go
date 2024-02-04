@@ -112,7 +112,7 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 			return nil, err
 		}
 		tempDir = filepath.Join(tempDir, "github.com/simulot/immich-go")
-		os.Mkdir(tempDir, 0700)
+		os.Mkdir(tempDir, 0o700)
 		l.tempFile, err = os.CreateTemp(tempDir, "")
 		if err != nil {
 			return nil, err
@@ -173,6 +173,7 @@ func (l *LocalAssetFile) IsDir() bool { return false }
 func (l *LocalAssetFile) Name() string {
 	return l.FileName
 }
+
 func (l *LocalAssetFile) Size() int64 {
 	return int64(l.FileSize)
 }

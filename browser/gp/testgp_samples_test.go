@@ -30,8 +30,8 @@ func (mfs *inMemFS) addFile(name string, content []byte) *inMemFS {
 		return mfs
 	}
 	dir := path.Dir(name)
-	mfs.err = errors.Join(mfs.err, mfs.MkdirAll(dir, 0777))
-	mfs.err = errors.Join(mfs.err, mfs.WriteFile(name, content, 0777))
+	mfs.err = errors.Join(mfs.err, mfs.MkdirAll(dir, 0o777))
+	mfs.err = errors.Join(mfs.err, mfs.WriteFile(name, content, 0o777))
 	return mfs
 }
 

@@ -29,7 +29,7 @@ var (
 
 func main() {
 	var err error
-	var log = logger.NewLogger(logger.OK, true, false)
+	log := logger.NewLogger(logger.OK, true, false)
 	defer log.Close()
 	log.OK("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 
@@ -75,7 +75,6 @@ type Application struct {
 	Immich  *immich.ImmichClient // Immich client
 	Logger  *logger.Log          // Program's logger
 	LogFile string               // Log file
-
 }
 
 func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {

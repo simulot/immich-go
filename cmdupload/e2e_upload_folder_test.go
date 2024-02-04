@@ -28,7 +28,6 @@ type testCase struct {
 }
 
 func runCase(t *testing.T, tc testCase) {
-
 	var myEnv map[string]string
 	myEnv, err := godotenv.Read("../.env")
 	if err != nil {
@@ -89,11 +88,9 @@ func runCase(t *testing.T, tc testCase) {
 		t.Errorf("unexpected err: %v", err)
 		return
 	}
-
 }
 
 func TestE2eUpload(t *testing.T) {
-
 	tests := []testCase{
 		{
 			name: "upload folder",
@@ -172,7 +169,6 @@ func TestE2eUpload(t *testing.T) {
 // PXL_20231006_063536303 should be archived
 // Google Photos/Album test 6-10-23/PXL_20231006_063851485.jpg.json is favorite and has a description
 func Test_DescriptionAndFavorite(t *testing.T) {
-
 	tc := testCase{
 		name: "Test_DescriptionAndFavorite",
 		args: []string{
@@ -187,7 +183,6 @@ func Test_DescriptionAndFavorite(t *testing.T) {
 }
 
 func Test_PermissionError(t *testing.T) {
-
 	tc := testCase{
 		name: "Test_PermissionError",
 		args: []string{
@@ -200,7 +195,6 @@ func Test_PermissionError(t *testing.T) {
 }
 
 func Test_CreateAlbumFolder(t *testing.T) {
-
 	tc := testCase{
 		name: "Test_CreateAlbumFolder",
 		args: []string{
@@ -215,7 +209,6 @@ func Test_CreateAlbumFolder(t *testing.T) {
 }
 
 func Test_XMP(t *testing.T) {
-
 	tc := testCase{
 		name: "Test_XMP",
 		args: []string{
@@ -264,7 +257,6 @@ func Test_Album_Issue_119(t *testing.T) {
 }
 
 func Test_Issue_126A(t *testing.T) {
-
 	tc := testCase{
 		name: "Test_Issue_126A",
 		args: []string{
@@ -280,7 +272,6 @@ func Test_Issue_126A(t *testing.T) {
 }
 
 func Test_Issue_126B(t *testing.T) {
-
 	tc := testCase{
 		name: "Test_Issue_126B",
 		args: []string{
@@ -296,7 +287,6 @@ func Test_Issue_126B(t *testing.T) {
 }
 
 func Test_Issue_129(t *testing.T) {
-
 	tc := testCase{
 		name: "Test_Issue_129",
 		args: []string{
@@ -311,7 +301,6 @@ func Test_Issue_129(t *testing.T) {
 }
 
 func Test_Issue_128(t *testing.T) {
-
 	tc := testCase{
 		name: "Test_Issue_128",
 		args: []string{

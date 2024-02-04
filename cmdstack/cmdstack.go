@@ -41,6 +41,7 @@ func initSack(xtx context.Context, ic *immich.ImmichClient, log *logger.Log, arg
 	err := cmd.Parse(args)
 	return &app, err
 }
+
 func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
 	app, err := initSack(ctx, ic, log, args)
 	if err != nil {

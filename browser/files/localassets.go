@@ -193,6 +193,7 @@ func baseNames(n string) []string {
 		ext = path.Ext(n)
 	}
 }
+
 func escapeName(n string) string {
 	b := strings.Builder{}
 	for _, c := range n {
@@ -219,7 +220,6 @@ func (la *LocalAssetBrowser) ReadMetadataFromFile(a *browser.LocalAssetFile) err
 
 	// Open the file
 	r, err := a.PartialSourceReader()
-
 	if err != nil {
 		return err
 	}

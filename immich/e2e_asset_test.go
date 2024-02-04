@@ -51,7 +51,6 @@ func getImmichDebugCreds() (host, key, user string) {
 }
 
 func getImmichClient(t *testing.T, host, key, user string) *ImmichClient {
-
 	if host == "" {
 		host = "http://localhost:2283"
 	}
