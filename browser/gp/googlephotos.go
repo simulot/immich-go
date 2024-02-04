@@ -377,7 +377,7 @@ func matchEditedName(jsonName string, fileName string) bool {
 	return false
 }
 
-//TODO: This one interferes with matchVeryLongNameWithNumber
+// TODO: This one interferes with matchVeryLongNameWithNumber
 
 // matchForgottenDuplicates
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_.json

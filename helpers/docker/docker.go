@@ -162,7 +162,7 @@ func (d *DockerConnect) Upload(ctx context.Context, file string, size int64, r i
 		}()
 		hdr := tar.Header{
 			Name:    path.Base(file),
-			Mode:    0644,
+			Mode:    0o644,
 			Size:    size,
 			ModTime: time.Now(),
 		}
@@ -232,7 +232,7 @@ func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUplo
 
 				hdr := tar.Header{
 					Name:    f.name,
-					Mode:    0644,
+					Mode:    0o644,
 					Size:    int64(len(f.content)),
 					ModTime: time.Now(),
 				}
@@ -270,6 +270,7 @@ func (b *batchUploader) Upload(name string, content []byte) error {
 	err := <-b.fileErr
 	return err
 }
+
 func (b *batchUploader) Close() error {
 	close(b.fileChannel)
 	return nil

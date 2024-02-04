@@ -239,7 +239,8 @@ func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, er
 func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 	isArchived bool, isFavorite bool,
 	latitude float64, longitude float64,
-	removeParent bool, stackParentId string) error {
+	removeParent bool, stackParentId string,
+) error {
 	type updAssets struct {
 		IDs           []string `json:"ids"`
 		IsArchived    bool     `json:"isArchived"`

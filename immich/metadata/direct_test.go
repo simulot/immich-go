@@ -25,7 +25,6 @@ func mustParse(s string) time.Time {
 }
 
 func TestGetFromReader(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		filename string

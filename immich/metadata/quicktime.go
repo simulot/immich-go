@@ -80,6 +80,7 @@ func decodeMvhdAtom(r *sliceReader) (*MvhdAtom, error) {
 func convertTime32(timestamp uint32) time.Time {
 	return time.Unix(int64(timestamp)-int64(2082844800), 0)
 }
+
 func convertTime64(timestamp uint64) time.Time {
 	// Unix epoch starts on January 1, 1970, subtracting the number of seconds from January 1, 1904 to January 1, 1970.
 	epochOffset := int64(2082844800)
