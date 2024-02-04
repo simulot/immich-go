@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"math"
 	"text/template"
 	"time"
 )
@@ -19,17 +18,6 @@ type SideCar struct {
 	Latitude  float64
 	Longitude float64
 	Elevation float64
-}
-
-func cmpFloats(a, b float64) int {
-	d := a - b
-	if math.Abs(d) < 1e-5 {
-		return 0
-	}
-	if a < b {
-		return -1
-	}
-	return 1
 }
 
 func (sc *SideCar) Open(fsys fs.FS, name string) (io.ReadCloser, error) {

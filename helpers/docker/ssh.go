@@ -18,7 +18,7 @@ type sshProxy struct {
 	sshClient *goph.Client
 }
 
-func newSshProxy(ctx context.Context, c *DockerConnect, host string, container string) (*sshProxy, error) {
+func newSSHProxy(host string) (*sshProxy, error) {
 	u, err := url.Parse(host)
 	if err != nil {
 		return nil, err

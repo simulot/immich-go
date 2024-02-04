@@ -108,7 +108,7 @@ type Asset struct {
 	LivePhotoVideoID string            `json:"livePhotoVideoId"`
 	Tags             []any             `json:"tags"`
 	Checksum         string            `json:"checksum"`
-	StackParentId    string            `json:"stackParentId"`
+	StackParentID    string            `json:"stackParentId"`
 	JustUploaded     bool              `json:"-"`
 	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
 }

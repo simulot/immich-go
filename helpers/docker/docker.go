@@ -58,7 +58,7 @@ func NewDockerConnection(ctx context.Context, host string, container string) (*D
 		Container: container,
 	}
 
-	err := d.connect(ctx, host, container)
+	err := d.connect(ctx, host)
 	if err != nil {
 		return nil, fmt.Errorf("can't open docker: %w", err)
 	}
@@ -66,12 +66,12 @@ func NewDockerConnection(ctx context.Context, host string, container string) (*D
 }
 
 // Connect test the connection with docker, and get instance parameters
-func (d *DockerConnect) connect(ctx context.Context, host string, container string) error {
+func (d *DockerConnect) connect(ctx context.Context, host string) error {
 	var err error
 	if host == "" || host == "local" {
-		d.proxy, err = newLocalProxy(d)
+		d.proxy = newLocalProxy(d)
 	} else {
-		d.proxy, err = newSshProxy(ctx, d, host, container)
+		d.proxy, err = newSSHProxy(host)
 	}
 	if err != nil {
 		return err

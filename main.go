@@ -65,7 +65,7 @@ type Application struct {
 	API         string // Immich api endpoint (http://container_ip:3301)
 	Key         string // API Key
 	DeviceUUID  string // Set a device UUID
-	ApiTrace    bool   // Enable API call traces
+	APITrace    bool   // Enable API call traces
 	NoLogColors bool   // Disable log colors
 	LogLevel    string // Idicate the log level
 	Debug       bool   // Enable the debug mode
@@ -88,7 +88,7 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	flag.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, runtime.GOOS == "windows"))
 	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
 	flag.StringVar(&app.LogFile, "log-file", "", "Write log messages into the file")
-	flag.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.ApiTrace, false))
+	flag.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.APITrace, false))
 	flag.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, false))
 	flag.StringVar(&app.TimeZone, "time-zone", "", "Override the system time zone")
 	flag.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, false))
@@ -146,7 +146,7 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	if app.API != "" {
 		app.Immich.SetEndPoint(app.API)
 	}
-	if app.ApiTrace {
+	if app.APITrace {
 		app.Immich.EnableAppTrace(true)
 	}
 	if app.DeviceUUID != "" {

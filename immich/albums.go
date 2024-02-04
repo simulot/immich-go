@@ -132,5 +132,5 @@ func (ic *ImmichClient) GetAssetAlbums(ctx context.Context, id string) ([]AlbumS
 }
 
 func (ic *ImmichClient) DeleteAlbum(ctx context.Context, id string) error {
-	return ic.newServerCall(ctx, "DeleteAlbum").do(delete("/album/" + id))
+	return ic.newServerCall(ctx, "DeleteAlbum").do(deleteItem("/album/" + id))
 }

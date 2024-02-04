@@ -36,7 +36,7 @@ type iClient interface {
 	GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]immich.UpdateAlbumResult, error)
 	CreateAlbum(context.Context, string, []string) (immich.AlbumSimplified, error)
-	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentId string) error
+	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
 	StackAssets(ctx context.Context, cover string, IDs []string) error
 	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*immich.Asset, error)
 }
@@ -315,42 +315,42 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	// }
 	ext := path.Ext(a.FileName)
 	if app.BrowserConfig.ExcludeExtensions.Exclude(ext) {
-		app.journalAsset(a, logger.NOT_SELECTED, "extension excluded")
+		app.journalAsset(a, logger.NotSelected, "extension excluded")
 		return nil
 	}
 	if !app.BrowserConfig.SelectExtensions.Include(ext) {
-		app.journalAsset(a, logger.NOT_SELECTED, "extension not selected")
+		app.journalAsset(a, logger.NotSelected, "extension not selected")
 		return nil
 	}
 
 	if !app.KeepPartner && a.FromPartner {
-		app.journalAsset(a, logger.NOT_SELECTED, "partners asset excluded")
+		app.journalAsset(a, logger.NotSelected, "partners asset excluded")
 		return nil
 	}
 
 	if !app.KeepTrashed && a.Trashed {
-		app.journalAsset(a, logger.NOT_SELECTED, "trashed asset excluded")
+		app.journalAsset(a, logger.NotSelected, "trashed asset excluded")
 		return nil
 	}
 
 	if len(app.ImportFromAlbum) > 0 && !app.isInAlbum(a, app.ImportFromAlbum) {
-		app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because not from the required album")
+		app.journalAsset(a, logger.NotSelected, "asset excluded because not from the required album")
 		return nil
 	}
 
 	if app.DiscardArchived && a.Archived {
-		app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because archives are discarded")
+		app.journalAsset(a, logger.NotSelected, "asset excluded because archives are discarded")
 		return nil
 	}
 
 	if app.DateRange.IsSet() {
 		d := a.DateTaken
 		if d.IsZero() {
-			app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because the date of capture is unknown and a date range is given")
+			app.journalAsset(a, logger.NotSelected, "asset excluded because the date of capture is unknown and a date range is given")
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
-			app.journalAsset(a, logger.NOT_SELECTED, "asset excluded because the date of capture out of the date range")
+			app.journalAsset(a, logger.NotSelected, "asset excluded because the date of capture out of the date range")
 			return nil
 		}
 	}
@@ -376,7 +376,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.deleteLocalList = append(app.deleteLocalList, a)
 		}
 	case SmallerOnServer:
-		app.journalAsset(a, logger.UPGRADED, advice.Message)
+		app.journalAsset(a, logger.Upgraded, advice.Message)
 		// add the superior asset into albums of the original asset
 		for _, al := range advice.ServerAsset.Albums {
 			app.journalAsset(a, logger.INFO, "Added to album: "+al.AlbumName)
@@ -392,9 +392,9 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	case SameOnServer:
 		// Set add the server asset into albums determined locally
 		if !advice.ServerAsset.JustUploaded {
-			app.journalAsset(a, logger.SERVER_DUPLICATE, advice.Message)
+			app.journalAsset(a, logger.ServerDuplicate, advice.Message)
 		} else {
-			app.journalAsset(a, logger.LOCAL_DUPLICATE)
+			app.journalAsset(a, logger.LocalDuplicate)
 		}
 		ID = advice.ServerAsset.ID
 		if app.CreateAlbums {
@@ -419,7 +419,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			return nil
 		}
 	case BetterOnServer:
-		app.journalAsset(a, logger.SERVER_BETTER, advice.Message)
+		app.journalAsset(a, logger.ServerBetter, advice.Message)
 		ID = advice.ServerAsset.ID
 		// keep the server version but update albums
 		if app.CreateAlbums {
@@ -472,7 +472,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 				Names = append(Names, Name)
 			}
 			if len(Names) > 0 {
-				app.journalAsset(a, logger.ALBUM, strings.Join(Names, ", "))
+				app.journalAsset(a, logger.Album, strings.Join(Names, ", "))
 				for _, n := range Names {
 					app.AddToAlbum(ID, n)
 				}
@@ -504,13 +504,13 @@ func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
 	return false
 }
 
-func (a *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
-	a.Delete = false
-	return gp.NewTakeout(ctx, a.Journal, fsyss...)
+func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
+	app.Delete = false
+	return gp.NewTakeout(ctx, app.Journal, fsyss...)
 }
 
-func (a *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
-	return files.NewLocalFiles(ctx, a.Journal, fsyss...)
+func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
+	return files.NewLocalFiles(ctx, app.Journal, fsyss...)
 }
 
 // UploadAsset upload the asset on the server
@@ -536,18 +536,18 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		resp.ID = uuid.NewString()
 	}
 	if err != nil {
-		app.journalAsset(a, logger.SERVER_ERROR, err.Error())
+		app.journalAsset(a, logger.ServerError, err.Error())
 		return "", err
 	}
 	if !resp.Duplicate {
-		app.journalAsset(a, logger.UPLOADED, a.Title)
+		app.journalAsset(a, logger.Uploaded, a.Title)
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		app.mediaUploaded += 1
 		if app.CreateStacks {
 			app.stacks.ProcessAsset(resp.ID, a.FileName, a.DateTaken)
 		}
 	} else {
-		app.journalAsset(a, logger.SERVER_DUPLICATE, "already on the server")
+		app.journalAsset(a, logger.ServerDuplicate, "already on the server")
 	}
 
 	return resp.ID, nil
@@ -709,14 +709,6 @@ func formatBytes(s int) string {
 	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
 }
 
-func (ai *AssetIndex) adviceIDontKnow(la *browser.LocalAssetFile) *Advice {
-	return &Advice{
-		Advice:     IDontKnow,
-		Message:    fmt.Sprintf("Can't decide what to do with %q. Check this file", la.FileName),
-		LocalAsset: la,
-	}
-}
-
 func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
 		Advice:      SameOnServer,
@@ -758,7 +750,7 @@ func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) 
 	if path.Ext(filename) == "" {
 		filename += path.Ext(la.FileName)
 	}
-	var err error
+
 	ID := la.DeviceAssetID()
 
 	sa := ai.byID[ID]
@@ -781,9 +773,7 @@ func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) 
 	if len(l) > 0 {
 		dateTaken := la.DateTaken
 		size := int(la.Size())
-		if err != nil {
-			return ai.adviceIDontKnow(la), nil
-		}
+
 		for _, sa = range l {
 			compareDate := compareDate(dateTaken, sa.ExifInfo.DateTimeOriginal.Time)
 			compareSize := size - sa.ExifInfo.FileSizeInByte

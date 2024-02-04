@@ -147,7 +147,7 @@ func escapeQuotes(s string) string {
 }
 
 type GetAssetOptions struct {
-	UserId        string
+	UserID        string
 	IsFavorite    bool
 	IsArchived    bool
 	WithoutThumbs bool
@@ -159,7 +159,7 @@ func (o *GetAssetOptions) Values() url.Values {
 		return url.Values{}
 	}
 	v := url.Values{}
-	v.Add("userId", o.UserId)
+	v.Add("userId", o.UserID)
 	v.Add("isFavorite", myBool(o.IsFavorite).String())
 	v.Add("isArchived", myBool(o.IsArchived).String())
 	v.Add("withoutThumbs", myBool(o.WithoutThumbs).String())
@@ -180,12 +180,12 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context, opt *GetAssetOptions) 
 		values.Set("withExif", "true")
 		values.Set("isVisible", "true")
 		values.Del("trashedBefore")
-		err := ic.newServerCall(ctx, "GetAllAssets", setPaginator("page", 1)).do(get("/assets", setUrlValues(values), setAcceptJSON()), responseAccumulateJSON(&r))
+		err := ic.newServerCall(ctx, "GetAllAssets", setPaginator()).do(get("/assets", setURLValues(values), setAcceptJSON()), responseAccumulateJSON(&r))
 		if err != nil {
 			return r, err
 		}
 		values.Set("trashedBefore", "9999-01-01")
-		err = ic.newServerCall(ctx, "GetAllAssets", setPaginator("page", 1)).do(get("/assets", setUrlValues(values), setAcceptJSON()), responseAccumulateJSON(&r))
+		err = ic.newServerCall(ctx, "GetAllAssets", setPaginator()).do(get("/assets", setURLValues(values), setAcceptJSON()), responseAccumulateJSON(&r))
 		if err != nil {
 			return r, err
 		}
@@ -204,12 +204,12 @@ func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, opt *GetAsse
 		values.Set("withExif", "true")
 		values.Set("isVisible", "true")
 		values.Del("trashedBefore")
-		err := ic.newServerCall(ctx, "GetAllAssets", setPaginator("page", 1)).do(get("/assets", setUrlValues(values), setAcceptJSON()), responseJSONWithFilter(filter))
+		err := ic.newServerCall(ctx, "GetAllAssets", setPaginator()).do(get("/assets", setURLValues(values), setAcceptJSON()), responseJSONWithFilter(filter))
 		if err != nil {
 			return err
 		}
 		values.Set("trashedBefore", "9999-01-01")
-		err = ic.newServerCall(ctx, "GetAllAssets", setPaginator("page", 1)).do(get("/assets", setUrlValues(values), setAcceptJSON()), responseJSONWithFilter(filter))
+		err = ic.newServerCall(ctx, "GetAllAssets", setPaginator()).do(get("/assets", setURLValues(values), setAcceptJSON()), responseJSONWithFilter(filter))
 		if err != nil {
 			return err
 		}
@@ -227,7 +227,7 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 		Force: forceDelete,
 	}
 
-	return ic.newServerCall(ctx, "DeleteAsset").do(delete("/asset", setAcceptJSON(), setJSONBody(req)))
+	return ic.newServerCall(ctx, "DeleteAsset").do(deleteItem("/asset", setAcceptJSON(), setJSONBody(req)))
 }
 
 func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
@@ -239,7 +239,7 @@ func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, er
 func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 	isArchived bool, isFavorite bool,
 	latitude float64, longitude float64,
-	removeParent bool, stackParentId string,
+	removeParent bool, stackParentID string,
 ) error {
 	type updAssets struct {
 		IDs           []string `json:"ids"`
@@ -248,7 +248,7 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 		Latitude      float64  `json:"latitude"`
 		Longitude     float64  `json:"longitude"`
 		RemoveParent  bool     `json:"removeParent"`
-		StackParentId string   `json:"stackParentId,omitempty"`
+		StackParentID string   `json:"stackParentId,omitempty"`
 	}
 
 	param := updAssets{
@@ -258,7 +258,7 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 		Latitude:      latitude,
 		Longitude:     longitude,
 		RemoveParent:  removeParent,
-		StackParentId: stackParentId,
+		StackParentID: stackParentID,
 	}
 	return ic.newServerCall(ctx, "updateAssets").do(put("/asset", setJSONBody(param)))
 }

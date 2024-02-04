@@ -150,7 +150,7 @@ func (sb *StackBuilder) Stacks() []Stack {
 		return len(i.IDs) > 1
 	})
 
-	var stacks []Stack
+	stacks := make([]Stack, 0, len(keys))
 	for _, k := range keys {
 		s := sb.stacks[k]
 

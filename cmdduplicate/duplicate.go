@@ -26,7 +26,7 @@ type DuplicateCmd struct {
 	DateRange      immich.DateRange // Set capture date range
 	IgnoreTZErrors bool             // Enable TZ error tolerance
 
-	assetsById          map[string]*immich.Asset
+	assetsByID          map[string]*immich.Asset
 	assetsByBaseAndDate map[duplicateKey][]*immich.Asset
 }
 
@@ -43,7 +43,7 @@ func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logge
 		logger:              logger,
 		Immich:              ic,
 		DateRange:           validRange,
-		assetsById:          map[string]*immich.Asset{},
+		assetsByID:          map[string]*immich.Asset{},
 		assetsByBaseAndDate: map[duplicateKey][]*immich.Asset{},
 	}
 
@@ -69,7 +69,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
 			return
 		}
-		app.assetsById[a.ID] = a
+		app.assetsByID[a.ID] = a
 		d := a.ExifInfo.DateTimeOriginal.Time.Round(time.Minute)
 		if app.IgnoreTZErrors {
 			d = time.Date(d.Year(), d.Month(), d.Day(), 0, d.Minute(), d.Second(), 0, time.UTC)
@@ -88,7 +88,7 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 	if err != nil {
 		return err
 	}
-	log.MessageTerminate(logger.OK, "%d received", len(app.assetsById))
+	log.MessageTerminate(logger.OK, "%d received", len(app.assetsByID))
 	log.MessageTerminate(logger.OK, "%d duplicate(s) determined.", dupCount)
 
 	keys := gen.MapFilterKeys(app.assetsByBaseAndDate, func(i []*immich.Asset) bool {

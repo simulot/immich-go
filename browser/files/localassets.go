@@ -96,26 +96,26 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 			continue
 		}
 		fileName := path.Join(folder, e.Name())
-		la.log.AddEntry(fileName, logger.DISCOVERED_FILE, "")
+		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
 		name := e.Name()
 		ext := strings.ToLower(path.Ext(name))
 		if fshelper.IsMetadataExt(ext) {
-			la.log.AddEntry(name, logger.METADATA, "")
+			la.log.AddEntry(name, logger.Metadata, "")
 			continue
 		} else if fshelper.IsIgnoredExt(ext) {
-			la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
+			la.log.AddEntry(fileName, logger.Unsupported, "")
 			continue
 		}
 		m, err := fshelper.MimeFromExt(strings.ToLower(ext))
 		if err != nil {
-			la.log.AddEntry(fileName, logger.UNSUPPORTED, "")
+			la.log.AddEntry(fileName, logger.Unsupported, "")
 			continue
 		}
 		ss := strings.Split(m[0], "/")
 		if ss[0] == "image" {
-			la.log.AddEntry(name, logger.SCANNED_IMAGE, "")
+			la.log.AddEntry(name, logger.ScannedImage, "")
 		} else {
-			la.log.AddEntry(name, logger.SCANNED_VIDEO, "")
+			la.log.AddEntry(name, logger.ScannedVideo, "")
 		}
 
 		f := browser.LocalAssetFile{
@@ -139,7 +139,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 					f.DateTaken = time.Now()
 				}
 			}
-			la.checkSidecar(fsys, &f, entries, folder, name)
+			la.checkSidecar(&f, entries, folder, name)
 		}
 		// Check if the context has been cancelled
 		select {
@@ -153,7 +153,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 	return nil
 }
 
-func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
+func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
 	assetBase := baseNames(name)
 
 	for _, name := range assetBase {
@@ -168,7 +168,7 @@ func (la *LocalAssetBrowser) checkSidecar(fsys fs.FS, f *browser.LocalAssetFile,
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.log.AddEntry(name, logger.ASSOCIATED_META, "")
+				la.log.AddEntry(name, logger.AssociatedMetadata, "")
 				return true
 			}
 		}
@@ -208,11 +208,6 @@ func escapeName(n string) string {
 		b.WriteRune(c)
 	}
 	return b.String()
-}
-
-func (la *LocalAssetBrowser) addAlbum(dir string) {
-	base := path.Base(dir)
-	la.albums[dir] = base
 }
 
 func (la *LocalAssetBrowser) ReadMetadataFromFile(a *browser.LocalAssetFile) error {

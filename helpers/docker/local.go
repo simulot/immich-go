@@ -9,8 +9,8 @@ type localProxy struct {
 	c *DockerConnect
 }
 
-func newLocalProxy(c *DockerConnect) (*localProxy, error) {
-	return &localProxy{c: c}, nil
+func newLocalProxy(c *DockerConnect) *localProxy {
+	return &localProxy{c: c}
 }
 
 func (localProxy) connect(ctx context.Context) error {
