@@ -52,9 +52,7 @@ func deleteAlbum(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, 
 	if len(args) > 0 {
 		re, err := regexp.Compile(args[0])
 		if err != nil {
-			if err != nil {
-				return fmt.Errorf("album pattern %q can't be parsed: %w", cmd.Arg(0), err)
-			}
+			return fmt.Errorf("album pattern %q can't be parsed: %w", cmd.Arg(0), err)
 		}
 		app.pattern = re
 	} else {
