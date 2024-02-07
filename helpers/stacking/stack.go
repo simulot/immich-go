@@ -112,7 +112,7 @@ func huaweiBurst(name string) (bool, string, bool) {
 	if len(parts) == 0 {
 		return false, "", false
 	}
-	return true, parts[1], len(parts[3]) > 0
+	return true, parts[1], parts[3] != ""
 }
 
 var pixelBurstRE = regexp.MustCompile(`^(.*)(.RAW-\d+)(\.MP)?(\.COVER)?(\..*)$`)
@@ -122,7 +122,7 @@ func pixelBurst(name string) (bool, string, bool) {
 	if len(parts) == 0 {
 		return false, "", false
 	}
-	return true, parts[1], len(parts[4]) > 0
+	return true, parts[1], parts[4] != ""
 }
 
 var samsungBurstRE = regexp.MustCompile(`^(\d{8}_\d{6})_(\d{3})\..{3}$`)

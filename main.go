@@ -101,7 +101,7 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 		return log, err
 	}
 
-	if len(app.LogFile) > 0 {
+	if app.LogFile != "" {
 		flog, err := os.Create(app.LogFile)
 		if err != nil {
 			return log, fmt.Errorf("can't open the log file: %w", err)
@@ -113,7 +113,7 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	switch {
 	case app.Server == "" && app.API == "":
 		err = errors.Join(err, errors.New("missing -server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
-	case len(app.Server) > 0 && len(app.API) > 0:
+	case app.Server != "" && app.API != "":
 		err = errors.Join(err, errors.New("give either the -server or the -api option"))
 	}
 	if app.Key == "" {

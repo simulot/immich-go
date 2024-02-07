@@ -71,7 +71,7 @@ func (ce callError) Error() string {
 		b.WriteRune('\n')
 	}
 	if ce.message != nil {
-		if len(ce.message.Error) > 0 {
+		if ce.message.Error != "" {
 			b.WriteString(ce.message.Error)
 			b.WriteRune('\n')
 		}

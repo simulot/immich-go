@@ -273,7 +273,7 @@ assetLoop:
 		}
 	}
 
-	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && len(app.PartnerAlbum) > 0) || len(app.ImportIntoAlbum) > 0 {
+	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
 		app.Journal.OK("Managing albums")
 		err = app.ManageAlbums(ctx)
 		if err != nil {
@@ -333,7 +333,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		return nil
 	}
 
-	if len(app.ImportFromAlbum) > 0 && !app.isInAlbum(a, app.ImportFromAlbum) {
+	if app.ImportFromAlbum != "" && !app.isInAlbum(a, app.ImportFromAlbum) {
 		app.journalAsset(a, logger.NotSelected, "asset excluded because not from the required album")
 		return nil
 	}
@@ -480,7 +480,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		}
 	}
 
-	shouldUpdate := len(a.Description) > 0
+	shouldUpdate := a.Description != ""
 	shouldUpdate = shouldUpdate || a.Favorite
 	shouldUpdate = shouldUpdate || a.Longitude != 0 || a.Latitude != 0
 	shouldUpdate = shouldUpdate || a.Archived
