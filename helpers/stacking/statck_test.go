@@ -28,6 +28,7 @@ func Test_Stack(t *testing.T) {
 				{ID: "1", FileName: "IMG_1234.JPG", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.15.00")},
 				{ID: "2", FileName: "IMG_1234.DNG", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.45.00")},
 			},
+			want: []Stack{},
 		},
 		{
 			name: "issue #67",
@@ -35,6 +36,7 @@ func Test_Stack(t *testing.T) {
 				{ID: "1", FileName: "IMG_5580.HEIC", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.15.00")},
 				{ID: "2", FileName: "IMG_5580.MP4", DateTaken: metadata.TakeTimeFromName("2023-10-01 10.15.00")},
 			},
+			want: []Stack{},
 		},
 		{
 			name: "stack JPG+DNG",
@@ -212,7 +214,7 @@ func Test_Stack(t *testing.T) {
 				return got[i].CoverID < got[j].CoverID
 			})
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("difference\n")
+				t.Errorf("differece expected %+v got %+v", tt.want, got)
 				pretty.Ldiff(t, tt.want, got)
 			}
 		})

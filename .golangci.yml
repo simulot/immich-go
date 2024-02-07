@@ -4,6 +4,8 @@ run:
 issues:
   max-issues-per-linter: 100
   max-same-issues: 100
+  exclude:
+    - "Added to album: "
 
 linters-settings:
   gocritic:
@@ -48,3 +50,13 @@ linters:
     - mirror
     - nakedret
     - gofumpt
+    - stylecheck
+    - unused
+    - goconst
+    - makezero
+    - unparam
+    - prealloc
+    - predeclared
+    - unconvert
+    - unparam
+    - whitespace

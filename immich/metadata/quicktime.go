@@ -49,28 +49,49 @@ type MvhdAtom struct {
 
 func decodeMvhdAtom(r *sliceReader) (*MvhdAtom, error) {
 	a := &MvhdAtom{}
-
+	var err error
 	// Read the mvhd marker (4 bytes)
-	a.Marker, _ = r.ReadSlice(4)
+	a.Marker, err = r.ReadSlice(4)
+	if err != nil {
+		return nil, err
+	}
 
 	// Read the mvhd version (1 byte)
-	a.Version, _ = r.ReadByte()
+	a.Version, err = r.ReadByte()
+	if err != nil {
+		return nil, err
+	}
 
 	// Read the mvhd flags (3 bytes)
-	a.Flags, _ = r.ReadSlice(3)
+	a.Flags, err = r.ReadSlice(3)
+	if err != nil {
+		return nil, err
+	}
 
 	if a.Version == 0 {
 		// Read the creation time (4 bytes)
-		b, _ := r.ReadSlice(4)
+		b, err := r.ReadSlice(4)
+		if err != nil {
+			return nil, err
+		}
 		a.ModificationTime = convertTime32(binary.BigEndian.Uint32(b))
-		b, _ = r.ReadSlice(4)
+		b, err = r.ReadSlice(4)
+		if err != nil {
+			return nil, err
+		}
 		a.CreationTime = convertTime32(binary.BigEndian.Uint32(b))
 	} else {
 		// Read the creation time (4 bytes)
-		b, _ := r.ReadSlice(8)
+		b, err := r.ReadSlice(8)
+		if err != nil {
+			return nil, err
+		}
 		a.ModificationTime = convertTime64(binary.BigEndian.Uint64(b))
 
-		b, _ = r.ReadSlice(8)
+		b, err = r.ReadSlice(8)
+		if err != nil {
+			return nil, err
+		}
 		a.CreationTime = convertTime64(binary.BigEndian.Uint64(b))
 	}
 

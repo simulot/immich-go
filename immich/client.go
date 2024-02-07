@@ -22,7 +22,7 @@ type ImmichClient struct {
 	DeviceUUID   string        // Device
 	Retries      int           // Number of attempts on 500 errors
 	RetriesDelay time.Duration // Duration between retries
-	ApiTrace     bool
+	APITrace     bool
 }
 
 func (ic *ImmichClient) SetEndPoint(endPoint string) *ImmichClient {
@@ -36,7 +36,7 @@ func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) *ImmichClient {
 }
 
 func (ic *ImmichClient) EnableAppTrace(state bool) *ImmichClient {
-	ic.ApiTrace = state
+	ic.APITrace = state
 	return ic
 }
 

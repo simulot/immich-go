@@ -49,7 +49,7 @@ type ServerMessage struct {
 	Message    []string `json:"message"`
 }
 
-func (u callError) Is(target error) bool {
+func (ce callError) Is(target error) bool {
 	_, ok := target.(*callError)
 	return ok
 }
@@ -71,7 +71,7 @@ func (ce callError) Error() string {
 		b.WriteRune('\n')
 	}
 	if ce.message != nil {
-		if len(ce.message.Error) > 0 {
+		if ce.message.Error != "" {
 			b.WriteString(ce.message.Error)
 			b.WriteRune('\n')
 		}
@@ -135,11 +135,11 @@ func (p *paginator) nextPage() {
 	p.pageNumber++
 }
 
-func setPaginator(pageParameter string, startPage int) serverCallOption {
+func setPaginator() serverCallOption {
 	return func(sc *serverCall) error {
 		p := paginator{
-			pageParameter: pageParameter,
-			pageNumber:    startPage,
+			pageParameter: "page",
+			pageNumber:    1,
 		}
 		sc.p = &p
 		return nil
@@ -180,7 +180,7 @@ func post(url string, ctype string, opts ...serverRequestOption) requestFunction
 	}
 }
 
-func delete(url string, opts ...serverRequestOption) requestFunction {
+func deleteItem(url string, opts ...serverRequestOption) requestFunction {
 	return func(sc *serverCall) *http.Request {
 		if sc.err != nil {
 			return nil
@@ -233,7 +233,7 @@ func (sc *serverCall) _callDo(fnRequest requestFunction, opts ...serverResponseO
 		sc.p.setPage(v)
 		req.URL.RawQuery = v.Encode()
 	}
-	if sc.ic.ApiTrace /* && req.Header.Get("Content-Type") == "application/json"*/ {
+	if sc.ic.APITrace /* && req.Header.Get("Content-Type") == "application/json"*/ {
 		setTraceJSONRequest()(sc, req)
 	}
 
@@ -278,13 +278,6 @@ func setBody(body io.ReadCloser) serverRequestOption {
 	}
 }
 
-func setHeader(key, value string) serverRequestOption {
-	return func(sc *serverCall, req *http.Request) error {
-		req.Header.Set(key, value)
-		return nil
-	}
-}
-
 func setAcceptJSON() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Header.Add("Accept", "application/json")
@@ -303,7 +296,7 @@ func setJSONBody(object any) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		b := bytes.NewBuffer(nil)
 		enc := json.NewEncoder(b)
-		if sc.ic.ApiTrace {
+		if sc.ic.APITrace {
 			enc.SetIndent("", " ")
 		}
 		if sc.joinError(enc.Encode(object)) == nil {
@@ -321,7 +314,7 @@ func setContentType(ctype string) serverRequestOption {
 	}
 }
 
-func setUrlValues(values url.Values) serverRequestOption {
+func setURLValues(values url.Values) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		if values != nil {
 			rValues := req.URL.Query()

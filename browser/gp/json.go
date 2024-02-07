@@ -40,8 +40,8 @@ func (gmd GoogleMetaData) isPartner() bool {
 
 // Key return an expected unique key for the asset
 // based on the title and the timestamp
-func (md GoogleMetaData) Key() string {
-	return fmt.Sprintf("%s,%s", md.Title, md.PhotoTakenTime.Timestamp)
+func (gmd GoogleMetaData) Key() string {
+	return fmt.Sprintf("%s,%s", gmd.Title, gmd.PhotoTakenTime.Timestamp)
 }
 
 // googIsPresent is set when the field is present. The content of the field is not relevant

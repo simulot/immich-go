@@ -42,7 +42,7 @@ func (c *stubIC) CreateAlbum(context.Context, string, []string) (immich.AlbumSim
 	return immich.AlbumSimplified{}, nil
 }
 
-func (c *stubIC) UpdateAssets(ctx context.Context, ids []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentId string) error {
+func (c *stubIC) UpdateAssets(ctx context.Context, ids []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error {
 	return nil
 }
 

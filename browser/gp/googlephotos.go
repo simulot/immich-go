@@ -71,7 +71,7 @@ func NewTakeout(ctx context.Context, jnl *logger.Journal, fsyss ...fs.FS) (*Take
 		return nil, err
 	}
 
-	to.solvePuzzle(ctx)
+	to.solvePuzzle()
 	return &to, err
 }
 
@@ -106,13 +106,13 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				return nil
 			}
 
-			to.jnl.AddEntry(name, logger.DISCOVERED_FILE, "")
+			to.jnl.AddEntry(name, logger.DiscoveredFile, "")
 			dir, base := path.Split(name)
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
 
 			if slices.Contains(uselessFiles, base) {
-				to.jnl.AddEntry(name, logger.DISCARDED, "Useless file")
+				to.jnl.AddEntry(name, logger.Discarded, "Useless file")
 				return nil
 			}
 
@@ -130,34 +130,34 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				if err == nil {
 					switch {
 					case md.isAsset():
-						to.addJson(w, dir, base, md)
-						to.jnl.AddEntry(name, logger.METADATA, "Asset Title: "+md.Title)
+						to.addJSON(dir, base, md)
+						to.jnl.AddEntry(name, logger.Metadata, "Asset Title: "+md.Title)
 					case md.isAlbum():
 						to.albums[dir] = md.Title
-						to.jnl.AddEntry(name, logger.METADATA, "Album title: "+md.Title)
+						to.jnl.AddEntry(name, logger.Metadata, "Album title: "+md.Title)
 					default:
-						to.jnl.AddEntry(name, logger.DISCARDED, "Unknown json file")
+						to.jnl.AddEntry(name, logger.Discarded, "Unknown json file")
 						return nil
 					}
 				} else {
-					to.jnl.AddEntry(name, logger.DISCARDED, "Unknown json file")
+					to.jnl.AddEntry(name, logger.Discarded, "Unknown json file")
 					return nil
 				}
 			default:
 
 				if fshelper.IsIgnoredExt(ext) {
-					to.jnl.AddEntry(name, logger.DISCARDED, "File ignored")
+					to.jnl.AddEntry(name, logger.Discarded, "File ignored")
 					return nil
 				}
 
 				m, err := fshelper.MimeFromExt(ext)
 				if err != nil {
-					to.jnl.AddEntry(name, logger.UNSUPPORTED, "")
+					to.jnl.AddEntry(name, logger.Unsupported, "")
 					return nil
 				}
 
 				if strings.Contains(name, "Failed Videos") {
-					to.jnl.AddEntry(name, logger.FAILED_VIDEO, "")
+					to.jnl.AddEntry(name, logger.FailedVideo, "")
 					return nil
 				}
 				dirCatalog.files[base] = fileInfo{
@@ -165,9 +165,9 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				}
 				ss := strings.Split(m[0], "/")
 				if ss[0] == "image" {
-					to.jnl.AddEntry(name, logger.SCANNED_IMAGE, "")
+					to.jnl.AddEntry(name, logger.ScannedImage, "")
 				} else {
-					to.jnl.AddEntry(name, logger.SCANNED_VIDEO, "")
+					to.jnl.AddEntry(name, logger.ScannedVideo, "")
 				}
 			}
 			to.catalogs[w][dir] = dirCatalog
@@ -177,8 +177,8 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 	return err
 }
 
-// addJson stores metadata and all paths where the combo base+year has been found
-func (to *Takeout) addJson(w fs.FS, dir, base string, md *GoogleMetaData) {
+// addJSON stores metadata and all paths where the combo base+year has been found
+func (to *Takeout) addJSON(dir, base string, md *GoogleMetaData) {
 	k := jsonKey{
 		name: base,
 		year: md.PhotoTakenTime.Time().Year(),
@@ -227,7 +227,7 @@ var matchers = []matcherFn{
 // The duplicates files (same name, same length in bytes) found in the local source are discarded before been presented to the immich server.
 //
 
-func (to *Takeout) solvePuzzle(ctx context.Context) error {
+func (to *Takeout) solvePuzzle() {
 	to.jnl.OK("Associating JSON and assets...")
 	jsonKeys := gen.MapKeys(to.jsonByYear)
 	sort.Slice(jsonKeys, func(i, j int) bool {
@@ -259,7 +259,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 					for f := range l.files {
 						if l.files[f].md == nil {
 							if matcher(k.name, f) {
-								to.jnl.AddEntry(path.Join(d, f), logger.ASSOCIATED_META, fmt.Sprintf("%s (%d)", k.name, k.year))
+								to.jnl.AddEntry(path.Join(d, f), logger.AssociatedMetadata, fmt.Sprintf("%s (%d)", k.name, k.year))
 								// if not already matched
 								i := l.files[f]
 								i.md = md
@@ -272,7 +272,6 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 			}
 		}
 	}
-	return nil
 }
 
 // normalMatch
@@ -460,7 +459,7 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 			year:   f.md.PhotoTakenTime.Time().Year(),
 		}
 		if _, exists := to.uploaded[key]; exists {
-			to.jnl.AddEntry(name, logger.LOCAL_DUPLICATE, "")
+			to.jnl.AddEntry(name, logger.LocalDuplicate, "")
 			return nil
 		}
 		a := to.googleMDToAsset(f.md, key, w, name)
