@@ -55,6 +55,7 @@ type UpCmd struct {
 	Import                 bool             // Import instead of upload
 	DeviceUUID             string           // Set a device UUID
 	Paths                  []string         // Path to explore
+	ExcludePaths           []string         // Paths to exclude
 	DateRange              immich.DateRange // Set capture date range
 	ImportFromAlbum        string           // Import assets from this albums
 	CreateAlbums           bool             // Create albums when exists in the source
@@ -156,9 +157,17 @@ func NewUpCmd(ctx context.Context, ic iClient, log logger.Logger, args []string)
 	cmd.Var(&app.BrowserConfig.SelectExtensions, "select-types", "list of selected extensions separated by a comma")
 	cmd.Var(&app.BrowserConfig.ExcludeExtensions, "exclude-types", "list of excluded extensions separated by a comma")
 
+	var excludePaths string
+	cmd.StringVar(&excludePaths, "exclude-dirs", "", "list of excluded dirs (regexp) separated by a comma")
+
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
+	}
+
+	app.ExcludePaths = strings.Split(excludePaths, ",")
+	for i, str := range app.ExcludePaths {
+		app.ExcludePaths[i] = strings.TrimSpace(str)
 	}
 
 	if err = app.BrowserConfig.IsValid(); err != nil {
@@ -228,7 +237,7 @@ func (app *UpCmd) Run(ctx context.Context, fsyss []fs.FS) error {
 	}
 	app.Journal.Message(logger.OK, "Done.")
 
-	assetChan := browser.Browse(ctx)
+	assetChan := browser.Browse(ctx, app.ExcludePaths)
 assetLoop:
 	for {
 		select {

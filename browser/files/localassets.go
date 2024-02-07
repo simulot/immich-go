@@ -31,7 +31,7 @@ func NewLocalFiles(ctx context.Context, log *logger.Journal, fsyss ...fs.FS) (*L
 
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
-func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAssetFile {
+func (la *LocalAssetBrowser) Browse(ctx context.Context, excludePaths []string) chan *browser.LocalAssetFile {
 	fileChan := make(chan *browser.LocalAssetFile)
 	// Browse all given FS to collect the list of files
 	go func(ctx context.Context) {
@@ -50,6 +50,13 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 						return ctx.Err()
 					default:
 						if d.IsDir() {
+							// TODO:  We're just matching the directory name, here.  If you wanted to be
+							//        more configurable, you could match the full path (i.e., the name variable).
+							//        Probably the best implementation for this would be to have separate -exclude-dirs
+							//        and -exclude-paths, for simplicity.
+							if browser.Matches(d.Name(), excludePaths) {
+								return fs.SkipDir
+							}
 							return la.handleFolder(ctx, fsys, fileChan, name)
 						}
 					}
