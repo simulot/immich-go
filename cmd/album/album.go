@@ -1,4 +1,4 @@
-package cmdalbum
+package album
 
 import (
 	"context"

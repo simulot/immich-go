@@ -1,4 +1,4 @@
-package cmdstack
+package stack
 
 import (
 	"context"
