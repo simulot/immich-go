@@ -1,10 +1,10 @@
-package cmdtool
+package tool
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/simulot/immich-go/cmdtool/cmdalbum"
+	"github.com/simulot/immich-go/cmd/album"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
 )
@@ -15,7 +15,7 @@ func CommandTool(ctx context.Context, ic *immich.ImmichClient, logger *logger.Lo
 		args = args[1:]
 
 		if cmd == "album" {
-			return cmdalbum.AlbumCommand(ctx, ic, logger, args)
+			return album.AlbumCommand(ctx, ic, logger, args)
 		}
 	}
 

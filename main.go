@@ -10,11 +10,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/simulot/immich-go/cmdduplicate"
-	"github.com/simulot/immich-go/cmdmetadata"
-	"github.com/simulot/immich-go/cmdstack"
-	"github.com/simulot/immich-go/cmdtool"
-	"github.com/simulot/immich-go/cmdupload"
+	"github.com/simulot/immich-go/cmd/duplicate"
+	"github.com/simulot/immich-go/cmd/metadata"
+	"github.com/simulot/immich-go/cmd/stack"
+	"github.com/simulot/immich-go/cmd/tool"
+	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/helpers/tzone"
 	"github.com/simulot/immich-go/immich"
@@ -168,15 +168,15 @@ func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
 	cmd := flag.Args()[0]
 	switch cmd {
 	case "upload":
-		err = cmdupload.UploadCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = upload.UploadCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	case "duplicate":
-		err = cmdduplicate.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = duplicate.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	case "metadata":
-		err = cmdmetadata.MetadataCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = metadata.MetadataCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	case "stack":
-		err = cmdstack.NewStackCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = stack.NewStackCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	case "tool":
-		err = cmdtool.CommandTool(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = tool.CommandTool(ctx, app.Immich, app.Logger, flag.Args()[1:])
 	default:
 		err = fmt.Errorf("unknown command: %q", cmd)
 	}

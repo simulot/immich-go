@@ -1,6 +1,6 @@
 // Command Upload
 
-package cmdupload
+package upload
 
 import (
 	"context"

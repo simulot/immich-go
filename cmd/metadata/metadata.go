@@ -1,4 +1,4 @@
-package cmdmetadata
+package metadata
 
 import (
 	"context"

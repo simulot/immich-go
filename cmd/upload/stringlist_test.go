@@ -1,4 +1,4 @@
-package cmdupload
+package upload
 
 import "testing"
 
