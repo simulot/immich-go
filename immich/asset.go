@@ -65,42 +65,15 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 			la.Title = "No Name" + ext // fix #88, #128
 		}
 
-		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
-		if err != nil {
-			return
-		}
-		err = m.WriteField("deviceId", ic.DeviceUUID)
-		if err != nil {
-			return
-		}
-		err = m.WriteField("assetType", assetType)
-		if err != nil {
-			return
-		}
-		err = m.WriteField("fileCreatedAt", la.DateTaken.Format(time.RFC3339))
-		if err != nil {
-			return
-		}
-		err = m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
-		if err != nil {
-			return
-		}
-		err = m.WriteField("isFavorite", myBool(la.Favorite).String())
-		if err != nil {
-			return
-		}
-		err = m.WriteField("fileExtension", ext)
-		if err != nil {
-			return
-		}
-		err = m.WriteField("duration", formatDuration(0))
-		if err != nil {
-			return
-		}
-		err = m.WriteField("isReadOnly", "false")
-		if err != nil {
-			return
-		}
+		m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
+		m.WriteField("deviceId", ic.DeviceUUID)
+		m.WriteField("assetType", assetType)
+		m.WriteField("fileCreatedAt", la.DateTaken.Format(time.RFC3339))
+		m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
+		m.WriteField("isFavorite", myBool(la.Favorite).String())
+		m.WriteField("fileExtension", ext)
+		m.WriteField("duration", formatDuration(0))
+		m.WriteField("isReadOnly", "false")
 		// m.WriteField("isArchived", myBool(la.Archived).String()) // Not supported by the api
 		h := textproto.MIMEHeader{}
 		h.Set("Content-Disposition",

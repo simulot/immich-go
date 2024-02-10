@@ -106,7 +106,7 @@ func checkImmich(t *testing.T, host, key, user string) {
 	}
 
 	writeFile(path.Join("DATA", "paginated.log"), paginated)
-	writeFile(path.Join("DATA", "allAssets.log"), all)
+	writeFile(path.Join("DATA", "allassets.log"), all)
 	t.Logf("paginatedCounts: %+v", paginatedCounts)
 	t.Logf("allCounts: %+v", allCounts)
 	for _, u := range stat.UsageByUser {
@@ -137,7 +137,7 @@ func TestAssetImmich(t *testing.T) {
 func (ic *ImmichClient) getAllAssetsIDs(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error) {
 	var r []*Asset
 
-	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setURLValues(opt.Values()), setAcceptJSON()), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setUrlValues(opt.Values()), setAcceptJSON()), responseJSON(&r))
 	return r, err
 }
 
