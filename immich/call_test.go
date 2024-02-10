@@ -15,7 +15,7 @@ type testServer struct {
 
 func (ts *testServer) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	resp.WriteHeader(ts.responseStatus)
-	resp.Write([]byte(ts.responseBody))
+	_, _ = resp.Write([]byte(ts.responseBody))
 }
 
 func TestCall(t *testing.T) {

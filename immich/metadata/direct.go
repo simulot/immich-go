@@ -69,7 +69,10 @@ func readHEIFDateTaken(r *sliceReader) (time.Time, error) {
 	}
 
 	filler := make([]byte, 6)
-	r.Read(filler)
+	_, err = r.Read(filler)
+	if err != nil {
+		return time.Time{}, err
+	}
 
 	md, err := getExifFromReader(r)
 	return md.DateTaken, err
@@ -99,7 +102,10 @@ func readCR3DateTaken(r *sliceReader) (time.Time, error) {
 	}
 
 	filler := make([]byte, 4)
-	r.Read(filler)
+	_, err = r.Read(filler)
+	if err != nil {
+		return time.Time{}, err
+	}
 
 	md, err := getExifFromReader(r)
 	return md.DateTaken, err
