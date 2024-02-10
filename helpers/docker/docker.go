@@ -115,7 +115,7 @@ func (d *DockerConnect) Download(ctx context.Context, hostFile string) (io.Reade
 	pr, pw := io.Pipe()
 	go func() {
 		defer func() {
-			cmd.Wait()
+			_ = cmd.Wait()
 			pw.Close()
 		}()
 		tr := tar.NewReader(out)
@@ -134,7 +134,10 @@ func (d *DockerConnect) Download(ctx context.Context, hostFile string) (io.Reade
 		}
 	}()
 
-	cmd.Start()
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
 	return pr, nil
 }
 
@@ -199,7 +202,7 @@ func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUplo
 		return nil, err
 	}
 	go func() {
-		io.Copy(os.Stdout, out)
+		_, _ = io.Copy(os.Stdout, out)
 	}()
 	in, err := cmd.StdinPipe()
 	if err != nil {
@@ -219,7 +222,7 @@ func (d *DockerConnect) BatchUpload(ctx context.Context, dir string) (*batchUplo
 			// f.Close()
 			tw.Close()
 			in.Close()
-			cmd.Wait()
+			_ = cmd.Wait()
 		}()
 		for {
 			select {
@@ -294,7 +297,7 @@ func (d *DockerConnect) Command(ctx context.Context, args ...string) (string, er
 		return "", err
 	}
 	go func() {
-		io.Copy(buffOut, out)
+		_, _ = io.Copy(buffOut, out)
 	}()
 	err = cmd.Run()
 	if err != nil {

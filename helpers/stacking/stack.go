@@ -42,7 +42,7 @@ func NewStackBuilder() *StackBuilder {
 	sb := StackBuilder{
 		stacks: map[Key]Stack{},
 	}
-	sb.dateRange.Set("1850-01-04,2030-01-01")
+	_ = sb.dateRange.Set("1850-01-04,2030-01-01")
 
 	return &sb
 }
