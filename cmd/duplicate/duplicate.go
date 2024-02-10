@@ -38,7 +38,7 @@ type duplicateKey struct {
 func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Log, args []string) (*DuplicateCmd, error) {
 	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
 	validRange := immich.DateRange{}
-	validRange.Set("1850-01-04,2030-01-01")
+	_ = validRange.Set("1850-01-04,2030-01-01")
 	app := DuplicateCmd{
 		logger:              logger,
 		Immich:              ic,

@@ -112,7 +112,10 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 			return nil, err
 		}
 		tempDir = filepath.Join(tempDir, "github.com/simulot/immich-go")
-		os.Mkdir(tempDir, 0o700)
+		err = os.Mkdir(tempDir, 0o700)
+		if err != nil {
+			return nil, err
+		}
 		l.tempFile, err = os.CreateTemp(tempDir, "")
 		if err != nil {
 			return nil, err
@@ -121,7 +124,10 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 			l.teeReader = io.TeeReader(l.sourceFile, l.tempFile)
 		}
 	}
-	l.tempFile.Seek(0, 0)
+	_, err = l.tempFile.Seek(0, 0)
+	if err != nil {
+		return nil, err
+	}
 	return io.MultiReader(l.tempFile, l.teeReader), nil
 }
 
@@ -135,7 +141,10 @@ func (l *LocalAssetFile) Open() (fs.File, error) {
 		}
 	}
 	if l.tempFile != nil {
-		l.tempFile.Seek(0, 0)
+		_, err = l.tempFile.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
 		l.reader = io.MultiReader(l.tempFile, l.sourceFile)
 	} else {
 		l.reader = l.sourceFile

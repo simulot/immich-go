@@ -25,7 +25,7 @@ func initSack(ic *immich.ImmichClient, log *logger.Log, args []string) (*StackCm
 	cmd := flag.NewFlagSet("stack", flag.ExitOnError)
 	validRange := immich.DateRange{}
 
-	validRange.Set("1850-01-04,2030-01-01")
+	_ = validRange.Set("1850-01-04,2030-01-01")
 	app := StackCmd{
 		logger:    log,
 		Immich:    ic,

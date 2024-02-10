@@ -60,3 +60,4 @@ linters:
     - unconvert
     - unparam
     - whitespace
+    - errcheck
