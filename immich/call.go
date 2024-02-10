@@ -93,7 +93,7 @@ func (ic *ImmichClient) newServerCall(ctx context.Context, api string, opts ...s
 	}
 	if sc.err == nil {
 		for _, opt := range opts {
-			_ = sc.joinError(opt(sc))
+			sc.joinError(opt(sc))
 		}
 	}
 	return sc
@@ -171,12 +171,12 @@ func get(url string, opts ...serverRequestOption) requestFunction {
 	}
 }
 
-func post(url string, cType string, opts ...serverRequestOption) requestFunction {
+func post(url string, ctype string, opts ...serverRequestOption) requestFunction {
 	return func(sc *serverCall) *http.Request {
 		if sc.err != nil {
 			return nil
 		}
-		return sc.request(http.MethodPost, sc.ic.endPoint+url, append(opts, setContentType(cType))...)
+		return sc.request(http.MethodPost, sc.ic.endPoint+url, append(opts, setContentType(ctype))...)
 	}
 }
 
@@ -234,13 +234,13 @@ func (sc *serverCall) _callDo(fnRequest requestFunction, opts ...serverResponseO
 		req.URL.RawQuery = v.Encode()
 	}
 	if sc.ic.APITrace /* && req.Header.Get("Content-Type") == "application/json"*/ {
-		_ = sc.joinError(setTraceJSONRequest()(sc, req))
+		setTraceJSONRequest()(sc, req)
 	}
 
 	resp, err = sc.ic.client.Do(req)
 	// any non nil error must be returned
 	if err != nil {
-		_ = sc.joinError(err)
+		sc.joinError(err)
 		return sc.Err(req, nil, nil)
 	}
 
@@ -261,7 +261,7 @@ func (sc *serverCall) _callDo(fnRequest requestFunction, opts ...serverResponseO
 
 	// We have a success
 	for _, opt := range opts {
-		_ = sc.joinError(opt(sc, resp))
+		sc.joinError(opt(sc, resp))
 	}
 	if sc.err != nil {
 		return sc.Err(req, resp, nil)
@@ -299,20 +299,18 @@ func setJSONBody(object any) serverRequestOption {
 		if sc.ic.APITrace {
 			enc.SetIndent("", " ")
 		}
-		err := enc.Encode(object)
-		if err != nil {
-			return err
+		if sc.joinError(enc.Encode(object)) == nil {
+			req.Body = io.NopCloser(b)
 		}
-		req.Body = io.NopCloser(b)
 		req.Header.Set("Content-Type", "application/json")
-		return err
+		return sc.err
 	}
 }
 
-func setContentType(cType string) serverRequestOption {
+func setContentType(ctype string) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
-		req.Header.Set("Content-Type", cType)
-		return nil
+		req.Header.Set("Content-Type", ctype)
+		return sc.err
 	}
 }
 
@@ -327,7 +325,7 @@ func setURLValues(values url.Values) serverRequestOption {
 			}
 			req.URL.RawQuery = rValues.Encode()
 		}
-		return nil
+		return sc.err
 	}
 }
 
@@ -341,8 +339,11 @@ func responseJSON[T any](object *T) serverResponseOption {
 				if resp.StatusCode == http.StatusNoContent {
 					return nil
 				}
-				err := json.NewDecoder(resp.Body).Decode(object)
-				return err
+
+				if sc.joinError(json.NewDecoder(resp.Body).Decode(object)) != nil {
+					return sc.err
+				}
+				return nil
 			}
 		}
 		return errors.New("can't decode nil response")
@@ -361,9 +362,8 @@ func responseAccumulateJSON[T any](acc *[]T) serverResponseOption {
 					return nil
 				}
 				arr := []T{}
-				err := json.NewDecoder(resp.Body).Decode(&arr)
-				if err != nil {
-					return err
+				if sc.joinError(json.NewDecoder(resp.Body).Decode(&arr)) != nil {
+					return sc.err
 				}
 				if len(arr) > 0 && sc.p != nil {
 					sc.p.EOF = false
@@ -390,17 +390,17 @@ func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
 				dec := json.NewDecoder(resp.Body)
 				// read open bracket "["
 				_, err := dec.Token()
-				if err != nil {
-					return nil
+				if sc.joinError(err) != nil {
+					return sc.err
 				}
 
 				// while the array contains values
 				for dec.More() {
 					var o T
 					// decode an array value (Message)
-					err = dec.Decode(&o)
-					if err != nil {
-						return err
+					err := dec.Decode(&o)
+					if sc.joinError(err) != nil {
+						return sc.err
 					}
 					if sc.p != nil {
 						sc.p.EOF = false
@@ -409,7 +409,11 @@ func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
 				}
 				// read closing bracket "]"
 				_, err = dec.Token()
-				return err
+				if sc.joinError(err) != nil {
+					return sc.err
+				}
+
+				return nil
 			}
 		}
 		return errors.New("can't decode nil response")
