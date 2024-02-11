@@ -57,23 +57,17 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		joinedErr = errors.Join(joinedErr, err)
 	}
 
+	if app.Logger == nil {
+		app.Logger = logger.NewJournal(logger.NewLogger(logger.OK, true, false))
+	}
+
 	if app.LogFile != "" {
-		f, err := os.Open(app.LogFile)
+		f, err := os.Create(app.LogFile)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 		} else {
 			app.Logger.Log.SetWriter(f)
 		}
-	}
-
-	switch {
-	case app.Server == "" && app.API == "":
-		joinedErr = errors.Join(joinedErr, errors.New("missing -server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
-	case app.Server != "" && app.API != "":
-		joinedErr = errors.Join(joinedErr, errors.New("give either the -server or the -api option"))
-	}
-	if app.Key == "" {
-		joinedErr = errors.Join(joinedErr, errors.New("missing -key"))
 	}
 
 	if app.LogLevel != "" {
@@ -92,31 +86,44 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		return joinedErr
 	}
 
-	app.Immich, err = immich.NewImmichClient(app.Server, app.Key, app.SkipSSL)
-	if err != nil {
-		return err
-	}
-	if app.API != "" {
-		app.Immich.SetEndPoint(app.API)
-	}
-	if app.APITrace {
-		app.Immich.EnableAppTrace(true)
-	}
-	if app.DeviceUUID != "" {
-		app.Immich.SetDeviceUUID(app.DeviceUUID)
-	}
+	// If the client isn't yet initialized
+	if app.Immich == nil {
+		switch {
+		case app.Server == "" && app.API == "":
+			joinedErr = errors.Join(joinedErr, errors.New("missing -server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
+		case app.Server != "" && app.API != "":
+			joinedErr = errors.Join(joinedErr, errors.New("give either the -server or the -api option"))
+		}
+		if app.Key == "" {
+			joinedErr = errors.Join(joinedErr, errors.New("missing -key"))
+			return joinedErr
+		}
 
-	err = app.Immich.PingServer(ctx)
-	if err != nil {
-		return err
-	}
-	app.Logger.Log.OK("Server status: OK")
+		app.Immich, err = immich.NewImmichClient(app.Server, app.Key, app.SkipSSL)
+		if err != nil {
+			return err
+		}
+		if app.API != "" {
+			app.Immich.SetEndPoint(app.API)
+		}
+		if app.APITrace {
+			app.Immich.EnableAppTrace(true)
+		}
+		if app.DeviceUUID != "" {
+			app.Immich.SetDeviceUUID(app.DeviceUUID)
+		}
 
-	user, err := app.Immich.ValidateConnection(ctx)
-	if err != nil {
-		return err
-	}
-	app.Logger.Log.Info("Connected, user: %s", user.Email)
+		err = app.Immich.PingServer(ctx)
+		if err != nil {
+			return err
+		}
+		app.Logger.Log.OK("Server status: OK")
 
+		user, err := app.Immich.ValidateConnection(ctx)
+		if err != nil {
+			return err
+		}
+		app.Logger.Log.Info("Connected, user: %s", user.Email)
+	}
 	return nil
 }

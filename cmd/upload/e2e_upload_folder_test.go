@@ -45,7 +45,6 @@ type testCase struct {
 
 func runCase(t *testing.T, tc testCase) {
 
-	initMyEnv(t)
 	host := myEnv["IMMICH_E2E_HOST"]
 	if host == "" {
 		host = "http://localhost:2283"
@@ -78,17 +77,19 @@ func runCase(t *testing.T, tc testCase) {
 		}
 	}
 
-	argc := []string{"-server=" + host, "-key=" + key, "-log-file=" + tc.name + ".log"}
+	args := []string{"-server=" + host, "-key=" + key, "-log-file=" + tc.name + ".log"}
 
 	if tc.APITrace {
-		argc = append(argc, "-api-trace=TRUE")
+		args = append(args, "-api-trace=TRUE")
 	}
 
-	argc = append(argc, tc.args...)
+	args = append(args, tc.args...)
 
-	app := cmd.SharedFlags{}
+	app := cmd.SharedFlags{
+		Immich: ic,
+	}
 
-	err = UploadCommand(ctx, &app, tc.args)
+	err = UploadCommand(ctx, &app, args)
 	if (tc.expectError && err == nil) || (!tc.expectError && err != nil) {
 		t.Errorf("unexpected err: %v", err)
 		return
@@ -96,11 +97,13 @@ func runCase(t *testing.T, tc testCase) {
 }
 
 func TestE2eUpload(t *testing.T) {
+	initMyEnv(t)
+
 	tests := []testCase{
 		{
 			name: "upload folder",
 			args: []string{
-				myEnv["IMMICH_TESTFILES"] + "//low_high/high",
+				myEnv["IMMICH_TESTFILES"] + "/low_high/high",
 			},
 			resetImmich: true,
 
@@ -174,6 +177,8 @@ func TestE2eUpload(t *testing.T) {
 // PXL_20231006_063536303 should be archived
 // Google Photos/Album test 6-10-23/PXL_20231006_063851485.jpg.json is favorite and has a description
 func Test_DescriptionAndFavorite(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_DescriptionAndFavorite",
 		args: []string{
@@ -188,6 +193,8 @@ func Test_DescriptionAndFavorite(t *testing.T) {
 }
 
 func Test_PermissionError(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_PermissionError",
 		args: []string{
@@ -200,6 +207,8 @@ func Test_PermissionError(t *testing.T) {
 }
 
 func Test_CreateAlbumFolder(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_CreateAlbumFolder",
 		args: []string{
@@ -214,6 +223,8 @@ func Test_CreateAlbumFolder(t *testing.T) {
 }
 
 func Test_XMP(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_XMP",
 		args: []string{
@@ -228,6 +239,8 @@ func Test_XMP(t *testing.T) {
 }
 
 func Test_Album_Issue_119(t *testing.T) {
+	initMyEnv(t)
+
 	tc := []testCase{
 		{
 			name: "Test_Album 1",
@@ -262,6 +275,8 @@ func Test_Album_Issue_119(t *testing.T) {
 }
 
 func Test_Issue_126A(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_Issue_126A",
 		args: []string{
@@ -277,6 +292,8 @@ func Test_Issue_126A(t *testing.T) {
 }
 
 func Test_Issue_126B(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_Issue_126B",
 		args: []string{
@@ -292,6 +309,8 @@ func Test_Issue_126B(t *testing.T) {
 }
 
 func Test_Issue_129(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_Issue_129",
 		args: []string{
@@ -306,6 +325,8 @@ func Test_Issue_129(t *testing.T) {
 }
 
 func Test_Issue_128(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_Issue_128",
 		args: []string{
