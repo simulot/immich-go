@@ -7,17 +7,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
-	"strings"
 
-	"github.com/simulot/immich-go/cmd/duplicate"
-	"github.com/simulot/immich-go/cmd/metadata"
-	"github.com/simulot/immich-go/cmd/stack"
-	"github.com/simulot/immich-go/cmd/tool"
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/cmd/upload"
-	"github.com/simulot/immich-go/helpers/myflag"
-	"github.com/simulot/immich-go/helpers/tzone"
-	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
 )
 
@@ -29,9 +21,7 @@ var (
 
 func main() {
 	var err error
-	log := logger.NewLogger(logger.OK, true, false)
-	defer log.Close()
-	log.OK("immich-go  %s, commit %s, built at %s\n", version, commit, date)
+	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
 
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
@@ -50,135 +40,54 @@ func main() {
 	case <-ctx.Done():
 		err = ctx.Err()
 	default:
-		log, err = Run(ctx, log)
+		err = Run(ctx)
 	}
 	if err != nil {
-		log.Error(err.Error())
-		log.Close()
-		os.Exit(1) //nolint:gocritic
+		os.Exit(1) // no--lint--:gocritic
 	}
-	log.OK("Done.")
 }
 
-type Application struct {
-	Server      string // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	API         string // Immich api endpoint (http://container_ip:3301)
-	Key         string // API Key
-	DeviceUUID  string // Set a device UUID
-	APITrace    bool   // Enable API call traces
-	NoLogColors bool   // Disable log colors
-	LogLevel    string // Idicate the log level
-	Debug       bool   // Enable the debug mode
-	TimeZone    string // Override default TZ
-	SkipSSL     bool   // Skip SSL Verification
+func Run(ctx context.Context) error {
+	log := logger.NewLogger(logger.OK, true, false)
+	defer log.Close()
 
-	Immich  *immich.ImmichClient // Immich client
-	Logger  *logger.Log          // Program's logger
-	LogFile string               // Log file
-}
+	app := cmd.SharedFlags{
+		Logger: logger.NewJournal(log),
+	}
+	fs := flag.NewFlagSet("main", flag.ExitOnError)
+	app.SetFlags(fs)
 
-func Run(ctx context.Context, log *logger.Log) (*logger.Log, error) {
-	var err error
-
-	app := Application{}
-	flag.StringVar(&app.Server, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
-	flag.StringVar(&app.API, "api", "", "Immich api endpoint (http://container_ip:3301)")
-	flag.StringVar(&app.Key, "key", "", "API Key")
-	flag.StringVar(&app.DeviceUUID, "device-uuid", "", "Set a device UUID")
-	flag.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, runtime.GOOS == "windows"))
-	flag.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
-	flag.StringVar(&app.LogFile, "log-file", "", "Write log messages into the file")
-	flag.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.APITrace, false))
-	flag.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, false))
-	flag.StringVar(&app.TimeZone, "time-zone", "", "Override the system time zone")
-	flag.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, false))
-	flag.Parse()
-
-	app.Server = strings.TrimSuffix(app.Server, "/")
-
-	_, err = tzone.SetLocal(app.TimeZone)
+	err := fs.Parse(os.Args)
 	if err != nil {
-		return log, err
-	}
-
-	if app.LogFile != "" {
-		flog, err := os.Create(app.LogFile)
-		if err != nil {
-			return log, fmt.Errorf("can't open the log file: %w", err)
-		}
-		log.SetWriter(flog)
-		log.OK("immich-go  %s, commit %s, built at %s\n", version, commit, date)
-	}
-
-	switch {
-	case app.Server == "" && app.API == "":
-		err = errors.Join(err, errors.New("missing -server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
-	case app.Server != "" && app.API != "":
-		err = errors.Join(err, errors.New("give either the -server or the -api option"))
-	}
-	if app.Key == "" {
-		err = errors.Join(err, errors.New("missing -key"))
-	}
-
-	logLevel, e := logger.StringToLevel(app.LogLevel)
-	if err != nil {
-		err = errors.Join(err, e)
+		return err
 	}
 
 	if len(flag.Args()) == 0 {
-		err = errors.Join(err, errors.New("missing command upload|duplicate|stack"))
+		err = errors.Join(err, errors.New("missing command upload|duplicate|stack|"))
 	}
-
-	log.SetLevel(logLevel)
-	log.SetColors(!app.NoLogColors)
-	log.SetDebugFlag(app.Debug)
-
-	app.Logger = log
 
 	if err != nil {
-		return app.Logger, err
+		return err
 	}
 
-	app.Immich, err = immich.NewImmichClient(app.Server, app.Key, app.SkipSSL)
-	if err != nil {
-		return app.Logger, err
-	}
-	if app.API != "" {
-		app.Immich.SetEndPoint(app.API)
-	}
-	if app.APITrace {
-		app.Immich.EnableAppTrace(true)
-	}
-	if app.DeviceUUID != "" {
-		app.Immich.SetDeviceUUID(app.DeviceUUID)
-	}
-
-	err = app.Immich.PingServer(ctx)
-	if err != nil {
-		return app.Logger, err
-	}
-	app.Logger.OK("Server status: OK")
-
-	user, err := app.Immich.ValidateConnection(ctx)
-	if err != nil {
-		return app.Logger, err
-	}
-	app.Logger.Info("Connected, user: %s", user.Email)
-
-	cmd := flag.Args()[0]
+	cmd := fs.Args()[0]
 	switch cmd {
 	case "upload":
-		err = upload.UploadCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
-	case "duplicate":
-		err = duplicate.DuplicateCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
-	case "metadata":
-		err = metadata.MetadataCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
-	case "stack":
-		err = stack.NewStackCommand(ctx, app.Immich, app.Logger, flag.Args()[1:])
-	case "tool":
-		err = tool.CommandTool(ctx, app.Immich, app.Logger, flag.Args()[1:])
+		err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
+	// case "duplicate":
+	// 	err = duplicate.DuplicateCommand(ctx, app.Immich, app.Logger, fs.Args()[1:])
+	// case "metadata":
+	// 	err = metadata.MetadataCommand(ctx, app.Immich, app.Logger, fs.Args()[1:])
+	// case "stack":
+	// 	err = stack.NewStackCommand(ctx, app.Immich, app.Logger, fs.Args()[1:])
+	// case "tool":
+	// 	err = tool.CommandTool(ctx, app.Immich, app.Logger, fs.Args()[1:])
 	default:
 		err = fmt.Errorf("unknown command: %q", cmd)
 	}
-	return app.Logger, err
+
+	if err != nil {
+		log.Error(err.Error())
+	}
+	return err
 }

@@ -9,8 +9,10 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/joho/godotenv"
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
@@ -52,6 +54,24 @@ func (c *stubIC) StackAssets(ctx context.Context, cover string, ids []string) er
 
 func (c *stubIC) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*immich.Asset, error) {
 	return nil, nil
+}
+
+func (c *stubIC) EnableAppTrace(bool) {}
+
+func (c *stubIC) GetServerStatistics(ctx context.Context) (immich.ServerStatistics, error) {
+	return immich.ServerStatistics{}, nil
+}
+
+func (c *stubIC) PingServer(ctx context.Context) error {
+	return nil
+}
+
+func (c *stubIC) SetDeviceUUID(string) {}
+
+func (c *stubIC) SetEndPoint(string) {}
+
+func (c *stubIC) ValidateConnection(ctx context.Context) (immich.User, error) {
+	return immich.User{}, nil
 }
 
 // type mockedBrowser struct {
@@ -100,6 +120,23 @@ func (c *icCatchUploadsAssets) CreateAlbum(ctx context.Context, album string, id
 		ID:        album,
 		AlbumName: album,
 	}, nil
+}
+
+var myEnv map[string]string
+
+func initMyEnv(t *testing.T) {
+	if len(myEnv) > 0 {
+		return
+	}
+	var err error
+	e, err := godotenv.Read("../../.env")
+	if err != nil {
+		t.Fatalf("cant initialize environment variables: %s", err)
+	}
+	myEnv = e
+	if myEnv["IMMICH_TESTFILES"] == "" {
+		t.Fatal("missing IMMICH_TESTFILES in .env file")
+	}
 }
 
 func TestUpload(t *testing.T) {
@@ -449,8 +486,12 @@ func TestUpload(t *testing.T) {
 			}
 			log := logger.NoLogger{}
 			ctx := context.Background()
+			serv := cmd.SharedFlags{
+				Immich: ic,
+				Logger: logger.NewJournal(&log),
+			}
 
-			app, err := NewUpCmd(ctx, ic, log, tc.args)
+			app, err := NewUpCmd(ctx, &serv, tc.args)
 			if err != nil {
 				t.Errorf("can't instantiate the UploadCmd: %s", err)
 				return

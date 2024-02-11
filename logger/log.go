@@ -112,13 +112,12 @@ func (l *Log) SetColors(flag bool) {
 	}
 }
 
-func (l *Log) SetWriter(w io.WriteCloser) *Log {
+func (l *Log) SetWriter(w io.WriteCloser) {
 	if l != nil && w != nil {
 		l.out = w
 		l.noColors = true
 		l.colorStrings = map[Level]string{}
 	}
-	return l
 }
 
 func (l *Log) Debug(f string, v ...any) {

@@ -228,7 +228,7 @@ var matchers = []matcherFn{
 //
 
 func (to *Takeout) solvePuzzle() {
-	to.jnl.OK("Associating JSON and assets...")
+	to.jnl.Log.OK("Associating JSON and assets...")
 	jsonKeys := gen.MapKeys(to.jsonByYear)
 	sort.Slice(jsonKeys, func(i, j int) bool {
 		yd := jsonKeys[i].year - jsonKeys[j].year
@@ -417,7 +417,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 }
 
 func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *browser.LocalAssetFile) error {
-	to.jnl.OK("Ready to upload files")
+	to.jnl.Log.OK("Ready to upload files")
 	return fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -449,7 +449,7 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		}
 		finfo, err := d.Info()
 		if err != nil {
-			to.jnl.Error("can't browse: %s", err)
+			to.jnl.Log.Error("can't browse: %s", err)
 			return nil
 		}
 

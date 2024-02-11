@@ -25,19 +25,16 @@ type ImmichClient struct {
 	APITrace     bool
 }
 
-func (ic *ImmichClient) SetEndPoint(endPoint string) *ImmichClient {
+func (ic *ImmichClient) SetEndPoint(endPoint string) {
 	ic.endPoint = endPoint
-	return ic
 }
 
-func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) *ImmichClient {
+func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) {
 	ic.DeviceUUID = deviceUUID
-	return ic
 }
 
-func (ic *ImmichClient) EnableAppTrace(state bool) *ImmichClient {
+func (ic *ImmichClient) EnableAppTrace(state bool) {
 	ic.APITrace = state
-	return ic
 }
 
 // Create a new ImmichClient
