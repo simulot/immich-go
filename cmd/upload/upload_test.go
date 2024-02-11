@@ -9,7 +9,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/joho/godotenv"
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/cmd"
@@ -120,23 +119,6 @@ func (c *icCatchUploadsAssets) CreateAlbum(ctx context.Context, album string, id
 		ID:        album,
 		AlbumName: album,
 	}, nil
-}
-
-var myEnv map[string]string
-
-func initMyEnv(t *testing.T) {
-	if len(myEnv) > 0 {
-		return
-	}
-	var err error
-	e, err := godotenv.Read("../../.env")
-	if err != nil {
-		t.Fatalf("cant initialize environment variables: %s", err)
-	}
-	myEnv = e
-	if myEnv["IMMICH_TESTFILES"] == "" {
-		t.Fatal("missing IMMICH_TESTFILES in .env file")
-	}
 }
 
 func TestUpload(t *testing.T) {
@@ -486,6 +468,7 @@ func TestUpload(t *testing.T) {
 			}
 			log := logger.NoLogger{}
 			ctx := context.Background()
+
 			serv := cmd.SharedFlags{
 				Immich: ic,
 				Logger: logger.NewJournal(&log),
