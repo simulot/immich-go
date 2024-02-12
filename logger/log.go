@@ -112,13 +112,12 @@ func (l *Log) SetColors(flag bool) {
 	}
 }
 
-func (l *Log) SetWriter(w io.WriteCloser) *Log {
+func (l *Log) SetWriter(w io.WriteCloser) {
 	if l != nil && w != nil {
 		l.out = w
 		l.noColors = true
 		l.colorStrings = map[Level]string{}
 	}
-	return l
 }
 
 func (l *Log) Debug(f string, v ...any) {
@@ -165,6 +164,8 @@ func (l *Log) DebugObject(name string, v any) {
 
 func (l *Log) Info(f string, v ...any) {
 	if l == nil || l.out == nil {
+		fmt.Printf(f, v...)
+		fmt.Println()
 		return
 	}
 	l.Message(Info, f, v...)
@@ -172,6 +173,8 @@ func (l *Log) Info(f string, v ...any) {
 
 func (l *Log) OK(f string, v ...any) {
 	if l == nil || l.out == nil {
+		fmt.Printf(f, v...)
+		fmt.Println()
 		return
 	}
 	l.Message(OK, f, v...)
@@ -179,6 +182,8 @@ func (l *Log) OK(f string, v ...any) {
 
 func (l *Log) Warning(f string, v ...any) {
 	if l == nil || l.out == nil {
+		fmt.Printf(f, v...)
+		fmt.Println()
 		return
 	}
 	l.Message(Warning, f, v...)
@@ -186,6 +191,8 @@ func (l *Log) Warning(f string, v ...any) {
 
 func (l *Log) Error(f string, v ...any) {
 	if l == nil || l.out == nil {
+		fmt.Printf(f, v...)
+		fmt.Println()
 		return
 	}
 	l.Message(Error, f, v...)
@@ -193,6 +200,8 @@ func (l *Log) Error(f string, v ...any) {
 
 func (l *Log) Fatal(f string, v ...any) {
 	if l == nil || l.out == nil {
+		fmt.Printf(f, v...)
+		fmt.Println()
 		return
 	}
 	l.Message(Fatal, f, v...)

@@ -8,36 +8,36 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
 )
 
-func AlbumCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
+func AlbumCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
 	if len(args) > 0 {
 		cmd := args[0]
 		args = args[1:]
 
 		if cmd == "delete" {
-			return deleteAlbum(ctx, ic, log, args)
+			return deleteAlbum(ctx, common, args)
 		}
 	}
 	return fmt.Errorf("tool album need a command: delete")
 }
 
 type DeleteAlbumCmd struct {
-	log       *logger.Log
-	Immich    *immich.ImmichClient // Immich client
-	pattern   *regexp.Regexp       // album pattern
+	*cmd.SharedFlags
+	pattern   *regexp.Regexp // album pattern
 	AssumeYes bool
 }
 
-func deleteAlbum(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
+func deleteAlbum(ctx context.Context, common *cmd.SharedFlags, args []string) error {
 	app := &DeleteAlbumCmd{
-		log:    log,
-		Immich: ic,
+		SharedFlags: common,
 	}
 	cmd := flag.NewFlagSet("album delete", flag.ExitOnError)
+	app.SharedFlags.SetFlags(cmd)
+
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
 		var err error
 		app.AssumeYes, err = strconv.ParseBool(s)
@@ -47,7 +47,10 @@ func deleteAlbum(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, 
 	if err != nil {
 		return err
 	}
-
+	err = app.SharedFlags.Start(ctx)
+	if err != nil {
+		return err
+	}
 	args = cmd.Args()
 	if len(args) > 0 {
 		re, err := regexp.Compile(args[0])
@@ -59,7 +62,7 @@ func deleteAlbum(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, 
 		app.pattern = regexp.MustCompile(`.*`)
 	}
 
-	albums, err := ic.GetAllAlbums(ctx)
+	albums, err := app.Immich.GetAllAlbums(ctx)
 	if err != nil {
 		return fmt.Errorf("can't get the albums list: %w", err)
 	}
@@ -71,7 +74,7 @@ func deleteAlbum(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, 
 		if app.pattern.MatchString(al.AlbumName) {
 			yes := app.AssumeYes
 			if !yes {
-				app.log.OK("Delete album '%s'?", al.AlbumName)
+				app.Jnl.Log.OK("Delete album '%s'?", al.AlbumName)
 				r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
 				if err != nil {
 					return err
@@ -81,12 +84,12 @@ func deleteAlbum(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, 
 				}
 			}
 			if yes {
-				app.log.MessageContinue(logger.OK, "Deleting album '%s'", al.AlbumName)
+				app.Jnl.Log.MessageContinue(logger.OK, "Deleting album '%s'", al.AlbumName)
 				err = app.Immich.DeleteAlbum(ctx, al.ID)
 				if err != nil {
 					return err
 				} else {
-					app.log.MessageTerminate(logger.OK, "done")
+					app.Jnl.Log.MessageTerminate(logger.OK, "done")
 				}
 			}
 		}

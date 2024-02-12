@@ -7,14 +7,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 )
+
+var myEnv map[string]string
+
+func initMyEnv(t *testing.T) {
+	if len(myEnv) > 0 {
+		return
+	}
+	var err error
+	e, err := godotenv.Read("../../.env")
+	if err != nil {
+		t.Fatalf("cant initialize environment variables: %s", err)
+	}
+	myEnv = e
+	if myEnv["IMMICH_TESTFILES"] == "" {
+		t.Fatal("missing IMMICH_TESTFILES in .env file")
+	}
+}
 
 type immichSetupFunc func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T)
 
@@ -28,12 +44,6 @@ type testCase struct {
 }
 
 func runCase(t *testing.T, tc testCase) {
-	var myEnv map[string]string
-	myEnv, err := godotenv.Read("../.env")
-	if err != nil {
-		t.Errorf("cant initialize environment variables: %s", err)
-		return
-	}
 
 	host := myEnv["IMMICH_E2E_HOST"]
 	if host == "" {
@@ -49,24 +59,8 @@ func runCase(t *testing.T, tc testCase) {
 		user = "debug.example.com"
 	}
 
-	lf, err := os.Create(tc.name + ".log")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	defer lf.Close()
-	jnl := logger.NewJournal(logger.NewLogger(logger.Info, true, false).SetWriter(lf))
-
-	ic, err := immich.NewImmichClient(host, key, false)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if tc.APITrace {
-		ic.EnableAppTrace(true)
-	}
 	ctx := context.Background()
+	ic, err := immich.NewImmichClient(host, key, false)
 
 	if tc.resetImmich {
 		err := resetImmich(ic, user)
@@ -83,7 +77,19 @@ func runCase(t *testing.T, tc testCase) {
 		}
 	}
 
-	err = UploadCommand(ctx, ic, jnl, tc.args)
+	args := []string{"-server=" + host, "-key=" + key, "-log-file=" + tc.name + ".log"}
+
+	if tc.APITrace {
+		args = append(args, "-api-trace=TRUE")
+	}
+
+	args = append(args, tc.args...)
+
+	app := cmd.SharedFlags{
+		Immich: ic,
+	}
+
+	err = UploadCommand(ctx, &app, args)
 	if (tc.expectError && err == nil) || (!tc.expectError && err != nil) {
 		t.Errorf("unexpected err: %v", err)
 		return
@@ -91,11 +97,13 @@ func runCase(t *testing.T, tc testCase) {
 }
 
 func TestE2eUpload(t *testing.T) {
+	initMyEnv(t)
+
 	tests := []testCase{
 		{
 			name: "upload folder",
 			args: []string{
-				"../../test-data/low_high/high",
+				myEnv["IMMICH_TESTFILES"] + "/low_high/high",
 			},
 			resetImmich: true,
 
@@ -104,7 +112,7 @@ func TestE2eUpload(t *testing.T) {
 		{
 			name: "upload folder",
 			args: []string{
-				"../../test-data/low_high/high",
+				myEnv["IMMICH_TESTFILES"] + "/low_high/high",
 			},
 
 			// resetImmich: true,
@@ -114,7 +122,7 @@ func TestE2eUpload(t *testing.T) {
 			name: "upload folder *.jpg",
 			args: []string{
 				"-google-photos",
-				"../../test-data/test_folder/*.jpg",
+				myEnv["IMMICH_TESTFILES"] + "/test_folder/*.jpg",
 			},
 
 			resetImmich: true,
@@ -123,7 +131,7 @@ func TestE2eUpload(t *testing.T) {
 		{
 			name: "upload folder *.jpg",
 			args: []string{
-				"../../test-data/test_folder/*/*.jpg",
+				myEnv["IMMICH_TESTFILES"] + "/test_folder/*/*.jpg",
 			},
 
 			// resetImmich: true,
@@ -134,7 +142,7 @@ func TestE2eUpload(t *testing.T) {
 		// 	name: "upload folder *.jpg - dry run",
 		// 	args: []string{
 		// 		"-dry-run",
-		// 		"../../test-data/full_takeout (copy)/Takeout/Google Photos/Photos from 2023",
+		// 		myEnv["IMMICH_TESTFILES"] + "/full_takeout (copy)/Takeout/Google Photos/Photos from 2023",
 		// 	},
 
 		// 	// resetImmich: true,
@@ -145,7 +153,7 @@ func TestE2eUpload(t *testing.T) {
 			name: "upload google photos",
 			args: []string{
 				"-google-photos",
-				"../../test-data/low_high/Takeout",
+				myEnv["IMMICH_TESTFILES"] + "/low_high/Takeout",
 			},
 			// resetImmich: true,
 			expectError: false,
@@ -155,7 +163,7 @@ func TestE2eUpload(t *testing.T) {
 			args: []string{
 				"-stack-burst=FALSE",
 				"-stack-jpg-raw=TRUE",
-				"../../test-data/burst/Tel",
+				myEnv["IMMICH_TESTFILES"] + "/burst/Tel",
 			},
 			resetImmich: true,
 			expectError: false,
@@ -169,6 +177,8 @@ func TestE2eUpload(t *testing.T) {
 // PXL_20231006_063536303 should be archived
 // Google Photos/Album test 6-10-23/PXL_20231006_063851485.jpg.json is favorite and has a description
 func Test_DescriptionAndFavorite(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_DescriptionAndFavorite",
 		args: []string{
@@ -183,10 +193,12 @@ func Test_DescriptionAndFavorite(t *testing.T) {
 }
 
 func Test_PermissionError(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_PermissionError",
 		args: []string{
-			"../../test-data/low_high/high",
+			myEnv["IMMICH_TESTFILES"] + "/low_high/high",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -195,11 +207,13 @@ func Test_PermissionError(t *testing.T) {
 }
 
 func Test_CreateAlbumFolder(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_CreateAlbumFolder",
 		args: []string{
 			"-create-album-folder",
-			"../../test-data/albums",
+			myEnv["IMMICH_TESTFILES"] + "/albums",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -209,11 +223,13 @@ func Test_CreateAlbumFolder(t *testing.T) {
 }
 
 func Test_XMP(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_XMP",
 		args: []string{
 			"-create-stacks=false",
-			"../../test-data/xmp",
+			myEnv["IMMICH_TESTFILES"] + "/xmp",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -223,12 +239,14 @@ func Test_XMP(t *testing.T) {
 }
 
 func Test_Album_Issue_119(t *testing.T) {
+	initMyEnv(t)
+
 	tc := []testCase{
 		{
 			name: "Test_Album 1",
 			args: []string{
 				"-album", "The Album",
-				"../../test-data/xmp/files",
+				myEnv["IMMICH_TESTFILES"] + "/xmp/files",
 			},
 			setup: func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T) {
 				_, err := ic.CreateAlbum(ctx, "The Album", nil)
@@ -245,7 +263,7 @@ func Test_Album_Issue_119(t *testing.T) {
 			name: "Test_Album 2",
 			args: []string{
 				"-album", "The Album",
-				"../../test-data/albums/Album test 6-10-23",
+				myEnv["IMMICH_TESTFILES"] + "/albums/Album test 6-10-23",
 			},
 			resetImmich: false,
 			expectError: false,
@@ -257,12 +275,14 @@ func Test_Album_Issue_119(t *testing.T) {
 }
 
 func Test_Issue_126A(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_Issue_126A",
 		args: []string{
 			"-exclude-types",
 			".dng,.cr2,.arw,.rw2,.tif,.tiff,.gif,.psd",
-			"../../test-data/burst/PXL6",
+			myEnv["IMMICH_TESTFILES"] + "/burst/PXL6",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -272,12 +292,14 @@ func Test_Issue_126A(t *testing.T) {
 }
 
 func Test_Issue_126B(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_Issue_126B",
 		args: []string{
 			"-select-types",
 			".jpg",
-			"../../test-data/burst/PXL6",
+			myEnv["IMMICH_TESTFILES"] + "/burst/PXL6",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -287,11 +309,13 @@ func Test_Issue_126B(t *testing.T) {
 }
 
 func Test_Issue_129(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_Issue_129",
 		args: []string{
 			"-google-photos",
-			"../../test-data/Weird file names #88",
+			myEnv["IMMICH_TESTFILES"] + "/Weird file names #88",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -301,11 +325,13 @@ func Test_Issue_129(t *testing.T) {
 }
 
 func Test_Issue_128(t *testing.T) {
+	initMyEnv(t)
+
 	tc := testCase{
 		name: "Test_Issue_128",
 		args: []string{
 			"-google-photos",
-			"../../test-data/Issue 128",
+			myEnv["IMMICH_TESTFILES"] + "/Issue 128",
 		},
 		resetImmich: true,
 		expectError: false,

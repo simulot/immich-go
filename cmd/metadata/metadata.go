@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/docker"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
@@ -16,32 +17,35 @@ import (
 )
 
 type MetadataCmd struct {
-	Immich                 *immich.ImmichClient // Immich client
-	Log                    *logger.Log
+	*cmd.SharedFlags
 	DryRun                 bool
 	MissingDateDespiteName bool
 	MissingDate            bool
 	DockerHost             string
 }
 
-func NewMetadataCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Log, args []string) (*MetadataCmd, error) {
+func NewMetadataCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*MetadataCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("metadata", flag.ExitOnError)
 	app := MetadataCmd{
-		Immich: ic,
-		Log:    logger,
+		SharedFlags: common,
 	}
 
+	app.SharedFlags.SetFlags(cmd)
 	cmd.BoolFunc("dry-run", "display actions, but don't touch the server assets", myflag.BoolFlagFn(&app.DryRun, false))
 	cmd.BoolFunc("missing-date", "select all assets where the date is missing", myflag.BoolFlagFn(&app.MissingDate, false))
 	cmd.BoolFunc("missing-date-with-name", "select all assets where the date is missing but the name contains a the date", myflag.BoolFlagFn(&app.MissingDateDespiteName, false))
 	cmd.StringVar(&app.DockerHost, "docker-host", "local", "Immich's docker host where to inject sidecar file as workaround for the issue #3888. 'local' for local connection, 'ssh://user:password@server' for remote host.")
 	err = cmd.Parse(args)
+	if err != nil {
+		return nil, err
+	}
+	err = app.SharedFlags.Start(ctx)
 	return &app, err
 }
 
-func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
-	app, err := NewMetadataCmd(ctx, ic, log, args)
+func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+	app, err := NewMetadataCmd(ctx, common, args)
 	if err != nil {
 		return err
 	}
@@ -53,15 +57,15 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if err != nil {
 			return err
 		}
-		app.Log.OK("Connected to the immich's docker container at %q", app.DockerHost)
+		app.Jnl.Log.OK("Connected to the immich's docker container at %q", app.DockerHost)
 	}
 
-	app.Log.MessageContinue(logger.OK, "Get server's assets...")
+	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
 	list, err := app.Immich.GetAllAssets(ctx, nil)
 	if err != nil {
 		return err
 	}
-	app.Log.MessageTerminate(logger.OK, " %d received", len(list))
+	app.Jnl.Log.MessageTerminate(logger.OK, " %d received", len(list))
 
 	type broken struct {
 		a *immich.Asset
@@ -110,18 +114,18 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if b.fixable {
 			fixable++
 		}
-		app.Log.OK("%s, (%s %s): %s", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
+		app.Jnl.Log.OK("%s, (%s %s): %s", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
 	}
-	app.Log.OK("%d broken assets", len(brockenAssets))
-	app.Log.OK("Among them, %d can be fixed with current settings", fixable)
+	app.Jnl.Log.OK("%d broken assets", len(brockenAssets))
+	app.Jnl.Log.OK("Among them, %d can be fixed with current settings", fixable)
 
 	if fixable == 0 {
 		return nil
 	}
 
 	if app.DryRun {
-		log.OK("Dry-run mode. Exiting")
-		log.OK("use -dry-run=false after metadata command")
+		app.Jnl.Log.OK("Dry-run mode. Exiting")
+		app.Jnl.Log.OK("use -dry-run=false after metadata command")
 		return nil
 	}
 
@@ -137,7 +141,7 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 			continue
 		}
 		a := b.a
-		app.Log.MessageContinue(logger.OK, "Uploading sidecar for %s... ", a.OriginalPath)
+		app.Jnl.Log.MessageContinue(logger.OK, "Uploading sidecar for %s... ", a.OriginalPath)
 		scContent, err := b.SideCar.Bytes()
 		if err != nil {
 			return err
@@ -146,7 +150,7 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if err != nil {
 			return err
 		}
-		app.Log.MessageTerminate(logger.OK, "done")
+		app.Jnl.Log.MessageTerminate(logger.OK, "done")
 	}
 	return nil
 }

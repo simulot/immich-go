@@ -1,5 +1,7 @@
 package logger
 
+import "io"
+
 type Logger interface {
 	Debug(f string, v ...any)
 	DebugObject(name string, v any)
@@ -12,4 +14,8 @@ type Logger interface {
 	Progress(level Level, f string, v ...any)
 	MessageContinue(level Level, f string, v ...any)
 	MessageTerminate(level Level, f string, v ...any)
+	SetWriter(io.WriteCloser)
+	SetLevel(Level)
+	SetColors(bool)
+	SetDebugFlag(bool)
 }

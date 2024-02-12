@@ -11,6 +11,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
@@ -52,6 +53,36 @@ func (c *stubIC) StackAssets(ctx context.Context, cover string, ids []string) er
 
 func (c *stubIC) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*immich.Asset, error) {
 	return nil, nil
+}
+
+func (c *stubIC) EnableAppTrace(bool) {}
+
+func (c *stubIC) GetServerStatistics(ctx context.Context) (immich.ServerStatistics, error) {
+	return immich.ServerStatistics{}, nil
+}
+
+func (c *stubIC) PingServer(ctx context.Context) error {
+	return nil
+}
+
+func (c *stubIC) SetDeviceUUID(string) {}
+
+func (c *stubIC) SetEndPoint(string) {}
+
+func (c *stubIC) ValidateConnection(ctx context.Context) (immich.User, error) {
+	return immich.User{}, nil
+}
+
+func (c *stubIC) GetAssetAlbums(ctx context.Context, id string) ([]immich.AlbumSimplified, error) {
+	return nil, nil
+}
+
+func (c *stubIC) GetAllAssets(ctx context.Context, opt *immich.GetAssetOptions) ([]*immich.Asset, error) {
+	return nil, nil
+}
+
+func (c *stubIC) DeleteAlbum(ctx context.Context, id string) error {
+	return nil
 }
 
 // type mockedBrowser struct {
@@ -447,10 +478,15 @@ func TestUpload(t *testing.T) {
 			ic := &icCatchUploadsAssets{
 				albums: map[string][]string{},
 			}
-			log := logger.NoLogger{}
+			log := logger.NoLog{}
 			ctx := context.Background()
 
-			app, err := NewUpCmd(ctx, ic, log, tc.args)
+			serv := cmd.SharedFlags{
+				Immich: ic,
+				Jnl:    logger.NewJournal(&log),
+			}
+
+			app, err := NewUpCmd(ctx, &serv, tc.args)
 			if err != nil {
 				t.Errorf("can't instantiate the UploadCmd: %s", err)
 				return

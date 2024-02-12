@@ -1,13 +1,39 @@
 package immich
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
 	"time"
 
+	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/tzone"
 )
+
+// ImmichInterface is an interface that implements the minimal immich client set of features for uploading
+// interface used to mock up the client
+type ImmichInterface interface {
+	GetAllAssetsWithFilter(context.Context, *GetAssetOptions, func(*Asset)) error
+	AssetUpload(context.Context, *browser.LocalAssetFile) (AssetResponse, error)
+	DeleteAssets(context.Context, []string, bool) error
+
+	GetAllAlbums(context.Context) ([]AlbumSimplified, error)
+	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
+	CreateAlbum(context.Context, string, []string) (AlbumSimplified, error)
+	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
+	StackAssets(ctx context.Context, cover string, IDs []string) error
+	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*Asset, error)
+	SetEndPoint(string)
+	EnableAppTrace(bool)
+	SetDeviceUUID(string)
+	PingServer(ctx context.Context) error
+	ValidateConnection(ctx context.Context) (User, error)
+	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
+	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
+	GetAllAssets(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error)
+	DeleteAlbum(ctx context.Context, id string) error
+}
 
 type UnsupportedMedia struct {
 	msg string
