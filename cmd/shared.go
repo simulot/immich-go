@@ -29,7 +29,7 @@ type SharedFlags struct {
 	SkipSSL     bool   // Skip SSL Verification
 
 	Immich  immich.ImmichInterface // Immich client
-	Logger  *logger.Journal        // Program's logger
+	Jnl     *logger.Journal        // Program's logger
 	LogFile string                 // Log file
 	out     io.WriteCloser         // the log writer
 }
@@ -59,8 +59,8 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		joinedErr = errors.Join(joinedErr, err)
 	}
 
-	if app.Logger == nil {
-		app.Logger = logger.NewJournal(logger.NewLogger(logger.OK, true, false))
+	if app.Jnl == nil {
+		app.Jnl = logger.NewJournal(logger.NewLogger(logger.OK, true, false))
 	}
 
 	if app.LogFile != "" {
@@ -69,7 +69,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 			} else {
-				app.Logger.Log.SetWriter(f)
+				app.Jnl.Log.SetWriter(f)
 			}
 			app.out = f
 		}
@@ -80,11 +80,11 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 		}
-		app.Logger.Log.SetLevel(logLevel)
+		app.Jnl.Log.SetLevel(logLevel)
 	}
 
-	app.Logger.Log.SetColors(!app.NoLogColors)
-	app.Logger.Log.SetDebugFlag(app.Debug)
+	app.Jnl.Log.SetColors(!app.NoLogColors)
+	app.Jnl.Log.SetDebugFlag(app.Debug)
 
 	// at this point, exits if there is an error
 	if joinedErr != nil {
@@ -122,13 +122,13 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		app.Logger.Log.OK("Server status: OK")
+		app.Jnl.Log.OK("Server status: OK")
 
 		user, err := app.Immich.ValidateConnection(ctx)
 		if err != nil {
 			return err
 		}
-		app.Logger.Log.Info("Connected, user: %s", user.Email)
+		app.Jnl.Log.Info("Connected, user: %s", user.Email)
 	}
 	return nil
 }

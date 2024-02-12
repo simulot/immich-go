@@ -56,7 +56,7 @@ func Run(ctx context.Context) error {
 	defer log.Close()
 
 	app := cmd.SharedFlags{
-		Logger: logger.NewJournal(log),
+		Jnl: logger.NewJournal(log),
 	}
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
 	app.SetFlags(fs)

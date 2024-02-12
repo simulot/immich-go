@@ -478,12 +478,12 @@ func TestUpload(t *testing.T) {
 			ic := &icCatchUploadsAssets{
 				albums: map[string][]string{},
 			}
-			log := logger.NoLogger{}
+			log := logger.NoLog{}
 			ctx := context.Background()
 
 			serv := cmd.SharedFlags{
 				Immich: ic,
-				Logger: logger.NewJournal(&log),
+				Jnl:    logger.NewJournal(&log),
 			}
 
 			app, err := NewUpCmd(ctx, &serv, tc.args)

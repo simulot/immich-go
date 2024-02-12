@@ -54,7 +54,7 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 	}
 
 	sb := stacking.NewStackBuilder()
-	app.Logger.Log.MessageContinue(logger.OK, "Get server's assets...")
+	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
 	assetCount := 0
 
 	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
@@ -71,15 +71,15 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		return err
 	}
 	stacks := sb.Stacks()
-	app.Logger.Log.MessageTerminate(logger.OK, " %d received, %d stack(s) possible", assetCount, len(stacks))
+	app.Jnl.Log.MessageTerminate(logger.OK, " %d received, %d stack(s) possible", assetCount, len(stacks))
 
 	for _, s := range stacks {
-		app.Logger.Log.OK("Stack following images taken on %s", s.Date)
+		app.Jnl.Log.OK("Stack following images taken on %s", s.Date)
 		cover := s.CoverID
 		names := s.Names
 		sort.Strings(names)
 		for _, n := range names {
-			app.Logger.Log.OK("  %s", n)
+			app.Jnl.Log.OK("  %s", n)
 		}
 		yes := app.AssumeYes
 		if !app.AssumeYes {
@@ -94,7 +94,7 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		if yes {
 			err := app.Immich.StackAssets(ctx, cover, s.IDs)
 			if err != nil {
-				app.Logger.Log.Warning("Can't stack images: %s", err)
+				app.Jnl.Log.Warning("Can't stack images: %s", err)
 			}
 		}
 	}

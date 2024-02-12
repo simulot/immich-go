@@ -2,20 +2,20 @@ package logger
 
 import "io"
 
-type NoLogger struct{}
+type NoLog struct{}
 
-func (NoLogger) Debug(f string, v ...any)                         {}
-func (NoLogger) DebugObject(name string, v any)                   {}
-func (NoLogger) Info(f string, v ...any)                          {}
-func (NoLogger) OK(f string, v ...any)                            {}
-func (NoLogger) Warning(f string, v ...any)                       {}
-func (NoLogger) Error(f string, v ...any)                         {}
-func (NoLogger) Fatal(f string, v ...any)                         {}
-func (NoLogger) Message(level Level, f string, v ...any)          {}
-func (NoLogger) Progress(level Level, f string, v ...any)         {}
-func (NoLogger) MessageContinue(level Level, f string, v ...any)  {}
-func (NoLogger) MessageTerminate(level Level, f string, v ...any) {}
-func (NoLogger) SetWriter(io.WriteCloser)                         {}
-func (NoLogger) SetLevel(Level)                                   {}
-func (NoLogger) SetColors(bool)                                   {}
-func (NoLogger) SetDebugFlag(bool)                                {}
+func (NoLog) Debug(f string, v ...any)                         {}
+func (NoLog) DebugObject(name string, v any)                   {}
+func (NoLog) Info(f string, v ...any)                          {}
+func (NoLog) OK(f string, v ...any)                            {}
+func (NoLog) Warning(f string, v ...any)                       {}
+func (NoLog) Error(f string, v ...any)                         {}
+func (NoLog) Fatal(f string, v ...any)                         {}
+func (NoLog) Message(level Level, f string, v ...any)          {}
+func (NoLog) Progress(level Level, f string, v ...any)         {}
+func (NoLog) MessageContinue(level Level, f string, v ...any)  {}
+func (NoLog) MessageTerminate(level Level, f string, v ...any) {}
+func (NoLog) SetWriter(io.WriteCloser)                         {}
+func (NoLog) SetLevel(Level)                                   {}
+func (NoLog) SetColors(bool)                                   {}
+func (NoLog) SetDebugFlag(bool)                                {}

@@ -57,15 +57,15 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		if err != nil {
 			return err
 		}
-		app.Logger.Log.OK("Connected to the immich's docker container at %q", app.DockerHost)
+		app.Jnl.Log.OK("Connected to the immich's docker container at %q", app.DockerHost)
 	}
 
-	app.Logger.Log.MessageContinue(logger.OK, "Get server's assets...")
+	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
 	list, err := app.Immich.GetAllAssets(ctx, nil)
 	if err != nil {
 		return err
 	}
-	app.Logger.Log.MessageTerminate(logger.OK, " %d received", len(list))
+	app.Jnl.Log.MessageTerminate(logger.OK, " %d received", len(list))
 
 	type broken struct {
 		a *immich.Asset
@@ -114,18 +114,18 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		if b.fixable {
 			fixable++
 		}
-		app.Logger.Log.OK("%s, (%s %s): %s", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
+		app.Jnl.Log.OK("%s, (%s %s): %s", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
 	}
-	app.Logger.Log.OK("%d broken assets", len(brockenAssets))
-	app.Logger.Log.OK("Among them, %d can be fixed with current settings", fixable)
+	app.Jnl.Log.OK("%d broken assets", len(brockenAssets))
+	app.Jnl.Log.OK("Among them, %d can be fixed with current settings", fixable)
 
 	if fixable == 0 {
 		return nil
 	}
 
 	if app.DryRun {
-		app.Logger.Log.OK("Dry-run mode. Exiting")
-		app.Logger.Log.OK("use -dry-run=false after metadata command")
+		app.Jnl.Log.OK("Dry-run mode. Exiting")
+		app.Jnl.Log.OK("use -dry-run=false after metadata command")
 		return nil
 	}
 
@@ -141,7 +141,7 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 			continue
 		}
 		a := b.a
-		app.Logger.Log.MessageContinue(logger.OK, "Uploading sidecar for %s... ", a.OriginalPath)
+		app.Jnl.Log.MessageContinue(logger.OK, "Uploading sidecar for %s... ", a.OriginalPath)
 		scContent, err := b.SideCar.Bytes()
 		if err != nil {
 			return err
@@ -150,7 +150,7 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		if err != nil {
 			return err
 		}
-		app.Logger.Log.MessageTerminate(logger.OK, "done")
+		app.Jnl.Log.MessageTerminate(logger.OK, "done")
 	}
 	return nil
 }
