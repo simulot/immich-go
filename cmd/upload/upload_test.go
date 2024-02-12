@@ -73,7 +73,11 @@ func (c *stubIC) ValidateConnection(ctx context.Context) (immich.User, error) {
 	return immich.User{}, nil
 }
 
-func (c *stubIC) GetAssetAlbums(ctx context.Context, ID string) ([]immich.AlbumSimplified, error) {
+func (c *stubIC) GetAssetAlbums(ctx context.Context, id string) ([]immich.AlbumSimplified, error) {
+	return nil, nil
+}
+
+func (c *stubIC) GetAllAssets(ctx context.Context, opt *immich.GetAssetOptions) ([]*immich.Asset, error) {
 	return nil, nil
 }
 

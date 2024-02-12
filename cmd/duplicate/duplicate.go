@@ -51,6 +51,9 @@ func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", myflag.BoolFlagFn(&app.AssumeYes, false))
 	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
 	err := cmd.Parse(args)
+	if err != nil {
+		return nil, err
+	}
 	err = app.SharedFlags.Start(ctx)
 	if err != nil {
 		return nil, err

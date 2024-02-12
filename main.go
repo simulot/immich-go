@@ -10,6 +10,7 @@ import (
 
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/cmd/duplicate"
+	"github.com/simulot/immich-go/cmd/metadata"
 	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/logger"
 )
@@ -44,7 +45,7 @@ func main() {
 		err = Run(ctx)
 	}
 	if err != nil {
-		os.Exit(1) // no--lint--:gocritic
+		os.Exit(1)
 	}
 }
 
@@ -77,8 +78,8 @@ func Run(ctx context.Context) error {
 		err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
 	case "duplicate":
 		err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
-	// case "metadata":
-	// 	err = metadata.MetadataCommand(ctx, app.Immich, app.Logger, fs.Args()[1:])
+	case "metadata":
+		err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
 	// case "stack":
 	// 	err = stack.NewStackCommand(ctx, app.Immich, app.Logger, fs.Args()[1:])
 	// case "tool":
