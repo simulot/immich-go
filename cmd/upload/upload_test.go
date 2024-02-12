@@ -73,6 +73,10 @@ func (c *stubIC) ValidateConnection(ctx context.Context) (immich.User, error) {
 	return immich.User{}, nil
 }
 
+func (c *stubIC) GetAssetAlbums(ctx context.Context, ID string) ([]immich.AlbumSimplified, error) {
+	return nil, nil
+}
+
 // type mockedBrowser struct {
 // 	assets []assets.LocalAssetFile
 // }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -30,20 +31,21 @@ type SharedFlags struct {
 	Immich  immich.ImmichInterface // Immich client
 	Logger  *logger.Journal        // Program's logger
 	LogFile string                 // Log file
+	out     io.WriteCloser         // the log writer
 }
 
 // SetFlag add common flags to a flagset
 func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
-	fs.StringVar(&app.Server, "server", "", "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
+	fs.StringVar(&app.Server, "server", app.Server, "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
 	fs.StringVar(&app.API, "api", "", "Immich api endpoint (http://container_ip:3301)")
-	fs.StringVar(&app.Key, "key", "", "API Key")
-	fs.StringVar(&app.DeviceUUID, "device-uuid", "", "Set a device UUID")
+	fs.StringVar(&app.Key, "key", app.Key, "API Key")
+	fs.StringVar(&app.DeviceUUID, "device-uuid", app.DeviceUUID, "Set a device UUID")
 	fs.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, runtime.GOOS == "windows"))
-	fs.StringVar(&app.LogLevel, "log-level", "ok", "Log level (Error|Warning|OK|Info), default OK")
-	fs.StringVar(&app.LogFile, "log-file", "", "Write log messages into the file")
+	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (Error|Warning|OK|Info), default OK")
+	fs.StringVar(&app.LogFile, "log-file", app.LogFile, "Write log messages into the file")
 	fs.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.APITrace, false))
 	fs.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, false))
-	fs.StringVar(&app.TimeZone, "time-zone", "", "Override the system time zone")
+	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
 	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, false))
 }
 
@@ -62,11 +64,14 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 	}
 
 	if app.LogFile != "" {
-		f, err := os.Create(app.LogFile)
-		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
-		} else {
-			app.Logger.Log.SetWriter(f)
+		if app.out == nil {
+			f, err := os.Create(app.LogFile)
+			if err != nil {
+				joinedErr = errors.Join(joinedErr, err)
+			} else {
+				app.Logger.Log.SetWriter(f)
+			}
+			app.out = f
 		}
 	}
 
@@ -76,8 +81,8 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			joinedErr = errors.Join(joinedErr, err)
 		}
 		app.Logger.Log.SetLevel(logLevel)
-
 	}
+
 	app.Logger.Log.SetColors(!app.NoLogColors)
 	app.Logger.Log.SetDebugFlag(app.Debug)
 

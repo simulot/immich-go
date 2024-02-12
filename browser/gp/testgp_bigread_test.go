@@ -19,7 +19,9 @@ func TestReadBigTakeout(t *testing.T) {
 		panic(err)
 	}
 
-	j := logger.NewJournal(logger.NewLogger(logger.Info, true, false).SetWriter(f))
+	l := logger.NewLogger(logger.Info, true, false)
+	l.SetWriter(f)
+	j := logger.NewJournal(l)
 	m, err := filepath.Glob("../../../test-data/full_takeout/*.zip")
 	if err != nil {
 		t.Error(err)
