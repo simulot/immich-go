@@ -81,6 +81,10 @@ func (c *stubIC) GetAllAssets(ctx context.Context, opt *immich.GetAssetOptions) 
 	return nil, nil
 }
 
+func (c *stubIC) DeleteAlbum(ctx context.Context, id string) error {
+	return nil
+}
+
 // type mockedBrowser struct {
 // 	assets []assets.LocalAssetFile
 // }

@@ -32,6 +32,7 @@ type ImmichInterface interface {
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
 	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
 	GetAllAssets(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error)
+	DeleteAlbum(ctx context.Context, id string) error
 }
 
 type UnsupportedMedia struct {
