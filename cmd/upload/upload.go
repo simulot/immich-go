@@ -147,10 +147,7 @@ func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpC
 	if err != nil {
 		return nil, err
 	}
-
-	if err = app.BrowserConfig.IsValid(); err != nil {
-		return nil, err
-	}
+	app.BrowserConfig.Validate()
 
 	err = app.SharedFlags.Start(ctx)
 	if err != nil {
@@ -163,7 +160,7 @@ func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpC
 	}
 
 	if app.CreateStacks || app.StackBurst || app.StackJpgRaws {
-		app.stacks = stacking.NewStackBuilder()
+		app.stacks = stacking.NewStackBuilder(app.Immich.SupportedMedia())
 	}
 	app.Jnl.Log.OK("Ask for server's assets...")
 	var list []*immich.Asset
@@ -496,11 +493,11 @@ func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
 
 func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
 	app.Delete = false
-	return gp.NewTakeout(ctx, app.Jnl, fsyss...)
+	return gp.NewTakeout(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
 }
 
 func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
-	return files.NewLocalFiles(ctx, app.Jnl, fsyss...)
+	return files.NewLocalFiles(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
 }
 
 // UploadAsset upload the asset on the server

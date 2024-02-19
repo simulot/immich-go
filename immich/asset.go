@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/browser"
-	"github.com/simulot/immich-go/helpers/fshelper"
 )
 
 type AssetResponse struct {
@@ -37,9 +36,11 @@ func formatDuration(duration time.Duration) string {
 
 func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetFile) (AssetResponse, error) {
 	var ar AssetResponse
-	mtype, err := fshelper.MimeFromExt(path.Ext(la.FileName))
-	if err != nil {
-		return ar, err
+	mtype := ic.TypeFromExt(path.Ext(la.FileName))
+	switch mtype {
+	case "video", "image":
+	default:
+		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.FileName))
 	}
 
 	f, err := la.Open()
@@ -59,7 +60,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-		assetType := strings.ToUpper(strings.Split(mtype[0], "/")[0])
+		assetType := strings.ToUpper(mtype)
 		ext := path.Ext(la.Title)
 		if strings.TrimSuffix(la.Title, ext) == "" {
 			la.Title = "No Name" + ext // fix #88, #128
@@ -106,7 +107,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 				escapeQuotes("assetData"), escapeQuotes(path.Base(la.Title))))
-		h.Set("Content-Type", mtype[0])
+		h.Set("Content-Type", mtype)
 
 		part, err := m.CreatePart(h)
 		if err != nil {
@@ -116,27 +117,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-		/*
-			if la.LivePhotoData != "" {
-				h.Set("Content-Disposition",
-					fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-						escapeQuotes("livePhotoData"), escapeQuotes(path.Base(la.LivePhotoData))))
-				h.Set("Content-Type", "application/binary")
-				part, err := m.CreatePart(h)
-				if err != nil {
-					return
-				}
-				b, err := la.FSys.Open(la.LivePhotoData)
-				if err != nil {
-					return
-				}
-				defer b.Close()
-				_, err = io.Copy(part, b)
-				if err != nil {
-					return
-				}
-			}
-		*/
 
 		if la.SideCar != nil {
 			scName := path.Base(la.FileName) + ".xmp"

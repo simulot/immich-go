@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
 )
 
@@ -29,7 +30,7 @@ func TestReadBigTakeout(t *testing.T) {
 	}
 	cnt := 0
 	fsyss, err := fshelper.ParsePath(m, true)
-	to, err := NewTakeout(context.Background(), j, fsyss...)
+	to, err := NewTakeout(context.Background(), j, immich.DefaultSupportedMedia, fsyss...)
 	if err != nil {
 		t.Error(err)
 		return

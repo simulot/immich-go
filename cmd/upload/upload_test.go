@@ -85,20 +85,9 @@ func (c *stubIC) DeleteAlbum(ctx context.Context, id string) error {
 	return nil
 }
 
-// type mockedBrowser struct {
-// 	assets []assets.LocalAssetFile
-// }
-
-// func (m *mockedBrowser) Browse(cxt context.Context) chan *assets.LocalAssetFile {
-// 	c := make(chan *assets.LocalAssetFile)
-// 	go func() {
-// 		for _, a := range m.assets {
-// 			c <- &a
-// 		}
-// 		close(c)
-// 	}()
-// 	return c
-// }
+func (c *stubIC) SupportedMedia() immich.SupportedMedia {
+	return immich.DefaultSupportedMedia
+}
 
 type icCatchUploadsAssets struct {
 	stubIC

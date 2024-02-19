@@ -13,6 +13,7 @@ import (
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
 )
 
@@ -23,6 +24,7 @@ type Takeout struct {
 	uploaded   map[fileKey]any             // track files already uploaded
 	albums     map[string]string           // tack album names by folder
 	jnl        *logger.Journal
+	sm         immich.SupportedMedia
 }
 
 // walkerCatalog collects all directory catalogs
@@ -30,8 +32,6 @@ type walkerCatalog map[string]directoryCatalog // by directory in the walker
 
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
-	// isAlbum    bool                // true when the directory is recognized as an album
-	// albumTitle string              // album title from album's metadata
 	files map[string]fileInfo // map of fileInfo by base name
 }
 
@@ -54,17 +54,13 @@ type jsonKey struct {
 	year int
 }
 
-// type fileWalkerPath struct {
-// 	w archwalker.Walker
-// 	p string
-// }
-
-func NewTakeout(ctx context.Context, jnl *logger.Journal, fsyss ...fs.FS) (*Takeout, error) {
+func NewTakeout(ctx context.Context, jnl *logger.Journal, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
 	to := Takeout{
 		fsyss:      fsyss,
 		jsonByYear: map[jsonKey]*GoogleMetaData{},
 		albums:     map[string]string{},
 		jnl:        jnl,
+		sm:         sm,
 	}
 	err := to.passOne(ctx)
 	if err != nil {
@@ -82,7 +78,6 @@ func (to *Takeout) passOne(ctx context.Context) error {
 	to.catalogs = map[fs.FS]walkerCatalog{}
 	for _, w := range to.fsyss {
 		to.catalogs[w] = walkerCatalog{}
-		// wName := "" //w.Name()
 		err := to.passOneFsWalk(ctx, w)
 		if err != nil {
 			return err
@@ -144,30 +139,25 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					return nil
 				}
 			default:
-
-				if fshelper.IsIgnoredExt(ext) {
-					to.jnl.AddEntry(name, logger.Discarded, "File ignored")
-					return nil
-				}
-
-				m, err := fshelper.MimeFromExt(ext)
-				if err != nil {
+				t := to.sm.TypeFromExt(ext)
+				switch t {
+				case immich.TypeUnknown:
 					to.jnl.AddEntry(name, logger.Unsupported, "")
 					return nil
-				}
-
-				if strings.Contains(name, "Failed Videos") {
-					to.jnl.AddEntry(name, logger.FailedVideo, "")
+				case immich.TypeIgnored:
+					to.jnl.AddEntry(name, logger.Discarded, "File ignored")
 					return nil
+				case immich.TypeVideo:
+					if strings.Contains(name, "Failed Videos") {
+						to.jnl.AddEntry(name, logger.FailedVideo, "")
+						return nil
+					}
+					to.jnl.AddEntry(name, logger.ScannedVideo, "")
+				case immich.TypeImage:
+					to.jnl.AddEntry(name, logger.ScannedImage, "")
 				}
 				dirCatalog.files[base] = fileInfo{
 					length: int(finfo.Size()),
-				}
-				ss := strings.Split(m[0], "/")
-				if ss[0] == "image" {
-					to.jnl.AddEntry(name, logger.ScannedImage, "")
-				} else {
-					to.jnl.AddEntry(name, logger.ScannedVideo, "")
 				}
 			}
 			to.catalogs[w][dir] = dirCatalog
@@ -191,7 +181,7 @@ func (to *Takeout) addJSON(dir, base string, md *GoogleMetaData) {
 	to.jsonByYear[k] = md
 }
 
-type matcherFn func(jsonName string, fileName string) bool
+type matcherFn func(jsonName string, fileName string, sm immich.SupportedMedia) bool
 
 // matchers is a list of matcherFn from the most likely to be used to the least one
 var matchers = []matcherFn{
@@ -258,7 +248,7 @@ func (to *Takeout) solvePuzzle() {
 					l := to.catalogs[w][d]
 					for f := range l.files {
 						if l.files[f].md == nil {
-							if matcher(k.name, f) {
+							if matcher(k.name, f, to.sm) {
 								to.jnl.AddEntry(path.Join(d, f), logger.AssociatedMetadata, fmt.Sprintf("%s (%d)", k.name, k.year))
 								// if not already matched
 								i := l.files[f]
@@ -278,7 +268,7 @@ func (to *Takeout) solvePuzzle() {
 //
 //	PXL_20230922_144936660.jpg.json
 //	PXL_20230922_144936660.jpg
-func normalMatch(jsonName string, fileName string) bool {
+func normalMatch(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	return base == fileName
 }
@@ -294,10 +284,10 @@ func normalMatch(jsonName string, fileName string) bool {
 //  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json
 //  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg
 
-func matchWithOneCharOmitted(jsonName string, fileName string) bool {
+func matchWithOneCharOmitted(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	if strings.HasPrefix(fileName, base) {
-		if fshelper.IsExtensionPrefix(path.Ext(base)) {
+		if t := sm.TypeFromExt(path.Ext(base)); t == immich.TypeImage || t == immich.TypeVideo {
 			// Trim only if the EXT is known extension, and not .COVER or .ORIGINAL
 			base = strings.TrimSuffix(base, path.Ext(base))
 		}
@@ -314,7 +304,7 @@ func matchWithOneCharOmitted(jsonName string, fileName string) bool {
 //
 //	Backyard_ceremony_wedding_photography_xxxxxxx_(494).json
 //	Backyard_ceremony_wedding_photography_xxxxxxx_m(494).jpg
-func matchVeryLongNameWithNumber(jsonName string, fileName string) bool {
+func matchVeryLongNameWithNumber(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 
 	p1JSON := strings.Index(jsonName, "(")
@@ -340,7 +330,7 @@ func matchVeryLongNameWithNumber(jsonName string, fileName string) bool {
 //
 //	IMG_3479.JPG(2).json
 //	IMG_3479(2).JPG
-func matchDuplicateInYear(jsonName string, fileName string) bool {
+func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	p1JSON := strings.Index(jsonName, "(")
 	if p1JSON < 1 {
@@ -363,11 +353,11 @@ func matchDuplicateInYear(jsonName string, fileName string) bool {
 //   PXL_20220405_090123740.PORTRAIT.jpg
 //   PXL_20220405_090123740.PORTRAIT-modifié.jpg
 
-func matchEditedName(jsonName string, fileName string) bool {
+func matchEditedName(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	ext := path.Ext(base)
 	if ext != "" {
-		if _, err := fshelper.MimeFromExt(ext); err == nil {
+		if sm.IsMedia(ext) {
 			base := strings.TrimSuffix(base, ext)
 			fname := strings.TrimSuffix(fileName, path.Ext(fileName))
 			return strings.HasPrefix(fname, base)
@@ -383,7 +373,7 @@ func matchEditedName(jsonName string, fileName string) bool {
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg
 
-func matchForgottenDuplicates(jsonName string, fileName string) bool {
+func matchForgottenDuplicates(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
 	if strings.HasPrefix(fileName, jsonName) {
@@ -431,11 +421,11 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		dir = strings.TrimSuffix(dir, "/")
 		ext := strings.ToLower(path.Ext(base))
 
-		if fshelper.IsIgnoredExt(ext) {
+		if to.sm.IsIgnoredExt(ext) {
 			return nil
 		}
 
-		if _, err := fshelper.MimeFromExt(ext); err != nil {
+		if !to.sm.IsMedia(ext) {
 			return nil
 		}
 		f, exist := to.catalogs[w][dir].files[base]

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
+	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 )
 
@@ -204,7 +205,7 @@ func Test_Stack(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			sb := NewStackBuilder()
+			sb := NewStackBuilder(immich.DefaultSupportedMedia)
 			for _, a := range tt.input {
 				sb.ProcessAsset(a.ID, a.FileName, a.DateTaken)
 			}
@@ -214,7 +215,7 @@ func Test_Stack(t *testing.T) {
 				return got[i].CoverID < got[j].CoverID
 			})
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("differece expected %+v got %+v", tt.want, got)
+				t.Errorf("difference expected %+v got %+v", tt.want, got)
 				pretty.Ldiff(t, tt.want, got)
 			}
 		})

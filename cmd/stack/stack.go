@@ -53,7 +53,7 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		return err
 	}
 
-	sb := stacking.NewStackBuilder()
+	sb := stacking.NewStackBuilder(app.Immich.SupportedMedia())
 	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
 	assetCount := 0
 

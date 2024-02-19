@@ -1,12 +1,8 @@
 package upload
 
 import (
-	"errors"
-	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/simulot/immich-go/helpers/fshelper"
 )
 
 type Configuration struct {
@@ -15,41 +11,22 @@ type Configuration struct {
 	Recursive         bool
 }
 
-func (c *Configuration) IsValid() error {
-	var (
-		jerr error
-		err  error
-	)
-
-	if c.SelectExtensions, err = checkExtensions(c.SelectExtensions); err != nil {
-		jerr = errors.Join(jerr, fmt.Errorf("some selected extensions are unknown: %w", err))
-	}
-
-	c.ExcludeExtensions, _ = checkExtensions(c.ExcludeExtensions)
-
-	return jerr
+func (c *Configuration) Validate() {
+	c.SelectExtensions = checkExtensions(c.SelectExtensions)
+	c.ExcludeExtensions = checkExtensions(c.ExcludeExtensions)
 }
 
-func checkExtensions(l StringList) (StringList, error) {
-	var (
-		r   StringList
-		err error
-	)
+func checkExtensions(l StringList) StringList {
+	var r StringList
 
 	for _, e := range l {
 		if !strings.HasPrefix(e, ".") {
 			e = "." + e
 		}
 		e = strings.ToLower(e)
-		if _, err = fshelper.MimeFromExt(e); err != nil {
-			err = errors.Join(err, fmt.Errorf("unsupported extension '%s'", e))
-		}
 		r = append(r, e)
 	}
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
+	return r
 }
 
 type StringList []string
