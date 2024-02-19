@@ -114,9 +114,5 @@ func (p *argParser) handleFile(f string) {
 	if p.googlePhotos {
 		return
 	}
-	if _, err = MimeFromExt(ext); err == nil {
-		p.files = append(p.files, f)
-	} else {
-		p.unsupported[ext] = nil
-	}
+	p.files = append(p.files, f)
 }

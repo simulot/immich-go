@@ -14,25 +14,29 @@ import (
 // ImmichInterface is an interface that implements the minimal immich client set of features for uploading
 // interface used to mock up the client
 type ImmichInterface interface {
-	GetAllAssetsWithFilter(context.Context, *GetAssetOptions, func(*Asset)) error
-	AssetUpload(context.Context, *browser.LocalAssetFile) (AssetResponse, error)
-	DeleteAssets(context.Context, []string, bool) error
-
-	GetAllAlbums(context.Context) ([]AlbumSimplified, error)
-	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
-	CreateAlbum(context.Context, string, []string) (AlbumSimplified, error)
-	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
-	StackAssets(ctx context.Context, cover string, IDs []string) error
-	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*Asset, error)
 	SetEndPoint(string)
 	EnableAppTrace(bool)
 	SetDeviceUUID(string)
 	PingServer(ctx context.Context) error
 	ValidateConnection(ctx context.Context) (User, error)
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
-	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
+
+	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*Asset, error)
 	GetAllAssets(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error)
+	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
+	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
+	GetAllAssetsWithFilter(context.Context, *GetAssetOptions, func(*Asset)) error
+	AssetUpload(context.Context, *browser.LocalAssetFile) (AssetResponse, error)
+	DeleteAssets(context.Context, []string, bool) error
+
+	GetAllAlbums(context.Context) ([]AlbumSimplified, error)
+	CreateAlbum(context.Context, string, []string) (AlbumSimplified, error)
+	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
 	DeleteAlbum(ctx context.Context, id string) error
+
+	StackAssets(ctx context.Context, cover string, IDs []string) error
+
+	SupportedMedia() SupportedMedia
 }
 
 type UnsupportedMedia struct {

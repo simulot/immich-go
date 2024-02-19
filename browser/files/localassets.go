@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/browser"
-	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 	"github.com/simulot/immich-go/logger"
 )
@@ -19,13 +19,15 @@ type LocalAssetBrowser struct {
 	fsyss  []fs.FS
 	albums map[string]string
 	log    *logger.Journal
+	sm     immich.SupportedMedia
 }
 
-func NewLocalFiles(ctx context.Context, log *logger.Journal, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, log *logger.Journal, sm immich.SupportedMedia, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
 		fsyss:  fsyss,
 		albums: map[string]string{},
 		log:    log,
+		sm:     sm,
 	}, nil
 }
 
@@ -78,19 +80,6 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		return err
 	}
 
-	// fileMap := map[string][]fs.DirEntry{}
-	// for _, e := range entries {
-	// 	if e.IsDir() {
-	// 		continue
-	// 	}
-	// 	ext := path.Ext(e.Name())
-	// 	_, err := fshelper.MimeFromExt(ext)
-	// 	if strings.ToLower(ext) == ".xmp" || err == nil {
-	// 		base := strings.TrimSuffix(e.Name(), ext)
-	// 		fileMap[base] = append(fileMap[base], e)
-	// 	}
-	// }
-
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
@@ -99,22 +88,18 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
 		name := e.Name()
 		ext := strings.ToLower(path.Ext(name))
-		if fshelper.IsMetadataExt(ext) {
+
+		t := la.sm.TypeFromExt(ext)
+		switch t {
+		default:
+			la.log.AddEntry(fileName, logger.Unsupported, "")
+			continue
+		case immich.TypeSidecar:
 			la.log.AddEntry(name, logger.Metadata, "")
 			continue
-		} else if fshelper.IsIgnoredExt(ext) {
-			la.log.AddEntry(fileName, logger.Unsupported, "")
-			continue
-		}
-		m, err := fshelper.MimeFromExt(strings.ToLower(ext))
-		if err != nil {
-			la.log.AddEntry(fileName, logger.Unsupported, "")
-			continue
-		}
-		ss := strings.Split(m[0], "/")
-		if ss[0] == "image" {
+		case immich.TypeImage:
 			la.log.AddEntry(name, logger.ScannedImage, "")
-		} else {
+		case immich.TypeVideo:
 			la.log.AddEntry(name, logger.ScannedVideo, "")
 		}
 
@@ -154,7 +139,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 }
 
 func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
-	assetBase := baseNames(name)
+	assetBase := la.baseNames(name)
 
 	for _, name := range assetBase {
 		xmp := name + ".[xX][mM][pP]"
@@ -176,7 +161,7 @@ func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []f
 	return false
 }
 
-func baseNames(n string) []string {
+func (la *LocalAssetBrowser) baseNames(n string) []string {
 	n = escapeName(n)
 	names := []string{n}
 	ext := path.Ext(n)
@@ -184,8 +169,7 @@ func baseNames(n string) []string {
 		if ext == "" {
 			return names
 		}
-		_, err := fshelper.MimeFromExt(ext)
-		if err != nil {
+		if la.sm.TypeFromExt(ext) == "" {
 			return names
 		}
 		n = strings.TrimSuffix(n, ext)
