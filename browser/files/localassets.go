@@ -85,7 +85,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 			continue
 		}
 		fileName := path.Join(folder, e.Name())
-		la.jnl.AddEntry(fileName, logger.DiscoveredFile, "")
+		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
 		name := e.Name()
 		ext := strings.ToLower(path.Ext(name))
 
@@ -156,7 +156,7 @@ func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []f
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.jnl.AddEntry(name, logger.AssociatedMetadata, "")
+				la.log.AddEntry(name, logger.AssociatedMetadata, "")
 				return true
 			}
 		}
