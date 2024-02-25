@@ -18,7 +18,7 @@ import (
 type LocalAssetBrowser struct {
 	fsyss  []fs.FS
 	albums map[string]string
-	log    *logger.Journal
+	jnl    *logger.Journal
 	sm     immich.SupportedMedia
 }
 
@@ -26,7 +26,7 @@ func NewLocalFiles(ctx context.Context, log *logger.Journal, sm immich.Supported
 	return &LocalAssetBrowser{
 		fsyss:  fsyss,
 		albums: map[string]string{},
-		log:    log,
+		jnl:    log,
 		sm:     sm,
 	}, nil
 }
@@ -85,22 +85,25 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 			continue
 		}
 		fileName := path.Join(folder, e.Name())
-		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
+		la.jnl.AddEntry(fileName, logger.DiscoveredFile, "")
 		name := e.Name()
 		ext := strings.ToLower(path.Ext(name))
 
 		t := la.sm.TypeFromExt(ext)
 		switch t {
 		default:
-			la.log.AddEntry(fileName, logger.Unsupported, "")
+			la.jnl.AddEntry(fileName, logger.Unsupported, "")
+			continue
+		case immich.TypeIgnored:
+			la.jnl.AddEntry(name, logger.Discarded, "File ignored")
 			continue
 		case immich.TypeSidecar:
-			la.log.AddEntry(name, logger.Metadata, "")
+			la.jnl.AddEntry(name, logger.Metadata, "")
 			continue
 		case immich.TypeImage:
-			la.log.AddEntry(name, logger.ScannedImage, "")
+			la.jnl.AddEntry(name, logger.ScannedImage, "")
 		case immich.TypeVideo:
-			la.log.AddEntry(name, logger.ScannedVideo, "")
+			la.jnl.AddEntry(name, logger.ScannedVideo, "")
 		}
 
 		f := browser.LocalAssetFile{
@@ -153,7 +156,7 @@ func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []f
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.log.AddEntry(name, logger.AssociatedMetadata, "")
+				la.jnl.AddEntry(name, logger.AssociatedMetadata, "")
 				return true
 			}
 		}
