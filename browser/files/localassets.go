@@ -94,6 +94,9 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		default:
 			la.log.AddEntry(fileName, logger.Unsupported, "")
 			continue
+		case immich.TypeIgnored:
+			la.log.AddEntry(name, logger.Discarded, "File ignored")
+			continue
 		case immich.TypeSidecar:
 			la.log.AddEntry(name, logger.Metadata, "")
 			continue

@@ -96,7 +96,8 @@ func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
 	if err != nil {
 		return user, err
 	}
-	sm["ignored-files"] = []string{".html", ".mp"}
+	sm[".html"] = TypeIgnored
+	sm[".mp"] = TypeIgnored
 	ic.supportedMediaTypes = sm
 	return user, nil
 }
@@ -125,7 +126,7 @@ func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatisti
 	return s, err
 }
 
-type SupportedMedia map[string][]string
+type SupportedMedia map[string]string
 
 const (
 	TypeVideo   = "video"
@@ -136,94 +137,35 @@ const (
 )
 
 var DefaultSupportedMedia = SupportedMedia{
-	TypeVideo: []string{
-		".3gp",
-		".avi",
-		".flv",
-		".insv",
-		".m2ts",
-		".m4v",
-		".mkv",
-		".mov",
-		".mp4",
-		".mpg",
-		".mts",
-		".webm",
-		".wmv",
-	},
-	TypeImage: []string{
-		".3fr",
-		".ari",
-		".arw",
-		".avif",
-		".bmp",
-		".cap",
-		".cin",
-		".cr2",
-		".cr3",
-		".crw",
-		".dcr",
-		".dng",
-		".erf",
-		".fff",
-		".gif",
-		".heic",
-		".heif",
-		".hif",
-		".iiq",
-		".insp",
-		".jpe",
-		".jpeg",
-		".jpg",
-		".jxl",
-		".k25",
-		".kdc",
-		".mrw",
-		".nef",
-		".orf",
-		".ori",
-		".pef",
-		".png",
-		".psd",
-		".raf",
-		".raw",
-		".rw2",
-		".rwl",
-		".sr2",
-		".srf",
-		".srw",
-		".tif",
-		".tiff",
-		".webp",
-		".x3f",
-	},
-	TypeSidecar: []string{
-		".xmp",
-	},
-	TypeIgnored: []string{
-		".mp",
-		".html",
-	},
+	".3gp": TypeVideo, ".avi": TypeVideo, ".flv": TypeVideo, ".insv": TypeVideo, ".m2ts": TypeVideo, ".m4v": TypeVideo, ".mkv": TypeVideo, ".mov": TypeVideo, ".mp4": TypeVideo, ".mpg": TypeVideo, ".mts": TypeVideo, ".webm": TypeVideo, ".wmv": TypeVideo,
+	".3fr": TypeImage, ".ari": TypeImage, ".arw": TypeImage, ".avif": TypeImage, ".bmp": TypeImage, ".cap": TypeImage, ".cin": TypeImage, ".cr2": TypeImage, ".cr3": TypeImage, ".crw": TypeImage, ".dcr": TypeImage, ".dng": TypeImage, ".erf": TypeImage,
+	".fff": TypeImage, ".gif": TypeImage, ".heic": TypeImage, ".heif": TypeImage, ".hif": TypeImage, ".iiq": TypeImage, ".insp": TypeImage, ".jpe": TypeImage, ".jpeg": TypeImage, ".jpg": TypeImage,
+	".jxl": TypeImage, ".k25": TypeImage, ".kdc": TypeImage, ".mrw": TypeImage, ".nef": TypeImage, ".orf": TypeImage, ".ori": TypeImage, ".pef": TypeImage, ".png": TypeImage, ".psd": TypeImage, ".raf": TypeImage, ".raw": TypeImage, ".rw2": TypeImage,
+	".rwl": TypeImage, ".sr2": TypeImage, ".srf": TypeImage, ".srw": TypeImage, ".tif": TypeImage, ".tiff": TypeImage, ".webp": TypeImage, ".x3f": TypeImage,
+	".xmp": TypeSidecar,
+	".mp":  TypeIgnored, ".html": TypeIgnored,
 }
 
 func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMedia, error) {
-	var s SupportedMedia
+	var s map[string][]string
 
 	err := ic.newServerCall(ctx, "GetSupportedMediaTypes").do(get("/server-info/media-types", setAcceptJSON()), responseJSON(&s))
-	s[TypeIgnored] = []string{".mp", ".html"}
-	return s, err
+	if err != nil {
+		return nil, err
+	}
+	sm := make(SupportedMedia)
+	for t, l := range s {
+		for _, e := range l {
+			sm[e] = t
+		}
+	}
+
+	return sm, err
 }
 
 func (sm SupportedMedia) TypeFromExt(ext string) string {
 	ext = strings.ToLower(ext)
-	for t, l := range sm {
-		for _, e := range l {
-			if e == ext {
-				return t
-			}
-		}
-	}
-	return ""
+	return sm[ext]
 }
 
 func (sm SupportedMedia) IsMedia(ext string) bool {
@@ -233,12 +175,10 @@ func (sm SupportedMedia) IsMedia(ext string) bool {
 
 func (sm SupportedMedia) IsExtensionPrefix(ext string) bool {
 	ext = strings.ToLower(ext)
-	for t, l := range sm {
+	for e, t := range sm {
 		if t == TypeVideo || t == TypeImage {
-			for _, e := range l {
-				if ext == e[:len(e)-1] {
-					return true
-				}
+			if ext == e[:len(e)-1] {
+				return true
 			}
 		}
 	}

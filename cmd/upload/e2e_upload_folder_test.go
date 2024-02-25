@@ -61,7 +61,16 @@ func runCase(t *testing.T, tc testCase) {
 
 	ctx := context.Background()
 	ic, err := immich.NewImmichClient(host, key, false)
-
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	u, err := ic.ValidateConnection(ctx)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_ = u
 	if tc.resetImmich {
 		err := resetImmich(ic, user)
 		if err != nil {
@@ -336,6 +345,21 @@ func Test_Issue_128(t *testing.T) {
 		resetImmich: true,
 		expectError: false,
 		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
+func Test_ExtensionsFromTheServer(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "ExtensionsFromTheServer",
+		args: []string{
+			myEnv["IMMICH_TESTFILES"] + "/low_high/high",
+		},
+
+		// resetImmich: true,
+		expectError: false,
 	}
 	runCase(t, tc)
 }
