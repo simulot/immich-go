@@ -11,7 +11,7 @@ require (
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/thlib/go-timezone-local v0.0.0-20210907160436-ef149e42d28e
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
-	github.com/yalue/merged_fs v1.2.3
+	github.com/yalue/merged_fs v1.3.0
 )
 
 require (
