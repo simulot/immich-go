@@ -69,7 +69,7 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 
 	dupCount := 0
 	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
-	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
 		if a.IsTrashed {
 			return
 		}

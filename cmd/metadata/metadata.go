@@ -61,7 +61,7 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 	}
 
 	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
-	list, err := app.Immich.GetAllAssets(ctx, nil)
+	list, err := app.Immich.GetAllAssets(ctx)
 	if err != nil {
 		return err
 	}

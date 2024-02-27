@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 )
 
@@ -28,10 +26,7 @@ type serverCall struct {
 	ic       *ImmichClient
 	err      error
 	ctx      context.Context
-	p        *paginator
 }
-
-type serverCallOption func(sc *serverCall) error
 
 // callError represents errors returned by the server
 type callError struct {
@@ -85,16 +80,11 @@ func (ce callError) Error() string {
 	return b.String()
 }
 
-func (ic *ImmichClient) newServerCall(ctx context.Context, api string, opts ...serverCallOption) *serverCall {
+func (ic *ImmichClient) newServerCall(ctx context.Context, api string) *serverCall {
 	sc := &serverCall{
 		endPoint: api,
 		ic:       ic,
 		ctx:      ctx,
-	}
-	if sc.err == nil {
-		for _, opt := range opts {
-			_ = sc.joinError(opt(sc))
-		}
 	}
 	return sc
 }
@@ -118,32 +108,6 @@ func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerMes
 func (sc *serverCall) joinError(err error) error {
 	sc.err = errors.Join(sc.err, err)
 	return err
-}
-
-// paginator controls the paged API calls
-type paginator struct {
-	pageNumber    int    // current page
-	pageParameter string // page parameter name on the URL
-	EOF           bool   // true when the last page was empty
-}
-
-func (p paginator) setPage(v url.Values) {
-	v.Set(p.pageParameter, strconv.Itoa(p.pageNumber))
-}
-
-func (p *paginator) nextPage() {
-	p.pageNumber++
-}
-
-func setPaginator() serverCallOption {
-	return func(sc *serverCall) error {
-		p := paginator{
-			pageParameter: "page",
-			pageNumber:    1,
-		}
-		sc.p = &p
-		return nil
-	}
 }
 
 type requestFunction func(sc *serverCall) *http.Request
@@ -199,25 +163,6 @@ func put(url string, opts ...serverRequestOption) requestFunction {
 }
 
 func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
-	if sc.err != nil || fnRequest == nil {
-		return sc.Err(nil, nil, nil)
-	}
-
-	if sc.p == nil {
-		return sc._callDo(fnRequest, opts...)
-	}
-
-	for !sc.p.EOF {
-		err := sc._callDo(fnRequest, opts...)
-		if err != nil {
-			return err
-		}
-		sc.p.nextPage()
-	}
-	return nil
-}
-
-func (sc *serverCall) _callDo(fnRequest requestFunction, opts ...serverResponseOption) error {
 	var (
 		resp *http.Response
 		err  error
@@ -228,11 +173,6 @@ func (sc *serverCall) _callDo(fnRequest requestFunction, opts ...serverResponseO
 		return sc.Err(req, nil, nil)
 	}
 
-	if sc.p != nil {
-		v := req.URL.Query()
-		sc.p.setPage(v)
-		req.URL.RawQuery = v.Encode()
-	}
 	if sc.ic.APITrace /* && req.Header.Get("Content-Type") == "application/json"*/ {
 		_ = sc.joinError(setTraceJSONRequest()(sc, req))
 	}
@@ -316,21 +256,6 @@ func setContentType(cType string) serverRequestOption {
 	}
 }
 
-func setURLValues(values url.Values) serverRequestOption {
-	return func(sc *serverCall, req *http.Request) error {
-		if values != nil {
-			rValues := req.URL.Query()
-			for k, v := range values {
-				for _, s := range v {
-					rValues.Set(k, s)
-				}
-			}
-			req.URL.RawQuery = rValues.Encode()
-		}
-		return nil
-	}
-}
-
 type serverResponseOption func(sc *serverCall, resp *http.Response) error
 
 func responseJSON[T any](object *T) serverResponseOption {
@@ -349,11 +274,10 @@ func responseJSON[T any](object *T) serverResponseOption {
 	}
 }
 
+/*
 func responseAccumulateJSON[T any](acc *[]T) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
-		if sc.p != nil {
-			sc.p.EOF = true
-		}
+		eof := true
 		if resp != nil {
 			if resp.Body != nil {
 				defer resp.Body.Close()
@@ -366,21 +290,23 @@ func responseAccumulateJSON[T any](acc *[]T) serverResponseOption {
 					return err
 				}
 				if len(arr) > 0 && sc.p != nil {
-					sc.p.EOF = false
+					eof = false
 				}
 				(*acc) = append((*acc), arr...)
+				if eof {
+					sc.p.setEOF()
+				}
 				return nil
 			}
 		}
 		return errors.New("can't decode nil response")
 	}
 }
-
+*/
+/*
 func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
-		if sc.p != nil {
-			sc.p.EOF = true
-		}
+		eof := true
 		if resp != nil {
 			if resp.Body != nil {
 				defer resp.Body.Close()
@@ -403,15 +329,19 @@ func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
 						return err
 					}
 					if sc.p != nil {
-						sc.p.EOF = false
+						eof = false
 					}
 					filter(&o)
 				}
 				// read closing bracket "]"
 				_, err = dec.Token()
+				if eof {
+					sc.p.setEOF()
+				}
 				return err
 			}
 		}
 		return errors.New("can't decode nil response")
 	}
 }
+*/

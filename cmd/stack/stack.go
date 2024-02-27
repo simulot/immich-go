@@ -57,7 +57,7 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
 	assetCount := 0
 
-	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
 		if a.IsTrashed {
 			return
 		}
