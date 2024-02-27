@@ -22,10 +22,10 @@ type ImmichInterface interface {
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
 
 	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*Asset, error)
-	GetAllAssets(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error)
+	GetAllAssets(ctx context.Context) ([]*Asset, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
-	GetAllAssetsWithFilter(context.Context, *GetAssetOptions, func(*Asset)) error
+	GetAllAssetsWithFilter(context.Context, func(*Asset)) error
 	AssetUpload(context.Context, *browser.LocalAssetFile) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
@@ -195,4 +195,12 @@ func (t *ImmichTime) UnmarshalJSON(b []byte) error {
 	}
 	t.Time = ts.In(local)
 	return nil
+}
+
+func (t ImmichTime) MarshalJSON() ([]byte, error) {
+	if t.IsZero() {
+		return json.Marshal("")
+	}
+
+	return json.Marshal(t.Time.Format("\"" + time.RFC3339 + "\""))
 }

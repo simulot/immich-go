@@ -82,7 +82,8 @@ func checkImmich(t *testing.T, host, key, user string) {
 		}
 	}
 
-	paginated, err := ic.GetAllAssets(ctx, nil)
+	t.Log("start paginated")
+	paginated, err := ic.GetAllAssets(ctx)
 	if err != nil {
 		t.Errorf("can't get assets from %s: %s", host, err)
 	}
@@ -92,6 +93,7 @@ func checkImmich(t *testing.T, host, key, user string) {
 		paginatedCounts[aa.Type] = paginatedCounts[aa.Type] + 1
 	}
 
+	t.Log("start old method")
 	all, err := ic.getAllAssetsIDs(ctx, nil)
 	if err != nil {
 		t.Errorf("can't get assets from %s: %s", host, err)
@@ -122,14 +124,14 @@ func TestAssetImmich(t *testing.T) {
 	// t.Run("WithDebugCredentials", func(t *testing.T) {
 	// 	h, k, u := getImmichDebugCreds()
 	// 	checkImmich(t, h, k, u)
-	// // })
+	// })
 	t.Run("WithProductionCredentials", func(t *testing.T) {
 		h, k, u := getImmichProdCreds()
 		checkImmich(t, h, k, u)
 	})
 	// t.Run("WithDemoCredentials", func(t *testing.T) {
 	// 	// h, k, u := getImmichProdCreds()
-	// 	checkImmich(t, "https://demo.immich.app", "jQJ39xD5hRCCIcA3XaCVZ7vJWeDefZKrSdKF10jVmo", "")
+	// 	checkImmich(t, "https://demo.immich.app", "5nOUy9yN4u2tB3L626Pl4vjN6G7AvGzyoDQP5qJvKD4", "")
 	// })
 }
 
@@ -137,7 +139,7 @@ func TestAssetImmich(t *testing.T) {
 func (ic *ImmichClient) getAllAssetsIDs(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error) {
 	var r []*Asset
 
-	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setURLValues(opt.Values()), setAcceptJSON()), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setAcceptJSON()), responseJSON(&r))
 	return r, err
 }
 

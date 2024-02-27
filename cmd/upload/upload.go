@@ -164,7 +164,7 @@ func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpC
 	}
 	app.Jnl.Log.OK("Ask for server's assets...")
 	var list []*immich.Asset
-	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
 		if a.IsTrashed {
 			return
 		}

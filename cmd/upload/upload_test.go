@@ -19,7 +19,7 @@ import (
 
 type stubIC struct{}
 
-func (c *stubIC) GetAllAssetsWithFilter(context.Context, *immich.GetAssetOptions, func(*immich.Asset)) error {
+func (c *stubIC) GetAllAssetsWithFilter(context.Context, func(*immich.Asset)) error {
 	return nil
 }
 
@@ -77,7 +77,7 @@ func (c *stubIC) GetAssetAlbums(ctx context.Context, id string) ([]immich.AlbumS
 	return nil, nil
 }
 
-func (c *stubIC) GetAllAssets(ctx context.Context, opt *immich.GetAssetOptions) ([]*immich.Asset, error) {
+func (c *stubIC) GetAllAssets(ctx context.Context) ([]*immich.Asset, error) {
 	return nil, nil
 }
 

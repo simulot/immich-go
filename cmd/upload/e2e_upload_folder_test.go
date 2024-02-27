@@ -390,7 +390,7 @@ func resetImmich(ic *immich.ImmichClient, user string) error {
 		}
 	}
 
-	assets, err := ic.GetAllAssets(context.Background(), nil)
+	assets, err := ic.GetAllAssets(context.Background())
 	if err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func resetImmich(ic *immich.ImmichClient, user string) error {
 
 	attempts := 5
 	for attempts > 0 {
-		assets, err := ic.GetAllAssets(context.Background(), nil)
+		assets, err := ic.GetAllAssets(context.Background())
 		if err != nil {
 			return err
 		}

@@ -174,57 +174,6 @@ func (o *GetAssetOptions) Values() url.Values {
 	return v
 }
 
-// GetAllAssets get all user's assets using the paged API searchAssets
-//
-// It calls the server for IMAGE, VIDEO, normal item, trashed Items
-
-func (ic *ImmichClient) GetAllAssets(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error) {
-	var r []*Asset
-
-	for _, t := range []string{"IMAGE", "VIDEO", "AUDIO", "OTHER"} {
-		values := opt.Values()
-		values.Set("type", t)
-		values.Set("withExif", "true")
-		values.Set("isVisible", "true")
-		values.Del("trashedBefore")
-		err := ic.newServerCall(ctx, "GetAllAssets", setPaginator()).do(get("/assets", setURLValues(values), setAcceptJSON()), responseAccumulateJSON(&r))
-		if err != nil {
-			return r, err
-		}
-		values.Set("trashedBefore", "9999-01-01")
-		err = ic.newServerCall(ctx, "GetAllAssets", setPaginator()).do(get("/assets", setURLValues(values), setAcceptJSON()), responseAccumulateJSON(&r))
-		if err != nil {
-			return r, err
-		}
-	}
-	return r, nil
-}
-
-// GetAllAssetsWithFilter get all user's assets using the paged API searchAssets and apply a filter
-// TODO: rename this function, it's not a filter, it uses a callback function for each item
-//
-// It calls the server for IMAGE, VIDEO, normal item, trashed Items
-func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, opt *GetAssetOptions, filter func(*Asset)) error {
-	for _, t := range []string{"IMAGE", "VIDEO", "AUDIO", "OTHER"} {
-		values := opt.Values()
-		values.Set("type", t)
-		values.Set("withExif", "true")
-		values.Set("isVisible", "true")
-		values.Del("trashedBefore")
-		err := ic.newServerCall(ctx, "GetAllAssets", setPaginator()).do(get("/assets", setURLValues(values), setAcceptJSON()), responseJSONWithFilter(filter))
-		if err != nil {
-			return err
-		}
-		values.Set("trashedBefore", "9999-01-01")
-		err = ic.newServerCall(ctx, "GetAllAssets", setPaginator()).do(get("/assets", setURLValues(values), setAcceptJSON()), responseJSONWithFilter(filter))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDelete bool) error {
 	req := struct {
 		Force bool     `json:"force"`
@@ -238,8 +187,13 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 }
 
 func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
+	body := struct {
+		WithExif  bool   `json:"withExif,omitempty"`
+		IsVisible bool   `json:"isVisible,omitempty"`
+		ID        string `json:"id"`
+	}{WithExif: true, IsVisible: true, ID: id}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "GetAssetByID").do(get("/asset/assetById/"+id, setAcceptJSON()), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAssetByID").do(post("/search/metadata", "application/json", setAcceptJSON(), setJSONBody(body)), responseJSON(&r))
 	return &r, err
 }
 
