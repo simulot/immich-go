@@ -50,7 +50,7 @@ func getImmichDebugCreds() (host, key, user string) {
 	return
 }
 
-func getImmichClient(t *testing.T, host, key, user string) *ImmichClient {
+func getImmichClient(t *testing.T, host, key, _ string) *ImmichClient {
 	if host == "" {
 		host = "http://localhost:2283"
 	}
@@ -62,7 +62,7 @@ func getImmichClient(t *testing.T, host, key, user string) *ImmichClient {
 	return ic
 }
 
-func checkImmich(t *testing.T, host, key, user string) {
+func checkImmich(t *testing.T, host, key, _ string) {
 	ic, err := NewImmichClient(host, key, false)
 	if err != nil {
 		t.Errorf("can't connect to %s: %s", host, err)
@@ -94,7 +94,7 @@ func checkImmich(t *testing.T, host, key, user string) {
 	}
 
 	t.Log("start old method")
-	all, err := ic.getAllAssetsIDs(ctx, nil)
+	all, err := ic.getAllAssetsIDs(ctx)
 	if err != nil {
 		t.Errorf("can't get assets from %s: %s", host, err)
 	}
@@ -136,7 +136,7 @@ func TestAssetImmich(t *testing.T) {
 }
 
 // getAllAssetsIDs call the not paginated interface as comparison point
-func (ic *ImmichClient) getAllAssetsIDs(ctx context.Context, opt *GetAssetOptions) ([]*Asset, error) {
+func (ic *ImmichClient) getAllAssetsIDs(ctx context.Context) ([]*Asset, error) {
 	var r []*Asset
 
 	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setAcceptJSON()), responseJSON(&r))

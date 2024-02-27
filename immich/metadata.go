@@ -46,7 +46,6 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req searchMetada
 		req.setPage(resp.Assets.NextPage)
 	}
 	return nil
-
 }
 
 func (ic *ImmichClient) GetAllAssets(ctx context.Context) ([]*Asset, error) {

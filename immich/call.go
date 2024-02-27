@@ -28,8 +28,6 @@ type serverCall struct {
 	ctx      context.Context
 }
 
-type serverCallOption func(sc *serverCall) error
-
 // callError represents errors returned by the server
 type callError struct {
 	endPoint string
@@ -82,16 +80,11 @@ func (ce callError) Error() string {
 	return b.String()
 }
 
-func (ic *ImmichClient) newServerCall(ctx context.Context, api string, opts ...serverCallOption) *serverCall {
+func (ic *ImmichClient) newServerCall(ctx context.Context, api string) *serverCall {
 	sc := &serverCall{
 		endPoint: api,
 		ic:       ic,
 		ctx:      ctx,
-	}
-	if sc.err == nil {
-		for _, opt := range opts {
-			_ = sc.joinError(opt(sc))
-		}
 	}
 	return sc
 }
