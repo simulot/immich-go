@@ -22,7 +22,7 @@ func initMyEnv(t *testing.T) {
 		return
 	}
 	var err error
-	e, err := godotenv.Read("../../.env")
+	e, err := godotenv.Read("../../e2e.env")
 	if err != nil {
 		t.Fatalf("cant initialize environment variables: %s", err)
 	}
@@ -45,11 +45,11 @@ type testCase struct {
 
 func runCase(t *testing.T, tc testCase) {
 
-	host := myEnv["IMMICH_E2E_HOST"]
+	host := myEnv["IMMICH_HOST"]
 	if host == "" {
 		host = "http://localhost:2283"
 	}
-	key := myEnv["IMMICH_E2E_KEY"]
+	key := myEnv["IMMICH_KEY"]
 	if key == "" {
 		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable IMMICH_E2E_KEY")
 	}
