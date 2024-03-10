@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -51,12 +52,12 @@ func runCase(t *testing.T, tc testCase) {
 	}
 	key := myEnv["IMMICH_KEY"]
 	if key == "" {
-		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable IMMICH_E2E_KEY")
+		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable IMMICH_KEY")
 	}
 
-	user := myEnv["IMMICH_E2E_USER"]
+	user := myEnv["IMMICH_USER"]
 	if user == "" {
-		user = "debug.example.com"
+		user = "demo@immich.app"
 	}
 
 	ctx := context.Background()
@@ -366,12 +367,18 @@ func Test_ExtensionsFromTheServer(t *testing.T) {
 
 // Test_Issue_173: date of take is the file modification date
 func Test_Issue_173(t *testing.T) {
+	mtime := time.Date(2020, 1, 1, 15, 30, 45, 0, time.Local)
+	err := os.Chtimes("TEST_DATA/nodate/NO_DATE.jpg", time.Now(), mtime)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 	initMyEnv(t)
 
 	tc := testCase{
 		name: "Test_Issue_173",
 		args: []string{
-			"-google-photos",
+			"-when-no-date=FILE",
 			"TEST_DATA/nodate",
 		},
 		resetImmich: true,
