@@ -64,6 +64,7 @@ immich-go -server URL -key KEY -general_options COMMAND -command_options... {fil
 Use this command for uploading photos and videos from a local directory, a zipped folder or all zip files that google photo takeout procedure has generated.
 
 ### Switches and options:
+
 | **Parameter**                      | **Description**                                                                                                                  | **Default value** |
 |------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|-------------------|
 | `-album "ALBUM NAME"`              | Import assets into the Immich album `ALBUM NAME`.                                                                                |                   |
@@ -74,7 +75,8 @@ Use this command for uploading photos and videos from a local directory, a zippe
 | `-stack-jpg-raw <bool>`            | Control the stacking of jpg/raw photos.                                                                                          | `TRUE`            |
 | `-stack-burst <bool>`              | Control the stacking bursts.                                                                                                     | `TRUE`            |
 | `-select-types .ext,.ext,.ext...`  | List of accepted extensions.                                                                                                     |
-| `-exclude-types .ext,.ext,.ext...` | List of excluded extensions.                                                                                                     |
+| `-exclude-types .ext,.ext,.ext...` | List of excluded extensions. |
+| `-when-no-date FILE|NOW`           | When the date of take can't be determined, use the FILE's date or the current time NOW.                                          | `FILE`            |
 
 
 ### Date selection:

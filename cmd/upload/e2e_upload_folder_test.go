@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func initMyEnv(t *testing.T) {
 		return
 	}
 	var err error
-	e, err := godotenv.Read("../../.env")
+	e, err := godotenv.Read("../../e2e.env")
 	if err != nil {
 		t.Fatalf("cant initialize environment variables: %s", err)
 	}
@@ -45,18 +46,18 @@ type testCase struct {
 
 func runCase(t *testing.T, tc testCase) {
 
-	host := myEnv["IMMICH_E2E_HOST"]
+	host := myEnv["IMMICH_HOST"]
 	if host == "" {
 		host = "http://localhost:2283"
 	}
-	key := myEnv["IMMICH_E2E_KEY"]
+	key := myEnv["IMMICH_KEY"]
 	if key == "" {
-		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable IMMICH_E2E_KEY")
+		t.Fatal("you must provide the IMMICH's API KEY in the environnement variable IMMICH_KEY")
 	}
 
-	user := myEnv["IMMICH_E2E_USER"]
+	user := myEnv["IMMICH_USER"]
 	if user == "" {
-		user = "debug.example.com"
+		user = "demo@immich.app"
 	}
 
 	ctx := context.Background()
@@ -360,6 +361,29 @@ func Test_ExtensionsFromTheServer(t *testing.T) {
 
 		// resetImmich: true,
 		expectError: false,
+	}
+	runCase(t, tc)
+}
+
+// Test_Issue_173: date of take is the file modification date
+func Test_Issue_173(t *testing.T) {
+	mtime := time.Date(2020, 1, 1, 15, 30, 45, 0, time.Local)
+	err := os.Chtimes("TEST_DATA/nodate/NO_DATE.jpg", time.Now(), mtime)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_Issue_173",
+		args: []string{
+			"-when-no-date=FILE",
+			"TEST_DATA/nodate",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
 	}
 	runCase(t, tc)
 }

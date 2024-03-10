@@ -75,10 +75,12 @@ func TestLocalAssets(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := files.NewLocalFiles(ctx, logger.NewJournal(logger.NoLog{}), immich.DefaultSupportedMedia, fsys)
+			b, err := files.NewLocalFiles(ctx, logger.NewJournal(logger.NoLog{}), fsys)
 			if err != nil {
 				t.Error(err)
 			}
+			b.SetSupportedMedia(immich.DefaultSupportedMedia)
+			b.SetWhenNoDate("FILE")
 
 			results := []string{}
 			for a := range b.Browse(ctx) {
