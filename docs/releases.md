@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release next
+## Release 0.12.0
 
 ### fix: #173 [Feature Request:] Set date from file system timestamp
 When there is no date of take neither in the file name nor in EXIF data, the photo is uploaded with the file modification date.
