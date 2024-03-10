@@ -1,27 +1,29 @@
-# Bulk Uploading to Immich with `immich-go`
+# Immich-Go: Upload Your Photos to Your Immich Server
 
-Do you have a large collection of photos or extensive Google Photos takeout files to upload in 'immich'?<br>
-Are you struggling with Node.js or Docker installation just to upload your photos to 'immich'?
+**Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
-Give a try to the `immich-go` tool.
+## Key Features:
 
-- import from folder(s).
-- import from zipped archives without prior extraction.
-- discard duplicate images, based on the file name, and the date of capture.
-- import only missing files or better files (an delete the inferior copy from the server).
-- import from Google Photos takeout archives:
-    - use metadata to bypass file name discrepancies in the archive
-    - use metadata to get album real names
-    - use date of capture found in the json files
-    - create albums based on Google Photos albums or folder names.
-- import photos taken within a date range.
-- import and stack couples jpg/raw photos or bursts
-- import IPhone live photos
-- remove duplicated assets, based on the file name, date of capture, and file size
-- no installation, no dependencies.
+* **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata.
+* **Leverage Google Photos Metadata:**  Immich-Go doesn't just upload your photos; it also imports the associated metadata from Google Photos. This includes details like GPS location, date taken, and album information, ensuring your photos stay organized on your Immich server.
+* **Flexible Uploads:**  Immich-Go isn't limited to Google Photos. You can upload photos directly from your computer folders, folders tree and ZIP archives.
+* **Simple Installation:**  Forget complex setups! Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
+* **Import Options:**  Choose how you want to upload your photos. Immich-Go supports importing individual folders, entire folder structures, and compressed ZIP archives for maximum flexibility.
+* **Prioritize Quality, Discard Duplicates:**  Immich-Go discards any lower-resolution versions that might be included in Google Photos Takeout, ensuring you have the best possible copies on your Immich server.
 
-> ⚠️ This an early version, not yet extensively tested<br>
-> ⚠️ Keep a backup copy of your files for safety<br>
+
+## Google Photos Best Practices:
+
+* **Taking Out Your Photos:**
+  * Choose the ZIP format when creating your takeout for easier import.
+  * Select the largest file size available (50GB) to ensure all your photos are included.
+  * It's important to import all the parts of the takeout together, since some data might be spread across multiple files.
+
+* **Importing Your Photos:**
+  * If your takeout is in ZIP format, you can import it directly without needing to unzip the files first.
+  * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. When using the import tool, include the `-google-photos` option.
+  * You can remove any unwanted files or folders from your takeout before importing. Immich-go might warn you about missing JSON files, but it should still import your photos successfully.
+  * Restarting an interrupted import won't cause any problems and it will resume the import.
 
 
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
@@ -30,6 +32,10 @@ For insights into the reasoning behind this alternative to `immich-cli`, please 
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=simulot/immich-go&type=Date)](https://star-history.com/#simulot/immich-go&Date)
+
+
+> ⚠️ This an early version, not yet extensively tested<br>
+> ⚠️ Keep a backup copy of your files for safety<br>
 
 
 # Executing `immich-go`
@@ -81,6 +87,7 @@ Fine-tune import based on specific dates:<br>
 
 ### Google photos options:
 
+
 Specialized options for Google Photos management:<br>
 `-google-photos` import from a Google Photos structured archive, recreating corresponding albums.<br>
 `-from-album "GP Album"` Create the album in `immich` and import album's assets.<br>
@@ -105,7 +112,7 @@ Currently the bursts following this schema are detected:
 All images must be taken during the same minute.
 The COVER image will be the parent image of the stack
 
-### couple jpg/raw detection
+### Couple jpg/raw detection
 Both images should been taken in the same minute.
 The JPG image will be the cover. 
 
@@ -164,7 +171,6 @@ This command deletes albums that match with the given pattern
 ```sh
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ tool album delete \d{4}-\d{2}-\d{2}
 ```
-
 This command deletes all albums created with de pattern YYYY-MM-DD
 
 
@@ -191,54 +197,6 @@ Open a command windows, go to the directory where immich-go resides, and type th
 For a source-based installation, ensure you have the necessary Go language development tools (https://go.dev/doc/install) in place.
 Download the source files or clone the repository. 
 
-
-# Road map
-- [X] binary releases with no dependencies
-- [X] check in the photo doesn't exist on the server before uploading
-    - [X] but keep files with the same name: ex IMG_0201.jpg if they aren't duplicates
-    - [X] some files may have different names (ex IMG_00195.jpg and IMAGE_00195 (1).jpg) and are true duplicates
-- [X] replace the server photo, if the file to upload is better.
-    - [X] Update any album with the new version of the asset
-- [X] delete local file after successful upload (not for import!)
-- [X] upload XMP sidecar files 
-- [ ] select or exclude assets to upload by
-    - [X] date of capture within a date range
-    - [ ] type photo / video
-    - [ ] name pattern
-    - [ ] glob expression like ~/photos/\*/sorted/*.*
-    - [ ] size
-- [ ] multithreaded 
-- [X] import from local folder
-    - [X] create albums based on folder
-    - [X] create an album with a given name
-- [X] import from zip archives without unzipping them
-- [X] import google takeout zip archives without unzipping them
-- [X] Import Google takeout archive
-    - [X] manage multi-zip archives
-    - [X] replicate google albums in immich
-    - [X] manage duplicates assets inside the archive
-    - [X] Use the google takeout date to set the immich date even when there is no exif date in the image.
-    - [X] don't upload google file if the server's image is better
-    - [X] don't import trashed files
-    - [X] don't import failed videos
-    - [X] include photos taken by a partner in dedicated album (the partner may also uses immich for her/his own photos)
-    - [ ] handle Archives 
-- [ ] use tags placed in exif data
-    - [ ] JPEG files
-    - [ ] MP4 files
-    - [ ] HEIC files
-    - [ ] name of the file (fall back, any name containing date like Holidays_2022-07-25 21.59)
-- [ ] upload from remote folders
-    - [ ] ssh
-    - [ ] samba
-    - [ ] import remote folder
-- [ ] Set GPS location for images taken with a GPS-less camera based on
-    - [ ] Google location history
-    - [ ] KML,GPX track files
-- [x] Cleaning different resolution duplicates in the immich server based on their name and date of capture 
-
-
-
 # Acknowledgments
 
 Kudos to the Immich team for they stunning project!🤩
@@ -247,4 +205,8 @@ This program use following 3rd party libraries:
 - github.com/rwcarlsen/goexif to get date of capture from JPEG files
 - github.com/ttacon/chalk for having logs nicely colored 
 -	github.com/thlib/go-timezone-local for its windows timezone management
--	github.com/yalue/merged_fs v1.2.3 for its FS merging capability
+
+A big thank you to the project contributors:
+- [rodneyosodo](https://github.com/rodneyosodo) gitub CI, go linter, and advices 
+- [sigmahour](https://github.com/sigmahour) SSL management
+- [mrwulf](https://github.com/mrwulf) Partner sharing album
