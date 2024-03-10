@@ -76,7 +76,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 | `-stack-burst <bool>`              | Control the stacking bursts.                                                                                                     | `TRUE`            |
 | `-select-types .ext,.ext,.ext...`  | List of accepted extensions.                                                                                                     |
 | `-exclude-types .ext,.ext,.ext...` | List of excluded extensions. |
-| `-when-no-date FILE|NOW`           | When the date of take can't be determined, use the FILE's date or the current time NOW.                                          | `FILE`            |
+| <code>-when-no-date FILE&#124;NOW</code>      | When the date of take can't be determined, use the FILE's date or the current time NOW.                                          | `FILE`            |
 
 
 ### Date selection:
