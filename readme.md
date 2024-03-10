@@ -171,7 +171,6 @@ This command deletes albums that match with the given pattern
 ```sh
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ tool album delete \d{4}-\d{2}-\d{2}
 ```
-[text](http://192.168.10.21:9696/)
 This command deletes all albums created with de pattern YYYY-MM-DD
 
 
