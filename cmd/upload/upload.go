@@ -290,6 +290,7 @@ assetLoop:
 }
 
 func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) error {
+	const willBeAddedToAlbum = "Will be added to the album: "
 	defer func() {
 		a.Close()
 	}()
@@ -366,7 +367,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		app.journalAsset(a, logger.Upgraded, advice.Message)
 		// add the superior asset into albums of the original asset
 		for _, al := range advice.ServerAsset.Albums {
-			app.journalAsset(a, logger.INFO, "Will be added to the album: "+al.AlbumName)
+			app.journalAsset(a, logger.INFO, willBeAddedToAlbum+al.AlbumName)
 			a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
 		}
 		ID, err = app.UploadAsset(ctx, a)
@@ -386,16 +387,16 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		ID = advice.ServerAsset.ID
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
-				app.journalAsset(a, logger.INFO, "Will be added to the album: "+al.Name)
+				app.journalAsset(a, logger.INFO, willBeAddedToAlbum+al.Name)
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
 			}
 		}
 		if app.ImportIntoAlbum != "" {
-			app.journalAsset(a, logger.INFO, "Will be added to the album: "+app.ImportIntoAlbum)
+			app.journalAsset(a, logger.INFO, willBeAddedToAlbum+app.ImportIntoAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.ImportIntoAlbum)
 		}
 		if app.PartnerAlbum != "" && a.FromPartner {
-			app.journalAsset(a, logger.INFO, "Will be added to the album: "+app.PartnerAlbum)
+			app.journalAsset(a, logger.INFO, willBeAddedToAlbum+app.PartnerAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 		if !advice.ServerAsset.JustUploaded {
@@ -411,12 +412,12 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		// keep the server version but update albums
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
-				app.journalAsset(a, logger.INFO, "Will be added to the album: "+al.Name)
+				app.journalAsset(a, logger.INFO, willBeAddedToAlbum+al.Name)
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
 			}
 		}
 		if app.PartnerAlbum != "" && a.FromPartner {
-			app.journalAsset(a, logger.INFO, "Will be added to the album: "+app.PartnerAlbum)
+			app.journalAsset(a, logger.INFO, willBeAddedToAlbum+app.PartnerAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
 	}

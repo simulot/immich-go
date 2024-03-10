@@ -8,7 +8,6 @@
 * **Leverage Google Photos Metadata:**  Immich-Go doesn't just upload your photos; it also imports the associated metadata from Google Photos. This includes details like GPS location, date taken, and album information, ensuring your photos stay organized on your Immich server.
 * **Flexible Uploads:**  Immich-Go isn't limited to Google Photos. You can upload photos directly from your computer folders, folders tree and ZIP archives.
 * **Simple Installation:**  Forget complex setups! Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
-* **Import Options:**  Choose how you want to upload your photos. Immich-Go supports importing individual folders, entire folder structures, and compressed ZIP archives for maximum flexibility.
 * **Prioritize Quality, Discard Duplicates:**  Immich-Go discards any lower-resolution versions that might be included in Google Photos Takeout, ensuring you have the best possible copies on your Immich server.
 
 
