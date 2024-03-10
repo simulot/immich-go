@@ -2,6 +2,17 @@
 
 ## Release next
 
+### fix: #173 [Feature Request:] Set date from file system timestamp
+When there is no date of take neither in the file name nor in EXIF data, the photo is uploaded with the file modification date.
+This behavior can be changed with the option:
+`-when-no-date FILE|NOW` 
+
+## Release 0.11.0
+
+### fix: stack command fails #169 
+The immich version 1.95 changed the /asset api endpoint used to during the stack operation.
+API call have been changed to match with new api endpoints
+
 ### fix: #140 Device UUID is not set
 The option `-device-uuid VALUE` was not functional.
 
