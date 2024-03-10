@@ -53,6 +53,7 @@ type UpCmd struct {
 	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
 	StackBurst             bool             // Stack burst (Default: TRUE)
 	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
+	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
 
 	BrowserConfig Configuration
 
@@ -143,10 +144,22 @@ func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpC
 	cmd.Var(&app.BrowserConfig.SelectExtensions, "select-types", "list of selected extensions separated by a comma")
 	cmd.Var(&app.BrowserConfig.ExcludeExtensions, "exclude-types", "list of excluded extensions separated by a comma")
 
+	cmd.StringVar(&app.WhenNoDate,
+		"when-no-date",
+		"FILE",
+		" When the date of take can't be determined, use the FILE's date or the current time NOW. (default: FILE)")
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
 	}
+
+	app.WhenNoDate = strings.ToUpper(app.WhenNoDate)
+	switch app.WhenNoDate {
+	case "FILE", "NOW":
+	default:
+		return nil, fmt.Errorf("the -when-no-date accepts FILE or NOW")
+	}
+
 	app.BrowserConfig.Validate()
 
 	err = app.SharedFlags.Start(ctx)
@@ -498,7 +511,13 @@ func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser
 }
 
 func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
-	return files.NewLocalFiles(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
+	b, err := files.NewLocalFiles(ctx, app.Jnl, fsyss...)
+	if err != nil {
+		return nil, err
+	}
+	b.SetSupportedMedia(app.Immich.SupportedMedia())
+	b.SetWhenNoDate(app.WhenNoDate)
+	return b, nil
 }
 
 // UploadAsset upload the asset on the server

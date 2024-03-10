@@ -364,6 +364,23 @@ func Test_ExtensionsFromTheServer(t *testing.T) {
 	runCase(t, tc)
 }
 
+// Test_Issue_173: date of take is the file modification date
+func Test_Issue_173(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_Issue_173",
+		args: []string{
+			"-google-photos",
+			"TEST_DATA/nodate",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 // ResetImmich
 // ⛔: will remove the content of the server.‼️
 // Give the user of the connection to confirm the server instance: debug@example.com
