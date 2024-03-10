@@ -16,19 +16,30 @@ import (
 )
 
 type LocalAssetBrowser struct {
-	fsyss  []fs.FS
-	albums map[string]string
-	log    *logger.Journal
-	sm     immich.SupportedMedia
+	fsyss      []fs.FS
+	albums     map[string]string
+	log        *logger.Journal
+	sm         immich.SupportedMedia
+	whenNoDate string
 }
 
-func NewLocalFiles(ctx context.Context, log *logger.Journal, sm immich.SupportedMedia, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, log *logger.Journal, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
-		fsyss:  fsyss,
-		albums: map[string]string{},
-		log:    log,
-		sm:     sm,
+		fsyss:      fsyss,
+		albums:     map[string]string{},
+		log:        log,
+		whenNoDate: "FILE",
 	}, nil
+}
+
+func (la *LocalAssetBrowser) SetSupportedMedia(sm immich.SupportedMedia) *LocalAssetBrowser {
+	la.sm = sm
+	return la
+}
+
+func (la *LocalAssetBrowser) SetWhenNoDate(opt string) *LocalAssetBrowser {
+	la.whenNoDate = opt
+	return la
 }
 
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -124,7 +135,12 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 				err = la.ReadMetadataFromFile(&f)
 				_ = err
 				if f.DateTaken.Before(toOldDate) {
-					f.DateTaken = time.Now()
+					switch la.whenNoDate {
+					case "FILE":
+						f.DateTaken = s.ModTime()
+					case "NOW":
+						f.DateTaken = time.Now()
+					}
 				}
 			}
 			la.checkSidecar(&f, entries, folder, name)

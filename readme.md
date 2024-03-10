@@ -76,6 +76,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 `-stack-burst <bool>`Control the stacking bursts (default TRUE).<br>
 `-select-types .ext,.ext,.ext...` List of accepted extensions. <br>
 `-exclude-types .ext,.ext,.ext...` List of excluded extensions. <br>
+`-when-no-date FILE|NOW` When the date of take can't be determined, use the FILE's date or the current time NOW. (default: FILE)<br>
 
 ### Date selection:
 Fine-tune import based on specific dates:<br>
@@ -85,7 +86,6 @@ Fine-tune import based on specific dates:<br>
 `-date YYYY-MM-DD,YYYY-MM-DD` select photos taken within this date range.<br>
 
 ### Google photos options:
-
 
 Specialized options for Google Photos management:<br>
 `-google-photos` import from a Google Photos structured archive, recreating corresponding albums.<br>

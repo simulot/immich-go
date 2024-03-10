@@ -17,4 +17,4 @@ archive.tar
 *.out
 *.test
 .env
-
+*.env
