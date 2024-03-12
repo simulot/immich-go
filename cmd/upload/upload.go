@@ -433,6 +433,9 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.journalAsset(a, logger.INFO, willBeAddedToAlbum+app.PartnerAlbum)
 			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
 		}
+	case LocalMetadataBetter:
+		app.journalAsset(a, logger.LocalMetadataBetter, advice.Message)
+		app.UpdateAsset(ctx, advice.ServerAsset, a)
 	}
 
 	if err != nil {
@@ -558,6 +561,19 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 	}
 
 	return resp.ID, nil
+}
+
+func (app *UpCmd) UpdateAsset(ctx context.Context, s *immich.Asset, l *browser.LocalAssetFile) error {
+	var err error = nil
+	if !app.DryRun {
+		_, err = app.Immich.UpdateAsset(ctx, s.ID, l)
+	}
+
+	if err != nil {
+		app.journalAsset(l, logger.ServerError, err.Error())
+	}
+
+	return err
 }
 
 func (app *UpCmd) albumName(al browser.LocalAlbum) string {
@@ -689,6 +705,7 @@ const (
 	IDontKnow AdviceCode = iota
 	SmallerOnServer
 	BetterOnServer
+	LocalMetadataBetter
 	SameOnServer
 	NotOnServer
 )
@@ -747,6 +764,14 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 	}
 }
 
+func (ai *AssetIndex) adviceLocalMetadataBetter(sa *immich.Asset, la *browser.LocalAssetFile) *Advice {
+	return &Advice{
+		Advice:      LocalMetadataBetter,
+		Message:     fmt.Sprintf("An asset with the same name:%q exists, but local metadata is better (local date: %q, server date: %q)", sa.OriginalFileName, la.DateTaken.Format(time.DateTime), sa.ExifInfo.DateTimeOriginal.Format(time.DateTime)),
+		ServerAsset: sa,
+	}
+}
+
 // ShouldUpload check if the server has this asset
 //
 // The server may have different assets with the same name. This happens with photos produced by digital cameras.
@@ -761,9 +786,17 @@ func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) 
 	ID := la.DeviceAssetID()
 
 	sa := ai.byID[ID]
+
 	if sa != nil {
 		// the same ID exist on the server
-		return ai.adviceSameOnServer(sa), nil
+		// logic here is *older* is almost certinally better than newer timestamps, because
+		// if a file is missing a timestamp, it will be replaced with the download timestamp
+		// (in the case of Photos Takeout) or upload timestamp (otherwise), which has to be after the take date
+		if compareDate(la.DateTaken, sa.ExifInfo.DateTimeOriginal.Time) < 0 {
+			return ai.adviceLocalMetadataBetter(sa, la), nil
+		} else {
+			return ai.adviceSameOnServer(sa), nil
+		}
 	}
 
 	var l []*immich.Asset

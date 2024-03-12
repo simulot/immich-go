@@ -14,26 +14,27 @@ type Journal struct {
 type Action string
 
 const (
-	DiscoveredFile     Action = "File"
-	ScannedImage       Action = "Scanned image"
-	ScannedVideo       Action = "Scanned video"
-	Discarded          Action = "Discarded"
-	Uploaded           Action = "Uploaded"
-	Upgraded           Action = "Server's asset upgraded"
-	ERROR              Action = "Error"
-	LocalDuplicate     Action = "Local duplicate"
-	ServerDuplicate    Action = "Server has photo"
-	Stacked            Action = "Stacked"
-	ServerBetter       Action = "Server's asset is better"
-	Album              Action = "Added to an album"
-	LivePhoto          Action = "Live photo"
-	FailedVideo        Action = "Failed video"
-	Unsupported        Action = "File type not supported"
-	Metadata           Action = "Metadata files"
-	AssociatedMetadata Action = "Associated with metadata"
-	INFO               Action = "Info"
-	NotSelected        Action = "Not selected because options"
-	ServerError        Action = "Server error"
+	DiscoveredFile      Action = "File"
+	ScannedImage        Action = "Scanned image"
+	ScannedVideo        Action = "Scanned video"
+	Discarded           Action = "Discarded"
+	Uploaded            Action = "Uploaded"
+	Upgraded            Action = "Server's asset upgraded"
+	ERROR               Action = "Error"
+	LocalDuplicate      Action = "Local duplicate"
+	ServerDuplicate     Action = "Server has photo"
+	Stacked             Action = "Stacked"
+	ServerBetter        Action = "Server's asset is better"
+	LocalMetadataBetter Action = "Server's asset is identical, but better local metadata"
+	Album               Action = "Added to an album"
+	LivePhoto           Action = "Live photo"
+	FailedVideo         Action = "Failed video"
+	Unsupported         Action = "File type not supported"
+	Metadata            Action = "Metadata files"
+	AssociatedMetadata  Action = "Associated with metadata"
+	INFO                Action = "Info"
+	NotSelected         Action = "Not selected because options"
+	ServerError         Action = "Server error"
 )
 
 func NewJournal(log Logger) *Journal {
@@ -89,6 +90,7 @@ func (j *Journal) Report() {
 	j.Log.OK("%6d uploaded files on the server", j.counts[Uploaded])
 	j.Log.OK("%6d upgraded files on the server", j.counts[Upgraded])
 	j.Log.OK("%6d files already on the server", j.counts[ServerDuplicate])
+	j.Log.OK("%6d files adready on the server, but updated create time", j.counts[LocalMetadataBetter])
 	j.Log.OK("%6d discarded files because of options", j.counts[NotSelected])
 	j.Log.OK("%6d discarded files because duplicated in the input", j.counts[LocalDuplicate])
 	j.Log.OK("%6d discarded files because server has a better image", j.counts[ServerBetter])
