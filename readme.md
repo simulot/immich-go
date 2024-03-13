@@ -16,10 +16,11 @@
 * **Taking Out Your Photos:**
   * Choose the ZIP format when creating your takeout for easier import.
   * Select the largest file size available (50GB) to ensure all your photos are included.
-  * It's important to import all the parts of the takeout together, since some data might be spread across multiple files.
 
 * **Importing Your Photos:**
   * If your takeout is in ZIP format, you can import it directly without needing to unzip the files first.
+  * It's important to import all the parts of the takeout together, since some data might be spread across multiple files. 
+  <br>Use `path/to/your/files/takeout-*.zip` as file name.
   * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. When using the import tool, include the `-google-photos` option.
   * You can remove any unwanted files or folders from your takeout before importing. Immich-go might warn you about missing JSON files, but it should still import your photos successfully.
   * Restarting an interrupted import won't cause any problems and it will resume the import.
