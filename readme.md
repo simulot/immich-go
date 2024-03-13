@@ -16,7 +16,7 @@
 
 * **Taking Out Your Photos:**
   * Choose the ZIP format when creating your takeout for easier import.
-  * Select the largest file size available (50GB) to ensure all your photos are included.
+  * Select the largest file size available (50GB) to minimize the number of archive parts.
   * Download all parts on your computer
 
 * **Importing Your Photos:**
