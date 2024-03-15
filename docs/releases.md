@@ -1,5 +1,8 @@
 # Release notes 
 
+### fix: Append Log #182
+Log are now appended to the log file
+
 ## Release 0.12.0
 
 ### fix: #173 [Feature Request:] Set date from file system timestamp
