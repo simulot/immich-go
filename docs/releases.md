@@ -1,5 +1,7 @@
 # Release notes 
 
+## Release next
+
 ## Release 0.12.0
 
 ### fix: #173 [Feature Request:] Set date from file system timestamp

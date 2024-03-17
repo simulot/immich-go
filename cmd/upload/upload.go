@@ -202,6 +202,9 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = fshelper.CloseFSs(app.fsys)
+	}()
 	return app.Run(ctx, app.fsys)
 }
 
