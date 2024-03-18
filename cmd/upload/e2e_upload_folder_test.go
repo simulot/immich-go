@@ -248,6 +248,22 @@ func Test_XMP(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_XMP2(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_XMP2",
+		args: []string{
+			"-create-stacks=false",
+			myEnv["IMMICH_TESTFILES"] + "/xmp/files*/*.CR2",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 func Test_Album_Issue_119(t *testing.T) {
 	initMyEnv(t)
 
