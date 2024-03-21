@@ -52,7 +52,7 @@ func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string
 	cmd.BoolFunc("ignore-tz-errors", "Ignore timezone difference to check duplicates (default: FALSE).", myflag.BoolFlagFn(&app.IgnoreTZErrors, false))
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", myflag.BoolFlagFn(&app.AssumeYes, false))
 	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
-	cmd.BoolFunc("ignore-ext", "When true, ignores extensions when checking for duplicates (defailt: FALSE)", myflag.BoolFlagFn(&app.IgnoreExtension, false))
+	cmd.BoolFunc("ignore-extension", "When true, ignores extensions when checking for duplicates (defailt: FALSE)", myflag.BoolFlagFn(&app.IgnoreExtension, false))
 	err := cmd.Parse(args)
 	if err != nil {
 		return nil, err
