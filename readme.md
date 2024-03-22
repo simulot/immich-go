@@ -147,6 +147,7 @@ Before deleting the inferior copies, the system get all albums they belong to, a
 | `-yes`                     | Assume Yes to all questions                                 | `FALSE`                 |
 | `-date`                    | Check only assets have a date of capture in the given range | `1850-01-04,2030-01-01` |
 | `-ignore-tz-errors <bool>` | Ignore timezone difference when searching for duplicates    | `FALSE`                 |
+| `-ignore-extension`        | Ignore filetype extensions when searching for duplicates    | `FALSE`                 |
 
 ### Example Usage: clean the `immich` server after having merged a google photo archive and original files
 
