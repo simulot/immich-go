@@ -21,10 +21,10 @@ import (
 
 type DuplicateCmd struct {
 	*cmd.SharedFlags
-	AssumeYes       bool             	// When true, doesn't ask to the user
-	DateRange       immich.DateRange 	// Set capture date range
-	IgnoreTZErrors  bool             	// Enable TZ error tolerance
-	IgnoreExtension bool				// Ignore file extensions when checking for duplicates
+	AssumeYes       bool             // When true, doesn't ask to the user
+	DateRange       immich.DateRange // Set capture date range
+	IgnoreTZErrors  bool             // Enable TZ error tolerance
+	IgnoreExtension bool             // Ignore file extensions when checking for duplicates
 
 	assetsByID          map[string]*immich.Asset
 	assetsByBaseAndDate map[duplicateKey][]*immich.Asset
@@ -52,7 +52,7 @@ func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string
 	cmd.BoolFunc("ignore-tz-errors", "Ignore timezone difference to check duplicates (default: FALSE).", myflag.BoolFlagFn(&app.IgnoreTZErrors, false))
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", myflag.BoolFlagFn(&app.AssumeYes, false))
 	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
-	cmd.BoolFunc("ignore-extension", "When true, ignores extensions when checking for duplicates (defailt: FALSE)", myflag.BoolFlagFn(&app.IgnoreExtension, false))
+	cmd.BoolFunc("ignore-extension", "When true, ignores extensions when checking for duplicates (default: FALSE)", myflag.BoolFlagFn(&app.IgnoreExtension, false))
 	err := cmd.Parse(args)
 	if err != nil {
 		return nil, err
@@ -89,9 +89,9 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 			Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
 			Type: a.Type,
 		}
-		
+
 		if app.IgnoreExtension {
-			k.Name, _, _ = strings.Cut(k.Name, path.Ext(a.OriginalPath))
+			k.Name = strings.TrimSuffix(k.Name, path.Ext(a.OriginalPath))
 		}
 		l := app.assetsByBaseAndDate[k]
 		if len(l) > 0 {
