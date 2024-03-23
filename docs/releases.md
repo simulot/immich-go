@@ -1,7 +1,16 @@
 # Release notes 
 
+## Release next
+
+### Improvement: Better handling of wild cards in path 
+`Immich-go` now accepts to handle path like `photos/Holydays*`. This, combined with the `-create-album-folder` will create 
+an album per folder Holydays*.
+
+It can handle patterns like : /photo/\*/raw/\*.dmg
+
 ### fix: Append Log #182
 Log are now appended to the log file
+
 
 ## Release 0.12.0
 

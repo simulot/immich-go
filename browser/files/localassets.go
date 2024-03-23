@@ -95,10 +95,10 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		if e.IsDir() {
 			continue
 		}
-		fileName := path.Join(folder, e.Name())
-		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
 		name := e.Name()
+		fileName := path.Join(folder, name)
 		ext := strings.ToLower(path.Ext(name))
+		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
 
 		t := la.sm.TypeFromExt(ext)
 		switch t {

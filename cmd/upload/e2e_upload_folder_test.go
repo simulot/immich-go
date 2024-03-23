@@ -248,6 +248,25 @@ func Test_XMP(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_XMP2(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_XMP2",
+		args: []string{
+			"-create-stacks=false",
+			"-create-album-folder",
+			// myEnv["IMMICH_TESTFILES"] + "/xmp/files",
+			// myEnv["IMMICH_TESTFILES"] + "/xmp/files/*.CR2",
+			myEnv["IMMICH_TESTFILES"] + "/xmp/files*/*.CR2",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 func Test_Album_Issue_119(t *testing.T) {
 	initMyEnv(t)
 
@@ -334,6 +353,8 @@ func Test_Issue_129(t *testing.T) {
 	runCase(t, tc)
 }
 
+// Test_Issue_128
+// Manage GP with no names
 func Test_Issue_128(t *testing.T) {
 	initMyEnv(t)
 
@@ -343,6 +364,22 @@ func Test_Issue_128(t *testing.T) {
 			"-google-photos",
 			myEnv["IMMICH_TESTFILES"] + "/Issue 128",
 		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
+// Test_GP_MultiZip test the new way to pars arguments (post 0.12.0)
+func Test_GP_MultiZip(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_Issue_128",
+		args: []string{
+			"-google-photos",
+			myEnv["IMMICH_TESTFILES"] + "/google-photos/zip*.zip"},
 		resetImmich: true,
 		expectError: false,
 		APITrace:    false,
@@ -380,6 +417,23 @@ func Test_Issue_173(t *testing.T) {
 		args: []string{
 			"-when-no-date=FILE",
 			"TEST_DATA/nodate",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
+// Test_Issue_159: Albums from subdirectories with matching names
+func Test_Issue_159(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_Issue_159",
+		args: []string{
+			"-create-album-folder=true",
+			"TEST_DATA/folder/high/Album*",
 		},
 		resetImmich: true,
 		expectError: false,
