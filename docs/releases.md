@@ -2,6 +2,12 @@
 
 ## Release next
 
+### Improvement: Better handling of wild cards in path 
+`Immich-go` now accepts to handle path like `photos/Holydays*`. This, combined with the `-create-album-folder` will create 
+an album per folder Holydays*.
+
+It can handle patterns like : /photo/\*/raw/\*.dmg
+
 ## Release 0.12.0
 
 ### fix: #173 [Feature Request:] Set date from file system timestamp

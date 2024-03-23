@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -43,12 +44,31 @@ func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 			}
 		default:
 			fixed, magic := FixedPathAndMagic(a)
-			fsys, err := NewGlobWalkFS(os.DirFS(fixed), magic)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
+			if magic == "" {
+				stat, err := os.Stat(a)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+				if stat.IsDir() {
+					fsyss = append(fsyss, os.DirFS(fixed))
+				} else {
+					d, f := path.Split(a)
+					fsys, err := NewGlobWalkFS(os.DirFS(strings.TrimSuffix(d, "/")), f)
+					if err != nil {
+						errs = errors.Join(errs, err)
+						continue
+					}
+					fsyss = append(fsyss, fsys)
+				}
+			} else {
+				fsys, err := NewGlobWalkFS(os.DirFS(fixed), magic)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+				fsyss = append(fsyss, fsys)
 			}
-			fsyss = append(fsyss, fsys)
 		}
 	}
 	if errs != nil {

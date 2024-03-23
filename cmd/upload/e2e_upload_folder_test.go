@@ -255,6 +255,9 @@ func Test_XMP2(t *testing.T) {
 		name: "Test_XMP2",
 		args: []string{
 			"-create-stacks=false",
+			"-create-album-folder",
+			// myEnv["IMMICH_TESTFILES"] + "/xmp/files",
+			// myEnv["IMMICH_TESTFILES"] + "/xmp/files/*.CR2",
 			myEnv["IMMICH_TESTFILES"] + "/xmp/files*/*.CR2",
 		},
 		resetImmich: true,
