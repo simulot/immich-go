@@ -4,26 +4,28 @@
 
 ## Key Features:
 
-* **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata.
-* **Leverage Google Photos Metadata:**  Immich-Go doesn't just upload your photos; it also imports the associated metadata from Google Photos. This includes details like GPS location, date taken, and album information, ensuring your photos stay organized on your Immich server.
+* **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, date taken, and album information.
 * **Flexible Uploads:**  Immich-Go isn't limited to Google Photos. You can upload photos directly from your computer folders, folders tree and ZIP archives.
-* **Simple Installation:**  Forget complex setups! Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
+* **Simple Installation:** Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
 * **Prioritize Quality, Discard Duplicates:**  Immich-Go discards any lower-resolution versions that might be included in Google Photos Takeout, ensuring you have the best possible copies on your Immich server.
+* **Duplicate removal:** Remove "logical" duplicates generated when importing full resolution photos and lower resolution photos from the takeout.
+* **Stack burst and raw/jpg photos**: Group together related photos in Immich.
 
 
 ## Google Photos Best Practices:
 
 * **Taking Out Your Photos:**
   * Choose the ZIP format when creating your takeout for easier import.
-  * Select the largest file size available (50GB) to ensure all your photos are included.
+  * Select the largest file size available (50GB) to minimize the number of archive parts.
+  * Download all parts on your computer
 
 * **Importing Your Photos:**
   * If your takeout is in ZIP format, you can import it directly without needing to unzip the files first.
   * It's important to import all the parts of the takeout together, since some data might be spread across multiple files. 
-  <br>Use `path/to/your/files/takeout-*.zip` as file name.
-  * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. When using the import tool, include the `-google-photos` option.
+    <br>Use `/path/to/you/files/takeout-*.zip` as file name.
+  * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. When using the import tool, don't forget the `-google-photos` option.
   * You can remove any unwanted files or folders from your takeout before importing. Immich-go might warn you about missing JSON files, but it should still import your photos successfully.
-  * Restarting an interrupted import won't cause any problems and it will resume the import.
+  * Restarting an interrupted import won't cause any problems and it will resume the work where it was left.
 
 
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
@@ -39,6 +41,7 @@ For insights into the reasoning behind this alternative to `immich-cli`, please 
 
 
 # Executing `immich-go`
+The `immich-go` is a command line tool.
 The `immich-go` program uses the Immich API. Hence it need the server address and a valid API key.
 
 
@@ -144,6 +147,7 @@ Before deleting the inferior copies, the system get all albums they belong to, a
 | `-yes`                     | Assume Yes to all questions                                 | `FALSE`                 |
 | `-date`                    | Check only assets have a date of capture in the given range | `1850-01-04,2030-01-01` |
 | `-ignore-tz-errors <bool>` | Ignore timezone difference when searching for duplicates    | `FALSE`                 |
+| `-ignore-extension`        | Ignore filetype extensions when searching for duplicates    | `FALSE`                 |
 
 ### Example Usage: clean the `immich` server after having merged a google photo archive and original files
 

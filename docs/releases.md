@@ -8,6 +8,10 @@ an album per folder Holydays*.
 
 It can handle patterns like : /photo/\*/raw/\*.dmg
 
+### fix: Append Log #182
+Log are now appended to the log file
+
+
 ## Release 0.12.0
 
 ### fix: #173 [Feature Request:] Set date from file system timestamp

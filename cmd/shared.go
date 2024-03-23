@@ -65,7 +65,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 
 	if app.LogFile != "" {
 		if app.out == nil {
-			f, err := os.Create(app.LogFile)
+			f, err := os.OpenFile(app.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 			} else {
