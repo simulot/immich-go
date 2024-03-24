@@ -59,6 +59,7 @@ func Run(ctx context.Context) error {
 		Jnl: logger.NewJournal(log),
 	}
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
+	app.InitSharedFlags()
 	app.SetFlags(fs)
 
 	err := fs.Parse(os.Args[1:])

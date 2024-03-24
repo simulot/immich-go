@@ -7,8 +7,7 @@
 * **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, date taken, and album information.
 * **Flexible Uploads:**  Immich-Go isn't limited to Google Photos. You can upload photos directly from your computer folders, folders tree and ZIP archives.
 * **Simple Installation:** Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
-* **Prioritize Quality, Discard Duplicates:**  Immich-Go discards any lower-resolution versions that might be included in Google Photos Takeout, ensuring you have the best possible copies on your Immich server.
-* **Duplicate removal:** Remove "logical" duplicates generated when importing full resolution photos and lower resolution photos from the takeout.
+* **Prioritize Quality:**  Immich-Go discards any lower-resolution versions that might be included in Google Photos Takeout, ensuring you have the best possible copies on your Immich server.
 * **Stack burst and raw/jpg photos**: Group together related photos in Immich.
 
 
@@ -51,6 +50,7 @@ immich-go -server URL -key KEY -general_options COMMAND -command_options... {fil
 
 | **Parameter**               | **Description**                                                                                                                                                                                                                              | **Default value** |
 |-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------|
+| `-use-configuration=path/to/config/file` | Specifies the configuration file to use. <br>Server URL and the API key are stored into the immich-go configuration file. They can be omitted for the next runs. | `$HOME/.immich-go/immich-go.json` |
 | `-server URL`               | URL of the Immich service, example http://<your-ip>:2283 or https://your-domain                                                                                                                                                              |                   |
 | `-api URL`                  | URL of the Immich api endpoint (http://container_ip:3301)                                                                                                                                                                                    |                   |
 | `-device-uuid VALUE`        | Force the device identification                                                                                                                                                                                                              | `$HOSTNAME`       |                   
