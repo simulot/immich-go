@@ -2,6 +2,16 @@
 
 ## Release next
 
+### Improvement: [#189](https://github.com/simulot/immich-go/issues/189) Use a configuration file to store server's address and its API key  
+
+The server URL and the API key are now stored into a configuration file (by default $HOME/.immich-go/immich-go.json).
+If not provided in the CLI argument, those values are read from the configuration file.
+
+The option `-use-configuration=path/to/config/file` let you specify the configuration file. 
+
+### fix: [#193](https://github.com/simulot/immich-go/issues/193) Flags not being passed to subcommands #193
+
+
 ### Improvement: Better handling of wild cards in path 
 `Immich-go` now accepts to handle path like `photos/Holydays*`. This, combined with the `-create-album-folder` will create 
 an album per folder Holydays*.
