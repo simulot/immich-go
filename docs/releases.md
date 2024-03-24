@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release next
+## Release 0.12.0
 
 ### Improvement: [#189](https://github.com/simulot/immich-go/issues/189) Use a configuration file to store server's address and its API key  
 
