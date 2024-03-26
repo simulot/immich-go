@@ -106,10 +106,11 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 	// If the client isn't yet initialized
 	if app.Immich == nil {
 		conf, err := configuration.Read(app.ConfigurationFile)
-		if err == nil {
+		confExist := err == nil
+		if confExist && app.Server == "" && app.Key == "" && app.API == "" {
 			app.Server = conf.ServerURL
-			app.API = conf.APIURL
 			app.Key = conf.APIKey
+			app.API = conf.APIURL
 		}
 
 		switch {
