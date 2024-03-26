@@ -105,7 +105,6 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 
 	// If the client isn't yet initialized
 	if app.Immich == nil {
-
 		conf, err := configuration.Read(app.ConfigurationFile)
 		confExist := err == nil
 		if confExist && app.Server == "" && app.Key == "" && app.API == "" {
