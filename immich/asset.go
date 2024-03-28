@@ -226,21 +226,25 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 
 func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*Asset, error) {
 	type updAsset struct {
-		IsArchived  bool    `json:"isArchived"`
-		IsFavorite  bool    `json:"isFavorite"`
-		Latitude    float64 `json:"latitude,omitempty"`
-		Longitude   float64 `json:"longitude,omitempty"`
-		Description string  `json:"description,omitempty"`
+		DateTimeOriginal string   `json:"dateTimeOriginal"`
+		IDs              []string `json:"ids"`
+		IsArchived       bool     `json:"isArchived"`
+		IsFavorite       bool     `json:"isFavorite"`
+		Latitude         float64  `json:"latitude,omitempty"`
+		Longitude        float64  `json:"longitude,omitempty"`
+		Description      string   `json:"description,omitempty"`
 	}
 	param := updAsset{
-		Description: a.Description,
-		IsArchived:  a.Archived,
-		IsFavorite:  a.Favorite,
-		Latitude:    a.Latitude,
-		Longitude:   a.Longitude,
+		DateTimeOriginal: a.DateTaken.Format(time.RFC3339),
+		IDs:              []string{id},
+		Description:      a.Description,
+		IsArchived:       a.Archived,
+		IsFavorite:       a.Favorite,
+		Latitude:         a.Latitude,
+		Longitude:        a.Longitude,
 	}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "updateAsset").do(put("/asset/"+id, setJSONBody(param)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "updateAsset").do(put("/asset/", setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
 
