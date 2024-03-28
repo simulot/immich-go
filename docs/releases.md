@@ -1,6 +1,7 @@
 # Release notes 
 
-## Release next
+## Release 0.13.1
+
 ### Improvement: [#195](https://github.com/simulot/immich-go/issues/195) Rethink the user interactions with the CLI application #195
 
 #### Use Bubble Tea library to provide a modern TUI (Terminal User Interface)
@@ -8,6 +9,8 @@
 
 ### API KEY self provisioning 
 When the server and the API keys aren't given on the command line, immich-go ask the user if he wants to get a key from a server, and saves it the configuration file.
+
+### Fix [#199](https://github.com/simulot/immich-go/issues/199)
 
 ## Release 0.13.0
 
