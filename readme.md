@@ -97,9 +97,9 @@ Fine-tune import based on specific dates:
 
 | **Parameter**      | **Description**                                |
 | ------------------ | ---------------------------------------------- |
-| `-date YYYY-MM-DD` | import photos taken on a particular day.       |
-| `-date YYYY-MM`    | select photos taken during a particular month. |
-| `-date YYYY`       | select photos taken during a particular year.  |
+| `-date=YYYY-MM-DD` | import photos taken on a particular day.       |
+| `-date=YYYY-MM`    | select photos taken during a particular month. |
+| `-date=YYYY`       | select photos taken during a particular year.  |
 
 
 ### Google photos options:
@@ -110,11 +110,11 @@ Specialized options for Google Photos management:
 | `-google-photos`                   | import from a Google Photos structured archive, recreating corresponding albums. |                   |
 | `-from-album="GP Album"`           | Create the album in `immich` and import album's assets.                          |                   |
 | `-create-albums`                   | Controls creation of Google Photos albums in Immich.                             | `TRUE`            |
-| `-keep-untitled-albums`     | Untitled albums are imported into `immich` with the name of the folder as title. | `FALSE`           |
-| `-use-album-folder-as-name` | Use the folder's name instead of the album title.                                | `FALSE`           |
-| `-keep-partner`             | Specifies inclusion or exclusion of partner-taken photos.                        | `TRUE`            |
+| `-keep-untitled-albums`            | Untitled albums are imported into `immich` with the name of the folder as title. | `FALSE`           |
+| `-use-album-folder-as-name`        | Use the folder's name instead of the album title.                                | `FALSE`           |
+| `-keep-partner`                    | Specifies inclusion or exclusion of partner-taken photos.                        | `TRUE`            |
 | `-partner-album="partner's album"` | import assets from partner into given album.                                     |                   |
-| `-discard-archived`         | don't import archived assets.                                                    | `FALSE`           |
+| `-discard-archived`                | don't import archived assets.                                                    | `FALSE`           |
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
 
@@ -151,12 +151,12 @@ Use this command for analyzing the content of your `immich` server to find any f
 Before deleting the inferior copies, the system get all albums they belong to, and add the superior copy to them.
 
 ### Switches and options:
-| **Parameter**              | **Description**                                             | **Default value**       |
-| -------------------------- | ----------------------------------------------------------- | ----------------------- |
-| `-yes`                     | Assume Yes to all questions                                 | `FALSE`                 |
-| `-date`                    | Check only assets have a date of capture in the given range | `1850-01-04,2030-01-01` |
-| `-ignore-tz-errors <bool>` | Ignore timezone difference when searching for duplicates    | `FALSE`                 |
-| `-ignore-extension`        | Ignore filetype extensions when searching for duplicates    | `FALSE`                 |
+| **Parameter**       | **Description**                                             | **Default value**       |
+| ------------------- | ----------------------------------------------------------- | ----------------------- |
+| `-yes`              | Assume Yes to all questions                                 | `FALSE`                 |
+| `-date`             | Check only assets have a date of capture in the given range | `1850-01-04,2030-01-01` |
+| `-ignore-tz-errors` | Ignore timezone difference when searching for duplicates    | `FALSE`                 |
+| `-ignore-extension` | Ignore filetype extensions when searching for duplicates    | `FALSE`                 |
 
 ### Example Usage: clean the `immich` server after having merged a google photo archive and original files
 
@@ -172,10 +172,10 @@ The possibility to stack images has been introduced with `immich` version 1.83.
 Let use it to group burst  and jpg/raw images together.
 
 ### Switches and options:
-| **Parameter** | **Description**                                             | **Default value**       |
-| ------------- | ----------------------------------------------------------- | ----------------------- |
-| `-yes`        | Assume Yes to all questions                                 | `FALSE`                 |
-| `-date`       | Check only assets have a date of capture in the given range | `1850-01-04,2030-01-01` |
+| **Parameter**      | **Description**                                             | **Default value**       |
+| ------------------ | ----------------------------------------------------------- | ----------------------- |
+| `-yes`             | Assume Yes to all questions                                 | `FALSE`                 |
+| `-date=date_range` | Check only assets have a date of capture in the given range | `1850-01-04,2030-01-01` |
 
 
 ## Command `tool`
