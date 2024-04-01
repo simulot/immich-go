@@ -10,7 +10,6 @@ import (
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
 )
 
@@ -54,7 +53,7 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 	}
 
 	sb := stacking.NewStackBuilder(app.Immich.SupportedMedia())
-	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
+	app.Log.Print("Get server's assets...")
 	assetCount := 0
 
 	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
@@ -71,15 +70,15 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		return err
 	}
 	stacks := sb.Stacks()
-	app.Jnl.Log.MessageTerminate(logger.OK, " %d received, %d stack(s) possible", assetCount, len(stacks))
+	app.Log.Printf(" %d received, %d stack(s) possible", assetCount, len(stacks))
 
 	for _, s := range stacks {
-		app.Jnl.Log.OK("Stack following images taken on %s", s.Date)
+		app.Log.Printf("Stack following images taken on %s", s.Date)
 		cover := s.CoverID
 		names := s.Names
 		sort.Strings(names)
 		for _, n := range names {
-			app.Jnl.Log.OK("  %s", n)
+			app.Log.Printf("  %s", n)
 		}
 		yes := app.AssumeYes
 		if !app.AssumeYes {
@@ -94,7 +93,7 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		if yes {
 			err := app.Immich.StackAssets(ctx, cover, s.IDs)
 			if err != nil {
-				app.Jnl.Log.Warning("Can't stack images: %s", err)
+				app.Log.Warn("Can't stack images: %s", err)
 			}
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"io"
 	"io/fs"
 	"reflect"
 	"slices"
@@ -467,12 +468,13 @@ func TestUpload(t *testing.T) {
 			ic := &icCatchUploadsAssets{
 				albums: map[string][]string{},
 			}
-			log := logger.NoLog{}
+			log := logger.NewLogger("OK", false)
+			log.SetOutput(io.Discard)
 			ctx := context.Background()
 
 			serv := cmd.SharedFlags{
 				Immich: ic,
-				Jnl:    logger.NewJournal(&log),
+				Jnl:    logger.NewJournal(log),
 			}
 
 			app, err := NewUpCmd(ctx, &serv, tc.args)

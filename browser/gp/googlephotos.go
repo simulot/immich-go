@@ -10,11 +10,12 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/charmbracelet/log"
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui"
 )
 
 type Takeout struct {
@@ -23,7 +24,8 @@ type Takeout struct {
 	jsonByYear map[jsonKey]*GoogleMetaData // assets by year of capture and base name
 	uploaded   map[fileKey]any             // track files already uploaded
 	albums     map[string]string           // tack album names by folder
-	jnl        *logger.Journal
+	log        *log.Logger
+	addEntry   ui.AddEntryFn
 	sm         immich.SupportedMedia
 }
 
@@ -54,13 +56,14 @@ type jsonKey struct {
 	year int
 }
 
-func NewTakeout(ctx context.Context, jnl *logger.Journal, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
+func NewTakeout(ctx context.Context, log *log.Logger, addEntry ui.AddEntryFn, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
 	to := Takeout{
 		fsyss:      fsyss,
 		jsonByYear: map[jsonKey]*GoogleMetaData{},
 		albums:     map[string]string{},
-		jnl:        jnl,
+		log:        log,
 		sm:         sm,
+		addEntry:   addEntry,
 	}
 	err := to.passOne(ctx)
 	if err != nil {
@@ -101,13 +104,13 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				return nil
 			}
 
-			to.jnl.AddEntry(name, logger.DiscoveredFile, "")
+			to.addEntry(name, ui.DiscoveredFile)
 			dir, base := path.Split(name)
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
 
 			if slices.Contains(uselessFiles, base) {
-				to.jnl.AddEntry(name, logger.Discarded, "Useless file")
+				to.addEntry(name, ui.Discarded, "Reason", "Useless file")
 				return nil
 			}
 
@@ -126,35 +129,35 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					switch {
 					case md.isAsset():
 						to.addJSON(dir, base, md)
-						to.jnl.AddEntry(name, logger.Metadata, "Asset Title: "+md.Title)
+						to.addEntry(name, ui.Metadata, "Type", "Google sidecar file", "Image name", md.Title)
 					case md.isAlbum():
 						to.albums[dir] = md.Title
-						to.jnl.AddEntry(name, logger.Metadata, "Album title: "+md.Title)
+						to.addEntry(name, ui.Metadata, "Type", "Album", "Album title", md.Title)
 					default:
-						to.jnl.AddEntry(name, logger.Discarded, "Unknown json file")
+						to.addEntry(name, ui.Discarded, "Reason", "Unknown json file")
 						return nil
 					}
 				} else {
-					to.jnl.AddEntry(name, logger.Discarded, "Unknown json file")
+					to.addEntry(name, ui.Discarded, "Error", err.Error())
 					return nil
 				}
 			default:
 				t := to.sm.TypeFromExt(ext)
 				switch t {
 				case immich.TypeUnknown:
-					to.jnl.AddEntry(name, logger.Unsupported, "")
+					to.addEntry(name, ui.Unsupported)
 					return nil
 				case immich.TypeIgnored:
-					to.jnl.AddEntry(name, logger.Discarded, "File ignored")
+					to.addEntry(name, ui.Discarded, "Reason", "Useless file")
 					return nil
 				case immich.TypeVideo:
 					if strings.Contains(name, "Failed Videos") {
-						to.jnl.AddEntry(name, logger.FailedVideo, "")
+						to.addEntry(name, ui.FailedVideo)
 						return nil
 					}
-					to.jnl.AddEntry(name, logger.ScannedVideo, "")
+					to.addEntry(name, ui.ScannedVideo)
 				case immich.TypeImage:
-					to.jnl.AddEntry(name, logger.ScannedImage, "")
+					to.addEntry(name, ui.ScannedImage)
 				}
 				dirCatalog.files[base] = fileInfo{
 					length: int(finfo.Size()),
@@ -218,7 +221,7 @@ var matchers = []matcherFn{
 //
 
 func (to *Takeout) solvePuzzle() {
-	to.jnl.Log.OK("Associating JSON and assets...")
+	to.log.Print("Associating JSON and assets...")
 	jsonKeys := gen.MapKeys(to.jsonByYear)
 	sort.Slice(jsonKeys, func(i, j int) bool {
 		yd := jsonKeys[i].year - jsonKeys[j].year
@@ -249,7 +252,7 @@ func (to *Takeout) solvePuzzle() {
 					for f := range l.files {
 						if l.files[f].md == nil {
 							if matcher(k.name, f, to.sm) {
-								to.jnl.AddEntry(path.Join(d, f), logger.AssociatedMetadata, fmt.Sprintf("%s (%d)", k.name, k.year))
+								to.addEntry(path.Join(d, f), ui.AssociatedMetadata, "Associated with", k.name)
 								// if not already matched
 								i := l.files[f]
 								i.md = md
@@ -407,7 +410,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 }
 
 func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *browser.LocalAssetFile) error {
-	to.jnl.Log.OK("Ready to upload files")
+	to.log.Print("Ready to upload files")
 	return fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -434,12 +437,12 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		}
 
 		if f.md == nil {
-			to.jnl.AddEntry(name, logger.ERROR, "JSON File not found for this file")
+			to.addEntry(name, ui.ERROR, "Error", "JSON File not found for this file", "Hint", "Process all takeout parts together")
 			return nil
 		}
 		finfo, err := d.Info()
 		if err != nil {
-			to.jnl.Log.Error("can't browse: %s", err)
+			to.addEntry(name, ui.ERROR, "error", err.Error())
 			return nil
 		}
 
@@ -449,7 +452,7 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 			year:   f.md.PhotoTakenTime.Time().Year(),
 		}
 		if _, exists := to.uploaded[key]; exists {
-			to.jnl.AddEntry(name, logger.LocalDuplicate, "")
+			to.addEntry(name, ui.LocalDuplicate)
 			return nil
 		}
 		a := to.googleMDToAsset(f.md, key, w, name)

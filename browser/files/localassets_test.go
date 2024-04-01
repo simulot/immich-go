@@ -3,6 +3,7 @@ package files_test
 import (
 	"context"
 	"errors"
+	"io"
 	"path"
 	"reflect"
 	"sort"
@@ -75,7 +76,9 @@ func TestLocalAssets(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := files.NewLocalFiles(ctx, logger.NewJournal(logger.NoLog{}), fsys)
+			log := logger.NewLogger("OK", false)
+			log.SetOutput(io.Discard)
+			b, err := files.NewLocalFiles(ctx, logger.NewUploadJournal(log), fsys)
 			if err != nil {
 				t.Error(err)
 			}

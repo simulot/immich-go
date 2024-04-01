@@ -9,26 +9,31 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
+
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
-	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui"
 )
 
 type LocalAssetBrowser struct {
-	fsyss      []fs.FS
-	albums     map[string]string
-	log        *logger.Journal
+	fsyss  []fs.FS
+	albums map[string]string
+
+	log        *log.Logger
+	addEntry   ui.AddEntryFn
 	sm         immich.SupportedMedia
 	whenNoDate string
 }
 
-func NewLocalFiles(ctx context.Context, log *logger.Journal, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, log *log.Logger, addEntryFn ui.AddEntryFn, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
 		fsyss:      fsyss,
 		albums:     map[string]string{},
 		log:        log,
 		whenNoDate: "FILE",
+		addEntry:   addEntryFn,
 	}, nil
 }
 
@@ -98,23 +103,23 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		name := e.Name()
 		fileName := path.Join(folder, name)
 		ext := strings.ToLower(path.Ext(name))
-		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
+		la.addEntry(fileName, ui.DiscoveredFile)
 
 		t := la.sm.TypeFromExt(ext)
 		switch t {
 		default:
-			la.log.AddEntry(fileName, logger.Unsupported, "")
+			la.addEntry(fileName, ui.Unsupported)
 			continue
 		case immich.TypeIgnored:
-			la.log.AddEntry(name, logger.Discarded, "File ignored")
+			la.addEntry(fileName, ui.Discarded, "Reason", "File type ignored")
 			continue
 		case immich.TypeSidecar:
-			la.log.AddEntry(name, logger.Metadata, "")
+			la.addEntry(fileName, ui.Metadata)
 			continue
 		case immich.TypeImage:
-			la.log.AddEntry(name, logger.ScannedImage, "")
+			la.addEntry(fileName, ui.ScannedImage)
 		case immich.TypeVideo:
-			la.log.AddEntry(name, logger.ScannedVideo, "")
+			la.addEntry(fileName, ui.ScannedVideo)
 		}
 
 		f := browser.LocalAssetFile{
@@ -172,7 +177,7 @@ func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []f
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.log.AddEntry(name, logger.AssociatedMetadata, "")
+				la.addEntry(name, ui.AssociatedMetadata, "Main file", f.FileName)
 				return true
 			}
 		}

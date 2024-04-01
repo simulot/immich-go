@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
 )
 
@@ -74,7 +73,7 @@ func deleteAlbum(ctx context.Context, common *cmd.SharedFlags, args []string) er
 		if app.pattern.MatchString(al.AlbumName) {
 			yes := app.AssumeYes
 			if !yes {
-				app.Jnl.Log.OK("Delete album '%s'?", al.AlbumName)
+				app.Log.Printf("Delete album '%s'?", al.AlbumName)
 				r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
 				if err != nil {
 					return err
@@ -84,12 +83,12 @@ func deleteAlbum(ctx context.Context, common *cmd.SharedFlags, args []string) er
 				}
 			}
 			if yes {
-				app.Jnl.Log.MessageContinue(logger.OK, "Deleting album '%s'", al.AlbumName)
+				app.Log.Printf("Deleting album '%s'", al.AlbumName)
 				err = app.Immich.DeleteAlbum(ctx, al.ID)
 				if err != nil {
 					return err
 				} else {
-					app.Jnl.Log.MessageTerminate(logger.OK, "done")
+					app.Log.Print("done")
 				}
 			}
 		}

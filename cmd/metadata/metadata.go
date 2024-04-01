@@ -13,7 +13,6 @@ import (
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
-	"github.com/simulot/immich-go/logger"
 )
 
 type MetadataCmd struct {
@@ -57,15 +56,15 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		if err != nil {
 			return err
 		}
-		app.Jnl.Log.OK("Connected to the immich's docker container at %q", app.DockerHost)
+		app.Log.Printf("Connected to the immich's docker container at %q", app.DockerHost)
 	}
 
-	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
+	app.Log.Print("Get server's assets...")
 	list, err := app.Immich.GetAllAssets(ctx)
 	if err != nil {
 		return err
 	}
-	app.Jnl.Log.MessageTerminate(logger.OK, " %d received", len(list))
+	app.Log.Printf(" %d received", len(list))
 
 	type broken struct {
 		a *immich.Asset
@@ -114,18 +113,18 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		if b.fixable {
 			fixable++
 		}
-		app.Jnl.Log.OK("%s, (%s %s): %s", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
+		app.Log.Printf("%s, (%s %s): %s", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
 	}
-	app.Jnl.Log.OK("%d broken assets", len(brockenAssets))
-	app.Jnl.Log.OK("Among them, %d can be fixed with current settings", fixable)
+	app.Log.Printf("%d broken assets", len(brockenAssets))
+	app.Log.Printf("Among them, %d can be fixed with current settings", fixable)
 
 	if fixable == 0 {
 		return nil
 	}
 
 	if app.DryRun {
-		app.Jnl.Log.OK("Dry-run mode. Exiting")
-		app.Jnl.Log.OK("use -dry-run=false after metadata command")
+		app.Log.Print("Dry-run mode. Exiting")
+		app.Log.Print("use -dry-run=false after metadata command")
 		return nil
 	}
 
@@ -141,7 +140,7 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 			continue
 		}
 		a := b.a
-		app.Jnl.Log.MessageContinue(logger.OK, "Uploading sidecar for %s... ", a.OriginalPath)
+		app.Log.Printf("Uploading sidecar for %s... ", a.OriginalPath)
 		scContent, err := b.SideCar.Bytes()
 		if err != nil {
 			return err
@@ -150,7 +149,7 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		if err != nil {
 			return err
 		}
-		app.Jnl.Log.MessageTerminate(logger.OK, "done")
+		app.Log.Print("done")
 	}
 	return nil
 }

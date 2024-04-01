@@ -9,12 +9,13 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/helpers/tzone"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 )
 
 // SharedFlags collect all parameters that are common to all commands
@@ -32,9 +33,9 @@ type SharedFlags struct {
 	SkipSSL           bool   // Skip SSL Verification
 
 	Immich  immich.ImmichInterface // Immich client
-	Jnl     *logger.Journal        // Program's logger
 	LogFile string                 // Log file
-	out     io.WriteCloser         // the log writer
+	out     io.Writer              // the log writer
+	Log     *log.Logger
 }
 
 func (app *SharedFlags) InitSharedFlags() {
@@ -43,6 +44,7 @@ func (app *SharedFlags) InitSharedFlags() {
 	app.APITrace = false
 	app.Debug = false
 	app.SkipSSL = false
+	app.LogFile = "./immich-go-" + time.Now().Format(time.DateTime) + ".log"
 }
 
 // SetFlag add common flags to a flagset
@@ -71,33 +73,16 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		joinedErr = errors.Join(joinedErr, err)
 	}
 
-	if app.Jnl == nil {
-		app.Jnl = logger.NewJournal(logger.NewLogger(logger.OK, true, false))
-	}
+	var err error
 
-	if app.LogFile != "" {
-		if app.out == nil {
-			f, err := os.OpenFile(app.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
-			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-			} else {
-				app.Jnl.Log.SetWriter(f)
-			}
-			app.out = f
-		}
-	}
-
-	if app.LogLevel != "" {
-		logLevel, err := logger.StringToLevel(app.LogLevel)
+	if app.out == nil {
+		app.out, err = os.OpenFile(app.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
+		} else {
+			app.Log.SetOutput(app.out)
 		}
-		app.Jnl.Log.SetLevel(logLevel)
 	}
-
-	app.Jnl.Log.SetColors(!app.NoLogColors)
-	app.Jnl.Log.SetDebugFlag(app.Debug)
-
 	// at this point, exits if there is an error
 	if joinedErr != nil {
 		return joinedErr
@@ -152,13 +137,20 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		app.Jnl.Log.OK("Server status: OK")
+		app.Log.Print("Server status: OK")
 
 		user, err := app.Immich.ValidateConnection(ctx)
 		if err != nil {
 			return err
 		}
-		app.Jnl.Log.Info("Connected, user: %s", user.Email)
+		app.Log.Print("Connected, user: %s", user.Email)
+	}
+	return nil
+}
+
+func (app *SharedFlags) Close() error {
+	if closer, ok := app.out.(io.Closer); ok {
+		return closer.Close()
 	}
 	return nil
 }

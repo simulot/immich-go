@@ -9,12 +9,9 @@ import (
 	"os/signal"
 
 	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/cmd/duplicate"
-	"github.com/simulot/immich-go/cmd/metadata"
-	"github.com/simulot/immich-go/cmd/stack"
-	"github.com/simulot/immich-go/cmd/tool"
 	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui"
 )
 
 var (
@@ -25,7 +22,8 @@ var (
 
 func main() {
 	var err error
-	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
+	fmt.Println()
+	fmt.Println(ui.Banner.ToString(fmt.Sprintf("%s, commit %s, built at %s\n", version, commit, date)))
 
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,12 +50,11 @@ func main() {
 }
 
 func Run(ctx context.Context) error {
-	log := logger.NewLogger(logger.OK, true, false)
-	defer log.Close()
+	log := logger.NewLogger("OK", true)
 
-	app := cmd.SharedFlags{
-		Jnl: logger.NewJournal(log),
-	}
+	app := cmd.SharedFlags{}
+	defer app.Close()
+
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
 	app.InitSharedFlags()
 	app.SetFlags(fs)
@@ -79,14 +76,16 @@ func Run(ctx context.Context) error {
 	switch cmd {
 	case "upload":
 		err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
-	case "duplicate":
-		err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
-	case "metadata":
-		err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
-	case "stack":
-		err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
-	case "tool":
-		err = tool.CommandTool(ctx, &app, fs.Args()[1:])
+		/*
+			case "duplicate":
+				err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
+			case "metadata":
+				err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
+			case "stack":
+				err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
+			case "tool":
+				err = tool.CommandTool(ctx, &app, fs.Args()[1:])
+		*/
 	default:
 		err = fmt.Errorf("unknown command: %q", cmd)
 	}

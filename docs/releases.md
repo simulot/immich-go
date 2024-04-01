@@ -1,7 +1,15 @@
 # Release notes 
 
 ## Release next
+
+This release introduce some braking changes:
+
+- The log file is now generated each time. The default file name is ./immich-go-{YYMMDD-HHMMSS}.log
+
+
 ### Improvement: [#195](https://github.com/simulot/immich-go/issues/195) Rethink the user interactions with the CLI application #195
+
+
 
 #### Use Bubble Tea library to provide a modern TUI (Terminal User Interface)
 

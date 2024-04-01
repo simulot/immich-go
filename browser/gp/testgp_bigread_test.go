@@ -20,9 +20,9 @@ func TestReadBigTakeout(t *testing.T) {
 		panic(err)
 	}
 
-	l := logger.NewLogger(logger.Info, true, false)
-	l.SetWriter(f)
-	j := logger.NewJournal(l)
+	l := logger.NewLogger("iNFO", true)
+	l.SetOutput(f)
+	j := logger.NewUploadJournal(l)
 	m, err := filepath.Glob("../../../test-data/full_takeout/*.zip")
 	if err != nil {
 		t.Error(err)
@@ -39,6 +39,6 @@ func TestReadBigTakeout(t *testing.T) {
 	for range to.Browse(context.Background()) {
 		cnt++
 	}
-	to.jnl.Report()
+	to.log.Report()
 	t.Logf("seen %d files", cnt)
 }
