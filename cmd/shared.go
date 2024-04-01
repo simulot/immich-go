@@ -80,6 +80,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 		} else {
+			app.Log.Printf("Writing messages to the file: %s", app.LogFile)
 			app.Log.SetOutput(app.out)
 		}
 	}
@@ -90,11 +91,13 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 
 	// If the client isn't yet initialized
 	if app.Immich == nil {
-		conf, err := configuration.Read(app.ConfigurationFile)
-		if err == nil {
-			app.Server = conf.ServerURL
-			app.API = conf.APIURL
-			app.Key = conf.APIKey
+		if app.Server == "" && app.API == "" && app.Key == "" {
+			conf, err := configuration.Read(app.ConfigurationFile)
+			if err == nil {
+				app.Server = conf.ServerURL
+				app.API = conf.APIURL
+				app.Key = conf.APIKey
+			}
 		}
 
 		switch {
@@ -109,9 +112,11 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		}
 
 		// Connection details are saved into the configuration file
-		conf.ServerURL = app.Server
-		conf.APIKey = app.Key
-		conf.APIURL = app.API
+		conf := configuration.Configuration{
+			ServerURL: app.Server,
+			APIKey:    app.Key,
+			APIURL:    app.API,
+		}
 		err = conf.Write(app.ConfigurationFile)
 		if err != nil {
 			err = fmt.Errorf("can't write into the configuration file: %w", err)

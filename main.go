@@ -57,6 +57,7 @@ func Run(ctx context.Context) error {
 
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
 	app.InitSharedFlags()
+	app.Log = log
 	app.SetFlags(fs)
 
 	err := fs.Parse(os.Args[1:])
