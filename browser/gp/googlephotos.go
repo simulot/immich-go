@@ -15,7 +15,7 @@ import (
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/ui"
+	"github.com/simulot/immich-go/logger"
 )
 
 type Takeout struct {
@@ -24,8 +24,7 @@ type Takeout struct {
 	jsonByYear map[jsonKey]*GoogleMetaData // assets by year of capture and base name
 	uploaded   map[fileKey]any             // track files already uploaded
 	albums     map[string]string           // tack album names by folder
-	log        *log.Logger
-	addEntry   ui.AddEntryFn
+	log        *logger.LogAndCount[logger.UpLdAction]
 	sm         immich.SupportedMedia
 }
 
@@ -56,14 +55,13 @@ type jsonKey struct {
 	year int
 }
 
-func NewTakeout(ctx context.Context, log *log.Logger, addEntry ui.AddEntryFn, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
+func NewTakeout(ctx context.Context, log *logger.LogAndCount[logger.UpLdAction], sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
 	to := Takeout{
 		fsyss:      fsyss,
 		jsonByYear: map[jsonKey]*GoogleMetaData{},
 		albums:     map[string]string{},
 		log:        log,
 		sm:         sm,
-		addEntry:   addEntry,
 	}
 	err := to.passOne(ctx)
 	if err != nil {
@@ -103,14 +101,13 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			if d.IsDir() {
 				return nil
 			}
-
-			to.addEntry(name, ui.DiscoveredFile)
+			to.log.AddEntry(log.InfoLevel, logger.UpldDiscoveredFile, name)
 			dir, base := path.Split(name)
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
 
 			if slices.Contains(uselessFiles, base) {
-				to.addEntry(name, ui.Discarded, "Reason", "Useless file")
+				to.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, "reason", "useless file")
 				return nil
 			}
 
@@ -129,35 +126,37 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					switch {
 					case md.isAsset():
 						to.addJSON(dir, base, md)
-						to.addEntry(name, ui.Metadata, "Type", "Google sidecar file", "Image name", md.Title)
+						to.log.AddEntry(log.InfoLevel, logger.UpldMetadata, name, "type", "Google sidecar file", "asset_original_name", md.Title)
 					case md.isAlbum():
 						to.albums[dir] = md.Title
-						to.addEntry(name, ui.Metadata, "Type", "Album", "Album title", md.Title)
+						to.log.AddEntry(log.InfoLevel, logger.UpldMetadata, name, "type", "Google album file", "asset_original_name", md.Title)
 					default:
-						to.addEntry(name, ui.Discarded, "Reason", "Unknown json file")
+						// TODO add support for old takeouts #212
+						to.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, name, "reason", "unknown JSON file")
 						return nil
 					}
 				} else {
-					to.addEntry(name, ui.Discarded, "Error", err.Error())
+					// TODO add support for old takeouts #212
+					to.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, name, "reason", "unknown JSON file")
 					return nil
 				}
 			default:
 				t := to.sm.TypeFromExt(ext)
 				switch t {
 				case immich.TypeUnknown:
-					to.addEntry(name, ui.Unsupported)
+					to.log.AddEntry(log.InfoLevel, logger.UpldUnsupported, name, "reason", "unknown extension")
 					return nil
 				case immich.TypeIgnored:
-					to.addEntry(name, ui.Discarded, "Reason", "Useless file")
+					to.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, name, "reason", "useless file")
 					return nil
 				case immich.TypeVideo:
 					if strings.Contains(name, "Failed Videos") {
-						to.addEntry(name, ui.FailedVideo)
+						to.log.AddEntry(log.InfoLevel, logger.UpldFailedVideo, name)
 						return nil
 					}
-					to.addEntry(name, ui.ScannedVideo)
+					to.log.AddEntry(log.InfoLevel, logger.UpldScannedVideo, name)
 				case immich.TypeImage:
-					to.addEntry(name, ui.ScannedImage)
+					to.log.AddEntry(log.InfoLevel, logger.UpldScannedImage, name)
 				}
 				dirCatalog.files[base] = fileInfo{
 					length: int(finfo.Size()),
@@ -252,7 +251,7 @@ func (to *Takeout) solvePuzzle() {
 					for f := range l.files {
 						if l.files[f].md == nil {
 							if matcher(k.name, f, to.sm) {
-								to.addEntry(path.Join(d, f), ui.AssociatedMetadata, "Associated with", k.name)
+								to.log.AddEntry(log.InfoLevel, logger.UpldAssociatedMetadata, path.Join(d, f), "with", k.name)
 								// if not already matched
 								i := l.files[f]
 								i.md = md
@@ -437,12 +436,12 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		}
 
 		if f.md == nil {
-			to.addEntry(name, ui.ERROR, "Error", "JSON File not found for this file", "Hint", "Process all takeout parts together")
+			to.log.AddEntry(log.ErrorLevel, logger.UpldERROR, name, "error", "can't find a JSON file for this file", "hint", "process all takeout files together")
 			return nil
 		}
 		finfo, err := d.Info()
 		if err != nil {
-			to.addEntry(name, ui.ERROR, "error", err.Error())
+			to.log.AddEntry(log.ErrorLevel, logger.UpldERROR, name, "error", err)
 			return nil
 		}
 
@@ -452,7 +451,7 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 			year:   f.md.PhotoTakenTime.Time().Year(),
 		}
 		if _, exists := to.uploaded[key]; exists {
-			to.addEntry(name, ui.LocalDuplicate)
+			to.log.AddEntry(log.InfoLevel, logger.UpldLocalDuplicate, name)
 			return nil
 		}
 		a := to.googleMDToAsset(f.md, key, w, name)

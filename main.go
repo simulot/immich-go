@@ -56,7 +56,7 @@ func Run(ctx context.Context) error {
 	defer app.Close()
 
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
-	app.InitSharedFlags()
+	app.InitSharedFlags(ui.Banner.ToString(fmt.Sprintf("%s, commit %s, built at %s\n", version, commit, date)))
 	app.Log = log
 	app.SetFlags(fs)
 

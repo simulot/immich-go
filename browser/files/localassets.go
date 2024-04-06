@@ -10,30 +10,27 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
-	"github.com/simulot/immich-go/ui"
+	"github.com/simulot/immich-go/logger"
 )
 
 type LocalAssetBrowser struct {
 	fsyss  []fs.FS
 	albums map[string]string
 
-	log        *log.Logger
-	addEntry   ui.AddEntryFn
+	log        *logger.LogAndCount[logger.UpLdAction]
 	sm         immich.SupportedMedia
 	whenNoDate string
 }
 
-func NewLocalFiles(ctx context.Context, log *log.Logger, addEntryFn ui.AddEntryFn, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, log *logger.LogAndCount[logger.UpLdAction], fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
 		fsyss:      fsyss,
 		albums:     map[string]string{},
 		log:        log,
 		whenNoDate: "FILE",
-		addEntry:   addEntryFn,
 	}, nil
 }
 
@@ -103,23 +100,23 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		name := e.Name()
 		fileName := path.Join(folder, name)
 		ext := strings.ToLower(path.Ext(name))
-		la.addEntry(fileName, ui.DiscoveredFile)
+		la.log.AddEntry(log.InfoLevel, logger.UpldDiscoveredFile, fileName)
 
 		t := la.sm.TypeFromExt(ext)
 		switch t {
 		default:
-			la.addEntry(fileName, ui.Unsupported)
+			la.log.AddEntry(log.InfoLevel, logger.UpldUnsupported, fileName, "reason", "unknown extension")
 			continue
 		case immich.TypeIgnored:
-			la.addEntry(fileName, ui.Discarded, "Reason", "File type ignored")
+			la.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, fileName, "reason", "useless file type")
 			continue
 		case immich.TypeSidecar:
-			la.addEntry(fileName, ui.Metadata)
+			la.log.AddEntry(log.InfoLevel, logger.UpldMetadata, fileName)
 			continue
 		case immich.TypeImage:
-			la.addEntry(fileName, ui.ScannedImage)
+			la.log.AddEntry(log.InfoLevel, logger.UpldScannedImage, fileName)
 		case immich.TypeVideo:
-			la.addEntry(fileName, ui.ScannedVideo)
+			la.log.AddEntry(log.InfoLevel, logger.UpldFailedVideo, fileName)
 		}
 
 		f := browser.LocalAssetFile{
@@ -177,7 +174,7 @@ func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []f
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.addEntry(name, ui.AssociatedMetadata, "Main file", f.FileName)
+				la.log.AddEntry(log.InfoLevel, logger.UpldAssociatedMetadata, "with", f.FileName)
 				return true
 			}
 		}
