@@ -23,6 +23,10 @@ type MsgLog struct {
 	KeyVals []interface{}
 }
 
+type MsgStageSpinner struct {
+	Label string
+}
+
 func NewLogAndCount[M Measure](l *log.Logger, p *tea.Program, c *Counters[M]) *LogAndCount[M] {
 	return &LogAndCount[M]{
 		l: l,
@@ -37,6 +41,11 @@ func (lc LogAndCount[M]) AddEntry(lvl log.Level, counter M, file string, keyval 
 
 	// Send  errors and warnings to the tea.Program event loop
 	lc.p.Send(MsgLog{Lvl: lvl, Message: counter.String() + " file:" + file, KeyVals: keyval})
+}
+
+func (lc LogAndCount[M]) Stage(label string) {
+	lc.l.Print(label)
+	lc.p.Send(MsgStageSpinner{Label: label})
 }
 
 // Implements some Log functions to display errors and log everything

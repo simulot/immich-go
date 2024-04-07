@@ -70,6 +70,7 @@ func NewTakeout(ctx context.Context, log *logger.LogAndCount[logger.UpLdAction],
 // metadata files content is read and kept
 
 func (to *Takeout) Prepare(ctx context.Context) error {
+	to.log.Stage("Parsing takeout files")
 	to.catalogs = map[fs.FS]walkerCatalog{}
 	for _, w := range to.fsyss {
 		to.catalogs[w] = walkerCatalog{}
@@ -78,6 +79,7 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 			return err
 		}
 	}
+	to.log.Stage("Associating metadata with assets")
 	to.solvePuzzle()
 	return nil
 }
@@ -139,14 +141,14 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				t := to.sm.TypeFromExt(ext)
 				switch t {
 				case immich.TypeUnknown:
-					to.log.AddEntry(log.InfoLevel, logger.UpldUnsupported, name, "reason", "unknown extension")
+					to.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, name, "reason", "unknown extension")
 					return nil
 				case immich.TypeIgnored:
 					to.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, name, "reason", "useless file")
 					return nil
 				case immich.TypeVideo:
 					if strings.Contains(name, "Failed Videos") {
-						to.log.AddEntry(log.InfoLevel, logger.UpldFailedVideo, name)
+						to.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, name, "reason", "can't upload failed video")
 						return nil
 					}
 					to.log.AddEntry(log.InfoLevel, logger.UpldScannedVideo, name)
@@ -404,7 +406,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 }
 
 func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *browser.LocalAssetFile) error {
-	to.log.Print("Ready to upload files")
+	to.log.Stage("Importing takeout assets")
 	return fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil

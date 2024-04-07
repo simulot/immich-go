@@ -36,7 +36,7 @@ type SharedFlags struct {
 	LogFile string                 // Log file
 	out     io.Writer              // the log writer
 	Log     *log.Logger
-	banner  string
+	Banner  string
 }
 
 func (app *SharedFlags) InitSharedFlags(banner string) {
@@ -46,7 +46,7 @@ func (app *SharedFlags) InitSharedFlags(banner string) {
 	app.Debug = false
 	app.SkipSSL = false
 	app.LogFile = "./immich-go-" + time.Now().Format(time.DateTime) + ".log"
-	app.banner = banner
+	app.Banner = banner
 }
 
 // SetFlag add common flags to a flagset
@@ -82,10 +82,9 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 		} else {
-			app.Log.Printf("Writing messages to the file: %s", app.LogFile)
 			app.Log.SetReportTimestamp(true)
 			app.Log.SetOutput(app.out)
-			app.Log.Print("\n" + app.banner)
+			app.Log.Print("\n" + app.Banner)
 		}
 	}
 	// at this point, exits if there is an error
@@ -159,6 +158,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 
 func (app *SharedFlags) Close() error {
 	if closer, ok := app.out.(io.Closer); ok {
+		fmt.Println("Consult the log file for details:", app.LogFile)
 		return closer.Close()
 	}
 	return nil

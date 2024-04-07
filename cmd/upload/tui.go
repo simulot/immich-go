@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	"github.com/simulot/immich-go/logger"
@@ -14,7 +15,7 @@ import (
 
 const (
 	padding  = 2
-	maxWidth = 80
+	maxWidth = 40
 )
 
 type msgReceiveAsset float64
@@ -28,6 +29,7 @@ type UploadModel struct {
 	messages         []logger.MsgLog
 	countersMdl      UploadCountersModel
 	receivedAssetBar progress.Model
+	spinner          spinner.Model
 
 	//
 	counters         *logger.Counters[logger.UpLdAction]
@@ -35,6 +37,7 @@ type UploadModel struct {
 	assetReceived    bool
 	mediaPrepared    bool
 	assetUploaded    bool
+	spinnerLabel     string
 	app              *UpCmd
 	err              error
 }
@@ -45,7 +48,8 @@ func NewUploadModel(app *UpCmd, c *logger.Counters[logger.UpLdAction]) UploadMod
 	return UploadModel{
 		counters:         c,
 		countersMdl:      NewUploadCountersModel(c),
-		receivedAssetBar: progress.New(),
+		receivedAssetBar: progress.New(progress.WithoutPercentage(), progress.WithWidth(maxWidth)),
+		spinner:          spinner.New(spinner.WithSpinner(spinner.Dot)),
 		app:              app,
 	}
 }
@@ -84,6 +88,17 @@ func (m UploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.receivedAssetBar.SetPercent(float64(msg))
 	case msgTick:
 		return m, cmdTick()
+	case msgReceivingAssetDone:
+		m.receivedAssetPct = 2.0
+		return m, nil
+	case logger.MsgStageSpinner:
+		m.spinnerLabel = msg.Label
+		return m, m.spinner.Tick
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
 		// case msgTaskDone:
 		// 	switch msg {
 		// 	case "getAssetsDone":
@@ -102,20 +117,28 @@ func (m UploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m UploadModel) View() string {
 	b := strings.Builder{}
+	b.WriteString(m.app.SharedFlags.Banner)
+	if m.counters != nil {
+		b.WriteString(m.countersMdl.View())
+		b.WriteRune('\n')
+	}
+	if m.receivedAssetPct > 0 && m.receivedAssetPct < 2.0 {
+		b.WriteString("Getting server's assets ")
+		b.WriteString(m.receivedAssetBar.View())
+		b.WriteRune('\n')
+	}
+	if m.spinnerLabel != "" {
+		b.WriteString(m.spinner.View())
+		b.WriteString(" ")
+		b.WriteString(m.spinnerLabel)
+		b.WriteRune('\n')
+	}
 	for i := range m.messages {
 		if m.messages[i].Lvl != log.InfoLevel {
 			b.WriteString(m.messages[i].Lvl.String())
 			b.WriteRune(' ')
 		}
 		b.WriteString(m.messages[i].Message)
-		b.WriteRune('\n')
-	}
-	if m.receivedAssetPct > 0.05 {
-		b.WriteString(m.receivedAssetBar.View())
-		b.WriteRune('\n')
-	}
-	if m.counters != nil {
-		b.WriteString(m.countersMdl.View())
 		b.WriteRune('\n')
 	}
 	return b.String()
@@ -141,8 +164,8 @@ func (m UploadCountersModel) View() string {
 	}
 
 	sb := strings.Builder{}
-	checkFiles := c[logger.UpldScannedImage] + c[logger.UpldScannedVideo] + c[logger.UpldMetadata] + c[logger.UpldUnsupported] + c[logger.UpldFailedVideo] + c[logger.UpldDiscarded]
-	handledFiles := c[logger.UpldNotSelected] + c[logger.UpldLocalDuplicate] + c[logger.UpldServerDuplicate] + c[logger.UpldServerBetter] + c[logger.UpldUploaded] + c[logger.UpldUpgraded] + c[logger.UpldServerError]
+	checkFiles := c[logger.UpldScannedImage] + c[logger.UpldScannedVideo] + c[logger.UpldMetadata] + c[logger.UpldDiscarded]
+	handledFiles := c[logger.UpldLocalDuplicate] + c[logger.UpldServerDuplicate] + c[logger.UpldServerBetter] + c[logger.UpldUploaded] + c[logger.UpldUpgraded] + c[logger.UpldServerError]
 
 	sb.WriteString("--------------------------------------------------------\n")
 	sb.WriteString(fmt.Sprintf("%6d discovered files in the input\n", c[logger.UpldDiscoveredFile]))
@@ -151,9 +174,6 @@ func (m UploadCountersModel) View() string {
 	sb.WriteString(fmt.Sprintf("%6d metadata files\n", c[logger.UpldMetadata]))
 	sb.WriteString(fmt.Sprintf("%6d files with metadata\n", c[logger.UpldAssociatedMetadata]))
 	sb.WriteString(fmt.Sprintf("%6d discarded files\n", c[logger.UpldDiscarded]))
-	sb.WriteString(fmt.Sprintf("%6d files having a type not supported\n", c[logger.UpldUnsupported]))
-	sb.WriteString(fmt.Sprintf("%6d discarded files because in folder failed videos\n", c[logger.UpldFailedVideo]))
-
 	sb.WriteString(fmt.Sprintf("%6d input total (difference %d)\n", checkFiles, c[logger.UpldDiscoveredFile]-checkFiles))
 	sb.WriteString("--------------------------------------------------------\n")
 
@@ -161,7 +181,6 @@ func (m UploadCountersModel) View() string {
 	sb.WriteString(fmt.Sprintf("%6d uploaded files on the server\n", c[logger.UpldUploaded]))
 	sb.WriteString(fmt.Sprintf("%6d upgraded files on the server\n", c[logger.UpldUpgraded]))
 	sb.WriteString(fmt.Sprintf("%6d files already on the server\n", c[logger.UpldServerDuplicate]))
-	sb.WriteString(fmt.Sprintf("%6d discarded files because of options\n", c[logger.UpldNotSelected]))
 	sb.WriteString(fmt.Sprintf("%6d discarded files because duplicated in the input\n", c[logger.UpldLocalDuplicate]))
 	sb.WriteString(fmt.Sprintf("%6d discarded files because server has a better image\n", c[logger.UpldServerBetter]))
 	sb.WriteString(fmt.Sprintf("%6d errors when uploading\n", c[logger.UpldServerError]))
@@ -187,6 +206,8 @@ func cmdTick() tea.Cmd {
 		return msgTick(t)
 	})
 }
+
+type msgReceivingAssetDone struct{}
 
 /*
 func cmdTaskDone(t string) tea.Cmd {

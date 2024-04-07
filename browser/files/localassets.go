@@ -51,6 +51,7 @@ func (la *LocalAssetBrowser) SetWhenNoDate(opt string) *LocalAssetBrowser {
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAssetFile {
+	la.log.Stage("Parsing source")
 	fileChan := make(chan *browser.LocalAssetFile)
 	// Browse all given FS to collect the list of files
 	go func(ctx context.Context) {
@@ -109,7 +110,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		t := la.sm.TypeFromExt(ext)
 		switch t {
 		default:
-			la.log.AddEntry(log.InfoLevel, logger.UpldUnsupported, fileName, "reason", "unknown extension")
+			la.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, fileName, "reason", "unknown extension")
 			continue
 		case immich.TypeIgnored:
 			la.log.AddEntry(log.InfoLevel, logger.UpldDiscarded, fileName, "reason", "useless file type")
@@ -120,7 +121,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		case immich.TypeImage:
 			la.log.AddEntry(log.InfoLevel, logger.UpldScannedImage, fileName)
 		case immich.TypeVideo:
-			la.log.AddEntry(log.InfoLevel, logger.UpldFailedVideo, fileName)
+			la.log.AddEntry(log.InfoLevel, logger.UpldScannedVideo, fileName)
 		}
 
 		f := browser.LocalAssetFile{
