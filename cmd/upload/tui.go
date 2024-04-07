@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/log"
 	"github.com/simulot/immich-go/logger"
 )
 
@@ -15,46 +17,41 @@ const (
 	maxWidth = 80
 )
 
-type uiStage int
-
-const (
-	uiInit uiStage = iota
-	uiGetAssets
-)
-
-type ChangeStage uiStage
-type ReceiveAssetMsg float64
-type ErrorAndQuit error
+type msgReceiveAsset float64
+type msgQuit struct{ error }
+type msgStartTask string
+type msgTaskDone string
 
 // UploadModel is a tea.Model to follow the Upload task
 type UploadModel struct {
 	// sub models
-	messages         []logger.LogMessage
+	messages         []logger.MsgLog
 	countersMdl      UploadCountersModel
 	receivedAssetBar progress.Model
 
 	//
 	counters         *logger.Counters[logger.UpLdAction]
 	receivedAssetPct float64
+	assetReceived    bool
+	mediaPrepared    bool
+	assetUploaded    bool
+	app              *UpCmd
+	err              error
 }
 
 var _ tea.Model = (*UploadModel)(nil)
 
-func NewUploadModel(c *logger.Counters[logger.UpLdAction]) UploadModel {
+func NewUploadModel(app *UpCmd, c *logger.Counters[logger.UpLdAction]) UploadModel {
 	return UploadModel{
-		counters:    c,
-		countersMdl: NewUploadCountersModel(c),
-	}
-}
-
-func cmdChangeStage(newStage uiStage) func() tea.Msg {
-	return func() tea.Msg {
-		return newStage
+		counters:         c,
+		countersMdl:      NewUploadCountersModel(c),
+		receivedAssetBar: progress.New(),
+		app:              app,
 	}
 }
 
 func (m UploadModel) Init() tea.Cmd {
-	return cmdChangeStage(uiInit)
+	return tea.Batch(cmdTick())
 }
 
 func (m UploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -65,8 +62,15 @@ func (m UploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.receivedAssetBar.Width = maxWidth
 		}
 		return m, nil
-
-	case logger.LogMessage:
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		}
+	case msgQuit:
+		m.err = msg
+		return m, tea.Quit
+	case logger.MsgLog:
 		m.messages = append(m.messages, msg)
 		if len(m.messages) > 10 {
 			m.messages = slices.Delete(m.messages, 0, 1)
@@ -75,11 +79,23 @@ func (m UploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		progressModel, cmd := m.receivedAssetBar.Update(msg)
 		m.receivedAssetBar = progressModel.(progress.Model)
 		return m, cmd
-	case ReceiveAssetMsg:
+	case msgReceiveAsset:
 		m.receivedAssetPct = float64(msg)
 		return m, m.receivedAssetBar.SetPercent(float64(msg))
-	case logger.RefreshCounters:
-		return m.countersMdl.Update(msg)
+	case msgTick:
+		return m, cmdTick()
+		// case msgTaskDone:
+		// 	switch msg {
+		// 	case "getAssetsDone":
+		// 		m.assetReceived = true
+		// 	case "prepareDone":
+		// 		m.mediaPrepared = true
+		// 	case "browseDone":
+		// 		return m, cmdQuit(nil)
+		// 	}
+		// 	if m.assetReceived || m.mediaPrepared {
+		// 		return m, cmdBrowse(m.app)
+		// 	}
 	}
 	return m, nil
 }
@@ -87,13 +103,17 @@ func (m UploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m UploadModel) View() string {
 	b := strings.Builder{}
 	for i := range m.messages {
-		b.WriteString(m.messages[i].Lvl.String())
-		b.WriteRune(' ')
+		if m.messages[i].Lvl != log.InfoLevel {
+			b.WriteString(m.messages[i].Lvl.String())
+			b.WriteRune(' ')
+		}
 		b.WriteString(m.messages[i].Message)
 		b.WriteRune('\n')
 	}
-	b.WriteString(m.receivedAssetBar.View())
-	b.WriteRune('\n')
+	if m.receivedAssetPct > 0.05 {
+		b.WriteString(m.receivedAssetBar.View())
+		b.WriteRune('\n')
+	}
 	if m.counters != nil {
 		b.WriteString(m.countersMdl.View())
 		b.WriteRune('\n')
@@ -124,9 +144,8 @@ func (m UploadCountersModel) View() string {
 	checkFiles := c[logger.UpldScannedImage] + c[logger.UpldScannedVideo] + c[logger.UpldMetadata] + c[logger.UpldUnsupported] + c[logger.UpldFailedVideo] + c[logger.UpldDiscarded]
 	handledFiles := c[logger.UpldNotSelected] + c[logger.UpldLocalDuplicate] + c[logger.UpldServerDuplicate] + c[logger.UpldServerBetter] + c[logger.UpldUploaded] + c[logger.UpldUpgraded] + c[logger.UpldServerError]
 
-	sb.WriteString("Scan of the sources:\n")
-	sb.WriteString(fmt.Sprintf("%6d files in the input\n", c[logger.UpldDiscoveredFile]))
 	sb.WriteString("--------------------------------------------------------\n")
+	sb.WriteString(fmt.Sprintf("%6d discovered files in the input\n", c[logger.UpldDiscoveredFile]))
 	sb.WriteString(fmt.Sprintf("%6d photos\n", c[logger.UpldScannedImage]))
 	sb.WriteString(fmt.Sprintf("%6d videos\n", c[logger.UpldScannedVideo]))
 	sb.WriteString(fmt.Sprintf("%6d metadata files\n", c[logger.UpldMetadata]))
@@ -138,6 +157,7 @@ func (m UploadCountersModel) View() string {
 	sb.WriteString(fmt.Sprintf("%6d input total (difference %d)\n", checkFiles, c[logger.UpldDiscoveredFile]-checkFiles))
 	sb.WriteString("--------------------------------------------------------\n")
 
+	sb.WriteString(fmt.Sprintf("%6d asset(s) received from the server\n", c[logger.UpldReceived]))
 	sb.WriteString(fmt.Sprintf("%6d uploaded files on the server\n", c[logger.UpldUploaded]))
 	sb.WriteString(fmt.Sprintf("%6d upgraded files on the server\n", c[logger.UpldUpgraded]))
 	sb.WriteString(fmt.Sprintf("%6d files already on the server\n", c[logger.UpldServerDuplicate]))
@@ -159,3 +179,56 @@ func (m UploadCountersModel) Init() tea.Cmd {
 func (m *UploadCountersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
+
+type msgTick time.Time
+
+func cmdTick() tea.Cmd {
+	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+		return msgTick(t)
+	})
+}
+
+/*
+func cmdTaskDone(t string) tea.Cmd {
+	return func() tea.Msg {
+		return msgTaskDone(t)
+	}
+}
+
+func cmdQuit(err error) tea.Cmd {
+	return func() tea.Msg {
+		return msgQuit(err)
+	}
+}
+
+func cmdGetAsset(app *UpCmd) tea.Cmd {
+	return func() tea.Msg {
+		err := app.getAssets()
+		if err != nil {
+			return cmdQuit(err)
+		}
+		return cmdTaskDone("getAssetsDone")
+	}
+}
+
+func cmdPrepare(app *UpCmd) tea.Cmd {
+	return func() tea.Msg {
+		err := app.prepare()
+		if err != nil {
+			return cmdQuit(err)
+		}
+		return cmdTaskDone("prepareDone")
+	}
+}
+
+func cmdBrowse(app *UpCmd) tea.Cmd {
+	return func() tea.Msg {
+		err := app.browse()
+		if err != nil {
+			return cmdQuit(err)
+		}
+		return cmdTaskDone("browseDone")
+	}
+
+}
+*/

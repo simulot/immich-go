@@ -23,10 +23,11 @@ const (
 	UpldINFO                                 // "Info"
 	UpldNotSelected                          // "Not selected because of options"
 	UpldServerError                          // "Server error"
+	UpldReceived                             // "Asset received from the server",
 )
 
 var _uploadActionStrings = map[UpLdAction]string{
-	UpldDiscoveredFile:     "File",
+	UpldDiscoveredFile:     "File discovered",
 	UpldScannedImage:       "Scanned image",
 	UpldScannedVideo:       "Scanned video",
 	UpldDiscarded:          "Discarded",
@@ -46,6 +47,7 @@ var _uploadActionStrings = map[UpLdAction]string{
 	UpldINFO:               "Info",
 	UpldNotSelected:        "Not selected because of options",
 	UpldServerError:        "Server error",
+	UpldReceived:           "Asset received from the server",
 }
 
 func (m UpLdAction) String() string {

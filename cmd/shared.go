@@ -83,8 +83,9 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			joinedErr = errors.Join(joinedErr, err)
 		} else {
 			app.Log.Printf("Writing messages to the file: %s", app.LogFile)
+			app.Log.SetReportTimestamp(true)
 			app.Log.SetOutput(app.out)
-			app.Log.Print(app.banner)
+			app.Log.Print("\n" + app.banner)
 		}
 	}
 	// at this point, exits if there is an error

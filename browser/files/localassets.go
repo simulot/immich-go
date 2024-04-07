@@ -34,6 +34,10 @@ func NewLocalFiles(ctx context.Context, log *logger.LogAndCount[logger.UpLdActio
 	}, nil
 }
 
+func (la *LocalAssetBrowser) Prepare(ctx context.Context) error {
+	return nil
+}
+
 func (la *LocalAssetBrowser) SetSupportedMedia(sm immich.SupportedMedia) *LocalAssetBrowser {
 	la.sm = sm
 	return la

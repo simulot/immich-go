@@ -27,6 +27,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 	"github.com/simulot/immich-go/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 /*
@@ -78,6 +79,8 @@ type UpCmd struct {
 	page             *tea.Program
 	counters         *logger.Counters[logger.UpLdAction]
 	lc               *logger.LogAndCount[logger.UpLdAction]
+	ctx              context.Context
+	browser          browser.Browser
 }
 
 func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpCmd, error) {
@@ -87,6 +90,7 @@ func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpC
 	app := UpCmd{
 		SharedFlags:  common,
 		updateAlbums: map[string]map[string]any{},
+		ctx:          ctx,
 	}
 
 	app.SharedFlags.SetFlags(cmd)
@@ -207,26 +211,43 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 
 	// Initialize the TUI model
 	app.counters = logger.NewCounters[logger.UpLdAction]()
-	app.page = tea.NewProgram(NewUploadModel(app.counters))
+	app.page = tea.NewProgram(NewUploadModel(app, app.counters))
 	app.lc = logger.NewLogAndCount[logger.UpLdAction](app.Log, app.page, app.counters)
 
-	go app.Run(ctx)
+	switch {
+	case app.GooglePhotos:
+		app.browser, err = app.ReadGoogleTakeOut(ctx, app.fsyss)
+	default:
+		app.browser, err = app.ExploreLocalFolder(ctx, app.fsyss)
+	}
 
-	if _, err := app.page.Run(); err != nil {
+	// Sequence of actions
+	go func() {
+		initGrp := errgroup.Group{}
+		initGrp.Go(app.getAssets)
+		initGrp.Go(app.prepare)
+		err := initGrp.Wait()
+		if err != nil {
+			app.page.Send(msgQuit{err})
+		}
+		err = app.browse()
+		app.page.Send(msgQuit{err})
+	}()
+
+	// Run the TUI
+	m, err := app.page.Run()
+	if err != nil {
 		return err
+	}
+	if m, ok := m.(UploadModel); ok {
+		app.Log.Print(m.countersMdl.View())
 	}
 	return nil
 }
 
-func (app *UpCmd) Run(ctx context.Context) error {
-	var err error
-	defer func() {
-		app.page.Send(ErrorAndQuit(err))
-	}()
-
+func (app *UpCmd) getAssets() error {
 	app.lc.Print("Get Server Statistics")
-	var statistics immich.ServerStatistics
-	statistics, err = app.Immich.GetServerStatistics(ctx)
+	statistics, err := app.Immich.GetServerStatistics(app.ctx)
 	if err != nil {
 		return err
 	}
@@ -236,9 +257,10 @@ func (app *UpCmd) Run(ctx context.Context) error {
 	received := 0
 
 	var list []*immich.Asset
-	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
+	err = app.Immich.GetAllAssetsWithFilter(app.ctx, func(a *immich.Asset) {
 		received++
-		app.page.Send(ReceiveAssetMsg(float64(received) / totalOnImmich))
+		app.counters.Add(logger.UpldReceived)
+		app.page.Send(msgReceiveAsset(float64(received) / totalOnImmich))
 		if a.IsTrashed {
 			return
 		}
@@ -252,30 +274,22 @@ func (app *UpCmd) Run(ctx context.Context) error {
 	app.AssetIndex = &AssetIndex{
 		assets: list,
 	}
-
 	app.AssetIndex.ReIndex()
+	return err
+}
 
-	var browser browser.Browser
+func (app *UpCmd) prepare() error {
+	return app.browser.Prepare(app.ctx)
+}
 
-	switch {
-	case app.GooglePhotos:
-		app.Log.Print("Browsing google take out archive...")
-		browser, err = app.ReadGoogleTakeOut(ctx, app.fsyss)
-	default:
-		app.Log.Print("Browsing folder(s)...")
-		browser, err = app.ExploreLocalFolder(ctx, app.fsyss)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	assetChan := browser.Browse(ctx)
+func (app *UpCmd) browse() error {
+	var err error
+	assetChan := app.browser.Browse(app.ctx)
 assetLoop:
 	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-app.ctx.Done():
+			return app.ctx.Err()
 
 		case a, ok := <-assetChan:
 			if !ok {
@@ -284,7 +298,7 @@ assetLoop:
 			if a.Err != nil {
 				app.lc.AddEntry(log.ErrorLevel, logger.UpldERROR, a.FileName, "error", a.Err)
 			} else {
-				err = app.handleAsset(ctx, a)
+				err = app.handleAsset(app.ctx, a)
 				if err != nil {
 					app.lc.AddEntry(log.ErrorLevel, logger.UpldERROR, a.FileName, "error", a.Err)
 				}
@@ -306,7 +320,7 @@ assetLoop:
 				}
 				app.lc.Print("Stacking", "files", s.Names)
 				if !app.DryRun {
-					err = app.Immich.StackAssets(ctx, s.CoverID, s.IDs)
+					err = app.Immich.StackAssets(app.ctx, s.CoverID, s.IDs)
 					if err != nil {
 						app.lc.Error("Can't stack images", "error", err)
 					}
@@ -317,7 +331,7 @@ assetLoop:
 
 	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
 		app.lc.Print("Managing albums")
-		err = app.ManageAlbums(ctx)
+		err = app.ManageAlbums(app.ctx)
 		if err != nil {
 			app.lc.Error("Can't manage albums", "error", err)
 			err = nil
@@ -330,7 +344,7 @@ assetLoop:
 		for _, da := range app.deleteServerList {
 			ids = append(ids, da.ID)
 		}
-		err := app.DeleteServerAssets(ctx, ids)
+		err := app.DeleteServerAssets(app.ctx, ids)
 		if err != nil {
 			app.lc.Error("Can't removing duplicates", "error", err)
 			err = nil
@@ -340,7 +354,6 @@ assetLoop:
 	if len(app.deleteLocalList) > 0 {
 		err = app.DeleteLocalAssets()
 	}
-
 	return err
 }
 

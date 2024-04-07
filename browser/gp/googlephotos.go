@@ -63,19 +63,13 @@ func NewTakeout(ctx context.Context, log *logger.LogAndCount[logger.UpLdAction],
 		log:        log,
 		sm:         sm,
 	}
-	err := to.passOne(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	to.solvePuzzle()
-	return &to, err
+	return &to, nil
 }
 
 // passOne scans all files in all walker to build the file catalog of the archive
 // metadata files content is read and kept
 
-func (to *Takeout) passOne(ctx context.Context) error {
+func (to *Takeout) Prepare(ctx context.Context) error {
 	to.catalogs = map[fs.FS]walkerCatalog{}
 	for _, w := range to.fsyss {
 		to.catalogs[w] = walkerCatalog{}
@@ -84,6 +78,7 @@ func (to *Takeout) passOne(ctx context.Context) error {
 			return err
 		}
 	}
+	to.solvePuzzle()
 	return nil
 }
 

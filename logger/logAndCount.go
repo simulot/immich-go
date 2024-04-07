@@ -17,13 +17,11 @@ type LogAndCount[M Measure] struct {
 	p *tea.Program
 }
 
-type LogMessage struct {
+type MsgLog struct {
 	Lvl     log.Level
 	Message string
 	KeyVals []interface{}
 }
-
-type RefreshCounters struct{}
 
 func NewLogAndCount[M Measure](l *log.Logger, p *tea.Program, c *Counters[M]) *LogAndCount[M] {
 	return &LogAndCount[M]{
@@ -33,30 +31,23 @@ func NewLogAndCount[M Measure](l *log.Logger, p *tea.Program, c *Counters[M]) *L
 	}
 }
 func (lc LogAndCount[M]) AddEntry(lvl log.Level, counter M, file string, keyval ...interface{}) {
-
+	lc.c.Add(counter)
 	keyvals := append([]interface{}{"file", file}, keyval...)
 	lc.l.Log(lvl, counter.String(), keyvals...)
 
 	// Send  errors and warnings to the tea.Program event loop
-	// switch lvl {
-	// case log.WarnLevel, log.ErrorLevel, log.FatalLevel:
-	lc.p.Send(LogMessage{Lvl: lvl, Message: counter.String(), KeyVals: keyval})
-	// }
-
-	// Informs the tea.Program about a change
-	lc.c.Add(counter)
-	lc.p.Send(RefreshCounters{})
+	lc.p.Send(MsgLog{Lvl: lvl, Message: counter.String() + " file:" + file, KeyVals: keyval})
 }
 
 // Implements some Log functions to display errors and log everything
 
 func (lc LogAndCount[M]) Print(msg interface{}, keyvals ...interface{}) {
 	lc.l.Print(msg, keyvals...)
-	lc.p.Send(LogMessage{Lvl: log.InfoLevel, Message: fmt.Sprint(msg), KeyVals: keyvals})
+	lc.p.Send(MsgLog{Lvl: log.InfoLevel, Message: fmt.Sprint(msg), KeyVals: keyvals})
 }
 func (lc LogAndCount[M]) Printf(format string, args ...interface{}) {
 	lc.l.Printf(format, args...)
-	lc.p.Send(LogMessage{Lvl: log.InfoLevel, Message: fmt.Sprintf(format, args...)})
+	lc.p.Send(MsgLog{Lvl: log.InfoLevel, Message: fmt.Sprintf(format, args...)})
 }
 
 func (lc LogAndCount[M]) Debug(msg interface{}, keyvals ...interface{}) {
@@ -68,20 +59,20 @@ func (lc LogAndCount[M]) Debugf(format string, args ...interface{}) {
 
 func (lc LogAndCount[M]) Error(msg interface{}, keyvals ...interface{}) {
 	lc.l.Error(msg, keyvals...)
-	lc.p.Send(LogMessage{Lvl: log.ErrorLevel, Message: fmt.Sprint(msg)})
+	lc.p.Send(MsgLog{Lvl: log.ErrorLevel, Message: fmt.Sprint(msg)})
 }
 func (lc LogAndCount[M]) Errorf(format string, args ...interface{}) {
 	lc.l.Error(format, args...)
-	lc.p.Send(LogMessage{Lvl: log.ErrorLevel, Message: fmt.Sprintf(format, args...)})
+	lc.p.Send(MsgLog{Lvl: log.ErrorLevel, Message: fmt.Sprintf(format, args...)})
 }
 
 func (lc LogAndCount[M]) Warn(msg interface{}, keyvals ...interface{}) {
 	lc.l.Warn(msg, keyvals...)
-	lc.p.Send(LogMessage{Lvl: log.WarnLevel, Message: fmt.Sprint(msg)})
+	lc.p.Send(MsgLog{Lvl: log.WarnLevel, Message: fmt.Sprint(msg)})
 }
 func (lc LogAndCount[M]) Warnf(format string, args ...interface{}) {
 	lc.l.Debug(format, args...)
-	lc.p.Send(LogMessage{Lvl: log.WarnLevel, Message: fmt.Sprintf(format, args...)})
+	lc.p.Send(MsgLog{Lvl: log.WarnLevel, Message: fmt.Sprintf(format, args...)})
 }
 
 // func (lc LogAndCount[M]) Info(msg interface{}, keyvals ...interface{}) {
