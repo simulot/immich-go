@@ -31,6 +31,7 @@ type SharedFlags struct {
 	Debug             bool   // Enable the debug mode
 	TimeZone          string // Override default TZ
 	SkipSSL           bool   // Skip SSL Verification
+	NoUI              bool   // Disable user interface
 
 	Immich  immich.ImmichInterface // Immich client
 	LogFile string                 // Log file
@@ -63,6 +64,7 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, app.Debug))
 	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
 	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL))
+	fs.BoolFunc("no-ui", "Disable the user interface", myflag.BoolFlagFn(&app.NoUI, app.NoUI))
 }
 
 func (app *SharedFlags) Start(ctx context.Context) error {

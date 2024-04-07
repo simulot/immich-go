@@ -2,9 +2,34 @@
 
 ## Release next
 
-This release introduce some braking changes:
+### A better user interface for the upload command
 
-- The log file is now generated each time. The default file name is ./immich-go-{YYMMDD-HHMMSS}.log
+#### A "modern" terminal unser interface
+
+![](./screen.gif)
+
+I'm using the wonderful library provided by [charm.sh](https://charm.sh/) to compose the page and display the progression on the work.
+You can quit the program with ctrl+c or q keys.
+
+For those who are using immich-go in batch, this can be disabled with the option: `-no-ui`
+
+
+#### A better log files
+
+The log now gives the precise reason for discarding files:
+
+```log
+2024-04-07 16:26:29 INFO Discarded file="Takeout/Google\u00a0Photos/Year 2022/PXL_20221224_175124414.MP" reason="useless file"
+2024-04-07 16:26:29 INFO Not selected because of options file="Takeout/Google\u00a0Photos/Corbeille/PXL_20231017_190807437.LONG_EXPOSURE-02.ORIGINA.jpg" reason="trashed assets are excluded"
+
+```
+
+
+
+#### This release introduce some breaking changes:
+
+- The log file is now generated each time. The default file name is ./immich-go-{YYMMDD HHMMSS}.log
+- The log-level can't be change
 
 
 ### Improvement: [#195](https://github.com/simulot/immich-go/issues/195) Rethink the user interactions with the CLI application #195
