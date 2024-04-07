@@ -92,7 +92,7 @@ func Run(ctx context.Context) error {
 	}
 
 	if err != nil {
-		log.Error(err.Error())
+		log.Error(err)
 	}
 	return err
 }

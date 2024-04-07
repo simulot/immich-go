@@ -158,7 +158,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 
 func (app *SharedFlags) Close() error {
 	if closer, ok := app.out.(io.Closer); ok {
-		fmt.Println("Consult the log file for details:", app.LogFile)
+		fmt.Println("Check the log file for details:", app.LogFile)
 		return closer.Close()
 	}
 	return nil

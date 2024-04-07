@@ -1,12 +1,12 @@
 package upload
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	padding  = 2
-	maxWidth = 40
+	padding     = 2
+	maxWidth    = 40
+	maxMessages = 150
 )
 
 type msgReceiveAsset float64
@@ -26,120 +27,118 @@ type msgTaskDone string
 // UploadModel is a tea.Model to follow the Upload task
 type UploadModel struct {
 	// sub models
-	messages         []logger.MsgLog
-	countersMdl      UploadCountersModel
-	receivedAssetBar progress.Model
-	spinner          spinner.Model
+	messages       []logger.MsgLog
+	countersMdl    UploadCountersModel
+	spinnerReceive spinner.Model
+	spinnerBrowser spinner.Model
 
 	//
-	counters         *logger.Counters[logger.UpLdAction]
-	receivedAssetPct float64
-	assetReceived    bool
-	mediaPrepared    bool
-	assetUploaded    bool
-	spinnerLabel     string
-	app              *UpCmd
-	err              error
+	counters            *logger.Counters[logger.UpLdAction]
+	receivedAssetPct    float64
+	assetReceived       bool
+	mediaPrepared       bool
+	assetUploaded       bool
+	spinnerBrowserLabel string
+	spinnerReceiveLabel string
+	app                 *UpCmd
+	err                 error
+	width, height       int
 }
 
 var _ tea.Model = (*UploadModel)(nil)
 
 func NewUploadModel(app *UpCmd, c *logger.Counters[logger.UpLdAction]) UploadModel {
 	return UploadModel{
-		counters:         c,
-		countersMdl:      NewUploadCountersModel(c),
-		receivedAssetBar: progress.New(progress.WithoutPercentage(), progress.WithWidth(maxWidth)),
-		spinner:          spinner.New(spinner.WithSpinner(spinner.Dot)),
-		app:              app,
+		counters:       c,
+		countersMdl:    NewUploadCountersModel(c),
+		spinnerReceive: spinner.New(spinner.WithSpinner(spinner.Points)),
+		spinnerBrowser: spinner.New(spinner.WithSpinner(spinner.Points)),
+		app:            app,
 	}
 }
 
 func (m UploadModel) Init() tea.Cmd {
-	return tea.Batch(cmdTick())
+	return tea.Batch(cmdTick(), m.spinnerBrowser.Tick, m.spinnerReceive.Tick)
 }
 
 func (m UploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.receivedAssetBar.Width = msg.Width - padding*2 - 4
-		if m.receivedAssetBar.Width > maxWidth {
-			m.receivedAssetBar.Width = maxWidth
-		}
+		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
+			m.err = errors.New("Interrupted by the user")
 			return m, tea.Quit
 		}
 	case msgQuit:
-		m.err = msg
+		m.err = msg.error
 		return m, tea.Quit
 	case logger.MsgLog:
 		m.messages = append(m.messages, msg)
-		if len(m.messages) > 10 {
+		if len(m.messages) > m.height {
 			m.messages = slices.Delete(m.messages, 0, 1)
 		}
-	case progress.FrameMsg:
-		progressModel, cmd := m.receivedAssetBar.Update(msg)
-		m.receivedAssetBar = progressModel.(progress.Model)
-		return m, cmd
 	case msgReceiveAsset:
 		m.receivedAssetPct = float64(msg)
-		return m, m.receivedAssetBar.SetPercent(float64(msg))
+		return m, nil
 	case msgTick:
 		return m, cmdTick()
 	case msgReceivingAssetDone:
 		m.receivedAssetPct = 2.0
 		return m, nil
 	case logger.MsgStageSpinner:
-		m.spinnerLabel = msg.Label
-		return m, m.spinner.Tick
+		m.spinnerBrowserLabel = msg.Label
+		return m, m.spinnerBrowser.Tick
 	case spinner.TickMsg:
+		var cmds []tea.Cmd
 		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-
-		// case msgTaskDone:
-		// 	switch msg {
-		// 	case "getAssetsDone":
-		// 		m.assetReceived = true
-		// 	case "prepareDone":
-		// 		m.mediaPrepared = true
-		// 	case "browseDone":
-		// 		return m, cmdQuit(nil)
-		// 	}
-		// 	if m.assetReceived || m.mediaPrepared {
-		// 		return m, cmdBrowse(m.app)
-		// 	}
+		m.spinnerBrowser, cmd = m.spinnerBrowser.Update(msg)
+		cmds = append(cmds, cmd)
+		m.spinnerReceive, cmd = m.spinnerReceive.Update(msg)
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
 	}
 	return m, nil
 }
 
 func (m UploadModel) View() string {
 	b := strings.Builder{}
-	b.WriteString(m.app.SharedFlags.Banner)
+	row := 0
+	if m.height > 26 {
+		b.WriteString(m.app.SharedFlags.Banner)
+		row += 5
+	}
 	if m.counters != nil {
 		b.WriteString(m.countersMdl.View())
 		b.WriteRune('\n')
+		row += 19
 	}
 	if m.receivedAssetPct > 0 && m.receivedAssetPct < 2.0 {
-		b.WriteString("Getting server's assets ")
-		b.WriteString(m.receivedAssetBar.View())
+		b.WriteString(m.spinnerReceive.View())
+		b.WriteString(fmt.Sprintf(" Server's assets receiving (%d%%)", int(m.receivedAssetPct*100)))
 		b.WriteRune('\n')
+		row += 1
 	}
-	if m.spinnerLabel != "" {
-		b.WriteString(m.spinner.View())
+	if m.spinnerBrowserLabel != "" {
+		b.WriteString(m.spinnerBrowser.View())
 		b.WriteString(" ")
-		b.WriteString(m.spinnerLabel)
+		b.WriteString(m.spinnerBrowserLabel)
 		b.WriteRune('\n')
+		row += 1
 	}
-	for i := range m.messages {
-		if m.messages[i].Lvl != log.InfoLevel {
-			b.WriteString(m.messages[i].Lvl.String())
-			b.WriteRune(' ')
+	if len(m.messages) > 0 {
+		remains := m.height - row
+		for i := max(len(m.messages)-remains, 0); i < len(m.messages); i++ {
+			if m.messages[i].Lvl != log.InfoLevel {
+				b.WriteString(m.messages[i].Lvl.String())
+				b.WriteRune(' ')
+			}
+			b.WriteString(m.messages[i].Message)
+			b.WriteRune('\n')
+			row++
 		}
-		b.WriteString(m.messages[i].Message)
-		b.WriteRune('\n')
 	}
 	return b.String()
 }
@@ -164,20 +163,20 @@ func (m UploadCountersModel) View() string {
 	}
 
 	sb := strings.Builder{}
-	checkFiles := c[logger.UpldScannedImage] + c[logger.UpldScannedVideo] + c[logger.UpldMetadata] + c[logger.UpldDiscarded]
-	handledFiles := c[logger.UpldLocalDuplicate] + c[logger.UpldServerDuplicate] + c[logger.UpldServerBetter] + c[logger.UpldUploaded] + c[logger.UpldUpgraded] + c[logger.UpldServerError]
+	checkFiles := c[logger.UpldScannedImage] + c[logger.UpldScannedVideo]
+	handledFiles := c[logger.UpldLocalDuplicate] + c[logger.UpldServerDuplicate] + c[logger.UpldServerBetter] + c[logger.UpldUploaded] + c[logger.UpldUpgraded] + c[logger.UpldServerError] + c[logger.UpldNotSelected]
 
-	sb.WriteString("--------------------------------------------------------\n")
+	sb.WriteString("-------------------------------------------------------------------\n")
 	sb.WriteString(fmt.Sprintf("%6d discovered files in the input\n", c[logger.UpldDiscoveredFile]))
 	sb.WriteString(fmt.Sprintf("%6d photos\n", c[logger.UpldScannedImage]))
 	sb.WriteString(fmt.Sprintf("%6d videos\n", c[logger.UpldScannedVideo]))
 	sb.WriteString(fmt.Sprintf("%6d metadata files\n", c[logger.UpldMetadata]))
 	sb.WriteString(fmt.Sprintf("%6d files with metadata\n", c[logger.UpldAssociatedMetadata]))
 	sb.WriteString(fmt.Sprintf("%6d discarded files\n", c[logger.UpldDiscarded]))
-	sb.WriteString(fmt.Sprintf("%6d input total (difference %d)\n", checkFiles, c[logger.UpldDiscoveredFile]-checkFiles))
-	sb.WriteString("--------------------------------------------------------\n")
+	sb.WriteString("\n-------------------------------------------------------------------\n")
 
 	sb.WriteString(fmt.Sprintf("%6d asset(s) received from the server\n", c[logger.UpldReceived]))
+	sb.WriteString(fmt.Sprintf("%6d not selected\n", c[logger.UpldNotSelected]))
 	sb.WriteString(fmt.Sprintf("%6d uploaded files on the server\n", c[logger.UpldUploaded]))
 	sb.WriteString(fmt.Sprintf("%6d upgraded files on the server\n", c[logger.UpldUpgraded]))
 	sb.WriteString(fmt.Sprintf("%6d files already on the server\n", c[logger.UpldServerDuplicate]))
@@ -185,7 +184,7 @@ func (m UploadCountersModel) View() string {
 	sb.WriteString(fmt.Sprintf("%6d discarded files because server has a better image\n", c[logger.UpldServerBetter]))
 	sb.WriteString(fmt.Sprintf("%6d errors when uploading\n", c[logger.UpldServerError]))
 
-	sb.WriteString(fmt.Sprintf("%6d handled total (difference %d)\n", handledFiles, c[logger.UpldScannedImage]+c[logger.UpldScannedVideo]-handledFiles))
+	sb.WriteString(fmt.Sprintf("%6d handled total (difference %d)\n", handledFiles, checkFiles-handledFiles))
 	return sb.String()
 }
 

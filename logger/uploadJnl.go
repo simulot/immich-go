@@ -21,9 +21,9 @@ const (
 	UpldMetadata           // "Metadata files"
 	UpldAssociatedMetadata // "Associated with metadata"
 	UpldINFO               // "Info"
-	// UpldNotSelected                          // "Not selected because of options"
-	UpldServerError // "Server error"
-	UpldReceived    // "Asset received from the server",
+	UpldNotSelected        // "Not selected because of options"
+	UpldServerError        // "Server error"
+	UpldReceived           // "Asset received from the server",
 )
 
 var _uploadActionStrings = map[UpLdAction]string{
@@ -45,9 +45,9 @@ var _uploadActionStrings = map[UpLdAction]string{
 	UpldMetadata:           "Metadata files",
 	UpldAssociatedMetadata: "Associated with metadata",
 	UpldINFO:               "Info",
-	// UpldNotSelected:        "Not selected because of options",
-	UpldServerError: "Server error",
-	UpldReceived:    "Asset received from the server",
+	UpldNotSelected:        "Not selected because of options",
+	UpldServerError:        "Server error",
+	UpldReceived:           "Asset received from the server",
 }
 
 func (m UpLdAction) String() string {

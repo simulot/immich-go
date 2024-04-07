@@ -237,11 +237,17 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	// Run the TUI
 	m, err := app.page.Run()
 	if err != nil {
-		return err
+		return nil
 	}
+
+	app.page.Wait()
 	if m, ok := m.(UploadModel); ok {
-		app.Log.Print(m.countersMdl.View())
-		fmt.Println(m.countersMdl.View())
+		report := m.countersMdl.View()
+		defer func() {
+			app.SharedFlags.Log.Print(m.countersMdl.View())
+			fmt.Println(report)
+		}()
+		return m.err
 	}
 	return nil
 }
@@ -373,42 +379,42 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	// }
 	ext := path.Ext(a.FileName)
 	if app.BrowserConfig.ExcludeExtensions.Exclude(ext) {
-		app.lc.AddEntry(log.InfoLevel, logger.UpldDiscarded, a.FileName, "reason", "extension excluded")
+		app.lc.AddEntry(log.InfoLevel, logger.UpldNotSelected, a.FileName, "reason", "extension excluded")
 		return nil
 	}
 	if !app.BrowserConfig.SelectExtensions.Include(ext) {
-		app.lc.AddEntry(log.InfoLevel, logger.UpldDiscarded, a.FileName, "reason", "extension not selected")
+		app.lc.AddEntry(log.InfoLevel, logger.UpldNotSelected, a.FileName, "reason", "extension not selected")
 		return nil
 	}
 
 	if !app.KeepPartner && a.FromPartner {
-		app.lc.AddEntry(log.InfoLevel, logger.UpldDiscarded, a.FileName, "reason", "partner's assets are excluded")
+		app.lc.AddEntry(log.InfoLevel, logger.UpldNotSelected, a.FileName, "reason", "partner's assets are excluded")
 		return nil
 	}
 
 	if !app.KeepTrashed && a.Trashed {
-		app.lc.AddEntry(log.InfoLevel, logger.UpldDiscarded, a.FileName, "reason", "trashed assets are excluded")
+		app.lc.AddEntry(log.InfoLevel, logger.UpldNotSelected, a.FileName, "reason", "trashed assets are excluded")
 		return nil
 	}
 
 	if app.ImportFromAlbum != "" && !app.isInAlbum(a, app.ImportFromAlbum) {
-		app.lc.AddEntry(log.InfoLevel, logger.UpldDiscarded, a.FileName, "reason", "asset not in selected album")
+		app.lc.AddEntry(log.InfoLevel, logger.UpldNotSelected, a.FileName, "reason", "asset not in selected album")
 		return nil
 	}
 
 	if app.DiscardArchived && a.Archived {
-		app.lc.AddEntry(log.InfoLevel, logger.UpldDiscarded, a.FileName, "reason", "archived assets are excluded")
+		app.lc.AddEntry(log.InfoLevel, logger.UpldNotSelected, a.FileName, "reason", "archived assets are excluded")
 		return nil
 	}
 
 	if app.DateRange.IsSet() {
 		d := a.DateTaken
 		if d.IsZero() {
-			app.lc.AddEntry(log.InfoLevel, logger.UpldDiscarded, a.FileName, "reason", "date of capture is unknown and a date range is given")
+			app.lc.AddEntry(log.InfoLevel, logger.UpldNotSelected, a.FileName, "reason", "date of capture is unknown and a date range is given")
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
-			app.lc.AddEntry(log.InfoLevel, logger.UpldDiscarded, a.FileName, "reason", "date of capture is out of the date range")
+			app.lc.AddEntry(log.InfoLevel, logger.UpldNotSelected, a.FileName, "reason", "date of capture is out of the date range")
 			return nil
 		}
 	}
