@@ -210,11 +210,12 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 		app.stacks = stacking.NewStackBuilder(app.Immich.SupportedMedia())
 	}
 
-	// Initialize the TUI model
 	app.counters = logger.NewCounters[logger.UpLdAction]()
+
+	// Initialize the TUI model
 	if !app.SharedFlags.NoUI {
-		app.send = app.page.Send
 		app.page = tea.NewProgram(NewUploadModel(app, app.counters), tea.WithAltScreen())
+		app.send = app.page.Send
 	} else {
 		app.send = app.sendNoUI
 	}
