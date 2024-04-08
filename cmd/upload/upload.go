@@ -81,6 +81,7 @@ type UpCmd struct {
 	lc               *logger.LogAndCount[logger.UpLdAction]
 	ctx              context.Context
 	browser          browser.Browser
+	send             logger.Sender
 }
 
 func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpCmd, error) {
@@ -211,8 +212,14 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 
 	// Initialize the TUI model
 	app.counters = logger.NewCounters[logger.UpLdAction]()
-	app.page = tea.NewProgram(NewUploadModel(app, app.counters), tea.WithAltScreen())
-	app.lc = logger.NewLogAndCount[logger.UpLdAction](app.Log, app.page, app.counters)
+	if !app.SharedFlags.NoUI {
+		app.send = app.page.Send
+		app.page = tea.NewProgram(NewUploadModel(app, app.counters), tea.WithAltScreen())
+	} else {
+		app.send = app.sendNoUI
+	}
+
+	app.lc = logger.NewLogAndCount[logger.UpLdAction](app.Log, app.send, app.counters)
 
 	switch {
 	case app.GooglePhotos:
@@ -222,34 +229,60 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	}
 
 	// Sequence of actions
-	go func() {
+	fullGrp := errgroup.Group{}
+	fullGrp.Go(func() error {
 		initGrp := errgroup.Group{}
 		initGrp.Go(app.getAssets)
 		initGrp.Go(app.prepare)
 		err := initGrp.Wait()
 		if err != nil {
 			app.page.Send(msgQuit{err})
+			return err
 		}
 		err = app.browse()
-		app.page.Send(msgQuit{err})
-	}()
+		app.send(msgQuit{err})
+		return err
+	})
 
-	// Run the TUI
-	m, err := app.page.Run()
-	if err != nil {
-		return nil
+	if !app.SharedFlags.NoUI {
+		// Run the TUI
+		m, err := app.page.Run()
+		if err != nil {
+			return nil
+		}
+
+		fullGrp.Wait()
+		app.page.Wait()
+		if m, ok := m.(UploadModel); ok {
+			report := m.countersMdl.View()
+			defer func() {
+				app.SharedFlags.Log.Print(m.countersMdl.View())
+				fmt.Println(report)
+			}()
+			return m.err
+		}
+	} else {
+		return fullGrp.Wait()
 	}
 
-	app.page.Wait()
-	if m, ok := m.(UploadModel); ok {
-		report := m.countersMdl.View()
-		defer func() {
-			app.SharedFlags.Log.Print(m.countersMdl.View())
-			fmt.Println(report)
-		}()
-		return m.err
-	}
 	return nil
+}
+
+func (app *UpCmd) sendNoUI(msg tea.Msg) {
+	if !app.SharedFlags.NoUI {
+		app.page.Send(msg)
+		return
+	}
+
+	switch msg := msg.(type) {
+	case logger.MsgLog:
+		if msg.Lvl != log.InfoLevel {
+			fmt.Print(msg.Lvl.String(), " ")
+		}
+		fmt.Println(msg.Message)
+	case logger.MsgStageSpinner:
+		fmt.Println(msg.Label)
+	}
 }
 
 func (app *UpCmd) getAssets() error {
@@ -267,7 +300,7 @@ func (app *UpCmd) getAssets() error {
 	err = app.Immich.GetAllAssetsWithFilter(app.ctx, func(a *immich.Asset) {
 		received++
 		app.counters.Add(logger.UpldReceived)
-		app.page.Send(msgReceiveAsset(float64(received) / totalOnImmich))
+		app.send(msgReceiveAsset(float64(received) / totalOnImmich))
 		if a.IsTrashed {
 			return
 		}
@@ -278,7 +311,7 @@ func (app *UpCmd) getAssets() error {
 		return err
 	}
 
-	app.page.Send(msgReceivingAssetDone{})
+	app.send(msgReceivingAssetDone{})
 	app.AssetIndex = &AssetIndex{
 		assets: list,
 	}
@@ -317,7 +350,7 @@ assetLoop:
 	if app.CreateStacks {
 		stacks := app.stacks.Stacks()
 		if len(stacks) > 0 {
-			app.lc.Print("Creating stacks")
+			app.send(logger.MsgStageSpinner{Label: "Creating stacks"})
 		nextStack:
 			for _, s := range stacks {
 				switch {
@@ -326,7 +359,7 @@ assetLoop:
 				case !app.StackJpgRaws && s.StackType == stacking.StackRawJpg:
 					continue nextStack
 				}
-				app.lc.Print("Stacking", "files", s.Names)
+				app.lc.AddEntry(log.InfoLevel, logger.UpldStack, s.Names[0], "files", s.Names[1:])
 				if !app.DryRun {
 					err = app.Immich.StackAssets(app.ctx, s.CoverID, s.IDs)
 					if err != nil {
@@ -338,7 +371,6 @@ assetLoop:
 	}
 
 	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
-		app.lc.Print("Managing albums")
 		err = app.ManageAlbums(app.ctx)
 		if err != nil {
 			app.lc.Error("Can't manage albums", "error", err)
@@ -347,7 +379,6 @@ assetLoop:
 	}
 
 	if len(app.deleteServerList) > 0 {
-		app.lc.Print("Removing low quality duplicates on the server")
 		ids := []string{}
 		for _, da := range app.deleteServerList {
 			ids = append(ids, da.ID)
@@ -657,17 +688,16 @@ func (app *UpCmd) DeleteLocalAssets() error {
 }
 
 func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
-	app.page.Printf("%d server assets to delete.", len(ids))
-
+	app.lc.AddEntry(log.InfoLevel, logger.UpldDeleteServerAssets, "", "ids", ids)
 	if !app.DryRun {
 		err := app.Immich.DeleteAssets(ctx, ids, false)
 		return err
 	}
-	app.page.Printf("%d server assets to delete. skipped dry-run mode", len(ids))
 	return nil
 }
 
 func (app *UpCmd) ManageAlbums(ctx context.Context) error {
+	app.send(logger.MsgStageSpinner{Label: "Managing albums"})
 	if len(app.updateAlbums) > 0 {
 		serverAlbums, err := app.Immich.GetAllAlbums(ctx)
 		if err != nil {
@@ -678,26 +708,22 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 			for _, sal := range serverAlbums {
 				if sal.AlbumName == album {
 					found = true
+					app.lc.AddEntry(log.InfoLevel, logger.UpldCreateAlbum, album, "ids", gen.MapKeys(list))
 					if !app.DryRun {
-						app.page.Printf("Update the album %s", album)
 						rr, err := app.Immich.AddAssetToAlbum(ctx, sal.ID, gen.MapKeys(list))
 						if err != nil {
-							return fmt.Errorf("can't update the album list from the server: %w", err)
-						}
-						added := 0
-						for _, r := range rr {
-							if r.Success {
-								added++
+							app.lc.AddEntry(log.ErrorLevel, logger.UpldCreateAlbum, album, "error", err, "ids", gen.MapKeys(list))
+						} else {
+							added := 0
+							for _, r := range rr {
+								if r.Success {
+									added++
+								}
+								if !r.Success && r.Error != "duplicate" {
+									app.lc.AddEntry(log.ErrorLevel, logger.UpldCreateAlbum, album, "error", err)
+								}
 							}
-							if !r.Success && r.Error != "duplicate" {
-								app.lc.Errorf("asset can't be added to the album %s: %s", r.ID, r.Error)
-							}
 						}
-						if added > 0 {
-							app.lc.Printf("%d asset(s) added to the album %q", added, album)
-						}
-					} else {
-						app.lc.Printf("Update album %s skipped - dry run mode", album)
 					}
 				}
 			}
@@ -705,15 +731,12 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 				continue
 			}
 			if list != nil {
+				app.send(logger.MsgLog{Lvl: log.InfoLevel, Message: fmt.Sprintf("Create the album %s", album)})
 				if !app.DryRun {
-					app.page.Printf("Create the album %s", album)
-
 					_, err := app.Immich.CreateAlbum(ctx, album, gen.MapKeys(list))
 					if err != nil {
-						return fmt.Errorf("can't create the album list from the server: %w", err)
+						app.lc.AddEntry(log.ErrorLevel, logger.UpldCreateAlbum, album, "error", err)
 					}
-				} else {
-					app.page.Printf("Create the album %s skipped - dry run mode", album)
 				}
 			}
 		}

@@ -46,8 +46,9 @@ func (app *SharedFlags) InitSharedFlags(banner string) {
 	app.APITrace = false
 	app.Debug = false
 	app.SkipSSL = false
-	app.LogFile = "./immich-go-" + time.Now().Format(time.DateTime) + ".log"
+	app.LogFile = "./immich-go " + time.Now().Format("2006-01-02 15-04-05") + ".log"
 	app.Banner = banner
+	app.NoUI = false
 }
 
 // SetFlag add common flags to a flagset
