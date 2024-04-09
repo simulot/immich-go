@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -85,4 +86,15 @@ func (lc LogAndCount[M]) Warn(msg interface{}, keyvals ...interface{}) {
 func (lc LogAndCount[M]) Warnf(format string, args ...interface{}) {
 	lc.l.Debug(format, args...)
 	lc.send(MsgLog{Lvl: log.WarnLevel, Message: fmt.Sprintf(format, args...)})
+}
+
+func (lc LogAndCount[M]) String() string {
+	b := strings.Builder{}
+	for c, v := range lc.c.counters {
+		b.WriteString(fmt.Sprintf("%s: %d\n", c, v))
+	}
+	return b.String()
+}
+
+func SendNop(tea.Msg) {
 }

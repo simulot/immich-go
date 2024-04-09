@@ -9,6 +9,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/charmbracelet/log"
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
 	"github.com/simulot/immich-go/browser/files"
@@ -75,10 +76,10 @@ func TestLocalAssets(t *testing.T) {
 				return
 			}
 			ctx := context.Background()
-
-			log := logger.NewLogger("OK", false)
-			log.SetOutput(io.Discard)
-			b, err := files.NewLocalFiles(ctx, logger.NewUploadJournal(log), fsys)
+			l := log.New(io.Discard)
+			cnt := logger.NewCounters[logger.UpLdAction]()
+			lc := logger.NewLogAndCount[logger.UpLdAction](l, logger.SendNop, cnt)
+			b, err := files.NewLocalFiles(ctx, lc, fsys)
 			if err != nil {
 				t.Error(err)
 			}

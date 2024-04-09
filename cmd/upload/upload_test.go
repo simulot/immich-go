@@ -10,12 +10,12 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/charmbracelet/log"
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 )
 
 type stubIC struct{}
@@ -468,13 +468,12 @@ func TestUpload(t *testing.T) {
 			ic := &icCatchUploadsAssets{
 				albums: map[string][]string{},
 			}
-			log := logger.NewLogger("OK", false)
-			log.SetOutput(io.Discard)
+			log := log.New(io.Discard)
 			ctx := context.Background()
 
 			serv := cmd.SharedFlags{
 				Immich: ic,
-				Jnl:    logger.NewJournal(log),
+				Log:    log,
 			}
 
 			app, err := NewUpCmd(ctx, &serv, tc.args)
@@ -484,7 +483,7 @@ func TestUpload(t *testing.T) {
 			}
 
 			for _, fsys := range app.fsyss {
-				err = errors.Join(app.Run(ctx, []fs.FS{fsys}))
+				err = errors.Join(app.run(ctx, []fs.FS{fsys}))
 			}
 			if (tc.expectedErr && err == nil) || (!tc.expectedErr && err != nil) {
 				t.Errorf("unexpected error condition: %v,%s", tc.expectedErr, err)

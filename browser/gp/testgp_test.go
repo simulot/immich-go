@@ -115,8 +115,10 @@ func TestBrowse(t *testing.T) {
 			}
 			ctx := context.Background()
 			l := log.New(io.Discard)
+			cnt := logger.NewCounters[logger.UpLdAction]()
+			lc := logger.NewLogAndCount[logger.UpLdAction](l, logger.SendNop, cnt)
 
-			b, err := NewTakeout(ctx, logger.NewUploadJournal(l), immich.DefaultSupportedMedia, fsys)
+			b, err := NewTakeout(ctx, lc, immich.DefaultSupportedMedia, fsys)
 			if err != nil {
 				t.Error(err)
 			}
@@ -188,7 +190,10 @@ func TestAlbums(t *testing.T) {
 				t.Error(fsys.err)
 				return
 			}
-			b, err := NewTakeout(ctx, logger.NewUploadJournal(log.New(io.Discard)), immich.DefaultSupportedMedia, fsys)
+			l := log.New(io.Discard)
+			cnt := logger.NewCounters[logger.UpLdAction]()
+			lc := logger.NewLogAndCount[logger.UpLdAction](l, logger.SendNop, cnt)
+			b, err := NewTakeout(ctx, lc, immich.DefaultSupportedMedia, fsys)
 			if err != nil {
 				t.Error(err)
 			}

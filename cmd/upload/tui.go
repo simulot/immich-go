@@ -13,37 +13,25 @@ import (
 	"github.com/simulot/immich-go/logger"
 )
 
-const (
-	padding     = 2
-	maxWidth    = 40
-	maxMessages = 150
+type (
+	msgQuit         struct{ error }
+	msgReceiveAsset float64
+	UploadModel     struct {
+		// sub models
+		messages       []logger.MsgLog
+		countersMdl    UploadCountersModel
+		spinnerReceive spinner.Model
+		spinnerBrowser spinner.Model
+
+		//
+		counters            *logger.Counters[logger.UpLdAction]
+		receivedAssetPct    float64
+		spinnerBrowserLabel string
+		app                 *UpCmd
+		err                 error
+		width, height       int
+	}
 )
-
-type msgReceiveAsset float64
-type msgQuit struct{ error }
-type msgStartTask string
-type msgTaskDone string
-
-// UploadModel is a tea.Model to follow the Upload task
-type UploadModel struct {
-	// sub models
-	messages       []logger.MsgLog
-	countersMdl    UploadCountersModel
-	spinnerReceive spinner.Model
-	spinnerBrowser spinner.Model
-
-	//
-	counters            *logger.Counters[logger.UpLdAction]
-	receivedAssetPct    float64
-	assetReceived       bool
-	mediaPrepared       bool
-	assetUploaded       bool
-	spinnerBrowserLabel string
-	spinnerReceiveLabel string
-	app                 *UpCmd
-	err                 error
-	width, height       int
-}
 
 var _ tea.Model = (*UploadModel)(nil)
 
@@ -69,7 +57,7 @@ func (m UploadModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
-			m.err = errors.New("Interrupted by the user")
+			m.err = errors.New("interrupted by the user")
 			return m, tea.Quit
 		}
 	case msgQuit:
@@ -207,48 +195,3 @@ func cmdTick() tea.Cmd {
 }
 
 type msgReceivingAssetDone struct{}
-
-/*
-func cmdTaskDone(t string) tea.Cmd {
-	return func() tea.Msg {
-		return msgTaskDone(t)
-	}
-}
-
-func cmdQuit(err error) tea.Cmd {
-	return func() tea.Msg {
-		return msgQuit(err)
-	}
-}
-
-func cmdGetAsset(app *UpCmd) tea.Cmd {
-	return func() tea.Msg {
-		err := app.getAssets()
-		if err != nil {
-			return cmdQuit(err)
-		}
-		return cmdTaskDone("getAssetsDone")
-	}
-}
-
-func cmdPrepare(app *UpCmd) tea.Cmd {
-	return func() tea.Msg {
-		err := app.prepare()
-		if err != nil {
-			return cmdQuit(err)
-		}
-		return cmdTaskDone("prepareDone")
-	}
-}
-
-func cmdBrowse(app *UpCmd) tea.Cmd {
-	return func() tea.Msg {
-		err := app.browse()
-		if err != nil {
-			return cmdQuit(err)
-		}
-		return cmdTaskDone("browseDone")
-	}
-
-}
-*/

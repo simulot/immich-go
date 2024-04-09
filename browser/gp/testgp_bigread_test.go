@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/charmbracelet/log"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
@@ -19,10 +20,10 @@ func TestReadBigTakeout(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	l := log.New(f)
 
-	l := logger.NewLogger("INFO", true)
-	l.SetOutput(f)
-	j := logger.NewUploadJournal(l)
+	c := logger.NewCounters[logger.UpLdAction]()
+	lc := logger.NewLogAndCount[logger.UpLdAction](l, logger.SendNop, c)
 	m, err := filepath.Glob("../../../test-data/full_takeout/*.zip")
 	if err != nil {
 		t.Error(err)
@@ -30,7 +31,7 @@ func TestReadBigTakeout(t *testing.T) {
 	}
 	cnt := 0
 	fsyss, err := fshelper.ParsePath(m, true)
-	to, err := NewTakeout(context.Background(), j, immich.DefaultSupportedMedia, fsyss...)
+	to, err := NewTakeout(context.Background(), lc, immich.DefaultSupportedMedia, fsyss...)
 	if err != nil {
 		t.Error(err)
 		return
@@ -39,6 +40,6 @@ func TestReadBigTakeout(t *testing.T) {
 	for range to.Browse(context.Background()) {
 		cnt++
 	}
-	to.log.Report()
+	t.Log(to.log.String())
 	t.Logf("seen %d files", cnt)
 }

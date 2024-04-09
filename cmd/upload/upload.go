@@ -194,14 +194,18 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 		_ = fshelper.CloseFSs(app.fsyss)
 	}()
 
-	// Get common flags whatever their position before or after the upload command
-	err = app.SharedFlags.Start(ctx)
+	// Get the list of files / folders to scan
+	fsyss, err := fshelper.ParsePath(app.args, app.GooglePhotos)
 	if err != nil {
 		return err
 	}
+	return app.run(ctx, fsyss)
+}
 
-	// Get the list of files / folders to scan
-	app.fsyss, err = fshelper.ParsePath(app.args, app.GooglePhotos)
+func (app *UpCmd) run(ctx context.Context, fsyss []fs.FS) error {
+	app.fsyss = fsyss
+	// Get common flags whatever their position before or after the upload command
+	err := app.SharedFlags.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -228,7 +232,9 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	default:
 		app.browser, err = app.ExploreLocalFolder(ctx, app.fsyss)
 	}
-
+	if err != nil {
+		return err
+	}
 	// Sequence of actions
 	fullGrp := errgroup.Group{}
 	fullGrp.Go(func() error {
@@ -252,7 +258,10 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 			return nil
 		}
 
-		fullGrp.Wait()
+		err = fullGrp.Wait()
+		if err != nil {
+			return err
+		}
 		app.page.Wait()
 		if m, ok := m.(UploadModel); ok {
 			report := m.countersMdl.View()
@@ -307,7 +316,6 @@ func (app *UpCmd) getAssets() error {
 		}
 		list = append(list, a)
 	})
-
 	if err != nil {
 		return err
 	}
@@ -384,7 +392,7 @@ assetLoop:
 		for _, da := range app.deleteServerList {
 			ids = append(ids, da.ID)
 		}
-		err := app.DeleteServerAssets(app.ctx, ids)
+		err = app.DeleteServerAssets(app.ctx, ids)
 		if err != nil {
 			app.lc.Error("Can't removing duplicates", "error", err)
 			err = nil
