@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/joho/godotenv"
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/immich"
@@ -87,7 +89,7 @@ func runCase(t *testing.T, tc testCase) {
 		}
 	}
 
-	args := []string{"-server=" + host, "-key=" + key, "-log-file=" + tc.name + ".log"}
+	args := []string{"-no-ui", "-server=" + host, "-key=" + key, "-log-file=" + tc.name + ".log"}
 
 	if tc.APITrace {
 		args = append(args, "-api-trace=TRUE")
@@ -97,6 +99,7 @@ func runCase(t *testing.T, tc testCase) {
 
 	app := cmd.SharedFlags{
 		Immich: ic,
+		Log:    log.New(io.Discard),
 	}
 
 	err = UploadCommand(ctx, &app, args)
