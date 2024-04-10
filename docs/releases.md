@@ -44,6 +44,14 @@ When the server and the API keys aren't given on the command line, immich-go ask
 
 ## Release 0.13.0
 
+### Fix [[#211](https://github.com/simulot/immich-go/issues/211)]  immich-go appears to retain/cache an API key
+Fix the logic for retaining the credential: 
+
+When given, the credentials are saved into the configuration file.
+When not given, the credential are read from the configuration file if possible.
+ 
+## Release 0.13.0
+
 ### Improvement: [#189](https://github.com/simulot/immich-go/issues/189) Use a configuration file to store server's address and its API key  
 
 The server URL and the API key are now stored into a configuration file (by default $HOME/.immich-go/immich-go.json).

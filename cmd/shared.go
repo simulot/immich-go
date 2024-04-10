@@ -99,10 +99,11 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 	if app.Immich == nil {
 		if app.Server == "" && app.API == "" && app.Key == "" {
 			conf, err := configuration.Read(app.ConfigurationFile)
-			if err == nil {
+			confExist := err == nil
+			if confExist && app.Server == "" && app.Key == "" && app.API == "" {
 				app.Server = conf.ServerURL
-				app.API = conf.APIURL
 				app.Key = conf.APIKey
+				app.API = conf.APIURL
 			}
 		}
 
@@ -123,7 +124,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			APIKey:    app.Key,
 			APIURL:    app.API,
 		}
-		err = conf.Write(app.ConfigurationFile)
+		err := conf.Write(app.ConfigurationFile)
 		if err != nil {
 			err = fmt.Errorf("can't write into the configuration file: %w", err)
 			joinedErr = errors.Join(joinedErr, err)
