@@ -3,9 +3,7 @@ package upload
 import (
 	"cmp"
 	"context"
-	"errors"
 	"io"
-	"io/fs"
 	"reflect"
 	"slices"
 	"testing"
@@ -140,6 +138,7 @@ func TestUpload(t *testing.T) {
 			expectedAssets: []string{"PXL_20231006_063000139.jpg"},
 			expectedAlbums: map[string][]string{},
 		},
+
 		{
 			name: "Simple file in an album",
 			args: []string{
@@ -461,6 +460,7 @@ func TestUpload(t *testing.T) {
 		// 		"Google Photos/Photos from 2023/DSC_0238(1).JPG",
 		// 	},
 		// },
+
 	}
 
 	for _, tc := range testCases {
@@ -472,19 +472,20 @@ func TestUpload(t *testing.T) {
 			ctx := context.Background()
 
 			serv := cmd.SharedFlags{
-				Immich: ic,
-				Log:    log,
+				Immich:  ic,
+				Log:     log,
+				LogFile: "/dev/null",
 			}
 
-			app, err := NewUpCmd(ctx, &serv, tc.args)
+			err := UploadCommand(ctx, &serv, append([]string{"-no-ui"}, tc.args...))
 			if err != nil {
 				t.Errorf("can't instantiate the UploadCmd: %s", err)
 				return
 			}
 
-			for _, fsys := range app.fsyss {
-				err = errors.Join(app.run(ctx, []fs.FS{fsys}))
-			}
+			// for _, fsys := range app.fsyss {
+			// 	err = errors.Join(app.run(ctx, []fs.FS{fsys}))
+			// }
 			if (tc.expectedErr && err == nil) || (!tc.expectedErr && err != nil) {
 				t.Errorf("unexpected error condition: %v,%s", tc.expectedErr, err)
 				return

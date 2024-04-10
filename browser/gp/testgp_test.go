@@ -1,8 +1,10 @@
 package gp
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"os"
 	"path"
 	"reflect"
 	"testing"
@@ -113,13 +115,19 @@ func TestBrowse(t *testing.T) {
 				t.Error(fsys.err)
 				return
 			}
+			logBuffer := bytes.NewBuffer(nil)
 			ctx := context.Background()
-			l := log.New(io.Discard)
+			l := log.New(logBuffer)
 			cnt := logger.NewCounters[logger.UpLdAction]()
 			lc := logger.NewLogAndCount[logger.UpLdAction](l, logger.SendNop, cnt)
 
 			b, err := NewTakeout(ctx, lc, immich.DefaultSupportedMedia, fsys)
 			if err != nil {
+				t.Error(err)
+			}
+			err = b.Prepare(ctx)
+			if err != nil {
+				t.Log(logBuffer.String())
 				t.Error(err)
 			}
 
@@ -132,6 +140,13 @@ func TestBrowse(t *testing.T) {
 			if !reflect.DeepEqual(results, c.results) {
 				t.Errorf("difference\n")
 				pretty.Ldiff(t, c.results, results)
+				w, err := os.Create(c.name + ".log")
+				if err != nil {
+					t.Error(err)
+				} else {
+					_, _ = w.Write(logBuffer.Bytes())
+					w.Close()
+				}
 			}
 		})
 	}
@@ -194,6 +209,10 @@ func TestAlbums(t *testing.T) {
 			cnt := logger.NewCounters[logger.UpLdAction]()
 			lc := logger.NewLogAndCount[logger.UpLdAction](l, logger.SendNop, cnt)
 			b, err := NewTakeout(ctx, lc, immich.DefaultSupportedMedia, fsys)
+			if err != nil {
+				t.Error(err)
+			}
+			err = b.Prepare(ctx)
 			if err != nil {
 				t.Error(err)
 			}

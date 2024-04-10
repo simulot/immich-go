@@ -195,17 +195,13 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	}()
 
 	// Get the list of files / folders to scan
-	fsyss, err := fshelper.ParsePath(app.args, app.GooglePhotos)
+	app.fsyss, err = fshelper.ParsePath(app.args, app.GooglePhotos)
 	if err != nil {
 		return err
 	}
-	return app.run(ctx, fsyss)
-}
 
-func (app *UpCmd) run(ctx context.Context, fsyss []fs.FS) error {
-	app.fsyss = fsyss
 	// Get common flags whatever their position before or after the upload command
-	err := app.SharedFlags.Start(ctx)
+	err = app.SharedFlags.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -255,7 +251,7 @@ func (app *UpCmd) run(ctx context.Context, fsyss []fs.FS) error {
 		// Run the TUI
 		m, err := app.page.Run()
 		if err != nil {
-			return nil
+			return err
 		}
 
 		err = fullGrp.Wait()
