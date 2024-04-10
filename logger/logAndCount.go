@@ -37,6 +37,7 @@ func NewLogAndCount[M Measure](l *log.Logger, sender Sender, c *Counters[M]) *Lo
 		send: sender,
 	}
 }
+
 func (lc LogAndCount[M]) AddEntry(lvl log.Level, counter M, file string, keyval ...interface{}) {
 	lc.c.Add(counter)
 	keyvals := append([]interface{}{"file", file}, keyval...)
@@ -56,8 +57,8 @@ func (lc LogAndCount[M]) Stage(label string) {
 func (lc LogAndCount[M]) Print(msg interface{}, keyvals ...interface{}) {
 	lc.l.Print(msg, keyvals...)
 	lc.send(MsgLog{Lvl: log.InfoLevel, Message: fmt.Sprint(msg), KeyVals: keyvals})
-
 }
+
 func (lc LogAndCount[M]) Printf(format string, args ...interface{}) {
 	lc.l.Printf(format, args...)
 	lc.send(MsgLog{Lvl: log.InfoLevel, Message: fmt.Sprintf(format, args...)})
@@ -66,6 +67,7 @@ func (lc LogAndCount[M]) Printf(format string, args ...interface{}) {
 func (lc LogAndCount[M]) Debug(msg interface{}, keyvals ...interface{}) {
 	lc.l.Debug(msg, keyvals...)
 }
+
 func (lc LogAndCount[M]) Debugf(format string, args ...interface{}) {
 	lc.l.Debugf(format, args...)
 }
@@ -74,6 +76,7 @@ func (lc LogAndCount[M]) Error(msg interface{}, keyvals ...interface{}) {
 	lc.l.Error(msg, keyvals...)
 	lc.send(MsgLog{Lvl: log.ErrorLevel, Message: fmt.Sprint(msg)})
 }
+
 func (lc LogAndCount[M]) Errorf(format string, args ...interface{}) {
 	lc.l.Error(format, args...)
 	lc.send(MsgLog{Lvl: log.ErrorLevel, Message: fmt.Sprintf(format, args...)})
@@ -83,6 +86,7 @@ func (lc LogAndCount[M]) Warn(msg interface{}, keyvals ...interface{}) {
 	lc.l.Warn(msg, keyvals...)
 	lc.send(MsgLog{Lvl: log.WarnLevel, Message: fmt.Sprint(msg)})
 }
+
 func (lc LogAndCount[M]) Warnf(format string, args ...interface{}) {
 	lc.l.Debug(format, args...)
 	lc.send(MsgLog{Lvl: log.WarnLevel, Message: fmt.Sprintf(format, args...)})

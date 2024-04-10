@@ -483,10 +483,7 @@ func TestUpload(t *testing.T) {
 				return
 			}
 
-			// for _, fsys := range app.fsyss {
-			// 	err = errors.Join(app.run(ctx, []fs.FS{fsys}))
-			// }
-			if (tc.expectedErr && err == nil) || (!tc.expectedErr && err != nil) {
+			if tc.expectedErr == (err == nil) {
 				t.Errorf("unexpected error condition: %v,%s", tc.expectedErr, err)
 				return
 			}

@@ -47,7 +47,6 @@ type testCase struct {
 }
 
 func runCase(t *testing.T, tc testCase) {
-
 	host := myEnv["IMMICH_HOST"]
 	if host == "" {
 		host = "http://localhost:2283"
@@ -382,7 +381,8 @@ func Test_GP_MultiZip(t *testing.T) {
 		name: "Test_Issue_128",
 		args: []string{
 			"-google-photos",
-			myEnv["IMMICH_TESTFILES"] + "/google-photos/zip*.zip"},
+			myEnv["IMMICH_TESTFILES"] + "/google-photos/zip*.zip",
+		},
 		resetImmich: true,
 		expectError: false,
 		APITrace:    false,
