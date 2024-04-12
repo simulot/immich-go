@@ -25,7 +25,7 @@ type ImmichInterface interface {
 	GetAllAssets(ctx context.Context) ([]*Asset, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
-	GetAllAssetsWithFilter(context.Context, func(*Asset)) error
+	GetAllAssetsWithFilter(context.Context, func(context.Context, *Asset) error) error
 	AssetUpload(context.Context, *browser.LocalAssetFile) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 

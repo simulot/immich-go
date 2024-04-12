@@ -9,6 +9,7 @@ import (
 	"os/signal"
 
 	"github.com/simulot/immich-go/cmd"
+	"github.com/simulot/immich-go/cmd/duplicate"
 	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
@@ -77,9 +78,9 @@ func Run(ctx context.Context) error {
 	switch cmd {
 	case "upload":
 		err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
+	case "duplicate":
+		err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
 		/*
-			case "duplicate":
-				err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
 			case "metadata":
 				err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
 			case "stack":
@@ -93,6 +94,7 @@ func Run(ctx context.Context) error {
 
 	if err != nil {
 		log.Error(err)
+		fmt.Println(err)
 	}
 	return err
 }

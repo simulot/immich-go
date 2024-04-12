@@ -5,17 +5,22 @@ package duplicate
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
 	"path"
 	"sort"
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
+	"golang.org/x/sync/errgroup"
 )
 
 type DuplicateCmd struct {
@@ -25,8 +30,13 @@ type DuplicateCmd struct {
 	IgnoreTZErrors  bool             // Enable TZ error tolerance
 	IgnoreExtension bool             // Ignore file extensions when checking for duplicates
 
+	rows int // rows visible on the page
+
 	assetsByID          map[string]*immich.Asset
 	assetsByBaseAndDate map[duplicateKey][]*immich.Asset
+	keys                []duplicateKey
+	page                *tea.Program
+	ctx                 context.Context
 }
 
 type duplicateKey struct {
@@ -35,92 +45,34 @@ type duplicateKey struct {
 	Type string
 }
 
-func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*DuplicateCmd, error) {
-	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
-	validRange := immich.DateRange{}
-	_ = validRange.Set("1850-01-04,2030-01-01")
-	app := DuplicateCmd{
-		SharedFlags:         common,
-		DateRange:           validRange,
-		assetsByID:          map[string]*immich.Asset{},
-		assetsByBaseAndDate: map[duplicateKey][]*immich.Asset{},
-	}
-
-	app.SharedFlags.SetFlags(cmd)
-
-	cmd.BoolFunc("ignore-tz-errors", "Ignore timezone difference to check duplicates (default: FALSE).", myflag.BoolFlagFn(&app.IgnoreTZErrors, false))
-	cmd.BoolFunc("yes", "When true, assume Yes to all actions", myflag.BoolFlagFn(&app.AssumeYes, false))
-	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
-	cmd.BoolFunc("ignore-extension", "When true, ignores extensions when checking for duplicates (default: FALSE)", myflag.BoolFlagFn(&app.IgnoreExtension, false))
-	err := cmd.Parse(args)
-	if err != nil {
-		return nil, err
-	}
-	err = app.SharedFlags.Start(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &app, err
-}
-
 func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
-	app, err := NewDuplicateCmd(ctx, common, args)
+	app, err := newDuplicateCmd(ctx, common, args)
 	if err != nil {
 		return err
 	}
 
-	dupCount := 0
-	app.Log.Print("Get server's assets...")
-	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
-		if a.IsTrashed {
-			return
-		}
-		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
-			return
-		}
-		app.assetsByID[a.ID] = a
-		d := a.ExifInfo.DateTimeOriginal.Time.Round(time.Minute)
-		if app.IgnoreTZErrors {
-			d = time.Date(d.Year(), d.Month(), d.Day(), 0, d.Minute(), d.Second(), 0, time.UTC)
-		}
-		k := duplicateKey{
-			Date: d,
-			Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
-			Type: a.Type,
-		}
+	// Initialize the TUI
+	app.page = tea.NewProgram(NewDuplicateModel(app), tea.WithAltScreen())
 
-		if app.IgnoreExtension {
-			k.Name = strings.TrimSuffix(k.Name, path.Ext(a.OriginalPath))
+	// Launch the getAssets and duplicate detection in the background
+	errGrp := errgroup.Group{}
+	errGrp.Go(func() error {
+		err := app.getAssets()
+		if err != nil {
+			app.send(msgError{Err: err})
 		}
-		l := app.assetsByBaseAndDate[k]
-		if len(l) > 0 {
-			dupCount++
-		}
-		app.assetsByBaseAndDate[k] = append(l, a)
+		return err
 	})
+
+	m, err := app.page.Run()
 	if err != nil {
 		return err
 	}
-	app.Log.Printf("%d received", len(app.assetsByID))
-	app.Log.Printf("%d duplicate(s) determined.", dupCount)
+	if m, ok := m.(DuplicateModel); ok {
+		return m.err
+	}
 
-	keys := gen.MapFilterKeys(app.assetsByBaseAndDate, func(i []*immich.Asset) bool {
-		return len(i) > 1
-	})
-	sort.Slice(keys, func(i, j int) bool {
-		c := keys[i].Date.Compare(keys[j].Date)
-		switch c {
-		case -1:
-			return true
-		case +1:
-			return false
-		}
-		c = strings.Compare(keys[i].Name, keys[j].Name)
-
-		return c == -1
-	})
-
-	for _, k := range keys {
+	for _, k := range app.keys {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -171,5 +123,123 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 			}
 		}
 	}
+	return nil
+}
+
+func (app *DuplicateCmd) send(msg tea.Msg) {
+	if app.NoUI {
+		switch msg := msg.(type) {
+		case logger.MsgLog:
+		case logger.MsgStageSpinner:
+			fmt.Println(msg.Label)
+		}
+	} else {
+		app.page.Send(msg)
+	}
+}
+
+func newDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*DuplicateCmd, error) {
+	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
+	validRange := immich.DateRange{}
+	_ = validRange.Set("1850-01-04,2030-01-01")
+	app := DuplicateCmd{
+		SharedFlags:         common,
+		DateRange:           validRange,
+		assetsByID:          map[string]*immich.Asset{},
+		assetsByBaseAndDate: map[duplicateKey][]*immich.Asset{},
+		ctx:                 ctx,
+	}
+
+	app.SharedFlags.SetFlags(cmd)
+
+	cmd.BoolFunc("ignore-tz-errors", "Ignore timezone difference to check duplicates (default: FALSE).", myflag.BoolFlagFn(&app.IgnoreTZErrors, false))
+	cmd.BoolFunc("yes", "When true, assume Yes to all actions", myflag.BoolFlagFn(&app.AssumeYes, false))
+	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
+	cmd.BoolFunc("ignore-extension", "When true, ignores extensions when checking for duplicates (default: FALSE)", myflag.BoolFlagFn(&app.IgnoreExtension, false))
+	err := cmd.Parse(args)
+	if err != nil {
+		return nil, err
+	}
+	err = app.SharedFlags.Start(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &app, err
+}
+
+func (app *DuplicateCmd) getAssets() error {
+	app.send(msgSpinnerReceive("Get Server statistics"))
+	statistics, err := app.Immich.GetServerStatistics(app.ctx)
+	totalOnImmich := float64(statistics.Photos + statistics.Videos)
+	received := 0
+	dupCount := 0
+	if err != nil {
+		return err
+	}
+
+	done := errors.New("done")
+	app.send(logger.MsgLog{Message: "Get %d asset(s) from the server"})
+
+	err = app.Immich.GetAllAssetsWithFilter(app.ctx, func(ctx context.Context, a *immich.Asset) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			received++
+			app.send(msgSpinnerReceive(fmt.Sprintf("Receiving assets from the server (%d%%)", int(100*float64(received)/totalOnImmich))))
+			if a.IsTrashed {
+				return nil
+			}
+			if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
+				return nil
+			}
+			app.assetsByID[a.ID] = a
+			d := a.ExifInfo.DateTimeOriginal.Time.Round(time.Minute)
+			if app.IgnoreTZErrors {
+				d = time.Date(d.Year(), d.Month(), d.Day(), 0, d.Minute(), d.Second(), 0, time.UTC)
+			}
+			k := duplicateKey{
+				Date: d,
+				Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
+				Type: a.Type,
+			}
+
+			if app.IgnoreExtension {
+				k.Name = strings.TrimSuffix(k.Name, path.Ext(a.OriginalPath))
+			}
+			l := app.assetsByBaseAndDate[k]
+			if len(l) > 0 {
+				dupCount++
+				app.send(msgSpinnerDuplicate(fmt.Sprintf("Duplicate(s) found: %d", dupCount)))
+				if dupCount > 10 {
+					return done
+				}
+			}
+			app.assetsByBaseAndDate[k] = append(l, a)
+		}
+		return nil
+	})
+	if err != nil && err != done {
+		return err
+	}
+	app.send(msgSpinnerReceive(fmt.Sprintf("Get Server statistics (%d%%)", 100)))
+
+	// Get the duplicated sorted by date and name
+	app.keys = gen.MapFilterKeys(app.assetsByBaseAndDate, func(i []*immich.Asset) bool {
+		return len(i) > 1
+	})
+	sort.Slice(app.keys, func(i, j int) bool {
+		c := app.keys[i].Date.Compare(app.keys[j].Date)
+		switch c {
+		case -1:
+			return true
+		case +1:
+			return false
+		}
+		c = strings.Compare(app.keys[i].Name, app.keys[j].Name)
+		return c == -1
+	})
+
+	app.send(msgReady(nil))
 	return nil
 }
