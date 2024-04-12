@@ -303,14 +303,20 @@ func (app *UpCmd) getAssets() error {
 	received := 0
 
 	var list []*immich.Asset
-	err = app.Immich.GetAllAssetsWithFilter(app.ctx, func(a *immich.Asset) {
-		received++
-		app.counters.Add(logger.UpldReceived)
-		app.send(msgReceiveAsset(float64(received) / totalOnImmich))
-		if a.IsTrashed {
-			return
+	err = app.Immich.GetAllAssetsWithFilter(app.ctx, func(ctx context.Context, a *immich.Asset) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			received++
+			app.counters.Add(logger.UpldReceived)
+			app.send(msgReceiveAsset(float64(received) / totalOnImmich))
+			if a.IsTrashed {
+				return nil
+			}
+			list = append(list, a)
 		}
-		list = append(list, a)
+		return nil
 	})
 	if err != nil {
 		return err
