@@ -56,15 +56,21 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 	app.Log.Print("Get server's assets...")
 	assetCount := 0
 
-	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
-		if a.IsTrashed {
-			return
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(ctx context.Context, a *immich.Asset) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			if a.IsTrashed {
+				return nil
+			}
+			if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
+				return nil
+			}
+			assetCount += 1
+			sb.ProcessAsset(a.ID, a.OriginalFileName+path.Ext(a.OriginalPath), a.ExifInfo.DateTimeOriginal.Time)
 		}
-		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
-			return
-		}
-		assetCount += 1
-		sb.ProcessAsset(a.ID, a.OriginalFileName+path.Ext(a.OriginalPath), a.ExifInfo.DateTimeOriginal.Time)
+		return nil
 	})
 	if err != nil {
 		return err

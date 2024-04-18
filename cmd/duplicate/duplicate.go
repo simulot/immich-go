@@ -1,7 +1,6 @@
-/*
-Check the list of photos to list and discard duplicates.
-*/
 package duplicate
+
+// Check the list of photos to list and discard duplicates.
 
 import (
 	"context"
@@ -19,7 +18,6 @@ import (
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
-	"github.com/simulot/immich-go/ui"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -29,8 +27,6 @@ type DuplicateCmd struct {
 	DateRange       immich.DateRange // Set capture date range
 	IgnoreTZErrors  bool             // Enable TZ error tolerance
 	IgnoreExtension bool             // Ignore file extensions when checking for duplicates
-
-	rows int // rows visible on the page
 
 	assetsByID          map[string]*immich.Asset
 	assetsByBaseAndDate map[duplicateKey][]*immich.Asset
@@ -52,7 +48,7 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 	}
 
 	// Initialize the TUI
-	app.page = tea.NewProgram(NewDuplicateModel(app), tea.WithAltScreen())
+	app.page = tea.NewProgram(NewDuplicateModel(app, app.keys), tea.WithAltScreen())
 
 	// Launch the getAssets and duplicate detection in the background
 	errGrp := errgroup.Group{}
@@ -72,57 +68,61 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 		return m.err
 	}
 
-	for _, k := range app.keys {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			l := app.assetsByBaseAndDate[k]
-			app.Log.Print("There are %d copies of the asset %s, taken on %s ", len(l), k.Name, l[0].ExifInfo.DateTimeOriginal.Format(time.RFC3339))
-			albums := []immich.AlbumSimplified{}
-			assetsToDelete := []string{}
-			sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
-			for p, a := range l {
-				if p < len(l)-1 {
-					app.Log.Print("  delete %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
-					assetsToDelete = append(assetsToDelete, a.ID)
-					r, err := app.Immich.GetAssetAlbums(ctx, a.ID)
-					if err != nil {
-						app.Log.Error("Can't get asset's albums: %s", err.Error())
-					} else {
-						albums = append(albums, r...)
-					}
-				} else {
-					app.Log.Print("  keep   %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
-					yes := app.AssumeYes
-					if !app.AssumeYes {
-						r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
+	/*
+
+		for _, k := range app.keys {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				l := app.assetsByBaseAndDate[k]
+				app.Log.Print("There are %d copies of the asset %s, taken on %s ", len(l), k.Name, l[0].ExifInfo.DateTimeOriginal.Format(time.RFC3339))
+				albums := []immich.AlbumSimplified{}
+				assetsToDelete := []string{}
+				sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
+				for p, a := range l {
+					if p < len(l)-1 {
+						app.Log.Print("  delete %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+						assetsToDelete = append(assetsToDelete, a.ID)
+						r, err := app.Immich.GetAssetAlbums(ctx, a.ID)
 						if err != nil {
-							return err
-						}
-						if r == "y" {
-							yes = true
-						}
-					}
-					if yes {
-						err = app.Immich.DeleteAssets(ctx, assetsToDelete, false)
-						if err != nil {
-							app.Log.Error("Can't delete asset: %s", err.Error())
+							app.Log.Error("Can't get asset's albums: %s", err.Error())
 						} else {
-							app.Log.Print("  Asset removed")
-							for _, al := range albums {
-								app.Log.Print("  Update the album %s with the best copy", al.AlbumName)
-								_, err = app.Immich.AddAssetToAlbum(ctx, al.ID, []string{a.ID})
-								if err != nil {
-									app.Log.Error("Can't delete asset: %s", err.Error())
+							albums = append(albums, r...)
+						}
+					} else {
+						app.Log.Print("  keep   %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+						yes := app.AssumeYes
+						if !app.AssumeYes {
+							r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
+							if err != nil {
+								return err
+							}
+							if r == "y" {
+								yes = true
+							}
+						}
+						if yes {
+							err = app.Immich.DeleteAssets(ctx, assetsToDelete, false)
+							if err != nil {
+								app.Log.Error("Can't delete asset: %s", err.Error())
+							} else {
+								app.Log.Print("  Asset removed")
+								for _, al := range albums {
+									app.Log.Print("  Update the album %s with the best copy", al.AlbumName)
+									_, err = app.Immich.AddAssetToAlbum(ctx, al.ID, []string{a.ID})
+									if err != nil {
+										app.Log.Error("Can't delete asset: %s", err.Error())
+									}
 								}
 							}
 						}
 					}
 				}
 			}
+
 		}
-	}
+	*/
 	return nil
 }
 
@@ -168,7 +168,6 @@ func newDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string
 }
 
 func (app *DuplicateCmd) getAssets() error {
-	app.send(msgSpinnerReceive("Get Server statistics"))
 	statistics, err := app.Immich.GetServerStatistics(app.ctx)
 	totalOnImmich := float64(statistics.Photos + statistics.Videos)
 	received := 0
@@ -186,7 +185,7 @@ func (app *DuplicateCmd) getAssets() error {
 			return ctx.Err()
 		default:
 			received++
-			app.send(msgSpinnerReceive(fmt.Sprintf("Receiving assets from the server (%d%%)", int(100*float64(received)/totalOnImmich))))
+			app.send(msgReceivePct(int(100 * float64(received) / totalOnImmich)))
 			if a.IsTrashed {
 				return nil
 			}
@@ -210,8 +209,8 @@ func (app *DuplicateCmd) getAssets() error {
 			l := app.assetsByBaseAndDate[k]
 			if len(l) > 0 {
 				dupCount++
-				app.send(msgSpinnerDuplicate(fmt.Sprintf("Duplicate(s) found: %d", dupCount)))
-				if dupCount > 10 {
+				app.send(msgDuplicate(dupCount))
+				if dupCount > 20 {
 					return done
 				}
 			}
@@ -222,8 +221,6 @@ func (app *DuplicateCmd) getAssets() error {
 	if err != nil && err != done {
 		return err
 	}
-	app.send(msgSpinnerReceive(fmt.Sprintf("Get Server statistics (%d%%)", 100)))
-
 	// Get the duplicated sorted by date and name
 	app.keys = gen.MapFilterKeys(app.assetsByBaseAndDate, func(i []*immich.Asset) bool {
 		return len(i) > 1
@@ -239,7 +236,6 @@ func (app *DuplicateCmd) getAssets() error {
 		c = strings.Compare(app.keys[i].Name, app.keys[j].Name)
 		return c == -1
 	})
-
-	app.send(msgReady(nil))
+	app.send(app.keys)
 	return nil
 }

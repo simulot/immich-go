@@ -18,7 +18,7 @@ import (
 
 type stubIC struct{}
 
-func (c *stubIC) GetAllAssetsWithFilter(context.Context, func(*immich.Asset)) error {
+func (c *stubIC) GetAllAssetsWithFilter(context.Context, func(context.Context, *immich.Asset) error) error {
 	return nil
 }
 
