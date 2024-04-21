@@ -211,6 +211,19 @@ Open a command windows, go to the directory where immich-go resides, and type th
 For a source-based installation, ensure you have the necessary Go language development tools (https://go.dev/doc/install) in place.
 Download the source files or clone the repository. 
 
+## Installation with Nix
+
+`immich-go` is packaged with [nix](https://nixos.org/) and distributed via [nixpkgs](https://search.nixos.org/packages?channel=unstable&type=packages&query=immich-go).
+You can try `immich-go` without installing it with:
+
+```bash
+nix-shell -I "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable-small.tar.gz" -p immich-go
+# Or with flakes enabled
+nix run "github:nixos/nixpkgs?ref=nixos-unstable-small#immich-go" -- -help
+```
+
+Or you can add `immich-go` to your `configuration.nix` in the `environment.systemPackages` section.
+
 # Acknowledgments
 
 Kudos to the Immich team for they stunning project!🤩
