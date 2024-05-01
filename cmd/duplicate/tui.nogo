@@ -40,7 +40,7 @@ const bannerHeight = 6
 
 var _ tea.Model = (*DuplicateModel)(nil)
 
-func NewDuplicateModel(app *DuplicateCmd, keys []duplicateKey) DuplicateModel {
+func NewDuplicateModel(app *DuplicateCmd, keys []DuplicateKey) DuplicateModel {
 	l := list.New([]list.Item{}, list.NewDefaultDelegate(), 80, 15)
 	l.KeyMap.NextPage = key.NewBinding(
 		key.WithKeys("l", "pgdown", "f", "d"),
@@ -94,7 +94,7 @@ func (m DuplicateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgDuplicate:
 		m.receivedDup = int(msg)
 		m.list = m.adjustListTitle(false)
-	case []duplicateKey:
+	case []DuplicateKey:
 		// the table is ready
 		m.list, cmd = m.loadTable(msg)
 		m.ready = true
@@ -122,7 +122,7 @@ func (m DuplicateModel) View() string {
 
 // duplicateItem is a list item.
 type duplicateItem struct {
-	key    duplicateKey    // Duplicate key
+	key    DuplicateKey    // Duplicate key
 	assets []*immich.Asset // List of duplicates
 	keep   int
 }
@@ -137,10 +137,12 @@ func (i duplicateItem) Description() string {
 		if j > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString("Dev:" + i.assets[j].DeviceAssetID + ", File:" + path.Base(i.assets[j].OriginalPath))
-		b.WriteString("Size:" + ui.FormatBytes(i.assets[j].ExifInfo.FileSizeInByte))
+		b.WriteString("File:" + path.Base(i.assets[j].OriginalPath))
+		b.WriteString(" Size:" + ui.FormatBytes(i.assets[j].ExifInfo.FileSizeInByte))
 		if j == i.keep {
 			b.WriteString(" ✅")
+		} else {
+			b.WriteString(" 🗑")
 		}
 	}
 	return b.String()
@@ -234,7 +236,7 @@ func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd {
 // }
 
 // loadTable with the result of the scan
-func (m DuplicateModel) loadTable(keys []duplicateKey) (list.Model, tea.Cmd) { //nolint:unparam
+func (m DuplicateModel) loadTable(keys []DuplicateKey) (list.Model, tea.Cmd) { //nolint:unparam
 	items := make([]list.Item, len(keys))
 	for i, k := range keys {
 		l := m.app.assetsByBaseAndDate[k]

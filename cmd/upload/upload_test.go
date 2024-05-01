@@ -3,6 +3,7 @@ package upload
 import (
 	"cmp"
 	"context"
+	"image"
 	"io"
 	"reflect"
 	"slices"
@@ -86,6 +87,10 @@ func (c *stubIC) DeleteAlbum(ctx context.Context, id string) error {
 
 func (c *stubIC) SupportedMedia() immich.SupportedMedia {
 	return immich.DefaultSupportedMedia
+}
+
+func (c *stubIC) GetAssetThumbnail(ctx context.Context, id string) (image.Image, error) {
+	return nil, nil
 }
 
 type icCatchUploadsAssets struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"image"
 	"sync"
 	"time"
 
@@ -37,6 +38,7 @@ type ImmichInterface interface {
 	StackAssets(ctx context.Context, cover string, IDs []string) error
 
 	SupportedMedia() SupportedMedia
+	GetAssetThumbnail(ctx context.Context, id string) (image.Image, error)
 }
 
 type UnsupportedMedia struct {

@@ -225,6 +225,13 @@ func setAcceptJSON() serverRequestOption {
 	}
 }
 
+func setAcceptType(accepted string) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Add("Accept", accepted)
+		return nil
+	}
+}
+
 func setAPIKey() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Header.Set("x-api-key", sc.ic.key)
@@ -267,6 +274,22 @@ func responseJSON[T any](object *T) serverResponseOption {
 					return nil
 				}
 				err := json.NewDecoder(resp.Body).Decode(object)
+				return err
+			}
+		}
+		return errors.New("can't decode nil response")
+	}
+}
+
+func responseBodyHandler(fn func(r io.Reader) error) serverResponseOption {
+	return func(sc *serverCall, resp *http.Response) error {
+		if resp != nil {
+			if resp.Body != nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusNoContent {
+					return nil
+				}
+				err := fn(resp.Body)
 				return err
 			}
 		}

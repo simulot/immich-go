@@ -12,12 +12,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui/duplicatepage"
+	"github.com/simulot/immich-go/ui/duplicatepage/duplicateitem"
+	"github.com/simulot/immich-go/ui/duplicatepage/duplicatelist"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -29,13 +33,13 @@ type DuplicateCmd struct {
 	IgnoreExtension bool             // Ignore file extensions when checking for duplicates
 
 	assetsByID          map[string]*immich.Asset
-	assetsByBaseAndDate map[duplicateKey][]*immich.Asset
-	keys                []duplicateKey
+	assetsByBaseAndDate map[DuplicateKey][]*immich.Asset
+	keys                []DuplicateKey
 	page                *tea.Program
 	ctx                 context.Context
 }
 
-type duplicateKey struct {
+type DuplicateKey struct {
 	Date time.Time
 	Name string
 	Type string
@@ -47,16 +51,17 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 		return err
 	}
 
-	// Initialize the TUI
-	app.page = tea.NewProgram(NewDuplicateModel(app, app.keys), tea.WithAltScreen())
+	// Initialize the TU
+	app.page = tea.NewProgram(duplicatepage.NewDuplicatePage(app.Immich, app.Banner), tea.WithAltScreen())
 
 	// Launch the getAssets and duplicate detection in the background
 	errGrp := errgroup.Group{}
 	errGrp.Go(func() error {
 		err := app.getAssets()
 		if err != nil {
-			app.send(msgError{Err: err})
+			app.send(duplicatepage.DuplicateListError{Err: err})
 		}
+
 		return err
 	})
 
@@ -64,8 +69,8 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 	if err != nil {
 		return err
 	}
-	if m, ok := m.(DuplicateModel); ok {
-		return m.err
+	if m, ok := m.(duplicatepage.Model); ok {
+		return m.Err
 	}
 
 	/*
@@ -146,7 +151,7 @@ func newDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string
 		SharedFlags:         common,
 		DateRange:           validRange,
 		assetsByID:          map[string]*immich.Asset{},
-		assetsByBaseAndDate: map[duplicateKey][]*immich.Asset{},
+		assetsByBaseAndDate: map[DuplicateKey][]*immich.Asset{},
 		ctx:                 ctx,
 	}
 
@@ -169,7 +174,7 @@ func newDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string
 
 func (app *DuplicateCmd) getAssets() error {
 	statistics, err := app.Immich.GetServerStatistics(app.ctx)
-	totalOnImmich := float64(statistics.Photos + statistics.Videos)
+	totalOnImmich := statistics.Photos + statistics.Videos
 	received := 0
 	dupCount := 0
 	if err != nil {
@@ -185,7 +190,6 @@ func (app *DuplicateCmd) getAssets() error {
 			return ctx.Err()
 		default:
 			received++
-			app.send(msgReceivePct(int(100 * float64(received) / totalOnImmich)))
 			if a.IsTrashed {
 				return nil
 			}
@@ -197,7 +201,7 @@ func (app *DuplicateCmd) getAssets() error {
 			if app.IgnoreTZErrors {
 				d = time.Date(d.Year(), d.Month(), d.Day(), 0, d.Minute(), d.Second(), 0, time.UTC)
 			}
-			k := duplicateKey{
+			k := DuplicateKey{
 				Date: d,
 				Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
 				Type: a.Type,
@@ -209,18 +213,19 @@ func (app *DuplicateCmd) getAssets() error {
 			l := app.assetsByBaseAndDate[k]
 			if len(l) > 0 {
 				dupCount++
-				app.send(msgDuplicate(dupCount))
-				if dupCount > 20 {
-					return done
-				}
 			}
 			app.assetsByBaseAndDate[k] = append(l, a)
+			app.send(duplicatelist.DuplicateLoadingMsg{Total: totalOnImmich, Checked: received, Duplicated: dupCount})
+			if received > 5000 {
+				return done
+			}
 		}
 		return nil
 	})
 	if err != nil && err != done {
 		return err
 	}
+
 	// Get the duplicated sorted by date and name
 	app.keys = gen.MapFilterKeys(app.assetsByBaseAndDate, func(i []*immich.Asset) bool {
 		return len(i) > 1
@@ -236,6 +241,16 @@ func (app *DuplicateCmd) getAssets() error {
 		c = strings.Compare(app.keys[i].Name, app.keys[j].Name)
 		return c == -1
 	})
-	app.send(app.keys)
+
+	// Send the list to the TUI
+	list := []list.Item{}
+	for _, k := range app.keys {
+		list = append(list, duplicateitem.Group{
+			Date:   k.Date,
+			Name:   k.Name,
+			Assets: app.assetsByBaseAndDate[k],
+		})
+	}
+	app.send(list)
 	return nil
 }
