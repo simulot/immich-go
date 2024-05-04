@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/simulot/immich-go/cmd/tool"
 	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/logger"
+	"github.com/telemachus/humane"
 )
 
 var (
@@ -56,7 +58,7 @@ func Run(ctx context.Context) error {
 	defer log.Close()
 
 	app := cmd.SharedFlags{
-		Jnl: logger.NewJournal(log),
+		Log: slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
 	}
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
 	app.InitSharedFlags()

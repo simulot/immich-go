@@ -12,9 +12,9 @@ import (
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/cmd"
+	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 )
 
 type stubIC struct{}
@@ -467,12 +467,11 @@ func TestUpload(t *testing.T) {
 			ic := &icCatchUploadsAssets{
 				albums: map[string][]string{},
 			}
-			log := logger.NoLog{}
 			ctx := context.Background()
 
 			serv := cmd.SharedFlags{
 				Immich: ic,
-				Jnl:    logger.NewJournal(&log),
+				Jnl:    fileevent.NewRecorder(nil),
 			}
 
 			app, err := NewUpCmd(ctx, &serv, tc.args)

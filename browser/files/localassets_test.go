@@ -11,8 +11,8 @@ import (
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
 	"github.com/simulot/immich-go/browser/files"
+	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 )
 
 type inMemFS struct {
@@ -75,7 +75,7 @@ func TestLocalAssets(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := files.NewLocalFiles(ctx, logger.NewJournal(logger.NoLog{}), fsys)
+			b, err := files.NewLocalFiles(ctx, fileevent.NewRecorder(nil), fsys)
 			if err != nil {
 				t.Error(err)
 			}
