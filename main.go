@@ -15,6 +15,8 @@ import (
 	"github.com/simulot/immich-go/cmd/tool"
 	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/logger"
+
+	"runtime/debug"
 )
 
 var (
@@ -23,9 +25,33 @@ var (
 	date    = "unknown"
 )
 
+func getCommitInfo() (string) {
+	var commit = commit // default can be set with: -ldflags "-X 'main.commit=...'"
+	var dirty bool = false
+	var buildvcs bool = false
+
+	buildinfo, _ := debug.ReadBuildInfo()
+	for _, s := range buildinfo.Settings {
+		switch s.Key {
+			case "vcs.revision":
+				buildvcs = true
+				commit = s.Value
+			case "vcs.modified":
+				if s.Value == "true" {
+					dirty = true
+				}
+		}
+	}
+	if buildvcs && dirty {
+		commit += "-dirty"
+	}
+	return commit
+}
+
 func main() {
 	var err error
-	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
+
+	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, getCommitInfo(), date)
 
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())

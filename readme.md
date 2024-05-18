@@ -221,7 +221,7 @@ For a source-based installation, ensure you have the necessary Go language devel
 Download the source files or clone the repository. 
 
 ```
-go build -ldflags "-X 'main.version=$(git describe --tag)' -X 'main.commit=$(git describe --match="" --always --dirty)' -X 'main.date=$(date)'"
+go build -ldflags "-X 'main.version=$(git describe --tag)' -X 'main.date=$(date)'"
 ```
 
 ## Installation with Nix
