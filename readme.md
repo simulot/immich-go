@@ -220,6 +220,10 @@ Open a command windows, go to the directory where immich-go resides, and type th
 For a source-based installation, ensure you have the necessary Go language development tools (https://go.dev/doc/install) in place.
 Download the source files or clone the repository. 
 
+```
+go build -ldflags "-X 'main.version=$(git describe --tag)' -X 'main.commit=$(git describe --match="" --always --dirty)' -X 'main.date=$(date)'"
+```
+
 ## Installation with Nix
 
 `immich-go` is packaged with [nix](https://nixos.org/) and distributed via [nixpkgs](https://search.nixos.org/packages?channel=unstable&type=packages&query=immich-go).
