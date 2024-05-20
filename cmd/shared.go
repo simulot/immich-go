@@ -10,7 +10,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/helpers/fileevent"
@@ -46,14 +45,14 @@ type SharedFlags struct {
 }
 
 func (app *SharedFlags) InitSharedFlags() {
-	app.ConfigurationFile = configuration.DefaultFile()
+	app.ConfigurationFile = configuration.DefaultConfigFile()
+	app.LogFile = configuration.DefaultLogFile()
 	app.NoLogColors = runtime.GOOS == "windows"
 	app.APITrace = false
 	app.Debug = false
 	app.SkipSSL = false
 	app.LogLevel = "INFO"
 	app.NoUI = false
-	app.LogFile = "./immich-go " + time.Now().Format("2006-01-02 15-04-05") + ".log"
 }
 
 // SetFlag add common flags to a flagset
@@ -89,31 +88,28 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 
 	if app.LogFile != "" {
 		if app.LogWriterCloser == nil {
+			err := configuration.MakeDirForFile(app.LogFile)
+			if err != nil {
+				return err
+			}
 			f, err := os.OpenFile(app.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
 			if err != nil {
-				joinedErr = errors.Join(joinedErr, err)
-			} else {
-				err = app.Level.UnmarshalText([]byte(strings.ToUpper(app.LogLevel)))
-				if err != nil {
-					joinedErr = errors.Join(joinedErr, err)
-				} else {
-					app.Log = slog.New(humane.NewHandler(f, &humane.Options{Level: app.Level}))
-					app.Jnl.SetLogger(app.Log)
-				}
+				return err
 			}
+			err = app.Level.UnmarshalText([]byte(strings.ToUpper(app.LogLevel)))
+			if err != nil {
+				return err
+			}
+			app.Log = slog.New(humane.NewHandler(f, &humane.Options{Level: app.Level}))
+			app.Jnl.SetLogger(app.Log)
 			app.LogWriterCloser = f
 		}
-	}
-
-	// at this point, exits if there is an error
-	if joinedErr != nil {
-		return joinedErr
 	}
 
 	// If the client isn't yet initialized
 	if app.Immich == nil {
 		if app.Server == "" && app.API == "" && app.Key == "" {
-			conf, err := configuration.Read(app.ConfigurationFile)
+			conf, err := configuration.ConfigRead(app.ConfigurationFile)
 			confExist := err == nil
 			if confExist && app.Server == "" && app.Key == "" && app.API == "" {
 				app.Server = conf.ServerURL
@@ -130,6 +126,9 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		}
 		if app.Key == "" {
 			joinedErr = errors.Join(joinedErr, errors.New("missing -key"))
+		}
+
+		if joinedErr != nil {
 			return joinedErr
 		}
 
@@ -139,12 +138,15 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			APIKey:    app.Key,
 			APIURL:    app.API,
 		}
-		err := conf.Write(app.ConfigurationFile)
+		err := configuration.MakeDirForFile(app.ConfigurationFile)
 		if err != nil {
-			err = fmt.Errorf("can't write into the configuration file: %w", err)
-			joinedErr = errors.Join(joinedErr, err)
-			return joinedErr
+			return err
 		}
+		err = conf.Write(app.ConfigurationFile)
+		if err != nil {
+			return fmt.Errorf("can't write into the configuration file: %w", err)
+		}
+		app.Log.Info("Connection to the server " + app.Server)
 
 		app.Immich, err = immich.NewImmichClient(app.Server, app.Key, app.SkipSSL)
 		if err != nil {
@@ -164,13 +166,13 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("Server status: OK")
+		app.Log.Info("Server status: OK")
 
 		user, err := app.Immich.ValidateConnection(ctx)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Connected, user: %s\n", user.Email)
+		app.Log.Info(fmt.Sprintf("Connected, user: %s", user.Email))
 	}
 	return nil
 }
