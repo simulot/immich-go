@@ -6,15 +6,19 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/simulot/immich-go/helpers/configuration"
+	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/helpers/tzone"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui"
+	"github.com/telemachus/humane"
 )
 
 // SharedFlags collect all parameters that are common to all commands
@@ -26,15 +30,19 @@ type SharedFlags struct {
 	DeviceUUID        string // Set a device UUID
 	APITrace          bool   // Enable API call traces
 	NoLogColors       bool   // Disable log colors
-	LogLevel          string // Indicate the log level
+	LogLevel          string // Indicate the log level (string)
+	Level             slog.Level
 	Debug             bool   // Enable the debug mode
 	TimeZone          string // Override default TZ
 	SkipSSL           bool   // Skip SSL Verification
+	NoUI              bool   // Disable user interface
 
-	Immich  immich.ImmichInterface // Immich client
-	Jnl     *logger.Journal        // Program's logger
-	LogFile string                 // Log file
-	out     io.WriteCloser         // the log writer
+	Immich          immich.ImmichInterface // Immich client
+	Log             *slog.Logger           // Logger
+	Jnl             *fileevent.Recorder    // Program's logger
+	LogFile         string                 // Log file name
+	LogWriterCloser io.WriteCloser         // the log writer
+	Banner          ui.Banner
 }
 
 func (app *SharedFlags) InitSharedFlags() {
@@ -43,6 +51,9 @@ func (app *SharedFlags) InitSharedFlags() {
 	app.APITrace = false
 	app.Debug = false
 	app.SkipSSL = false
+	app.LogLevel = "INFO"
+	app.NoUI = false
+	app.LogFile = "./immich-go " + time.Now().Format("2006-01-02 15-04-05") + ".log"
 }
 
 // SetFlag add common flags to a flagset
@@ -53,12 +64,13 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&app.Key, "key", app.Key, "API Key")
 	fs.StringVar(&app.DeviceUUID, "device-uuid", app.DeviceUUID, "Set a device UUID")
 	fs.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, app.NoLogColors))
-	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (Error|Warning|OK|Info), default OK")
+	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
 	fs.StringVar(&app.LogFile, "log-file", app.LogFile, "Write log messages into the file")
 	fs.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.APITrace, app.APITrace))
 	fs.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, app.Debug))
 	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
 	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL))
+	fs.BoolFunc("no-ui", "Disable the user interface", myflag.BoolFlagFn(&app.NoUI, app.NoUI))
 }
 
 func (app *SharedFlags) Start(ctx context.Context) error {
@@ -72,31 +84,26 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 	}
 
 	if app.Jnl == nil {
-		app.Jnl = logger.NewJournal(logger.NewLogger(logger.OK, true, false))
+		app.Jnl = fileevent.NewRecorder(nil)
 	}
 
 	if app.LogFile != "" {
-		if app.out == nil {
+		if app.LogWriterCloser == nil {
 			f, err := os.OpenFile(app.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 			} else {
-				app.Jnl.Log.SetWriter(f)
+				err = app.Level.UnmarshalText([]byte(strings.ToUpper(app.LogLevel)))
+				if err != nil {
+					joinedErr = errors.Join(joinedErr, err)
+				} else {
+					app.Log = slog.New(humane.NewHandler(f, &humane.Options{Level: app.Level}))
+					app.Jnl.SetLogger(app.Log)
+				}
 			}
-			app.out = f
+			app.LogWriterCloser = f
 		}
 	}
-
-	if app.LogLevel != "" {
-		logLevel, err := logger.StringToLevel(app.LogLevel)
-		if err != nil {
-			joinedErr = errors.Join(joinedErr, err)
-		}
-		app.Jnl.Log.SetLevel(logLevel)
-	}
-
-	app.Jnl.Log.SetColors(!app.NoLogColors)
-	app.Jnl.Log.SetDebugFlag(app.Debug)
 
 	// at this point, exits if there is an error
 	if joinedErr != nil {
@@ -157,13 +164,13 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		app.Jnl.Log.OK("Server status: OK")
+		fmt.Println("Server status: OK")
 
 		user, err := app.Immich.ValidateConnection(ctx)
 		if err != nil {
 			return err
 		}
-		app.Jnl.Log.Info("Connected, user: %s", user.Email)
+		fmt.Printf("Connected, user: %s\n", user.Email)
 	}
 	return nil
 }
