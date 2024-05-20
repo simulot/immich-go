@@ -10,12 +10,14 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/helpers/tzone"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/ui"
 	"github.com/telemachus/humane"
 )
 
@@ -28,16 +30,19 @@ type SharedFlags struct {
 	DeviceUUID        string // Set a device UUID
 	APITrace          bool   // Enable API call traces
 	NoLogColors       bool   // Disable log colors
-	LogLevel          string // Indicate the log level
+	LogLevel          string // Indicate the log level (string)
+	Level             slog.Level
 	Debug             bool   // Enable the debug mode
 	TimeZone          string // Override default TZ
 	SkipSSL           bool   // Skip SSL Verification
+	NoUI              bool   // Disable user interface
 
-	Immich  immich.ImmichInterface // Immich client
-	Log     *slog.Logger           // Logger
-	Jnl     *fileevent.Recorder    // Program's logger
-	LogFile string                 // Log file name
-	out     io.WriteCloser         // the log writer
+	Immich          immich.ImmichInterface // Immich client
+	Log             *slog.Logger           // Logger
+	Jnl             *fileevent.Recorder    // Program's logger
+	LogFile         string                 // Log file name
+	LogWriterCloser io.WriteCloser         // the log writer
+	Banner          ui.Banner
 }
 
 func (app *SharedFlags) InitSharedFlags() {
@@ -47,6 +52,8 @@ func (app *SharedFlags) InitSharedFlags() {
 	app.Debug = false
 	app.SkipSSL = false
 	app.LogLevel = "INFO"
+	app.NoUI = false
+	app.LogFile = "./immich-go " + time.Now().Format("2006-01-02 15-04-05") + ".log"
 }
 
 // SetFlag add common flags to a flagset
@@ -63,6 +70,7 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, app.Debug))
 	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
 	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL))
+	fs.BoolFunc("no-ui", "Disable the user interface", myflag.BoolFlagFn(&app.NoUI, app.NoUI))
 }
 
 func (app *SharedFlags) Start(ctx context.Context) error {
@@ -80,21 +88,20 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 	}
 
 	if app.LogFile != "" {
-		if app.out == nil {
+		if app.LogWriterCloser == nil {
 			f, err := os.OpenFile(app.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
 			if err != nil {
 				joinedErr = errors.Join(joinedErr, err)
 			} else {
-				var level slog.Level
-				err = level.UnmarshalText([]byte(strings.ToUpper(app.LogLevel)))
+				err = app.Level.UnmarshalText([]byte(strings.ToUpper(app.LogLevel)))
 				if err != nil {
 					joinedErr = errors.Join(joinedErr, err)
 				} else {
-					app.Log = slog.New(humane.NewHandler(f, &humane.Options{Level: level}))
+					app.Log = slog.New(humane.NewHandler(f, &humane.Options{Level: app.Level}))
 					app.Jnl.SetLogger(app.Log)
 				}
 			}
-			app.out = f
+			app.LogWriterCloser = f
 		}
 	}
 

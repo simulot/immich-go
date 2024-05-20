@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,12 +26,13 @@ import (
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
+	"golang.org/x/sync/errgroup"
 )
 
 type UpCmd struct {
 	*cmd.SharedFlags // shared flags and immich client
 
-	fsys []fs.FS // pseudo file system to browse
+	fsyss []fs.FS // pseudo file system to browse
 
 	GooglePhotos           bool             // For reading Google Photos takeout files
 	Delete                 bool             // Delete original file after import
@@ -64,9 +66,18 @@ type UpCmd struct {
 	mediaCount       int                       // Count of media on the source
 	updateAlbums     map[string]map[string]any // track immich albums changes
 	stacks           *stacking.StackBuilder
+	browser          browser.Browser
 }
 
-func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpCmd, error) {
+func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+	app, err := newCommand(ctx, common, args)
+	if err != nil {
+		return err
+	}
+	return app.run(ctx)
+}
+
+func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
@@ -161,73 +172,212 @@ func NewUpCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpC
 	}
 
 	app.BrowserConfig.Validate()
-
 	err = app.SharedFlags.Start(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	app.fsys, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
+	app.fsyss, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
 	if err != nil {
 		return nil, err
 	}
+
+	return &app, nil
+}
+
+func (app *UpCmd) run(ctx context.Context) error {
+	defer func() {
+		_ = fshelper.CloseFSs(app.fsyss)
+	}()
 
 	if app.CreateStacks || app.StackBurst || app.StackJpgRaws {
 		app.stacks = stacking.NewStackBuilder(app.Immich.SupportedMedia())
 	}
-	fmt.Println("Ask for server's assets...")
-	var list []*immich.Asset
-	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
-		if a.IsTrashed {
-			return
+
+	var err error
+	switch {
+	case app.GooglePhotos:
+		app.Log.Info("Browsing google take out archive...")
+		app.browser, err = app.ReadGoogleTakeOut(ctx, app.fsyss)
+	default:
+		app.Log.Info("Browsing folder(s)...")
+		app.browser, err = app.ExploreLocalFolder(ctx, app.fsyss)
+	}
+
+	if err != nil {
+		return err
+	}
+	if app.NoUI {
+		return app.runNoUI(ctx)
+	}
+	return app.runUI(ctx)
+}
+
+func (app *UpCmd) runNoUI(ctx context.Context) error {
+	done := make(chan any)
+	var maxImmich, currImmich int
+	spinner := []rune{' ', ' ', '.', ' ', ' '}
+	spinIdx := 0
+
+	immichUpdate := func(value, total int) {
+		currImmich, maxImmich = value, total
+	}
+	progressClosed := sync.WaitGroup{}
+
+	progressString := func() string {
+		var s string
+		counts := app.Jnl.GetCounts()
+		immichPct := 0
+		if maxImmich > 0 {
+			immichPct = 100 * currImmich / maxImmich
 		}
-		list = append(list, a)
+		if app.GooglePhotos {
+			gpPct := 0
+			upPct := 0
+			if counts[fileevent.DiscoveredImage]+counts[fileevent.DiscoveredVideo] > 0 {
+				gpPct = int(100 * counts[fileevent.AnalysisAssociatedMetadata] / (counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
+				upPct = int(100 * (counts[fileevent.UploadNotSelected] +
+					counts[fileevent.UploadUpgraded] +
+					counts[fileevent.UploadServerDuplicate] +
+					counts[fileevent.UploadServerBetter] +
+					counts[fileevent.Uploaded] +
+					counts[fileevent.AnalysisLocalDuplicate]) /
+					(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
+			}
+			s = fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Uploaded %d%% %s", immichPct, gpPct, upPct, string(spinner[spinIdx]))
+		} else {
+			s = fmt.Sprintf("\rImmich read %d%%, Uploaded %d %s", immichPct, counts[fileevent.Uploaded], string(spinner[spinIdx]))
+		}
+		spinIdx++
+		if spinIdx == len(spinner) {
+			spinIdx = 0
+		}
+		return s
+	}
+
+	go func() {
+		progressClosed.Add(1)
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer func() {
+			ticker.Stop()
+			fmt.Println(progressString())
+			progressClosed.Done()
+		}()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case <-ticker.C:
+				fmt.Print(progressString())
+			}
+		}
+	}()
+
+	processGrp := errgroup.Group{}
+
+	processGrp.Go(func() error {
+		// Get immich asset
+		err := app.getImmichAssets(ctx, immichUpdate)
+		return err
+	})
+	processGrp.Go(func() error {
+		// Run Prepare
+		err := app.browser.Prepare(ctx)
+		return err
+	})
+	err := processGrp.Wait()
+	if err != nil {
+		return err
+	}
+	err = app.uploadLoop(ctx)
+	close(done)
+	progressClosed.Wait()
+	app.Jnl.Report()
+	return err
+}
+
+func (app *UpCmd) runUI(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	page := app.newPage()
+	p := page.Page()
+
+	uiGroup := errgroup.Group{}
+
+	uiGroup.Go(func() error {
+		processGrp := errgroup.Group{}
+		processGrp.Go(func() error {
+			// Get immich asset
+			err := app.getImmichAssets(ctx, page.updateImmichReading)
+			return err
+		})
+		processGrp.Go(func() error {
+			// Run Prepare
+			err := app.browser.Prepare(ctx)
+			return err
+		})
+		err := processGrp.Wait()
+		// at this point, the read immich and prepare are completed
+		if err == nil {
+			err = app.uploadLoop(ctx)
+		}
+		p.Stop()
+		return err
+	})
+	uiGroup.Go(func() error {
+		defer func() {
+			cancel()
+		}()
+		return p.Run()
+	})
+
+	// Wait processes to finnish or cancellation
+	err := uiGroup.Wait()
+	app.Jnl.Report()
+	return err
+}
+
+func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) error {
+	statistics, err := app.Immich.GetServerStatistics(ctx)
+	if err != nil {
+		return err
+	}
+	totalOnImmich := statistics.Photos + statistics.Videos
+	received := 0
+
+	var list []*immich.Asset
+
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			received++
+			if a.IsTrashed {
+				return nil
+			}
+			list = append(list, a)
+			if updateFn != nil {
+				updateFn(received, totalOnImmich)
+			}
+			return nil
+		}
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	fmt.Printf("%d asset(s) received\n", len(list))
-
 	app.AssetIndex = &AssetIndex{
 		assets: list,
 	}
-
 	app.AssetIndex.ReIndex()
-
-	return &app, err
+	return nil
 }
 
-func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
-	app, err := NewUpCmd(ctx, common, args)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = fshelper.CloseFSs(app.fsys)
-	}()
-	return app.Run(ctx, app.fsys)
-}
-
-func (app *UpCmd) Run(ctx context.Context, fsyss []fs.FS) error {
-	var browser browser.Browser
+func (app *UpCmd) uploadLoop(ctx context.Context) error {
 	var err error
-
-	switch {
-	case app.GooglePhotos:
-		fmt.Println("Browsing google take out archive...")
-		browser, err = app.ReadGoogleTakeOut(ctx, fsyss)
-	default:
-		fmt.Println("Browsing folder(s)...")
-		browser, err = app.ExploreLocalFolder(ctx, fsyss)
-	}
-
-	if err != nil {
-		app.Log.Error(err.Error())
-		return err
-	}
-	fmt.Println("Done.")
-
-	assetChan := browser.Browse(ctx)
+	assetChan := app.browser.Browse(ctx)
 assetLoop:
 	for {
 		select {
@@ -261,11 +411,11 @@ assetLoop:
 				case !app.StackJpgRaws && s.StackType == stacking.StackRawJpg:
 					continue nextStack
 				}
-				fmt.Printf("  Stacking %s...\n", strings.Join(s.Names, ", "))
+				app.Log.Info(fmt.Sprintf("Stacking %s...", strings.Join(s.Names, ", ")))
 				if !app.DryRun {
 					err = app.Immich.StackAssets(ctx, s.CoverID, s.IDs)
 					if err != nil {
-						fmt.Printf("Can't stack images: %s\n", err)
+						app.Log.Error(fmt.Sprintf("Can't stack images: %s", err))
 					}
 				}
 			}
@@ -273,7 +423,7 @@ assetLoop:
 	}
 
 	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
-		fmt.Println("Managing albums")
+		app.Log.Info("Managing albums")
 		err = app.ManageAlbums(ctx)
 		if err != nil {
 			app.Log.Error(err.Error())
@@ -295,8 +445,6 @@ assetLoop:
 	if len(app.deleteLocalList) > 0 {
 		err = app.DeleteLocalAssets()
 	}
-
-	app.Jnl.Report()
 
 	return err
 }
@@ -488,7 +636,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
 		}
 	}
-
+	time.Sleep(2 * time.Millisecond)
 	return nil
 }
 
@@ -578,30 +726,30 @@ func (app *UpCmd) AddToAlbum(id string, album string) {
 }
 
 func (app *UpCmd) DeleteLocalAssets() error {
-	fmt.Printf("%d local assets to delete.\n", len(app.deleteLocalList))
+	app.Log.Info(fmt.Sprintf("%d local assets to delete.", len(app.deleteLocalList)))
 
 	for _, a := range app.deleteLocalList {
 		if !app.DryRun {
-			fmt.Printf("delete file %q\n", a.Title)
+			app.Log.Info(fmt.Sprintf("delete file %q", a.Title))
 			err := a.Remove()
 			if err != nil {
 				return err
 			}
 		} else {
-			fmt.Printf("file %q not deleted, dry run mode.\n", a.Title)
+			app.Log.Info(fmt.Sprintf("file %q not deleted, dry run mode.", a.Title))
 		}
 	}
 	return nil
 }
 
 func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
-	fmt.Printf("%d server assets to delete.\n", len(ids))
+	app.Log.Info(fmt.Sprintf("%d server assets to delete.", len(ids)))
 
 	if !app.DryRun {
 		err := app.Immich.DeleteAssets(ctx, ids, false)
 		return err
 	}
-	fmt.Printf("%d server assets to delete. skipped dry-run mode\n", len(ids))
+	app.Log.Info(fmt.Sprintf("%d server assets to delete. skipped dry-run mode", len(ids)))
 	return nil
 }
 
@@ -617,7 +765,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 				if sal.AlbumName == album {
 					found = true
 					if !app.DryRun {
-						fmt.Printf("Update the album %s\n", album)
+						app.Log.Info(fmt.Sprintf("Update the album %s", album))
 						rr, err := app.Immich.AddAssetToAlbum(ctx, sal.ID, gen.MapKeys(list))
 						if err != nil {
 							return fmt.Errorf("can't update the album list from the server: %w", err)
@@ -628,14 +776,14 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 								added++
 							}
 							if !r.Success && r.Error != "duplicate" {
-								fmt.Printf("%s: %s\n", r.ID, r.Error)
+								app.Log.Info(fmt.Sprintf("%s: %s", r.ID, r.Error))
 							}
 						}
 						if added > 0 {
-							fmt.Printf("%d asset(s) added to the album %q\n", added, album)
+							app.Log.Info(fmt.Sprintf("%d asset(s) added to the album %q", added, album))
 						}
 					} else {
-						fmt.Printf("Update album %s skipped - dry run mode\n", album)
+						app.Log.Info(fmt.Sprintf("Update album %s skipped - dry run mode", album))
 					}
 				}
 			}
@@ -644,14 +792,14 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 			}
 			if list != nil {
 				if !app.DryRun {
-					fmt.Printf("Create the album %s\n", album)
+					app.Log.Info(fmt.Sprintf("Create the album %s", album))
 
 					_, err := app.Immich.CreateAlbum(ctx, album, gen.MapKeys(list))
 					if err != nil {
 						return fmt.Errorf("can't create the album list from the server: %w", err)
 					}
 				} else {
-					fmt.Printf("Create the album %s skipped - dry run mode\n", album)
+					app.Log.Info(fmt.Sprintf("Create the album %s skipped - dry run mode", album))
 				}
 			}
 		}

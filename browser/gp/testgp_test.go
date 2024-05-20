@@ -2,6 +2,8 @@ package gp
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"path"
 	"reflect"
 	"testing"
@@ -113,7 +115,14 @@ func TestBrowse(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil), immich.DefaultSupportedMedia, fsys)
+			log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+			b, err := NewTakeout(ctx, fileevent.NewRecorder(log), immich.DefaultSupportedMedia, fsys)
+			if err != nil {
+				t.Error(err)
+			}
+
+			err = b.Prepare(ctx)
 			if err != nil {
 				t.Error(err)
 			}
@@ -189,6 +198,11 @@ func TestAlbums(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			err = b.Prepare(ctx)
+			if err != nil {
+				t.Error(err)
+			}
+
 			albums := album{}
 			for a := range b.Browse(ctx) {
 				if len(a.Albums) > 0 {

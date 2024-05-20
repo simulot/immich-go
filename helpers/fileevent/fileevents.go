@@ -35,24 +35,24 @@ const (
 
 	Error
 
-	Uploaded           // = "Uploaded"
-	Stacked            // = "Stacked"
-	LivePhoto          // = "Live photo"
-	FailedVideo        // = "Failed video"
-	Metadata           // = "Metadata files"
-	AssociatedMetadata // = "Associated with metadata"
-	INFO               // = "Info"
-	maxCode
+	Uploaded    // = "Uploaded"
+	Stacked     // = "Stacked"
+	LivePhoto   // = "Live photo"
+	FailedVideo // = "Failed video"
+	Metadata    // = "Metadata files"
+	INFO        // = "Info"
+	MaxCode
 )
 
 var _code = map[Code]string{
-	DiscoveredImage:     "scanned image file",
-	DiscoveredVideo:     "scanned video file",
-	DiscoveredSidecar:   "scanned sidecar file",
-	DiscoveredDiscarded: "discarded file",
+	DiscoveredImage:       "scanned image file",
+	DiscoveredVideo:       "scanned video file",
+	DiscoveredSidecar:     "scanned sidecar file",
+	DiscoveredDiscarded:   "discarded file",
+	DiscoveredUnsupported: "unsupported file",
 
 	AnalysisAssociatedMetadata:        "associated metadata file",
-	AnalysisMissingAssociatedMetadata: "associated metadata file",
+	AnalysisMissingAssociatedMetadata: "missing associated metadata file",
 	AnalysisLocalDuplicate:            "file duplicated in the input",
 
 	UploadNotSelected:     "file not selected",
@@ -89,14 +89,14 @@ type event struct {
 
 type Recorder struct {
 	lock   sync.RWMutex
-	counts [maxCode]int64
+	counts []int64
 	events map[Code][]event
 	log    *slog.Logger
 }
 
 func NewRecorder(l *slog.Logger) *Recorder {
 	r := &Recorder{
-		counts: [maxCode]int64{},
+		counts: make([]int64, MaxCode),
 		events: map[Code][]event{},
 		log:    l,
 	}
@@ -124,7 +124,42 @@ func (r *Recorder) SetLogger(l *slog.Logger) {
 }
 
 func (r *Recorder) Report() {
-	for c := Code(0); c < maxCode; c++ {
+	r.log.Info("\nInput analysis:\n----------------------")
+	fmt.Println("\nInput analysis:")
+	fmt.Println("----------------------")
+	for _, c := range []Code{
+		DiscoveredImage,
+		DiscoveredVideo,
+		DiscoveredSidecar,
+		DiscoveredDiscarded,
+		DiscoveredUnsupported,
+		AnalysisLocalDuplicate,
+		AnalysisAssociatedMetadata,
+		AnalysisMissingAssociatedMetadata,
+	} {
 		r.log.Info(fmt.Sprintf("%-40s: %7d", c.String(), r.counts[c]))
+		fmt.Printf("%-40s: %7d\n", c.String(), r.counts[c])
 	}
+	r.log.Info("\nUploading:\n----------")
+	fmt.Println("\nUploading:")
+	fmt.Println("----------")
+	for _, c := range []Code{
+		Uploaded,
+		UploadServerError,
+		UploadNotSelected,
+		UploadUpgraded,
+		UploadServerDuplicate,
+		UploadServerBetter,
+	} {
+		r.log.Info(fmt.Sprintf("%-40s: %7d", c.String(), r.counts[c]))
+		fmt.Printf("%-40s: %7d\n", c.String(), r.counts[c])
+	}
+}
+
+func (r *Recorder) GetCounts() []int64 {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	counts := make([]int64, MaxCode)
+	copy(counts, r.counts)
+	return counts
 }

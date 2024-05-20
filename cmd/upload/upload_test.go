@@ -3,8 +3,8 @@ package upload
 import (
 	"cmp"
 	"context"
-	"errors"
-	"io/fs"
+	"io"
+	"log/slog"
 	"reflect"
 	"slices"
 	"testing"
@@ -19,7 +19,7 @@ import (
 
 type stubIC struct{}
 
-func (c *stubIC) GetAllAssetsWithFilter(context.Context, func(*immich.Asset)) error {
+func (c *stubIC) GetAllAssetsWithFilter(context.Context, func(*immich.Asset) error) error {
 	return nil
 }
 
@@ -469,21 +469,25 @@ func TestUpload(t *testing.T) {
 			}
 			ctx := context.Background()
 
+			log := slog.New(slog.NewTextHandler(io.Discard, nil))
 			serv := cmd.SharedFlags{
 				Immich: ic,
-				Jnl:    fileevent.NewRecorder(nil),
+				Jnl:    fileevent.NewRecorder(log),
+				Log:    log,
 			}
 
-			app, err := NewUpCmd(ctx, &serv, tc.args)
+			args := append([]string{"-no-ui"}, tc.args...)
+
+			err := UploadCommand(ctx, &serv, args)
 			if err != nil {
 				t.Errorf("can't instantiate the UploadCmd: %s", err)
 				return
 			}
 
-			for _, fsys := range app.fsys {
-				err = errors.Join(app.Run(ctx, []fs.FS{fsys}))
-			}
-			if (tc.expectedErr && err == nil) || (!tc.expectedErr && err != nil) {
+			// for _, fsys := range app.fsyss {
+			// 	err = errors.Join(app.run(ctx, []fs.FS{fsys}))
+			// }
+			if tc.expectedErr == (err == nil) {
 				t.Errorf("unexpected error condition: %v,%s", tc.expectedErr, err)
 				return
 			}

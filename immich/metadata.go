@@ -30,25 +30,29 @@ func (sb *searchMetadataGetAllBody) setPage(p int) {
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req searchMetadataBody, filter func(*Asset) error) error {
 	req.setPage(1)
 	for {
-		resp := searchMetadataResponse{}
-		err := ic.newServerCall(ctx, "GetAllAssets").do(post("/search/metadata", "application/json", setJSONBody(&req), setAcceptJSON()), responseJSON(&resp))
-		if err != nil {
-			return err
-		}
-
-		for _, a := range resp.Assets.Items {
-			err = filter(a)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			resp := searchMetadataResponse{}
+			err := ic.newServerCall(ctx, "GetAllAssets").do(post("/search/metadata", "application/json", setJSONBody(&req), setAcceptJSON()), responseJSON(&resp))
 			if err != nil {
 				return err
 			}
-		}
 
-		if resp.Assets.NextPage == 0 {
-			break
+			for _, a := range resp.Assets.Items {
+				err = filter(a)
+				if err != nil {
+					return err
+				}
+			}
+
+			if resp.Assets.NextPage == 0 {
+				return nil
+			}
+			req.setPage(resp.Assets.NextPage)
 		}
-		req.setPage(resp.Assets.NextPage)
 	}
-	return nil
 }
 
 func (ic *ImmichClient) GetAllAssets(ctx context.Context) ([]*Asset, error) {

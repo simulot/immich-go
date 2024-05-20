@@ -36,6 +36,8 @@ type duplicateKey struct {
 	Type string
 }
 
+type progressUpdate func(value, max int)
+
 func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*DuplicateCmd, error) {
 	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
 	validRange := immich.DateRange{}
@@ -72,12 +74,12 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 
 	dupCount := 0
 	fmt.Println("Get server's assets...")
-	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
 		if a.IsTrashed {
-			return
+			return nil
 		}
 		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
-			return
+			return nil
 		}
 		app.assetsByID[a.ID] = a
 		d := a.ExifInfo.DateTimeOriginal.Time.Round(time.Minute)
@@ -98,6 +100,7 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 			dupCount++
 		}
 		app.assetsByBaseAndDate[k] = append(l, a)
+		return nil
 	})
 	if err != nil {
 		return err

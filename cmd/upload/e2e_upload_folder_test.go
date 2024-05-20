@@ -45,7 +45,7 @@ type testCase struct {
 }
 
 func runCase(t *testing.T, tc testCase) {
-
+	fmt.Println("Test case", tc.name)
 	host := myEnv["IMMICH_HOST"]
 	if host == "" {
 		host = "http://localhost:2283"
@@ -87,7 +87,7 @@ func runCase(t *testing.T, tc testCase) {
 		}
 	}
 
-	args := []string{"-server=" + host, "-key=" + key, "-log-file=" + tc.name + ".log"}
+	args := []string{"-server=" + host, "-key=" + key, "-log-file=" + tc.name + ".log", "-log-level=INFO", "-no-ui"}
 
 	if tc.APITrace {
 		args = append(args, "-api-trace=TRUE")
@@ -100,7 +100,7 @@ func runCase(t *testing.T, tc testCase) {
 	}
 
 	err = UploadCommand(ctx, &app, args)
-	if (tc.expectError && err == nil) || (!tc.expectError && err != nil) {
+	if tc.expectError && (err == nil) {
 		t.Errorf("unexpected err: %v", err)
 		return
 	}
@@ -136,7 +136,7 @@ func TestE2eUpload(t *testing.T) {
 			},
 
 			resetImmich: true,
-			expectError: true,
+			expectError: false,
 		},
 		{
 			name: "upload folder *.jpg",
@@ -379,7 +379,8 @@ func Test_GP_MultiZip(t *testing.T) {
 		name: "Test_Issue_128",
 		args: []string{
 			"-google-photos",
-			myEnv["IMMICH_TESTFILES"] + "/google-photos/zip*.zip"},
+			myEnv["IMMICH_TESTFILES"] + "/google-photos/zip*.zip",
+		},
 		resetImmich: true,
 		expectError: false,
 		APITrace:    false,

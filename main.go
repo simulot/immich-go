@@ -16,6 +16,7 @@ import (
 	"github.com/simulot/immich-go/cmd/tool"
 	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/ui"
 	"github.com/telemachus/humane"
 )
 
@@ -58,8 +59,10 @@ func Run(ctx context.Context) error {
 	defer log.Close()
 
 	app := cmd.SharedFlags{
-		Log: slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
+		Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
+		Banner: ui.NewBanner(version, commit, date),
 	}
+	fmt.Println(app.Banner.String())
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
 	app.InitSharedFlags()
 	app.SetFlags(fs)

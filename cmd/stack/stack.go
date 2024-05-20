@@ -57,21 +57,22 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 	fmt.Println("Get server's assets...")
 	assetCount := 0
 
-	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
 		if a.IsTrashed {
-			return
+			return nil
 		}
 		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
-			return
+			return nil
 		}
 		assetCount += 1
 		sb.ProcessAsset(a.ID, a.OriginalFileName+path.Ext(a.OriginalPath), a.ExifInfo.DateTimeOriginal.Time)
+		return nil
 	})
 	if err != nil {
 		return err
 	}
 	stacks := sb.Stacks()
-	fmt.Println(" %d received, %d stack(s) possible\n", assetCount, len(stacks))
+	app.Log.Info(fmt.Sprintf(" %d received, %d stack(s) possible\n", assetCount, len(stacks)))
 
 	for _, s := range stacks {
 		fmt.Printf("Stack following images taken on %s\n", s.Date)

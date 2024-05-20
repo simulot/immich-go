@@ -31,7 +31,7 @@ func NewBanner(version, commit, date string) Banner {
 func (b Banner) String() string {
 	var text string
 	if b.version != "" {
-		text = fmt.Sprintf("v %s", b.version)
+		text = fmt.Sprintf("version %s", b.version)
 	}
 	sb := strings.Builder{}
 	for i := range b.b {

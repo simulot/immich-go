@@ -62,19 +62,14 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 		log:        l,
 		sm:         sm,
 	}
-	err := to.passOne(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	to.solvePuzzle(ctx)
-	return &to, err
+	return &to, nil
 }
 
-// passOne scans all files in all walker to build the file catalog of the archive
+// Prepare scans all files in all walker to build the file catalog of the archive
 // metadata files content is read and kept
 
-func (to *Takeout) passOne(ctx context.Context) error {
+func (to *Takeout) Prepare(ctx context.Context) error {
 	to.catalogs = map[fs.FS]walkerCatalog{}
 	for _, w := range to.fsyss {
 		to.catalogs[w] = walkerCatalog{}
@@ -83,7 +78,8 @@ func (to *Takeout) passOne(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
+	err := to.solvePuzzle(ctx)
+	return err
 }
 
 func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
@@ -216,7 +212,7 @@ var matchers = []matcherFn{
 // The duplicates files (same name, same length in bytes) found in the local source are discarded before been presented to the immich server.
 //
 
-func (to *Takeout) solvePuzzle(_ context.Context) {
+func (to *Takeout) solvePuzzle(ctx context.Context) error {
 	jsonKeys := gen.MapKeys(to.jsonByYear)
 	sort.Slice(jsonKeys, func(i, j int) bool {
 		yd := jsonKeys[i].year - jsonKeys[j].year
@@ -245,12 +241,18 @@ func (to *Takeout) solvePuzzle(_ context.Context) {
 				for _, w := range to.fsyss {
 					l := to.catalogs[w][d]
 					for f := range l.files {
-						if l.files[f].md == nil {
-							if matcher(k.name, f, to.sm) {
-								// if not already matched
-								i := l.files[f]
-								i.md = md
-								l.files[f] = i
+						select {
+						case <-ctx.Done():
+							return ctx.Err()
+						default:
+							if l.files[f].md == nil {
+								if matcher(k.name, f, to.sm) {
+									// if not already matched
+									i := l.files[f]
+									i.md = md
+									l.files[f] = i
+									to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.files[f], f)
+								}
 							}
 						}
 					}
@@ -259,6 +261,7 @@ func (to *Takeout) solvePuzzle(_ context.Context) {
 			}
 		}
 	}
+	return nil
 }
 
 // normalMatch
@@ -430,7 +433,7 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		}
 
 		if f.md == nil {
-			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, nil, name, "hit", "process all parts of the takeout at the same time")
+			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, nil, name, "hint", "process all parts of the takeout at the same time")
 			return nil
 		}
 
@@ -439,6 +442,8 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 			to.log.Record(ctx, fileevent.Error, err, name, "message", err.Error())
 			return nil
 		}
+
+		// TODO: move this to resolve puzzle
 
 		key := fileKey{
 			base:   base,
