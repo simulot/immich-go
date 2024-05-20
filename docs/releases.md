@@ -1,6 +1,84 @@
 # Release notes 
 
-## Release 0.13.0
+## Release 0.14.0 "A better UI"
+
+This release is focussed the improvement of the user experience. 
+
+### A shiny user interface
+
+```
+. _ _  _ _ . _|_  __  _  _ 
+|| | || | ||(_| |    (_|(_)
+      version dev     _)
+```
+
+Working with big database and big takeout files take some time. Users are now informed about the progression of different tasks:
+
+![image](/docs/render1716187129166.gif)
+
+The screen presents number of processed photos, how they have been processes, the messages log, and at the bottom, the progression of the 3 mains tasks.
+
+
+### A minimalist user interface
+
+This shiny interface can be be disabled for quieter user interface (`-no-ui`).
+The progression is visible. All details on operations are listed in the log file.
+
+
+```
+. _ _  _ _ . _|_  __  _  _ 
+|| | || | ||(_| |    (_|(_)
+      version dev     _)   
+
+Server status: OK
+Connected, user: demo@immich.app
+Immich read 100%, Google Photos Analysis: 100%, Uploaded 100%  
+
+Input analysis:
+----------------------
+scanned image file                      :   25420
+scanned video file                      :    1447
+scanned sidecar file                    :   26934
+discarded file                          :     197
+unsupported file                        :       0
+file duplicated in the input            :    1706
+associated metadata file                :   26867
+missing associated metadata file        :       0
+
+Uploading:
+----------
+uploaded                                :   25160
+server error                            :       0
+file not selected                       :       1
+server's asset upgraded with the input  :       0
+server has same photo                   :       0
+server has a better asset               :       0
+```
+
+### Immich-go runs simultaneously the collect of immich-server's assets and the analysis of the Google takeout
+
+The code has been refactored to run several task simultaneously to animate the progression screen. The program runs now the reading of immich asset and the the takeout analysis in parallel.
+
+### Immich-go now always produces a log file 
+
+The default name for the log file is `immich-go YYYY-MM-DD HH-MI-SS.log`, located in the current directory.
+
+It's possible to give a path and a name to the log file with the option `-log-file=path/to/file.log`. 
+If the file file exists already, the new messages will be added to its end.
+
+The log level `OK` is removed.
+
+### Immich-go is published under the AGPL-3.0 license
+
+I chose the same license as the immich project license to release immich-go. 
+
+### Next steps
+
+- Issues closing
+- A shiny user interface for the command `duplicate`
+
+
+## Release 0.13.2
 
 ### Fix [[#211](https://github.com/simulot/immich-go/issues/211)]  immich-go appears to retain/cache an API key
 Fix the logic for retaining the credential: 

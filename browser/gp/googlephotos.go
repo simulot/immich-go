@@ -11,10 +11,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 )
 
 type Takeout struct {
@@ -23,7 +23,7 @@ type Takeout struct {
 	jsonByYear map[jsonKey]*GoogleMetaData // assets by year of capture and base name
 	uploaded   map[fileKey]any             // track files already uploaded
 	albums     map[string]string           // tack album names by folder
-	jnl        *logger.Journal
+	log        *fileevent.Recorder
 	sm         immich.SupportedMedia
 }
 
@@ -54,27 +54,22 @@ type jsonKey struct {
 	year int
 }
 
-func NewTakeout(ctx context.Context, jnl *logger.Journal, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
+func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
 	to := Takeout{
 		fsyss:      fsyss,
 		jsonByYear: map[jsonKey]*GoogleMetaData{},
 		albums:     map[string]string{},
-		jnl:        jnl,
+		log:        l,
 		sm:         sm,
 	}
-	err := to.passOne(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	to.solvePuzzle()
-	return &to, err
+	return &to, nil
 }
 
-// passOne scans all files in all walker to build the file catalog of the archive
+// Prepare scans all files in all walker to build the file catalog of the archive
 // metadata files content is read and kept
 
-func (to *Takeout) passOne(ctx context.Context) error {
+func (to *Takeout) Prepare(ctx context.Context) error {
 	to.catalogs = map[fs.FS]walkerCatalog{}
 	for _, w := range to.fsyss {
 		to.catalogs[w] = walkerCatalog{}
@@ -83,7 +78,8 @@ func (to *Takeout) passOne(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
+	err := to.solvePuzzle(ctx)
+	return err
 }
 
 func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
@@ -101,13 +97,12 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				return nil
 			}
 
-			to.jnl.AddEntry(name, logger.DiscoveredFile, "")
 			dir, base := path.Split(name)
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
 
 			if slices.Contains(uselessFiles, base) {
-				to.jnl.AddEntry(name, logger.Discarded, "Useless file")
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "reason", "useless file")
 				return nil
 			}
 
@@ -126,35 +121,35 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					switch {
 					case md.isAsset():
 						to.addJSON(dir, base, md)
-						to.jnl.AddEntry(name, logger.Metadata, "Asset Title: "+md.Title)
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "asset metadata")
 					case md.isAlbum():
 						to.albums[dir] = md.Title
-						to.jnl.AddEntry(name, logger.Metadata, "Album title: "+md.Title)
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "album metadata", "title", md.Title)
 					default:
-						to.jnl.AddEntry(name, logger.Discarded, "Unknown json file")
+						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "reason", "unknown JSONfile")
 						return nil
 					}
 				} else {
-					to.jnl.AddEntry(name, logger.Discarded, "Unknown json file")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "reason", "unknown JSONfile")
 					return nil
 				}
 			default:
 				t := to.sm.TypeFromExt(ext)
 				switch t {
 				case immich.TypeUnknown:
-					to.jnl.AddEntry(name, logger.Unsupported, "")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "unsupported file type")
 					return nil
 				case immich.TypeIgnored:
-					to.jnl.AddEntry(name, logger.Discarded, "File ignored")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "useless file")
 					return nil
 				case immich.TypeVideo:
 					if strings.Contains(name, "Failed Videos") {
-						to.jnl.AddEntry(name, logger.FailedVideo, "")
+						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "can't upload failed videos")
 						return nil
 					}
-					to.jnl.AddEntry(name, logger.ScannedVideo, "")
+					to.log.Record(ctx, fileevent.DiscoveredVideo, nil, name)
 				case immich.TypeImage:
-					to.jnl.AddEntry(name, logger.ScannedImage, "")
+					to.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
 				}
 				dirCatalog.files[base] = fileInfo{
 					length: int(finfo.Size()),
@@ -217,8 +212,7 @@ var matchers = []matcherFn{
 // The duplicates files (same name, same length in bytes) found in the local source are discarded before been presented to the immich server.
 //
 
-func (to *Takeout) solvePuzzle() {
-	to.jnl.Log.OK("Associating JSON and assets...")
+func (to *Takeout) solvePuzzle(ctx context.Context) error {
 	jsonKeys := gen.MapKeys(to.jsonByYear)
 	sort.Slice(jsonKeys, func(i, j int) bool {
 		yd := jsonKeys[i].year - jsonKeys[j].year
@@ -247,13 +241,18 @@ func (to *Takeout) solvePuzzle() {
 				for _, w := range to.fsyss {
 					l := to.catalogs[w][d]
 					for f := range l.files {
-						if l.files[f].md == nil {
-							if matcher(k.name, f, to.sm) {
-								to.jnl.AddEntry(path.Join(d, f), logger.AssociatedMetadata, fmt.Sprintf("%s (%d)", k.name, k.year))
-								// if not already matched
-								i := l.files[f]
-								i.md = md
-								l.files[f] = i
+						select {
+						case <-ctx.Done():
+							return ctx.Err()
+						default:
+							if l.files[f].md == nil {
+								if matcher(k.name, f, to.sm) {
+									// if not already matched
+									i := l.files[f]
+									i.md = md
+									l.files[f] = i
+									to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.files[f], f)
+								}
 							}
 						}
 					}
@@ -262,6 +261,7 @@ func (to *Takeout) solvePuzzle() {
 			}
 		}
 	}
+	return nil
 }
 
 // normalMatch
@@ -407,7 +407,6 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 }
 
 func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *browser.LocalAssetFile) error {
-	to.jnl.Log.OK("Ready to upload files")
 	return fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -434,14 +433,17 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		}
 
 		if f.md == nil {
-			to.jnl.AddEntry(name, logger.ERROR, "JSON File not found for this file")
+			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, nil, name, "hint", "process all parts of the takeout at the same time")
 			return nil
 		}
+
 		finfo, err := d.Info()
 		if err != nil {
-			to.jnl.Log.Error("can't browse: %s", err)
+			to.log.Record(ctx, fileevent.Error, err, name, "message", err.Error())
 			return nil
 		}
+
+		// TODO: move this to resolve puzzle
 
 		key := fileKey{
 			base:   base,
@@ -449,7 +451,8 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 			year:   f.md.PhotoTakenTime.Time().Year(),
 		}
 		if _, exists := to.uploaded[key]; exists {
-			to.jnl.AddEntry(name, logger.LocalDuplicate, "")
+			to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
+
 			return nil
 		}
 		a := to.googleMDToAsset(f.md, key, w, name)

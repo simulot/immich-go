@@ -10,26 +10,30 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
-	"github.com/simulot/immich-go/logger"
 )
 
 type LocalAssetBrowser struct {
 	fsyss      []fs.FS
 	albums     map[string]string
-	log        *logger.Journal
+	log        *fileevent.Recorder
 	sm         immich.SupportedMedia
 	whenNoDate string
 }
 
-func NewLocalFiles(ctx context.Context, log *logger.Journal, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
 		fsyss:      fsyss,
 		albums:     map[string]string{},
-		log:        log,
+		log:        l,
 		whenNoDate: "FILE",
 	}, nil
+}
+
+func (la *LocalAssetBrowser) Prepare(ctx context.Context) error {
+	return nil
 }
 
 func (la *LocalAssetBrowser) SetSupportedMedia(sm immich.SupportedMedia) *LocalAssetBrowser {
@@ -91,6 +95,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		return err
 	}
 
+nextFile:
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
@@ -98,23 +103,20 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		name := e.Name()
 		fileName := path.Join(folder, name)
 		ext := strings.ToLower(path.Ext(name))
-		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
 
 		t := la.sm.TypeFromExt(ext)
 		switch t {
 		default:
-			la.log.AddEntry(fileName, logger.Unsupported, "")
-			continue
+			la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, fileName, "reason", "unsupported file type")
+			continue nextFile
 		case immich.TypeIgnored:
-			la.log.AddEntry(name, logger.Discarded, "File ignored")
-			continue
+			la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, fileName, "reason", "useless file")
+			continue nextFile
 		case immich.TypeSidecar:
-			la.log.AddEntry(name, logger.Metadata, "")
-			continue
+			la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, fileName)
+			continue nextFile
 		case immich.TypeImage:
-			la.log.AddEntry(name, logger.ScannedImage, "")
 		case immich.TypeVideo:
-			la.log.AddEntry(name, logger.ScannedVideo, "")
 		}
 
 		f := browser.LocalAssetFile{
@@ -143,8 +145,16 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 					}
 				}
 			}
-			la.checkSidecar(&f, entries, folder, name)
+			la.checkSidecar(ctx, &f, entries, folder, name)
 		}
+
+		switch t {
+		case immich.TypeImage:
+			la.log.Record(ctx, fileevent.DiscoveredImage, f, fileName)
+		case immich.TypeVideo:
+			la.log.Record(ctx, fileevent.DiscoveredVideo, f, fileName)
+		}
+
 		// Check if the context has been cancelled
 		select {
 		case <-ctx.Done():
@@ -157,7 +167,7 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 	return nil
 }
 
-func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
+func (la *LocalAssetBrowser) checkSidecar(ctx context.Context, f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
 	assetBase := la.baseNames(name)
 
 	for _, name := range assetBase {
@@ -172,7 +182,7 @@ func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []f
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.log.AddEntry(name, logger.AssociatedMetadata, "")
+				la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, f.FileName, "main", f.FileName)
 				return true
 			}
 		}

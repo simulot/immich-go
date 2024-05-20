@@ -5,8 +5,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
+	"runtime/debug"
 
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/cmd/duplicate"
@@ -15,8 +17,8 @@ import (
 	"github.com/simulot/immich-go/cmd/tool"
 	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/logger"
-
-	"runtime/debug"
+	"github.com/simulot/immich-go/ui"
+	"github.com/telemachus/humane"
 )
 
 var (
@@ -25,21 +27,21 @@ var (
 	date    = "unknown"
 )
 
-func getCommitInfo() (string) {
-	var commit = commit // default can be set with: -ldflags "-X 'main.commit=...'"
+func getCommitInfo() string {
+	commit := commit // default can be set with: -ldflags "-X 'main.commit=...'"
 	var dirty bool = false
 	var buildvcs bool = false
 
 	buildinfo, _ := debug.ReadBuildInfo()
 	for _, s := range buildinfo.Settings {
 		switch s.Key {
-			case "vcs.revision":
-				buildvcs = true
-				commit = s.Value
-			case "vcs.modified":
-				if s.Value == "true" {
-					dirty = true
-				}
+		case "vcs.revision":
+			buildvcs = true
+			commit = s.Value
+		case "vcs.modified":
+			if s.Value == "true" {
+				dirty = true
+			}
 		}
 	}
 	if buildvcs && dirty {
@@ -82,8 +84,10 @@ func Run(ctx context.Context) error {
 	defer log.Close()
 
 	app := cmd.SharedFlags{
-		Jnl: logger.NewJournal(log),
+		Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
+		Banner: ui.NewBanner(version, commit, date),
 	}
+	fmt.Println(app.Banner.String())
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
 	app.InitSharedFlags()
 	app.SetFlags(fs)

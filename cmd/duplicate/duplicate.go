@@ -6,6 +6,7 @@ package duplicate
 import (
 	"context"
 	"flag"
+	"fmt"
 	"path"
 	"sort"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
 )
 
@@ -71,13 +71,13 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 	}
 
 	dupCount := 0
-	app.Jnl.Log.MessageContinue(logger.OK, "Get server's assets...")
-	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) {
+	fmt.Println("Get server's assets...")
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
 		if a.IsTrashed {
-			return
+			return nil
 		}
 		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
-			return
+			return nil
 		}
 		app.assetsByID[a.ID] = a
 		d := a.ExifInfo.DateTimeOriginal.Time.Round(time.Minute)
@@ -98,12 +98,13 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 			dupCount++
 		}
 		app.assetsByBaseAndDate[k] = append(l, a)
+		return nil
 	})
 	if err != nil {
 		return err
 	}
-	app.Jnl.Log.MessageTerminate(logger.OK, "%d received", len(app.assetsByID))
-	app.Jnl.Log.MessageTerminate(logger.OK, "%d duplicate(s) determined.", dupCount)
+	fmt.Printf("%d received\n", len(app.assetsByID))
+	fmt.Printf("%d duplicate(s) determined.\n", dupCount)
 
 	keys := gen.MapFilterKeys(app.assetsByBaseAndDate, func(i []*immich.Asset) bool {
 		return len(i) > 1
@@ -127,22 +128,22 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 			return ctx.Err()
 		default:
 			l := app.assetsByBaseAndDate[k]
-			app.Jnl.Log.OK("There are %d copies of the asset %s, taken on %s ", len(l), k.Name, l[0].ExifInfo.DateTimeOriginal.Format(time.RFC3339))
+			fmt.Printf("There are %d copies of the asset %s, taken on %s\n", len(l), k.Name, l[0].ExifInfo.DateTimeOriginal.Format(time.RFC3339))
 			albums := []immich.AlbumSimplified{}
 			assetsToDelete := []string{}
 			sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
 			for p, a := range l {
 				if p < len(l)-1 {
-					app.Jnl.Log.OK("  delete %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+					fmt.Printf("  delete %s %dx%d, %s, %s\n", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
 					assetsToDelete = append(assetsToDelete, a.ID)
 					r, err := app.Immich.GetAssetAlbums(ctx, a.ID)
 					if err != nil {
-						app.Jnl.Log.Error("Can't get asset's albums: %s", err.Error())
+						fmt.Printf("Can't get asset's albums: %s\n", err.Error())
 					} else {
 						albums = append(albums, r...)
 					}
 				} else {
-					app.Jnl.Log.OK("  keep   %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+					fmt.Printf("  keep   %s %dx%d, %s, %s\n", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
 					yes := app.AssumeYes
 					if !app.AssumeYes {
 						r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
@@ -156,14 +157,14 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 					if yes {
 						err = app.Immich.DeleteAssets(ctx, assetsToDelete, false)
 						if err != nil {
-							app.Jnl.Log.Error("Can't delete asset: %s", err.Error())
+							fmt.Printf("Can't delete asset: %s\n", err.Error())
 						} else {
-							app.Jnl.Log.OK("  Asset removed")
+							fmt.Println("  Asset removed")
 							for _, al := range albums {
-								app.Jnl.Log.OK("  Update the album %s with the best copy", al.AlbumName)
+								fmt.Printf("  Update the album %s with the best copy\n", al.AlbumName)
 								_, err = app.Immich.AddAssetToAlbum(ctx, al.ID, []string{a.ID})
 								if err != nil {
-									app.Jnl.Log.Error("Can't delete asset: %s", err.Error())
+									fmt.Printf("Can't delete asset: %s\n", err.Error())
 								}
 							}
 						}
