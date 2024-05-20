@@ -36,8 +36,6 @@ type duplicateKey struct {
 	Type string
 }
 
-type progressUpdate func(value, max int)
-
 func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*DuplicateCmd, error) {
 	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
 	validRange := immich.DateRange{}
