@@ -255,8 +255,8 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		return s
 	}
 
+	progressClosed.Add(1)
 	go func() {
-		progressClosed.Add(1)
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer func() {
 			ticker.Stop()
