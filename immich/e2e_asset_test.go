@@ -68,7 +68,7 @@ func checkImmich(t *testing.T, host, key, _ string) {
 		t.Errorf("can't connect to %s: %s", host, err)
 	}
 	ctx := context.Background()
-	uInfo, err := ic.ValidateConnection(ctx)
+	_, err = ic.ValidateConnection(ctx)
 
 	stat, err := ic.GetAssetStatistics(ctx)
 	if err != nil {
@@ -105,11 +105,7 @@ func checkImmich(t *testing.T, host, key, _ string) {
 	writeFile(path.Join("DATA", "allAssets.log"), all)
 	t.Logf("paginatedCounts: %+v", paginatedCounts)
 	t.Logf("allCounts: %+v", allCounts)
-	for _, u := range stat.UsageByUser {
-		if u.UserID == uInfo.ID {
-			t.Logf("ServerStats: IMAGE:%d VIDEO:%d", u.Photos, u.Videos)
-		}
-	}
+	t.Logf("ServerStats: IMAGE:%d VIDEO:%d", stat.Images, stat.Videos)
 
 	compareAssets(t, paginated, all)
 }
