@@ -28,9 +28,8 @@ var (
 )
 
 func getCommitInfo() string {
-	commit := commit // default can be set with: -ldflags "-X 'main.commit=...'"
-	var dirty bool = false
-	var buildvcs bool = false
+	dirty := false
+	buildvcs := false
 
 	buildinfo, _ := debug.ReadBuildInfo()
 	for _, s := range buildinfo.Settings {
@@ -42,6 +41,8 @@ func getCommitInfo() string {
 			if s.Value == "true" {
 				dirty = true
 			}
+		case "vcs.time":
+			date = s.Value
 		}
 	}
 	if buildvcs && dirty {

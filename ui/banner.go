@@ -17,8 +17,8 @@ type Banner struct {
 func NewBanner(version, commit, date string) Banner {
 	return Banner{
 		b: []string{
-			". _ _  _ _ . _|_  __  _  _ ",
-			"|| | || | ||(_| |    (_|(_)",
+			". _ _  _ _ . _|_      _  _ ",
+			"|| | || | ||(_| | ── (_|(_)",
 			"                      _)   ",
 		},
 		version: version,
@@ -29,14 +29,18 @@ func NewBanner(version, commit, date string) Banner {
 
 // String generate a string with new lines and place the given text on the latest line
 func (b Banner) String() string {
+	const lenVersion = 20
 	var text string
 	if b.version != "" {
-		text = fmt.Sprintf("version %s", b.version)
+		text = fmt.Sprintf("v %s", b.version)
 	}
 	sb := strings.Builder{}
 	for i := range b.b {
 		if i == len(b.b)-1 && text != "" {
-			sb.WriteString(b.b[i][:17-len(text)] + text + b.b[i][17:])
+			if len(text) >= lenVersion {
+				text = text[:lenVersion]
+			}
+			sb.WriteString(b.b[i][:lenVersion-len(text)] + text + b.b[i][lenVersion:])
 		} else {
 			sb.WriteString(b.b[i])
 		}
