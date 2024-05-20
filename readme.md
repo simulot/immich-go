@@ -220,7 +220,7 @@ Open a command windows, go to the directory where immich-go resides, and type th
 For a source-based installation, ensure you have the necessary Go language development tools (https://go.dev/doc/install) in place.
 Download the source files or clone the repository. 
 
-```
+```bash
 go build -ldflags "-X 'main.version=$(git describe --tag)' -X 'main.date=$(date)'"
 ```
 
