@@ -1,6 +1,6 @@
 # Release notes 
 
-## Release "A better UI"
+## Release 0.14.0 "A better UI"
 
 This release is focussed the improvement of the user experience. 
 
@@ -74,7 +74,7 @@ The log level `OK` is removed.
 - A shiny user interface for the command `duplicate`
 
 
-## Release 0.13.0
+## Release 0.13.2
 
 ### Fix [[#211](https://github.com/simulot/immich-go/issues/211)]  immich-go appears to retain/cache an API key
 Fix the logic for retaining the credential: 
