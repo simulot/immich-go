@@ -126,6 +126,21 @@ func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatisti
 	return s, err
 }
 
+// getAssetStatistics
+// Get user's stats
+
+type UserStatistics struct {
+	Images int `json:"images"`
+	Videos int `json:"videos"`
+	Total  int `json:"total"`
+}
+
+func (ic *ImmichClient) GetAssetStatistics(ctx context.Context) (UserStatistics, error) {
+	var s UserStatistics
+	err := ic.newServerCall(ctx, "GetAssetStatistics").do(get("/asset/statistics", setAcceptJSON()), responseJSON(&s))
+	return s, err
+}
+
 type SupportedMedia map[string]string
 
 const (

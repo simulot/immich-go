@@ -89,6 +89,14 @@ func (c *stubIC) SupportedMedia() immich.SupportedMedia {
 	return immich.DefaultSupportedMedia
 }
 
+func (c *stubIC) GetAssetStatistics(ctx context.Context) (immich.UserStatistics, error) {
+	return immich.UserStatistics{
+		Images: 1,
+		Videos: 1,
+		Total:  1,
+	}, nil
+}
+
 type icCatchUploadsAssets struct {
 	stubIC
 
