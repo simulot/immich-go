@@ -17,9 +17,9 @@ type Banner struct {
 func NewBanner(version, commit, date string) Banner {
 	return Banner{
 		b: []string{
-			". _ _  _ _ . _|_      _  _ ",
-			"|| | || | ||(_| | ── (_|(_)",
-			"                      _)   ",
+			". _ _  _ _ . _|_     _  _ ",
+			"|| | || | ||(_| | ─ (_|(_)",
+			"                     _)   ",
 		},
 		version: version,
 		commit:  commit,
