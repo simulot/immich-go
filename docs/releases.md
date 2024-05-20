@@ -68,6 +68,10 @@ If the file file exists already, the new messages will be added to its end.
 
 The log level `OK` is removed.
 
+### Immich-go is published under the AGPL-3.0 license
+
+I chose the same license as the immich project license to release immich-go. 
+
 ### Next steps
 
 - Issues closing
