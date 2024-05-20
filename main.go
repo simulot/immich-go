@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime/debug"
 
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/cmd/duplicate"
@@ -26,9 +27,34 @@ var (
 	date    = "unknown"
 )
 
+func getCommitInfo() string {
+	dirty := false
+	buildvcs := false
+
+	buildinfo, _ := debug.ReadBuildInfo()
+	for _, s := range buildinfo.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			buildvcs = true
+			commit = s.Value
+		case "vcs.modified":
+			if s.Value == "true" {
+				dirty = true
+			}
+		case "vcs.time":
+			date = s.Value
+		}
+	}
+	if buildvcs && dirty {
+		commit += "-dirty"
+	}
+	return commit
+}
+
 func main() {
 	var err error
-	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, commit, date)
+
+	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, getCommitInfo(), date)
 
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
