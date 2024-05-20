@@ -1,5 +1,10 @@
 # Release notes 
 
+## Release 0.14.1
+
+### [#246](https://github.com/simulot/immich-go/issues/246) Google Takeout 403 Forbidden on non admin user
+Uses the endpoint /api/asset/statistics to get the number of user's assets.
+
 ## Release 0.14.0 "A better UI"
 
 This release is focussed the improvement of the user experience. 

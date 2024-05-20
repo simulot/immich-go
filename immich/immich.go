@@ -20,6 +20,7 @@ type ImmichInterface interface {
 	PingServer(ctx context.Context) error
 	ValidateConnection(ctx context.Context) (User, error)
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
+	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
 
 	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*Asset, error)
 	GetAllAssets(ctx context.Context) ([]*Asset, error)

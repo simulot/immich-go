@@ -70,18 +70,12 @@ func checkImmich(t *testing.T, host, key, _ string) {
 	ctx := context.Background()
 	uInfo, err := ic.ValidateConnection(ctx)
 
-	stat, err := ic.GetServerStatistics(ctx)
+	stat, err := ic.GetAssetStatistics(ctx)
 	if err != nil {
 		t.Errorf("can't get statistics from %s: %s", host, err)
 	}
 
-	want := 0
-	for _, u := range stat.UsageByUser {
-		if u.UserID == uInfo.ID {
-			want = u.Photos + u.Videos
-		}
-	}
-
+	want := stat.Total
 	t.Log("start paginated")
 	paginated, err := ic.GetAllAssets(ctx)
 	if err != nil {

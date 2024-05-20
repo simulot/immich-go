@@ -340,11 +340,11 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 }
 
 func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) error {
-	statistics, err := app.Immich.GetServerStatistics(ctx)
+	statistics, err := app.Immich.GetAssetStatistics(ctx)
 	if err != nil {
 		return err
 	}
-	totalOnImmich := statistics.Photos + statistics.Videos
+	totalOnImmich := statistics.Total
 	received := 0
 
 	var list []*immich.Asset
