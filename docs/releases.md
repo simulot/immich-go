@@ -1,5 +1,10 @@
 # Release notes 
 
+### Feat: [[#249](https://github.com/simulot/immich-go/issues/249)] Fix Display the path of log file name
+
+The log file's name is displayed at exection end.
+
+
 ## Release 0.14.1
 
 ### [#246](https://github.com/simulot/immich-go/issues/246) Google Takeout 403 Forbidden on non admin user
