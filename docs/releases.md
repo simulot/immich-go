@@ -2,7 +2,11 @@
 
 ## Release next
 
-### fix [#215](https://github.com/simulot/immich-go/issues/215) Use XDG_CONFIG_HOME for storing config
+### Fix Display the path of log file name
+
+The log file name is printed before the execution end.
+
+### Fix [#215](https://github.com/simulot/immich-go/issues/215) Use XDG_CONFIG_HOME for storing config
 The configuration file that contains the server and the key is now stored by default in following folder:
 - Linux `$HOME/.config/immich-go/immich-go.json`
 - Windows `%AppData%\immich-go\immich-go.json`
@@ -26,9 +30,10 @@ This release is focussed the improvement of the user experience.
 ### A shiny user interface
 
 ```
-. _ _  _ _ . _|_  __  _  _ 
-|| | || | ||(_| |    (_|(_)
-      version dev     _)
+. _ _  _ _ . _|_     _  _ 
+|| | || | ||(_| | ─ (_|(_)
+               v dev _)   
+
 ```
 
 Working with big database and big takeout files take some time. Users are now informed about the progression of different tasks:

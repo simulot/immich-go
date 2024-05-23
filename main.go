@@ -125,5 +125,6 @@ func Run(ctx context.Context) error {
 	if err != nil {
 		log.Error(err.Error())
 	}
+	fmt.Println("\nCheck the log file: ", app.LogFile)
 	return err
 }
