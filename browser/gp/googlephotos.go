@@ -32,7 +32,8 @@ type walkerCatalog map[string]directoryCatalog // by directory in the walker
 
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
-	files map[string]fileInfo // map of fileInfo by base name
+	unMatchedFiles map[string]fileInfo // map of fileInfo by base name
+	matchedFiles   map[string]fileInfo // map of fileInfo by base name
 }
 
 // fileInfo keep information collected during pass one
@@ -107,8 +108,11 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			}
 
 			dirCatalog := to.catalogs[w][dir]
-			if dirCatalog.files == nil {
-				dirCatalog.files = map[string]fileInfo{}
+			if dirCatalog.unMatchedFiles == nil {
+				dirCatalog.unMatchedFiles = map[string]fileInfo{}
+			}
+			if dirCatalog.matchedFiles == nil {
+				dirCatalog.matchedFiles = map[string]fileInfo{}
 			}
 			finfo, err := d.Info()
 			if err != nil {
@@ -151,7 +155,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				case immich.TypeImage:
 					to.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
 				}
-				dirCatalog.files[base] = fileInfo{
+				dirCatalog.unMatchedFiles[base] = fileInfo{
 					length: int(finfo.Size()),
 				}
 			}
@@ -240,19 +244,17 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 			for d := range paths {
 				for _, w := range to.fsyss {
 					l := to.catalogs[w][d]
-					for f := range l.files {
+					for f := range l.unMatchedFiles {
 						select {
 						case <-ctx.Done():
 							return ctx.Err()
 						default:
-							if l.files[f].md == nil {
-								if matcher(k.name, f, to.sm) {
-									// if not already matched
-									i := l.files[f]
-									i.md = md
-									l.files[f] = i
-									to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.files[f], f)
-								}
+							if matcher(k.name, f, to.sm) {
+								i := l.unMatchedFiles[f]
+								i.md = md
+								l.matchedFiles[f] = i
+								delete(l.unMatchedFiles, f)
+								to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.unMatchedFiles[f], f)
 							}
 						}
 					}
@@ -427,7 +429,7 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		if !to.sm.IsMedia(ext) {
 			return nil
 		}
-		f, exist := to.catalogs[w][dir].files[base]
+		f, exist := to.catalogs[w][dir].matchedFiles[base]
 		if !exist {
 			return nil
 		}
@@ -459,7 +461,7 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case assetChan <- a: // the consumer must call a.File.Release()
+		case assetChan <- a:
 			to.uploaded[key] = nil // remember we have seen this file already
 		}
 		return nil
