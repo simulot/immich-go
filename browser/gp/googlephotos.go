@@ -103,7 +103,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			ext := strings.ToLower(path.Ext(base))
 
 			if slices.Contains(uselessFiles, base) {
-				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "reason", "useless file")
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "useless file")
 				return nil
 			}
 
