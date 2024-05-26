@@ -2,6 +2,23 @@
 
 ## Release next
 
+### fix [#215](https://github.com/simulot/immich-go/issues/215) Use XDG_CONFIG_HOME for storing config
+The configuration file that contains the server and the key is now stored by default in following folder:
+- Linux `$HOME/.config/immich-go/immich-go.json`
+- Windows `%AppData%\immich-go\immich-go.json`
+- Apple `$HOME/Library/Application Support/immich-go/immich-go.json` 
+
+### Store the log files into sensible dir for user's system
+The default log file is: 
+- Linux `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`
+- Windows `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log`
+- Apple `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`
+
+### Feat: [[#249](https://github.com/simulot/immich-go/issues/249)] Fix Display the path of log file name
+
+The log file's name is displayed at exection end.
+
+
 ### Fix Display the path of log file name
 
 The log file name is printed before the execution end.
@@ -18,6 +35,36 @@ The default log file is:
 - Windows `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log`
 - Apple `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`
 
+## Release next
+
+<<<<<<< HEAD
+### Fix Display the path of log file name
+
+The log file name is printed before the execution end.
+
+### Fix [#215](https://github.com/simulot/immich-go/issues/215) Use XDG_CONFIG_HOME for storing config
+=======
+### fix [#215](https://github.com/simulot/immich-go/issues/215) Use XDG_CONFIG_HOME for storing config
+>>>>>>> origin/main
+The configuration file that contains the server and the key is now stored by default in following folder:
+- Linux `$HOME/.config/immich-go/immich-go.json`
+- Windows `%AppData%\immich-go\immich-go.json`
+- Apple `$HOME/Library/Application Support/immich-go/immich-go.json` 
+
+### Store the log files into sensible dir for user's system
+The default log file is: 
+- Linux `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`
+- Windows `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log`
+- Apple `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`
+
+<<<<<<< HEAD
+=======
+### Feat: [[#249](https://github.com/simulot/immich-go/issues/249)] Fix Display the path of log file name
+
+The log file's name is displayed at exection end.
+
+
+>>>>>>> origin/main
 ## Release 0.14.1
 
 ### fix [#246](https://github.com/simulot/immich-go/issues/246) Google Takeout 403 Forbidden on non admin user

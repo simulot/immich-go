@@ -52,10 +52,19 @@ func NewImmichClient(endPoint string, key string, sslVerify bool) (*ImmichClient
 	}
 
 	// Create a custom HTTP client with SSL verification disabled
+	// Add timeouts for #219
+	// Info at https://www.loginradius.com/blog/engineering/tune-the-go-http-client-for-high-performance/
 	transportOptions := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: sslVerify},
+		MaxIdleConns:        100,
+		IdleConnTimeout:     90 * time.Second,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: sslVerify},
+		MaxIdleConnsPerHost: 100,
+		MaxConnsPerHost:     100,
 	}
-	tlsClient := &http.Client{Transport: transportOptions}
+	tlsClient := &http.Client{
+		Timeout:   time.Second * 10,
+		Transport: transportOptions,
+	}
 
 	ic := ImmichClient{
 		endPoint:     endPoint + "/api",
