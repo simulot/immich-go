@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/browser/files"
@@ -208,6 +209,13 @@ func (app *UpCmd) run(ctx context.Context) error {
 		return err
 	}
 	if app.NoUI {
+		return app.runNoUI(ctx)
+	}
+
+	_, err = tcell.NewScreen()
+	if err != nil {
+		app.Log.Error("can't initialize the screen for the UI mode. Falling back to no-gui mode")
+		fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
 		return app.runNoUI(ctx)
 	}
 	return app.runUI(ctx)
