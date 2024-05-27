@@ -1,5 +1,8 @@
 # Release notes 
 
+### fix [#261](https://github.com/simulot/immich-go/issues/261) Fallback to no-gui mode when the UI can't be created
+When the terminal can't handle the UI mode, the program falls back to non gui mode automatically
+
 ## Release 0.15.0
 
 ### fix [#255](https://github.com/simulot/immich-go/issues/255) Last percents of google puzzle solving are very slow when processing very large takeout archive
