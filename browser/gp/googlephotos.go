@@ -429,16 +429,14 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		if !to.sm.IsMedia(ext) {
 			return nil
 		}
+		if _, exist := to.catalogs[w][dir].unMatchedFiles[base]; exist {
+			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, nil, name, "hint", "process all parts of the takeout at the same time")
+			return nil
+		}
 		f, exist := to.catalogs[w][dir].matchedFiles[base]
 		if !exist {
 			return nil
 		}
-
-		if f.md == nil {
-			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, nil, name, "hint", "process all parts of the takeout at the same time")
-			return nil
-		}
-
 		finfo, err := d.Info()
 		if err != nil {
 			to.log.Record(ctx, fileevent.Error, err, name, "message", err.Error())
