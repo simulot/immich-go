@@ -1,4 +1,6 @@
 # Release notes 
+### fix [#266](https://github.com/simulot/immich-go/issues/266) Better handling of archive name with wildcards that matches with no file
+When the file name pattern returns no files, a messge is printed, and the program ends.
 
 ### fix [#261](https://github.com/simulot/immich-go/issues/261) Fallback to no-gui mode when the UI can't be created
 When the terminal can't handle the UI mode, the program falls back to non gui mode automatically
