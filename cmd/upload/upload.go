@@ -75,6 +75,9 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	if err != nil {
 		return err
 	}
+	if len(app.fsyss) == 0 {
+		return nil
+	}
 	return app.run(ctx)
 }
 
@@ -182,7 +185,10 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 	if err != nil {
 		return nil, err
 	}
-
+	if len(app.fsyss) == 0 {
+		fmt.Println("No file found matching the pattern: ", strings.Join(cmd.Args(), ","))
+		app.Log.Info("No file found matching the pattern: " + strings.Join(cmd.Args(), ","))
+	}
 	return &app, nil
 }
 
