@@ -1,4 +1,8 @@
 # Release notes 
+### fix [[#270](https://github.com/simulot/immich-go/issues/270)]  missing associated metadata file is not updated after the performance improvement
+The counter "missing associated metadata" is broken since 0.15.0
+
+
 ### fix [#266](https://github.com/simulot/immich-go/issues/266) Better handling of archive name with wildcards that matches with no file
 When the file name pattern returns no files, a messge is printed, and the program ends.
 
