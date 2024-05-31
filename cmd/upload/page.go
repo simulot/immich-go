@@ -10,7 +10,6 @@ import (
 	"github.com/navidys/tvxwidgets"
 	"github.com/rivo/tview"
 	"github.com/simulot/immich-go/helpers/fileevent"
-	"github.com/telemachus/humane"
 )
 
 type page struct {
@@ -88,9 +87,9 @@ func (p *page) Page() *tview.Application {
 
 	if p.app.SharedFlags.LogWriterCloser != nil {
 		w := io.MultiWriter(p.app.SharedFlags.LogWriterCloser, p.logView)
-		p.app.SharedFlags.Log = slog.New(humane.NewHandler(w, &humane.Options{Level: p.app.SharedFlags.Level}))
+		p.app.SetLogWriter(w)
 	} else {
-		p.app.SharedFlags.Log = slog.New(humane.NewHandler(p.logView, &humane.Options{Level: p.app.SharedFlags.Level}))
+		p.app.SetLogWriter(p.logView)
 	}
 	p.app.SharedFlags.Jnl.SetLogger(p.app.SharedFlags.Log)
 	p.logView.SetBorder(true).SetTitle("Log")

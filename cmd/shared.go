@@ -100,8 +100,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			app.Log = slog.New(humane.NewHandler(f, &humane.Options{Level: app.Level}))
-			app.Jnl.SetLogger(app.Log)
+			app.SetLogWriter(f)
 			app.LogWriterCloser = f
 		}
 	}
@@ -175,4 +174,10 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		app.Log.Info(fmt.Sprintf("Connected, user: %s", user.Email))
 	}
 	return nil
+}
+
+func (app *SharedFlags) SetLogWriter(w io.Writer) {
+	app.Log = slog.New(humane.NewHandler(w, &humane.Options{Level: app.Level}))
+	// app.Log = slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{}))
+	app.Jnl.SetLogger(app.Log)
 }
