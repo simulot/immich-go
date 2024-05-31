@@ -182,7 +182,7 @@ func (la *LocalAssetBrowser) checkSidecar(ctx context.Context, f *browser.LocalA
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, f.FileName, "main", f.FileName)
+				la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, path.Join(dir, e.Name()), "main", f.FileName)
 				return true
 			}
 		}
