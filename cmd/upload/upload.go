@@ -245,22 +245,28 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		if maxImmich > 0 {
 			immichPct = 100 * currImmich / maxImmich
 		}
+		ScannedAssets := counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]
+		ProcessedAssets := counts[fileevent.UploadNotSelected] +
+			counts[fileevent.UploadUpgraded] +
+			counts[fileevent.UploadServerDuplicate] +
+			counts[fileevent.UploadServerBetter] +
+			counts[fileevent.Uploaded] +
+			counts[fileevent.AnalysisLocalDuplicate] + counts[fileevent.AnalysisMissingAssociatedMetadata]
 		if app.GooglePhotos {
 			gpPct := 0
 			upPct := 0
-			if counts[fileevent.DiscoveredImage]+counts[fileevent.DiscoveredVideo] > 0 {
-				gpPct = int(100 * counts[fileevent.AnalysisAssociatedMetadata] / (counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
+			if ScannedAssets > 0 {
+				gpPct = int(100 * counts[fileevent.AnalysisAssociatedMetadata] / ScannedAssets)
 				upPct = int(100 * (counts[fileevent.UploadNotSelected] +
 					counts[fileevent.UploadUpgraded] +
 					counts[fileevent.UploadServerDuplicate] +
 					counts[fileevent.UploadServerBetter] +
 					counts[fileevent.Uploaded] +
-					counts[fileevent.AnalysisLocalDuplicate]) /
-					(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
+					counts[fileevent.AnalysisLocalDuplicate]) / ScannedAssets)
 			}
 			s = fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Uploaded %d%% %s", immichPct, gpPct, upPct, string(spinner[spinIdx]))
 		} else {
-			s = fmt.Sprintf("\rImmich read %d%%, Uploaded %d %s", immichPct, counts[fileevent.Uploaded], string(spinner[spinIdx]))
+			s = fmt.Sprintf("\rImmich read %d%%, Processed %d, Uploaded %d %s", immichPct, ProcessedAssets, counts[fileevent.Uploaded], string(spinner[spinIdx]))
 		}
 		spinIdx++
 		if spinIdx == len(spinner) {
@@ -652,8 +658,8 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		if err != nil {
 			app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
 		}
+		time.Sleep(2 * time.Millisecond)
 	}
-	time.Sleep(2 * time.Millisecond)
 	return nil
 }
 
