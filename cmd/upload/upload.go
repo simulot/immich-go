@@ -382,6 +382,9 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 	if err != nil {
 		return err
 	}
+	if updateFn != nil {
+		updateFn(totalOnImmich, totalOnImmich)
+	}
 	app.AssetIndex = &AssetIndex{
 		assets: list,
 	}
