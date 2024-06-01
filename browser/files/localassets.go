@@ -107,10 +107,10 @@ nextFile:
 		t := la.sm.TypeFromExt(ext)
 		switch t {
 		default:
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, fileName, "reason", "unsupported file type")
+			la.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, fileName, "reason", "unsupported file type")
 			continue nextFile
 		case immich.TypeIgnored:
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, fileName, "reason", "useless file")
+			la.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, fileName, "reason", "useless file")
 			continue nextFile
 		case immich.TypeSidecar:
 			la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, fileName)
@@ -182,7 +182,7 @@ func (la *LocalAssetBrowser) checkSidecar(ctx context.Context, f *browser.LocalA
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, f.FileName, "main", f.FileName)
+				la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, path.Join(dir, e.Name()), "main", f.FileName)
 				return true
 			}
 		}

@@ -35,6 +35,7 @@ type SharedFlags struct {
 	TimeZone          string // Override default TZ
 	SkipSSL           bool   // Skip SSL Verification
 	NoUI              bool   // Disable user interface
+	JSONLog           bool   // Enable JSON structured log
 
 	Immich          immich.ImmichInterface // Immich client
 	Log             *slog.Logger           // Logger
@@ -53,6 +54,7 @@ func (app *SharedFlags) InitSharedFlags() {
 	app.SkipSSL = false
 	app.LogLevel = "INFO"
 	app.NoUI = false
+	app.JSONLog = false
 }
 
 // SetFlag add common flags to a flagset
@@ -65,6 +67,7 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, app.NoLogColors))
 	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
 	fs.StringVar(&app.LogFile, "log-file", app.LogFile, "Write log messages into the file")
+	fs.BoolFunc("log-json", "Output line-delimited JSON file, default FALSE", myflag.BoolFlagFn(&app.JSONLog, app.JSONLog))
 	fs.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.APITrace, app.APITrace))
 	fs.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, app.Debug))
 	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
@@ -100,8 +103,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			app.Log = slog.New(humane.NewHandler(f, &humane.Options{Level: app.Level}))
-			app.Jnl.SetLogger(app.Log)
+			app.SetLogWriter(f)
 			app.LogWriterCloser = f
 		}
 	}
@@ -175,4 +177,13 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		app.Log.Info(fmt.Sprintf("Connected, user: %s", user.Email))
 	}
 	return nil
+}
+
+func (app *SharedFlags) SetLogWriter(w io.Writer) {
+	if app.JSONLog {
+		app.Log = slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{}))
+	} else {
+		app.Log = slog.New(humane.NewHandler(w, &humane.Options{Level: app.Level}))
+	}
+	app.Jnl.SetLogger(app.Log)
 }
