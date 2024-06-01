@@ -264,9 +264,9 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 					counts[fileevent.Uploaded] +
 					counts[fileevent.AnalysisLocalDuplicate]) / ScannedAssets)
 			}
-			s = fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Uploaded %d%% %s", immichPct, gpPct, upPct, string(spinner[spinIdx]))
+			s = fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s", immichPct, gpPct, counts[fileevent.UploadServerError], upPct, string(spinner[spinIdx]))
 		} else {
-			s = fmt.Sprintf("\rImmich read %d%%, Processed %d, Uploaded %d %s", immichPct, ProcessedAssets, counts[fileevent.Uploaded], string(spinner[spinIdx]))
+			s = fmt.Sprintf("\rImmich read %d%%, Processed %d, Upload errors: %d, Uploaded %d %s", immichPct, ProcessedAssets, counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
 		}
 		spinIdx++
 		if spinIdx == len(spinner) {
@@ -605,6 +605,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	}
 
 	if err != nil {
+		app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
 		return nil
 	}
 

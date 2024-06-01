@@ -62,7 +62,7 @@ var _code = map[Code]string{
 	UploadServerDuplicate: "server has same asset",
 	UploadServerBetter:    "server has a better asset",
 	UploadAlbumCreated:    "album created/updated",
-	UploadServerError:     "server error",
+	UploadServerError:     "upload error",
 	Uploaded:              "uploaded",
 
 	Error: "error",
