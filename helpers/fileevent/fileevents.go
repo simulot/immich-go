@@ -59,7 +59,7 @@ var _code = map[Code]string{
 	UploadNotSelected:     "file not selected",
 	UploadUpgraded:        "server's asset upgraded with the input",
 	UploadAddToAlbum:      "added to an album",
-	UploadServerDuplicate: "server has same photo",
+	UploadServerDuplicate: "server has same asset",
 	UploadServerBetter:    "server has a better asset",
 	UploadAlbumCreated:    "album created/updated",
 	UploadServerError:     "server error",
