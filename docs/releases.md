@@ -1,13 +1,20 @@
 # Release notes 
+
+## Release next
+
 ### fix [[#270](https://github.com/simulot/immich-go/issues/270)]  missing associated metadata file is not updated after the performance improvement
 The counter "missing associated metadata" is broken since 0.15.0
-
 
 ### fix [#266](https://github.com/simulot/immich-go/issues/266) Better handling of archive name with wildcards that matches with no file
 When the file name pattern returns no files, a messge is printed, and the program ends.
 
 ### fix [#261](https://github.com/simulot/immich-go/issues/261) Fallback to no-gui mode when the UI can't be created
 When the terminal can't handle the UI mode, the program falls back to non gui mode automatically
+
+### fix: upload errors aren't reported correctly in UI and missing from the log file
+
+### feature: The log can be written with the JSON format (JSONL)
+Use the `-log-json` to enable JSON logging. 
 
 ## Release 0.15.0
 
