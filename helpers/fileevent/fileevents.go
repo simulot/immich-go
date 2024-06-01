@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -124,9 +125,11 @@ func (r *Recorder) SetLogger(l *slog.Logger) {
 }
 
 func (r *Recorder) Report() {
-	r.log.Info("\nInput analysis:\n----------------------")
-	fmt.Println("\nInput analysis:")
-	fmt.Println("----------------------")
+	sb := strings.Builder{}
+
+	sb.WriteString("\n")
+	sb.WriteString("Input analysis:\n")
+	sb.WriteString("---------------\n")
 	for _, c := range []Code{
 		DiscoveredImage,
 		DiscoveredVideo,
@@ -137,12 +140,12 @@ func (r *Recorder) Report() {
 		AnalysisAssociatedMetadata,
 		AnalysisMissingAssociatedMetadata,
 	} {
-		r.log.Info(fmt.Sprintf("%-40s: %7d", c.String(), r.counts[c]))
-		fmt.Printf("%-40s: %7d\n", c.String(), r.counts[c])
+		sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
 	}
-	r.log.Info("\nUploading:\n----------")
-	fmt.Println("\nUploading:")
-	fmt.Println("----------")
+
+	sb.WriteString("\n")
+	sb.WriteString("Uploading:\n")
+	sb.WriteString("----------\n")
 	for _, c := range []Code{
 		Uploaded,
 		UploadServerError,
@@ -151,9 +154,11 @@ func (r *Recorder) Report() {
 		UploadServerDuplicate,
 		UploadServerBetter,
 	} {
-		r.log.Info(fmt.Sprintf("%-40s: %7d", c.String(), r.counts[c]))
-		fmt.Printf("%-40s: %7d\n", c.String(), r.counts[c])
+		sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
 	}
+
+	r.log.Info(sb.String())
+	fmt.Println(sb.String())
 }
 
 func (r *Recorder) GetCounts() []int64 {
