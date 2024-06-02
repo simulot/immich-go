@@ -61,7 +61,7 @@ func runCase(t *testing.T, tc testCase) {
 	}
 
 	ctx := context.Background()
-	ic, err := immich.NewImmichClient(host, key, false)
+	ic, err := immich.NewImmichClient(host, key)
 	if err != nil {
 		t.Error(err)
 		return
