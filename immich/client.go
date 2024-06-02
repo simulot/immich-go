@@ -18,6 +18,7 @@ Immich API documentation https://documentation.immich.app/docs/api/introduction
 
 type ImmichClient struct {
 	client              *http.Client
+	roundTripper        *http.Transport
 	endPoint            string        // Server API url
 	key                 string        // User KEY
 	DeviceUUID          string        // Device
@@ -43,8 +44,24 @@ func (ic *ImmichClient) SupportedMedia() SupportedMedia {
 	return ic.supportedMediaTypes
 }
 
+type clientOption func(ic *ImmichClient) error
+
+func OptionVerifySSL(verify bool) clientOption {
+	return func(ic *ImmichClient) error {
+		ic.roundTripper.TLSClientConfig.InsecureSkipVerify = verify
+		return nil
+	}
+}
+
+func OptionConnectionTimeout(d time.Duration) clientOption {
+	return func(ic *ImmichClient) error {
+		ic.client.Timeout = d
+		return nil
+	}
+}
+
 // Create a new ImmichClient
-func NewImmichClient(endPoint string, key string, sslVerify bool) (*ImmichClient, error) {
+func NewImmichClient(endPoint string, key string, options ...clientOption) (*ImmichClient, error) {
 	var err error
 	deviceUUID, err := os.Hostname()
 	if err != nil {
@@ -54,25 +71,34 @@ func NewImmichClient(endPoint string, key string, sslVerify bool) (*ImmichClient
 	// Create a custom HTTP client with SSL verification disabled
 	// Add timeouts for #219
 	// Info at https://www.loginradius.com/blog/engineering/tune-the-go-http-client-for-high-performance/
-	transportOptions := &http.Transport{
-		MaxIdleConns:        100,
-		IdleConnTimeout:     90 * time.Second,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: sslVerify},
-		MaxIdleConnsPerHost: 100,
-		MaxConnsPerHost:     100,
-	}
-	tlsClient := &http.Client{
-		Timeout:   time.Second * 10,
-		Transport: transportOptions,
-	}
+	// https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/
+	// ![image](https://blog.cloudflare.com/content/images/2016/06/Timeouts-002.png)
 
 	ic := ImmichClient{
-		endPoint:     endPoint + "/api",
+		endPoint: endPoint + "/api",
+		roundTripper: &http.Transport{
+			MaxIdleConns:        100,
+			IdleConnTimeout:     90 * time.Second,
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+			MaxIdleConnsPerHost: 100,
+			MaxConnsPerHost:     100,
+		},
 		key:          key,
-		client:       tlsClient,
 		DeviceUUID:   deviceUUID,
 		Retries:      1,
 		RetriesDelay: time.Second * 1,
+	}
+
+	ic.client = &http.Client{
+		Timeout:   time.Second * 60,
+		Transport: ic.roundTripper,
+	}
+
+	for _, fn := range options {
+		err := fn(&ic)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ic, nil

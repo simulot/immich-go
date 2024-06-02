@@ -325,11 +325,17 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		processGrp.Go(func() error {
 			// Get immich asset
 			err := app.getImmichAssets(ctx, page.updateImmichReading)
+			if err != nil {
+				cancel()
+			}
 			return err
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
 			err := app.browser.Prepare(ctx)
+			if err != nil {
+				cancel()
+			}
 			return err
 		})
 		err := processGrp.Wait()

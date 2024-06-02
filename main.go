@@ -16,7 +16,6 @@ import (
 	"github.com/simulot/immich-go/cmd/stack"
 	"github.com/simulot/immich-go/cmd/tool"
 	"github.com/simulot/immich-go/cmd/upload"
-	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
 	"github.com/telemachus/humane"
 )
@@ -76,14 +75,12 @@ func main() {
 		err = Run(ctx)
 	}
 	if err != nil {
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 }
 
 func Run(ctx context.Context) error {
-	log := logger.NewLogger(logger.OK, true, false)
-	defer log.Close()
-
 	app := cmd.SharedFlags{
 		Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
 		Banner: ui.NewBanner(version, commit, date),
@@ -95,14 +92,16 @@ func Run(ctx context.Context) error {
 
 	err := fs.Parse(os.Args[1:])
 	if err != nil {
+		app.Log.Error(err.Error())
 		return err
 	}
 
 	if len(fs.Args()) == 0 {
-		err = errors.Join(err, errors.New("missing command upload|duplicate|stack|tool"))
+		err = errors.New("missing command upload|duplicate|stack|tool")
 	}
 
 	if err != nil {
+		app.Log.Error(err.Error())
 		return err
 	}
 
@@ -123,7 +122,7 @@ func Run(ctx context.Context) error {
 	}
 
 	if err != nil {
-		log.Error(err.Error())
+		app.Log.Error(err.Error())
 	}
 	fmt.Println("\nCheck the log file: ", app.LogFile)
 	return err

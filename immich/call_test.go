@@ -68,7 +68,7 @@ func TestCall(t *testing.T) {
 			server := httptest.NewServer(&tst.server)
 			defer server.Close()
 			ctx := context.Background()
-			ic, err := NewImmichClient(server.URL, "1234", false)
+			ic, err := NewImmichClient(server.URL, "1234")
 			if err != nil {
 				t.Fail()
 				return
