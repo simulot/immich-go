@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/helpers/fileevent"
@@ -22,20 +23,21 @@ import (
 
 // SharedFlags collect all parameters that are common to all commands
 type SharedFlags struct {
-	ConfigurationFile string // Path to the configuration file to use
-	Server            string // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	API               string // Immich api endpoint (http://container_ip:3301)
-	Key               string // API Key
-	DeviceUUID        string // Set a device UUID
-	APITrace          bool   // Enable API call traces
-	NoLogColors       bool   // Disable log colors
-	LogLevel          string // Indicate the log level (string)
-	Level             slog.Level
-	Debug             bool   // Enable the debug mode
-	TimeZone          string // Override default TZ
-	SkipSSL           bool   // Skip SSL Verification
-	NoUI              bool   // Disable user interface
-	JSONLog           bool   // Enable JSON structured log
+	ConfigurationFile string        // Path to the configuration file to use
+	Server            string        // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
+	API               string        // Immich api endpoint (http://container_ip:3301)
+	Key               string        // API Key
+	DeviceUUID        string        // Set a device UUID
+	APITrace          bool          // Enable API call traces
+	NoLogColors       bool          // Disable log colors
+	LogLevel          string        // Indicate the log level (string)
+	Level             slog.Level    // Set the log level
+	Debug             bool          // Enable the debug mode
+	TimeZone          string        // Override default TZ
+	SkipSSL           bool          // Skip SSL Verification
+	ClientTimeout     time.Duration // Set the client request timeout
+	NoUI              bool          // Disable user interface
+	JSONLog           bool          // Enable JSON structured log
 
 	Immich          immich.ImmichInterface // Immich client
 	Log             *slog.Logger           // Logger
@@ -55,6 +57,7 @@ func (app *SharedFlags) InitSharedFlags() {
 	app.LogLevel = "INFO"
 	app.NoUI = false
 	app.JSONLog = false
+	app.ClientTimeout = 5 * time.Minute
 }
 
 // SetFlag add common flags to a flagset
@@ -73,6 +76,7 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
 	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL))
 	fs.BoolFunc("no-ui", "Disable the user interface", myflag.BoolFlagFn(&app.NoUI, app.NoUI))
+	fs.Func("client-timeout", "Set server calls timeout, default 1m", myflag.DurationFlagFn(&app.ClientTimeout, app.ClientTimeout))
 }
 
 func (app *SharedFlags) Start(ctx context.Context) error {
@@ -150,7 +154,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		}
 		app.Log.Info("Connection to the server " + app.Server)
 
-		app.Immich, err = immich.NewImmichClient(app.Server, app.Key, app.SkipSSL)
+		app.Immich, err = immich.NewImmichClient(app.Server, app.Key, immich.OptionVerifySSL(app.SkipSSL), immich.OptionConnectionTimeout(app.ClientTimeout))
 		if err != nil {
 			return err
 		}
