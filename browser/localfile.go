@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/simulot/immich-go/helpers/fshelper"
@@ -90,7 +89,7 @@ func (l *LocalAssetFile) Remove() error {
 }
 
 func (l *LocalAssetFile) DeviceAssetID() string {
-	return fmt.Sprintf("%s-%d", strings.ToUpper(l.Title), l.FileSize)
+	return fmt.Sprintf("%s-%d", l.Title, l.FileSize)
 }
 
 // PartialSourceReader open a reader on the current asset.
