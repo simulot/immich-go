@@ -1,20 +1,39 @@
 # Release notes 
 
-## Release next
+## Release 0.16.0
 
-### fix [[#270](https://github.com/simulot/immich-go/issues/270)]  missing associated metadata file is not updated after the performance improvement
-The counter "missing associated metadata" is broken since 0.15.0
-
-### fix [#266](https://github.com/simulot/immich-go/issues/266) Better handling of archive name with wildcards that matches with no file
-When the file name pattern returns no files, a messge is printed, and the program ends.
-
-### fix [#261](https://github.com/simulot/immich-go/issues/261) Fallback to no-gui mode when the UI can't be created
+### feature: [[#261](https://github.com/simulot/immich-go/issues/261)] Fallback to no-gui mode when the UI can't be created
 When the terminal can't handle the UI mode, the program falls back to non gui mode automatically
 
-### fix: upload errors aren't reported correctly in UI and missing from the log file
-
 ### feature: The log can be written with the JSON format (JSONL)
-Use the `-log-json` to enable JSON logging. 
+Use the `-log-json` option to enable JSON logging (JSONL format). This allows using [./jq](https://jqlang.github.io/jq/)  to explore large logs.
+
+### feature: [[#277](https://github.com/simulot/immich-go/issues/277)] Adjust client side timeouts 
+The immich client timeout is set with the option `-client-timeout=duration`. 
+ The duration is a decimal numbers with a unit suffix, such as "300ms", "1.5m" or "45m". Valid time units are "ms", "s", "m", "h".   
+
+### fix: [[#270](https://github.com/simulot/immich-go/issues/270)]  `Missing associated metadata file` counter is not updated after the performance improvement
+The counter `missing associated metadata` is broken since 0.15.0
+
+### fix: [[#266](https://github.com/simulot/immich-go/issues/266)] Better handling of archive name with wildcards that matches with no file
+When the file name pattern returns no files, a message is printed, and the program ends.
+
+### fix: [[#273](https://github.com/simulot/immich-go/issues/273)] Missing upload files
+Any error is counted as upload error, and reported in the log file.
+
+### fix: Error handling during multitasking
+Any error occurred during parallelized tasks cancels other as well.
+
+### fix: Processed files count is displayed in no-ui mode
+The processed files counter is updated whenever a file for the source is processed.
+
+### fix: Unsupported files are now counted as unsupported files
+There were previously counted as discarded files.
+
+### fix: The name of the sidecar file is correctly written in the log
+
+### fix: [[#272](https://github.com/simulot/immich-go/issues/272)] Wrong release downloaded for 0.15.0
+Oops!
 
 ## Release 0.15.0
 
