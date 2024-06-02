@@ -54,7 +54,7 @@ func getImmichClient(t *testing.T, host, key, _ string) *ImmichClient {
 	if host == "" {
 		host = "http://localhost:2283"
 	}
-	ic, err := NewImmichClient(host, key, false)
+	ic, err := NewImmichClient(host, key)
 	if err != nil {
 		t.Error(err)
 		return nil
@@ -63,7 +63,7 @@ func getImmichClient(t *testing.T, host, key, _ string) *ImmichClient {
 }
 
 func checkImmich(t *testing.T, host, key, _ string) {
-	ic, err := NewImmichClient(host, key, false)
+	ic, err := NewImmichClient(host, key)
 	if err != nil {
 		t.Errorf("can't connect to %s: %s", host, err)
 	}
