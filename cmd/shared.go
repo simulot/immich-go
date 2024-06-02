@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -29,7 +28,6 @@ type SharedFlags struct {
 	Key               string        // API Key
 	DeviceUUID        string        // Set a device UUID
 	APITrace          bool          // Enable API call traces
-	NoLogColors       bool          // Disable log colors
 	LogLevel          string        // Indicate the log level (string)
 	Level             slog.Level    // Set the log level
 	Debug             bool          // Enable the debug mode
@@ -50,7 +48,6 @@ type SharedFlags struct {
 func (app *SharedFlags) InitSharedFlags() {
 	app.ConfigurationFile = configuration.DefaultConfigFile()
 	app.LogFile = configuration.DefaultLogFile()
-	app.NoLogColors = runtime.GOOS == "windows"
 	app.APITrace = false
 	app.Debug = false
 	app.SkipSSL = false
@@ -67,7 +64,6 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&app.API, "api", "", "Immich api endpoint (http://container_ip:3301)")
 	fs.StringVar(&app.Key, "key", app.Key, "API Key")
 	fs.StringVar(&app.DeviceUUID, "device-uuid", app.DeviceUUID, "Set a device UUID")
-	fs.BoolFunc("no-colors-log", "Disable colors on logs", myflag.BoolFlagFn(&app.NoLogColors, app.NoLogColors))
 	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
 	fs.StringVar(&app.LogFile, "log-file", app.LogFile, "Write log messages into the file")
 	fs.BoolFunc("log-json", "Output line-delimited JSON file, default FALSE", myflag.BoolFlagFn(&app.JSONLog, app.JSONLog))

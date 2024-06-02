@@ -26,7 +26,6 @@ import (
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/immich/metadata"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -51,7 +50,6 @@ type UpCmd struct {
 	KeepUntitled           bool             // Keep untitled albums
 	UseFolderAsAlbumName   bool             // Use folder's name instead of metadata's title as Album name
 	DryRun                 bool             // Display actions but don't change anything
-	ForceSidecar           bool             // Generate a sidecar file for each file (default: TRUE)
 	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
 	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
 	StackBurst             bool             // Stack burst (Default: TRUE)
@@ -103,10 +101,6 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		"album",
 		"",
 		"All assets will be added to this album.")
-	cmd.BoolFunc(
-		"force-sidecar",
-		"Upload the photo and a sidecar file with known information like date and GPS coordinates. With google-photos, information comes from the metadata files. (DEFAULT false)",
-		myflag.BoolFlagFn(&app.ForceSidecar, false))
 	cmd.BoolFunc(
 		"create-album-folder",
 		" folder import only: Create albums for assets based on the parent folder",
@@ -702,16 +696,6 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 	var resp immich.AssetResponse
 	var err error
 	if !app.DryRun {
-		if app.ForceSidecar {
-			sc := metadata.SideCar{}
-			sc.DateTaken = a.DateTaken
-			sc.Latitude = a.Latitude
-			sc.Longitude = a.Longitude
-			sc.Elevation = a.Altitude
-			sc.FileName = a.FileName + ".xmp"
-			a.SideCar = &sc
-		}
-
 		resp, err = app.Immich.AssetUpload(ctx, a)
 	} else {
 		resp.ID = uuid.NewString()
