@@ -2,6 +2,12 @@
 
 **Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
+## ⚠️ Immich as changed its API
+Latest release of `immich` comes with some changes in the API. This version of `immich-go` is adapted to the latest version of Immich.
+
+For older version of `immich`, please use `immich-go` version [0.16.0](https://github.com/simulot/immich-go/releases/tag/0.16.0).
+
+
 ## Key Features:
 
 * **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, date taken, and album information.
