@@ -45,7 +45,7 @@ func TestCall(t *testing.T) {
 		},
 		{
 			name:        "post / ok",
-			requestFn:   post("/album", "application/json", setAcceptJSON(), setJSONBody(struct{ Name string }{Name: "test"})),
+			requestFn:   post("/albums", "application/json", setAcceptJSON(), setJSONBody(struct{ Name string }{Name: "test"})),
 			expectedErr: false,
 			server: testServer{
 				responseStatus: http.StatusOK,
@@ -54,7 +54,7 @@ func TestCall(t *testing.T) {
 		},
 		{
 			name:        "bad request / post",
-			requestFn:   post("/album", "application/json", setAcceptJSON(), setJSONBody(struct{ Name string }{Name: "test"})),
+			requestFn:   post("/albums", "application/json", setAcceptJSON(), setJSONBody(struct{ Name string }{Name: "test"})),
 			expectedErr: true,
 			server: testServer{
 				responseStatus: http.StatusBadRequest,

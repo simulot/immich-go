@@ -113,10 +113,16 @@ func (r *Recorder) Record(ctx context.Context, code Code, object any, file strin
 		r.lock.Unlock()
 	}
 	if r.log != nil {
+		level := slog.LevelInfo
 		if file != "" {
 			args = append([]any{"file", file}, args...)
 		}
-		r.log.Log(ctx, slog.LevelInfo, code.String(), args...)
+		for _, a := range args {
+			if a == "error" {
+				level = slog.LevelError
+			}
+		}
+		r.log.Log(ctx, level, code.String(), args...)
 	}
 }
 

@@ -122,11 +122,13 @@ func (ic *ImmichClient) PingServer(ctx context.Context) error {
 
 func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
 	var user User
+
 	err := ic.newServerCall(ctx, "ValidateConnection").
-		do(get("/user/me", setAcceptJSON()), responseJSON(&user))
+		do(get("/users/me", setAcceptJSON()), responseJSON(&user))
 	if err != nil {
 		return user, err
 	}
+
 	sm, err := ic.GetSupportedMediaTypes(ctx)
 	if err != nil {
 		return user, err
@@ -172,7 +174,7 @@ type UserStatistics struct {
 
 func (ic *ImmichClient) GetAssetStatistics(ctx context.Context) (UserStatistics, error) {
 	var s UserStatistics
-	err := ic.newServerCall(ctx, "GetAssetStatistics").do(get("/asset/statistics", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, "GetAssetStatistics").do(get("/assets/statistics", setAcceptJSON()), responseJSON(&s))
 	return s, err
 }
 
