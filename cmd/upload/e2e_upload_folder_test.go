@@ -100,7 +100,7 @@ func runCase(t *testing.T, tc testCase) {
 	}
 
 	err = UploadCommand(ctx, &app, args)
-	if tc.expectError && (err == nil) {
+	if (tc.expectError && (err == nil)) || (!tc.expectError && (err != nil)) {
 		t.Errorf("unexpected err: %v", err)
 		return
 	}
@@ -394,6 +394,7 @@ func Test_ExtensionsFromTheServer(t *testing.T) {
 	tc := testCase{
 		name: "ExtensionsFromTheServer",
 		args: []string{
+			// "-log-json",
 			myEnv["IMMICH_TESTFILES"] + "/low_high/high",
 		},
 
@@ -479,7 +480,7 @@ func resetImmich(ic *immich.ImmichClient, user string) error {
 	}
 	err = ic.DeleteAssets(context.Background(), ids, true)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	attempts := 5

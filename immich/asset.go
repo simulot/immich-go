@@ -142,7 +142,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 	}()
 
 	err = ic.newServerCall(ctx, "AssetUpload").
-		do(post("/asset/upload", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+		do(post("/assets", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
 	return ar, err
 }
@@ -183,7 +183,7 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 		Force: forceDelete,
 	}
 
-	return ic.newServerCall(ctx, "DeleteAsset").do(deleteItem("/asset", setAcceptJSON(), setJSONBody(req)))
+	return ic.newServerCall(ctx, "DeleteAsset").do(deleteItem("/assets", setAcceptJSON(), setJSONBody(req)))
 }
 
 func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
@@ -240,7 +240,7 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.L
 		Longitude:   a.Longitude,
 	}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "updateAsset").do(put("/asset/"+id, setJSONBody(param)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "updateAsset").do(put("/assets/"+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
 
