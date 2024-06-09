@@ -10,6 +10,9 @@ See https://github.com/immich-app/immich/pull/9831 and https://github.com/immich
 
 ### fix: log upload errors with error level error in JSON logs
 
+### fix: [[#287](https://github.com/simulot/immich-go/issues/287)] Prevent the Upload of photos that are trashed (Google Photos)
+Trashed server's assets are excluded from the duplicate detection before uploading the same asset. 
+
 
 ## Release 0.16.0
 
