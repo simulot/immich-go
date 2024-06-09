@@ -4,10 +4,6 @@ import (
 	"context"
 )
 
-type searchMetadataBody interface {
-	setPage(p int)
-}
-
 type searchMetadataResponse struct {
 	Assets struct {
 		Total    int      `json:"total"`
@@ -18,17 +14,14 @@ type searchMetadataResponse struct {
 }
 
 type searchMetadataGetAllBody struct {
-	Page      int  `json:"page"`
-	WithExif  bool `json:"withExif,omitempty"`
-	IsVisible bool `json:"isVisible,omitempty"`
+	Page        int  `json:"page"`
+	WithExif    bool `json:"withExif,omitempty"`
+	IsVisible   bool `json:"isVisible,omitempty"`
+	WithDeleted bool `json:"withDeleted,omitempty"`
 }
 
-func (sb *searchMetadataGetAllBody) setPage(p int) {
-	sb.Page = p
-}
-
-func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req searchMetadataBody, filter func(*Asset) error) error {
-	req.setPage(1)
+func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req *searchMetadataGetAllBody, filter func(*Asset) error) error {
+	req.Page = 1
 	for {
 		select {
 		case <-ctx.Done():
@@ -50,7 +43,7 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req searchMetada
 			if resp.Assets.NextPage == 0 {
 				return nil
 			}
-			req.setPage(resp.Assets.NextPage)
+			req.Page = resp.Assets.NextPage
 		}
 	}
 }
@@ -58,7 +51,7 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req searchMetada
 func (ic *ImmichClient) GetAllAssets(ctx context.Context) ([]*Asset, error) {
 	var assets []*Asset
 
-	req := searchMetadataGetAllBody{Page: 1, WithExif: true, IsVisible: true}
+	req := searchMetadataGetAllBody{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true}
 	err := ic.callSearchMetadata(ctx, &req, func(asset *Asset) error {
 		assets = append(assets, asset)
 		return nil
@@ -70,6 +63,6 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context) ([]*Asset, error) {
 }
 
 func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, filter func(*Asset) error) error {
-	req := searchMetadataGetAllBody{Page: 1, WithExif: true, IsVisible: true}
+	req := searchMetadataGetAllBody{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true}
 	return ic.callSearchMetadata(ctx, &req, filter)
 }

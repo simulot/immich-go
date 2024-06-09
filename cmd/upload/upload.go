@@ -375,9 +375,6 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 			return ctx.Err()
 		default:
 			received++
-			if a.IsTrashed {
-				return nil
-			}
 			list = append(list, a)
 			if updateFn != nil {
 				updateFn(received, totalOnImmich)
