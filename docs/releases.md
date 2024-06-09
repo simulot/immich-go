@@ -2,8 +2,8 @@
 
 ## Released 0.17.0
 
-### ⚠️ Immich as changed its API
-This version of immich-go is compatible with immich v.1.106 and later. Use immich-go version 0.16.0 with olrder imich servers.
+### ⚠️ Immich has changed its API
+This version of immich-go is compatible with immich v.1.106 and later. Use immich-go version 0.16.0 with older immich servers.
 
 ### feature: [[#284](https://github.com/simulot/immich-go/issues/284)] Be ready for the next immich version
 See https://github.com/immich-app/immich/pull/9831 and https://github.com/immich-app/immich/pull/9667 for details

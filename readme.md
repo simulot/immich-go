@@ -2,11 +2,15 @@
 
 **Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
-## ⚠️ Immich as changed its API
+## ⚠️ Immich has changed its API
 Latest release of `immich` comes with some changes in the API. This version of `immich-go` is adapted to the latest version of Immich.
 
 For older version of `immich`, please use `immich-go` version [0.16.0](https://github.com/simulot/immich-go/releases/tag/0.16.0).
 
+Using an immich-go version not compatible with your immich server generates this error message:
+```
+ValidateConnection, GET, http://your-immich-server:2283/api/user/me, 404 Not Found
+```
 
 ## Key Features:
 
