@@ -14,12 +14,12 @@ The Immich project fulfills all my requirements for managing my photos:
 
 Now, I need to migrate my photos to the new system in bulk. Most of my photos are stored in a NAS directory, while photos taken with my smartphone are in the Google Photos application often more compressed.
 
-To completely transition away from the Google Photos service, I must set up an Immich server, import my NAS-stored photos, and merge them with my Google Photos collection. 
+To completely transition away from the Google Photos service, I must set up an Immich server, import my NAS-stored photos, and merge them with my Google Photos collection.
 However, there are instances where the same pictures exist in both systems, sometimes with varying quality. Of course, I want to keep only the best copy of the photo.
 
 The  `immich-cli` installation isn't trivial on a client machine, and doesn't handle Google Photos Takeout archive oddities.
 
-The immich-cli tool does a great for importing a tone of files at full speed. However, I want more. So I write this utility for my onw purpose. Maybe, it could help some one else.
+The immich-cli tool does a great for importing a tone of files at full speed. However, I want more. So I write this utility for my own purpose. Maybe, it could help some one else.
 
 ## Limitations of the `immich-CLI`:
 
