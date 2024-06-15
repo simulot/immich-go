@@ -1,5 +1,12 @@
 # Release notes 
 
+## Released 0.17.1
+
+### Fix: UpdateAsset new API endpoint
+
+### Fix: Typo in motivation.md file
+
+
 ## Released 0.17.0
 
 ### ⚠️ Immich has changed its API
