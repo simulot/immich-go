@@ -9,21 +9,46 @@ import (
 	"github.com/simulot/immich-go/helpers/tzone"
 )
 
+type Metablock struct {
+	Title          string         `json:"title"`
+	Description    string         `json:"description"`
+	Category       string         `json:"category"`
+	DatePresent    googIsPresent  `json:"date,omitempty"` // true when the file is a folder metadata
+	PhotoTakenTime googTimeObject `json:"photoTakenTime"`
+	GeoDataExif    googGeoData    `json:"geoDataExif"`
+	Trashed        bool           `json:"trashed,omitempty"`
+	Archived       bool           `json:"archived,omitempty"`
+	URLPresent     googIsPresent  `json:"url,omitempty"`       // true when the file is an asset metadata
+	Favorited      bool           `json:"favorited,omitempty"` // true when starred in GP
+}
+
 type GoogleMetaData struct {
-	Title              string         `json:"title"`
-	Description        string         `json:"description"`
-	Category           string         `json:"category"`
-	DatePresent        googIsPresent  `json:"date,omitempty"` // true when the file is a folder metadata
-	PhotoTakenTime     googTimeObject `json:"photoTakenTime"`
-	GeoDataExif        googGeoData    `json:"geoDataExif"`
-	Trashed            bool           `json:"trashed,omitempty"`
-	Archived           bool           `json:"archived,omitempty"`
-	URLPresent         googIsPresent  `json:"url,omitempty"`       // true when the file is an asset metadata
-	Favorited          bool           `json:"favorited,omitempty"` // true when starred in GP
+	Metablock
 	GooglePhotosOrigin struct {
 		FromPartnerSharing googIsPresent `json:"fromPartnerSharing,omitempty"` // true when this is a partner's asset
 	} `json:"googlePhotosOrigin"`
-	foundInPaths []string // Not in the JSON, keep track of paths where the json has been found
+	AlbumData *Metablock `json:"albumdata"`
+	// Not in the JSON, for local treatment
+	foundInPaths []string //  keep track of paths where the json has been found
+}
+
+func (gmd *GoogleMetaData) UnmarshalJSON(data []byte) error {
+	type gmetadata GoogleMetaData
+	var gg gmetadata
+
+	err := json.Unmarshal(data, &gg)
+	if err != nil {
+		return err
+	}
+
+	// compensate metadata version
+	if gg.AlbumData != nil {
+		gg.Metablock = *gg.AlbumData
+		gg.AlbumData = nil
+	}
+
+	*gmd = GoogleMetaData(gg)
+	return nil
 }
 
 func (gmd GoogleMetaData) isAlbum() bool {
