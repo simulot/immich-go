@@ -3,45 +3,49 @@ package metadata
 import (
 	"context"
 	"flag"
+	"fmt"
 	"math"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/docker"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
-	"github.com/simulot/immich-go/logger"
 )
 
 type MetadataCmd struct {
-	Immich                 *immich.ImmichClient // Immich client
-	Log                    *logger.Log
+	*cmd.SharedFlags
 	DryRun                 bool
 	MissingDateDespiteName bool
 	MissingDate            bool
 	DockerHost             string
 }
 
-func NewMetadataCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Log, args []string) (*MetadataCmd, error) {
+func NewMetadataCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*MetadataCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("metadata", flag.ExitOnError)
 	app := MetadataCmd{
-		Immich: ic,
-		Log:    logger,
+		SharedFlags: common,
 	}
 
+	app.SharedFlags.SetFlags(cmd)
 	cmd.BoolFunc("dry-run", "display actions, but don't touch the server assets", myflag.BoolFlagFn(&app.DryRun, false))
 	cmd.BoolFunc("missing-date", "select all assets where the date is missing", myflag.BoolFlagFn(&app.MissingDate, false))
 	cmd.BoolFunc("missing-date-with-name", "select all assets where the date is missing but the name contains a the date", myflag.BoolFlagFn(&app.MissingDateDespiteName, false))
 	cmd.StringVar(&app.DockerHost, "docker-host", "local", "Immich's docker host where to inject sidecar file as workaround for the issue #3888. 'local' for local connection, 'ssh://user:password@server' for remote host.")
 	err = cmd.Parse(args)
+	if err != nil {
+		return nil, err
+	}
+	err = app.SharedFlags.Start(ctx)
 	return &app, err
 }
 
-func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
-	app, err := NewMetadataCmd(ctx, ic, log, args)
+func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+	app, err := NewMetadataCmd(ctx, common, args)
 	if err != nil {
 		return err
 	}
@@ -53,15 +57,15 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if err != nil {
 			return err
 		}
-		app.Log.OK("Connected to the immich's docker container at %q", app.DockerHost)
+		fmt.Printf("Connected to the immich's docker container at %q\n", app.DockerHost)
 	}
 
-	app.Log.MessageContinue(logger.OK, "Get server's assets...")
-	list, err := app.Immich.GetAllAssets(ctx, nil)
+	fmt.Println("Get server's assets...")
+	list, err := app.Immich.GetAllAssets(ctx)
 	if err != nil {
 		return err
 	}
-	app.Log.MessageTerminate(logger.OK, " %d received", len(list))
+	fmt.Printf(" %d received\n", len(list))
 
 	type broken struct {
 		a *immich.Asset
@@ -110,18 +114,18 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if b.fixable {
 			fixable++
 		}
-		app.Log.OK("%s, (%s %s): %s", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
+		fmt.Printf("%s, (%s %s): %s\n", b.a.OriginalPath, b.a.ExifInfo.Make, b.a.ExifInfo.Model, strings.Join(b.reason, ", "))
 	}
-	app.Log.OK("%d broken assets", len(brockenAssets))
-	app.Log.OK("Among them, %d can be fixed with current settings", fixable)
+	fmt.Printf("%d broken assets\n", len(brockenAssets))
+	fmt.Printf("Among them, %d can be fixed with current settings\n", fixable)
 
 	if fixable == 0 {
 		return nil
 	}
 
 	if app.DryRun {
-		log.OK("Dry-run mode. Exiting")
-		log.OK("use -dry-run=false after metadata command")
+		fmt.Println("Dry-run mode. Exiting")
+		fmt.Println("use -dry-run=false after metadata command")
 		return nil
 	}
 
@@ -137,7 +141,7 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 			continue
 		}
 		a := b.a
-		app.Log.MessageContinue(logger.OK, "Uploading sidecar for %s... ", a.OriginalPath)
+		fmt.Printf("Uploading sidecar for %s... \n", a.OriginalPath)
 		scContent, err := b.SideCar.Bytes()
 		if err != nil {
 			return err
@@ -146,7 +150,7 @@ func MetadataCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if err != nil {
 			return err
 		}
-		app.Log.MessageTerminate(logger.OK, "done")
+		fmt.Println("done")
 	}
 	return nil
 }

@@ -11,9 +11,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
-	"github.com/simulot/immich-go/logger"
+	"github.com/simulot/immich-go/immich"
 )
 
 type Takeout struct {
@@ -22,7 +23,8 @@ type Takeout struct {
 	jsonByYear map[jsonKey]*GoogleMetaData // assets by year of capture and base name
 	uploaded   map[fileKey]any             // track files already uploaded
 	albums     map[string]string           // tack album names by folder
-	jnl        *logger.Journal
+	log        *fileevent.Recorder
+	sm         immich.SupportedMedia
 }
 
 // walkerCatalog collects all directory catalogs
@@ -30,9 +32,8 @@ type walkerCatalog map[string]directoryCatalog // by directory in the walker
 
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
-	// isAlbum    bool                // true when the directory is recognized as an album
-	// albumTitle string              // album title from album's metadata
-	files map[string]fileInfo // map of fileInfo by base name
+	unMatchedFiles map[string]fileInfo // map of fileInfo by base name
+	matchedFiles   map[string]fileInfo // map of fileInfo by base name
 }
 
 // fileInfo keep information collected during pass one
@@ -54,41 +55,32 @@ type jsonKey struct {
 	year int
 }
 
-// type fileWalkerPath struct {
-// 	w archwalker.Walker
-// 	p string
-// }
-
-func NewTakeout(ctx context.Context, jnl *logger.Journal, fsyss ...fs.FS) (*Takeout, error) {
+func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
 	to := Takeout{
 		fsyss:      fsyss,
 		jsonByYear: map[jsonKey]*GoogleMetaData{},
 		albums:     map[string]string{},
-		jnl:        jnl,
-	}
-	err := to.passOne(ctx)
-	if err != nil {
-		return nil, err
+		log:        l,
+		sm:         sm,
 	}
 
-	to.solvePuzzle()
-	return &to, err
+	return &to, nil
 }
 
-// passOne scans all files in all walker to build the file catalog of the archive
+// Prepare scans all files in all walker to build the file catalog of the archive
 // metadata files content is read and kept
 
-func (to *Takeout) passOne(ctx context.Context) error {
+func (to *Takeout) Prepare(ctx context.Context) error {
 	to.catalogs = map[fs.FS]walkerCatalog{}
 	for _, w := range to.fsyss {
 		to.catalogs[w] = walkerCatalog{}
-		// wName := "" //w.Name()
 		err := to.passOneFsWalk(ctx, w)
 		if err != nil {
 			return err
 		}
 	}
-	return nil
+	err := to.solvePuzzle(ctx)
+	return err
 }
 
 func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
@@ -106,19 +98,21 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				return nil
 			}
 
-			to.jnl.AddEntry(name, logger.DiscoveredFile, "")
 			dir, base := path.Split(name)
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
 
 			if slices.Contains(uselessFiles, base) {
-				to.jnl.AddEntry(name, logger.Discarded, "Useless file")
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "useless file")
 				return nil
 			}
 
 			dirCatalog := to.catalogs[w][dir]
-			if dirCatalog.files == nil {
-				dirCatalog.files = map[string]fileInfo{}
+			if dirCatalog.unMatchedFiles == nil {
+				dirCatalog.unMatchedFiles = map[string]fileInfo{}
+			}
+			if dirCatalog.matchedFiles == nil {
+				dirCatalog.matchedFiles = map[string]fileInfo{}
 			}
 			finfo, err := d.Info()
 			if err != nil {
@@ -131,43 +125,38 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					switch {
 					case md.isAsset():
 						to.addJSON(dir, base, md)
-						to.jnl.AddEntry(name, logger.Metadata, "Asset Title: "+md.Title)
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "asset metadata")
 					case md.isAlbum():
 						to.albums[dir] = md.Title
-						to.jnl.AddEntry(name, logger.Metadata, "Album title: "+md.Title)
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "album metadata", "title", md.Title)
 					default:
-						to.jnl.AddEntry(name, logger.Discarded, "Unknown json file")
+						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "reason", "unknown JSONfile")
 						return nil
 					}
 				} else {
-					to.jnl.AddEntry(name, logger.Discarded, "Unknown json file")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "reason", "unknown JSONfile")
 					return nil
 				}
 			default:
-
-				if fshelper.IsIgnoredExt(ext) {
-					to.jnl.AddEntry(name, logger.Discarded, "File ignored")
+				t := to.sm.TypeFromExt(ext)
+				switch t {
+				case immich.TypeUnknown:
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "unsupported file type")
 					return nil
-				}
-
-				m, err := fshelper.MimeFromExt(ext)
-				if err != nil {
-					to.jnl.AddEntry(name, logger.Unsupported, "")
+				case immich.TypeIgnored:
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "useless file")
 					return nil
+				case immich.TypeVideo:
+					if strings.Contains(name, "Failed Videos") {
+						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "can't upload failed videos")
+						return nil
+					}
+					to.log.Record(ctx, fileevent.DiscoveredVideo, nil, name)
+				case immich.TypeImage:
+					to.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
 				}
-
-				if strings.Contains(name, "Failed Videos") {
-					to.jnl.AddEntry(name, logger.FailedVideo, "")
-					return nil
-				}
-				dirCatalog.files[base] = fileInfo{
+				dirCatalog.unMatchedFiles[base] = fileInfo{
 					length: int(finfo.Size()),
-				}
-				ss := strings.Split(m[0], "/")
-				if ss[0] == "image" {
-					to.jnl.AddEntry(name, logger.ScannedImage, "")
-				} else {
-					to.jnl.AddEntry(name, logger.ScannedVideo, "")
 				}
 			}
 			to.catalogs[w][dir] = dirCatalog
@@ -191,7 +180,7 @@ func (to *Takeout) addJSON(dir, base string, md *GoogleMetaData) {
 	to.jsonByYear[k] = md
 }
 
-type matcherFn func(jsonName string, fileName string) bool
+type matcherFn func(jsonName string, fileName string, sm immich.SupportedMedia) bool
 
 // matchers is a list of matcherFn from the most likely to be used to the least one
 var matchers = []matcherFn{
@@ -227,8 +216,7 @@ var matchers = []matcherFn{
 // The duplicates files (same name, same length in bytes) found in the local source are discarded before been presented to the immich server.
 //
 
-func (to *Takeout) solvePuzzle() {
-	to.jnl.OK("Associating JSON and assets...")
+func (to *Takeout) solvePuzzle(ctx context.Context) error {
 	jsonKeys := gen.MapKeys(to.jsonByYear)
 	sort.Slice(jsonKeys, func(i, j int) bool {
 		yd := jsonKeys[i].year - jsonKeys[j].year
@@ -256,14 +244,17 @@ func (to *Takeout) solvePuzzle() {
 			for d := range paths {
 				for _, w := range to.fsyss {
 					l := to.catalogs[w][d]
-					for f := range l.files {
-						if l.files[f].md == nil {
-							if matcher(k.name, f) {
-								to.jnl.AddEntry(path.Join(d, f), logger.AssociatedMetadata, fmt.Sprintf("%s (%d)", k.name, k.year))
-								// if not already matched
-								i := l.files[f]
+					for f := range l.unMatchedFiles {
+						select {
+						case <-ctx.Done():
+							return ctx.Err()
+						default:
+							if matcher(k.name, f, to.sm) {
+								i := l.unMatchedFiles[f]
 								i.md = md
-								l.files[f] = i
+								l.matchedFiles[f] = i
+								delete(l.unMatchedFiles, f)
+								to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.unMatchedFiles[f], f)
 							}
 						}
 					}
@@ -272,13 +263,14 @@ func (to *Takeout) solvePuzzle() {
 			}
 		}
 	}
+	return nil
 }
 
 // normalMatch
 //
 //	PXL_20230922_144936660.jpg.json
 //	PXL_20230922_144936660.jpg
-func normalMatch(jsonName string, fileName string) bool {
+func normalMatch(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	return base == fileName
 }
@@ -294,10 +286,10 @@ func normalMatch(jsonName string, fileName string) bool {
 //  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json
 //  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg
 
-func matchWithOneCharOmitted(jsonName string, fileName string) bool {
+func matchWithOneCharOmitted(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	if strings.HasPrefix(fileName, base) {
-		if fshelper.IsExtensionPrefix(path.Ext(base)) {
+		if t := sm.TypeFromExt(path.Ext(base)); t == immich.TypeImage || t == immich.TypeVideo {
 			// Trim only if the EXT is known extension, and not .COVER or .ORIGINAL
 			base = strings.TrimSuffix(base, path.Ext(base))
 		}
@@ -314,7 +306,7 @@ func matchWithOneCharOmitted(jsonName string, fileName string) bool {
 //
 //	Backyard_ceremony_wedding_photography_xxxxxxx_(494).json
 //	Backyard_ceremony_wedding_photography_xxxxxxx_m(494).jpg
-func matchVeryLongNameWithNumber(jsonName string, fileName string) bool {
+func matchVeryLongNameWithNumber(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 
 	p1JSON := strings.Index(jsonName, "(")
@@ -340,7 +332,7 @@ func matchVeryLongNameWithNumber(jsonName string, fileName string) bool {
 //
 //	IMG_3479.JPG(2).json
 //	IMG_3479(2).JPG
-func matchDuplicateInYear(jsonName string, fileName string) bool {
+func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	p1JSON := strings.Index(jsonName, "(")
 	if p1JSON < 1 {
@@ -363,11 +355,11 @@ func matchDuplicateInYear(jsonName string, fileName string) bool {
 //   PXL_20220405_090123740.PORTRAIT.jpg
 //   PXL_20220405_090123740.PORTRAIT-modifié.jpg
 
-func matchEditedName(jsonName string, fileName string) bool {
+func matchEditedName(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	ext := path.Ext(base)
 	if ext != "" {
-		if _, err := fshelper.MimeFromExt(ext); err == nil {
+		if sm.IsMedia(ext) {
 			base := strings.TrimSuffix(base, ext)
 			fname := strings.TrimSuffix(fileName, path.Ext(fileName))
 			return strings.HasPrefix(fname, base)
@@ -383,7 +375,7 @@ func matchEditedName(jsonName string, fileName string) bool {
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg
 
-func matchForgottenDuplicates(jsonName string, fileName string) bool {
+func matchForgottenDuplicates(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
 	if strings.HasPrefix(fileName, jsonName) {
@@ -417,7 +409,6 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 }
 
 func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *browser.LocalAssetFile) error {
-	to.jnl.OK("Ready to upload files")
 	return fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -431,27 +422,28 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 		dir = strings.TrimSuffix(dir, "/")
 		ext := strings.ToLower(path.Ext(base))
 
-		if fshelper.IsIgnoredExt(ext) {
+		if to.sm.IsIgnoredExt(ext) {
 			return nil
 		}
 
-		if _, err := fshelper.MimeFromExt(ext); err != nil {
+		if !to.sm.IsMedia(ext) {
 			return nil
 		}
-		f, exist := to.catalogs[w][dir].files[base]
+		if _, exist := to.catalogs[w][dir].unMatchedFiles[base]; exist {
+			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, nil, name, "hint", "process all parts of the takeout at the same time")
+			return nil
+		}
+		f, exist := to.catalogs[w][dir].matchedFiles[base]
 		if !exist {
-			return nil
-		}
-
-		if f.md == nil {
-			to.jnl.AddEntry(name, logger.ERROR, "JSON File not found for this file")
 			return nil
 		}
 		finfo, err := d.Info()
 		if err != nil {
-			to.jnl.Error("can't browse: %s", err)
+			to.log.Record(ctx, fileevent.Error, err, name, "message", err.Error())
 			return nil
 		}
+
+		// TODO: move this to resolve puzzle
 
 		key := fileKey{
 			base:   base,
@@ -459,14 +451,15 @@ func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *bro
 			year:   f.md.PhotoTakenTime.Time().Year(),
 		}
 		if _, exists := to.uploaded[key]; exists {
-			to.jnl.AddEntry(name, logger.LocalDuplicate, "")
+			to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
+
 			return nil
 		}
 		a := to.googleMDToAsset(f.md, key, w, name)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case assetChan <- a: // the consumer must call a.File.Release()
+		case assetChan <- a:
 			to.uploaded[key] = nil // remember we have seen this file already
 		}
 		return nil

@@ -10,23 +10,40 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/browser"
-	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/helpers/fileevent"
+	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
-	"github.com/simulot/immich-go/logger"
 )
 
 type LocalAssetBrowser struct {
-	fsyss  []fs.FS
-	albums map[string]string
-	log    *logger.Journal
+	fsyss      []fs.FS
+	albums     map[string]string
+	log        *fileevent.Recorder
+	sm         immich.SupportedMedia
+	whenNoDate string
 }
 
-func NewLocalFiles(ctx context.Context, log *logger.Journal, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	return &LocalAssetBrowser{
-		fsyss:  fsyss,
-		albums: map[string]string{},
-		log:    log,
+		fsyss:      fsyss,
+		albums:     map[string]string{},
+		log:        l,
+		whenNoDate: "FILE",
 	}, nil
+}
+
+func (la *LocalAssetBrowser) Prepare(ctx context.Context) error {
+	return nil
+}
+
+func (la *LocalAssetBrowser) SetSupportedMedia(sm immich.SupportedMedia) *LocalAssetBrowser {
+	la.sm = sm
+	return la
+}
+
+func (la *LocalAssetBrowser) SetWhenNoDate(opt string) *LocalAssetBrowser {
+	la.whenNoDate = opt
+	return la
 }
 
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -78,44 +95,28 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 		return err
 	}
 
-	// fileMap := map[string][]fs.DirEntry{}
-	// for _, e := range entries {
-	// 	if e.IsDir() {
-	// 		continue
-	// 	}
-	// 	ext := path.Ext(e.Name())
-	// 	_, err := fshelper.MimeFromExt(ext)
-	// 	if strings.ToLower(ext) == ".xmp" || err == nil {
-	// 		base := strings.TrimSuffix(e.Name(), ext)
-	// 		fileMap[base] = append(fileMap[base], e)
-	// 	}
-	// }
-
+nextFile:
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		fileName := path.Join(folder, e.Name())
-		la.log.AddEntry(fileName, logger.DiscoveredFile, "")
 		name := e.Name()
+		fileName := path.Join(folder, name)
 		ext := strings.ToLower(path.Ext(name))
-		if fshelper.IsMetadataExt(ext) {
-			la.log.AddEntry(name, logger.Metadata, "")
-			continue
-		} else if fshelper.IsIgnoredExt(ext) {
-			la.log.AddEntry(fileName, logger.Unsupported, "")
-			continue
-		}
-		m, err := fshelper.MimeFromExt(strings.ToLower(ext))
-		if err != nil {
-			la.log.AddEntry(fileName, logger.Unsupported, "")
-			continue
-		}
-		ss := strings.Split(m[0], "/")
-		if ss[0] == "image" {
-			la.log.AddEntry(name, logger.ScannedImage, "")
-		} else {
-			la.log.AddEntry(name, logger.ScannedVideo, "")
+
+		t := la.sm.TypeFromExt(ext)
+		switch t {
+		default:
+			la.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, fileName, "reason", "unsupported file type")
+			continue nextFile
+		case immich.TypeIgnored:
+			la.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, fileName, "reason", "useless file")
+			continue nextFile
+		case immich.TypeSidecar:
+			la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, fileName)
+			continue nextFile
+		case immich.TypeImage:
+		case immich.TypeVideo:
 		}
 
 		f := browser.LocalAssetFile{
@@ -136,11 +137,24 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 				err = la.ReadMetadataFromFile(&f)
 				_ = err
 				if f.DateTaken.Before(toOldDate) {
-					f.DateTaken = time.Now()
+					switch la.whenNoDate {
+					case "FILE":
+						f.DateTaken = s.ModTime()
+					case "NOW":
+						f.DateTaken = time.Now()
+					}
 				}
 			}
-			la.checkSidecar(&f, entries, folder, name)
+			la.checkSidecar(ctx, &f, entries, folder, name)
 		}
+
+		switch t {
+		case immich.TypeImage:
+			la.log.Record(ctx, fileevent.DiscoveredImage, f, fileName)
+		case immich.TypeVideo:
+			la.log.Record(ctx, fileevent.DiscoveredVideo, f, fileName)
+		}
+
 		// Check if the context has been cancelled
 		select {
 		case <-ctx.Done():
@@ -153,8 +167,8 @@ func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, fileC
 	return nil
 }
 
-func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
-	assetBase := baseNames(name)
+func (la *LocalAssetBrowser) checkSidecar(ctx context.Context, f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
+	assetBase := la.baseNames(name)
 
 	for _, name := range assetBase {
 		xmp := name + ".[xX][mM][pP]"
@@ -168,7 +182,7 @@ func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []f
 					FileName: path.Join(dir, e.Name()),
 					OnFSsys:  true,
 				}
-				la.log.AddEntry(name, logger.AssociatedMetadata, "")
+				la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, path.Join(dir, e.Name()), "main", f.FileName)
 				return true
 			}
 		}
@@ -176,7 +190,7 @@ func (la *LocalAssetBrowser) checkSidecar(f *browser.LocalAssetFile, entries []f
 	return false
 }
 
-func baseNames(n string) []string {
+func (la *LocalAssetBrowser) baseNames(n string) []string {
 	n = escapeName(n)
 	names := []string{n}
 	ext := path.Ext(n)
@@ -184,8 +198,7 @@ func baseNames(n string) []string {
 		if ext == "" {
 			return names
 		}
-		_, err := fshelper.MimeFromExt(ext)
-		if err != nil {
+		if la.sm.TypeFromExt(ext) == "" {
 			return names
 		}
 		n = strings.TrimSuffix(n, ext)

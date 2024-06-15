@@ -1,6 +1,208 @@
 # Release notes 
 
-## Release next
+## Released 0.17.1
+
+### Fix: UpdateAsset new API endpoint
+
+### Fix: Typo in motivation.md file
+
+
+## Released 0.17.0
+
+### ⚠️ Immich has changed its API
+This version of immich-go is compatible with immich v.1.106 and later. Use immich-go version 0.16.0 with older immich servers.
+
+### feature: [[#284](https://github.com/simulot/immich-go/issues/284)] Be ready for the next immich version
+See https://github.com/immich-app/immich/pull/9831 and https://github.com/immich-app/immich/pull/9667 for details
+
+### fix: log upload errors with error level error in JSON logs
+
+### fix: [[#287](https://github.com/simulot/immich-go/issues/287)] Prevent the Upload of photos that are trashed (Google Photos)
+Trashed server's assets are excluded from the duplicate detection before uploading the same asset. 
+
+
+## Release 0.16.0
+
+### feature: [[#261](https://github.com/simulot/immich-go/issues/261)] Fallback to no-gui mode when the UI can't be created
+When the terminal can't handle the UI mode, the program falls back to non gui mode automatically
+
+### feature: The log can be written with the JSON format (JSONL)
+Use the `-log-json` option to enable JSON logging (JSONL format). This allows using [./jq](https://jqlang.github.io/jq/)  to explore large logs.
+
+### feature: [[#277](https://github.com/simulot/immich-go/issues/277)] Adjust client side timeouts 
+The immich client timeout is set with the option `-client-timeout=duration`. 
+ The duration is a decimal numbers with a unit suffix, such as "300ms", "1.5m" or "45m". Valid time units are "ms", "s", "m", "h".   
+
+### fix: [[#270](https://github.com/simulot/immich-go/issues/270)]  `Missing associated metadata file` counter is not updated after the performance improvement
+The counter `missing associated metadata` is broken since 0.15.0
+
+### fix: [[#266](https://github.com/simulot/immich-go/issues/266)] Better handling of archive name with wildcards that matches with no file
+When the file name pattern returns no files, a message is printed, and the program ends.
+
+### fix: [[#273](https://github.com/simulot/immich-go/issues/273)] Missing upload files
+Any error is counted as upload error, and reported in the log file.
+
+### fix: Error handling during multitasking
+Any error occurred during parallelized tasks cancels other as well.
+
+### fix: Processed files count is displayed in no-ui mode
+The processed files counter is updated whenever a file for the source is processed.
+
+### fix: Unsupported files are now counted as unsupported files
+There were previously counted as discarded files.
+
+### fix: The name of the sidecar file is correctly written in the log
+
+### fix: [[#272](https://github.com/simulot/immich-go/issues/272)] Wrong release downloaded for 0.15.0
+Oops!
+
+## Release 0.15.0
+
+### fix [#255](https://github.com/simulot/immich-go/issues/255) Last percents of google puzzle solving are very slow when processing very large takeout archive
+The google puzzle solving is now much faster for large takeout archives.
+
+### fix [#215](https://github.com/simulot/immich-go/issues/215) Use XDG_CONFIG_HOME for storing config
+The configuration file that contains the server and the key is now stored by default in following folder:
+- Linux `$HOME/.config/immich-go/immich-go.json`
+- Windows `%AppData%\immich-go\immich-go.json`
+- Apple `$HOME/Library/Application Support/immich-go/immich-go.json` 
+
+### Store the log files into sensible dir for user's system
+The default log file is: 
+- Linux `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`
+- Windows `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log`
+- Apple `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`
+
+### Feat: [[#249](https://github.com/simulot/immich-go/issues/249)] Fix Display the path of log file name
+The log file name is printed when the program exits.
+
+
+## Release 0.14.1
+
+### fix [#246](https://github.com/simulot/immich-go/issues/246) Google Takeout 403 Forbidden on non admin user
+Uses the endpoint /api/asset/statistics to get the number of user's assets.
+
+## Release 0.14.0 "A better UI"
+
+This release is focussed the improvement of the user experience. 
+
+### A shiny user interface
+
+```
+. _ _  _ _ . _|_     _  _ 
+|| | || | ||(_| | ─ (_|(_)
+               v dev _)   
+
+```
+
+Working with big database and big takeout files take some time. Users are now informed about the progression of different tasks:
+
+![image](/docs/render1716187129166.gif)
+
+The screen presents number of processed photos, how they have been processes, the messages log, and at the bottom, the progression of the 3 mains tasks.
+
+
+### A minimalist user interface
+
+This shiny interface can be be disabled for quieter user interface (`-no-ui`).
+The progression is visible. All details on operations are listed in the log file.
+
+
+```
+. _ _  _ _ . _|_  __  _  _ 
+|| | || | ||(_| |    (_|(_)
+      version dev     _)   
+
+Server status: OK
+Connected, user: demo@immich.app
+Immich read 100%, Google Photos Analysis: 100%, Uploaded 100%  
+
+Input analysis:
+----------------------
+scanned image file                      :   25420
+scanned video file                      :    1447
+scanned sidecar file                    :   26934
+discarded file                          :     197
+unsupported file                        :       0
+file duplicated in the input            :    1706
+associated metadata file                :   26867
+missing associated metadata file        :       0
+
+Uploading:
+----------
+uploaded                                :   25160
+server error                            :       0
+file not selected                       :       1
+server's asset upgraded with the input  :       0
+server has same photo                   :       0
+server has a better asset               :       0
+```
+
+### Immich-go runs simultaneously the collect of immich-server's assets and the analysis of the Google takeout
+
+The code has been refactored to run several task simultaneously to animate the progression screen. The program runs now the reading of immich asset and the the takeout analysis in parallel.
+
+### Immich-go now always produces a log file 
+
+The default name for the log file is `immich-go YYYY-MM-DD HH-MI-SS.log`, located in the current directory.
+
+It's possible to give a path and a name to the log file with the option `-log-file=path/to/file.log`. 
+If the file file exists already, the new messages will be added to its end.
+
+The log level `OK` is removed.
+
+### Immich-go is published under the AGPL-3.0 license
+
+I chose the same license as the immich project license to release immich-go. 
+
+### Next steps
+
+- Issues closing
+- A shiny user interface for the command `duplicate`
+
+
+## Release 0.13.2
+
+### Fix [[#211](https://github.com/simulot/immich-go/issues/211)]  immich-go appears to retain/cache an API key
+Fix the logic for retaining the credential: 
+
+When given, the credentials are saved into the configuration file.
+When not given, the credential are read from the configuration file if possible.
+ 
+## Release 0.13.0
+
+### Improvement: [#189](https://github.com/simulot/immich-go/issues/189) Use a configuration file to store server's address and its API key  
+
+The server URL and the API key are now stored into a configuration file (by default $HOME/.immich-go/immich-go.json).
+If not provided in the CLI argument, those values are read from the configuration file.
+
+The option `-use-configuration=path/to/config/file` let you specify the configuration file. 
+
+### fix: [#193](https://github.com/simulot/immich-go/issues/193) Flags not being passed to subcommands #193
+
+
+### Improvement: Better handling of wild cards in path 
+`Immich-go` now accepts to handle path like `photos/Holydays*`. This, combined with the `-create-album-folder` will create 
+an album per folder Holydays*.
+
+It can handle patterns like : /photo/\*/raw/\*.dmg
+
+### fix: Append Log #182
+Log are now appended to the log file
+
+
+## Release 0.12.0
+
+### fix: #173 [Feature Request:] Set date from file system timestamp
+When there is no date of take neither in the file name nor in EXIF data, the photo is uploaded with the file modification date.
+This behavior can be changed with the option:
+`-when-no-date FILE|NOW` 
+
+## Release 0.11.0
+
+### fix: stack command fails #169 
+The immich version 1.95 changed the /asset api endpoint used to during the stack operation.
+API call have been changed to match with new api endpoints
 
 ### fix: #140 Device UUID is not set
 The option `-device-uuid VALUE` was not functional.

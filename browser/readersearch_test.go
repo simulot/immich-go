@@ -10,7 +10,7 @@ import (
 
 func GenRandomBytes(size int) (blk []byte) {
 	blk = make([]byte, size)
-	rand.Read(blk)
+	_, _ = rand.Read(blk)
 	return
 }
 

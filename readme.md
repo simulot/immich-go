@@ -1,27 +1,40 @@
-# Bulk Uploading to Immich with `immich-go`
+# Immich-Go: Upload Your Photos to Your Immich Server
 
-Do you have a large collection of photos or extensive Google Photos takeout files to upload in 'immich'?<br>
-Are you struggling with Node.js or Docker installation just to upload your photos to 'immich'?
+**Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
-Give a try to the `immich-go` tool.
+## ⚠️ Immich has changed its API
+Latest release of `immich` comes with some changes in the API. This version of `immich-go` is adapted to the latest version of Immich.
 
-- import from folder(s).
-- import from zipped archives without prior extraction.
-- discard duplicate images, based on the file name, and the date of capture.
-- import only missing files or better files (an delete the inferior copy from the server).
-- import from Google Photos takeout archives:
-    - use metadata to bypass file name discrepancies in the archive
-    - use metadata to get album real names
-    - use date of capture found in the json files
-    - create albums based on Google Photos albums or folder names.
-- import photos taken within a date range.
-- import and stack couples jpg/raw photos or bursts
-- import IPhone live photos
-- remove duplicated assets, based on the file name, date of capture, and file size
-- no installation, no dependencies.
+For older version of `immich`, please use `immich-go` version [0.16.0](https://github.com/simulot/immich-go/releases/tag/0.16.0).
 
-> ⚠️ This an early version, not yet extensively tested<br>
-> ⚠️ Keep a backup copy of your files for safety<br>
+Using an immich-go version not compatible with your immich server generates this error message:
+```
+ValidateConnection, GET, http://your-immich-server:2283/api/user/me, 404 Not Found
+```
+
+## Key Features:
+
+* **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, date taken, and album information.
+* **Flexible Uploads:**  Immich-Go isn't limited to Google Photos. You can upload photos directly from your computer folders, folders tree and ZIP archives.
+* **Simple Installation:** Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
+* **Prioritize Quality:**  Immich-Go discards any lower-resolution versions that might be included in Google Photos Takeout, ensuring you have the best possible copies on your Immich server.
+* **Stack burst and raw/jpg photos**: Group together related photos in Immich.
+
+
+## Google Photos Best Practices:
+
+* **Taking Out Your Photos:**
+  * Choose the ZIP format when creating your takeout for easier import.
+  * Select the largest file size available (50GB) to minimize the number of archive parts.
+  * Download all parts on your computer
+
+* **Importing Your Photos:**
+  * If your takeout is in ZIP format, you can import it directly without needing to unzip the files first.
+  * It's important to import all the parts of the takeout together, since some data might be spread across multiple files. 
+    <br>Use `/path/to/you/files/takeout-*.zip` as file name.
+  * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. When using the import tool, don't forget the `-google-photos` option.
+  * You can remove any unwanted files or folders from your takeout before importing. Immich-go might warn you about missing JSON files, but it should still import your photos successfully.
+  * Restarting an interrupted import won't cause any problems and it will resume the work where it was left.
 
 
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
@@ -32,7 +45,12 @@ For insights into the reasoning behind this alternative to `immich-cli`, please 
 [![Star History Chart](https://api.star-history.com/svg?repos=simulot/immich-go&type=Date)](https://star-history.com/#simulot/immich-go&Date)
 
 
+> ⚠️ This an early version, not yet extensively tested<br>
+> ⚠️ Keep a backup copy of your files for safety<br>
+
+
 # Executing `immich-go`
+The `immich-go` is a command line tool that must be run from a terminal window.  
 The `immich-go` program uses the Immich API. Hence it need the server address and a valid API key.
 
 
@@ -40,56 +58,73 @@ The `immich-go` program uses the Immich API. Hence it need the server address an
 immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
 ```
 
-`-server URL` URL of the Immich service, example http://<your-ip>:2283 or https://your-domain<br>
-`-api URL` URL of the Immich api endpoint (http://container_ip:3301)<br>
-`-device-uuid VALUE` Force the device identification (default $HOSTNAME).<br>
-`-skip-verify-ssl <bool>` Skip SSL verification for use with self-signed certificates (default: false)
 
-`-key KEY` A key generated by the user. Uploaded photos will belong to the key's owner.<br>
-`-no-colors-log` Remove color codes from logs.<br>
+> Boolean options have a default value indicated below. Mentioning any option on the common line changes the option to TRUE.
+>To force an option to FALSE, use the following syntax: `-option=FALSE`.
+>
+>Example: Immich-go check the server's SSL certificate. you can disable this behavior by turning on the `skip-verify-ssl` option. Just add `-skip-verify-ssl`.
+>`-skip-verify-ssl` is equivalent to `-skip-verify-ssl=TRUE`. To turn off the feature (which is the default behavior), use `-skip-verify-ssl=FALSE`
 
-`-log-level` Adjust the log verbosity as follow: (Default OK) <br>
-- `ERROR`: Display only errors
-- `WARNING`: Same as previous one plus non blocking error
-- `OK`: Same as previous plus actions
-- `INFO`: Same as previous one plus progressions <br>
 
-`-log-file=file` Write all messages to the file<br>
-`-time-zone=time_zone_name` Set the time zone<br>
+
+| **Parameter**                            | **Description**                                                                                                                                                               | **Default value**                                                                                                                                                                                                      |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-use-configuration=path/to/config/file` | Specifies the configuration file to use. <br>Server URL and the API key are stored into the immich-go configuration file. They can be omitted for the next runs.              | Linux `$HOME/.config/immich-go/immich-go.json`<br>Windows `%AppData%\immich-go\immich-go.json`<br>Apple `$HOME/Library/Application Support/immich-go/immich-go.json`                                                   |
+| `-server=URL`                            | URL of the Immich service, example http://<your-ip>:2283 or https://your-domain                                                                                               |                                                                                                                                                                                                                        |
+| `-api=URL`                               | URL of the Immich api endpoint (http://container_ip:3301)                                                                                                                     |                                                                                                                                                                                                                        |
+| `-device-uuid=VALUE`                     | Force the device identification                                                                                                                                               | `$HOSTNAME`                                                                                                                                                                                                            |
+| `-client-timeout=duration`               | Set the timeout for server calls. The duration is a decimal numbers with a unit suffix, such as "300ms", "1.5m" or "45m". Valid time units are "ms", "s", "m", "h".         |  `5m`                                     |                                                                                                                                                                               |                                                                                                                                                                                                                        |
+| `-skip-verify-ssl`                       | Skip SSL verification for use with self-signed certificates                                                                                                                   | `false`                                                                                                                                                                                                                |
+| `-key=KEY`                               | A key generated by the user. Uploaded photos will belong to the key's owner.                                                                                                  |                                                                                                                                                                                                                        |
+| `-log-level=LEVEL`                       | Adjust the log verbosity as follows: <br> - `ERROR`: Display only errors  <br>  - `WARNING`: Same as previous one plus non blocking error <br> - `INFO`: Information messages | `INFO`                                                                                                                                                                                                                 |
+| `-log-file=/path/to/log/file`            | Write all messages to a file                                                                                                                                                  | Linux `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` <br>Windows `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log` <br>Apple `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` |
+| `-log-json`                              | Output the log as line-delimited JSON file                                                                                                                                    | `false`                                                                                                                                                                                                                |
+| `-time-zone=time_zone_name`              | Set the time zone for dates without time zone information                                                                                                                     | the system's time zone                                                                                                                                                                                                 |
+| `-no-ui`                                 | Disable the user interface                                                                                                                                                    | 'false'                                                                                                                                                                                                                |
+
 
 ## Command `upload`
 
 Use this command for uploading photos and videos from a local directory, a zipped folder or all zip files that google photo takeout procedure has generated.
 
 ### Switches and options:
-`-album "ALBUM NAME"` Import assets into the Immich album `ALBUM NAME`.<br>
-`-dry-run` Preview all actions as they would be done.<br> 
-`-create-album-folder <bool>` Generate immich albums after folder names (default FALSE).<br>
-`-force-sidecar <bool>` Force sending a .xmp sidecar file beside images. With Google photos date and GPS coordinates are taken from metadata.json files. (default: FALSE).<br>
-`-create-stacks <bool>`Stack jpg/raw or bursts (default TRUE).<br>
-`-stack-jpg-raw <bool>`Control the stacking of jpg/raw photos (default TRUE).<br>
-`-stack-burst <bool>`Control the stacking bursts (default TRUE).<br>
-`-select-types .ext,.ext,.ext...` List of accepted extensions. <br>
-`-exclude-types .ext,.ext,.ext...` List of excluded extensions. <br>
+
+| **Parameter**                        | **Description**                                                                                                                                             | **Default value** |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `-album="ALBUM NAME"`                | Import assets into the Immich album `ALBUM NAME`.                                                                                                           |                   |
+| `-dry-run`                           | Preview all actions as they would be done.                                                                                                                  | `FALSE`           |
+| `-create-album-folder`               | Generate immich albums after folder names.                                                                                                                  | `FALSE`           |
+| `-create-stacks`                     | Stack jpg/raw or bursts.                                                                                                                                    | `TRUE`            |
+| `-stack-jpg-raw`                     | Control the stacking of jpg/raw photos.                                                                                                                     | `TRUE`            |
+| `-stack-burst`                       | Control the stacking bursts.                                                                                                                                | `TRUE`            |
+| `-select-types=".ext,.ext,.ext..."`  | List of accepted extensions.                                                                                                                                |                   |
+| `-exclude-types=".ext,.ext,.ext..."` | List of excluded extensions.                                                                                                                                |                   |
+| `-when-no-date=FILE\|NOW`            | When the date of take can't be determined, use the FILE's date or the current time NOW.                                                                     | `FILE`            |
+
 
 ### Date selection:
-Fine-tune import based on specific dates:<br>
-`-date YYYY-MM-DD` import photos taken on a particular day.<br>
-`-date YYYY-MM` select photos taken during a particular month.<br>
-`-date YYYY` select photos taken during a particular year.<br>
-`-date YYYY-MM-DD,YYYY-MM-DD` select photos taken within this date range.<br>
+Fine-tune import based on specific dates:
+
+| **Parameter**      | **Description**                                |
+| ------------------ | ---------------------------------------------- |
+| `-date=YYYY-MM-DD` | import photos taken on a particular day.       |
+| `-date=YYYY-MM`    | select photos taken during a particular month. |
+| `-date=YYYY`       | select photos taken during a particular year.  |
+
 
 ### Google photos options:
+Specialized options for Google Photos management:
 
-Specialized options for Google Photos management:<br>
-`-google-photos` import from a Google Photos structured archive, recreating corresponding albums.<br>
-`-from-album "GP Album"` Create the album in `immich` and import album's assets.<br>
-`-create-albums <bool>`  Controls creation of Google Photos albums in Immich (default TRUE). <br>
-`-keep-untitled-albums <bool>` Untitled albums are imported into `immich` with the name of the folder as title (default: FALSE).<br>
-`-use-album-folder-as-name <bool>` Use the folder's name instead of the album title (default: FALSE).<br>
-`-keep-partner <bool>` Specifies inclusion or exclusion of partner-taken photos (default: TRUE).<br>
-`-partner-album "partner's album"` import assets from partner into given album.<br>
-`-discard-archived <bool>` don't import archived assets (default: FALSE). <br>
+| **Parameter**                      | **Description**                                                                  | **Default value** |
+| ---------------------------------- | -------------------------------------------------------------------------------- | ----------------- |
+| `-google-photos`                   | import from a Google Photos structured archive, recreating corresponding albums. |                   |
+| `-from-album="GP Album"`           | Create the album in `immich` and import album's assets.                          |                   |
+| `-create-albums`                   | Controls creation of Google Photos albums in Immich.                             | `TRUE`            |
+| `-keep-untitled-albums`            | Untitled albums are imported into `immich` with the name of the folder as title. | `FALSE`           |
+| `-use-album-folder-as-name`        | Use the folder's name instead of the album title.                                | `FALSE`           |
+| `-keep-partner`                    | Specifies inclusion or exclusion of partner-taken photos.                        | `TRUE`            |
+| `-partner-album="partner's album"` | import assets from partner into given album.                                     |                   |
+| `-discard-archived`                | don't import archived assets.                                                    | `FALSE`           |
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
 
@@ -105,7 +140,7 @@ Currently the bursts following this schema are detected:
 All images must be taken during the same minute.
 The COVER image will be the parent image of the stack
 
-### couple jpg/raw detection
+### Couple jpg/raw detection
 Both images should been taken in the same minute.
 The JPG image will be the cover. 
 
@@ -126,9 +161,12 @@ Use this command for analyzing the content of your `immich` server to find any f
 Before deleting the inferior copies, the system get all albums they belong to, and add the superior copy to them.
 
 ### Switches and options:
-`-yes` Assume Yes to all questions (default: FALSE).<br> 
-`-date` Check only assets have a date of capture in the given range. (default: 1850-01-04,2030-01-01)
-`-ignore-tz-errors <bool>` Ignore timezone difference when searching for duplicates (default: FALSE)
+| **Parameter**       | **Description**                                             | **Default value**       |
+| ------------------- | ----------------------------------------------------------- | ----------------------- |
+| `-yes`              | Assume Yes to all questions                                 | `FALSE`                 |
+| `-date`             | Check only assets have a date of capture in the given range | `1850-01-04,2030-01-01` |
+| `-ignore-tz-errors` | Ignore timezone difference when searching for duplicates    | `FALSE`                 |
+| `-ignore-extension` | Ignore filetype extensions when searching for duplicates    | `FALSE`                 |
 
 ### Example Usage: clean the `immich` server after having merged a google photo archive and original files
 
@@ -144,8 +182,10 @@ The possibility to stack images has been introduced with `immich` version 1.83.
 Let use it to group burst  and jpg/raw images together.
 
 ### Switches and options:
-`-yes` Assume Yes to all questions (default: FALSE).<br> 
-`-date` Check only assets have a date of capture in the given range. (default: 1850-01-04,2030-01-01)
+| **Parameter**      | **Description**                                             | **Default value**       |
+| ------------------ | ----------------------------------------------------------- | ----------------------- |
+| `-yes`             | Assume Yes to all questions                                 | `FALSE`                 |
+| `-date=date_range` | Check only assets have a date of capture in the given range | `1850-01-04,2030-01-01` |
 
 
 ## Command `tool`
@@ -164,7 +204,6 @@ This command deletes albums that match with the given pattern
 ```sh
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ tool album delete \d{4}-\d{2}-\d{2}
 ```
-
 This command deletes all albums created with de pattern YYYY-MM-DD
 
 
@@ -191,53 +230,22 @@ Open a command windows, go to the directory where immich-go resides, and type th
 For a source-based installation, ensure you have the necessary Go language development tools (https://go.dev/doc/install) in place.
 Download the source files or clone the repository. 
 
+```bash
+go build -ldflags "-X 'main.version=$(git describe --tag)' -X 'main.date=$(date)'"
+```
 
-# Road map
-- [X] binary releases with no dependencies
-- [X] check in the photo doesn't exist on the server before uploading
-    - [X] but keep files with the same name: ex IMG_0201.jpg if they aren't duplicates
-    - [X] some files may have different names (ex IMG_00195.jpg and IMAGE_00195 (1).jpg) and are true duplicates
-- [X] replace the server photo, if the file to upload is better.
-    - [X] Update any album with the new version of the asset
-- [X] delete local file after successful upload (not for import!)
-- [X] upload XMP sidecar files 
-- [ ] select or exclude assets to upload by
-    - [X] date of capture within a date range
-    - [ ] type photo / video
-    - [ ] name pattern
-    - [ ] glob expression like ~/photos/\*/sorted/*.*
-    - [ ] size
-- [ ] multithreaded 
-- [X] import from local folder
-    - [X] create albums based on folder
-    - [X] create an album with a given name
-- [X] import from zip archives without unzipping them
-- [X] import google takeout zip archives without unzipping them
-- [X] Import Google takeout archive
-    - [X] manage multi-zip archives
-    - [X] replicate google albums in immich
-    - [X] manage duplicates assets inside the archive
-    - [X] Use the google takeout date to set the immich date even when there is no exif date in the image.
-    - [X] don't upload google file if the server's image is better
-    - [X] don't import trashed files
-    - [X] don't import failed videos
-    - [X] include photos taken by a partner in dedicated album (the partner may also uses immich for her/his own photos)
-    - [ ] handle Archives 
-- [ ] use tags placed in exif data
-    - [ ] JPEG files
-    - [ ] MP4 files
-    - [ ] HEIC files
-    - [ ] name of the file (fall back, any name containing date like Holidays_2022-07-25 21.59)
-- [ ] upload from remote folders
-    - [ ] ssh
-    - [ ] samba
-    - [ ] import remote folder
-- [ ] Set GPS location for images taken with a GPS-less camera based on
-    - [ ] Google location history
-    - [ ] KML,GPX track files
-- [x] Cleaning different resolution duplicates in the immich server based on their name and date of capture 
+## Installation with Nix
 
+`immich-go` is packaged with [nix](https://nixos.org/) and distributed via [nixpkgs](https://search.nixos.org/packages?channel=unstable&type=packages&query=immich-go).
+You can try `immich-go` without installing it with:
 
+```bash
+nix-shell -I "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable-small.tar.gz" -p immich-go
+# Or with flakes enabled
+nix run "github:nixos/nixpkgs?ref=nixos-unstable-small#immich-go" -- -help
+```
+
+Or you can add `immich-go` to your `configuration.nix` in the `environment.systemPackages` section.
 
 # Acknowledgments
 
@@ -247,4 +255,8 @@ This program use following 3rd party libraries:
 - github.com/rwcarlsen/goexif to get date of capture from JPEG files
 - github.com/ttacon/chalk for having logs nicely colored 
 -	github.com/thlib/go-timezone-local for its windows timezone management
--	github.com/yalue/merged_fs v1.2.3 for its FS merging capability
+
+A big thank you to the project contributors:
+- [rodneyosodo](https://github.com/rodneyosodo) gitub CI, go linter, and advices 
+- [sigmahour](https://github.com/sigmahour) SSL management
+- [mrwulf](https://github.com/mrwulf) Partner sharing album

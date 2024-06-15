@@ -23,13 +23,12 @@ func (ai *AssetIndex) ReIndex() {
 	ai.byID = map[string]*immich.Asset{}
 
 	for _, a := range ai.assets {
-		ext := path.Ext(a.OriginalPath)
-		ID := fmt.Sprintf("%s-%d", strings.ToUpper(path.Base(a.OriginalFileName)+ext), a.ExifInfo.FileSizeInByte)
+		ID := fmt.Sprintf("%s-%d", a.OriginalFileName, a.ExifInfo.FileSizeInByte)
 		l := ai.byHash[a.Checksum]
 		l = append(l, a)
 		ai.byHash[a.Checksum] = l
 
-		n := a.OriginalFileName + ext
+		n := a.OriginalFileName
 		l = ai.byName[n]
 		l = append(l, a)
 		ai.byName[n] = l

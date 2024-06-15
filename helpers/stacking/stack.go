@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
 )
@@ -34,15 +33,17 @@ const (
 )
 
 type StackBuilder struct {
-	dateRange immich.DateRange // Set capture date range
-	stacks    map[Key]Stack
+	dateRange      immich.DateRange // Set capture date range
+	stacks         map[Key]Stack
+	supportedMedia immich.SupportedMedia
 }
 
-func NewStackBuilder() *StackBuilder {
+func NewStackBuilder(supportedMedia immich.SupportedMedia) *StackBuilder {
 	sb := StackBuilder{
-		stacks: map[Key]Stack{},
+		supportedMedia: supportedMedia,
+		stacks:         map[Key]Stack{},
 	}
-	sb.dateRange.Set("1850-01-04,2030-01-01")
+	_ = sb.dateRange.Set("1850-01-04,2030-01-01")
 
 	return &sb
 }
@@ -159,12 +160,8 @@ func (sb *StackBuilder) Stacks() []Stack {
 		hasVideo := 0
 
 		for _, n := range s.Names {
-			mime, err := fshelper.MimeFromExt(path.Ext(n))
-			if err != nil {
-				continue
-			}
-			s := strings.Split(mime[0], "/")
-			switch s[0] {
+			s := sb.supportedMedia.TypeFromExt(path.Ext(n))
+			switch s {
 			case "video":
 				hasVideo++
 			case "image":

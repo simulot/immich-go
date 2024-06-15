@@ -1,6 +1,10 @@
 package gp
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/simulot/immich-go/immich"
+)
 
 func Test_matchEditedName(t *testing.T) {
 	tests := []struct {
@@ -31,7 +35,7 @@ func Test_matchEditedName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
-			if got := matchEditedName(tt.jsonName, tt.fileName); got != tt.want {
+			if got := matchEditedName(tt.jsonName, tt.fileName, immich.DefaultSupportedMedia); got != tt.want {
 				t.Errorf("matchEditedName() = %v, want %v", got, tt.want)
 			}
 		})
@@ -57,7 +61,7 @@ func Test_matchVeryLongNameWithNumber(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
-			if got := matchVeryLongNameWithNumber(tt.jsonName, tt.fileName); got != tt.want {
+			if got := matchVeryLongNameWithNumber(tt.jsonName, tt.fileName, immich.DefaultSupportedMedia); got != tt.want {
 				t.Errorf("matchVeryLongNameWithNumber() = %v, want %v", got, tt.want)
 			}
 		})
@@ -86,7 +90,7 @@ func Test_matchDuplicateInYear(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := matchDuplicateInYear(tt.jsonName, tt.fileName); got != tt.want {
+			if got := matchDuplicateInYear(tt.jsonName, tt.fileName, immich.DefaultSupportedMedia); got != tt.want {
 				t.Errorf("matchDuplicateInYear() = %v, want %v", got, tt.want)
 			}
 		})
@@ -115,7 +119,7 @@ func Test_matchForgottenDuplicates(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := matchForgottenDuplicates(tt.jsonName, tt.fileName); got != tt.want {
+			if got := matchForgottenDuplicates(tt.jsonName, tt.fileName, immich.DefaultSupportedMedia); got != tt.want {
 				t.Errorf("matchDuplicateInYear() = %v, want %v", got, tt.want)
 			}
 		})

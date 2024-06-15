@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/simulot/immich-go/helpers/fshelper"
@@ -90,7 +89,7 @@ func (l *LocalAssetFile) Remove() error {
 }
 
 func (l *LocalAssetFile) DeviceAssetID() string {
-	return fmt.Sprintf("%s-%d", strings.ToUpper(l.Title), l.FileSize)
+	return fmt.Sprintf("%s-%d", l.Title, l.FileSize)
 }
 
 // PartialSourceReader open a reader on the current asset.
@@ -112,7 +111,10 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 			return nil, err
 		}
 		tempDir = filepath.Join(tempDir, "github.com/simulot/immich-go")
-		os.Mkdir(tempDir, 0o700)
+		err = os.Mkdir(tempDir, 0o700)
+		if err != nil {
+			return nil, err
+		}
 		l.tempFile, err = os.CreateTemp(tempDir, "")
 		if err != nil {
 			return nil, err
@@ -121,7 +123,10 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 			l.teeReader = io.TeeReader(l.sourceFile, l.tempFile)
 		}
 	}
-	l.tempFile.Seek(0, 0)
+	_, err = l.tempFile.Seek(0, 0)
+	if err != nil {
+		return nil, err
+	}
 	return io.MultiReader(l.tempFile, l.teeReader), nil
 }
 
@@ -135,7 +140,10 @@ func (l *LocalAssetFile) Open() (fs.File, error) {
 		}
 	}
 	if l.tempFile != nil {
-		l.tempFile.Seek(0, 0)
+		_, err = l.tempFile.Seek(0, 0)
+		if err != nil {
+			return nil, err
+		}
 		l.reader = io.MultiReader(l.tempFile, l.sourceFile)
 	} else {
 		l.reader = l.sourceFile

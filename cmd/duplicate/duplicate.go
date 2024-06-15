@@ -6,25 +6,25 @@ package duplicate
 import (
 	"context"
 	"flag"
+	"fmt"
 	"path"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
 )
 
 type DuplicateCmd struct {
-	logger *logger.Log
-	Immich *immich.ImmichClient // Immich client
-
-	AssumeYes      bool             // When true, doesn't ask to the user
-	DateRange      immich.DateRange // Set capture date range
-	IgnoreTZErrors bool             // Enable TZ error tolerance
+	*cmd.SharedFlags
+	AssumeYes       bool             // When true, doesn't ask to the user
+	DateRange       immich.DateRange // Set capture date range
+	IgnoreTZErrors  bool             // Enable TZ error tolerance
+	IgnoreExtension bool             // Ignore file extensions when checking for duplicates
 
 	assetsByID          map[string]*immich.Asset
 	assetsByBaseAndDate map[duplicateKey][]*immich.Asset
@@ -33,41 +33,51 @@ type DuplicateCmd struct {
 type duplicateKey struct {
 	Date time.Time
 	Name string
+	Type string
 }
 
-func NewDuplicateCmd(ctx context.Context, ic *immich.ImmichClient, logger *logger.Log, args []string) (*DuplicateCmd, error) {
+func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*DuplicateCmd, error) {
 	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
 	validRange := immich.DateRange{}
-	validRange.Set("1850-01-04,2030-01-01")
+	_ = validRange.Set("1850-01-04,2030-01-01")
 	app := DuplicateCmd{
-		logger:              logger,
-		Immich:              ic,
+		SharedFlags:         common,
 		DateRange:           validRange,
 		assetsByID:          map[string]*immich.Asset{},
 		assetsByBaseAndDate: map[duplicateKey][]*immich.Asset{},
 	}
 
+	app.SharedFlags.SetFlags(cmd)
+
 	cmd.BoolFunc("ignore-tz-errors", "Ignore timezone difference to check duplicates (default: FALSE).", myflag.BoolFlagFn(&app.IgnoreTZErrors, false))
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", myflag.BoolFlagFn(&app.AssumeYes, false))
 	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
+	cmd.BoolFunc("ignore-extension", "When true, ignores extensions when checking for duplicates (default: FALSE)", myflag.BoolFlagFn(&app.IgnoreExtension, false))
 	err := cmd.Parse(args)
+	if err != nil {
+		return nil, err
+	}
+	err = app.SharedFlags.Start(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return &app, err
 }
 
-func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
-	app, err := NewDuplicateCmd(ctx, ic, log, args)
+func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+	app, err := NewDuplicateCmd(ctx, common, args)
 	if err != nil {
 		return err
 	}
 
 	dupCount := 0
-	log.MessageContinue(logger.OK, "Get server's assets...")
-	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+	fmt.Println("Get server's assets...")
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
 		if a.IsTrashed {
-			return
+			return nil
 		}
 		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
-			return
+			return nil
 		}
 		app.assetsByID[a.ID] = a
 		d := a.ExifInfo.DateTimeOriginal.Time.Round(time.Minute)
@@ -77,19 +87,24 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 		k := duplicateKey{
 			Date: d,
 			Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
+			Type: a.Type,
 		}
 
+		if app.IgnoreExtension {
+			k.Name = strings.TrimSuffix(k.Name, path.Ext(a.OriginalPath))
+		}
 		l := app.assetsByBaseAndDate[k]
 		if len(l) > 0 {
 			dupCount++
 		}
 		app.assetsByBaseAndDate[k] = append(l, a)
+		return nil
 	})
 	if err != nil {
 		return err
 	}
-	log.MessageTerminate(logger.OK, "%d received", len(app.assetsByID))
-	log.MessageTerminate(logger.OK, "%d duplicate(s) determined.", dupCount)
+	fmt.Printf("%d received\n", len(app.assetsByID))
+	fmt.Printf("%d duplicate(s) determined.\n", dupCount)
 
 	keys := gen.MapFilterKeys(app.assetsByBaseAndDate, func(i []*immich.Asset) bool {
 		return len(i) > 1
@@ -113,22 +128,22 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 			return ctx.Err()
 		default:
 			l := app.assetsByBaseAndDate[k]
-			app.logger.OK("There are %d copies of the asset %s, taken on %s ", len(l), k.Name, l[0].ExifInfo.DateTimeOriginal.Format(time.RFC3339))
+			fmt.Printf("There are %d copies of the asset %s, taken on %s\n", len(l), k.Name, l[0].ExifInfo.DateTimeOriginal.Format(time.RFC3339))
 			albums := []immich.AlbumSimplified{}
 			assetsToDelete := []string{}
 			sort.Slice(l, func(i, j int) bool { return l[i].ExifInfo.FileSizeInByte < l[j].ExifInfo.FileSizeInByte })
 			for p, a := range l {
 				if p < len(l)-1 {
-					log.OK("  delete %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+					fmt.Printf("  delete %s %dx%d, %s, %s\n", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
 					assetsToDelete = append(assetsToDelete, a.ID)
 					r, err := app.Immich.GetAssetAlbums(ctx, a.ID)
 					if err != nil {
-						log.Error("Can't get asset's albums: %s", err.Error())
+						fmt.Printf("Can't get asset's albums: %s\n", err.Error())
 					} else {
 						albums = append(albums, r...)
 					}
 				} else {
-					log.OK("  keep   %s %dx%d, %s, %s", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
+					fmt.Printf("  keep   %s %dx%d, %s, %s\n", a.OriginalFileName, a.ExifInfo.ExifImageWidth, a.ExifInfo.ExifImageHeight, ui.FormatBytes(a.ExifInfo.FileSizeInByte), a.OriginalPath)
 					yes := app.AssumeYes
 					if !app.AssumeYes {
 						r, err := ui.ConfirmYesNo(ctx, "Proceed?", "n")
@@ -142,14 +157,14 @@ func DuplicateCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.
 					if yes {
 						err = app.Immich.DeleteAssets(ctx, assetsToDelete, false)
 						if err != nil {
-							log.Error("Can't delete asset: %s", err.Error())
+							fmt.Printf("Can't delete asset: %s\n", err.Error())
 						} else {
-							log.OK("  Asset removed")
+							fmt.Println("  Asset removed")
 							for _, al := range albums {
-								log.OK("  Update the album %s with the best copy", al.AlbumName)
+								fmt.Printf("  Update the album %s with the best copy\n", al.AlbumName)
 								_, err = app.Immich.AddAssetToAlbum(ctx, al.ID, []string{a.ID})
 								if err != nil {
-									log.Error("Can't delete asset: %s", err.Error())
+									fmt.Printf("Can't delete asset: %s\n", err.Error())
 								}
 							}
 						}

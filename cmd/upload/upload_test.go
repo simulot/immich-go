@@ -3,22 +3,23 @@ package upload
 import (
 	"cmp"
 	"context"
-	"errors"
-	"io/fs"
+	"io"
+	"log/slog"
 	"reflect"
 	"slices"
 	"testing"
 
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/cmd"
+	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 )
 
 type stubIC struct{}
 
-func (c *stubIC) GetAllAssetsWithFilter(context.Context, *immich.GetAssetOptions, func(*immich.Asset)) error {
+func (c *stubIC) GetAllAssetsWithFilter(context.Context, func(*immich.Asset) error) error {
 	return nil
 }
 
@@ -54,20 +55,47 @@ func (c *stubIC) UpdateAsset(ctx context.Context, id string, a *browser.LocalAss
 	return nil, nil
 }
 
-// type mockedBrowser struct {
-// 	assets []assets.LocalAssetFile
-// }
+func (c *stubIC) EnableAppTrace(bool) {}
 
-// func (m *mockedBrowser) Browse(cxt context.Context) chan *assets.LocalAssetFile {
-// 	c := make(chan *assets.LocalAssetFile)
-// 	go func() {
-// 		for _, a := range m.assets {
-// 			c <- &a
-// 		}
-// 		close(c)
-// 	}()
-// 	return c
-// }
+func (c *stubIC) GetServerStatistics(ctx context.Context) (immich.ServerStatistics, error) {
+	return immich.ServerStatistics{}, nil
+}
+
+func (c *stubIC) PingServer(ctx context.Context) error {
+	return nil
+}
+
+func (c *stubIC) SetDeviceUUID(string) {}
+
+func (c *stubIC) SetEndPoint(string) {}
+
+func (c *stubIC) ValidateConnection(ctx context.Context) (immich.User, error) {
+	return immich.User{}, nil
+}
+
+func (c *stubIC) GetAssetAlbums(ctx context.Context, id string) ([]immich.AlbumSimplified, error) {
+	return nil, nil
+}
+
+func (c *stubIC) GetAllAssets(ctx context.Context) ([]*immich.Asset, error) {
+	return nil, nil
+}
+
+func (c *stubIC) DeleteAlbum(ctx context.Context, id string) error {
+	return nil
+}
+
+func (c *stubIC) SupportedMedia() immich.SupportedMedia {
+	return immich.DefaultSupportedMedia
+}
+
+func (c *stubIC) GetAssetStatistics(ctx context.Context) (immich.UserStatistics, error) {
+	return immich.UserStatistics{
+		Images: 1,
+		Videos: 1,
+		Total:  1,
+	}, nil
+}
 
 type icCatchUploadsAssets struct {
 	stubIC
@@ -447,19 +475,27 @@ func TestUpload(t *testing.T) {
 			ic := &icCatchUploadsAssets{
 				albums: map[string][]string{},
 			}
-			log := logger.NoLogger{}
 			ctx := context.Background()
 
-			app, err := NewUpCmd(ctx, ic, log, tc.args)
+			log := slog.New(slog.NewTextHandler(io.Discard, nil))
+			serv := cmd.SharedFlags{
+				Immich: ic,
+				Jnl:    fileevent.NewRecorder(log),
+				Log:    log,
+			}
+
+			args := append([]string{"-no-ui"}, tc.args...)
+
+			err := UploadCommand(ctx, &serv, args)
 			if err != nil {
 				t.Errorf("can't instantiate the UploadCmd: %s", err)
 				return
 			}
 
-			for _, fsys := range app.fsys {
-				err = errors.Join(app.Run(ctx, []fs.FS{fsys}))
-			}
-			if (tc.expectedErr && err == nil) || (!tc.expectedErr && err != nil) {
+			// for _, fsys := range app.fsyss {
+			// 	err = errors.Join(app.run(ctx, []fs.FS{fsys}))
+			// }
+			if tc.expectedErr == (err == nil) {
 				t.Errorf("unexpected error condition: %v,%s", tc.expectedErr, err)
 				return
 			}

@@ -3,35 +3,33 @@ package stack
 import (
 	"context"
 	"flag"
+	"fmt"
 	"path"
 	"sort"
 	"strconv"
 
+	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/logger"
 	"github.com/simulot/immich-go/ui"
 )
 
 type StackCmd struct {
-	Immich *immich.ImmichClient // Immich client
-	logger *logger.Log
-
+	*cmd.SharedFlags
 	AssumeYes bool
 	DateRange immich.DateRange // Set capture date range
 }
 
-func initSack(ic *immich.ImmichClient, log *logger.Log, args []string) (*StackCmd, error) {
+func initSack(ctx context.Context, common *cmd.SharedFlags, args []string) (*StackCmd, error) {
 	cmd := flag.NewFlagSet("stack", flag.ExitOnError)
 	validRange := immich.DateRange{}
 
-	validRange.Set("1850-01-04,2030-01-01")
+	_ = validRange.Set("1850-01-04,2030-01-01")
 	app := StackCmd{
-		logger:    log,
-		Immich:    ic,
-		DateRange: validRange,
+		SharedFlags: common,
+		DateRange:   validRange,
 	}
-
+	app.SharedFlags.SetFlags(cmd)
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
 		var err error
 		app.AssumeYes, err = strconv.ParseBool(s)
@@ -39,42 +37,50 @@ func initSack(ic *immich.ImmichClient, log *logger.Log, args []string) (*StackCm
 	})
 	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
 	err := cmd.Parse(args)
+	if err != nil {
+		return nil, err
+	}
+	err = app.SharedFlags.Start(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return &app, err
 }
 
-func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.Log, args []string) error {
-	app, err := initSack(ic, log, args)
+func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+	app, err := initSack(ctx, common, args)
 	if err != nil {
 		return err
 	}
 
-	sb := stacking.NewStackBuilder()
-	log.MessageContinue(logger.OK, "Get server's assets...")
+	sb := stacking.NewStackBuilder(app.Immich.SupportedMedia())
+	fmt.Println("Get server's assets...")
 	assetCount := 0
 
-	err = app.Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) {
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
 		if a.IsTrashed {
-			return
+			return nil
 		}
 		if !app.DateRange.InRange(a.ExifInfo.DateTimeOriginal.Time) {
-			return
+			return nil
 		}
 		assetCount += 1
 		sb.ProcessAsset(a.ID, a.OriginalFileName+path.Ext(a.OriginalPath), a.ExifInfo.DateTimeOriginal.Time)
+		return nil
 	})
 	if err != nil {
 		return err
 	}
 	stacks := sb.Stacks()
-	log.MessageTerminate(logger.OK, " %d received, %d stack(s) possible", assetCount, len(stacks))
+	app.Log.Info(fmt.Sprintf(" %d received, %d stack(s) possible\n", assetCount, len(stacks)))
 
 	for _, s := range stacks {
-		log.OK("Stack following images taken on %s", s.Date)
+		fmt.Printf("Stack following images taken on %s\n", s.Date)
 		cover := s.CoverID
 		names := s.Names
 		sort.Strings(names)
 		for _, n := range names {
-			log.OK("  %s", n)
+			fmt.Printf("  %s\n", n)
 		}
 		yes := app.AssumeYes
 		if !app.AssumeYes {
@@ -89,7 +95,7 @@ func NewStackCommand(ctx context.Context, ic *immich.ImmichClient, log *logger.L
 		if yes {
 			err := app.Immich.StackAssets(ctx, cover, s.IDs)
 			if err != nil {
-				log.Warning("Can't stack images: %s", err)
+				fmt.Printf("Can't stack images: %s\n", err)
 			}
 		}
 	}
