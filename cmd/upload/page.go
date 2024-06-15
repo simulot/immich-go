@@ -1,9 +1,11 @@
 package upload
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -13,15 +15,18 @@ import (
 )
 
 type page struct {
-	app           *UpCmd
-	screen        *tview.Grid
-	footer        *tview.Grid
-	prepareCounts *tview.Grid
-	uploadCounts  *tview.Grid
-	logView       *tview.TextView
-	counts        map[fileevent.Code]*tview.TextView
-	prevSlog      *slog.Logger
+	app            *UpCmd
+	screen         *tview.Grid
+	footer         *tview.Grid
+	prepareCounts  *tview.Grid
+	uploadCounts   *tview.Grid
+	serverJobs     *tvxwidgets.Sparkline
+	logView        *tview.TextView
+	counts         map[fileevent.Code]*tview.TextView
+	prevSlog       *slog.Logger
+	serverActivity []float64
 	// prevLogFile   io.WriteCloser
+	lastTimeServerActive atomic.Int64
 
 	immichReading *tvxwidgets.PercentageModeGauge
 	immichPrepare *tvxwidgets.PercentageModeGauge
@@ -40,7 +45,7 @@ func (app *UpCmd) newPage() *page {
 	return p
 }
 
-func (p *page) Page() *tview.Application {
+func (p *page) Page(ctx context.Context) *tview.Application {
 	app := tview.NewApplication()
 
 	p.screen = tview.NewGrid()
@@ -72,12 +77,19 @@ func (p *page) Page() *tview.Application {
 	p.addCounter(p.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	p.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 
+	p.serverJobs = tvxwidgets.NewSparkline()
+	p.serverJobs.SetBorder(true).SetTitle("Server pending jobs")
+	p.serverJobs.SetData(p.serverActivity)
+	p.serverJobs.SetDataTitleColor(tcell.ColorDarkOrange)
+	p.serverJobs.SetLineColor(tcell.ColorSteelBlue)
+
 	counts := tview.NewGrid()
 	counts.Box = tview.NewBox()
-
 	counts.AddItem(p.prepareCounts, 0, 0, 1, 1, 0, 0, false)
 	counts.AddItem(p.uploadCounts, 0, 1, 1, 1, 0, 0, false)
-	counts.SetSize(1, 2, 15, 40)
+	counts.AddItem(p.serverJobs, 0, 2, 1, 1, 0, 0, false)
+	counts.SetSize(1, 3, 15, 40)
+	counts.SetColumns(40, 40, 0)
 
 	p.screen.AddItem(counts, 1, 0, 1, 1, 0, 0, false)
 
@@ -135,14 +147,44 @@ func (p *page) Page() *tview.Application {
 		return event
 	})
 	go func() {
-		t := time.NewTicker(100 * time.Millisecond)
+		tick := time.NewTicker(100 * time.Millisecond)
 		for {
 			select {
 			case <-p.quitting:
-				t.Stop()
+				tick.Stop()
 				return
-			case <-t.C:
+			case <-tick.C:
 				p.page.QueueUpdateDraw(p.draw)
+			}
+		}
+	}()
+
+	go func() {
+		tick := time.NewTicker(500 * time.Millisecond)
+		for {
+			select {
+			case <-p.quitting:
+				return
+			case <-tick.C:
+				jobs, err := p.app.Immich.GetJobs(ctx)
+				if err == nil {
+					jobCount := 0
+					jobWaiting := 0
+					for _, j := range jobs {
+						jobCount += j.JobCounts.Active
+						jobWaiting += j.JobCounts.Waiting
+					}
+					_, _, w, _ := p.serverJobs.GetInnerRect()
+					p.serverActivity = append(p.serverActivity, float64(jobWaiting+jobCount))
+					if len(p.serverActivity) > w {
+						p.serverActivity = p.serverActivity[1:]
+					}
+					p.serverJobs.SetData(p.serverActivity)
+					p.serverJobs.SetTitle(fmt.Sprintf("Server's jobs: active: %d, waiting: %d", jobCount, jobWaiting))
+					if jobCount > 0 {
+						p.lastTimeServerActive.Store(time.Now().Unix())
+					}
+				}
 			}
 		}
 	}()

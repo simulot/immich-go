@@ -38,6 +38,7 @@ type ImmichInterface interface {
 	StackAssets(ctx context.Context, cover string, IDs []string) error
 
 	SupportedMedia() SupportedMedia
+	GetJobs(ctx context.Context) (map[string]Job, error)
 }
 
 type UnsupportedMedia struct {

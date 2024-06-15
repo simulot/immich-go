@@ -97,6 +97,10 @@ func (c *stubIC) GetAssetStatistics(ctx context.Context) (immich.UserStatistics,
 	}, nil
 }
 
+func (c *stubIC) GetJobs(ctx context.Context) (map[string]immich.Job, error) {
+	return nil, nil
+}
+
 type icCatchUploadsAssets struct {
 	stubIC
 
