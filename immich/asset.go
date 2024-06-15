@@ -221,7 +221,7 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 		RemoveParent:  removeParent,
 		StackParentID: stackParentID,
 	}
-	return ic.newServerCall(ctx, "updateAssets").do(put("/asset", setJSONBody(param)))
+	return ic.newServerCall(ctx, "updateAssets").do(put("/assets", setJSONBody(param)))
 }
 
 func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*Asset, error) {
