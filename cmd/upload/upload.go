@@ -316,7 +316,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	page := app.newPage()
-	p := page.Page()
+	p := page.Page(ctx)
 
 	uiGroup := errgroup.Group{}
 
@@ -338,13 +338,32 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			}
 			return err
 		})
+
 		err := processGrp.Wait()
 		// at this point, the read immich and prepare are completed
 		if err == nil {
 			err = app.uploadLoop(ctx)
 		}
-		p.Stop()
 		return err
+	})
+
+	uiGroup.Go(func() error {
+		// Wait the server to calm down
+		tick := time.NewTicker(10 * time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-tick.C:
+				now := time.Now().Unix()
+				last := page.lastTimeServerActive.Load()
+				if now-last > 10 {
+					cancel()
+					p.Stop()
+					return nil
+				}
+			}
+		}
 	})
 	uiGroup.Go(func() error {
 		defer func() {
