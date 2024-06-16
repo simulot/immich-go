@@ -444,6 +444,23 @@ func Test_Issue_159(t *testing.T) {
 	runCase(t, tc)
 }
 
+// #304  Not all images being uploaded #304
+func Test_CreateAlbumFolder_304(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_#304_UploadFiles",
+		args: []string{
+			"-album", "Album Name",
+			myEnv["IMMICH_TESTFILES"] + "/Error Upload #304/*.JPG",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 // ResetImmich
 // ⛔: will remove the content of the server.‼️
 // Give the user of the connection to confirm the server instance: debug@example.com
