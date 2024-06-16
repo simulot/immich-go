@@ -568,7 +568,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
 		}
 		ID, err = app.UploadAsset(ctx, a)
-		if err != nil {
+		if err == nil {
 			app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
 			if app.Delete {
 				app.deleteLocalList = append(app.deleteLocalList, a)
