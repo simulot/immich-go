@@ -28,7 +28,7 @@ func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 		switch {
 		case strings.HasSuffix(lowA, ".tgz") || strings.HasSuffix(lowA, ".tar.gz"):
 			errs = errors.Join(fmt.Errorf("immich-go cant use tgz archives: %s", filepath.Base(a)))
-		case strings.HasSuffix(a, ".zip"):
+		case strings.HasSuffix(lowA, ".zip"):
 			files, err := expandNames(a)
 			if err != nil {
 				errs = errors.Join(errs, err)
@@ -62,6 +62,9 @@ func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 					fsyss = append(fsyss, fsys)
 				}
 			} else {
+				if fixed == "" {
+					fixed = "."
+				}
 				fsys, err := NewGlobWalkFS(os.DirFS(fixed), magic)
 				if err != nil {
 					errs = errors.Join(errs, err)
