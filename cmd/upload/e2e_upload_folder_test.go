@@ -42,6 +42,7 @@ type testCase struct {
 	setup       immichSetupFunc
 	APITrace    bool
 	expectError bool
+	changeCWD   string
 }
 
 func runCase(t *testing.T, tc testCase) {
@@ -58,6 +59,14 @@ func runCase(t *testing.T, tc testCase) {
 	user := myEnv["IMMICH_USER"]
 	if user == "" {
 		user = "demo@immich.app"
+	}
+
+	if tc.changeCWD != "" {
+		cwd, _ := os.Getwd()
+		defer func() {
+			os.Chdir(cwd)
+		}()
+		_ = os.Chdir(tc.changeCWD)
 	}
 
 	ctx := context.Background()
@@ -440,6 +449,24 @@ func Test_Issue_159(t *testing.T) {
 		resetImmich: true,
 		expectError: false,
 		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
+// #304  Not all images being uploaded #304
+func Test_CreateAlbumFolder_304(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_#304_UploadFiles",
+		args: []string{
+			"-album", "Album Name",
+			"*.JPG",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+		changeCWD:   myEnv["IMMICH_TESTFILES"] + "/Error Upload #304",
 	}
 	runCase(t, tc)
 }
