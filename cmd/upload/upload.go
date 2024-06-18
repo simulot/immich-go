@@ -349,7 +349,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 	uiGroup.Go(func() error {
 		// Wait the server to calm down
-		tick := time.NewTicker(10 * time.Second)
+		tick := time.NewTicker(100 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
