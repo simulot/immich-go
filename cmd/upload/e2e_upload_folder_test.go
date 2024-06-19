@@ -108,6 +108,8 @@ func runCase(t *testing.T, tc testCase) {
 		Immich: ic,
 	}
 
+	os.Remove(tc.name + ".log")
+
 	err = UploadCommand(ctx, &app, args)
 	if (tc.expectError && (err == nil)) || (!tc.expectError && (err != nil)) {
 		t.Errorf("unexpected err: %v", err)

@@ -2,9 +2,9 @@ package fshelper
 
 import (
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -16,41 +16,32 @@ import (
 //
 
 type GlobWalkFS struct {
-	rootFS  fs.FS
-	pattern string
-	re      *regexp.Regexp
+	rootFS fs.FS
+	dir    string
+	parts  []string
 }
 
-func NewGlobWalkFS(fsys fs.FS, pattern string) (fs.FS, error) {
-	re, err := patternRegexp(pattern)
-	if err != nil {
-		return nil, err
-	}
-	return &GlobWalkFS{
-		rootFS:  fsys,
-		pattern: pattern,
-		re:      re,
-	}, nil
-}
-
-// patternRegexp transforms the glob into a regular expression
-func patternRegexp(pattern string) (*regexp.Regexp, error) {
-	reStr := strings.Builder{}
-	reStr.WriteString("(?mi)^")
-
-	for _, c := range pattern {
-		switch c {
-		default:
-			reStr.WriteRune(c)
-		case '.':
-			reStr.WriteString("\\.")
-		case '?':
-			reStr.WriteString("[^/]")
-		case '*':
-			reStr.WriteString("[^/]*")
+func NewGlobWalkFS(pattern string) (fs.FS, error) {
+	dir, magic := FixedPathAndMagic(pattern)
+	if magic == "" {
+		_, err := os.Stat(dir)
+		if err != nil {
+			return nil, err
 		}
+		magic = path.Base(dir)
+		dir = path.Dir(dir)
 	}
-	return regexp.Compile(reStr.String())
+
+	parts := strings.Split(magic, string(os.PathSeparator))
+	for i := range parts {
+		parts[i] = strings.ToLower(parts[i])
+	}
+
+	return &GlobWalkFS{
+		rootFS: os.DirFS(dir),
+		dir:    dir,
+		parts:  parts,
+	}, nil
 }
 
 // match the current file name with the pattern
@@ -61,7 +52,24 @@ func (gw GlobWalkFS) match(name string) bool {
 	if name == "." {
 		return true
 	}
-	return gw.re.MatchString(name)
+
+	parts := strings.Split(name, string(os.PathSeparator))
+	for i := range parts {
+		parts[i] = strings.ToLower(parts[i])
+	}
+	for i := 0; i < min(len(gw.parts), len(parts)); i++ {
+		if m, err := path.Match(gw.parts[i], parts[i]); err != nil || !m {
+			return false
+		}
+	}
+	parts = strings.Split(name, string(os.PathSeparator))
+	if len(gw.parts) > len(parts) {
+		s, err := fs.Stat(gw, path.Join(parts[:min(len(gw.parts), len(parts))]...))
+		if err != nil || !s.IsDir() {
+			return false
+		}
+	}
+	return true
 }
 
 // Open the name only if the name matches with the pattern
