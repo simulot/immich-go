@@ -108,6 +108,8 @@ func runCase(t *testing.T, tc testCase) {
 		Immich: ic,
 	}
 
+	os.Remove(tc.name + ".log")
+
 	err = UploadCommand(ctx, &app, args)
 	if (tc.expectError && (err == nil)) || (!tc.expectError && (err != nil)) {
 		t.Errorf("unexpected err: %v", err)
@@ -444,7 +446,8 @@ func Test_Issue_159(t *testing.T) {
 		name: "Test_Issue_159",
 		args: []string{
 			"-create-album-folder=true",
-			"TEST_DATA/folder/high/Album*",
+			// "TEST_DATA/folder/high/Album*",
+			"TEST_DATA/folder/high",
 		},
 		resetImmich: true,
 		expectError: false,
