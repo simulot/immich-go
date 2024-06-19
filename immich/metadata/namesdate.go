@@ -1,8 +1,11 @@
 package metadata
 
 import (
+	"os"
+	"path"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/simulot/immich-go/helpers/tzone"
@@ -27,12 +30,12 @@ func TakeTimeFromName(name string) time.Time {
 		panic(err)
 	}
 
-	// check for known exceptions...
-	mm := nexusBurstRE.FindStringSubmatch(name)
-	if len(mm) > 2 {
-		name = mm[1]
-	}
-	mm = guessTimePattern.FindStringSubmatch(name)
+	// // check for known exceptions...
+	// mm := nexusBurstRE.FindStringSubmatch(name)
+	// if len(mm) > 2 {
+	// 	name = mm[1]
+	// }
+	mm := guessTimePattern.FindStringSubmatch(name)
 	m := [7]int{}
 	if len(mm) >= 4 {
 		for i := range mm {
@@ -40,6 +43,7 @@ func TakeTimeFromName(name string) time.Time {
 				m[i-1], _ = strconv.Atoi(mm[i])
 			}
 		}
+
 		t := time.Date(m[0], time.Month(m[1]), m[2], m[3], m[4], m[5], 0, time.UTC)
 		if t.Year() != m[0] || t.Month() != time.Month(m[1]) || t.Day() != m[2] ||
 			t.Hour() != m[3] || t.Minute() != m[4] || t.Second() != m[5] {
@@ -50,7 +54,32 @@ func TakeTimeFromName(name string) time.Time {
 			// Discard dates in the future
 			return time.Time{}
 		}
+		if t.Year() < 1980 {
+			return time.Time{}
+		}
 		return t.In(local)
+	}
+	return time.Time{}
+}
+
+func TakeTimeFromPath(p string) time.Time {
+	parts := strings.Split(p, string(os.PathSeparator))
+	for i := len(parts) - 1; i >= 0; i-- {
+		name := parts[i]
+		if i == len(parts)-1 {
+			mm := nexusBurstRE.FindStringSubmatch(name)
+			if len(mm) > 2 {
+				name = mm[1]
+			}
+		}
+		t := TakeTimeFromName(name)
+		if !t.IsZero() {
+			return t
+		}
+	}
+	t := TakeTimeFromName(path.Dir(p))
+	if !t.IsZero() {
+		return t
 	}
 	return time.Time{}
 }

@@ -68,7 +68,65 @@ func TestTakeTimeFromName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := TakeTimeFromName(tt.name); !got.Equal(tt.expected) {
-				t.Errorf("GuessTimeTakeOnName() = %v, want %v", got, tt.expected)
+				t.Errorf("TakeTimeFromName() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestTakeTimeFromPath(t *testing.T) {
+	os.Setenv("TZ", "Europe/Paris")
+	local, err := tzone.Local()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tests := []struct {
+		name     string
+		expected time.Time
+	}{
+		{
+			name:     "A/B/PXL_20220909_154515546.TS.mp4",
+			expected: time.Date(2022, 9, 9, 17, 45, 15, 0, local),
+		},
+		{
+			name:     "A/B/IMG_1234.HEIC",
+			expected: time.Time{},
+		},
+		{
+			name:     "A/20221109/IMG_1234.HEIC",
+			expected: time.Date(2022, 11, 9, 1, 0, 0, 0, local),
+		},
+		{
+			name:     "A/20221109T2030/IMG_1234.HEIC",
+			expected: time.Date(2022, 11, 9, 21, 30, 0, 0, local),
+		},
+		{
+			name:     "A/2022.11.09T20.30/IMG_1234.HEIC",
+			expected: time.Date(2022, 11, 9, 21, 30, 0, 0, local),
+		},
+		{
+			name:     "A/2022.11.09T20.30/IMG_1234.HEIC",
+			expected: time.Date(2022, 11, 9, 21, 30, 0, 0, local),
+		},
+		{
+			name:     "A/2022/2022.11/2022.11.09/IMG_1234.HEIC",
+			expected: time.Date(2022, 11, 9, 1, 0, 0, 0, local),
+		},
+		{
+			name:     "A/2022/11/09/IMG_1234.HEIC",
+			expected: time.Date(2022, 11, 9, 1, 0, 0, 0, local),
+		},
+		{
+			name:     "/volume1/media/IPAD_20171113_video_nuotraukos/IMG_1552.JPG",
+			expected: time.Date(2017, 11, 13, 1, 0, 0, 0, local),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := TakeTimeFromPath(tt.name); !got.Equal(tt.expected) {
+				t.Errorf("TakeTimeFromPath() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
