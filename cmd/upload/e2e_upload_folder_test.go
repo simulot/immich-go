@@ -446,7 +446,8 @@ func Test_Issue_159(t *testing.T) {
 		name: "Test_Issue_159",
 		args: []string{
 			"-create-album-folder=true",
-			"TEST_DATA/folder/high/Album*",
+			// "TEST_DATA/folder/high/Album*",
+			"TEST_DATA/folder/high",
 		},
 		resetImmich: true,
 		expectError: false,

@@ -24,12 +24,25 @@ type GlobWalkFS struct {
 func NewGlobWalkFS(pattern string) (fs.FS, error) {
 	dir, magic := FixedPathAndMagic(pattern)
 	if magic == "" {
-		_, err := os.Stat(dir)
+		s, err := os.Stat(dir)
 		if err != nil {
 			return nil, err
 		}
-		magic = path.Base(dir)
-		dir = path.Dir(dir)
+
+		if !s.IsDir() {
+			magic = strings.ToLower(path.Base(dir))
+			dir = path.Dir(dir)
+			return &GlobWalkFS{
+				rootFS: os.DirFS(dir),
+				dir:    dir,
+				parts:  []string{magic},
+			}, nil
+		} else {
+			return &GlobWalkFS{
+				rootFS: os.DirFS(dir),
+				dir:    dir,
+			}, nil
+		}
 	}
 
 	parts := strings.Split(magic, string(os.PathSeparator))

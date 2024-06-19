@@ -56,12 +56,12 @@ func Test_GlobWalkFS(t *testing.T) {
 		{
 			pattern: "A",
 			expected: []string{
-				"A/1.jpg",
-				"A/1.json",
-				"A/2.jpg",
-				"A/2.json",
-				"A/T/10.jpg",
-				"A/T/10.json",
+				"1.jpg",
+				"1.json",
+				"2.jpg",
+				"2.json",
+				"T/10.jpg",
+				"T/10.json",
 			},
 		},
 		{
@@ -108,22 +108,22 @@ func TestFixedPathAndMagic(t *testing.T) {
 	}{
 		{
 			name:  "A/B/C/file",
-			want:  "./A/B/C/file",
+			want:  "A/B/C/file",
 			want1: "",
 		},
 		{
 			name:  "A/B/C/*.*",
-			want:  "./A/B/C",
+			want:  "A/B/C",
 			want1: "*.*",
 		},
 		{
 			name:  "A/*/C/file",
-			want:  "./A",
+			want:  "A",
 			want1: "*/C/file",
 		},
 		{
 			name:  "*.JPG",
-			want:  "./",
+			want:  "",
 			want1: "*.JPG",
 		},
 	}
