@@ -10,23 +10,25 @@ import (
 
 var timeRe = regexp.MustCompile(`(19[89]\d|20\d\d)\D?(0\d|1[0-2])\D?([0-3]\d)\D{0,1}([01]\d|2[0-4])?\D?([0-5]\d)?\D?([0-5]\d)?`)
 
-// TimeFromFullPath takes the full path of a file and returns a time.Time value that is extracted
+// TakeTimeFromPath takes the full path of a file and returns a time.Time value that is extracted
 // from the given full path. At first it tries to extract from filename, then from each folder
 // name (end to start), If no time is found - it will try to extract from the path itself as a
 // last resort (e.g. /something/2024/06/06/file123.png).
-func TimeFromFullPath(fullpath string) time.Time {
+func TakeTimeFromPath(fullpath string) time.Time {
 	parts := strings.Split(fullpath, string(os.PathSeparator))
 
 	for i := len(parts) - 1; i >= 0; i-- {
-		if t := parseTime(parts[i]); !t.IsZero() {
+		if t := TakeTimeFromName(parts[i]); !t.IsZero() {
 			return t
 		}
 	}
 
-	return parseTime(fullpath)
+	return TakeTimeFromName(fullpath)
 }
 
-func parseTime(s string) time.Time {
+// TakeTimeFromName takes the name of a file and returns a time.Time value that is extracted
+// from the given file name.
+func TakeTimeFromName(s string) time.Time {
 	timeSegments := timeRe.FindStringSubmatch(s)
 	if len(timeSegments) < 4 {
 		return time.Time{}

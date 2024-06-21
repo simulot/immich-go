@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestTimeFromFullPath(t *testing.T) {
+func TestTakeTimeFromPath(t *testing.T) {
 	tests := []struct {
 		name     string
 		expected time.Time
@@ -110,21 +110,21 @@ func TestTimeFromFullPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := TimeFromFullPath(tt.name); !got.Equal(tt.expected) {
-				t.Errorf("TimeFromFullPath() = %v, want %v", got, tt.expected)
+			if got := TakeTimeFromPath(tt.name); !got.Equal(tt.expected) {
+				t.Errorf("TakeTimeFromPath() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
 }
 
-func BenchmarkTimeFromFullPathName(b *testing.B) {
+func BenchmarkTakeTimeFromPathPath(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		TimeFromFullPath("PXL_20220909_154515546.TS.mp4")
+		TakeTimeFromPath("2022/2022.11/2022.11.09/IMG_1234.HEIC")
 	}
 }
 
-func BenchmarkTimeFromFullPathPath(b *testing.B) {
+func BenchmarkTakeTimeFromName(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		TimeFromFullPath("2022/2022.11/2022.11.09/IMG_1234.HEIC")
+		TakeTimeFromName("PXL_20220909_154515546.TS.mp4")
 	}
 }
