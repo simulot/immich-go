@@ -120,11 +120,11 @@ nextFile:
 
 		f := browser.LocalAssetFile{
 			FSys:      fsys,
-			FileName:  path.Join(folder, name),
+			FileName:  fileName,
 			Title:     path.Base(name),
 			FileSize:  0,
 			Err:       err,
-			DateTaken: metadata.TakeTimeFromPath(name),
+			DateTaken: metadata.TakeTimeFromPath(fileName),
 		}
 
 		s, err := e.Info()
