@@ -44,7 +44,7 @@ func TestTimeFromFullPath(t *testing.T) {
 		},
 		{
 			name:     "Bebop2_20180719194940+0200.mp4", // It's local time anyway, so ignore +0200 part
-			expected: time.Date(2018, 07, 19, 19, 49, 40, 0, local),
+			expected: time.Date(2018, 0o7, 19, 19, 49, 40, 0, local),
 		},
 		{
 			name:     "AR_EFFECT_20141126193511.mp4",
@@ -60,7 +60,7 @@ func TestTimeFromFullPath(t *testing.T) {
 		},
 		{
 			name:     "2023_07_20_10_09_20.mp4",
-			expected: time.Date(2023, 07, 20, 10, 9, 20, 0, local),
+			expected: time.Date(2023, 0o7, 20, 10, 9, 20, 0, local),
 		},
 		{
 			name:     "19991231",
@@ -104,7 +104,7 @@ func TestTimeFromFullPath(t *testing.T) {
 		},
 		{
 			name:     "something_2011-05-11 something/IMG_1234.JPG",
-			expected: time.Date(2011, 05, 11, 0, 0, 0, 0, local),
+			expected: time.Date(2011, 0o5, 11, 0, 0, 0, 0, local),
 		},
 	}
 
