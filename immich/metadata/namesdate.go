@@ -2,84 +2,52 @@ package metadata
 
 import (
 	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/simulot/immich-go/helpers/tzone"
 )
 
-// TakeTimeFromName extracts time components from the given name string and returns a time.Time value.
-// The name string is expected to contain digits representing year, month, day, hour, minute, and second in local.
-// Note: Pixel phone names photos with the UTC time
-//
-// Return a time.Time value created using the parsed time components.
-// The location is set to time.UTC for consistency.
-// Return the value time.Time{} when there isn't any date in the name, or if the date is invalid like 2023-02-30 20:65:00
+var timeRe = regexp.MustCompile(`(19[89]\d|20\d\d)\D?(0\d|1[0-2])\D?([0-3]\d)\D{0,1}([01]\d|2[0-4])?\D?([0-5]\d)?\D?([0-5]\d)?`)
 
-var (
-	guessTimePattern = regexp.MustCompile(`(\d{4})\D?(\d\d)\D?(\d\d)\D?(\d\d)?\D?(\d\d)?\D?(\d\d)?`)
-	nexusBurstRE     = regexp.MustCompile(`^\d{5}IMG_\d{5}_BURST(\d{14})(_COVER)?\..{3}$`)
-)
+// TimeFromFullPath takes the full path of a file and returns a time.Time value that is extracted
+// from the given full path. At first it tries to extract from filename, then from each folder
+// name (end to start), If no time is found - it will try to extract from the path itself as a
+// last resort (e.g. /something/2024/06/06/file123.png).
+func TimeFromFullPath(fullpath string) time.Time {
+	parts := strings.Split(fullpath, string(os.PathSeparator))
 
-func TakeTimeFromName(name string) time.Time {
-	local, err := tzone.Local()
-	if err != nil {
-		panic(err)
-	}
-
-	// // check for known exceptions...
-	// mm := nexusBurstRE.FindStringSubmatch(name)
-	// if len(mm) > 2 {
-	// 	name = mm[1]
-	// }
-	mm := guessTimePattern.FindStringSubmatch(name)
-	m := [7]int{}
-	if len(mm) >= 4 {
-		for i := range mm {
-			if i > 0 {
-				m[i-1], _ = strconv.Atoi(mm[i])
-			}
-		}
-
-		t := time.Date(m[0], time.Month(m[1]), m[2], m[3], m[4], m[5], 0, time.UTC)
-		if t.Year() != m[0] || t.Month() != time.Month(m[1]) || t.Day() != m[2] ||
-			t.Hour() != m[3] || t.Minute() != m[4] || t.Second() != m[5] {
-			// Date is invalid, return an error or default time value
-			return time.Time{}
-		}
-		if time.Since(t) < -24*time.Hour {
-			// Discard dates in the future
-			return time.Time{}
-		}
-		if t.Year() < 1980 {
-			return time.Time{}
-		}
-		return t.In(local)
-	}
-	return time.Time{}
-}
-
-func TakeTimeFromPath(p string) time.Time {
-	parts := strings.Split(p, string(os.PathSeparator))
 	for i := len(parts) - 1; i >= 0; i-- {
-		name := parts[i]
-		if i == len(parts)-1 {
-			mm := nexusBurstRE.FindStringSubmatch(name)
-			if len(mm) > 2 {
-				name = mm[1]
-			}
-		}
-		t := TakeTimeFromName(name)
-		if !t.IsZero() {
+		if t := parseTime(parts[i]); !t.IsZero() {
 			return t
 		}
 	}
-	t := TakeTimeFromName(path.Dir(p))
-	if !t.IsZero() {
-		return t
+
+	return parseTime(fullpath)
+}
+
+func parseTime(s string) time.Time {
+	timeSegments := timeRe.FindStringSubmatch(s)
+	if len(timeSegments) < 4 {
+		return time.Time{}
 	}
-	return time.Time{}
+
+	m := make([]int, 6)
+	for i := 1; i < len(timeSegments); i++ {
+		m[i-1], _ = strconv.Atoi(timeSegments[i])
+	}
+	t := time.Date(m[0], time.Month(m[1]), m[2], m[3], m[4], m[5], 0, local)
+
+	if t.Year() != m[0] || t.Month() != time.Month(m[1]) || t.Day() != m[2] ||
+		t.Hour() != m[3] || t.Minute() != m[4] || t.Second() != m[5] {
+		return time.Time{}
+	}
+	if time.Since(t) < -24*time.Hour {
+		return time.Time{}
+	}
+	// Below is not needed as it is enforced by Regex
+	// if t.Year() < 1980 {
+	// 	continue
+	// }
+	return t
 }

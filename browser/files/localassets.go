@@ -124,7 +124,7 @@ nextFile:
 			Title:     path.Base(name),
 			FileSize:  0,
 			Err:       err,
-			DateTaken: metadata.TakeTimeFromPath(name),
+			DateTaken: metadata.TimeFromFullPath(name),
 		}
 
 		s, err := e.Info()

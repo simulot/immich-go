@@ -8,15 +8,9 @@ import (
 	"path"
 	"testing"
 	"time"
-
-	"github.com/simulot/immich-go/helpers/tzone"
 )
 
 func mustParse(s string) time.Time {
-	local, err := tzone.Local()
-	if err != nil {
-		panic(err)
-	}
 	t, err := time.ParseInLocation("2006:01:02 15:04:05-07:00", s, local)
 	if err != nil {
 		panic(err)

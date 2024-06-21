@@ -48,7 +48,7 @@ type jsonFn func(md *GoogleMetaData)
 
 func takenTime(date string) func(md *GoogleMetaData) {
 	return func(md *GoogleMetaData) {
-		md.PhotoTakenTime.Timestamp = strconv.FormatInt(metadata.TakeTimeFromName(date).Unix(), 10)
+		md.PhotoTakenTime.Timestamp = strconv.FormatInt(metadata.TimeFromFullPath(date).Unix(), 10)
 	}
 }
 

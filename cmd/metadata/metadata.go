@@ -87,7 +87,7 @@ func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 		}
 
 		if app.MissingDateDespiteName {
-			dt := metadata.TakeTimeFromName(path.Base(a.OriginalPath))
+			dt := metadata.TimeFromFullPath(path.Base(a.OriginalPath))
 			if !dt.IsZero() {
 				if a.ExifInfo.DateTimeOriginal.IsZero() || (math.Abs(float64(dt.Sub(a.ExifInfo.DateTimeOriginal.Time))) > float64(24.0*time.Hour)) {
 					ba.reason = append(ba.reason, "capture date invalid, but the name contains a date")
