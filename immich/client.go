@@ -133,8 +133,6 @@ func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
 	if err != nil {
 		return user, err
 	}
-	sm[".html"] = TypeIgnored
-	sm[".mp"] = TypeIgnored
 	ic.supportedMediaTypes = sm
 	return user, nil
 }
@@ -184,7 +182,6 @@ const (
 	TypeVideo   = "video"
 	TypeImage   = "image"
 	TypeSidecar = "sidecar"
-	TypeIgnored = "ignored"
 	TypeUnknown = ""
 )
 
@@ -195,7 +192,7 @@ var DefaultSupportedMedia = SupportedMedia{
 	".jxl": TypeImage, ".k25": TypeImage, ".kdc": TypeImage, ".mrw": TypeImage, ".nef": TypeImage, ".orf": TypeImage, ".ori": TypeImage, ".pef": TypeImage, ".png": TypeImage, ".psd": TypeImage, ".raf": TypeImage, ".raw": TypeImage, ".rw2": TypeImage,
 	".rwl": TypeImage, ".sr2": TypeImage, ".srf": TypeImage, ".srw": TypeImage, ".tif": TypeImage, ".tiff": TypeImage, ".webp": TypeImage, ".x3f": TypeImage,
 	".xmp": TypeSidecar,
-	".mp":  TypeIgnored, ".html": TypeIgnored,
+	".mp":  TypeVideo,
 }
 
 func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMedia, error) {
@@ -211,7 +208,7 @@ func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMe
 			sm[e] = t
 		}
 	}
-
+	sm[".mp"] = TypeVideo
 	return sm, err
 }
 

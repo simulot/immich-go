@@ -109,9 +109,6 @@ nextFile:
 		default:
 			la.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, fileName, "reason", "unsupported file type")
 			continue nextFile
-		case immich.TypeIgnored:
-			la.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, fileName, "reason", "useless file")
-			continue nextFile
 		case immich.TypeSidecar:
 			la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, fileName)
 			continue nextFile

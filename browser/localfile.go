@@ -54,7 +54,8 @@ type LocalAssetFile struct {
 	Favorite    bool
 
 	// Live Photos
-	LivePhotoData string // Filename of MP4 file associated
+	LivePhoto   *LocalAssetFile // Local asset of the movie part
+	LivePhotoID string          // ID of the movie part, just uploaded
 
 	FSys     fs.FS // Asset's file system
 	FileSize int   // File size in bytes
