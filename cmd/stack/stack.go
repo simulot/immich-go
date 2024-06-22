@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"path"
 	"sort"
 	"strconv"
 
@@ -65,7 +64,7 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 			return nil
 		}
 		assetCount += 1
-		sb.ProcessAsset(a.ID, a.OriginalFileName+path.Ext(a.OriginalPath), a.ExifInfo.DateTimeOriginal.Time)
+		sb.ProcessAsset(a.ID, a.OriginalFileName, a.ExifInfo.DateTimeOriginal.Time)
 		return nil
 	})
 	if err != nil {
