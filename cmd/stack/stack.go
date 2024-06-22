@@ -20,7 +20,7 @@ type StackCmd struct {
 	DateRange immich.DateRange // Set capture date range
 }
 
-func initSack(ctx context.Context, common *cmd.SharedFlags, args []string) (*StackCmd, error) {
+func initStack(ctx context.Context, common *cmd.SharedFlags, args []string) (*StackCmd, error) {
 	cmd := flag.NewFlagSet("stack", flag.ExitOnError)
 	validRange := immich.DateRange{}
 
@@ -48,7 +48,7 @@ func initSack(ctx context.Context, common *cmd.SharedFlags, args []string) (*Sta
 }
 
 func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
-	app, err := initSack(ctx, common, args)
+	app, err := initStack(ctx, common, args)
 	if err != nil {
 		return err
 	}
