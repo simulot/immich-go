@@ -281,15 +281,20 @@ func normalMatch(jsonName string, fileName string, sm immich.SupportedMedia) boo
 // livePhotoMatch
 // 20231227_152817.jpg.json
 // 20231227_152817.MP4
+//
+// PXL_20231118_035751175.MP.jpg.json
+// PXL_20231118_035751175.MP.jpg
+// PXL_20231118_035751175.MP
 func livePhotoMatch(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	fileExt := path.Ext(fileName)
-	if sm.TypeFromExt(fileExt) == immich.TypeVideo {
-		fileName = strings.TrimSuffix(fileName, fileExt)
-		base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
-		base = strings.TrimSuffix(base, path.Ext(base))
-		return base == fileName
+	fileName = strings.TrimSuffix(fileName, fileExt)
+	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	base = strings.TrimSuffix(base, path.Ext(base))
+	if base == fileName {
+		return true
 	}
-	return false
+	base = strings.TrimSuffix(base, path.Ext(base))
+	return base == fileName
 }
 
 // matchWithOneCharOmitted
@@ -439,6 +444,10 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 	for _, f := range gen.MapKeys(catalog.matchedFiles) {
 		ext := path.Ext(f)
 		base := strings.TrimSuffix(f, ext)
+		ext2 := path.Ext(base)
+		if to.sm.IsMedia(ext2) {
+			base = strings.TrimSuffix(base, ext2)
+		}
 
 		linked := linkedFiles[base]
 		switch to.sm.TypeFromExt(ext) {
@@ -468,7 +477,7 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 		case <-ctx.Done():
 			return ctx.Err()
 		case assetChan <- a:
-			// to.uploaded[key] = nil // remember we have seen this file alread
+			// to.uploaded[key] = nil // remember we have already seen this file
 		}
 	}
 	return nil

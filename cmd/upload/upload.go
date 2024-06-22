@@ -716,6 +716,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 					app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
 				} else {
 					a.LivePhotoID = liveResp.ID
+					app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 				}
 			} else {
 				app.Jnl.Record(ctx, fileevent.UploadServerError, a.LivePhoto, a.LivePhoto.FileName, "error", err.Error())
@@ -725,6 +726,8 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		if err == nil {
 			if resp.Duplicate {
 				app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
+			} else {
+				app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.DateTaken.String())
 			}
 		} else {
 			app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
@@ -733,15 +736,15 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 	} else {
 		if a.LivePhoto != nil {
 			liveResp.ID = uuid.NewString()
+			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
 		}
 		resp.ID = uuid.NewString()
+		app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
 	}
 	if !resp.Duplicate {
 		if a.LivePhoto != nil {
-			app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 			app.AssetIndex.AddLocalAsset(a, liveResp.ID)
 		}
-		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName)
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		if app.CreateStacks {
 			app.stacks.ProcessAsset(resp.ID, a.FileName, a.DateTaken)

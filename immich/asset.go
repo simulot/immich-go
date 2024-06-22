@@ -66,6 +66,12 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 			la.Title = "No Name" + ext // fix #88, #128
 		}
 
+		// disguise MP files as MP4
+		if strings.ToLower(ext) == ".mp" {
+			la.Title = strings.TrimSuffix(la.Title, ext) + ".MP4"
+			ext = ".MP4"
+		}
+
 		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
 		if err != nil {
 			return
