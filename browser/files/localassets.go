@@ -235,5 +235,5 @@ func (la *LocalAssetBrowser) ReadMetadataFromFile(a *browser.LocalAssetFile) err
 	if err == nil {
 		a.DateTaken = m.DateTaken
 	}
-	return err
+	return nil
 }

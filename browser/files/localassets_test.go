@@ -82,6 +82,11 @@ func TestLocalAssets(t *testing.T) {
 			b.SetSupportedMedia(immich.DefaultSupportedMedia)
 			b.SetWhenNoDate("FILE")
 
+			err = b.Prepare(ctx)
+			if err != nil {
+				t.Error(err)
+			}
+
 			results := []string{}
 			for a := range b.Browse(ctx) {
 				results = append(results, a.FileName)
