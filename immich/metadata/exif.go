@@ -8,15 +8,10 @@ import (
 	"time"
 
 	"github.com/rwcarlsen/goexif/exif"
-	"github.com/simulot/immich-go/helpers/tzone"
 )
 
 func getExifFromReader(r io.Reader) (MetaData, error) {
 	var md MetaData
-	local, err := tzone.Local()
-	if err != nil {
-		return md, err
-	}
 	// Decode the EXIF data
 	x, err := exif.Decode(r)
 	if err != nil && exif.IsCriticalError(err) {
