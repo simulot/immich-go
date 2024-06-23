@@ -54,8 +54,10 @@ func takenTime(date string) func(md *GoogleMetaData) {
 
 func (mfs *inMemFS) addJSONImage(name string, title string, modifiers ...jsonFn) *inMemFS {
 	md := GoogleMetaData{
-		Title:      title,
-		URLPresent: true,
+		Metablock: Metablock{
+			Title:      title,
+			URLPresent: true,
+		},
 	}
 	md.PhotoTakenTime.Timestamp = strconv.FormatInt(time.Date(2023, 10, 23, 15, 0, 0, 0, time.Local).Unix(), 10)
 	for _, f := range modifiers {

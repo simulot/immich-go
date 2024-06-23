@@ -459,19 +459,19 @@ func TestUpload(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	name: "google photo, homonyms, keep partner",
-		// 	args: []string{
-		// 		"-google-photos",
-		// 		"TEST_DATA/Takeout3",
-		// 	},
-		// 	expectedErr: false,
-		// 	expectedAssets: []string{
-		// 		"Google Photos/Photos from 2023/DSC_0238_1.JPG",
-		// 		"Google Photos/Photos from 2023/DSC_0238.JPG",
-		// 		"Google Photos/Photos from 2023/DSC_0238(1).JPG",
-		// 	},
-		// },
+		//		// {
+		//		// 	name: "google photo, homonyms, keep partner",
+		//		// 	args: []string{
+		//		// 		"-google-photos",
+		//		// 		"TEST_DATA/Takeout3",
+		//		// 	},
+		//		// 	expectedErr: false,
+		//		// 	expectedAssets: []string{
+		//		// 		"Google Photos/Photos from 2023/DSC_0238_1.JPG",
+		//		// 		"Google Photos/Photos from 2023/DSC_0238.JPG",
+		//		// 		"Google Photos/Photos from 2023/DSC_0238(1).JPG",
+		//		// 	},
+		//		// },
 	}
 
 	for _, tc := range testCases {

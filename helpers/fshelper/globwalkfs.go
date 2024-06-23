@@ -2,6 +2,7 @@ package fshelper
 
 import (
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -15,18 +16,44 @@ import (
 //
 
 type GlobWalkFS struct {
-	rootFS  fs.FS
-	pattern string
-	parts   []string
+	rootFS fs.FS
+	dir    string
+	parts  []string
 }
 
-func NewGlobWalkFS(fsys fs.FS, pattern string) (fs.FS, error) {
-	pattern = filepath.ToSlash(pattern)
+func NewGlobWalkFS(pattern string) (fs.FS, error) {
+	dir, magic := FixedPathAndMagic(pattern)
+	if magic == "" {
+		s, err := os.Stat(dir)
+		if err != nil {
+			return nil, err
+		}
+
+		if !s.IsDir() {
+			magic = strings.ToLower(path.Base(dir))
+			dir = path.Dir(dir)
+			return &GlobWalkFS{
+				rootFS: os.DirFS(dir),
+				dir:    dir,
+				parts:  []string{magic},
+			}, nil
+		} else {
+			return &GlobWalkFS{
+				rootFS: os.DirFS(dir),
+				dir:    dir,
+			}, nil
+		}
+	}
+
+	parts := strings.Split(magic, string(os.PathSeparator))
+	for i := range parts {
+		parts[i] = strings.ToLower(parts[i])
+	}
 
 	return &GlobWalkFS{
-		rootFS:  fsys,
-		pattern: pattern,
-		parts:   strings.Split(pattern, "/"),
+		rootFS: os.DirFS(dir),
+		dir:    dir,
+		parts:  parts,
 	}, nil
 }
 
@@ -34,18 +61,28 @@ func NewGlobWalkFS(fsys fs.FS, pattern string) (fs.FS, error) {
 // matches files having a path starting by the patten
 //
 //	ex:  file /path/to/file matches with the pattern /*/to
-func (gw GlobWalkFS) match(name string) (bool, error) {
+func (gw GlobWalkFS) match(name string) bool {
 	if name == "." {
-		return true, nil
+		return true
 	}
-	nParts := strings.Split(name, "/")
-	for i := 0; i < min(len(gw.parts), len(nParts)); i++ {
-		match, err := path.Match(gw.parts[i], nParts[i])
-		if !match || err != nil {
-			return match, err
+
+	parts := strings.Split(name, string(os.PathSeparator))
+	for i := range parts {
+		parts[i] = strings.ToLower(parts[i])
+	}
+	for i := 0; i < min(len(gw.parts), len(parts)); i++ {
+		if m, err := path.Match(gw.parts[i], parts[i]); err != nil || !m {
+			return false
 		}
 	}
-	return true, nil
+	parts = strings.Split(name, string(os.PathSeparator))
+	if len(gw.parts) > len(parts) {
+		s, err := fs.Stat(gw, path.Join(parts[:min(len(gw.parts), len(parts))]...))
+		if err != nil || !s.IsDir() {
+			return false
+		}
+	}
+	return true
 }
 
 // Open the name only if the name matches with the pattern
@@ -60,10 +97,7 @@ func (gw GlobWalkFS) Stat(name string) (fs.FileInfo, error) {
 
 // ReadDir return all DirEntries that match with the pattern or .XMP files
 func (gw GlobWalkFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	match, err := gw.match(name)
-	if err != nil {
-		return nil, err
-	}
+	match := gw.match(name)
 	if !match {
 		return nil, fs.ErrNotExist
 	}
@@ -84,7 +118,7 @@ func (gw GlobWalkFS) ReadDir(name string) ([]fs.DirEntry, error) {
 				continue
 			}
 		}
-		match, _ = gw.match(p)
+		match = gw.match(p)
 		if match {
 			returned = append(returned, e)
 		}
