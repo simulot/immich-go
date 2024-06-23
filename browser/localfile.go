@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/simulot/immich-go/helpers/fshelper"
@@ -54,7 +53,8 @@ type LocalAssetFile struct {
 	Favorite    bool
 
 	// Live Photos
-	LivePhotoData string // Filename of MP4 file associated
+	LivePhoto   *LocalAssetFile // Local asset of the movie part
+	LivePhotoID string          // ID of the movie part, just uploaded
 
 	FSys     fs.FS // Asset's file system
 	FileSize int   // File size in bytes
@@ -106,16 +106,7 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 		}
 	}
 	if l.tempFile == nil {
-		tempDir, err := os.UserCacheDir()
-		if err != nil {
-			return nil, err
-		}
-		tempDir = filepath.Join(tempDir, "github.com/simulot/immich-go")
-		err = os.Mkdir(tempDir, 0o700)
-		if err != nil {
-			return nil, err
-		}
-		l.tempFile, err = os.CreateTemp(tempDir, "")
+		l.tempFile, err = os.CreateTemp("", "immich-go_*.tmp")
 		if err != nil {
 			return nil, err
 		}
