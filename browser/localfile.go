@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/simulot/immich-go/helpers/fshelper"
@@ -107,16 +106,7 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 		}
 	}
 	if l.tempFile == nil {
-		tempDir, err := os.UserCacheDir()
-		if err != nil {
-			return nil, err
-		}
-		tempDir = filepath.Join(tempDir, "github.com/simulot/immich-go")
-		err = os.Mkdir(tempDir, 0o700)
-		if err != nil {
-			return nil, err
-		}
-		l.tempFile, err = os.CreateTemp(tempDir, "")
+		l.tempFile, err = os.CreateTemp("", "immich-go_*.tmp")
 		if err != nil {
 			return nil, err
 		}
