@@ -197,7 +197,7 @@ func (la *LocalAssetBrowser) assetFromFile(fsys fs.FS, name string) (*browser.Lo
 	a := &browser.LocalAssetFile{
 		FileName:  name,
 		Title:     filepath.Base(name),
-		DateTaken: metadata.TakeTimeFromName(filepath.Base(name)), // TODO: fix at merge TakeTimeFromPath
+		DateTaken: metadata.TakeTimeFromPath(name),
 		FSys:      fsys,
 	}
 
@@ -222,140 +222,6 @@ func (la *LocalAssetBrowser) assetFromFile(fsys fs.FS, name string) (*browser.Lo
 	}
 	return a, nil
 }
-
-/*
-func (la *LocalAssetBrowser) handleFolder(ctx context.Context, fsys fs.FS, folder string) error {
-	entries, err := fs.ReadDir(fsys, folder)
-	if err != nil {
-		return err
-	}
-
-nextFile:
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		fileName := path.Join(folder, name)
-		ext := strings.ToLower(path.Ext(name))
-
-		t := la.sm.TypeFromExt(ext)
-		switch t {
-		default:
-			la.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, fileName, "reason", "unsupported file type")
-			continue nextFile
-		case immich.TypeSidecar:
-			la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, fileName)
-			continue nextFile
-		case immich.TypeImage:
-		case immich.TypeVideo:
-		}
-
-		f := browser.LocalAssetFile{
-			FSys:      fsys,
-			FileName:  path.Join(folder, name),
-			Title:     path.Base(name),
-			FileSize:  0,
-			Err:       err,
-			DateTaken: metadata.TakeTimeFromPath(name),
-		}
-
-		s, err := e.Info()
-		if err != nil {
-			f.Err = err
-		} else {
-			f.FileSize = int(s.Size())
-			if f.DateTaken.IsZero() {
-				err = la.ReadMetadataFromFile(&f)
-				_ = err
-				if f.DateTaken.Before(toOldDate) {
-					switch la.whenNoDate {
-					case "FILE":
-						f.DateTaken = s.ModTime()
-					case "NOW":
-						f.DateTaken = time.Now()
-					}
-				}
-			}
-			la.checkSidecar(ctx, &f, entries, folder, name)
-		}
-
-		switch t {
-		case immich.TypeImage:
-			la.log.Record(ctx, fileevent.DiscoveredImage, f, fileName)
-		case immich.TypeVideo:
-			la.log.Record(ctx, fileevent.DiscoveredVideo, f, fileName)
-		}
-
-		// Check if the context has been cancelled
-		select {
-		case <-ctx.Done():
-			// If the context has been cancelled, return immediately
-			return ctx.Err()
-		default:
-			fileChan <- &f
-		}
-	}
-	return nil
-}
-
-func (la *LocalAssetBrowser) checkSidecar(ctx context.Context, f *browser.LocalAssetFile, entries []fs.DirEntry, dir, name string) bool {
-	assetBase := la.baseNames(name)
-
-	for _, name := range assetBase {
-		xmp := name + ".[xX][mM][pP]"
-		for _, e := range entries {
-			m, err := path.Match(xmp, e.Name())
-			if err != nil {
-				panic(err)
-			}
-			if m {
-				f.SideCar = &metadata.SideCar{
-					FileName: path.Join(dir, e.Name()),
-					OnFSsys:  true,
-				}
-				la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, path.Join(dir, e.Name()), "main", f.FileName)
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (la *LocalAssetBrowser) baseNames(n string) []string {
-	n = escapeName(n)
-	names := []string{n}
-	ext := path.Ext(n)
-	for {
-		if ext == "" {
-			return names
-		}
-		if la.sm.TypeFromExt(ext) == "" {
-			return names
-		}
-		n = strings.TrimSuffix(n, ext)
-		names = append(names, n, n+".*")
-		ext = path.Ext(n)
-	}
-}
-
-
-func escapeName(n string) string {
-	b := strings.Builder{}
-	for _, c := range n {
-		switch c {
-		case '*', '?', '[', ']', '^':
-			b.WriteRune('\\')
-		case '\\':
-			if runtime.GOOS != "windows" {
-				b.WriteRune('\\')
-			}
-		}
-		b.WriteRune(c)
-	}
-	return b.String()
-}
-*/
 
 func (la *LocalAssetBrowser) ReadMetadataFromFile(a *browser.LocalAssetFile) error {
 	ext := strings.ToLower(path.Ext(a.FileName))
