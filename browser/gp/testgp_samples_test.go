@@ -180,10 +180,10 @@ func imagesEditedJSON() *inMemFS {
 
 func titlesWithForbiddenChars() *inMemFS {
 	return newInMemFS().
-		addJSONImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 1.mov.json", "27/06/12 - 1.mov").
+		addJSONImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 1.mov.json", "27/06/12 - 1", takenTime("20120627")).
 		addImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 1.mov", 52).
-		addJSONImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 1.json", "27/06/12 - 1").
-		addImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 1.jpg", 24)
+		addJSONImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 2.json", "27/06/12 - 2", takenTime("20120627")).
+		addImage("Takeout/Google Photos/Photos from 2012/27_06_12 - 2.jpg", 24)
 }
 
 func namesIssue39() *inMemFS {

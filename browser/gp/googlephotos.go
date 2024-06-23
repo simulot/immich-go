@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -473,11 +474,22 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 		} else {
 			a = to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
 		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case assetChan <- a:
-			// to.uploaded[key] = nil // remember we have already seen this file
+		default:
+			fk := fileKey{
+				base:   filepath.Base(a.FileName),
+				length: a.FileSize,
+				year:   a.DateTaken.Year(),
+			}
+			if _, found := to.uploaded[fk]; !found {
+				assetChan <- a
+				to.uploaded[fk] = nil
+			} else {
+				to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, a.FileName, "title", a.Title)
+			}
 		}
 	}
 	return nil
