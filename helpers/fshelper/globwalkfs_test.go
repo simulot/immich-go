@@ -2,7 +2,7 @@ package fshelper
 
 import (
 	"io/fs"
-	"os"
+	"path"
 	"reflect"
 	"testing"
 )
@@ -13,22 +13,20 @@ func Test_GlobWalkFS(t *testing.T) {
 		expected []string
 	}{
 		{
-			pattern: "A/T/10.jpg",
-			expected: []string{
-				"A/T/10.jpg",
-			},
+			pattern:  "A/T/10.jpg",
+			expected: []string{"10.jpg"},
 		},
 		{
 			pattern: "A/T/*.*",
 			expected: []string{
-				"A/T/10.jpg",
-				"A/T/10.json",
+				"10.jpg",
+				"10.json",
 			},
 		},
 		{
 			pattern: "A/T/*.jpg",
 			expected: []string{
-				"A/T/10.jpg",
+				"10.jpg",
 			},
 		},
 		{
@@ -58,19 +56,25 @@ func Test_GlobWalkFS(t *testing.T) {
 		{
 			pattern: "A",
 			expected: []string{
-				"A/1.jpg",
-				"A/1.json",
-				"A/2.jpg",
-				"A/2.json",
-				"A/T/10.jpg",
-				"A/T/10.json",
+				"1.jpg",
+				"1.json",
+				"2.jpg",
+				"2.json",
+				"T/10.jpg",
+				"T/10.json",
+			},
+		},
+		{
+			pattern: "*.jpg",
+			expected: []string{
+				"C.JPG",
 			},
 		},
 	}
 
 	for _, c := range tc {
 		t.Run(c.pattern, func(t *testing.T) {
-			fsys, err := NewGlobWalkFS(os.DirFS("TESTDATA"), c.pattern)
+			fsys, err := NewGlobWalkFS(path.Join("TESTDATA", c.pattern))
 			if err != nil {
 				t.Error(err)
 				return
@@ -116,6 +120,11 @@ func TestFixedPathAndMagic(t *testing.T) {
 			name:  "A/*/C/file",
 			want:  "A",
 			want1: "*/C/file",
+		},
+		{
+			name:  "*.JPG",
+			want:  "",
+			want1: "*.JPG",
 		},
 	}
 	for _, tt := range tests {

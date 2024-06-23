@@ -347,7 +347,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 	uiGroup.Go(func() error {
 		// Wait the server to calm down
-		tick := time.NewTicker(10 * time.Second)
+		tick := time.NewTicker(100 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
@@ -564,7 +564,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
 		}
 		ID, err = app.UploadAsset(ctx, a)
-		if err != nil {
+		if err == nil {
 			app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
 			if app.Delete {
 				app.deleteLocalList = append(app.deleteLocalList, a)
