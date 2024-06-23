@@ -85,8 +85,13 @@ func Run(ctx context.Context) error {
 		Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
 		Banner: ui.NewBanner(version, commit, date),
 	}
-	fmt.Println(app.Banner.String())
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
+	fs.Func("version", "Get immich-go version", func(s string) error {
+		fmt.Println("immich-go", version)
+		os.Exit(0)
+		return nil
+	})
+
 	app.InitSharedFlags()
 	app.SetFlags(fs)
 
@@ -95,6 +100,7 @@ func Run(ctx context.Context) error {
 		app.Log.Error(err.Error())
 		return err
 	}
+	fmt.Println(app.Banner.String())
 
 	if len(fs.Args()) == 0 {
 		err = errors.New("missing command upload|duplicate|stack|tool")
