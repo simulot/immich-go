@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -19,7 +20,7 @@ import (
 
 type Takeout struct {
 	fsyss      []fs.FS
-	catalogs   map[fs.FS]walkerCatalog     // file catalogs by walker
+	catalogs   dirCatalog                  // file catalogs by directory in the set of the all takeout parts
 	jsonByYear map[jsonKey]*GoogleMetaData // assets by year of capture and base name
 	uploaded   map[fileKey]any             // track files already uploaded
 	albums     map[string]string           // tack album names by folder
@@ -27,8 +28,8 @@ type Takeout struct {
 	sm         immich.SupportedMedia
 }
 
-// walkerCatalog collects all directory catalogs
-type walkerCatalog map[string]directoryCatalog // by directory in the walker
+// dirCatalog collects all directory catalogs
+type dirCatalog map[string]directoryCatalog // by directory in the walker
 
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
@@ -38,11 +39,14 @@ type directoryCatalog struct {
 
 // fileInfo keep information collected during pass one
 type fileInfo struct {
+	fsys   fs.FS           // Remember in which part of the archive the the file
+	base   string          // Remember the original file name
 	length int             // file length in bytes
 	md     *GoogleMetaData // will point to the associated metadata
 }
 
 // fileKey is the key of the uploaded files map
+// GP can't have duplicate JSON name in the same year.
 type fileKey struct {
 	base   string
 	length int
@@ -71,9 +75,8 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 // metadata files content is read and kept
 
 func (to *Takeout) Prepare(ctx context.Context) error {
-	to.catalogs = map[fs.FS]walkerCatalog{}
+	to.catalogs = dirCatalog{}
 	for _, w := range to.fsyss {
-		to.catalogs[w] = walkerCatalog{}
 		err := to.passOneFsWalk(ctx, w)
 		if err != nil {
 			return err
@@ -107,7 +110,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				return nil
 			}
 
-			dirCatalog := to.catalogs[w][dir]
+			dirCatalog := to.catalogs[dir]
 			if dirCatalog.unMatchedFiles == nil {
 				dirCatalog.unMatchedFiles = map[string]fileInfo{}
 			}
@@ -125,16 +128,16 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					switch {
 					case md.isAsset():
 						to.addJSON(dir, base, md)
-						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "asset metadata")
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "asset metadata", "title", md.Title)
 					case md.isAlbum():
 						to.albums[dir] = md.Title
 						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "album metadata", "title", md.Title)
 					default:
-						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "reason", "unknown JSONfile")
+						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "unknown JSONfile")
 						return nil
 					}
 				} else {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "reason", "unknown JSONfile")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "unknown JSONfile")
 					return nil
 				}
 			default:
@@ -142,9 +145,6 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				switch t {
 				case immich.TypeUnknown:
 					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "unsupported file type")
-					return nil
-				case immich.TypeIgnored:
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "useless file")
 					return nil
 				case immich.TypeVideo:
 					if strings.Contains(name, "Failed Videos") {
@@ -156,10 +156,12 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					to.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
 				}
 				dirCatalog.unMatchedFiles[base] = fileInfo{
+					base:   base,
+					fsys:   w,
 					length: int(finfo.Size()),
 				}
 			}
-			to.catalogs[w][dir] = dirCatalog
+			to.catalogs[dir] = dirCatalog
 			return nil
 		}
 	})
@@ -183,13 +185,17 @@ func (to *Takeout) addJSON(dir, base string, md *GoogleMetaData) {
 type matcherFn func(jsonName string, fileName string, sm immich.SupportedMedia) bool
 
 // matchers is a list of matcherFn from the most likely to be used to the least one
-var matchers = []matcherFn{
-	normalMatch,
-	matchWithOneCharOmitted,
-	matchVeryLongNameWithNumber,
-	matchDuplicateInYear,
-	matchEditedName,
-	matchForgottenDuplicates,
+var matchers = []struct {
+	name string
+	fn   matcherFn
+}{
+	{name: "normalMatch", fn: normalMatch},
+	{name: "livePhotoMatch", fn: livePhotoMatch},
+	{name: "matchWithOneCharOmitted", fn: matchWithOneCharOmitted},
+	{name: "matchVeryLongNameWithNumber", fn: matchVeryLongNameWithNumber},
+	{name: "matchDuplicateInYear", fn: matchDuplicateInYear},
+	{name: "matchEditedName", fn: matchEditedName},
+	{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
 }
 
 // solvePuzzle prepares metadata with information collected during pass one for each accepted files
@@ -242,24 +248,22 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 				paths[d] = nil
 			}
 			for d := range paths {
-				for _, w := range to.fsyss {
-					l := to.catalogs[w][d]
-					for f := range l.unMatchedFiles {
-						select {
-						case <-ctx.Done():
-							return ctx.Err()
-						default:
-							if matcher(k.name, f, to.sm) {
-								i := l.unMatchedFiles[f]
-								i.md = md
-								l.matchedFiles[f] = i
-								delete(l.unMatchedFiles, f)
-								to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.unMatchedFiles[f], f)
-							}
+				l := to.catalogs[d]
+				for f := range l.unMatchedFiles {
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					default:
+						if matcher.fn(k.name, f, to.sm) {
+							i := l.unMatchedFiles[f]
+							i.md = md
+							l.matchedFiles[f] = i
+							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.unMatchedFiles[f], f, "json", k.name, "matcher", matcher.name)
+							delete(l.unMatchedFiles, f)
 						}
 					}
-					to.catalogs[w][d] = l
 				}
+				to.catalogs[d] = l
 			}
 		}
 	}
@@ -272,6 +276,25 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 //	PXL_20230922_144936660.jpg
 func normalMatch(jsonName string, fileName string, sm immich.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	return base == fileName
+}
+
+// livePhotoMatch
+// 20231227_152817.jpg.json
+// 20231227_152817.MP4
+//
+// PXL_20231118_035751175.MP.jpg.json
+// PXL_20231118_035751175.MP.jpg
+// PXL_20231118_035751175.MP
+func livePhotoMatch(jsonName string, fileName string, sm immich.SupportedMedia) bool {
+	fileExt := path.Ext(fileName)
+	fileName = strings.TrimSuffix(fileName, fileExt)
+	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	base = strings.TrimSuffix(base, path.Ext(base))
+	if base == fileName {
+		return true
+	}
+	base = strings.TrimSuffix(base, path.Ext(base))
 	return base == fileName
 }
 
@@ -398,80 +421,86 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 
 	go func() {
 		defer close(assetChan)
-		for _, w := range to.fsyss {
-			err := to.passTwoWalk(ctx, w, assetChan)
-			if err != nil {
-				assetChan <- &browser.LocalAssetFile{Err: err}
+		for dir := range to.catalogs {
+			if len(to.catalogs[dir].matchedFiles) > 0 {
+				err := to.passTwo(ctx, dir, assetChan)
+				if err != nil {
+					assetChan <- &browser.LocalAssetFile{Err: err}
+				}
 			}
 		}
 	}()
 	return assetChan
 }
 
-func (to *Takeout) passTwoWalk(ctx context.Context, w fs.FS, assetChan chan *browser.LocalAssetFile) error {
-	return fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
+func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *browser.LocalAssetFile) error {
+	catalog := to.catalogs[dir]
+
+	linkedFiles := map[string]struct {
+		video fileInfo
+		image fileInfo
+	}{}
+
+	// detects couples image + video, likely been a motion picture
+	for _, f := range gen.MapKeys(catalog.matchedFiles) {
+		ext := path.Ext(f)
+		base := strings.TrimSuffix(f, ext)
+		ext2 := path.Ext(base)
+		if to.sm.IsMedia(ext2) {
+			base = strings.TrimSuffix(base, ext2)
 		}
 
-		if d.IsDir() {
-			return nil
+		linked := linkedFiles[base]
+		switch to.sm.TypeFromExt(ext) {
+		case immich.TypeVideo:
+			linked.video = catalog.matchedFiles[f]
+		case immich.TypeImage:
+			linked.image = catalog.matchedFiles[f]
+		}
+		linkedFiles[base] = linked
+	}
+
+	for _, base := range gen.MapKeys(linkedFiles) {
+		var a *browser.LocalAssetFile
+
+		linked := linkedFiles[base]
+
+		if linked.image.md != nil {
+			a = to.googleMDToAsset(linked.image.md, linked.image.fsys, path.Join(dir, linked.image.base))
+			if linked.video.md != nil {
+				i := to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+				a.LivePhoto = i
+			}
+		} else {
+			a = to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
 		}
 
-		dir, base := path.Split(name)
-		dir = strings.TrimSuffix(dir, "/")
-		ext := strings.ToLower(path.Ext(base))
-
-		if to.sm.IsIgnoredExt(ext) {
-			return nil
-		}
-
-		if !to.sm.IsMedia(ext) {
-			return nil
-		}
-		if _, exist := to.catalogs[w][dir].unMatchedFiles[base]; exist {
-			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, nil, name, "hint", "process all parts of the takeout at the same time")
-			return nil
-		}
-		f, exist := to.catalogs[w][dir].matchedFiles[base]
-		if !exist {
-			return nil
-		}
-		finfo, err := d.Info()
-		if err != nil {
-			to.log.Record(ctx, fileevent.Error, err, name, "message", err.Error())
-			return nil
-		}
-
-		// TODO: move this to resolve puzzle
-
-		key := fileKey{
-			base:   base,
-			length: int(finfo.Size()),
-			year:   f.md.PhotoTakenTime.Time().Year(),
-		}
-		if _, exists := to.uploaded[key]; exists {
-			to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
-
-			return nil
-		}
-		a := to.googleMDToAsset(f.md, key, w, name)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case assetChan <- a:
-			to.uploaded[key] = nil // remember we have seen this file already
+		default:
+			fk := fileKey{
+				base:   filepath.Base(a.FileName),
+				length: a.FileSize,
+				year:   a.DateTaken.Year(),
+			}
+			if _, found := to.uploaded[fk]; !found {
+				assetChan <- a
+				to.uploaded[fk] = nil
+			} else {
+				to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, a.FileName, "title", a.Title)
+			}
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // googleMDToAsset makes a localAssetFile based on the google metadata
-func (to *Takeout) googleMDToAsset(md *GoogleMetaData, key fileKey, fsys fs.FS, name string) *browser.LocalAssetFile {
+func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) *browser.LocalAssetFile {
 	// Change file's title with the asset's title and the actual file's extension
 	title := md.Title
 	titleExt := path.Ext(title)
-	fileExt := path.Ext(key.base)
+	fileExt := path.Ext(name)
 	if titleExt != fileExt {
 		title = strings.TrimSuffix(title, titleExt)
 		titleExt = path.Ext(title)
@@ -480,9 +509,13 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, key fileKey, fsys fs.FS, 
 		}
 	}
 
+	i, err := fs.Stat(fsys, name)
+	if err != nil {
+		return nil
+	}
 	a := browser.LocalAssetFile{
 		FileName:    name,
-		FileSize:    key.length,
+		FileSize:    int(i.Size()),
 		Title:       title,
 		Description: md.Description,
 		Altitude:    md.GeoDataExif.Altitude,

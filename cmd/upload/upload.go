@@ -61,8 +61,6 @@ type UpCmd struct {
 	AssetIndex       *AssetIndex               // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
 	deleteLocalList  []*browser.LocalAssetFile // List of local assets to remove
-	mediaUploaded    int                       // Count uploaded medias
-	mediaCount       int                       // Count of media on the source
 	updateAlbums     map[string]map[string]any // track immich albums changes
 	stacks           *stacking.StackBuilder
 	browser          browser.Browser
@@ -493,8 +491,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	defer func() {
 		a.Close()
 	}()
-	app.mediaCount++
-
 	// ext := path.Ext(a.FileName)
 	// if _, err := fshelper.MimeFromExt(ext); err != nil {
 	// 	app.journalAsset(a, logger.NOT_SELECTED, "not recognized extension")
@@ -621,7 +617,8 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	}
 
 	if err != nil {
-		app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
+		// the error should have been already reported
+		// next one
 		return nil
 	}
 
@@ -709,25 +706,49 @@ func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browse
 // return ID of the asset
 
 func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (string, error) {
-	var resp immich.AssetResponse
+	var resp, liveResp immich.AssetResponse
 	var err error
 	if !app.DryRun {
+		if a.LivePhoto != nil {
+			liveResp, err = app.Immich.AssetUpload(ctx, a.LivePhoto)
+			if err == nil {
+				if liveResp.Duplicate {
+					app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
+				} else {
+					a.LivePhotoID = liveResp.ID
+					app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
+				}
+			} else {
+				app.Jnl.Record(ctx, fileevent.UploadServerError, a.LivePhoto, a.LivePhoto.FileName, "error", err.Error())
+			}
+		}
 		resp, err = app.Immich.AssetUpload(ctx, a)
+		if err == nil {
+			if resp.Duplicate {
+				app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
+			} else {
+				app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.DateTaken.String())
+			}
+		} else {
+			app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
+			return "", err
+		}
 	} else {
+		if a.LivePhoto != nil {
+			liveResp.ID = uuid.NewString()
+			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
+		}
 		resp.ID = uuid.NewString()
-	}
-	if err != nil {
-		return "", err
+		app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
 	}
 	if !resp.Duplicate {
-		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName)
+		if a.LivePhoto != nil {
+			app.AssetIndex.AddLocalAsset(a, liveResp.ID)
+		}
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
-		app.mediaUploaded += 1
 		if app.CreateStacks {
 			app.stacks.ProcessAsset(resp.ID, a.FileName, a.DateTaken)
 		}
-	} else {
-		app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
 	}
 
 	return resp.ID, nil
