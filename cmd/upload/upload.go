@@ -347,7 +347,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 	uiGroup.Go(func() error {
 		// Wait the server to calm down
-		tick := time.NewTicker(100 * time.Second)
+		tick := time.NewTicker(30 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
@@ -734,12 +734,13 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 			return "", err
 		}
 	} else {
+		// dry-run mode
 		if a.LivePhoto != nil {
 			liveResp.ID = uuid.NewString()
-			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
+			app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 		}
 		resp.ID = uuid.NewString()
-		app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
+		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.DateTaken.String())
 	}
 	if !resp.Duplicate {
 		if a.LivePhoto != nil {
