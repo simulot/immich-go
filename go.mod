@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/gdamore/tcell/v2 v2.7.4
+	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/kr/pretty v0.3.1
