@@ -18,10 +18,12 @@ type searchMetadataGetAllBody struct {
 	WithExif    bool `json:"withExif,omitempty"`
 	IsVisible   bool `json:"isVisible,omitempty"`
 	WithDeleted bool `json:"withDeleted,omitempty"`
+	Size        int  `json:"size,omitempty"`
 }
 
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req *searchMetadataGetAllBody, filter func(*Asset) error) error {
 	req.Page = 1
+	req.Size = 1000
 	for {
 		select {
 		case <-ctx.Done():

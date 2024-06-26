@@ -11,7 +11,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -220,7 +219,10 @@ func (app *UpCmd) run(ctx context.Context) error {
 }
 
 func (app *UpCmd) runNoUI(ctx context.Context) error {
-	done := make(chan any)
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	stopProgress := make(chan any)
 	var maxImmich, currImmich int
 	spinner := []rune{' ', ' ', '.', ' ', ' '}
 	spinIdx := 0
@@ -228,7 +230,6 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 	immichUpdate := func(value, total int) {
 		currImmich, maxImmich = value, total
 	}
-	progressClosed := sync.WaitGroup{}
 
 	progressString := func() string {
 		var s string
@@ -266,53 +267,70 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		}
 		return s
 	}
+	uiGrp := errgroup.Group{}
 
-	progressClosed.Add(1)
-	go func() {
+	uiGrp.Go(func() error {
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer func() {
 			ticker.Stop()
 			fmt.Println(progressString())
-			progressClosed.Done()
 		}()
 		for {
 			select {
+			case <-stopProgress:
+				fmt.Print(progressString())
+				return nil
 			case <-ctx.Done():
-				return
-			case <-done:
-				return
+				fmt.Print(progressString())
+				return ctx.Err()
 			case <-ticker.C:
 				fmt.Print(progressString())
 			}
 		}
-	}()
+	})
 
-	processGrp := errgroup.Group{}
+	uiGrp.Go(func() error {
+		processGrp := errgroup.Group{}
 
-	processGrp.Go(func() error {
-		// Get immich asset
-		err := app.getImmichAssets(ctx, immichUpdate)
+		processGrp.Go(func() error {
+			// Get immich asset
+			err := app.getImmichAssets(ctx, immichUpdate)
+			if err != nil {
+				cancel(err)
+			}
+			return err
+		})
+		processGrp.Go(func() error {
+			// Run Prepare
+			err := app.browser.Prepare(ctx)
+			if err != nil {
+				cancel(err)
+			}
+			return err
+		})
+		_ = processGrp.Wait()
+		err := context.Cause(ctx)
+		if err != nil {
+			cancel(err)
+			return err
+		}
+		err = app.uploadLoop(ctx)
+		if err != nil {
+			cancel(err)
+		}
+		close(stopProgress)
 		return err
 	})
-	processGrp.Go(func() error {
-		// Run Prepare
-		err := app.browser.Prepare(ctx)
-		return err
-	})
-	err := processGrp.Wait()
-	if err != nil {
-		return err
-	}
-	err = app.uploadLoop(ctx)
-	close(done)
-	progressClosed.Wait()
+
+	_ = uiGrp.Wait()
+	err := context.Cause(ctx)
 	app.Jnl.Report()
 	return err
 }
 
 func (app *UpCmd) runUI(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 	page := app.newPage()
 	p := page.Page(ctx)
 
@@ -324,7 +342,8 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			// Get immich asset
 			err := app.getImmichAssets(ctx, page.updateImmichReading)
 			if err != nil {
-				cancel()
+				cancel(err)
+				p.Stop()
 			}
 			return err
 		})
@@ -332,13 +351,17 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			// Run Prepare
 			err := app.browser.Prepare(ctx)
 			if err != nil {
-				cancel()
+				cancel(err)
+				p.Stop()
 			}
 			return err
 		})
 
-		err := processGrp.Wait()
+		// err :=
+		_ = processGrp.Wait()
 		// at this point, the read immich and prepare are completed
+
+		err := context.Cause(ctx)
 		if err == nil {
 			err = app.uploadLoop(ctx)
 		}
@@ -347,7 +370,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 	uiGroup.Go(func() error {
 		// Wait the server to calm down
-		tick := time.NewTicker(100 * time.Second)
+		tick := time.NewTicker(10 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
@@ -356,7 +379,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 				now := time.Now().Unix()
 				last := page.lastTimeServerActive.Load()
 				if now-last > 10 {
-					cancel()
+					cancel(nil)
 					p.Stop()
 					return nil
 				}
@@ -364,14 +387,17 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		}
 	})
 	uiGroup.Go(func() error {
-		defer func() {
-			cancel()
-		}()
-		return p.Run()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return p.Run()
+		}
 	})
 
 	// Wait processes to finnish or cancellation
 	err := uiGroup.Wait()
+	err = context.Cause(ctx)
 	app.Jnl.Report()
 	return err
 }
