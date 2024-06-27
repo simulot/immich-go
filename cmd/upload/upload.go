@@ -359,13 +359,12 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			return err
 		})
 
-		// err :=
-		_ = processGrp.Wait()
-		// at this point, the read immich and prepare are completed
-
-		err := context.Cause(ctx)
+		err := processGrp.Wait()
 		if err == nil {
+			// at this point, the read immich and prepare are completed
 			err = app.uploadLoop(ctx)
+		} else {
+			err = context.Cause(ctx)
 		}
 		return err
 	})
