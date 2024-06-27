@@ -368,24 +368,27 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		return err
 	})
 
-	uiGroup.Go(func() error {
-		// Wait the server to calm down
-		tick := time.NewTicker(10 * time.Second)
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-tick.C:
-				now := time.Now().Unix()
-				last := page.lastTimeServerActive.Load()
-				if now-last > 10 {
-					cancel(nil)
-					p.Stop()
-					return nil
+	if !app.DryRun {
+		uiGroup.Go(func() error {
+			// Wait the server to calm down
+			tick := time.NewTicker(10 * time.Second)
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-tick.C:
+					now := time.Now().Unix()
+					last := page.lastTimeServerActive.Load()
+					if now-last > 10 {
+						cancel(nil)
+						p.Stop()
+						return nil
+					}
 				}
 			}
-		}
-	})
+		})
+	}
+
 	uiGroup.Go(func() error {
 		select {
 		case <-ctx.Done():
