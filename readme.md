@@ -53,19 +53,26 @@ For insights into the reasoning behind this alternative to `immich-cli`, please 
 The `immich-go` is a command line tool that must be run from a terminal window.  
 The `immich-go` program uses the Immich API. Hence it need the server address and a valid API key.
 
+## On linux, MacOS, FreeBSD and linux friends
 
 ```sh
-immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
+./immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
 ```
 
+## On Windows systems
+```powershell
+.\immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
+```
 
-> Boolean options have a default value indicated below. Mentioning any option on the common line changes the option to TRUE.
->To force an option to FALSE, use the following syntax: `-option=FALSE`.
->
->Example: Immich-go check the server's SSL certificate. you can disable this behavior by turning on the `skip-verify-ssl` option. Just add `-skip-verify-ssl`.
->`-skip-verify-ssl` is equivalent to `-skip-verify-ssl=TRUE`. To turn off the feature (which is the default behavior), use `-skip-verify-ssl=FALSE`
+## How boolean options are handled
 
+Boolean options have a default value indicated below. Mentioning any option on the common line changes the option to TRUE.
+to force an option to FALSE, use the following syntax: `-option=FALSE`.
 
+Example: Immich-go check the server's SSL certificate. you can disable this behavior by turning on the `skip-verify-ssl` option. Just add `-skip-verify-ssl`.
+`-skip-verify-ssl` is equivalent to `-skip-verify-ssl=TRUE`. To turn off the feature (which is the default behavior), use `-skip-verify-ssl=FALSE`
+
+## Shared options with all commands
 
 | **Parameter**                            | **Description**                                                                                                                                                               | **Default value**                                                                                                                                                                                                      |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -127,6 +134,7 @@ Specialized options for Google Photos management:
 | `-discard-archived`                | don't import archived assets.                                                    | `FALSE`           |
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
+
 
 ### Burst detection
 Currently the bursts following this schema are detected:
