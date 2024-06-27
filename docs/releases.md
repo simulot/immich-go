@@ -1,5 +1,11 @@
 # Release notes 
 
+### fix: display the cause error instead of "context canceled"
+
+### fix: stop all task on error in the no-ui mode
+When an error occurs  in one of the concurrent tasks, other stop immediately
+
+
 ## Released 0.17.1
 
 ### Fix: UpdateAsset new API endpoint
