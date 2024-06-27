@@ -322,8 +322,10 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		return err
 	})
 
-	_ = uiGrp.Wait()
-	err := context.Cause(ctx)
+	err := uiGrp.Wait()
+	if err != nil {
+		err = context.Cause(ctx)
+	}
 	app.Jnl.Report()
 	return err
 }
@@ -400,7 +402,9 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 	// Wait processes to finnish or cancellation
 	err := uiGroup.Wait()
-	err = context.Cause(ctx)
+	if err != nil {
+		err = context.Cause(ctx)
+	}
 	app.Jnl.Report()
 	return err
 }
