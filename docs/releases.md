@@ -1,5 +1,12 @@
 # Release notes 
 
+### fix: [#317](https://github.com/simulot/immich-go/issues/317)
+When the server doesn't reply as expected, the message is now explicit:
+```
+the ping API end point doesn't respond at this address: http://localhost:2283/api/server-info/ping
+```
+
+
 ### feat: Server's activity graph
 The UI mode now show the current activity of the immich server. After 10 seconds of zero activity, the program stops
 
