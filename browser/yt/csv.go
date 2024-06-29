@@ -1,7 +1,6 @@
 package yt
 
 import (
-	"golang.org/x/text/unicode/norm"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -133,12 +132,6 @@ func (ytmd YouTubePlaylist) Filename() string {
 
 	title = title + "-videos"
 
-	// I'm not actually sure if this is necessary but I've had enough
-	// of dealing with this.  Hopefully YouTube is already outputting
-	// normalized Unicode, but there's no reason to have any faith in
-	// them.
-	title = norm.NFC.String(title)
-
 	runes := []rune(title)
 	if len(utf16.Encode(runes)) > 47 {
 		// Truncate the string until it's <= 47 code units
@@ -177,12 +170,6 @@ func (ytv YouTubeVideo) Filename() string {
 	title = strings.ReplaceAll(title, "%", "_")
 	title = strings.ReplaceAll(title, "*", "_")
 	title = strings.ReplaceAll(title, "\"", "_")
-
-	// I'm not actually sure if this is necessary but I've had enough
-	// of dealing with this.  Hopefully YouTube is already outputting
-	// normalized Unicode, but there's no reason to have any faith in
-	// them.
-	title = norm.NFC.String(title)
 
 	runes := []rune(title)
 	if len(utf16.Encode(runes)) > 43 {
