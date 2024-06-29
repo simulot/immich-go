@@ -78,7 +78,7 @@ func (e Code) String() string {
 	if s, ok := _code[e]; ok {
 		return s
 	}
-	return fmt.Sprintf("unknow event code: %d", int(e))
+	return fmt.Sprintf("unknown event code: %d", int(e))
 }
 
 type event struct {
@@ -112,6 +112,7 @@ func (r *Recorder) Record(ctx context.Context, code Code, object any, file strin
 		r.events[code] = append(r.events[code], event{Code: code, Object: object, File: file, Args: args})
 		r.lock.Unlock()
 	}
+	args = append([]any{"count_" + strings.Replace(code.String(), " ", "_", -1), 1}, args...)
 	if r.log != nil {
 		level := slog.LevelInfo
 		if file != "" {
