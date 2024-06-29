@@ -464,7 +464,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "Serenade #2.mp4",
 			Title:       "Serenade #2.mp4",
-			Description: "A description of Serenade #2",
+			Description: "Serenade #2\n\nA description of Serenade #2",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
@@ -515,7 +515,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "Serenade #1.mp4",
 			Title:       "Serenade #1.mp4",
-			Description: "",
+			Description: "Serenade #1",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
@@ -571,7 +571,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "I manually set the location.mp4",
 			Title:       "I manually set the location.mp4",
-			Description: "",
+			Description: "I manually set the location",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
@@ -612,7 +612,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "`-=[]_,._~!@#$_^&_()_+{}_ 👱🏻🧟‍♀️👨‍❤️‍💋.mp4",
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
-			Description: "",
+			Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
@@ -648,7 +648,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "`-=[]_,._~!@#$_^&_()_+{}_ 👱🏻🧟‍♀️👨‍❤️‍💋(1).mp4",
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
-			Description: "A description of a Short video.",
+			Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص\n\nA description of a Short video.",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
@@ -689,7 +689,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "`-=[]_,._~!@#$_^&_()_+{}_ 👱🏻🧟‍♀️👨‍❤️‍💋(2).mp4",
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
-			Description: "",
+			Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{

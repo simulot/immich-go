@@ -196,10 +196,18 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 				albums = append(albums, album)
 			}
 
+			description, title_ok := video.Video.CleanTitle()
+			desc, desc_ok := video.Video.CleanDescription()
+			if title_ok && desc_ok {
+				description += "\n\n" + desc
+			} else if !title_ok {
+				description = desc
+			}
+
 			a := browser.LocalAssetFile{
 				FileName:    video.Filename,
 				Title:       video.Video.Title + path.Ext(video.Filename),
-				Description: video.Video.Description,
+				Description: description,
 				Albums:      albums,
 
 				DateTaken:   video.Video.Time(),
