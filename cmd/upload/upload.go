@@ -409,7 +409,9 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			return p.Run()
+			err := p.Run()
+			cancel(nil)
+			return err
 		}
 	})
 
