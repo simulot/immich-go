@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"math"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -86,7 +87,6 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 	}
 
 	app.SharedFlags.SetFlags(cmd)
-
 	cmd.BoolFunc(
 		"dry-run",
 		"display actions but don't touch source or destination",
@@ -205,6 +205,19 @@ func (app *UpCmd) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		if app.DebugCounters {
+			fn := strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".csv"
+			f, err := os.Create(fn)
+			if err == nil {
+				_ = app.Jnl.WriteFileCounts(f)
+				fmt.Println("\nCheck the counters file: ", f.Name())
+				f.Close()
+			}
+		}
+	}()
+
 	if app.NoUI {
 		return app.runNoUI(ctx)
 	}
@@ -238,25 +251,26 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		if maxImmich > 0 {
 			immichPct = 100 * currImmich / maxImmich
 		}
-		ScannedAssets := counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]
-		ProcessedAssets := counts[fileevent.UploadNotSelected] +
+		ScannedAssets := counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo] - counts[fileevent.DiscoveredDiscarded]
+		ProcessedAssets := counts[fileevent.Uploaded] +
+			counts[fileevent.UploadServerError] +
+			counts[fileevent.UploadNotSelected] +
 			counts[fileevent.UploadUpgraded] +
 			counts[fileevent.UploadServerDuplicate] +
 			counts[fileevent.UploadServerBetter] +
-			counts[fileevent.Uploaded] +
-			counts[fileevent.AnalysisLocalDuplicate] + counts[fileevent.AnalysisMissingAssociatedMetadata]
+			counts[fileevent.DiscoveredDiscarded] +
+			counts[fileevent.AnalysisLocalDuplicate]
+
 		if app.GooglePhotos {
 			gpPct := 0
 			upPct := 0
 			if ScannedAssets > 0 {
 				gpPct = int(100 * counts[fileevent.AnalysisAssociatedMetadata] / ScannedAssets)
-				upPct = int(100 * (counts[fileevent.UploadNotSelected] +
-					counts[fileevent.UploadUpgraded] +
-					counts[fileevent.UploadServerDuplicate] +
-					counts[fileevent.UploadServerBetter] +
-					counts[fileevent.Uploaded] +
-					counts[fileevent.AnalysisLocalDuplicate]) / ScannedAssets)
 			}
+			if counts[fileevent.AnalysisAssociatedMetadata] > 0 {
+				upPct = int(100 * ProcessedAssets / counts[fileevent.AnalysisAssociatedMetadata])
+			}
+
 			s = fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s", immichPct, gpPct, counts[fileevent.UploadServerError], upPct, string(spinner[spinIdx]))
 		} else {
 			s = fmt.Sprintf("\rImmich read %d%%, Processed %d, Upload errors: %d, Uploaded %d %s", immichPct, ProcessedAssets, counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))

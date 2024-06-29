@@ -36,6 +36,7 @@ type SharedFlags struct {
 	ClientTimeout     time.Duration // Set the client request timeout
 	NoUI              bool          // Disable user interface
 	JSONLog           bool          // Enable JSON structured log
+	DebugCounters     bool          // Enable CSV action counters per file
 
 	Immich          immich.ImmichInterface // Immich client
 	Log             *slog.Logger           // Logger
@@ -73,6 +74,7 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL))
 	fs.BoolFunc("no-ui", "Disable the user interface", myflag.BoolFlagFn(&app.NoUI, app.NoUI))
 	fs.Func("client-timeout", "Set server calls timeout, default 1m", myflag.DurationFlagFn(&app.ClientTimeout, app.ClientTimeout))
+	fs.BoolFunc("debug-counters", "generate a CSV file with actions per handled files", myflag.BoolFlagFn(&app.DebugCounters, false))
 }
 
 func (app *SharedFlags) Start(ctx context.Context) error {
@@ -86,7 +88,7 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 	}
 
 	if app.Jnl == nil {
-		app.Jnl = fileevent.NewRecorder(nil)
+		app.Jnl = fileevent.NewRecorder(nil, app.DebugCounters)
 	}
 
 	if app.LogFile != "" {
