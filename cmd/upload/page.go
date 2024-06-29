@@ -175,7 +175,7 @@ func (p *page) Page(ctx context.Context) *tview.Application {
 						jobWaiting += j.JobCounts.Waiting
 					}
 					_, _, w, _ := p.serverJobs.GetInnerRect()
-					p.serverActivity = append(p.serverActivity, float64(jobWaiting+jobCount))
+					p.serverActivity = append(p.serverActivity, float64(jobCount))
 					if len(p.serverActivity) > w {
 						p.serverActivity = p.serverActivity[1:]
 					}
