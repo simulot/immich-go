@@ -1,17 +1,17 @@
 # Release notes 
 
-### fix: [#304](https://github.com/simulot/immich-go/issues/304)  Error when uploading images with a wild card without path .JPG 
-Immich-go accepts "*.jpg" as parameter.
+## Release 0.18
 
-### fix: [#311](https://github.com/simulot/immich-go/issues/311) Readme spelling
+### feat: [#322](https://github.com/simulot/immich-go/issues/322) Add -version to get the immich version
+The option `-version` return the version of the executable. 
 
-### fix: [#317](https://github.com/simulot/immich-go/issues/317)
-When the server doesn't reply as expected, the message is now explicit:
-```
-the ping API end point doesn't respond at this address: http://localhost:2283/api/server-info/ping
-```
+### feat: [#289](https://github.com/simulot/immich-go/issues/289) Server's activity graph
+The UI mode now show the current activity of the immich server. After 10 seconds of zero activity, the program stops
 
-### enhancement [#308](https://github.com/simulot/immich-go/issues/308) Help me understand how immich-go parses date from filename
+### feat: generate a CSV files with the fate of each file
+Use the option `-debug-counters` to generate a CSV beside the log file
+
+### feat: [#308](https://github.com/simulot/immich-go/issues/308) Immich-go gets photos date from filename or path
 Immich-go tries to determine the date of capture with the file name, or the file path.
 
 Ex:
@@ -23,14 +23,32 @@ Ex:
 | photos/2022.11.09T20.30/IMG_1234.HEIC   | 2022-11-19 20:30:00  |
 | photos/2022/11/09/IMG_1234.HEIC         | 2022-11-19 00:00:00  |
 
+> Thanks to @erkexzcx for his contribution.
 
 
+### fix: [#326, #303](https://github.com/simulot/immich-go/pull/326) Live Photo / Motion pictures 
 
-### feat: Server's activity graph
-The UI mode now show the current activity of the immich server. After 10 seconds of zero activity, the program stops
+Since a recent release of Immich, the live photos and motion picture were seen as a picture and a small movie.
+The code has been refactored to be sure that the movie part is uploaded before the photo, and attached to the photo.
 
-### feat: generate a CSV files with the fate of each file
-Use the option `-debug-counters` to generate a CSV beside the log file
+### fix: [#304](https://github.com/simulot/immich-go/issues/304)  Error when uploading images with a wild card without path .JPG 
+Immich-go accepts "*.jpg" as parameter.
+
+
+### fix: [#317](https://github.com/simulot/immich-go/issues/317) Explicit message when the call to /api/server-info/ping fails
+The message is now explicit:
+```
+The ping API end point doesn't respond at this address: http://localhost:2283/api/server-info/ping
+```
+
+
+### fix: [#235,#240](https://github.com/simulot/immich-go/issues/235) Stack detection issue
+> Thanks to @matteolomba for his contribution
+
+### fix: Path of temporary files
+Temporary files are created in the system's temporary folder.
+
+### fix: [#311](https://github.com/simulot/immich-go/issues/311) Readme spelling
 
 ### fix: report unsupported files as unsupported  
 
