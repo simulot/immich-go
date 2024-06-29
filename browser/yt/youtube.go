@@ -88,9 +88,11 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 		for i, _ := range ytplaylists {
 			playlist := ytplaylists[i]
 			if playlist.Title == "Watch later" {
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "Watch later.csv", "reason", "useless file")
 				continue
 			}
 
+			to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, playlist.Filename(), "reason", "playlist file referenced in playlists.csv")
 			ytplaylistvideos, err := fshelper.ReadCSV[YouTubePlaylistVideo](pfs, playlist.Filename())
 			if err != nil {
 				return err
@@ -132,6 +134,8 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 			}
 			filename += ".mp4"
 
+			to.log.Record(ctx, fileevent.DiscoveredVideo, nil, filename)
+
 			synth := SynthesizedYouTubeVideo{
 				Channel:   channels[video.ChannelID],
 				Playlists: playlists[video.VideoID],
@@ -156,6 +160,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 		for _, video := range to.videos {
 			fileinfo, err := fs.Stat(video.Fsys, video.Filename)
 			if err != nil {
+				assetChan <- &browser.LocalAssetFile{Err: err}
 				continue
 			}
 
