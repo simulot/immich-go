@@ -3,6 +3,7 @@ package yt
 import (
 	"context"
 	"io/fs"
+	"path"
 	"strconv"
 
 	"github.com/simulot/immich-go/browser"
@@ -169,7 +170,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 
 			a := browser.LocalAssetFile{
 				FileName:    video.Filename,
-				Title:       video.Video.Title,
+				Title:       video.Video.Title + path.Ext(video.Filename),
 				Description: video.Video.Description,
 				Albums:      albums,
 
