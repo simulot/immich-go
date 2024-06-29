@@ -82,6 +82,7 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 		// VideoID => YouTubePlaylist
 		playlists := map[string][]*YouTubePlaylist{}
 		ytplaylists, err := fshelper.ReadCSV[YouTubePlaylist](pfs, "playlists.csv")
+		playlistTitlesToIDs := map[string]string{}
 		if err != nil {
 			return err
 		}
@@ -90,6 +91,12 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 			if playlist.Title == "Watch later" {
 				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "Watch later.csv", "reason", "useless file")
 				continue
+			}
+			playlistID, ok := playlistTitlesToIDs[playlist.Title]
+			if !ok {
+				playlistTitlesToIDs[playlist.Title] = playlist.PlaylistID
+			} else {
+				to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, "playlists.csv", "duplicate playlist name", "Playlist IDs " + playlistID + " and " + playlist.PlaylistID + " are both named '" + playlist.Title + "'; there's no way of knowing which playlist is actually being stored")
 			}
 
 			to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, playlist.Filename(), "reason", "playlist file referenced in playlists.csv")
@@ -166,6 +173,17 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 
 			albums := []browser.LocalAlbum{}
 			for _, playlist := range video.Playlists {
+				// Immich albums support having a description,
+				// and we have a description of each playlist
+				// from playlists.csv, but immich-go doesn't
+				// support passing those descriptions through
+				// without many changes: UpCmd.updateAlbums is
+				// a map from album name to a list of assets,
+				// and UpCmd.AddToAlbum would need to have the
+				// description added to its many calls.  Or
+				// we'd just need a new way to provide album
+				// description and I don't understand the code
+				// well enough to undertake that.
 				album := browser.LocalAlbum{
 					Path: playlist.Title,
 					Name: playlist.Title,
