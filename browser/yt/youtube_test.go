@@ -456,12 +456,17 @@ func TestPrepareAndBrowse(t *testing.T) {
 
 	local, _ := tzone.Local()
 
+	channelAlbum := browser.LocalAlbum{
+		Path: "Jonathan Stafford's YouTube channel",
+		Name: "Jonathan Stafford's YouTube channel",
+	}
 	wantLafs := []*browser.LocalAssetFile{
 		&browser.LocalAssetFile{
 			FileName:    "Serenade #2.mp4",
 			Title:       "Serenade #2.mp4",
 			Description: "A description of Serenade #2",
 			Albums:      []browser.LocalAlbum{
+				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "A playlist-videos.csv",
 					Path: "A playlist",
@@ -512,6 +517,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 			Title:       "Serenade #1.mp4",
 			Description: "",
 			Albums:      []browser.LocalAlbum{
+				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘.csv"
 					Path: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊tema🙋tis🙌rolod🙍muspi🙎meroL🙏",
@@ -567,6 +573,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 			Title:       "I manually set the location.mp4",
 			Description: "",
 			Albums:      []browser.LocalAlbum{
+				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "`-=[]_,._~!@#$_^&_()_+{}_-videos.csv"
 					Path: "`-=[]\\;',./~!@#$%^&*()_+{}|:\"?",
@@ -607,6 +614,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
 			Description: "",
 			Albums:      []browser.LocalAlbum{
+				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
@@ -642,6 +650,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
 			Description: "A description of a Short video.",
 			Albums:      []browser.LocalAlbum{
+				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "A playlist-videos.csv"
 					Path: "A playlist",
@@ -682,6 +691,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
 			Description: "",
 			Albums:      []browser.LocalAlbum{
+				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",

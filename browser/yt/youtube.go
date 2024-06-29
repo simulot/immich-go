@@ -171,7 +171,12 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 				continue
 			}
 
-			albums := []browser.LocalAlbum{}
+			albums := []browser.LocalAlbum{
+				browser.LocalAlbum{
+					Path: video.Channel.Title + "'s YouTube channel",
+					Name: video.Channel.Title + "'s YouTube channel",
+				},
+			}
 			for _, playlist := range video.Playlists {
 				// Immich albums support having a description,
 				// and we have a description of each playlist
