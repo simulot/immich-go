@@ -2,6 +2,10 @@
 
 **Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
+
+![screen](/docs/render1719696528932.gif)
+
+
 ## ⚠️ Immich has changed its API
 Latest release of `immich` comes with some changes in the API. This version of `immich-go` is adapted to the latest version of Immich.
 
@@ -40,11 +44,6 @@ ValidateConnection, GET, http://your-immich-server:2283/api/user/me, 404 Not Fou
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
 
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=simulot/immich-go&type=Date)](https://star-history.com/#simulot/immich-go&Date)
-
-
 > ⚠️ This an early version, not yet extensively tested<br>
 > ⚠️ Keep a backup copy of your files for safety<br>
 
@@ -53,15 +52,15 @@ For insights into the reasoning behind this alternative to `immich-cli`, please 
 The `immich-go` is a command line tool that must be run from a terminal window.  
 The `immich-go` program uses the Immich API. Hence it need the server address and a valid API key.
 
-## On linux, MacOS, FreeBSD and linux friends
+**On linux, MacOS, FreeBSD and linux friends:**
 
 ```sh
-./immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
+./immich-go -server URL -key KEY -general_options COMMAND -command_options... {path/to/files}
 ```
 
-## On Windows systems
+**On Windows systems:**
 ```powershell
-.\immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
+.\immich-go -server URL -key KEY -general_options COMMAND -command_options... {path/to/files}
 ```
 
 ## How boolean options are handled

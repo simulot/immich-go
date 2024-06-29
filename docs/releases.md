@@ -1,6 +1,7 @@
 # Release notes 
 
 ## Release 0.18
+![screen](/docs/render1719696528932.gif)
 
 ### feat: [#322](https://github.com/simulot/immich-go/issues/322) Add -version to get the immich version
 The option `-version` return the version of the executable. 
