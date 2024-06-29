@@ -130,6 +130,6 @@ func Run(ctx context.Context) error {
 	if err != nil {
 		app.Log.Error(err.Error())
 	}
-	fmt.Println("\nCheck the log file: ", app.LogFile)
+	fmt.Println("Check the log file: ", app.LogFile)
 	return err
 }

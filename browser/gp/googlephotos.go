@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -105,11 +104,6 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
 
-			if slices.Contains(uselessFiles, base) {
-				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "useless file")
-				return nil
-			}
-
 			dirCatalog := to.catalogs[dir]
 			if dirCatalog.unMatchedFiles == nil {
 				dirCatalog.unMatchedFiles = map[string]fileInfo{}
@@ -133,25 +127,25 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 						to.albums[dir] = md.Title
 						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "album metadata", "title", md.Title)
 					default:
-						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "unknown JSONfile")
+						to.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "unknown JSONfile")
 						return nil
 					}
 				} else {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "unknown JSONfile")
+					to.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "unknown JSONfile")
 					return nil
 				}
 			default:
 				t := to.sm.TypeFromExt(ext)
 				switch t {
 				case immich.TypeUnknown:
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "unsupported file type")
+					to.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "unsupported file type")
 					return nil
 				case immich.TypeVideo:
+					to.log.Record(ctx, fileevent.DiscoveredVideo, nil, name)
 					if strings.Contains(name, "Failed Videos") {
 						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "can't upload failed videos")
 						return nil
 					}
-					to.log.Record(ctx, fileevent.DiscoveredVideo, nil, name)
 				case immich.TypeImage:
 					to.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
 				}
@@ -258,7 +252,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 							i := l.unMatchedFiles[f]
 							i.md = md
 							l.matchedFiles[f] = i
-							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.unMatchedFiles[f], f, "json", k.name, "matcher", matcher.name)
+							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.unMatchedFiles[f], filepath.Join(d, f), "json", k.name, "year", k.year, "size", i.length, "matcher", matcher.name)
 							delete(l.unMatchedFiles, f)
 						}
 					}
@@ -489,6 +483,9 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 				to.uploaded[fk] = nil
 			} else {
 				to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, a.FileName, "title", a.Title)
+				if a.LivePhoto != nil {
+					to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, a.LivePhoto.FileName, "title", a.LivePhoto.Title)
+				}
 			}
 		}
 	}
@@ -535,11 +532,4 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 		}
 	}
 	return &a
-}
-
-var uselessFiles = []string{
-	"archive_browser.html",
-	"print-subscriptions.json",
-	"shared_album_comments.json",
-	"user-generated-memory-titles.json",
 }

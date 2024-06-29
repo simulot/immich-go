@@ -75,7 +75,7 @@ func TestLocalAssets(t *testing.T) {
 			}
 			ctx := context.Background()
 
-			b, err := files.NewLocalFiles(ctx, fileevent.NewRecorder(nil), fsys)
+			b, err := files.NewLocalFiles(ctx, fileevent.NewRecorder(nil, false), fsys)
 			if err != nil {
 				t.Error(err)
 			}

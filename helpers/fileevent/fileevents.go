@@ -3,10 +3,14 @@ package fileevent
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/simulot/immich-go/helpers/gen"
 )
 
 /*
@@ -34,14 +38,12 @@ const (
 	UploadAddToAlbum  // = "Added to an album"
 	UploadServerError // = "Server error"
 
+	Uploaded  // = "Uploaded"
+	Stacked   // = "Stacked"
+	LivePhoto // = "Live photo"
+	Metadata  // = "Metadata files"
+	INFO      // = "Info"
 	Error
-
-	Uploaded    // = "Uploaded"
-	Stacked     // = "Stacked"
-	LivePhoto   // = "Live photo"
-	FailedVideo // = "Failed video"
-	Metadata    // = "Metadata files"
-	INFO        // = "Info"
 	MaxCode
 )
 
@@ -65,51 +67,49 @@ var _code = map[Code]string{
 	UploadServerError:     "upload error",
 	Uploaded:              "uploaded",
 
-	Error: "error",
-
-	Stacked:     "Stacked",
-	LivePhoto:   "Live photo",
-	FailedVideo: "Failed video",
-	Metadata:    "Metadata files",
-	INFO:        "Info",
+	Stacked:   "Stacked",
+	LivePhoto: "Live photo",
+	Metadata:  "Metadata files",
+	INFO:      "Info",
+	Error:     "error",
 }
 
 func (e Code) String() string {
 	if s, ok := _code[e]; ok {
 		return s
 	}
-	return fmt.Sprintf("unknow event code: %d", int(e))
-}
-
-type event struct {
-	Code   Code
-	Object any
-	File   string
-	Args   []any
+	return fmt.Sprintf("unknown event code: %d", int(e))
 }
 
 type Recorder struct {
-	lock   sync.RWMutex
-	counts []int64
-	events map[Code][]event
-	log    *slog.Logger
+	lock       sync.RWMutex
+	counts     []int64
+	fileEvents map[string]map[Code]int
+	log        *slog.Logger
+	debug      bool
 }
 
-func NewRecorder(l *slog.Logger) *Recorder {
+func NewRecorder(l *slog.Logger, debug bool) *Recorder {
 	r := &Recorder{
-		counts: make([]int64, MaxCode),
-		events: map[Code][]event{},
-		log:    l,
+		counts:     make([]int64, MaxCode),
+		fileEvents: map[string]map[Code]int{},
+		log:        l,
+		debug:      debug,
 	}
 	return r
 }
 
 func (r *Recorder) Record(ctx context.Context, code Code, object any, file string, args ...any) {
 	atomic.AddInt64(&r.counts[code], 1)
-	switch code { // nolint:gocritic
-	case DiscoveredDiscarded:
+	if r.debug && file != "" {
 		r.lock.Lock()
-		r.events[code] = append(r.events[code], event{Code: code, Object: object, File: file, Args: args})
+		events := r.fileEvents[file]
+		if events == nil {
+			events = map[Code]int{}
+		}
+		v := events[code] + 1
+		events[code] = v
+		r.fileEvents[file] = events
 		r.lock.Unlock()
 	}
 	if r.log != nil {
@@ -173,4 +173,51 @@ func (r *Recorder) GetCounts() []int64 {
 	counts := make([]int64, MaxCode)
 	copy(counts, r.counts)
 	return counts
+}
+
+func (r *Recorder) WriteFileCounts(w io.Writer) error {
+	reportCodes := []Code{
+		-1,
+		DiscoveredImage,
+		DiscoveredVideo,
+		AnalysisAssociatedMetadata,
+		DiscoveredDiscarded,
+		DiscoveredUnsupported,
+		AnalysisLocalDuplicate,
+		UploadNotSelected,
+		UploadUpgraded,
+		UploadServerBetter,
+		UploadServerDuplicate,
+		Uploaded,
+	}
+	fmt.Fprint(w, "File,")
+	for _, c := range reportCodes {
+		if c >= 0 {
+			fmt.Fprint(w, strings.Replace(c.String(), " ", "_", -1)+",")
+		} else {
+			fmt.Fprint(w, "check,")
+		}
+	}
+	fmt.Fprintln(w)
+	keys := gen.MapKeys(r.fileEvents)
+	sort.Strings(keys)
+	for _, f := range keys {
+		fmt.Fprint(w, "\"", f, "\",")
+		e := r.fileEvents[f]
+		check := 0
+		for _, c := range reportCodes {
+			if c >= 0 {
+				check += e[c]
+			}
+		}
+		for _, c := range reportCodes {
+			if c >= 0 {
+				fmt.Fprint(w, e[c], ",")
+			} else {
+				fmt.Fprint(w, check, ",")
+			}
+		}
+		fmt.Fprintln(w)
+	}
+	return nil
 }

@@ -1,5 +1,13 @@
 # Release notes 
 
+### feat: Server's activity graph
+The UI mode now show the current activity of the immich server. After 10 seconds of zero activity, the program stops
+
+### feat: generate a CSV files with the fate of each file
+Use the option `-debug-counters` to generate a CSV beside the log file
+
+### fix: report unsupported files as unsupported  
+
 ### fix: report actual error instead of "context canceled"
 
 ### fix: stop all task on error in the no-ui mode

@@ -117,7 +117,7 @@ func TestBrowse(t *testing.T) {
 
 			log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(log), immich.DefaultSupportedMedia, fsys)
+			b, err := NewTakeout(ctx, fileevent.NewRecorder(log, false), immich.DefaultSupportedMedia, fsys)
 			if err != nil {
 				t.Error(err)
 			}
@@ -194,7 +194,7 @@ func TestAlbums(t *testing.T) {
 				t.Error(fsys.err)
 				return
 			}
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil), immich.DefaultSupportedMedia, fsys)
+			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), immich.DefaultSupportedMedia, fsys)
 			if err != nil {
 				t.Error(err)
 			}
