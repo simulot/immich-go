@@ -2,6 +2,10 @@
 
 **Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
+
+![screen](/docs/render1719696528932.gif)
+
+
 ## ⚠️ Immich has changed its API
 Latest release of `immich` comes with some changes in the API. This version of `immich-go` is adapted to the latest version of Immich.
 
@@ -40,11 +44,6 @@ ValidateConnection, GET, http://your-immich-server:2283/api/user/me, 404 Not Fou
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
 
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=simulot/immich-go&type=Date)](https://star-history.com/#simulot/immich-go&Date)
-
-
 > ⚠️ This an early version, not yet extensively tested<br>
 > ⚠️ Keep a backup copy of your files for safety<br>
 
@@ -53,15 +52,15 @@ For insights into the reasoning behind this alternative to `immich-cli`, please 
 The `immich-go` is a command line tool that must be run from a terminal window.  
 The `immich-go` program uses the Immich API. Hence it need the server address and a valid API key.
 
-## On linux, MacOS, FreeBSD and linux friends
+**On linux, MacOS, FreeBSD and linux friends:**
 
 ```sh
-./immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
+./immich-go -server URL -key KEY -general_options COMMAND -command_options... {path/to/files}
 ```
 
-## On Windows systems
+**On Windows systems:**
 ```powershell
-.\immich-go -server URL -key KEY -general_options COMMAND -command_options... {files}
+.\immich-go -server URL -key KEY -general_options COMMAND -command_options... {path/to/files}
 ```
 
 ## How boolean options are handled
@@ -134,6 +133,30 @@ Specialized options for Google Photos management:
 | `-discard-archived`                | don't import archived assets.                                                    | `FALSE`           |
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
+
+### How date of photos is determined
+
+
+#### When importing a Google Photos takeout archive:
+ `immich-go` takes the photo's date from the associated JSON file.
+
+> The server ignores the date provided by immich-go and takes the MP4's date even when it is incorrect. 
+> <br>See [#322 Creation timestamp from metadata is wrong](https://github.com/simulot/immich-go/issues/332)
+
+#### When importing photos from a directory:
+
+Immich-go tries to determine the date of capture with the file name, or the file path.
+
+Ex:
+| Path                                    | Photo's capture date |
+| --------------------------------------- | -------------------- |
+| photos/album/PXL_20220909_154515546.jpg | 2022-09-09 15:51:55  |
+| photos/scanned/19991231.jpg             | 1999-12-31 00:00:00  |
+| photos/20221109/IMG_1234.HEIC           | 2022-11-19 00:00:00  |
+| photos/2022.11.09T20.30/IMG_1234.HEIC   | 2022-11-19 20:30:00  |
+| photos/2022/11/09/IMG_1234.HEIC         | 2022-11-19 00:00:00  |
+
+If the path can't be used to determine the capture date, immich-go read the file's `metadata` or `exif`.
 
 
 ### Burst detection
