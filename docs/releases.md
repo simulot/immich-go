@@ -1,10 +1,29 @@
 # Release notes 
 
+### fix: [#304](https://github.com/simulot/immich-go/issues/304)  Error when uploading images with a wild card without path .JPG 
+Immich-go accepts "*.jpg" as parameter.
+
+### fix: [#311](https://github.com/simulot/immich-go/issues/311) Readme spelling
+
 ### fix: [#317](https://github.com/simulot/immich-go/issues/317)
 When the server doesn't reply as expected, the message is now explicit:
 ```
 the ping API end point doesn't respond at this address: http://localhost:2283/api/server-info/ping
 ```
+
+### enhancement [#308](https://github.com/simulot/immich-go/issues/308) Help me understand how immich-go parses date from filename
+Immich-go tries to determine the date of capture with the file name, or the file path.
+
+Ex:
+| Path                                    | Photo's capture date |
+| --------------------------------------- | -------------------- |
+| photos/album/PXL_20220909_154515546.jpg | 2022-09-09 15:51:55  |
+| photos/scanned/19991231.jpg             | 1999-12-31 00:00:00  |
+| photos/20221109/IMG_1234.HEIC           | 2022-11-19 00:00:00  |
+| photos/2022.11.09T20.30/IMG_1234.HEIC   | 2022-11-19 20:30:00  |
+| photos/2022/11/09/IMG_1234.HEIC         | 2022-11-19 00:00:00  |
+
+
 
 
 ### feat: Server's activity graph
