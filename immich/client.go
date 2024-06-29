@@ -109,7 +109,7 @@ func (ic *ImmichClient) PingServer(ctx context.Context) error {
 	r := PingResponse{}
 	err := ic.newServerCall(ctx, "PingServer").do(get("/server-info/ping", setAcceptJSON()), responseJSON(&r))
 	if err != nil {
-		return err
+		return fmt.Errorf("the ping API end point doesn't respond at this address: %s", ic.endPoint+"/server-info/ping")
 	}
 	if r.Res != "pong" {
 		return fmt.Errorf("incorrect ping response: %s", r.Res)

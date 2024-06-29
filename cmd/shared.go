@@ -62,7 +62,7 @@ func (app *SharedFlags) InitSharedFlags() {
 func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&app.ConfigurationFile, "use-configuration", app.ConfigurationFile, "Specifies the configuration to use")
 	fs.StringVar(&app.Server, "server", app.Server, "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
-	fs.StringVar(&app.API, "api", "", "Immich api endpoint (http://container_ip:3301)")
+	fs.StringVar(&app.API, "api", app.API, "Immich api endpoint (http://container_ip:3301)")
 	fs.StringVar(&app.Key, "key", app.Key, "API Key")
 	fs.StringVar(&app.DeviceUUID, "device-uuid", app.DeviceUUID, "Set a device UUID")
 	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
