@@ -1,5 +1,9 @@
 # Release notes 
 
+### fix: report actual error instead of "context canceled"
+
+### fix: stop all task on error in the no-ui mode
+
 ## Released 0.17.1
 
 ### Fix: UpdateAsset new API endpoint
