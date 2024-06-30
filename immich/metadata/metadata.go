@@ -1,4 +1,4 @@
-package xmp
+package metadata
 
 import (
 	"encoding/xml"
@@ -8,14 +8,19 @@ import (
 	"time"
 )
 
-type Meta struct {
-	Description      string
-	DateTimeOriginal time.Time
-	Latitude         float64
-	Longitude        float64
+type Metadata struct {
+	Description string
+	DateTaken   time.Time
+	Latitude    float64
+	Longitude   float64
+	Altitude    float64
 }
 
-func (m Meta) Write(w io.Writer) error {
+func (m Metadata) IsSet() bool {
+	return m.Description != "" || !m.DateTaken.IsZero() || m.Latitude != 0 || m.Longitude != 0
+}
+
+func (m Metadata) Write(w io.Writer) error {
 	_, err := io.WriteString(w, header)
 	if err != nil {
 		return err
@@ -35,14 +40,14 @@ func (m Meta) Write(w io.Writer) error {
 		}
 	}
 
-	writeExifBlock := !m.DateTimeOriginal.IsZero() || m.Latitude != 0 || m.Longitude != 0
+	writeExifBlock := !m.DateTaken.IsZero() || m.Latitude != 0 || m.Longitude != 0
 	if writeExifBlock {
 		_, err = io.WriteString(w, exifHeader)
 		if err != nil {
 			return err
 		}
-		if !m.DateTimeOriginal.IsZero() {
-			_, err := fmt.Fprintf(w, exifDateTimeOriginal, m.DateTimeOriginal.UTC().Format("2006-01-02T15:04:05Z"))
+		if !m.DateTaken.IsZero() {
+			_, err := fmt.Fprintf(w, exifDateTimeOriginal, m.DateTaken.UTC().Format("2006-01-02T15:04:05Z"))
 			if err != nil {
 				return err
 			}
@@ -66,7 +71,7 @@ func (m Meta) Write(w io.Writer) error {
 	return err
 }
 
-func (m Meta) String() string {
+func (m Metadata) String() string {
 	s := strings.Builder{}
 	_ = m.Write(&s)
 	return s.String()

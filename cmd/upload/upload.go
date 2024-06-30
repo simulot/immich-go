@@ -575,7 +575,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	}
 
 	if app.DateRange.IsSet() {
-		d := a.DateTaken
+		d := a.Metadata.DateTaken
 		if d.IsZero() {
 			app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "date of capture is unknown")
 			return nil
@@ -709,19 +709,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			}
 		}
 	}
-
-	shouldUpdate := a.Description != ""
-	shouldUpdate = shouldUpdate || a.Favorite
-	shouldUpdate = shouldUpdate || a.Longitude != 0 || a.Latitude != 0
-	shouldUpdate = shouldUpdate || a.Archived
-
-	if !app.DryRun && shouldUpdate {
-		_, err := app.Immich.UpdateAsset(ctx, ID, a)
-		if err != nil {
-			app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
-		}
-		time.Sleep(2 * time.Millisecond)
-	}
 	return nil
 }
 
@@ -775,7 +762,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 			if resp.Duplicate {
 				app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
 			} else {
-				app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.DateTaken.String())
+				app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
 			}
 		} else {
 			app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
@@ -788,7 +775,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 			app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 		}
 		resp.ID = uuid.NewString()
-		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.DateTaken.String())
+		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
 	}
 	if !resp.Duplicate {
 		if a.LivePhoto != nil {
@@ -796,7 +783,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		}
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
 		if app.CreateStacks {
-			app.stacks.ProcessAsset(resp.ID, a.FileName, a.DateTaken)
+			app.stacks.ProcessAsset(resp.ID, a.FileName, a.Metadata.DateTaken)
 		}
 	}
 
@@ -1021,7 +1008,7 @@ func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) 
 	}
 
 	if len(l) > 0 {
-		dateTaken := la.DateTaken
+		dateTaken := la.Metadata.DateTaken
 		size := int(la.Size())
 
 		for _, sa = range l {

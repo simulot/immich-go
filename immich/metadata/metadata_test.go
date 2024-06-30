@@ -1,16 +1,16 @@
-package xmp
+package metadata
 
 import (
 	"testing"
 	"time"
 )
 
-func TestMeta_String(t *testing.T) {
+func TestMetadata_String(t *testing.T) {
 	type fields struct {
-		Description      string
-		DateTimeOriginal time.Time
-		Latitude         float64
-		Longitude        float64
+		Description string
+		DateTaken   time.Time
+		Latitude    float64
+		Longitude   float64
 	}
 	tests := []struct {
 		name   string
@@ -20,7 +20,7 @@ func TestMeta_String(t *testing.T) {
 		{
 			name: "TimeOnly",
 			fields: fields{
-				DateTimeOriginal: time.Date(2000, 1, 2, 15, 32, 59, 0, time.UTC),
+				DateTaken: time.Date(2000, 1, 2, 15, 32, 59, 0, time.UTC),
 			},
 			want: `<?xpacket begin='?' id='W5M0MpCehiHzreSzNTczkc9d'?>
 <x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='Image::ExifTool 12.40'>
@@ -76,10 +76,10 @@ func TestMeta_String(t *testing.T) {
 		{
 			name: "All",
 			fields: fields{
-				Description:      `That /!\ strange & dark <place> â ø`,
-				DateTimeOriginal: time.Date(2000, 1, 2, 15, 32, 59, 0, time.UTC),
-				Latitude:         71.1652089,
-				Longitude:        25.7909877,
+				Description: `That /!\ strange & dark <place> â ø`,
+				DateTaken:   time.Date(2000, 1, 2, 15, 32, 59, 0, time.UTC),
+				Latitude:    71.1652089,
+				Longitude:   25.7909877,
 			},
 			want: `<?xpacket begin='?' id='W5M0MpCehiHzreSzNTczkc9d'?>
 <x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='Image::ExifTool 12.40'>
@@ -106,11 +106,11 @@ func TestMeta_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := Meta{
-				Description:      tt.fields.Description,
-				DateTimeOriginal: tt.fields.DateTimeOriginal,
-				Latitude:         tt.fields.Latitude,
-				Longitude:        tt.fields.Longitude,
+			m := Metadata{
+				Description: tt.fields.Description,
+				DateTaken:   tt.fields.DateTaken,
+				Latitude:    tt.fields.Latitude,
+				Longitude:   tt.fields.Longitude,
 			}
 			if got := m.String(); got != tt.want {
 				t.Errorf("Meta.String() = %v, want %v", got, tt.want)
