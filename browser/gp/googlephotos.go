@@ -15,6 +15,7 @@ import (
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/immich/metadata"
 )
 
 type Takeout struct {
@@ -476,7 +477,7 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 			fk := fileKey{
 				base:   filepath.Base(a.FileName),
 				length: a.FileSize,
-				year:   a.DateTaken.Year(),
+				year:   a.Metadata.DateTaken.Year(),
 			}
 			if _, found := to.uploaded[fk]; !found {
 				assetChan <- a
@@ -510,20 +511,31 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 	if err != nil {
 		return nil
 	}
+
+	sidecar := metadata.Metadata{
+		Description: md.Description,
+		DateTaken:   md.PhotoTakenTime.Time(),
+	}
+	if md.GeoDataExif.Latitude != 0 || md.GeoDataExif.Longitude != 0 {
+		sidecar.Latitude = md.GeoDataExif.Latitude
+		sidecar.Longitude = md.GeoDataExif.Longitude
+	}
+	if md.GeoData.Latitude != 0 || md.GeoData.Longitude != 0 {
+		sidecar.Latitude = md.GeoData.Latitude
+		sidecar.Longitude = md.GeoData.Longitude
+	}
+
 	a := browser.LocalAssetFile{
 		FileName:    name,
 		FileSize:    int(i.Size()),
 		Title:       title,
-		Description: md.Description,
-		Altitude:    md.GeoDataExif.Altitude,
-		Latitude:    md.GeoDataExif.Latitude,
-		Longitude:   md.GeoDataExif.Longitude,
+		Metadata:    sidecar,
 		Archived:    md.Archived,
 		FromPartner: md.isPartner(),
 		Trashed:     md.Trashed,
-		DateTaken:   md.PhotoTakenTime.Time(),
 		Favorite:    md.Favorited,
-		FSys:        fsys,
+
+		FSys: fsys,
 	}
 
 	for _, p := range md.foundInPaths {
@@ -531,5 +543,6 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 			a.Albums = append(a.Albums, browser.LocalAlbum{Path: p, Name: album})
 		}
 	}
+
 	return &a
 }

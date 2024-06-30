@@ -16,6 +16,7 @@ type Metablock struct {
 	DatePresent    googIsPresent  `json:"date,omitempty"` // true when the file is a folder metadata
 	PhotoTakenTime googTimeObject `json:"photoTakenTime"`
 	GeoDataExif    googGeoData    `json:"geoDataExif"`
+	GeoData        googGeoData    `json:"geoData"`
 	Trashed        bool           `json:"trashed,omitempty"`
 	Archived       bool           `json:"archived,omitempty"`
 	URLPresent     googIsPresent  `json:"url,omitempty"`       // true when the file is an asset metadata

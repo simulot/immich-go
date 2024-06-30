@@ -9,15 +9,10 @@ import (
 	"time"
 )
 
-type MetaData struct {
-	DateTaken                     time.Time
-	Latitude, Longitude, Altitude float64
-}
-
-func GetFileMetaData(fsys fs.FS, name string) (MetaData, error) {
+func GetFileMetaData(fsys fs.FS, name string) (Metadata, error) {
 	f, err := fsys.Open(name)
 	if err != nil {
-		return MetaData{}, err
+		return Metadata{}, err
 	}
 	defer f.Close()
 	return GetFromReader(f, path.Ext(name))
@@ -31,9 +26,9 @@ func GetFileMetaData(fsys fs.FS, name string) (MetaData, error) {
 //
 //
 
-func GetFromReader(rd io.Reader, ext string) (MetaData, error) {
+func GetFromReader(rd io.Reader, ext string) (Metadata, error) {
 	r := newSliceReader(rd)
-	meta := MetaData{}
+	meta := Metadata{}
 	var err error
 	var dateTaken time.Time
 	switch strings.ToLower(ext) {

@@ -170,9 +170,9 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 					}
 
 					if links.sidecar != "" {
-						a.SideCar = &metadata.SideCar{
+						a.SideCar = metadata.SideCarFile{
+							FSys:     fsys,
 							FileName: links.sidecar,
-							OnFSsys:  true,
 						}
 						la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, links.sidecar, "main", a.FileName)
 					}
@@ -194,29 +194,31 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func (la *LocalAssetBrowser) assetFromFile(fsys fs.FS, name string) (*browser.LocalAssetFile, error) {
+	md := metadata.Metadata{}
+
 	a := &browser.LocalAssetFile{
-		FileName:  name,
-		Title:     filepath.Base(name),
-		DateTaken: metadata.TakeTimeFromPath(name),
-		FSys:      fsys,
+		FileName: name,
+		Title:    filepath.Base(name),
+		FSys:     fsys,
 	}
+	md.DateTaken = metadata.TakeTimeFromPath(name)
 
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
 		return nil, err
 	}
 	a.FileSize = int(i.Size())
-	if a.DateTaken.IsZero() {
+	if md.DateTaken.IsZero() {
 		err = la.ReadMetadataFromFile(a)
 		if err != nil {
 			return nil, err
 		}
-		if a.DateTaken.Before(toOldDate) {
+		if md.DateTaken.Before(toOldDate) {
 			switch la.whenNoDate {
 			case "FILE":
-				a.DateTaken = i.ModTime()
+				md.DateTaken = i.ModTime()
 			case "NOW":
-				a.DateTaken = time.Now()
+				md.DateTaken = time.Now()
 			}
 		}
 	}
@@ -233,7 +235,7 @@ func (la *LocalAssetBrowser) ReadMetadataFromFile(a *browser.LocalAssetFile) err
 	}
 	m, err := metadata.GetFromReader(r, ext)
 	if err == nil {
-		a.DateTaken = m.DateTaken
+		a.Metadata.DateTaken = m.DateTaken
 	}
 	return nil
 }
