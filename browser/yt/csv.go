@@ -148,11 +148,14 @@ func (ytmd YouTubePlaylist) Filename() string {
 	return title + ".csv"
 }
 
-func (ytv YouTubeVideo) Filename() string {
-	// This is identical to YouTubePlaylist.Filename() except that:
+func (ytv YouTubeVideo) Glob() (string, bool) {
+	// This is largely identical to YouTubePlaylist.Filename() except that:
 	// 1. The length is different!?
 	// 2. No counter is added by this function
-	// 3. No file extension is added by this function
+	// 3. No file extension is added to this function, partly becaues its
+	//    unknown, and partly because we will need to append the counter
+	// 4. This function generates an escaped glob for use with fs.Glob
+	//    (or path.Match)
 	//
 	// All of the proscriptions of YouTubePlaylist.Filename() apply here
 	// as well
@@ -171,6 +174,7 @@ func (ytv YouTubeVideo) Filename() string {
 	title = strings.ReplaceAll(title, "*", "_")
 	title = strings.ReplaceAll(title, "\"", "_")
 
+	original := title
 	runes := []rune(title)
 	if len(utf16.Encode(runes)) > 43 {
 		// Truncate the string until it's <= 43 code units
@@ -183,9 +187,13 @@ func (ytv YouTubeVideo) Filename() string {
 		}
 		title = string(runes)
 	}
+	full := original == title
 
-	return title
+	title = strings.ReplaceAll(title, "[", "\\[")
+
+	return title, full
 }
+
 func (ytv YouTubeVideo) CleanTitle() (string, bool) {
 	title := strings.Trim(ytv.Title, " ")
 	if title != "" {

@@ -213,6 +213,16 @@ func TestReadYouTubePlaylist(t *testing.T) {
 			VideoOrder:      "Manual",
 			Visibility:      "Private",
 		},
+		yt.YouTubePlaylist{
+			PlaylistID:      "dYZq/4FvOYqqz2yKN/8TbPRC10+5ibTc81",
+			Description:     "",
+			Title:           "Favorites",
+			TitleLanguage:   "en_US",
+			CreateTimestamp: "2012-01-29T08:43:21+00:00",
+			UpdateTimestamp: "2024-05-10T01:25:36+00:00",
+			VideoOrder:      "Manual",
+			Visibility:      "Private",
+		},
 	}
 
 	var got []yt.YouTubePlaylist
@@ -496,7 +506,7 @@ func TestPlaylistFilename(t *testing.T) {
 	}
 
 	for i, playlist := range playlists {
-		if playlist.Title != "Watch later" {
+		if playlist.Title != "Watch later" && playlist.Title != "Favorites" {
 			filename := playlist.Filename()
 			_, err := fs.Stat(dir, filename)
 			if err != nil {
@@ -506,26 +516,36 @@ func TestPlaylistFilename(t *testing.T) {
 	}
 }
 
-func TestVideoFilename(t *testing.T) {
+func TestVideoGlob(t *testing.T) {
 	testCases := []struct {
 		title    string
 		expected string
+		full     bool
 	}{
 		{
 			title:    "A description of Serenade #2",
 			expected: "A description of Serenade #2",
+			full:     true,
 		},
 		{
 			title:    "Serenade #1",
 			expected: "Serenade #1",
+			full:     true,
 		},
 		{
 			title:    "I manually set the location",
 			expected: "I manually set the location",
+			full:     true,
 		},
 		{
 			title:    "`-=[]\\;',./~!@#$%^&*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
-			expected: "`-=[]_,._~!@#$_^&_()_+{}_ 👱🏻🧟‍♀️👨‍❤️‍💋",
+			expected: "`-=\\[]_,._~!@#$_^&_()_+{}_ 👱🏻🧟‍♀️👨‍❤️‍💋",
+			full:     false,
+		},
+		{
+			title:    "IMG_0253[1].MOV",
+			expected: "IMG_0253\\[1].MOV",
+			full:     true,
 		},
 	}
 
@@ -533,9 +553,12 @@ func TestVideoFilename(t *testing.T) {
 		sut := yt.YouTubeVideo{
 			Title: tc.title,
 		}
-		filename := sut.Filename()
+		filename, full := sut.Glob()
 		if filename != tc.expected {
 			t.Errorf("Got\n%s\ninstead of\n%s\nfrom\n%s", filename, tc.expected, tc.title)
+		}
+		if full != tc.full {
+			t.Errorf("Got full:%t instead of %t for %s", full, tc.full, tc.title)
 		}
 	}
 }

@@ -563,7 +563,7 @@ func TestPrepareAndBrowse(t *testing.T) {
 			Trashed:     false,
 			Archived:    false,
 			FromPartner: false,
-			Favorite:    false,
+			Favorite:    true,
 
 			FSys:        videos,
 			FileSize:    6,
