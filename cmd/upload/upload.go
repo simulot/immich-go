@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -349,6 +350,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	defer cancel(nil)
 	page := app.newPage()
 	p := page.Page(ctx)
+	preparationDone := atomic.Bool{}
 
 	uiGroup := errgroup.Group{}
 
@@ -380,6 +382,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		} else {
 			err = context.Cause(ctx)
 		}
+		preparationDone.Store(true)
 		return err
 	})
 
@@ -392,12 +395,14 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 				case <-ctx.Done():
 					return ctx.Err()
 				case <-tick.C:
-					now := time.Now().Unix()
-					last := page.lastTimeServerActive.Load()
-					if now-last > 10 {
-						cancel(nil)
-						p.Stop()
-						return nil
+					if preparationDone.Load() {
+						now := time.Now().Unix()
+						last := page.lastTimeServerActive.Load()
+						if now-last > 10 {
+							cancel(nil)
+							p.Stop()
+							return nil
+						}
 					}
 				}
 			}
