@@ -2,9 +2,12 @@ package yt
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"path"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/fileevent"
@@ -24,6 +27,7 @@ type SynthesizedYouTubeVideo struct {
 type Takeout struct {
 	fsyss      []fs.FS
 	videos     []*SynthesizedYouTubeVideo
+	faves      map[string]bool
 	log        *fileevent.Recorder
 	sm         immich.SupportedMedia
 }
@@ -32,6 +36,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 	to := Takeout{
 		fsyss:  fsyss,
 		videos: []*SynthesizedYouTubeVideo{},
+		faves:  map[string]bool{},
 		log:    l,
 		sm:     sm,
 	}
@@ -42,6 +47,15 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 
 // Prepare scans all files to build gather and aggregate the metadata
 func (to *Takeout) Prepare(ctx context.Context) error {
+	smExts := []string{}
+	for ext := range to.sm {
+		if to.sm[ext] == immich.TypeVideo {
+			smExts = append(smExts, ext[1:])
+		}
+	}
+	pattern := "\\(\\d+\\)\\.(?:" + strings.Join(smExts, "|") + ")"
+	re := regexp.MustCompile(pattern)
+
 	for _, fsys := range to.fsyss {
 		tofs, err := fs.Sub(fsys, "Takeout")
 		if err != nil {
@@ -86,10 +100,15 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		hasFavorites := false
 		for i, _ := range ytplaylists {
 			playlist := ytplaylists[i]
 			if playlist.Title == "Watch later" {
 				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, "Watch later.csv", "reason", "useless file")
+				continue
+			} else if playlist.Title == "Favorites" {
+				to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, "Favorites-videos.csv", "reason", "playlist file referenced in playlists.csv")
+				hasFavorites = true
 				continue
 			}
 			playlistID, ok := playlistTitlesToIDs[playlist.Title]
@@ -107,6 +126,17 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 			for j, _ := range ytplaylistvideos {
 				playlistvideo := ytplaylistvideos[j]
 				playlists[playlistvideo.VideoID] = append(playlists[playlistvideo.VideoID], &playlist)
+			}
+		}
+
+		if hasFavorites {
+			favoriteVideos, err := fshelper.ReadCSV[YouTubePlaylistVideo](pfs, "Favorites-videos.csv")
+			if err != nil {
+				return err
+			}
+			for i, _ := range favoriteVideos {
+				playlistvideo := favoriteVideos[i]
+				to.faves[playlistvideo.VideoID] = true
 			}
 		}
 
@@ -131,17 +161,68 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 		for i, _ := range videos {
 			video := videos[i]
 
-			filename := video.Filename()
-			count, ok := filenames[filename]
-			if !ok {
-				filenames[filename] = 1
-			} else {
-				filenames[filename] = count + 1
-				filename = filename + "(" + strconv.Itoa(count) + ")"
-			}
-			filename += ".mp4"
+			glob, full := video.Glob()
 
-			to.log.Record(ctx, fileevent.DiscoveredVideo, nil, filename)
+			// XXX Haven't tested if counts are per basename or
+			// XXX include the file extension, i.e., is it:
+			//   title.mp4 and title(1).mp4, but title.avi
+			// or
+			//   title.mp4 and title(1).mp4 and title(2).avi
+			count, count_ok := filenames[glob]
+			if !count_ok {
+				filenames[glob] = 1
+			} else {
+				filenames[glob] = count + 1
+				glob += "(" + strconv.Itoa(count) + ")"
+			}
+
+			if full {
+				glob += "."
+			}
+			glob += "*"
+
+			filenames, err := fs.Glob(vfs, glob)
+			if err != nil {
+				to.log.Record(ctx, fileevent.Error, nil, glob, "reason", "no matching files found")
+				continue
+			} else if len(filenames) != 1{
+				if !count_ok {
+					// This is the first instance of this
+					// glob, so ignore all the matches that
+					// include a counter.  This is only
+					// really a problem when !full as well,
+					// but there could always be a . in the
+					// filename so not including that in
+					// the conditional.
+					uncountedFilenames := []string{}
+					for i, _ := range filenames {
+						if !re.MatchString(filenames[i]) {
+							uncountedFilenames = append(uncountedFilenames, filenames[i])
+						}
+					}
+
+					if len(uncountedFilenames) == 1 {
+						filenames = uncountedFilenames
+					}
+				}
+
+				if len(filenames) != 1 {
+					to.log.Record(ctx, fileevent.Error, nil, glob, "reason", fmt.Sprintf("%d matching files found", len(filenames)))
+					continue
+				}
+			}
+
+			filename := filenames[0]
+			ext := strings.ToLower(path.Ext(filename))
+			switch to.sm.TypeFromExt(ext) {
+			case immich.TypeImage:
+				to.log.Record(ctx, fileevent.DiscoveredImage, nil, filename)
+			case immich.TypeVideo:
+				to.log.Record(ctx, fileevent.DiscoveredVideo, nil, filename)
+			case immich.TypeUnknown:
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, filename, "reason", "unsupported file type")
+				continue
+			}
 
 			synth := SynthesizedYouTubeVideo{
 				Channel:   channels[video.ChannelID],
@@ -204,6 +285,8 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 				description = desc
 			}
 
+			_, favorite := to.faves[video.Video.VideoID]
+
 			a := browser.LocalAssetFile{
 				FileName:    video.Filename,
 				Title:       video.Video.Title + path.Ext(video.Filename),
@@ -218,7 +301,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 				Trashed:     false,
 				Archived:    false,
 				FromPartner: false,
-				Favorite:    false,
+				Favorite:    favorite,
 
 				FSys:        video.Fsys,
 				FileSize:    int(fileinfo.Size()),
