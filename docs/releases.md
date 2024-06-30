@@ -1,5 +1,9 @@
 # Release notes 
 
+## Release 0.18.1
+
+- fix [#336](https://github.com/simulot/immich-go/issues/336)  Processing stops with "context canceled" all the time 
+
 ## Release 0.18
 ![screen](/docs/render1719696528932.gif)
 
