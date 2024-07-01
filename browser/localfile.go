@@ -26,11 +26,6 @@ import (
 
 */
 
-type LocalAlbum struct {
-	Path string // As found in the files
-	Name string // As found in metadata
-}
-
 type LocalAssetFile struct {
 	// Common fields
 	FileName string               // The asset's path in the fsys
