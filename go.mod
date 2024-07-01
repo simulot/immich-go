@@ -13,7 +13,7 @@ require (
 	github.com/rivo/tview v0.0.0-20240501114654-1f4d5e8f881d
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/telemachus/humane v0.5.1
-	github.com/thlib/go-timezone-local v0.0.2
+	github.com/thlib/go-timezone-local v0.0.3
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
 	golang.org/x/sync v0.7.0
 )
