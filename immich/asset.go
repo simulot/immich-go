@@ -14,6 +14,8 @@ import (
 	"github.com/simulot/immich-go/browser"
 )
 
+const APIAssetPath = "/assets"
+
 type AssetResponse struct {
 	ID        string `json:"id"`
 	Duplicate bool   `json:"duplicate"`
@@ -155,7 +157,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 	}()
 
 	err = ic.newServerCall(ctx, "AssetUpload").
-		do(post("/assets", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+		do(post(APIAssetPath, m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
 	return ar, err
 }
@@ -196,7 +198,7 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 		Force: forceDelete,
 	}
 
-	return ic.newServerCall(ctx, "DeleteAsset").do(deleteItem("/assets", setAcceptJSON(), setJSONBody(req)))
+	return ic.newServerCall(ctx, "DeleteAsset").do(deleteItem(APIAssetPath, setAcceptJSON(), setJSONBody(req)))
 }
 
 func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
@@ -234,7 +236,7 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 		RemoveParent:  removeParent,
 		StackParentID: stackParentID,
 	}
-	return ic.newServerCall(ctx, "updateAssets").do(put("/assets", setJSONBody(param)))
+	return ic.newServerCall(ctx, "updateAssets").do(put(APIAssetPath, setJSONBody(param)))
 }
 
 func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*Asset, error) {
@@ -253,7 +255,7 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.L
 		Longitude:   a.Longitude,
 	}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "updateAsset").do(put("/assets/"+id, setJSONBody(param)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "updateAsset").do(put(APIAssetPath+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
 
