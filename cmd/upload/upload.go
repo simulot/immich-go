@@ -386,7 +386,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		return err
 	})
 
-	if !app.DryRun {
+	if !app.DryRun && page.watchJobs {
 		uiGroup.Go(func() error {
 			// Wait the server to calm down
 			tick := time.NewTicker(10 * time.Second)
