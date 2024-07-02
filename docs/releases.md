@@ -1,5 +1,8 @@
 # Release notes 
 
+- feat: provide a trace of all API calls.
+
+
 ## Release 0.18.1
 - fix [#347](https://github.com/simulot/immich-go/issues/347) Denied access to admin only route: /api/job
 
