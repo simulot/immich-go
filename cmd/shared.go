@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -38,12 +39,14 @@ type SharedFlags struct {
 	JSONLog           bool          // Enable JSON structured log
 	DebugCounters     bool          // Enable CSV action counters per file
 
-	Immich          immich.ImmichInterface // Immich client
-	Log             *slog.Logger           // Logger
-	Jnl             *fileevent.Recorder    // Program's logger
-	LogFile         string                 // Log file name
-	LogWriterCloser io.WriteCloser         // the log writer
-	Banner          ui.Banner
+	Immich             immich.ImmichInterface // Immich client
+	Log                *slog.Logger           // Logger
+	Jnl                *fileevent.Recorder    // Program's logger
+	LogFile            string                 // Log file name
+	LogWriterCloser    io.WriteCloser         // the log writer
+	APITraceWriter     io.WriteCloser         // API tracer
+	APITraceWriterName string
+	Banner             ui.Banner
 }
 
 func (app *SharedFlags) InitSharedFlags() {
@@ -160,7 +163,18 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			app.Immich.SetEndPoint(app.API)
 		}
 		if app.APITrace {
-			app.Immich.EnableAppTrace(true)
+			if app.APITraceWriter == nil {
+				err := configuration.MakeDirForFile(app.LogFile)
+				if err != nil {
+					return err
+				}
+				app.APITraceWriterName = strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".trace.log"
+				app.APITraceWriter, err = os.OpenFile(app.APITraceWriterName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
+				if err != nil {
+					return err
+				}
+				app.Immich.EnableAppTrace(app.APITraceWriter)
+			}
 		}
 		if app.DeviceUUID != "" {
 			app.Immich.SetDeviceUUID(app.DeviceUUID)

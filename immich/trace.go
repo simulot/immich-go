@@ -1,10 +1,11 @@
 package immich
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"time"
 )
 
 /*
@@ -12,13 +13,54 @@ import (
 
 */
 
+type limitWriter struct {
+	W     io.Writer
+	Err   error
+	Lines int
+}
+
+func newLimitWriter(w io.Writer, lines int) *limitWriter {
+	return &limitWriter{W: w, Lines: lines, Err: nil}
+}
+
+func (lw *limitWriter) Write(b []byte) (int, error) {
+	if lw.Lines < 0 {
+		return 0, lw.Err
+	}
+	total := 0
+	for len(b) > 0 && lw.Lines >= 0 && lw.Err == nil {
+		p := bytes.Index(b, []byte{'\n'})
+		var n int
+		if p > 0 {
+			n, lw.Err = lw.W.Write(b[:p+1])
+			b = b[p+1:]
+			lw.Lines--
+		} else {
+			n, lw.Err = lw.W.Write(b)
+		}
+		total += n
+	}
+	if lw.Lines < 0 {
+		lw.W.Write([]byte(".... truncated ....\n"))
+	}
+	return total, lw.Err
+}
+
+func (lw *limitWriter) Close() error {
+	if closer, ok := lw.W.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
+}
+
 type smartBodyCloser struct {
 	r    io.Reader
 	body io.ReadCloser
+	w    io.Writer
 }
 
 func (sb *smartBodyCloser) Close() error {
-	fmt.Println("\n--- BODY ---")
+	fmt.Fprintln(sb.w, "-- request body end --\n")
 	return sb.body.Close()
 }
 
@@ -26,16 +68,22 @@ func (sb *smartBodyCloser) Read(b []byte) (int, error) {
 	return sb.r.Read(b)
 }
 
-func setTraceJSONRequest() serverRequestOption {
+func setTraceRequest() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
-		fmt.Println("--------------------")
-		fmt.Println(req.Method, req.URL.String())
+		fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), sc.endPoint, req.Method, req.URL.String())
 		for h, v := range req.Header {
-			fmt.Println(h, v)
+			fmt.Fprintln(sc.ic.apiTraceWriter, "  ", h, v)
 		}
-		if req.Body != nil {
-			tr := io.TeeReader(req.Body, os.Stdout)
-			req.Body = &smartBodyCloser{body: req.Body, r: tr}
+		if req.Header.Get("Content-Type") == "application/json" {
+			fmt.Fprintln(sc.ic.apiTraceWriter, "-- request JSON Body --")
+			if req.Body != nil {
+				tr := io.TeeReader(req.Body, newLimitWriter(sc.ic.apiTraceWriter, 100))
+				req.Body = &smartBodyCloser{body: req.Body, r: tr, w: sc.ic.apiTraceWriter}
+			}
+		} else {
+			if req.Body != nil {
+				fmt.Fprintln(sc.ic.apiTraceWriter, "-- Binary body not dumped --")
+			}
 		}
 		return nil
 	}
