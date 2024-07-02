@@ -255,7 +255,7 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.L
 		Longitude:   a.Longitude,
 	}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "updateAsset").do(put(APIAssetPath+id, setJSONBody(param)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "updateAsset").do(put(APIAssetPath+"/"+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
 
