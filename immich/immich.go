@@ -30,8 +30,9 @@ type ImmichInterface interface {
 	AssetUpload(context.Context, *browser.LocalAssetFile) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
-	GetAllAlbums(context.Context) ([]AlbumSimplified, error)
-	CreateAlbum(context.Context, string, []string) (AlbumSimplified, error)
+	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
+	GetAlbumInfo(ctx context.Context, id string) (AlbumContent, error)
+	CreateAlbum(ctx context.Context, tilte string, description string, ids []string) (AlbumSimplified, error)
 	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
 	DeleteAlbum(ctx context.Context, id string) error
 

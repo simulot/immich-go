@@ -32,16 +32,17 @@ func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, er
 type AlbumContent struct {
 	ID string `json:"id,omitempty"`
 	// OwnerID                    string    `json:"ownerId"`
-	AlbumName string `json:"albumName"`
+	AlbumName   string            `json:"albumName"`
+	Description string            `json:"description"`
+	Shared      bool              `json:"shared"`
+	Assets      []AssetSimplified `json:"assets,omitempty"`
 	// CreatedAt                  time.Time `json:"createdAt"`
 	// UpdatedAt                  time.Time `json:"updatedAt"`
 	// AlbumThumbnailAssetID      string    `json:"albumThumbnailAssetId"`
 	// SharedUsers                []string  `json:"sharedUsers"`
 	// Owner                      User      `json:"owner"`
-	// Shared                     bool      `json:"shared"`
 	// AssetCount                 int       `json:"assetCount"`
 	// LastModifiedAssetTimestamp time.Time `json:"lastModifiedAssetTimestamp"
-	Assets []AssetSimplified `json:"assets,omitempty"`
 }
 
 // immich Asset simplified
@@ -108,17 +109,18 @@ func (ic *ImmichClient) AddAssetToAlbum(ctx context.Context, albumID string, ass
 	return r, nil
 }
 
-func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, assets []string) (AlbumSimplified, error) {
-	body := AlbumSimplified{
-		AlbumName: name,
-		AssetIds:  assets,
+func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, description string, assets []string) (AlbumContent, error) {
+	body := AlbumContent{
+		AlbumName:   name,
+		Description: description,
+		AssetIds:    assets,
 	}
 	var r AlbumSimplified
 	err := ic.newServerCall(ctx, "CreateAlbum").do(
 		post("/albums", "application/json", setAcceptJSON(), setJSONBody(body)),
 		responseJSON(&r))
 	if err != nil {
-		return AlbumSimplified{}, err
+		return AlbumContent{}, err
 	}
 	return r, nil
 }

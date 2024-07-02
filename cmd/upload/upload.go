@@ -59,12 +59,14 @@ type UpCmd struct {
 
 	BrowserConfig Configuration
 
+	albums map[string]immich.AlbumContent // Albums by title
+
 	AssetIndex       *AssetIndex               // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
 	deleteLocalList  []*browser.LocalAssetFile // List of local assets to remove
-	updateAlbums     map[string]map[string]any // track immich albums changes
-	stacks           *stacking.StackBuilder
-	browser          browser.Browser
+	// updateAlbums     map[string]map[string]any // track immich albums changes
+	stacks  *stacking.StackBuilder
+	browser browser.Browser
 }
 
 func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
@@ -83,8 +85,7 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
 	app := UpCmd{
-		SharedFlags:  common,
-		updateAlbums: map[string]map[string]any{},
+		SharedFlags: common,
 	}
 
 	app.SharedFlags.SetFlags(cmd)
@@ -316,6 +317,9 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 			return err
 		})
 		processGrp.Go(func() error {
+			return app.getImmichAlbums(ctx)
+		})
+		processGrp.Go(func() error {
 			// Run Prepare
 			err := app.browser.Prepare(ctx)
 			if err != nil {
@@ -364,6 +368,9 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 				p.Stop()
 			}
 			return err
+		})
+		processGrp.Go(func() error {
+			return app.getImmichAlbums(ctx)
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
@@ -427,6 +434,26 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	}
 	app.Jnl.Report()
 	return err
+}
+
+func (app *UpCmd) getImmichAlbums(ctx context.Context) error {
+	serverAlbums, err := app.Immich.GetAllAlbums(ctx)
+	if err != nil {
+		return fmt.Errorf("can't get the album list from the server: %w", err)
+	}
+	for _, a := range serverAlbums {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			album, err := app.Immich.GetAlbumInfo(ctx, a.ID)
+			if err != nil {
+				return fmt.Errorf("can't get the album detail from the server: %w", err)
+			}
+			app.albums[a.AlbumName] = album
+		}
+	}
+	return nil
 }
 
 func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) error {
@@ -593,7 +620,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 
 	if !app.KeepUntitled {
 		a.Albums = gen.Filter(a.Albums, func(i browser.LocalAlbum) bool {
-			return i.Name != ""
+			return i.Title != ""
 		})
 	}
 
@@ -633,7 +660,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		ID = advice.ServerAsset.ID
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
-				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.Name)
+				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.Title)
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
 			}
 		}
@@ -659,7 +686,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		// keep the server version but update albums
 		if app.CreateAlbums {
 			for _, al := range a.Albums {
-				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.Name)
+				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.Title)
 				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
 			}
 		}
@@ -681,18 +708,18 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		albums := []browser.LocalAlbum{}
 
 		if app.ImportIntoAlbum != "" {
-			albums = append(albums, browser.LocalAlbum{Path: app.ImportIntoAlbum, Name: app.ImportIntoAlbum})
+			albums = append(albums, browser.LocalAlbum{Path: app.ImportIntoAlbum, Title: app.ImportIntoAlbum})
 		} else {
 			switch {
 			case app.GooglePhotos:
 				albums = append(albums, a.Albums...)
 				if app.PartnerAlbum != "" && a.FromPartner {
-					albums = append(albums, browser.LocalAlbum{Path: app.PartnerAlbum, Name: app.PartnerAlbum})
+					albums = append(albums, browser.LocalAlbum{Path: app.PartnerAlbum, Title: app.PartnerAlbum})
 				}
 			case !app.GooglePhotos && app.CreateAlbumAfterFolder:
 				album := path.Base(path.Dir(a.FileName))
 				if album != "" && album != "." {
-					albums = append(albums, browser.LocalAlbum{Path: album, Name: album})
+					albums = append(albums, browser.LocalAlbum{Path: album, Title: album})
 				}
 			}
 		}
@@ -808,8 +835,11 @@ func (app *UpCmd) albumName(al browser.LocalAlbum) string {
 	return Name
 }
 
-func (app *UpCmd) AddToAlbum(id string, album string) {
-	l := app.updateAlbums[album]
+func (app *UpCmd) AddToAlbum(ctx context.Context, id string, album browser.LocalAlbum) {
+	l, exist := app.albums[album.Title]
+	if !exist {
+		_,err app.Immich.CreateAlbum(ctx, album.Title, album.Description, []string{id})
+	}
 	if l == nil {
 		l = map[string]any{}
 	}
