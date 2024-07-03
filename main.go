@@ -86,7 +86,7 @@ func Run(ctx context.Context) error {
 		Banner: ui.NewBanner(version, commit, date),
 	}
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
-	fs.Func("version", "Get immich-go version", func(s string) error {
+	fs.BoolFunc("version", "Get immich-go version", func(s string) error {
 		fmt.Println("immich-go", version)
 		os.Exit(0)
 		return nil
