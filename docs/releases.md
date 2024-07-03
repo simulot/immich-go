@@ -1,11 +1,30 @@
 # Release notes 
 
+- feat: provide a trace of all API calls.
+Use the option `-api-trace` to log all immich calls in a file.
+
+```log
+2024-07-03T08:17:25+02:00 AssetUpload POST http://localhost:2283/api/assets
+   Accept [application/json]
+   Content-Type [multipart/form-data; boundary=1a9ca81d17452313f49073626c0ac04065fc7445efd3fadeffc5704663ed]
+   X-Api-Key [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+-- Binary body not dumped --
+2024-07-03T08:17:26+02:00 201 Created
+-- response body --
+{
+   "id": "1d839b04-fcf8-4bbb-bfbb-ab873159231b",
+   "duplicate": false
+  }
+-- response body end --
+```
+
 - feat [#332]: Force the use of Google Photos date and GPS
 Immich-go systematically feed immich with GP's date of capture and GPS coordinates. 
 
 This fixes a standing issue with some MP4 files delivered in a takeout file with a wrong date of capture.
 
 ## Release 0.18.2
+
 - fix [#347](https://github.com/simulot/immich-go/issues/347) Denied access to admin only route: /api/job
 
 ## Release 0.18.1

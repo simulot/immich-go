@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -24,7 +25,7 @@ type ImmichClient struct {
 	DeviceUUID          string        // Device
 	Retries             int           // Number of attempts on 500 errors
 	RetriesDelay        time.Duration // Duration between retries
-	APITrace            bool
+	apiTraceWriter      io.Writer
 	supportedMediaTypes SupportedMedia // Server's list of supported medias
 }
 
@@ -36,8 +37,8 @@ func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) {
 	ic.DeviceUUID = deviceUUID
 }
 
-func (ic *ImmichClient) EnableAppTrace(state bool) {
-	ic.APITrace = state
+func (ic *ImmichClient) EnableAppTrace(w io.Writer) {
+	ic.apiTraceWriter = w
 }
 
 func (ic *ImmichClient) SupportedMedia() SupportedMedia {
