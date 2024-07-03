@@ -72,7 +72,11 @@ func setTraceRequest() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), sc.endPoint, req.Method, req.URL.String())
 		for h, v := range req.Header {
-			fmt.Fprintln(sc.ic.apiTraceWriter, "  ", h, v)
+			if h == "X-Api-Key" {
+				fmt.Fprintln(sc.ic.apiTraceWriter, "  ", h, []string{"redacted"})
+			} else {
+				fmt.Fprintln(sc.ic.apiTraceWriter, "  ", h, v)
+			}
 		}
 		if req.Header.Get("Content-Type") == "application/json" {
 			fmt.Fprintln(sc.ic.apiTraceWriter, "-- request JSON Body --")
@@ -82,7 +86,7 @@ func setTraceRequest() serverRequestOption {
 			}
 		} else {
 			if req.Body != nil {
-				fmt.Fprintln(sc.ic.apiTraceWriter, "-- Binary body not dumped --")
+				fmt.Fprintln(sc.ic.apiTraceWriter, "-- Empty body or binary body not dumped --")
 			}
 		}
 		return nil

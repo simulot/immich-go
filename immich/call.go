@@ -238,7 +238,7 @@ func setJSONBody(object any) serverRequestOption {
 		b := bytes.NewBuffer(nil)
 		enc := json.NewEncoder(b)
 		if sc.ic.apiTraceWriter != nil {
-			enc.SetIndent("  ", " ")
+			enc.SetIndent("", " ")
 		}
 		err := enc.Encode(object)
 		if err != nil {
@@ -272,7 +272,7 @@ func responseJSON[T any](object *T) serverResponseOption {
 					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), resp.Status)
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
-					dec.SetIndent("  ", " ")
+					dec.SetIndent("", " ")
 					_ = dec.Encode(object)
 					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
 				}
