@@ -32,8 +32,9 @@ type page struct {
 	immichPrepare *tvxwidgets.PercentageModeGauge
 	immichUpload  *tvxwidgets.PercentageModeGauge
 
-	page     *tview.Application
-	quitting chan any
+	page      *tview.Application
+	watchJobs bool
+	quitting  chan any
 }
 
 func (app *UpCmd) newPage() *page {
@@ -77,17 +78,23 @@ func (p *page) Page(ctx context.Context) *tview.Application {
 	p.addCounter(p.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	p.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 
-	p.serverJobs = tvxwidgets.NewSparkline()
-	p.serverJobs.SetBorder(true).SetTitle("Server pending jobs")
-	p.serverJobs.SetData(p.serverActivity)
-	p.serverJobs.SetDataTitleColor(tcell.ColorDarkOrange)
-	p.serverJobs.SetLineColor(tcell.ColorSteelBlue)
+	if _, err := p.app.Immich.GetJobs(ctx); err == nil {
+		p.watchJobs = true
+
+		p.serverJobs = tvxwidgets.NewSparkline()
+		p.serverJobs.SetBorder(true).SetTitle("Server pending jobs")
+		p.serverJobs.SetData(p.serverActivity)
+		p.serverJobs.SetDataTitleColor(tcell.ColorDarkOrange)
+		p.serverJobs.SetLineColor(tcell.ColorSteelBlue)
+	}
 
 	counts := tview.NewGrid()
 	counts.Box = tview.NewBox()
 	counts.AddItem(p.prepareCounts, 0, 0, 1, 1, 0, 0, false)
 	counts.AddItem(p.uploadCounts, 0, 1, 1, 1, 0, 0, false)
-	counts.AddItem(p.serverJobs, 0, 2, 1, 1, 0, 0, false)
+	if p.watchJobs {
+		counts.AddItem(p.serverJobs, 0, 2, 1, 1, 0, 0, false)
+	}
 	counts.SetSize(1, 3, 15, 40)
 	counts.SetColumns(40, 40, 0)
 
@@ -159,36 +166,37 @@ func (p *page) Page(ctx context.Context) *tview.Application {
 		}
 	}()
 
-	go func() {
-		tick := time.NewTicker(500 * time.Millisecond)
-		for {
-			select {
-			case <-p.quitting:
-				return
-			case <-tick.C:
-				jobs, err := p.app.Immich.GetJobs(ctx)
-				if err == nil {
-					jobCount := 0
-					jobWaiting := 0
-					for _, j := range jobs {
-						jobCount += j.JobCounts.Active
-						jobWaiting += j.JobCounts.Waiting
-					}
-					_, _, w, _ := p.serverJobs.GetInnerRect()
-					p.serverActivity = append(p.serverActivity, float64(jobCount))
-					if len(p.serverActivity) > w {
-						p.serverActivity = p.serverActivity[1:]
-					}
-					p.serverJobs.SetData(p.serverActivity)
-					p.serverJobs.SetTitle(fmt.Sprintf("Server's jobs: active: %d, waiting: %d", jobCount, jobWaiting))
-					if jobCount > 0 {
-						p.lastTimeServerActive.Store(time.Now().Unix())
+	if p.watchJobs {
+		go func() {
+			tick := time.NewTicker(500 * time.Millisecond)
+			for {
+				select {
+				case <-p.quitting:
+					return
+				case <-tick.C:
+					jobs, err := p.app.Immich.GetJobs(ctx)
+					if err == nil {
+						jobCount := 0
+						jobWaiting := 0
+						for _, j := range jobs {
+							jobCount += j.JobCounts.Active
+							jobWaiting += j.JobCounts.Waiting
+						}
+						_, _, w, _ := p.serverJobs.GetInnerRect()
+						p.serverActivity = append(p.serverActivity, float64(jobCount))
+						if len(p.serverActivity) > w {
+							p.serverActivity = p.serverActivity[1:]
+						}
+						p.serverJobs.SetData(p.serverActivity)
+						p.serverJobs.SetTitle(fmt.Sprintf("Server's jobs: active: %d, waiting: %d", jobCount, jobWaiting))
+						if jobCount > 0 {
+							p.lastTimeServerActive.Store(time.Now().Unix())
+						}
 					}
 				}
 			}
-		}
-	}()
-
+		}()
+	}
 	p.page = app
 	return app.SetRoot(p.screen, true)
 }

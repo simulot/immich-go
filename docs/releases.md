@@ -1,5 +1,8 @@
 # Release notes 
 
+## Release 0.18.2
+- fix [#347](https://github.com/simulot/immich-go/issues/347) Denied access to admin only route: /api/job
+
 ## Release 0.18.1
 
 - fix [#336](https://github.com/simulot/immich-go/issues/336)  Processing stops with "context canceled" all the time 
