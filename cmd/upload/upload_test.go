@@ -55,7 +55,7 @@ func (c *stubIC) UpdateAsset(ctx context.Context, id string, a *browser.LocalAss
 	return nil, nil
 }
 
-func (c *stubIC) EnableAppTrace(bool) {}
+func (c *stubIC) EnableAppTrace(w io.Writer) {}
 
 func (c *stubIC) GetServerStatistics(ctx context.Context) (immich.ServerStatistics, error) {
 	return immich.ServerStatistics{}, nil

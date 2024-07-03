@@ -88,6 +88,7 @@ Example: Immich-go check the server's SSL certificate. you can disable this beha
 | `-time-zone=time_zone_name`              | Set the time zone for dates without time zone information                                                                                                                     | the system's time zone                                                                                                                                                                                                 |
 | `-no-ui`                                 | Disable the user interface                                                                                                                                                    | `false`                                                                                                                                                                                                                |
 | `-debug-counters`                        | Enable the generation a CSV beside the log file                                                                                                                               | `false`                                                                                                                                                                                                                  |
+| `-api-trace` | Enable trace of API calls | `false` |
 
 ## Command `upload`
 

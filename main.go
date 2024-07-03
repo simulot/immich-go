@@ -131,5 +131,8 @@ func Run(ctx context.Context) error {
 		app.Log.Error(err.Error())
 	}
 	fmt.Println("Check the log file: ", app.LogFile)
+	if app.APITraceWriter != nil {
+		fmt.Println("Check the trace file: ", app.APITraceWriterName)
+	}
 	return err
 }
