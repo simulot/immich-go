@@ -73,7 +73,7 @@ func TestCall(t *testing.T) {
 				t.Fail()
 				return
 			}
-			ic.EnableAppTrace(true)
+			// ic.EnableAppTrace(true)
 			r := map[string]string{}
 			err = ic.newServerCall(ctx, tst.name).do(tst.requestFn, responseJSON(&r))
 			if tst.expectedErr && err == nil {

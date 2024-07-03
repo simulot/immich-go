@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"sync"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 // interface used to mock up the client
 type ImmichInterface interface {
 	SetEndPoint(string)
-	EnableAppTrace(bool)
+	EnableAppTrace(w io.Writer)
 	SetDeviceUUID(string)
 	PingServer(ctx context.Context) error
 	ValidateConnection(ctx context.Context) (User, error)

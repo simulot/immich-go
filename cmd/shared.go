@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -38,12 +39,14 @@ type SharedFlags struct {
 	JSONLog           bool          // Enable JSON structured log
 	DebugCounters     bool          // Enable CSV action counters per file
 
-	Immich          immich.ImmichInterface // Immich client
-	Log             *slog.Logger           // Logger
-	Jnl             *fileevent.Recorder    // Program's logger
-	LogFile         string                 // Log file name
-	LogWriterCloser io.WriteCloser         // the log writer
-	Banner          ui.Banner
+	Immich             immich.ImmichInterface // Immich client
+	Log                *slog.Logger           // Logger
+	Jnl                *fileevent.Recorder    // Program's logger
+	LogFile            string                 // Log file name
+	LogWriterCloser    io.WriteCloser         // the log writer
+	APITraceWriter     io.WriteCloser         // API tracer
+	APITraceWriterName string
+	Banner             ui.Banner
 }
 
 func (app *SharedFlags) InitSharedFlags() {
@@ -68,7 +71,7 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
 	fs.StringVar(&app.LogFile, "log-file", app.LogFile, "Write log messages into the file")
 	fs.BoolFunc("log-json", "Output line-delimited JSON file, default FALSE", myflag.BoolFlagFn(&app.JSONLog, app.JSONLog))
-	fs.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.APITrace, app.APITrace))
+	fs.BoolFunc("api-trace", "enable trace of api calls", myflag.BoolFlagFn(&app.APITrace, app.APITrace))
 	fs.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, app.Debug))
 	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
 	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL))
@@ -160,7 +163,18 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			app.Immich.SetEndPoint(app.API)
 		}
 		if app.APITrace {
-			app.Immich.EnableAppTrace(true)
+			if app.APITraceWriter == nil {
+				err := configuration.MakeDirForFile(app.LogFile)
+				if err != nil {
+					return err
+				}
+				app.APITraceWriterName = strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".trace.log"
+				app.APITraceWriter, err = os.OpenFile(app.APITraceWriterName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
+				if err != nil {
+					return err
+				}
+				app.Immich.EnableAppTrace(app.APITraceWriter)
+			}
 		}
 		if app.DeviceUUID != "" {
 			app.Immich.SetDeviceUUID(app.DeviceUUID)

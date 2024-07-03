@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type TooManyInternalError struct {
@@ -173,8 +174,8 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		return sc.Err(req, nil, nil)
 	}
 
-	if sc.ic.APITrace /* && req.Header.Get("Content-Type") == "application/json"*/ {
-		_ = sc.joinError(setTraceJSONRequest()(sc, req))
+	if sc.ic.apiTraceWriter != nil /* && req.Header.Get("Content-Type") == "application/json"*/ {
+		_ = sc.joinError(setTraceRequest()(sc, req))
 	}
 
 	resp, err = sc.ic.client.Do(req)
@@ -236,7 +237,7 @@ func setJSONBody(object any) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		b := bytes.NewBuffer(nil)
 		enc := json.NewEncoder(b)
-		if sc.ic.APITrace {
+		if sc.ic.apiTraceWriter != nil {
 			enc.SetIndent("", " ")
 		}
 		err := enc.Encode(object)
@@ -267,6 +268,14 @@ func responseJSON[T any](object *T) serverResponseOption {
 					return nil
 				}
 				err := json.NewDecoder(resp.Body).Decode(object)
+				if sc.ic.apiTraceWriter != nil {
+					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), resp.Status)
+					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
+					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
+					dec.SetIndent("", " ")
+					_ = dec.Encode(object)
+					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
+				}
 				return err
 			}
 		}
