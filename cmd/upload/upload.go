@@ -323,11 +323,13 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 			}
 			return err
 		})
-		_ = processGrp.Wait()
-		err := context.Cause(ctx)
+		err := processGrp.Wait()
 		if err != nil {
-			cancel(err)
-			return err
+			err := context.Cause(ctx)
+			if err != nil {
+				cancel(err)
+				return err
+			}
 		}
 		err = app.uploadLoop(ctx)
 		if err != nil {
@@ -383,6 +385,10 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			err = context.Cause(ctx)
 		}
 		preparationDone.Store(true)
+		if !page.watchJobs {
+			p.Stop()
+			cancel(nil)
+		}
 		return err
 	})
 
