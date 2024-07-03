@@ -1,5 +1,10 @@
 # Release notes 
 
+- feat [#332]: Force the use of Google Photos date and GPS
+Immich-go systematically feed immich with GP's date of capture and GPS coordinates. 
+
+This fixes a standing issue with some MP4 files delivered in a takeout file with a wrong date of capture.
+
 ## Release 0.18.2
 - fix [#347](https://github.com/simulot/immich-go/issues/347) Denied access to admin only route: /api/job
 
