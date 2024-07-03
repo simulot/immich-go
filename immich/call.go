@@ -273,8 +273,8 @@ func responseJSON[T any](object *T) serverResponseOption {
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
 					dec.SetIndent("  ", " ")
-					dec.Encode(object)
-					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body end --\n")
+					_ = dec.Encode(object)
+					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
 				}
 				return err
 			}

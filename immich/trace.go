@@ -41,7 +41,7 @@ func (lw *limitWriter) Write(b []byte) (int, error) {
 		total += n
 	}
 	if lw.Lines < 0 {
-		lw.W.Write([]byte(".... truncated ....\n"))
+		_, _ = lw.W.Write([]byte(".... truncated ....\n"))
 	}
 	return total, lw.Err
 }
@@ -60,7 +60,7 @@ type smartBodyCloser struct {
 }
 
 func (sb *smartBodyCloser) Close() error {
-	fmt.Fprintln(sb.w, "-- request body end --\n")
+	fmt.Fprint(sb.w, "-- request body end --\n\n")
 	return sb.body.Close()
 }
 
