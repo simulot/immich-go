@@ -1,10 +1,22 @@
 # Release notes 
 
 - feat: provide a trace of all API calls.
+Use the option `-api-trace` to log all immich calls in a file.
 
-
-- feat: provide a trace of all API calls.
-
+```log
+2024-07-03T08:17:25+02:00 AssetUpload POST http://localhost:2283/api/assets
+   Accept [application/json]
+   Content-Type [multipart/form-data; boundary=1a9ca81d17452313f49073626c0ac04065fc7445efd3fadeffc5704663ed]
+   X-Api-Key [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]
+-- Binary body not dumped --
+2024-07-03T08:17:26+02:00 201 Created
+-- response body --
+{
+   "id": "1d839b04-fcf8-4bbb-bfbb-ab873159231b",
+   "duplicate": false
+  }
+-- response body end --
+```
 
 ## Release 0.18.2
 

@@ -71,7 +71,7 @@ func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
 	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
 	fs.StringVar(&app.LogFile, "log-file", app.LogFile, "Write log messages into the file")
 	fs.BoolFunc("log-json", "Output line-delimited JSON file, default FALSE", myflag.BoolFlagFn(&app.JSONLog, app.JSONLog))
-	fs.BoolFunc("api-trace", "enable api call traces", myflag.BoolFlagFn(&app.APITrace, app.APITrace))
+	fs.BoolFunc("api-trace", "enable trace of api calls", myflag.BoolFlagFn(&app.APITrace, app.APITrace))
 	fs.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, app.Debug))
 	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
 	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL))
