@@ -50,10 +50,12 @@ func getCommitInfo() string {
 	return commit
 }
 
+func printVersion() {
+	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, getCommitInfo(), date)
+}
+
 func main() {
 	var err error
-
-	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, getCommitInfo(), date)
 
 	// Create a context with cancel function to gracefully handle Ctrl+C events
 	ctx, cancel := context.WithCancel(context.Background())
@@ -86,8 +88,8 @@ func Run(ctx context.Context) error {
 		Banner: ui.NewBanner(version, commit, date),
 	}
 	fs := flag.NewFlagSet("main", flag.ExitOnError)
-	fs.Func("version", "Get immich-go version", func(s string) error {
-		fmt.Println("immich-go", version)
+	fs.BoolFunc("version", "Get immich-go version", func(s string) error {
+		printVersion()
 		os.Exit(0)
 		return nil
 	})
@@ -100,6 +102,8 @@ func Run(ctx context.Context) error {
 		app.Log.Error(err.Error())
 		return err
 	}
+
+	printVersion()
 	fmt.Println(app.Banner.String())
 
 	if len(fs.Args()) == 0 {
