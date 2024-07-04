@@ -6,9 +6,10 @@ import (
 )
 
 type AlbumSimplified struct {
-	ID string `json:"id,omitempty"`
+	ID          string `json:"id,omitempty"`
+	AlbumName   string `json:"albumName"`
+	Description string `json:"description,omitempty"`
 	// OwnerID                    string    `json:"ownerId"`
-	AlbumName string `json:"albumName"`
 	// CreatedAt                  time.Time `json:"createdAt"`
 	// UpdatedAt                  time.Time `json:"updatedAt"`
 	// AlbumThumbnailAssetID      string    `json:"albumThumbnailAssetId"`
@@ -36,6 +37,7 @@ type AlbumContent struct {
 	Description string            `json:"description"`
 	Shared      bool              `json:"shared"`
 	Assets      []AssetSimplified `json:"assets,omitempty"`
+	AssetIDs    []string          `json:"assetIds,omitempty"`
 	// CreatedAt                  time.Time `json:"createdAt"`
 	// UpdatedAt                  time.Time `json:"updatedAt"`
 	// AlbumThumbnailAssetID      string    `json:"albumThumbnailAssetId"`
@@ -69,9 +71,13 @@ type AssetSimplified struct {
 	// JustUploaded bool   `json:"-"`
 }
 
-func (ic *ImmichClient) GetAlbumInfo(ctx context.Context, id string) (AlbumContent, error) {
+func (ic *ImmichClient) GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error) {
 	var album AlbumContent
-	err := ic.newServerCall(ctx, "GetAlbumInfo").do(get("/albums/"+id, setAcceptJSON()), responseJSON(&album))
+	query := id
+	if withoutAssets {
+		query += "?withoutAssets=true"
+	}
+	err := ic.newServerCall(ctx, "GetAlbumInfo").do(get("/albums/"+query, setAcceptJSON()), responseJSON(&album))
 	return album, err
 }
 
@@ -109,18 +115,18 @@ func (ic *ImmichClient) AddAssetToAlbum(ctx context.Context, albumID string, ass
 	return r, nil
 }
 
-func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, description string, assets []string) (AlbumContent, error) {
+func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, description string, assetsIDs []string) (AlbumSimplified, error) {
 	body := AlbumContent{
 		AlbumName:   name,
 		Description: description,
-		AssetIds:    assets,
+		AssetIDs:    assetsIDs,
 	}
 	var r AlbumSimplified
 	err := ic.newServerCall(ctx, "CreateAlbum").do(
 		post("/albums", "application/json", setAcceptJSON(), setJSONBody(body)),
 		responseJSON(&r))
 	if err != nil {
-		return AlbumContent{}, err
+		return AlbumSimplified{}, err
 	}
 	return r, nil
 }

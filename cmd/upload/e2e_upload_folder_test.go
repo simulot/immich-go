@@ -289,7 +289,7 @@ func Test_Album_Issue_119(t *testing.T) {
 				myEnv["IMMICH_TESTFILES"] + "/xmp/files",
 			},
 			setup: func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T) {
-				_, err := ic.CreateAlbum(ctx, "The Album", nil)
+				_, err := ic.CreateAlbum(ctx, "The Album", "Description", nil)
 				if err != nil {
 					t.Error(err)
 				}
