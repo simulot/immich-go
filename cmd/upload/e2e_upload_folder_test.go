@@ -213,6 +213,31 @@ func Test_DescriptionAndFavorite(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_duplicate_albums_355(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_duplicate_albums_355_p1",
+		args: []string{
+			"-google-photos",
+			"/home/jfcassan/Dev/test-data/#355 album of duplicates/takeout1",
+		},
+		resetImmich: true,
+		expectError: false,
+	}
+	runCase(t, tc)
+	tc = testCase{
+		name: "Test_duplicate_albums_355_p2",
+		args: []string{
+			"-google-photos",
+			"/home/jfcassan/Dev/test-data/#355 album of duplicates/takeout2",
+		},
+		resetImmich: false,
+		expectError: false,
+	}
+	runCase(t, tc)
+}
+
 func Test_PermissionError(t *testing.T) {
 	initMyEnv(t)
 
