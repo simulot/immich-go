@@ -127,6 +127,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					case md.isAlbum():
 						a := to.albums[dir]
 						a.Title = md.Title
+						a.Path = filepath.Base(dir)
 						if e := md.Enrichments; e != nil {
 							a.Description = e.Text
 							a.Latitude = e.Latitude

@@ -444,6 +444,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 func (app *UpCmd) getImmichAlbums(ctx context.Context) error {
 	serverAlbums, err := app.Immich.GetAllAlbums(ctx)
+	app.albums = map[string]immich.AlbumSimplified{}
 	if err != nil {
 		return fmt.Errorf("can't get the album list from the server: %w", err)
 	}
@@ -541,14 +542,14 @@ assetLoop:
 		}
 	}
 
-	if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
-		app.Log.Info("Managing albums")
-		err = app.ManageAlbums(ctx)
-		if err != nil {
-			app.Log.Error(err.Error())
-			err = nil
-		}
-	}
+	// if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
+	// 	app.Log.Info("Managing albums")
+	// 	err = app.ManageAlbums(ctx)
+	// 	if err != nil {
+	// 		app.Log.Error(err.Error())
+	// 		err = nil
+	// 	}
+	// }
 
 	if len(app.deleteServerList) > 0 {
 		ids := []string{}
@@ -631,125 +632,123 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		return err
 	}
 
-	var ID string
 	switch advice.Advice {
-	case NotOnServer:
-		ID, err = app.UploadAsset(ctx, a)
-		if app.Delete && err == nil {
-			app.deleteLocalList = append(app.deleteLocalList, a)
+	case NotOnServer: // Upload and manage albums
+		ID, err := app.UploadAsset(ctx, a)
+		if err != nil {
+			return nil
 		}
-	case SmallerOnServer:
+		app.manageAssetAlbum(ctx, ID, a, advice)
+
+	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName)
 		// add the superior asset into albums of the original asset
-		ID, err = app.UploadAsset(ctx, a)
-		if err == nil {
-			for _, al := range advice.ServerAsset.Albums {
-				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.AlbumName)
-				// a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
-				album := app.albums[al.AlbumName]
-				app.AddToAlbum(ctx, ID, album)
-			}
-
-			// TODO: Immediate delete of low quality asset
-			app.deleteServerList = append(app.deleteServerList, advice.ServerAsset)
-			if app.Delete {
-				app.deleteLocalList = append(app.deleteLocalList, a)
-			}
+		ID, err := app.UploadAsset(ctx, a)
+		if err != nil {
+			return nil
 		}
-	case SameOnServer:
+		app.manageAssetAlbum(ctx, ID, a, advice)
+		// delete the existing lower quality asset
+		err = app.deleteAsset(ctx, advice.ServerAsset.ID)
+		if err != nil {
+			app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
+		}
+
+	case SameOnServer: // manage albums
 		// Set add the server asset into albums determined locally
 		if !advice.ServerAsset.JustUploaded {
 			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName)
 		} else {
 			app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.FileName)
 		}
-		ID = advice.ServerAsset.ID
-		if app.CreateAlbums {
-			for _, al := range advice.ServerAsset.Albums {
-				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.AlbumName)
-				// a.AddAlbum(browser.LocalAlbum{Name: al.AlbumName})
-				album := app.albums[al.AlbumName]
-				app.AddToAlbum(ctx, ID, album)
-			}
-		}
-		if app.ImportIntoAlbum != "" {
-			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", app.ImportIntoAlbum)
-			app.AddToAlbum(advice.ServerAsset.ID, app.ImportIntoAlbum)
-		}
-		if app.PartnerAlbum != "" && a.FromPartner {
-			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", app.PartnerAlbum)
-			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
-		}
-		if !advice.ServerAsset.JustUploaded {
-			if app.Delete {
-				app.deleteLocalList = append(app.deleteLocalList, a)
-			}
-		} else {
-			return nil
-		}
-	case BetterOnServer:
+		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
+
+	case BetterOnServer: // and manage albums
 		app.Jnl.Record(ctx, fileevent.UploadServerBetter, a, a.FileName)
-
-		ID = advice.ServerAsset.ID
-		// keep the server version but update albums
-		if app.CreateAlbums {
-			for _, al := range a.Albums {
-				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.Title)
-				app.AddToAlbum(advice.ServerAsset.ID, app.albumName(al))
-			}
-		}
-		if app.PartnerAlbum != "" && a.FromPartner {
-			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", app.PartnerAlbum)
-			app.AddToAlbum(advice.ServerAsset.ID, app.PartnerAlbum)
-		}
+		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 	}
 
-	if err != nil {
-		// the error should have been already reported
-		// next one
-		return nil
-	}
-
-	if app.ImportIntoAlbum != "" ||
-		(app.GooglePhotos && (app.CreateAlbums || app.PartnerAlbum != "")) ||
-		(!app.GooglePhotos && app.CreateAlbumAfterFolder) {
-		albums := []browser.LocalAlbum{}
-
-		if app.ImportIntoAlbum != "" {
-			albums = append(albums, browser.LocalAlbum{Path: app.ImportIntoAlbum, Title: app.ImportIntoAlbum})
-		} else {
-			switch {
-			case app.GooglePhotos:
-				albums = append(albums, a.Albums...)
-				if app.PartnerAlbum != "" && a.FromPartner {
-					albums = append(albums, browser.LocalAlbum{Path: app.PartnerAlbum, Title: app.PartnerAlbum})
-				}
-			case !app.GooglePhotos && app.CreateAlbumAfterFolder:
-				album := path.Base(path.Dir(a.FileName))
-				if album != "" && album != "." {
-					albums = append(albums, browser.LocalAlbum{Path: album, Title: album})
-				}
-			}
-		}
-
-		if len(albums) > 0 {
-			Names := []string{}
-			for _, al := range albums {
-				Name := app.albumName(al)
-
-				if app.GooglePhotos && Name == "" {
-					continue
-				}
-				Names = append(Names, Name)
-			}
-			if len(Names) > 0 {
-				for _, n := range Names {
-					app.AddToAlbum(ID, n)
-				}
-			}
-		}
-	}
 	return nil
+}
+
+func (app *UpCmd) deleteAsset(ctx context.Context, id string) error {
+	return app.Immich.DeleteAssets(ctx, []string{id}, true)
+}
+
+// manageAssetAlbum keep the albums updated
+// errors are logged, but not returned
+func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *browser.LocalAssetFile, advice *Advice) {
+	addedTo := map[string]any{}
+	if advice.ServerAsset != nil {
+		for _, al := range advice.ServerAsset.Albums {
+			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.AlbumName, "reason", "lower quality asset's album")
+			if !app.DryRun {
+				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: al.AlbumName, Description: al.Description})
+				if err != nil {
+					app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
+				}
+			}
+			addedTo[al.AlbumName] = nil
+		}
+	}
+
+	if app.CreateAlbums {
+		// add the higher quality asset to the albums found locally
+		for _, al := range a.Albums {
+			album := al.Title
+			if app.GooglePhotos && (app.UseFolderAsAlbumName || album == "") {
+				album = filepath.Base(al.Path)
+			}
+			if _, exist := addedTo[album]; !exist {
+				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album, "reason", "higher asset's album")
+				if !app.DryRun {
+					err := app.AddToAlbum(ctx, assetID, al)
+					if err != nil {
+						app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
+					}
+				}
+			}
+		}
+	}
+	if app.ImportIntoAlbum != "" {
+		app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", app.ImportIntoAlbum, "reason", "option -album")
+		if !app.DryRun {
+			err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: app.ImportIntoAlbum})
+			if err != nil {
+				app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
+			}
+		}
+	}
+
+	if app.GooglePhotos {
+		if app.PartnerAlbum != "" && a.FromPartner {
+			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", app.PartnerAlbum, "reason", "option -partner-album")
+			if !app.DryRun {
+				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: app.PartnerAlbum})
+				if err != nil {
+					app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
+				}
+			}
+		}
+	} else {
+		if app.CreateAlbumAfterFolder {
+			album := path.Base(path.Dir(a.FileName))
+			if album == "" || album == "." {
+				if fsys, ok := a.FSys.(fshelper.NameFS); ok {
+					album = fsys.Name()
+				} else {
+					album = "no-folder-name"
+				}
+			}
+			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album, "reason", "option -create-album-folder")
+			if !app.DryRun {
+				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album})
+				if err != nil {
+					app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
+				}
+			}
+		}
+	}
 }
 
 func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
@@ -843,14 +842,20 @@ func (app *UpCmd) albumName(al browser.LocalAlbum) string {
 	return Name
 }
 
-func (app *UpCmd) AddToAlbum(ctx context.Context, id string, album immich.AlbumSimplified) error {
-	l, exist := app.albums[album.AlbumName]
+// AddToAlbum add the ID to the immich album having the same name as the local album
+func (app *UpCmd) AddToAlbum(ctx context.Context, id string, album browser.LocalAlbum) error {
+	title := album.Title
+	if (app.GooglePhotos && (title == "" || app.CreateAlbumAfterFolder)) || app.UseFolderAsAlbumName {
+		title = filepath.Base(album.Path)
+	}
+
+	l, exist := app.albums[title]
 	if !exist {
-		a, err := app.Immich.CreateAlbum(ctx, album.AlbumName, album.Description, []string{id})
+		a, err := app.Immich.CreateAlbum(ctx, title, album.Description, []string{id})
 		if err != nil {
 			return err
 		}
-		app.albums[album.AlbumName] = immich.AlbumSimplified{ID: a.ID, AlbumName: a.AlbumName, Description: a.Description}
+		app.albums[title] = immich.AlbumSimplified{ID: a.ID, AlbumName: a.AlbumName, Description: a.Description}
 	} else {
 		_, err := app.Immich.AddAssetToAlbum(ctx, l.ID, []string{id})
 		if err != nil {
@@ -888,6 +893,7 @@ func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 	return nil
 }
 
+/*
 func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 	if len(app.updateAlbums) > 0 {
 		serverAlbums, err := app.Immich.GetAllAlbums(ctx)
@@ -941,7 +947,7 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 	}
 	return nil
 }
-
+*/
 // - - go:generate stringer -type=AdviceCode
 type AdviceCode int
 

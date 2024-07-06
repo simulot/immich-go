@@ -169,7 +169,7 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 						}
 					}
 
-					if links.sidecar != "" {
+					if a != nil && links.sidecar != "" {
 						a.SideCar = metadata.SideCarFile{
 							FSys:     fsys,
 							FileName: links.sidecar,
@@ -181,7 +181,9 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 					case <-ctx.Done():
 						return
 					default:
-						fileChan <- a
+						if a != nil {
+							fileChan <- a
+						}
 					}
 				}
 			}
