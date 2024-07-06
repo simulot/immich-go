@@ -1,5 +1,11 @@
 # Release notes 
 
+# You can now support my work on `Immich-go`:
+
+- [Github Sponsor page](https://github.com/sponsors/simulot)
+- [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
+
+
 - feat: provide a trace of all API calls.
 Use the option `-api-trace` to log all immich calls in a file.
 

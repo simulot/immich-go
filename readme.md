@@ -2,9 +2,12 @@
 
 **Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
-
 ![screen](/docs/render1719696528932.gif)
 
+# You can now support my work on `Immich-go`:
+
+- [Github Sponsor page](https://github.com/sponsors/simulot)
+- [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
 ## ⚠️ Immich has changed its API
 Latest release of `immich` comes with some changes in the API. This version of `immich-go` is adapted to the latest version of Immich.
