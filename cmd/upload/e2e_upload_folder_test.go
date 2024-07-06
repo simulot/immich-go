@@ -491,6 +491,22 @@ func Test_CreateAlbumFolder_304_2(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_EnrichedAlbum_297(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_EnrichedAlbum_297",
+		args: []string{
+			"-google-photos",
+			myEnv["IMMICH_TESTFILES"] + "/#297 Album enrichis #329 #297/Album texts #287/takeout-20240613T094535Z-001.zip",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 // ResetImmich
 // ⛔: will remove the content of the server.‼️
 // Give the user of the connection to confirm the server instance: debug@example.com

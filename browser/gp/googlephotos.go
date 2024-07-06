@@ -519,7 +519,19 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 	if err != nil {
 		return nil
 	}
+	a := browser.LocalAssetFile{
+		FileName:    name,
+		FileSize:    int(i.Size()),
+		Title:       title,
+		Archived:    md.Archived,
+		FromPartner: md.isPartner(),
+		Trashed:     md.Trashed,
+		Favorite:    md.Favorited,
 
+		FSys: fsys,
+	}
+
+	// Prepare sidecar data to force Immich with Google metadata
 	sidecar := metadata.Metadata{
 		Description: md.Description,
 		DateTaken:   md.PhotoTakenTime.Time(),
@@ -533,19 +545,6 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 		sidecar.Longitude = md.GeoData.Longitude
 	}
 
-	a := browser.LocalAssetFile{
-		FileName:    name,
-		FileSize:    int(i.Size()),
-		Title:       title,
-		Metadata:    sidecar,
-		Archived:    md.Archived,
-		FromPartner: md.isPartner(),
-		Trashed:     md.Trashed,
-		Favorite:    md.Favorited,
-
-		FSys: fsys,
-	}
-
 	for _, p := range md.foundInPaths {
 		if album, exists := to.albums[p]; exists {
 			if (album.Latitude != 0 || album.Longitude != 0) && (sidecar.Latitude == 0 && sidecar.Longitude == 0) {
@@ -556,5 +555,6 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 		}
 	}
 
+	a.Metadata = sidecar
 	return &a
 }
