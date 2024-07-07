@@ -17,9 +17,15 @@ import (
 )
 
 type AssetResponse struct {
-	ID        string `json:"id"`
-	Duplicate bool   `json:"duplicate"`
+	ID     string `json:"id"`
+	Status string `json:"status"`
 }
+
+const (
+	UploadCreated   = "created"
+	UploadReplaced  = "replaced"
+	UploadDuplicate = "duplicate"
+)
 
 func formatDuration(duration time.Duration) string {
 	hours := duration / time.Hour
