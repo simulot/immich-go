@@ -129,7 +129,7 @@ func TestAssetImmich(t *testing.T) {
 func (ic *ImmichClient) getAllAssetsIDs(ctx context.Context) ([]*Asset, error) {
 	var r []*Asset
 
-	err := ic.newServerCall(ctx, "GetAllAssets").do(get("/asset", setAcceptJSON()), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAllAssets").do(getRequest("/asset", setAcceptJSON()), responseJSON(&r))
 	return r, err
 }
 

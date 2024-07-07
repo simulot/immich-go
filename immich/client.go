@@ -108,7 +108,7 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 // Ping server
 func (ic *ImmichClient) PingServer(ctx context.Context) error {
 	r := PingResponse{}
-	err := ic.newServerCall(ctx, "PingServer").do(get("/server-info/ping", setAcceptJSON()), responseJSON(&r))
+	err := ic.newServerCall(ctx, "PingServer").do(getRequest("/server-info/ping", setAcceptJSON()), responseJSON(&r))
 	if err != nil {
 		return fmt.Errorf("the ping API end point doesn't respond at this address: %s", ic.endPoint+"/server-info/ping")
 	}
@@ -125,7 +125,7 @@ func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
 	var user User
 
 	err := ic.newServerCall(ctx, "ValidateConnection").
-		do(get("/users/me", setAcceptJSON()), responseJSON(&user))
+		do(getRequest("/users/me", setAcceptJSON()), responseJSON(&user))
 	if err != nil {
 		return user, err
 	}
@@ -158,7 +158,7 @@ type ServerStatistics struct {
 func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatistics, error) {
 	var s ServerStatistics
 
-	err := ic.newServerCall(ctx, "GetServerStatistics").do(get("/server-info/statistics", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, "GetServerStatistics").do(getRequest("/server-info/statistics", setAcceptJSON()), responseJSON(&s))
 	return s, err
 }
 
@@ -173,7 +173,7 @@ type UserStatistics struct {
 
 func (ic *ImmichClient) GetAssetStatistics(ctx context.Context) (UserStatistics, error) {
 	var s UserStatistics
-	err := ic.newServerCall(ctx, "GetAssetStatistics").do(get("/assets/statistics", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, "GetAssetStatistics").do(getRequest("/assets/statistics", setAcceptJSON()), responseJSON(&s))
 	return s, err
 }
 
@@ -199,7 +199,7 @@ var DefaultSupportedMedia = SupportedMedia{
 func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMedia, error) {
 	var s map[string][]string
 
-	err := ic.newServerCall(ctx, "GetSupportedMediaTypes").do(get("/server-info/media-types", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, "GetSupportedMediaTypes").do(getRequest("/server-info/media-types", setAcceptJSON()), responseJSON(&s))
 	if err != nil {
 		return nil, err
 	}

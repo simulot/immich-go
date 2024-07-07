@@ -213,6 +213,31 @@ func Test_DescriptionAndFavorite(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_duplicate_albums_355(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_duplicate_albums_355_p1",
+		args: []string{
+			"-google-photos",
+			"/home/jfcassan/Dev/test-data/#355 album of duplicates/takeout1",
+		},
+		resetImmich: true,
+		expectError: false,
+	}
+	runCase(t, tc)
+	tc = testCase{
+		name: "Test_duplicate_albums_355_p2",
+		args: []string{
+			"-google-photos",
+			"/home/jfcassan/Dev/test-data/#355 album of duplicates/takeout2",
+		},
+		resetImmich: false,
+		expectError: false,
+	}
+	runCase(t, tc)
+}
+
 func Test_PermissionError(t *testing.T) {
 	initMyEnv(t)
 
@@ -289,7 +314,7 @@ func Test_Album_Issue_119(t *testing.T) {
 				myEnv["IMMICH_TESTFILES"] + "/xmp/files",
 			},
 			setup: func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T) {
-				_, err := ic.CreateAlbum(ctx, "The Album", nil)
+				_, err := ic.CreateAlbum(ctx, "The Album", "Description", nil)
 				if err != nil {
 					t.Error(err)
 				}
@@ -468,8 +493,72 @@ func Test_CreateAlbumFolder_304(t *testing.T) {
 		},
 		resetImmich: true,
 		expectError: false,
-		APITrace:    false,
 		changeCWD:   myEnv["IMMICH_TESTFILES"] + "/Error Upload #304",
+	}
+	runCase(t, tc)
+}
+
+func Test_CreateAlbumFolder_304_2(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_#304_UploadFiles",
+		args: []string{
+			"-create-album-folder",
+			"*.JPG",
+		},
+		resetImmich: true,
+		expectError: false,
+		changeCWD:   myEnv["IMMICH_TESTFILES"] + "/Error Upload #304",
+	}
+	runCase(t, tc)
+}
+
+func Test_EnrichedAlbum_297(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_EnrichedAlbum_297",
+		args: []string{
+			"-google-photos",
+			myEnv["IMMICH_TESTFILES"] + "/#297 Album enrichis #329 #297/Album texts #287/takeout-20240613T094535Z-001.zip",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
+// Check if the small version of the photos loaded with the takeout
+// is replaced by the better version
+func Test_SmallTakeout_Better_p1(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_SmallTakeout_Better_p1",
+		args: []string{
+			"-google-photos",
+			myEnv["IMMICH_TESTFILES"] + "/low_high/Takeout",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    true,
+	}
+	runCase(t, tc)
+}
+
+func Test_SmallTakeout_Better_p2(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_SmallTakeout_Better_p2",
+		args: []string{
+			myEnv["IMMICH_TESTFILES"] + "/low_high/high",
+		},
+		resetImmich: false,
+		expectError: false,
+		APITrace:    true,
 	}
 	runCase(t, tc)
 }

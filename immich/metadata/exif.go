@@ -10,8 +10,8 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 )
 
-func getExifFromReader(r io.Reader) (MetaData, error) {
-	var md MetaData
+func getExifFromReader(r io.Reader) (Metadata, error) {
+	var md Metadata
 	// Decode the EXIF data
 	x, err := exif.Decode(r)
 	if err != nil && exif.IsCriticalError(err) {

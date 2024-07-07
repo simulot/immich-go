@@ -4,7 +4,7 @@
 
 ![screen](/docs/render1719696528932.gif)
 
-# You can now support my work on `Immich-go`:
+## You can now support my work on `Immich-go`:
 
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
@@ -12,7 +12,7 @@
 ## ⚠️ Immich has changed its API
 Latest release of `immich` comes with some changes in the API. This version of `immich-go` is adapted to the latest version of Immich.
 
-For older version of `immich`, please use `immich-go` version [0.16.0](https://github.com/simulot/immich-go/releases/tag/0.16.0).
+For `immich` server version before v1.105, please use `immich-go` version [0.16.0](https://github.com/simulot/immich-go/releases/tag/0.16.0).
 
 Using an immich-go version not compatible with your immich server generates this error message:
 ```
@@ -138,31 +138,6 @@ Specialized options for Google Photos management:
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
 
-### How date of photos is determined
-
-
-#### When importing a Google Photos takeout archive:
- `immich-go` takes the photo's date from the associated JSON file.
-
-> The server ignores the date provided by immich-go and takes the MP4's date even when it is incorrect. 
-> <br>See [#322 Creation timestamp from metadata is wrong](https://github.com/simulot/immich-go/issues/332)
-
-#### When importing photos from a directory:
-
-Immich-go tries to determine the date of capture with the file name, or the file path.
-
-Ex:
-| Path                                    | Photo's capture date |
-| --------------------------------------- | -------------------- |
-| photos/album/PXL_20220909_154515546.jpg | 2022-09-09 15:51:55  |
-| photos/scanned/19991231.jpg             | 1999-12-31 00:00:00  |
-| photos/20221109/IMG_1234.HEIC           | 2022-11-19 00:00:00  |
-| photos/2022.11.09T20.30/IMG_1234.HEIC   | 2022-11-19 20:30:00  |
-| photos/2022/11/09/IMG_1234.HEIC         | 2022-11-19 00:00:00  |
-
-If the path can't be used to determine the capture date, immich-go read the file's `metadata` or `exif`.
-
-
 ### Burst detection
 Currently the bursts following this schema are detected:
 - xxxxx_BURSTnnn.*
@@ -189,6 +164,61 @@ To illustrate, here's a command importing photos from a Google Photos takeout ar
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ upload
 -create-albums -google-photos -date=2019-06 ~/Download/takeout-*.zip             
 ```
+
+ 
+### Metadata determination
+
+Immich-go get the first available data in the following order.
+
+#### Date of capture:
+
+* Google photos takeout
+    1. Google photos JSON field `photoTakenTime`
+    1. Photo's file name: ex `PXL_20220909_154515546.jpg`
+    1. Photo's exif data
+* Folder import
+    1. XMP file
+    1. Photo's file name: ex `PXL_20220909_154515546.jpg`
+    1. Photo's file path: ex `/photos/2022/11/09/IMG_1234.HEIC`
+    1. Photo's exif data 
+
+#### GPS location:
+
+* Google photos takeout
+    1. Google photos JSON field `geoDataExif`
+    1. Google photos JSON field `geoData`
+    1. Google photos album JSON field `locationEnrichment`
+    1. Photo's exif data 
+* Folder import
+    1. XMP file
+    1. Photo's exif data 
+
+
+
+
+#### When importing a Google Photos takeout archive:
+ `immich-go` takes the photo's date from the associated JSON file.
+
+> The server ignores the date provided by immich-go and takes the MP4's date even when it is incorrect. 
+> <br>See [#322 Creation timestamp from metadata is wrong](https://github.com/simulot/immich-go/issues/332)
+
+#### When importing photos from a directory:
+
+Immich-go tries to determine the date of capture with the file name, or the file path.
+
+Ex:
+| Path                                    | Photo's capture date |
+| --------------------------------------- | -------------------- |
+| photos/album/PXL_20220909_154515546.jpg | 2022-09-09 15:51:55  |
+| photos/scanned/19991231.jpg             | 1999-12-31 00:00:00  |
+| photos/20221109/IMG_1234.HEIC           | 2022-11-19 00:00:00  |
+| photos/2022.11.09T20.30/IMG_1234.HEIC   | 2022-11-19 20:30:00  |
+| photos/2022/11/09/IMG_1234.HEIC         | 2022-11-19 00:00:00  |
+
+If the path can't be used to determine the capture date, immich-go read the file's `metadata` or `exif`.
+
+
+
 
 ## Command `duplicate`
 

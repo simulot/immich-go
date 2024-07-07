@@ -15,14 +15,15 @@ import (
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/immich/metadata"
 )
 
 type Takeout struct {
 	fsyss      []fs.FS
-	catalogs   dirCatalog                  // file catalogs by directory in the set of the all takeout parts
-	jsonByYear map[jsonKey]*GoogleMetaData // assets by year of capture and base name
-	uploaded   map[fileKey]any             // track files already uploaded
-	albums     map[string]string           // tack album names by folder
+	catalogs   dirCatalog                    // file catalogs by directory in the set of the all takeout parts
+	jsonByYear map[jsonKey]*GoogleMetaData   // assets by year of capture and base name
+	uploaded   map[fileKey]any               // track files already uploaded
+	albums     map[string]browser.LocalAlbum // tack album names by folder
 	log        *fileevent.Recorder
 	sm         immich.SupportedMedia
 }
@@ -62,7 +63,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 	to := Takeout{
 		fsyss:      fsyss,
 		jsonByYear: map[jsonKey]*GoogleMetaData{},
-		albums:     map[string]string{},
+		albums:     map[string]browser.LocalAlbum{},
 		log:        l,
 		sm:         sm,
 	}
@@ -124,7 +125,15 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 						to.addJSON(dir, base, md)
 						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "asset metadata", "title", md.Title)
 					case md.isAlbum():
-						to.albums[dir] = md.Title
+						a := to.albums[dir]
+						a.Title = md.Title
+						a.Path = filepath.Base(dir)
+						if e := md.Enrichments; e != nil {
+							a.Description = e.Text
+							a.Latitude = e.Latitude
+							a.Longitude = e.Longitude
+						}
+						to.albums[dir] = a
 						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "album metadata", "title", md.Title)
 					default:
 						to.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "unknown JSONfile")
@@ -476,7 +485,7 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 			fk := fileKey{
 				base:   filepath.Base(a.FileName),
 				length: a.FileSize,
-				year:   a.DateTaken.Year(),
+				year:   a.Metadata.DateTaken.Year(),
 			}
 			if _, found := to.uploaded[fk]; !found {
 				assetChan <- a
@@ -514,22 +523,38 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 		FileName:    name,
 		FileSize:    int(i.Size()),
 		Title:       title,
-		Description: md.Description,
-		Altitude:    md.GeoDataExif.Altitude,
-		Latitude:    md.GeoDataExif.Latitude,
-		Longitude:   md.GeoDataExif.Longitude,
 		Archived:    md.Archived,
 		FromPartner: md.isPartner(),
 		Trashed:     md.Trashed,
-		DateTaken:   md.PhotoTakenTime.Time(),
 		Favorite:    md.Favorited,
-		FSys:        fsys,
+
+		FSys: fsys,
+	}
+
+	// Prepare sidecar data to force Immich with Google metadata
+	sidecar := metadata.Metadata{
+		Description: md.Description,
+		DateTaken:   md.PhotoTakenTime.Time(),
+	}
+	if md.GeoDataExif.Latitude != 0 || md.GeoDataExif.Longitude != 0 {
+		sidecar.Latitude = md.GeoDataExif.Latitude
+		sidecar.Longitude = md.GeoDataExif.Longitude
+	}
+	if md.GeoData.Latitude != 0 || md.GeoData.Longitude != 0 {
+		sidecar.Latitude = md.GeoData.Latitude
+		sidecar.Longitude = md.GeoData.Longitude
 	}
 
 	for _, p := range md.foundInPaths {
 		if album, exists := to.albums[p]; exists {
-			a.Albums = append(a.Albums, browser.LocalAlbum{Path: p, Name: album})
+			if (album.Latitude != 0 || album.Longitude != 0) && (sidecar.Latitude == 0 && sidecar.Longitude == 0) {
+				sidecar.Latitude = album.Latitude
+				sidecar.Longitude = album.Longitude
+			}
+			a.Albums = append(a.Albums, album)
 		}
 	}
+
+	a.Metadata = sidecar
 	return &a
 }

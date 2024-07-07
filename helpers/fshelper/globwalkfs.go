@@ -32,26 +32,31 @@ func NewGlobWalkFS(pattern string) (fs.FS, error) {
 		if !s.IsDir() {
 			magic = strings.ToLower(path.Base(dir))
 			dir = path.Dir(dir)
+			if dir == "" {
+				dir, _ = os.Getwd()
+			}
 			return &GlobWalkFS{
-				rootFS: os.DirFS(dir),
+				rootFS: NewFSWithName(os.DirFS(dir), filepath.Base(dir)),
 				dir:    dir,
 				parts:  []string{magic},
 			}, nil
 		} else {
 			return &GlobWalkFS{
-				rootFS: os.DirFS(dir),
+				rootFS: NewFSWithName(os.DirFS(dir), filepath.Base(dir)),
 				dir:    dir,
 			}, nil
 		}
 	}
-
+	if dir == "" {
+		dir, _ = os.Getwd()
+	}
 	parts := strings.Split(magic, string(os.PathSeparator))
 	for i := range parts {
 		parts[i] = strings.ToLower(parts[i])
 	}
 
 	return &GlobWalkFS{
-		rootFS: os.DirFS(dir),
+		rootFS: NewFSWithName(os.DirFS(dir), filepath.Base(dir)),
 		dir:    dir,
 		parts:  parts,
 	}, nil
@@ -126,6 +131,14 @@ func (gw GlobWalkFS) ReadDir(name string) ([]fs.DirEntry, error) {
 	return returned, nil
 }
 
+// FSName gives the folder name when argument was .
+func (gw GlobWalkFS) Name() string {
+	if fsys, ok := gw.rootFS.(NameFS); ok {
+		return fsys.Name()
+	}
+	return filepath.Base(gw.dir)
+}
+
 // FixedPathAndMagic split the path with the fixed part and the variable part
 func FixedPathAndMagic(name string) (string, string) {
 	if !HasMagic(name) {
@@ -144,4 +157,49 @@ func FixedPathAndMagic(name string) (string, string) {
 		fixed = "/"
 	}
 	return fixed + path.Join(parts[:p]...), path.Join(parts[p:]...)
+}
+
+type FSWithName struct {
+	name string
+	fsys fs.FS
+}
+
+func NewFSWithName(fsys fs.FS, name string) fs.FS {
+	return &FSWithName{
+		name: name,
+		fsys: fsys,
+	}
+}
+
+func (f FSWithName) Open(name string) (fs.File, error) {
+	return f.fsys.Open(name)
+}
+
+func (f FSWithName) Name() string {
+	return f.name
+}
+
+func (f FSWithName) ReadDir(name string) ([]fs.DirEntry, error) {
+	if fsys, ok := f.fsys.(fs.ReadDirFS); ok {
+		return fsys.ReadDir(name)
+	}
+	return fs.ReadDir(f.fsys, name)
+}
+
+func (f FSWithName) Stat(name string) (fs.FileInfo, error) {
+	if fsys, ok := f.fsys.(fs.StatFS); ok {
+		return fsys.Stat(name)
+	}
+	return fs.Stat(f.fsys, name)
+}
+
+func (f FSWithName) ReadFile(name string) ([]byte, error) {
+	if fsys, ok := f.fsys.(fs.ReadFileFS); ok {
+		return fsys.ReadFile(name)
+	}
+	return fs.ReadFile(f.fsys, name)
+}
+
+type NameFS interface {
+	Name() string
 }

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -113,7 +114,15 @@ func (sc *serverCall) joinError(err error) error {
 
 type requestFunction func(sc *serverCall) *http.Request
 
+var callSequence atomic.Int64
+
+const callSequenceID = "api-call-sequence"
+
 func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
+	if sc.ic.apiTraceWriter != nil {
+		seq := callSequence.Add(1)
+		sc.ctx = context.WithValue(sc.ctx, callSequenceID, seq)
+	}
 	req, err := http.NewRequestWithContext(sc.ctx, method, url, http.NoBody)
 	if sc.joinError(err) != nil {
 		return nil
@@ -127,7 +136,7 @@ func (sc *serverCall) request(method string, url string, opts ...serverRequestOp
 	return req
 }
 
-func get(url string, opts ...serverRequestOption) requestFunction {
+func getRequest(url string, opts ...serverRequestOption) requestFunction {
 	return func(sc *serverCall) *http.Request {
 		if sc.err != nil {
 			return nil
@@ -136,7 +145,7 @@ func get(url string, opts ...serverRequestOption) requestFunction {
 	}
 }
 
-func post(url string, cType string, opts ...serverRequestOption) requestFunction {
+func postRequest(url string, cType string, opts ...serverRequestOption) requestFunction {
 	return func(sc *serverCall) *http.Request {
 		if sc.err != nil {
 			return nil
@@ -145,7 +154,7 @@ func post(url string, cType string, opts ...serverRequestOption) requestFunction
 	}
 }
 
-func deleteItem(url string, opts ...serverRequestOption) requestFunction {
+func deleteRequest(url string, opts ...serverRequestOption) requestFunction {
 	return func(sc *serverCall) *http.Request {
 		if sc.err != nil {
 			return nil
@@ -154,7 +163,7 @@ func deleteItem(url string, opts ...serverRequestOption) requestFunction {
 	}
 }
 
-func put(url string, opts ...serverRequestOption) requestFunction {
+func putRequest(url string, opts ...serverRequestOption) requestFunction {
 	return func(sc *serverCall) *http.Request {
 		if sc.err != nil {
 			return nil
@@ -185,7 +194,7 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		return sc.Err(req, nil, nil)
 	}
 
-	// Any StatusCode above 300 denote a problem
+	// Any StatusCode above 300 denotes a problem
 	if resp.StatusCode >= 300 {
 		msg := ServerMessage{}
 		if resp.Body != nil {
@@ -196,7 +205,6 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		if resp.Body != nil {
 			resp.Body.Close()
 		}
-		// StatusCode below 500 are
 		return sc.Err(req, resp, &msg)
 	}
 
@@ -269,7 +277,8 @@ func responseJSON[T any](object *T) serverResponseOption {
 				}
 				err := json.NewDecoder(resp.Body).Decode(object)
 				if sc.ic.apiTraceWriter != nil {
-					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), resp.Status)
+					seq := sc.ctx.Value(callSequenceID)
+					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "RESPONSE", seq, sc.endPoint, resp.Request.Method, resp.Request.URL.String())
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
 					dec.SetIndent("", " ")

@@ -70,7 +70,8 @@ func (sb *smartBodyCloser) Read(b []byte) (int, error) {
 
 func setTraceRequest() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
-		fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), sc.endPoint, req.Method, req.URL.String())
+		seq := sc.ctx.Value(callSequenceID)
+		fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "QUERY", seq, sc.endPoint, req.Method, req.URL.String())
 		for h, v := range req.Header {
 			if h == "X-Api-Key" {
 				fmt.Fprintln(sc.ic.apiTraceWriter, "  ", h, []string{"redacted"})
@@ -81,7 +82,8 @@ func setTraceRequest() serverRequestOption {
 		if req.Header.Get("Content-Type") == "application/json" {
 			fmt.Fprintln(sc.ic.apiTraceWriter, "-- request JSON Body --")
 			if req.Body != nil {
-				tr := io.TeeReader(req.Body, newLimitWriter(sc.ic.apiTraceWriter, 100))
+				// tr := io.TeeReader(req.Body, newLimitWriter(sc.ic.apiTraceWriter, 100))
+				tr := io.TeeReader(req.Body, sc.ic.apiTraceWriter)
 				req.Body = &smartBodyCloser{body: req.Body, r: tr, w: sc.ic.apiTraceWriter}
 			}
 		} else {

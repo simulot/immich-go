@@ -26,25 +26,14 @@ import (
 
 */
 
-type LocalAlbum struct {
-	Path string // As found in the files
-	Name string // As found in metadata
-}
-
 type LocalAssetFile struct {
 	// Common fields
-	FileName    string       // The asset's path in the fsys
-	Title       string       // Google Photos may a have title longer than the filename
-	Description string       // Google Photos description
-	Albums      []LocalAlbum // The asset's album, if any
-	Err         error        // keep errors encountered
-	SideCar     *metadata.SideCar
-
-	// Common metadata
-	DateTaken time.Time // the date of capture
-	Latitude  float64   // GPS Latitude
-	Longitude float64   // GPS Longitude
-	Altitude  float64   // GPS Altitude
+	FileName string               // The asset's path in the fsys
+	Title    string               // Google Photos may a have title longer than the filename
+	Albums   []LocalAlbum         // The asset's album, if any
+	Err      error                // keep errors encountered
+	SideCar  metadata.SideCarFile // sidecar file if found
+	Metadata metadata.Metadata    // Metadata fields
 
 	// Google Photos flags
 	Trashed     bool // The asset is trashed
@@ -182,7 +171,7 @@ func (l *LocalAssetFile) Mode() fs.FileMode { return 0 }
 
 // ModTime implements the fs.FILE interface
 func (l *LocalAssetFile) ModTime() time.Time {
-	return l.DateTaken
+	return l.Metadata.DateTaken
 }
 
 // Sys implements the fs.FILE interface

@@ -1,13 +1,23 @@
 # Release notes 
 
-# You can now support my work on `Immich-go`:
+## You can now support my work on `Immich-go`:
 
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.19
 
-- feat: provide a trace of all API calls.
-Use the option `-api-trace` to log all immich calls in a file.
+### feat [#297](https://github.com/simulot/immich-go/issues/297) Derive Immich album description and location from Google photos JSON "enrichments"
+
+Description, place and additional texts of Google Photos are now imported by `immich-go` in immich albums.
+![screenshot](/docs/v0.19.Album%20description.png)
+
+Immich-go add the album's place to photos not having GPS coordinates.
+
+Thanks to @chrisscotland for his suggestion and the preparation of test samples.
+
+### feat: provide a trace of all API calls.
+Use the option `-api-trace` to log all immich calls in a file. The API key is redacted.
 
 ```log
 2024-07-03T08:17:25+02:00 AssetUpload POST http://localhost:2283/api/assets
@@ -20,9 +30,34 @@ Use the option `-api-trace` to log all immich calls in a file.
 {
    "id": "1d839b04-fcf8-4bbb-bfbb-ab873159231b",
    "duplicate": false
-  }
+}
 -- response body end --
 ```
+
+### fix: [#355](https://github.com/simulot/immich-go/issues/355) update albums of duplicated photos
+Given the takeout 1 with
+- photo1 in Album A
+- photo2
+- photo3
+
+Given the takeout 2 with
+- photo1 in Album A and Album B
+- photo2 in Album B
+- photo3
+- photo4 in Album A
+
+After importing the 2 takeouts:
+- Album A: photo1, photo4
+- Album B: photo1, photo2
+
+
+
+
+### upload refactored
+Photos are added the albums immediately after their upload to prevent a timeout at the end.
+
+
+
 
 ## Release 0.18.2
 

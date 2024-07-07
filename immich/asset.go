@@ -2,8 +2,10 @@ package immich
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"net/textproto"
 	"net/url"
@@ -56,7 +58,8 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 			m.Close()
 			pw.Close()
 		}()
-		s, err := f.Stat()
+		var s fs.FileInfo
+		s, err = f.Stat()
 		if err != nil {
 			return
 		}
@@ -84,7 +87,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-		err = m.WriteField("fileCreatedAt", la.DateTaken.Format(time.RFC3339))
+		err = m.WriteField("fileCreatedAt", la.Metadata.DateTaken.Format(time.RFC3339))
 		if err != nil {
 			return
 		}
@@ -122,7 +125,8 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 				escapeQuotes("assetData"), escapeQuotes(path.Base(la.Title))))
 		h.Set("Content-Type", mtype)
 
-		part, err := m.CreatePart(h)
+		var part io.Writer
+		part, err = m.CreatePart(h)
 		if err != nil {
 			return
 		}
@@ -131,32 +135,45 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 			return
 		}
 
-		if la.SideCar != nil {
+		if la.SideCar.IsSet() {
 			scName := path.Base(la.FileName) + ".xmp"
 			h.Set("Content-Disposition",
 				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 					escapeQuotes("sidecarData"), escapeQuotes(scName)))
 			h.Set("Content-Type", "application/xml")
 
-			part, err := m.CreatePart(h)
+			var part io.Writer
+			part, err = m.CreatePart(h)
 			if err != nil {
 				return
 			}
-			sc, err := la.SideCar.Open(la.FSys, la.SideCar.FileName)
+			err = la.SideCar.Write(part)
 			if err != nil {
 				return
 			}
-			defer sc.Close()
-			_, err = io.Copy(part, sc)
+		} else if la.Metadata.IsSet() {
+			scName := path.Base(la.FileName) + ".xmp"
+			h.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+					escapeQuotes("sidecarData"), escapeQuotes(scName)))
+			h.Set("Content-Type", "application/xml")
+
+			var part io.Writer
+			part, err = m.CreatePart(h)
+			if err != nil {
+				return
+			}
+			err = la.Metadata.Write(part)
 			if err != nil {
 				return
 			}
 		}
 	}()
 
-	err = ic.newServerCall(ctx, "AssetUpload").
-		do(post("/assets", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+	errCall := ic.newServerCall(ctx, "AssetUpload").
+		do(postRequest("/assets", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
+	err = errors.Join(err, errCall)
 	return ar, err
 }
 
@@ -196,7 +213,7 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 		Force: forceDelete,
 	}
 
-	return ic.newServerCall(ctx, "DeleteAsset").do(deleteItem("/assets", setAcceptJSON(), setJSONBody(req)))
+	return ic.newServerCall(ctx, "DeleteAsset").do(deleteRequest("/assets", setJSONBody(&req)))
 }
 
 func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
@@ -206,7 +223,7 @@ func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, er
 		ID        string `json:"id"`
 	}{WithExif: true, IsVisible: true, ID: id}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "GetAssetByID").do(post("/search/metadata", "application/json", setAcceptJSON(), setJSONBody(body)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAssetByID").do(postRequest("/search/metadata", "application/json", setAcceptJSON(), setJSONBody(body)), responseJSON(&r))
 	return &r, err
 }
 
@@ -234,7 +251,7 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 		RemoveParent:  removeParent,
 		StackParentID: stackParentID,
 	}
-	return ic.newServerCall(ctx, "updateAssets").do(put("/assets", setJSONBody(param)))
+	return ic.newServerCall(ctx, "updateAssets").do(putRequest("/assets", setJSONBody(param)))
 }
 
 func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*Asset, error) {
@@ -246,14 +263,14 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.L
 		Description string  `json:"description,omitempty"`
 	}
 	param := updAsset{
-		Description: a.Description,
 		IsArchived:  a.Archived,
 		IsFavorite:  a.Favorite,
-		Latitude:    a.Latitude,
-		Longitude:   a.Longitude,
+		Description: a.Metadata.Description,
+		Latitude:    a.Metadata.Latitude,
+		Longitude:   a.Metadata.Longitude,
 	}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "updateAsset").do(put("/assets/"+id, setJSONBody(param)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "updateAsset").do(putRequest("/assets/"+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
 

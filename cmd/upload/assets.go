@@ -47,9 +47,9 @@ func (ai *AssetIndex) AddLocalAsset(la *browser.LocalAssetFile, immichID string)
 		OriginalFileName: strings.TrimSuffix(path.Base(la.Title), path.Ext(la.Title)),
 		ExifInfo: immich.ExifInfo{
 			FileSizeInByte:   int(la.Size()),
-			DateTimeOriginal: immich.ImmichTime{Time: la.DateTaken},
-			Latitude:         la.Latitude,
-			Longitude:        la.Longitude,
+			DateTimeOriginal: immich.ImmichTime{Time: la.Metadata.DateTaken},
+			Latitude:         la.Metadata.Latitude,
+			Longitude:        la.Metadata.Longitude,
 		},
 		JustUploaded: true,
 	}
