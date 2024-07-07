@@ -786,7 +786,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		if a.LivePhoto != nil {
 			liveResp, err = app.Immich.AssetUpload(ctx, a.LivePhoto)
 			if err == nil {
-				if liveResp.Duplicate {
+				if liveResp.Status == immich.UploadDuplicate {
 					app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
 				} else {
 					a.LivePhotoID = liveResp.ID
@@ -798,7 +798,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		}
 		resp, err = app.Immich.AssetUpload(ctx, a)
 		if err == nil {
-			if resp.Duplicate {
+			if resp.Status == immich.UploadDuplicate {
 				app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
 			} else {
 				app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
@@ -816,7 +816,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		resp.ID = uuid.NewString()
 		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
 	}
-	if !resp.Duplicate {
+	if resp.Status != immich.UploadDuplicate {
 		if a.LivePhoto != nil {
 			app.AssetIndex.AddLocalAsset(a, liveResp.ID)
 		}
