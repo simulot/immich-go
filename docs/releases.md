@@ -5,6 +5,14 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.19.1
+
+### fix: UploadAsset
+- [#359](https://github.com/simulot/immich-go/issues/359)Unexpected Discrepancy in 'Server has same quality' Metric After Re-uploading Images
+- [#343](https://github.com/simulot/immich-go/issues/343)Getting stuck at 75% - server assets to delete
+
+Fix the UploadAsset call causing some unexpected counts
+
 ## Release 0.19
 
 ### feat [#297](https://github.com/simulot/immich-go/issues/297) Derive Immich album description and location from Google photos JSON "enrichments"
