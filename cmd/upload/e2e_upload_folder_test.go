@@ -493,7 +493,6 @@ func Test_CreateAlbumFolder_304(t *testing.T) {
 		},
 		resetImmich: true,
 		expectError: false,
-		APITrace:    false,
 		changeCWD:   myEnv["IMMICH_TESTFILES"] + "/Error Upload #304",
 	}
 	runCase(t, tc)
@@ -510,7 +509,6 @@ func Test_CreateAlbumFolder_304_2(t *testing.T) {
 		},
 		resetImmich: true,
 		expectError: false,
-		APITrace:    false,
 		changeCWD:   myEnv["IMMICH_TESTFILES"] + "/Error Upload #304",
 	}
 	runCase(t, tc)
@@ -528,6 +526,39 @@ func Test_EnrichedAlbum_297(t *testing.T) {
 		resetImmich: true,
 		expectError: false,
 		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
+// Check if the small version of the photos loaded with the takeout
+// is replaced by the better version
+func Test_SmallTakeout_Better_p1(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_SmallTakeout_Better_p1",
+		args: []string{
+			"-google-photos",
+			myEnv["IMMICH_TESTFILES"] + "/low_high/Takeout",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    true,
+	}
+	runCase(t, tc)
+}
+
+func Test_SmallTakeout_Better_p2(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_SmallTakeout_Better_p2",
+		args: []string{
+			myEnv["IMMICH_TESTFILES"] + "/low_high/high",
+		},
+		resetImmich: false,
+		expectError: false,
+		APITrace:    true,
 	}
 	runCase(t, tc)
 }

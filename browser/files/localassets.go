@@ -11,6 +11,7 @@ import (
 
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/fileevent"
+	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
@@ -196,31 +197,34 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func (la *LocalAssetBrowser) assetFromFile(fsys fs.FS, name string) (*browser.LocalAssetFile, error) {
-	md := metadata.Metadata{}
-
 	a := &browser.LocalAssetFile{
 		FileName: name,
 		Title:    filepath.Base(name),
 		FSys:     fsys,
 	}
-	md.DateTaken = metadata.TakeTimeFromPath(name)
+
+	fullPath := name
+	if fsys, ok := fsys.(fshelper.NameFS); ok {
+		fullPath = filepath.Join(fsys.Name(), name)
+	}
+	a.Metadata.DateTaken = metadata.TakeTimeFromPath(fullPath)
 
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
 		return nil, err
 	}
 	a.FileSize = int(i.Size())
-	if md.DateTaken.IsZero() {
+	if a.Metadata.DateTaken.IsZero() {
 		err = la.ReadMetadataFromFile(a)
 		if err != nil {
 			return nil, err
 		}
-		if md.DateTaken.Before(toOldDate) {
+		if a.Metadata.DateTaken.Before(toOldDate) {
 			switch la.whenNoDate {
 			case "FILE":
-				md.DateTaken = i.ModTime()
+				a.Metadata.DateTaken = i.ModTime()
 			case "NOW":
-				md.DateTaken = time.Now()
+				a.Metadata.DateTaken = time.Now()
 			}
 		}
 	}

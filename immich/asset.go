@@ -171,7 +171,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 	}()
 
 	errCall := ic.newServerCall(ctx, "AssetUpload").
-		do(post("/assets", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+		do(postRequest("/assets", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
 	err = errors.Join(err, errCall)
 	return ar, err
@@ -213,7 +213,7 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 		Force: forceDelete,
 	}
 
-	return ic.newServerCall(ctx, "DeleteAsset").do(deleteItem("/assets", setAcceptJSON(), setJSONBody(req)))
+	return ic.newServerCall(ctx, "DeleteAsset").do(deleteRequest("/assets", setJSONBody(&req)))
 }
 
 func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
@@ -223,7 +223,7 @@ func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, er
 		ID        string `json:"id"`
 	}{WithExif: true, IsVisible: true, ID: id}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "GetAssetByID").do(post("/search/metadata", "application/json", setAcceptJSON(), setJSONBody(body)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAssetByID").do(postRequest("/search/metadata", "application/json", setAcceptJSON(), setJSONBody(body)), responseJSON(&r))
 	return &r, err
 }
 
@@ -251,7 +251,7 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 		RemoveParent:  removeParent,
 		StackParentID: stackParentID,
 	}
-	return ic.newServerCall(ctx, "updateAssets").do(put("/assets", setJSONBody(param)))
+	return ic.newServerCall(ctx, "updateAssets").do(putRequest("/assets", setJSONBody(param)))
 }
 
 func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*Asset, error) {
@@ -270,7 +270,7 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.L
 		Longitude:   a.Metadata.Longitude,
 	}
 	r := Asset{}
-	err := ic.newServerCall(ctx, "updateAsset").do(put("/assets/"+id, setJSONBody(param)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "updateAsset").do(putRequest("/assets/"+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
 
