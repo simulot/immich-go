@@ -497,8 +497,10 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 			}
 		} else {
 			a, err = to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
-			to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
-			continue
+			if err != nil {
+				to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
+				continue
+			}
 		}
 
 		select {
