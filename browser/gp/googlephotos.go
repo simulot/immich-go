@@ -465,17 +465,28 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 
 	for _, base := range gen.MapKeys(linkedFiles) {
 		var a *browser.LocalAssetFile
+		var err error
 
 		linked := linkedFiles[base]
 
 		if linked.image.md != nil {
-			a = to.googleMDToAsset(linked.image.md, linked.image.fsys, path.Join(dir, linked.image.base))
+			a, err = to.googleMDToAsset(linked.image.md, linked.image.fsys, path.Join(dir, linked.image.base))
+			if err != nil {
+				to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.image.base), "error", err.Error())
+				continue
+			}
 			if linked.video.md != nil {
-				i := to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
-				a.LivePhoto = i
+				i, err := to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+				if err != nil {
+					to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
+				} else {
+					a.LivePhoto = i
+				}
 			}
 		} else {
-			a = to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+			a, err = to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+			to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
+			continue
 		}
 
 		select {
@@ -502,7 +513,7 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 }
 
 // googleMDToAsset makes a localAssetFile based on the google metadata
-func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) *browser.LocalAssetFile {
+func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) (*browser.LocalAssetFile, error) {
 	// Change file's title with the asset's title and the actual file's extension
 	title := md.Title
 	titleExt := path.Ext(title)
@@ -517,7 +528,7 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	a := browser.LocalAssetFile{
 		FileName:    name,
@@ -556,5 +567,5 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 	}
 
 	a.Metadata = sidecar
-	return &a
+	return &a, nil
 }
