@@ -14,6 +14,7 @@ import (
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 )
@@ -26,6 +27,7 @@ type Takeout struct {
 	albums     map[string]browser.LocalAlbum // tack album names by folder
 	log        *fileevent.Recorder
 	sm         immich.SupportedMedia
+	banned     namematcher.List // Banned files
 }
 
 // dirCatalog collects all directory catalogs
@@ -69,6 +71,11 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 	}
 
 	return &to, nil
+}
+
+func (to *Takeout) SetBannedFiles(banned namematcher.List) *Takeout {
+	to.banned = banned
+	return to
 }
 
 // Prepare scans all files in all walker to build the file catalog of the archive
@@ -157,6 +164,11 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					}
 				case immich.TypeImage:
 					to.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
+				}
+
+				if to.banned.Match(name) {
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "banned file")
+					return nil
 				}
 				dirCatalog.unMatchedFiles[base] = fileInfo{
 					base:   base,
