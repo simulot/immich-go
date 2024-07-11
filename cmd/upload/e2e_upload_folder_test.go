@@ -530,6 +530,23 @@ func Test_EnrichedAlbum_297(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_BannedFiles_(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_BannedFiles_",
+		args: []string{
+			"-exclude-files=backup/",
+			"-exclude-files=copy).*",
+			"TEST_DATA/banned",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    false,
+	}
+	runCase(t, tc)
+}
+
 // Check if the small version of the photos loaded with the takeout
 // is replaced by the better version
 func Test_SmallTakeout_Better_p1(t *testing.T) {

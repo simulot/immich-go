@@ -110,7 +110,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 | `-select-types=".ext,.ext,.ext..."`  | List of accepted extensions.                                                            |                   |
 | `-exclude-types=".ext,.ext,.ext..."` | List of excluded extensions.                                                            |                   |
 | `-when-no-date=FILE\|NOW`            | When the date of take can't be determined, use the FILE's date or the current time NOW. | `FILE`            |
-
+| `-exclude-files=pattern` | Ignore files based on a pattern. Case insensitive. Repeat the option for each pattern do you need. | `@eaDir/`<br>`@__thumb/`<br>`SYNOFILE_THUMB_*.*`<br>`Lightroom Catalog/`<br>`thumbnails/`|
 
 ### Date selection:
 Fine-tune import based on specific dates:
@@ -121,6 +121,20 @@ Fine-tune import based on specific dates:
 | `-date=YYYY-MM`    | select photos taken during a particular month. |
 | `-date=YYYY`       | select photos taken during a particular year.  |
 
+### Exclude files based on a pattern
+
+Use the `-exclude-files=PATTERN` to exclude certain files or directories from the upload. Repeat the option for each pattern do you need. The following directories are excluded automatically:
+- @eaDir/
+- @__thumb/
+- SYNOFILE_THUMB_\*.\*
+- Lightroom Catalog/
+- thumbnails/
+
+
+Example, the following command excludes any files in directories called backup or draft and any file with name finishing with "copy)" as PXL_20231006_063121958 (another copy).jpg:
+```sh
+immich-go -sever=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=draft/ -exclude=copy).*  /path/to/your/files
+```
 
 ### Google photos options:
 Specialized options for Google Photos management:
