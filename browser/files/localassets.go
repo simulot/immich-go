@@ -13,6 +13,7 @@ import (
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 )
@@ -24,12 +25,13 @@ type fileLinks struct {
 }
 
 type LocalAssetBrowser struct {
-	fsyss      []fs.FS
-	albums     map[string]string
-	catalogs   map[fs.FS]map[string]map[string]fileLinks // per FS, DIR and base name
-	log        *fileevent.Recorder
-	sm         immich.SupportedMedia
-	whenNoDate string
+	fsyss       []fs.FS
+	albums      map[string]string
+	catalogs    map[fs.FS]map[string]map[string]fileLinks // per FS, DIR and base name
+	log         *fileevent.Recorder
+	sm          immich.SupportedMedia
+	bannedFiles namematcher.List // list of file pattern to be exclude
+	whenNoDate  string
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
@@ -44,6 +46,11 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, fsyss ...fs.FS) (
 
 func (la *LocalAssetBrowser) SetSupportedMedia(sm immich.SupportedMedia) *LocalAssetBrowser {
 	la.sm = sm
+	return la
+}
+
+func (la *LocalAssetBrowser) SetBannedFiles(banned namematcher.List) *LocalAssetBrowser {
+	la.bannedFiles = banned
 	return la
 }
 
@@ -115,6 +122,11 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 				case immich.TypeSidecar:
 					links.sidecar = name
 					la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name)
+				}
+
+				if la.bannedFiles.Match(name) {
+					la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "banned file")
+					return nil
 				}
 				dirLinks[linkBase] = links
 				fsCatalog[dir] = dirLinks

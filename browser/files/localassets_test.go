@@ -12,6 +12,7 @@ import (
 	"github.com/psanford/memfs"
 	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/helpers/fileevent"
+	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/immich"
 )
 
@@ -44,7 +45,10 @@ func generateFS() *inMemFS {
 		addFile("photos/photo_03.jpg").
 		addFile("photos/summer 2023/20230801-001.jpg").
 		addFile("photos/summer 2023/20230801-002.jpg").
-		addFile("photos/summer 2023/20230801-003.cr3")
+		addFile("photos/summer 2023/20230801-003.cr3").
+		addFile("@eaDir/thb1.jpg").
+		addFile("photos/SYNOFILE_THUMB_0001.jpg").
+		addFile("photos/summer 2023/.@__thumb/thb2.jpg")
 }
 
 func TestLocalAssets(t *testing.T) {
@@ -79,6 +83,11 @@ func TestLocalAssets(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+			l, err := namematcher.New(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`)
+			if err != nil {
+				t.Error(err)
+			}
+			b.SetBannedFiles(l)
 			b.SetSupportedMedia(immich.DefaultSupportedMedia)
 			b.SetWhenNoDate("FILE")
 

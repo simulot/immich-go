@@ -25,6 +25,7 @@ import (
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/helpers/myflag"
+	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
 	"golang.org/x/sync/errgroup"
@@ -56,6 +57,7 @@ type UpCmd struct {
 	StackBurst             bool             // Stack burst (Default: TRUE)
 	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
 	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
+	BannedFiles            namematcher.List // List of banned file name patterns
 
 	BrowserConfig Configuration
 
@@ -86,6 +88,16 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 
 	app := UpCmd{
 		SharedFlags: common,
+	}
+	app.BannedFiles, err = namematcher.New(
+		`@eaDir/`,
+		`@__thumb/`,          // QNAP
+		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
+		`Lightroom Catalog/`, // LR
+		`thumbnails/`,        // Android photo
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	app.SharedFlags.SetFlags(cmd)
@@ -156,6 +168,9 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		"when-no-date",
 		"FILE",
 		" When the date of take can't be determined, use the FILE's date or the current time NOW. (default: FILE)")
+
+	cmd.Var(&app.BannedFiles, "exclude-files", "Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.")
+
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
@@ -762,7 +777,12 @@ func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
 
 func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
 	app.Delete = false
-	return gp.NewTakeout(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
+	b, err := gp.NewTakeout(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
+	if err != nil {
+		return nil, err
+	}
+	b.SetBannedFiles(app.BannedFiles)
+	return b, err
 }
 
 func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
@@ -772,6 +792,7 @@ func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browse
 	}
 	b.SetSupportedMedia(app.Immich.SupportedMedia())
 	b.SetWhenNoDate(app.WhenNoDate)
+	b.SetBannedFiles(app.BannedFiles)
 	return b, nil
 }
 
