@@ -19,6 +19,10 @@ Example, the following command excludes any files in directories called backup o
 immich-go -sever=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=draft/ -exclude=copy).*  /path/to/your/files
 ```
 
+fixes:
+- [#365](https://github.com/simulot/immich-go/issues/365) missing associated metadata file isn't correct
+
+
 ## Release 0.19.1
 
 ### fix: UploadAsset

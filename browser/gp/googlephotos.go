@@ -282,6 +282,16 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 			}
 		}
 	}
+
+	paths := gen.MapKeys(to.catalogs)
+	sort.Strings(paths)
+	for _, p := range paths {
+		files := gen.MapKeys(to.catalogs[p].unMatchedFiles)
+		sort.Strings(files)
+		for _, f := range files {
+			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, to.catalogs[p].unMatchedFiles[f], filepath.Join(p, f))
+		}
+	}
 	return nil
 }
 
