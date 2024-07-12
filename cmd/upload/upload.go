@@ -370,7 +370,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	page := app.newPage()
-	p := page.Page(ctx)
+	p := page.Page(ctx, cancel)
 	preparationDone := atomic.Bool{}
 
 	uiGroup := errgroup.Group{}
@@ -387,7 +387,12 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			return err
 		})
 		processGrp.Go(func() error {
-			return app.getImmichAlbums(ctx)
+			err := app.getImmichAlbums(ctx)
+			if err != nil {
+				cancel(err)
+				p.Stop()
+			}
+			return err
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
@@ -407,10 +412,6 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			err = context.Cause(ctx)
 		}
 		preparationDone.Store(true)
-		if !page.watchJobs {
-			p.Stop()
-			cancel(nil)
-		}
 		return err
 	})
 
@@ -443,7 +444,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			return ctx.Err()
 		default:
 			err := p.Run()
-			cancel(nil)
+			cancel(err)
 			return err
 		}
 	})

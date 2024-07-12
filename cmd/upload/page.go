@@ -2,6 +2,7 @@ package upload
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -34,19 +35,19 @@ type page struct {
 
 	page      *tview.Application
 	watchJobs bool
-	quitting  chan any
+	// quitting  chan any
 }
 
 func (app *UpCmd) newPage() *page {
 	p := &page{
-		app:      app,
-		quitting: make(chan any),
-		counts:   map[fileevent.Code]*tview.TextView{},
+		app: app,
+		// quitting: make(chan any),
+		counts: map[fileevent.Code]*tview.TextView{},
 	}
 	return p
 }
 
-func (p *page) Page(ctx context.Context) *tview.Application {
+func (p *page) Page(ctx context.Context, cancelFn func(error)) *tview.Application {
 	app := tview.NewApplication()
 
 	p.screen = tview.NewGrid()
@@ -147,9 +148,8 @@ func (p *page) Page(ctx context.Context) *tview.Application {
 	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
-			close(p.quitting)
-			app.Stop()
 			p.app.Log = p.prevSlog
+			cancelFn(errors.New("interrupted: Ctrl+C or Ctrl+Q pressed"))
 		}
 		return event
 	})
@@ -157,7 +157,7 @@ func (p *page) Page(ctx context.Context) *tview.Application {
 		tick := time.NewTicker(100 * time.Millisecond)
 		for {
 			select {
-			case <-p.quitting:
+			case <-ctx.Done():
 				tick.Stop()
 				return
 			case <-tick.C:
@@ -171,7 +171,8 @@ func (p *page) Page(ctx context.Context) *tview.Application {
 			tick := time.NewTicker(500 * time.Millisecond)
 			for {
 				select {
-				case <-p.quitting:
+				case <-ctx.Done():
+					tick.Stop()
 					return
 				case <-tick.C:
 					jobs, err := p.app.Immich.GetJobs(ctx)
