@@ -8,11 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/simulot/immich-go/cmd"
+	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/immich"
 )
 
@@ -96,7 +98,7 @@ func runCase(t *testing.T, tc testCase) {
 		}
 	}
 
-	args := []string{"-server=" + host, "-key=" + key, "-log-file=" + tc.name + ".log", "-log-level=INFO", "-no-ui"}
+	args := []string{"-server=" + host, "-key=" + key, "-log-file=" + filepath.Join(filepath.Dir(configuration.DefaultLogFile()), tc.name+".log"), "-log-level=INFO", "-no-ui"}
 
 	if tc.APITrace {
 		args = append(args, "-api-trace=TRUE")
@@ -542,7 +544,7 @@ func Test_BannedFiles_(t *testing.T) {
 		},
 		resetImmich: true,
 		expectError: false,
-		APITrace:    false,
+		APITrace:    true,
 	}
 	runCase(t, tc)
 }
