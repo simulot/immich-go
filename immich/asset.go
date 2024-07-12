@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"mime/multipart"
+	"net/http"
 	"net/textproto"
 	"net/url"
 	"path"
@@ -176,11 +177,41 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		}
 	}()
 
+	var callValues map[string]string
+	if ic.apiTraceWriter != nil {
+		callValues = map[string]string{
+			ctxAssetName: la.FileName,
+		}
+		if la.SideCar.IsSet() {
+			callValues[ctxSideCarName] = la.SideCar.FileName
+		}
+		if la.LivePhoto != nil {
+			callValues[ctxLiveVideoName] = la.LivePhoto.FileName
+		}
+	}
+
 	errCall := ic.newServerCall(ctx, "AssetUpload").
-		do(postRequest("/assets", m.FormDataContentType(), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+		do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 
 	err = errors.Join(err, errCall)
 	return ar, err
+}
+
+const (
+	ctxCallValues    = "call-values"
+	ctxAssetName     = "asset file name"
+	ctxSideCarName   = "side car file name"
+	ctxLiveVideoName = "live video name"
+)
+
+func setContextValue(kv map[string]string) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		if sc.err != nil || kv == nil {
+			return nil
+		}
+		sc.ctx = context.WithValue(sc.ctx, ctxCallValues, kv)
+		return nil
+	}
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")

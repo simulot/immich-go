@@ -598,6 +598,23 @@ func Test_SmallTakeout_Better_p2(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_MotionPictures_303_280(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_MotionPictures_303_280",
+		args: []string{
+			"-api-trace",
+			"-google-photos",
+			myEnv["IMMICH_TESTFILES"] + "/Motion photo #303 #280/takeout-motion-test.zip",
+		},
+		resetImmich: true,
+		expectError: false,
+		APITrace:    true,
+	}
+	runCase(t, tc)
+}
+
 // ResetImmich
 // ⛔: will remove the content of the server.‼️
 // Give the user of the connection to confirm the server instance: debug@example.com
