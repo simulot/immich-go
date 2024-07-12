@@ -59,7 +59,7 @@ func patternToRe(pattern string) (*regexp.Regexp, error) {
 			r.WriteString(`[^./]*`)
 		case '?':
 			r.WriteString(`[^./]`)
-		case '.', '^', '$', '(', ')', '|':
+		case '.', '^', '$', '(', ')', '|', '+':
 			r.WriteRune('\\')
 			r.WriteRune(b)
 		case '\\':

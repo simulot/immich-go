@@ -538,6 +538,7 @@ func Test_BannedFiles_(t *testing.T) {
 		args: []string{
 			"-exclude-files=backup/",
 			"-exclude-files=copy).*",
+			"-exclude-files=+1.*",
 			"TEST_DATA/banned",
 		},
 		resetImmich: true,

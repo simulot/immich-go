@@ -112,6 +112,14 @@ func TestList_Match(t *testing.T) {
 				{"@eaDir/SYNOFILE_THUMB_M_000213.jpg", true},
 			},
 		},
+		{
+			name: "+1.*",
+			want: []args{
+				{"hello.world", false},
+				{"/path/to/file.exe", false},
+				{"/path/to/file+1.exe", true},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
