@@ -42,15 +42,12 @@ type uiPage struct {
 func (app *UpCmd) runUI(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	ui := newUI(ctx, app)
-	modal := newModal()
 
 	defer cancel(nil)
 	pages := tview.NewPages()
 
-	pages.AddPage("ui", ui.screen, true, true)
-	pages.AddPage("modal", modal, true, false)
-
 	var preparationDone atomic.Bool
+	var uploadDone atomic.Bool
 	var uiGroup errgroup.Group
 
 	uiApp := tview.NewApplication()
@@ -63,12 +60,20 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		}
 	}
 
+	modal := newModal()
+	pages.AddPage("ui", ui.screen, true, true)
+	pages.AddPage("modal", modal, true, false)
+
 	// handle Ctrl+C and Ctrl+Q
 	uiApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
 			app.Log = ui.prevSlog
 			cancel(errors.New("interrupted: Ctrl+C or Ctrl+Q pressed"))
+		case tcell.KeyEnter:
+			if uploadDone.Load() {
+				stopUI(nil)
+			}
 		}
 		return event
 	})
@@ -181,15 +186,16 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		if err != nil {
 			return context.Cause(ctx)
 		}
+		preparationDone.Store(true)
 
 		// we can upload assets
 		err = app.uploadLoop(ctx)
 		if err != nil {
 			return context.Cause(ctx)
 		}
+		uploadDone.Store(true)
 
 		// upload is done!
-		preparationDone.Store(true)
 		pages.ShowPage("modal")
 		return err
 	})
@@ -240,12 +246,12 @@ func newModal() tview.Primitive {
 				AddItem(nil, 0, 1, false), width, 1, true).
 			AddItem(nil, 0, 1, false)
 	}
-	text := tview.NewTextView().SetText("Immich-go has completed the upload of your input.\n\nYou can quit the program safely.\nPress Control+C to exit.").SetTextAlign(tview.AlignCenter)
+	text := tview.NewTextView().SetText("\nYou can quit the program safely.\n\nPress <enter> key to exit.").SetTextAlign(tview.AlignCenter)
 	box := tview.NewBox().
 		SetBorder(true).
 		SetTitle("Upload completed")
 	text.Box = box
-	return modal(text, 40, 8)
+	return modal(text, 40, 7)
 }
 
 func newUI(ctx context.Context, app *UpCmd) *uiPage {
