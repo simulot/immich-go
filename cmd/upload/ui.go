@@ -43,7 +43,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	uiApp := tview.NewApplication()
-	ui := newUI(ctx, app, uiApp)
+	ui := newUI(ctx, app)
 
 	defer cancel(nil)
 	pages := tview.NewPages()
@@ -232,7 +232,7 @@ func newModal() tview.Primitive {
 	return modal(text, 40, 7)
 }
 
-func newUI(ctx context.Context, app *UpCmd, uiApp *tview.Application) *uiPage {
+func newUI(ctx context.Context, app *UpCmd) *uiPage {
 	ui := &uiPage{
 		counts: map[fileevent.Code]*tview.TextView{},
 	}
