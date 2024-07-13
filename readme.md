@@ -129,6 +129,7 @@ Use the `-exclude-files=PATTERN` to exclude certain files or directories from th
 - SYNOFILE_THUMB_\*.\*
 - Lightroom Catalog/
 - thumbnails/
+- .DS_Store/
 
 
 Example, the following command excludes any files in directories called backup or draft and any file with name finishing with "copy)" as PXL_20231006_063121958 (another copy).jpg:
