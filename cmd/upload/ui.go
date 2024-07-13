@@ -41,7 +41,9 @@ type uiPage struct {
 
 func (app *UpCmd) runUI(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
-	ui := newUI(ctx, app)
+
+	uiApp := tview.NewApplication()
+	ui := newUI(ctx, app, uiApp)
 
 	defer cancel(nil)
 	pages := tview.NewPages()
@@ -50,7 +52,6 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	var uploadDone atomic.Bool
 	var uiGroup errgroup.Group
 
-	uiApp := tview.NewApplication()
 	uiApp.SetRoot(pages, true)
 
 	stopUI := func(err error) {
@@ -231,7 +232,7 @@ func newModal() tview.Primitive {
 	return modal(text, 40, 7)
 }
 
-func newUI(ctx context.Context, app *UpCmd) *uiPage {
+func newUI(ctx context.Context, app *UpCmd, uiApp *tview.Application) *uiPage {
 	ui := &uiPage{
 		counts: map[fileevent.Code]*tview.TextView{},
 	}
@@ -288,7 +289,7 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 	ui.screen.AddItem(counts, 1, 0, 1, 1, 0, 0, false)
 
 	// Hijack the log
-	ui.logView = tview.NewTextView().SetMaxLines(5).ScrollToEnd()
+	ui.logView = tview.NewTextView().SetMaxLines(100).ScrollToEnd()
 	ui.prevSlog = app.SharedFlags.Log
 
 	if app.SharedFlags.LogWriterCloser != nil {
