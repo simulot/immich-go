@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -359,98 +358,6 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 	})
 
 	err := uiGrp.Wait()
-	if err != nil {
-		err = context.Cause(ctx)
-	}
-	app.Jnl.Report()
-	return err
-}
-
-func (app *UpCmd) runUI(ctx context.Context) error {
-	ctx, cancel := context.WithCancelCause(ctx)
-	defer cancel(nil)
-	page := app.newPage()
-	p := page.Page(ctx, cancel)
-	preparationDone := atomic.Bool{}
-
-	uiGroup := errgroup.Group{}
-
-	uiGroup.Go(func() error {
-		processGrp := errgroup.Group{}
-		processGrp.Go(func() error {
-			// Get immich asset
-			err := app.getImmichAssets(ctx, page.updateImmichReading)
-			if err != nil {
-				cancel(err)
-				p.Stop()
-			}
-			return err
-		})
-		processGrp.Go(func() error {
-			err := app.getImmichAlbums(ctx)
-			if err != nil {
-				cancel(err)
-				p.Stop()
-			}
-			return err
-		})
-		processGrp.Go(func() error {
-			// Run Prepare
-			err := app.browser.Prepare(ctx)
-			if err != nil {
-				cancel(err)
-				p.Stop()
-			}
-			return err
-		})
-
-		err := processGrp.Wait()
-		if err == nil {
-			// at this point, the read immich and prepare are completed
-			err = app.uploadLoop(ctx)
-		} else {
-			err = context.Cause(ctx)
-		}
-		preparationDone.Store(true)
-		return err
-	})
-
-	if !app.DryRun && page.watchJobs {
-		uiGroup.Go(func() error {
-			// Wait the server to calm down
-			tick := time.NewTicker(10 * time.Second)
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-tick.C:
-					if preparationDone.Load() {
-						now := time.Now().Unix()
-						last := page.lastTimeServerActive.Load()
-						if now-last > 10 {
-							cancel(nil)
-							p.Stop()
-							return nil
-						}
-					}
-				}
-			}
-		})
-	}
-
-	uiGroup.Go(func() error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			err := p.Run()
-			cancel(err)
-			return err
-		}
-	})
-
-	// Wait processes to finnish or cancellation
-	err := uiGroup.Wait()
 	if err != nil {
 		err = context.Cause(ctx)
 	}
