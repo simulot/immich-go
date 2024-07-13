@@ -93,6 +93,7 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
 		`Lightroom Catalog/`, // LR
 		`thumbnails/`,        // Android photo
+		`.DS_Store/`,         // Mac OS custom attributes
 	)
 	if err != nil {
 		return nil, err
