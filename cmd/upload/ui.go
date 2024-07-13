@@ -114,7 +114,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 	// force the ui to redraw counters
 	go func() {
-		tick := time.NewTicker(500 * time.Millisecond)
+		tick := time.NewTicker(100 * time.Millisecond)
 		for {
 			select {
 			case <-ctx.Done():
@@ -200,36 +200,13 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		return err
 	})
 
-	// only for real upload with an administrator
-	if !app.DryRun && ui.watchJobs {
-		uiGroup.Go(func() error {
-			// Wait the server to calm down
-			tick := time.NewTicker(10 * time.Second)
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-tick.C:
-					if preparationDone.Load() {
-						now := time.Now().Unix()
-						last := ui.lastTimeServerActive.Load()
-						if now-last > 10 {
-							stopUI(nil)
-							return nil
-						}
-					}
-				}
-			}
-		})
-	}
-
-	// Wait up termination
+	// Wait for termination of UI processes
 	err := uiGroup.Wait()
 	if err != nil {
 		err = context.Cause(ctx)
 	}
 
-	// All done!
+	// Time to leave
 	app.Jnl.Report()
 	return err
 }
@@ -246,7 +223,7 @@ func newModal() tview.Primitive {
 				AddItem(nil, 0, 1, false), width, 1, true).
 			AddItem(nil, 0, 1, false)
 	}
-	text := tview.NewTextView().SetText("\nYou can quit the program safely.\n\nPress <enter> key to exit.").SetTextAlign(tview.AlignCenter)
+	text := tview.NewTextView().SetText("\nYou can quit the program safely.\n\nPress the [enter] key to exit.").SetTextAlign(tview.AlignCenter)
 	box := tview.NewBox().
 		SetBorder(true).
 		SetTitle("Upload completed")
@@ -359,6 +336,9 @@ type progressUpdate func(value, max int)
 
 // call back to get the progression
 func (p *uiPage) updateImmichReading(value, total int) {
+	if value == 0 && total == 0 {
+		total, value = 100, 100
+	}
 	p.immichReading.SetMaxValue(total)
 	p.immichReading.SetValue(value)
 }
