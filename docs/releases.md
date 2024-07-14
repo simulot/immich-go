@@ -25,6 +25,7 @@ fixes:
 - [#299](https://github.com/simulot/immich-go/issues/299) Real time GUI log only shows 4 lines #299
 - [#370](https://github.com/simulot/immich-go/issues/370) ui: clearly mention when the upload in completed
 - [#232](https://github.com/simulot/immich-go/issues/232) Exclude based on filename / glob
+- [#357](https://github.com/simulot/immich-go/issues/357) clarify error message when a zip file is corrupted
 
 ## Release 0.19.1
 
