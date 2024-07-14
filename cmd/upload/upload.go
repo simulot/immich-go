@@ -375,15 +375,9 @@ assetLoop:
 }
 
 func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) error {
-	// const willBeAddedToAlbum = "Will be added to the album: "
 	defer func() {
 		a.Close()
 	}()
-	// ext := path.Ext(a.FileName)
-	// if _, err := fshelper.MimeFromExt(ext); err != nil {
-	// 	app.journalAsset(a, logger.NOT_SELECTED, "not recognized extension")
-	// 	return nil
-	// }
 	ext := path.Ext(a.FileName)
 	if app.BrowserConfig.ExcludeExtensions.Exclude(ext) {
 		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "extension in rejection list")
@@ -498,14 +492,13 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 	}
 
 	if app.CreateAlbums {
-		// add the higher quality asset to the albums found locally
 		for _, al := range a.Albums {
 			album := al.Title
 			if app.GooglePhotos && (app.UseFolderAsAlbumName || album == "") {
 				album = filepath.Base(al.Path)
 			}
 			if _, exist := addedTo[album]; !exist {
-				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album, "reason", "higher asset's album")
+				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album)
 				if !app.DryRun {
 					err := app.AddToAlbum(ctx, assetID, al)
 					if err != nil {
