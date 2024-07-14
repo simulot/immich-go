@@ -14,6 +14,7 @@ import (
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 )
@@ -26,6 +27,7 @@ type Takeout struct {
 	albums     map[string]browser.LocalAlbum // tack album names by folder
 	log        *fileevent.Recorder
 	sm         immich.SupportedMedia
+	banned     namematcher.List // Banned files
 }
 
 // dirCatalog collects all directory catalogs
@@ -69,6 +71,11 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 	}
 
 	return &to, nil
+}
+
+func (to *Takeout) SetBannedFiles(banned namematcher.List) *Takeout {
+	to.banned = banned
+	return to
 }
 
 // Prepare scans all files in all walker to build the file catalog of the archive
@@ -157,6 +164,11 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					}
 				case immich.TypeImage:
 					to.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
+				}
+
+				if to.banned.Match(name) {
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "banned file")
+					return nil
 				}
 				dirCatalog.unMatchedFiles[base] = fileInfo{
 					base:   base,
@@ -268,6 +280,16 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 				}
 				to.catalogs[d] = l
 			}
+		}
+	}
+
+	paths := gen.MapKeys(to.catalogs)
+	sort.Strings(paths)
+	for _, p := range paths {
+		files := gen.MapKeys(to.catalogs[p].unMatchedFiles)
+		sort.Strings(files)
+		for _, f := range files {
+			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, to.catalogs[p].unMatchedFiles[f], filepath.Join(p, f))
 		}
 	}
 	return nil
@@ -465,17 +487,30 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 
 	for _, base := range gen.MapKeys(linkedFiles) {
 		var a *browser.LocalAssetFile
+		var err error
 
 		linked := linkedFiles[base]
 
 		if linked.image.md != nil {
-			a = to.googleMDToAsset(linked.image.md, linked.image.fsys, path.Join(dir, linked.image.base))
+			a, err = to.googleMDToAsset(linked.image.md, linked.image.fsys, path.Join(dir, linked.image.base))
+			if err != nil {
+				to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.image.base), "error", err.Error())
+				continue
+			}
 			if linked.video.md != nil {
-				i := to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
-				a.LivePhoto = i
+				i, err := to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+				if err != nil {
+					to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
+				} else {
+					a.LivePhoto = i
+				}
 			}
 		} else {
-			a = to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+			a, err = to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+			if err != nil {
+				to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
+				continue
+			}
 		}
 
 		select {
@@ -502,7 +537,7 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 }
 
 // googleMDToAsset makes a localAssetFile based on the google metadata
-func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) *browser.LocalAssetFile {
+func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) (*browser.LocalAssetFile, error) {
 	// Change file's title with the asset's title and the actual file's extension
 	title := md.Title
 	titleExt := path.Ext(title)
@@ -517,7 +552,7 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	a := browser.LocalAssetFile{
 		FileName:    name,
@@ -556,5 +591,5 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 	}
 
 	a.Metadata = sidecar
-	return &a
+	return &a, nil
 }

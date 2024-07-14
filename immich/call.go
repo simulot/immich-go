@@ -116,12 +116,12 @@ type requestFunction func(sc *serverCall) *http.Request
 
 var callSequence atomic.Int64
 
-const callSequenceID = "api-call-sequence"
+const ctxCallSequenceID = "api-call-sequence"
 
 func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
 	if sc.ic.apiTraceWriter != nil {
 		seq := callSequence.Add(1)
-		sc.ctx = context.WithValue(sc.ctx, callSequenceID, seq)
+		sc.ctx = context.WithValue(sc.ctx, ctxCallSequenceID, seq)
 	}
 	req, err := http.NewRequestWithContext(sc.ctx, method, url, http.NoBody)
 	if sc.joinError(err) != nil {
@@ -277,7 +277,7 @@ func responseJSON[T any](object *T) serverResponseOption {
 				}
 				err := json.NewDecoder(resp.Body).Decode(object)
 				if sc.ic.apiTraceWriter != nil {
-					seq := sc.ctx.Value(callSequenceID)
+					seq := sc.ctx.Value(ctxCallSequenceID)
 					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "RESPONSE", seq, sc.endPoint, resp.Request.Method, resp.Request.URL.String())
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))

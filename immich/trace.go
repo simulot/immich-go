@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/gen"
 )
 
 /*
@@ -70,13 +73,22 @@ func (sb *smartBodyCloser) Read(b []byte) (int, error) {
 
 func setTraceRequest() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
-		seq := sc.ctx.Value(callSequenceID)
+		seq := sc.ctx.Value(ctxCallSequenceID)
 		fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "QUERY", seq, sc.endPoint, req.Method, req.URL.String())
 		for h, v := range req.Header {
 			if h == "X-Api-Key" {
-				fmt.Fprintln(sc.ic.apiTraceWriter, "  ", h, []string{"redacted"})
+				fmt.Fprintln(sc.ic.apiTraceWriter, "  ", h, "redacted")
 			} else {
 				fmt.Fprintln(sc.ic.apiTraceWriter, "  ", h, v)
+			}
+		}
+		if v := sc.ctx.Value(ctxCallValues); v != nil {
+			if values, ok := v.(map[string]string); ok {
+				keys := gen.MapKeys(values)
+				sort.Strings(keys)
+				for _, k := range keys {
+					fmt.Fprintln(sc.ic.apiTraceWriter, "  ", k+": ", values[k])
+				}
 			}
 		}
 		if req.Header.Get("Content-Type") == "application/json" {

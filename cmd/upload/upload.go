@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -25,9 +24,9 @@ import (
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/helpers/myflag"
+	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
-	"golang.org/x/sync/errgroup"
 )
 
 type UpCmd struct {
@@ -56,6 +55,7 @@ type UpCmd struct {
 	StackBurst             bool             // Stack burst (Default: TRUE)
 	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
 	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
+	BannedFiles            namematcher.List // List of banned file name patterns
 
 	BrowserConfig Configuration
 
@@ -86,6 +86,17 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 
 	app := UpCmd{
 		SharedFlags: common,
+	}
+	app.BannedFiles, err = namematcher.New(
+		`@eaDir/`,
+		`@__thumb/`,          // QNAP
+		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
+		`Lightroom Catalog/`, // LR
+		`thumbnails/`,        // Android photo
+		`.DS_Store/`,         // Mac OS custom attributes
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	app.SharedFlags.SetFlags(cmd)
@@ -156,6 +167,9 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		"when-no-date",
 		"FILE",
 		" When the date of take can't be determined, use the FILE's date or the current time NOW. (default: FILE)")
+
+	cmd.Var(&app.BannedFiles, "exclude-files", "Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.")
+
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
@@ -231,215 +245,6 @@ func (app *UpCmd) run(ctx context.Context) error {
 		return app.runNoUI(ctx)
 	}
 	return app.runUI(ctx)
-}
-
-func (app *UpCmd) runNoUI(ctx context.Context) error {
-	ctx, cancel := context.WithCancelCause(ctx)
-	defer cancel(nil)
-
-	stopProgress := make(chan any)
-	var maxImmich, currImmich int
-	spinner := []rune{' ', ' ', '.', ' ', ' '}
-	spinIdx := 0
-
-	immichUpdate := func(value, total int) {
-		currImmich, maxImmich = value, total
-	}
-
-	progressString := func() string {
-		var s string
-		counts := app.Jnl.GetCounts()
-		immichPct := 0
-		if maxImmich > 0 {
-			immichPct = 100 * currImmich / maxImmich
-		}
-		ScannedAssets := counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo] - counts[fileevent.DiscoveredDiscarded]
-		ProcessedAssets := counts[fileevent.Uploaded] +
-			counts[fileevent.UploadServerError] +
-			counts[fileevent.UploadNotSelected] +
-			counts[fileevent.UploadUpgraded] +
-			counts[fileevent.UploadServerDuplicate] +
-			counts[fileevent.UploadServerBetter] +
-			counts[fileevent.DiscoveredDiscarded] +
-			counts[fileevent.AnalysisLocalDuplicate]
-
-		if app.GooglePhotos {
-			gpPct := 0
-			upPct := 0
-			if ScannedAssets > 0 {
-				gpPct = int(100 * counts[fileevent.AnalysisAssociatedMetadata] / ScannedAssets)
-			}
-			if counts[fileevent.AnalysisAssociatedMetadata] > 0 {
-				upPct = int(100 * ProcessedAssets / counts[fileevent.AnalysisAssociatedMetadata])
-			}
-
-			s = fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s", immichPct, gpPct, counts[fileevent.UploadServerError], upPct, string(spinner[spinIdx]))
-		} else {
-			s = fmt.Sprintf("\rImmich read %d%%, Processed %d, Upload errors: %d, Uploaded %d %s", immichPct, ProcessedAssets, counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
-		}
-		spinIdx++
-		if spinIdx == len(spinner) {
-			spinIdx = 0
-		}
-		return s
-	}
-	uiGrp := errgroup.Group{}
-
-	uiGrp.Go(func() error {
-		ticker := time.NewTicker(500 * time.Millisecond)
-		defer func() {
-			ticker.Stop()
-			fmt.Println(progressString())
-		}()
-		for {
-			select {
-			case <-stopProgress:
-				fmt.Print(progressString())
-				return nil
-			case <-ctx.Done():
-				fmt.Print(progressString())
-				return ctx.Err()
-			case <-ticker.C:
-				fmt.Print(progressString())
-			}
-		}
-	})
-
-	uiGrp.Go(func() error {
-		processGrp := errgroup.Group{}
-
-		processGrp.Go(func() error {
-			// Get immich asset
-			err := app.getImmichAssets(ctx, immichUpdate)
-			if err != nil {
-				cancel(err)
-			}
-			return err
-		})
-		processGrp.Go(func() error {
-			return app.getImmichAlbums(ctx)
-		})
-		processGrp.Go(func() error {
-			// Run Prepare
-			err := app.browser.Prepare(ctx)
-			if err != nil {
-				cancel(err)
-			}
-			return err
-		})
-		err := processGrp.Wait()
-		if err != nil {
-			err := context.Cause(ctx)
-			if err != nil {
-				cancel(err)
-				return err
-			}
-		}
-		err = app.uploadLoop(ctx)
-		if err != nil {
-			cancel(err)
-		}
-		close(stopProgress)
-		return err
-	})
-
-	err := uiGrp.Wait()
-	if err != nil {
-		err = context.Cause(ctx)
-	}
-	app.Jnl.Report()
-	return err
-}
-
-func (app *UpCmd) runUI(ctx context.Context) error {
-	ctx, cancel := context.WithCancelCause(ctx)
-	defer cancel(nil)
-	page := app.newPage()
-	p := page.Page(ctx)
-	preparationDone := atomic.Bool{}
-
-	uiGroup := errgroup.Group{}
-
-	uiGroup.Go(func() error {
-		processGrp := errgroup.Group{}
-		processGrp.Go(func() error {
-			// Get immich asset
-			err := app.getImmichAssets(ctx, page.updateImmichReading)
-			if err != nil {
-				cancel(err)
-				p.Stop()
-			}
-			return err
-		})
-		processGrp.Go(func() error {
-			return app.getImmichAlbums(ctx)
-		})
-		processGrp.Go(func() error {
-			// Run Prepare
-			err := app.browser.Prepare(ctx)
-			if err != nil {
-				cancel(err)
-				p.Stop()
-			}
-			return err
-		})
-
-		err := processGrp.Wait()
-		if err == nil {
-			// at this point, the read immich and prepare are completed
-			err = app.uploadLoop(ctx)
-		} else {
-			err = context.Cause(ctx)
-		}
-		preparationDone.Store(true)
-		if !page.watchJobs {
-			p.Stop()
-			cancel(nil)
-		}
-		return err
-	})
-
-	if !app.DryRun && page.watchJobs {
-		uiGroup.Go(func() error {
-			// Wait the server to calm down
-			tick := time.NewTicker(10 * time.Second)
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-tick.C:
-					if preparationDone.Load() {
-						now := time.Now().Unix()
-						last := page.lastTimeServerActive.Load()
-						if now-last > 10 {
-							cancel(nil)
-							p.Stop()
-							return nil
-						}
-					}
-				}
-			}
-		})
-	}
-
-	uiGroup.Go(func() error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			err := p.Run()
-			cancel(nil)
-			return err
-		}
-	})
-
-	// Wait processes to finnish or cancellation
-	err := uiGroup.Wait()
-	if err != nil {
-		err = context.Cause(ctx)
-	}
-	app.Jnl.Report()
-	return err
 }
 
 func (app *UpCmd) getImmichAlbums(ctx context.Context) error {
@@ -762,7 +567,12 @@ func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
 
 func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
 	app.Delete = false
-	return gp.NewTakeout(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
+	b, err := gp.NewTakeout(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
+	if err != nil {
+		return nil, err
+	}
+	b.SetBannedFiles(app.BannedFiles)
+	return b, err
 }
 
 func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
@@ -772,6 +582,7 @@ func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browse
 	}
 	b.SetSupportedMedia(app.Immich.SupportedMedia())
 	b.SetWhenNoDate(app.WhenNoDate)
+	b.SetBannedFiles(app.BannedFiles)
 	return b, nil
 }
 

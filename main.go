@@ -58,7 +58,7 @@ func main() {
 	var err error
 
 	// Create a context with cancel function to gracefully handle Ctrl+C events
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancelCause(context.Background())
 
 	// Handle Ctrl+C signal (SIGINT)
 	signalChannel := make(chan os.Signal, 1)
@@ -67,7 +67,7 @@ func main() {
 	go func() {
 		<-signalChannel
 		fmt.Println("\nCtrl+C received. Shutting down...")
-		cancel() // Cancel the context when Ctrl+C is received
+		cancel(errors.New("Ctrl+C received")) // Cancel the context when Ctrl+C is received
 	}()
 
 	select {
@@ -77,6 +77,9 @@ func main() {
 		err = Run(ctx)
 	}
 	if err != nil {
+		if e := context.Cause(ctx); e != nil {
+			err = e
+		}
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
