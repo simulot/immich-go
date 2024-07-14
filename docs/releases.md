@@ -26,6 +26,7 @@ fixes:
 - [#370](https://github.com/simulot/immich-go/issues/370) ui: clearly mention when the upload in completed
 - [#232](https://github.com/simulot/immich-go/issues/232) Exclude based on filename / glob
 - [#357](https://github.com/simulot/immich-go/issues/357) clarify error message when a zip file is corrupted
+- [#343](https://github.com/simulot/immich-go/issues/343) Getting stuck at 75% - server assets to delete
 
 ## Release 0.19.1
 
