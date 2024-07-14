@@ -29,13 +29,13 @@ func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
 		case strings.HasSuffix(lowA, ".zip"):
 			files, err := expandNames(a)
 			if err != nil {
-				errs = errors.Join(errs, err)
+				errs = errors.Join(errs, fmt.Errorf("%s: %w", a, err))
 				break
 			}
 			for _, f := range files {
 				fsys, err := zip.OpenReader(f)
 				if err != nil {
-					errs = errors.Join(errs, err)
+					errs = errors.Join(errs, fmt.Errorf("%s: %w", a, err))
 					continue
 				}
 				fsyss = append(fsyss, fsys)
