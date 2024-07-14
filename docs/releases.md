@@ -5,7 +5,9 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
-### feat: exclude files based on a pattern
+## Release 0.20
+
+### feature exclude files based on a pattern
 
 Use the `-exclude-files=PATTERN` to exclude certain files or directories from the upload. Repeat the option for each pattern do you need. The following directories are excluded automatically:
 - @eaDir/
@@ -22,7 +24,7 @@ immich-go -sever=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=d
 
 fixes:
 - [#365](https://github.com/simulot/immich-go/issues/365) missing associated metadata file isn't correct
-- [#299](https://github.com/simulot/immich-go/issues/299) Real time GUI log only shows 4 lines #299
+- [#299](https://github.com/simulot/immich-go/issues/299) Real time GUI log only shows 4 lines
 - [#370](https://github.com/simulot/immich-go/issues/370) ui: clearly mention when the upload in completed
 - [#232](https://github.com/simulot/immich-go/issues/232) Exclude based on filename / glob
 - [#357](https://github.com/simulot/immich-go/issues/357) clarify error message when a zip file is corrupted
