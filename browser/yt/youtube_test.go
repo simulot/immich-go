@@ -471,31 +471,37 @@ func TestPrepareAndBrowse(t *testing.T) {
 					//Path: "A playlist-videos.csv",
 					Path: "A playlist",
 					Title: "A playlist",
+					Description: "This is my playlist",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv",
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv",
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv",
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDEFGH.csv",
 					Path: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
 					Title: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDEFGH.csv",
 					Path: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
 					Title: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
+					Description: "",
 				},
 			},
 
@@ -524,36 +530,43 @@ func TestPrepareAndBrowse(t *testing.T) {
 					//Path: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘.csv"
 					Path: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊tema🙋tis🙌rolod🙍muspi🙎meroL🙏",
 					Title: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊tema🙋tis🙌rolod🙍muspi🙎meroL🙏",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "😀Lorem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌.csv"
 					Path: "😀Lorem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
 					Title: "😀Lorem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDEFG-.csv"
 					Path: "My very long playlist title 0123456789 ABCDEFG",
 					Title: "My very long playlist title 0123456789 ABCDEFG",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDEF-v.csv"
 					Path: "My very long playlist title 0123456789 ABCDEF",
 					Title: "My very long playlist title 0123456789 ABCDEF",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDE-vi.csv"
 					Path: "My very long playlist title 0123456789 ABCDE",
 					Title: "My very long playlist title 0123456789 ABCDE",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCD-vid.csv"
 					Path: "My very long playlist title 0123456789 ABCD",
 					Title: "My very long playlist title 0123456789 ABCD",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "😀orem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌.csv"
 					Path: "😀orem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
 					Title: "😀orem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
+					Description: "",
 				},
 			},
 
@@ -582,21 +595,25 @@ func TestPrepareAndBrowse(t *testing.T) {
 					//Path: "`-=[]_,._~!@#$_^&_()_+{}_-videos.csv"
 					Path: "`-=[]\\;',./~!@#$%^&*()_+{}|:\"?",
 					Title: "`-=[]\\;',./~!@#$%^&*()_+{}|:\"?",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "A playlist-videos.csv"
 					Path: "A playlist",
 					Title: "A playlist",
+					Description: "This is my playlist",
 				},
 				browser.LocalAlbum{
 					//Path: "👱👱🏻👱🏼👱🏽👱🏾👱🏿 🧟‍♀️🧟‍♂️ 👨‍❤️‍💋‍👨👩.csv"
 					Path: "👱👱🏻👱🏼👱🏽👱🏾👱🏿 🧟‍♀️🧟‍♂️ 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷",
 					Title: "👱👱🏻👱🏼👱🏽👱🏾👱🏿 🧟‍♀️🧟‍♂️ 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص-videos.csv"
 					Path: "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
 					Title: "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
+					Description: "",
 				},
 			},
 
@@ -625,16 +642,19 @@ func TestPrepareAndBrowse(t *testing.T) {
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 			},
 
@@ -663,21 +683,25 @@ func TestPrepareAndBrowse(t *testing.T) {
 					//Path: "A playlist-videos.csv"
 					Path: "A playlist",
 					Title: "A playlist",
+					Description: "This is my playlist",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 			},
 
@@ -706,16 +730,19 @@ func TestPrepareAndBrowse(t *testing.T) {
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
 					Title: "My playlist with a duplicate name",
+					Description: "",
 				},
 			},
 

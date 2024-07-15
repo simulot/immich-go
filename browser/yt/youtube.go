@@ -277,20 +277,10 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 				},
 			}
 			for _, playlist := range video.Playlists {
-				// Immich albums support having a description,
-				// and we have a description of each playlist
-				// from playlists.csv, but immich-go doesn't
-				// support passing those descriptions through
-				// without many changes: UpCmd.updateAlbums is
-				// a map from album name to a list of assets,
-				// and UpCmd.AddToAlbum would need to have the
-				// description added to its many calls.  Or
-				// we'd just need a new way to provide album
-				// description and I don't understand the code
-				// well enough to undertake that.
 				album := browser.LocalAlbum{
 					Path: playlist.Title,
 					Title: playlist.Title,
+					Description: playlist.Description,
 				}
 				albums = append(albums, album)
 			}

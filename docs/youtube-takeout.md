@@ -15,10 +15,5 @@ Additionally, the file that provides video metadata does not provide any informa
 ## Missing videos
 YouTube Takeout sometimes fails to include individual video files for unknown reasons.  The metadata appears to still be present but the video itself is mssing.  In this case `immich-go` will report an error about the missing video file.
 
-## Playlist descriptions
-Both the YouTube channel and and playlists are turned into Immich albums.  Both YouTube channels and playlists can include descriptions, but `immich-go` does not currently support adding these descriptions to albums, so they are lost.
-
-Video descriptions are preserved.
-
 # What if you have problems with a takeout archive?
 Please open an issue with details. Tag the issue with `@thecabinet`.
