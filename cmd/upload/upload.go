@@ -4,6 +4,7 @@ package upload
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -194,7 +195,12 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		return nil, err
 	}
 
-	app.fsyss, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
+	if app.GooglePhotos && app.YouTube {
+		err = errors.New("-google-photos and -youtube cannot be used simultaneously")
+		return nil, err
+	}
+
+	app.fsyss, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos || app.YouTube)
 	if err != nil {
 		return nil, err
 	}
