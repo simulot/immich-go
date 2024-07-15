@@ -18,6 +18,7 @@ import (
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/tzone"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/immich/metadata"
 )
 
 type SynthesizedYouTubeVideosByPlaylistID []*yt.YouTubePlaylist
@@ -25,10 +26,10 @@ func (a SynthesizedYouTubeVideosByPlaylistID) Len() int           { return len(a
 func (a SynthesizedYouTubeVideosByPlaylistID) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a SynthesizedYouTubeVideosByPlaylistID) Less(i, j int) bool { return a[i].PlaylistID < a[j].PlaylistID }
 
-type LocalAlbumsByName []browser.LocalAlbum
-func (a LocalAlbumsByName ) Len() int           { return len(a) }
-func (a LocalAlbumsByName ) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a LocalAlbumsByName ) Less(i, j int) bool { return a[i].Name < a[j].Name }
+type LocalAlbumsByTitle []browser.LocalAlbum
+func (a LocalAlbumsByTitle ) Len() int           { return len(a) }
+func (a LocalAlbumsByTitle ) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a LocalAlbumsByTitle ) Less(i, j int) bool { return a[i].Title < a[j].Title }
 
 func TestPrepareAndBrowse(t *testing.T) {
 	channel := yt.YouTubeChannel {
@@ -458,51 +459,53 @@ func TestPrepareAndBrowse(t *testing.T) {
 
 	channelAlbum := browser.LocalAlbum{
 		Path: "Jonathan Stafford's YouTube channel",
-		Name: "Jonathan Stafford's YouTube channel",
+		Title: "Jonathan Stafford's YouTube channel",
 	}
 	wantLafs := []*browser.LocalAssetFile{
 		&browser.LocalAssetFile{
 			FileName:    "Serenade #2.mp4",
 			Title:       "Serenade #2.mp4",
-			Description: "Serenade #2\n\nA description of Serenade #2",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "A playlist-videos.csv",
 					Path: "A playlist",
-					Name: "A playlist",
+					Title: "A playlist",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv",
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv",
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv",
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDEFGH.csv",
 					Path: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
-					Name: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
+					Title: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDEFGH.csv",
 					Path: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
-					Name: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
+					Title: "My very long playlist title 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrs",
 				},
 			},
 
-			DateTaken:   time.Date(int(2016), time.March, int(11), int(11), int(19), int(17), int(0), time.UTC).In(local),
-			Latitude:    0,
-			Longitude:   0,
-			Altitude:    0,
+			Metadata: metadata.Metadata{
+				Description: "Serenade #2\n\nA description of Serenade #2",
+				DateTaken:   time.Date(int(2016), time.March, int(11), int(11), int(19), int(17), int(0), time.UTC).In(local),
+				Latitude:    0,
+				Longitude:   0,
+				Altitude:    0,
+			},
 
 			Trashed:     false,
 			Archived:    false,
@@ -515,50 +518,52 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "Serenade #1.mp4",
 			Title:       "Serenade #1.mp4",
-			Description: "Serenade #1",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘.csv"
 					Path: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊tema🙋tis🙌rolod🙍muspi🙎meroL🙏",
-					Name: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊tema🙋tis🙌rolod🙍muspi🙎meroL🙏",
+					Title: "😀😁😂😃😄😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊tema🙋tis🙌rolod🙍muspi🙎meroL🙏",
 				},
 				browser.LocalAlbum{
 					//Path: "😀Lorem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌.csv"
 					Path: "😀Lorem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
-					Name: "😀Lorem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
+					Title: "😀Lorem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDEFG-.csv"
 					Path: "My very long playlist title 0123456789 ABCDEFG",
-					Name: "My very long playlist title 0123456789 ABCDEFG",
+					Title: "My very long playlist title 0123456789 ABCDEFG",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDEF-v.csv"
 					Path: "My very long playlist title 0123456789 ABCDEF",
-					Name: "My very long playlist title 0123456789 ABCDEF",
+					Title: "My very long playlist title 0123456789 ABCDEF",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCDE-vi.csv"
 					Path: "My very long playlist title 0123456789 ABCDE",
-					Name: "My very long playlist title 0123456789 ABCDE",
+					Title: "My very long playlist title 0123456789 ABCDE",
 				},
 				browser.LocalAlbum{
 					//Path: "My very long playlist title 0123456789 ABCD-vid.csv"
 					Path: "My very long playlist title 0123456789 ABCD",
-					Name: "My very long playlist title 0123456789 ABCD",
+					Title: "My very long playlist title 0123456789 ABCD",
 				},
 				browser.LocalAlbum{
 					//Path: "😀orem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌.csv"
 					Path: "😀orem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
-					Name: "😀orem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
+					Title: "😀orem😁ipsum😂dolor😃sit😄amet😅😆😇😈😉😊😋😌😍😎😏😐😑😒😓😕😖😗😘😙😚😛😜😝😞😟😠😡😢😣😤😥😦😧😨😩😪😫😬😭😮😯😰😱😲😳😴😵😶😷😸😹😺😻😼😽😾😿🙀🙁🙂🙃🙄🙅🙆🙇🙈🙉🙊🙋🙌🙍🙎🙏",
 				},
 			},
 
-			DateTaken:   time.Date(int(2016), time.March, int(11), int(11), int(20), int(49), int(0), time.UTC).In(local),
-			Latitude:    0,
-			Longitude:   0,
-			Altitude:    0,
+			Metadata: metadata.Metadata{
+				Description: "Serenade #1",
+				DateTaken:   time.Date(int(2016), time.March, int(11), int(11), int(20), int(49), int(0), time.UTC).In(local),
+				Latitude:    0,
+				Longitude:   0,
+				Altitude:    0,
+			},
 
 			Trashed:     false,
 			Archived:    false,
@@ -571,35 +576,37 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "I manually set the location.mp4",
 			Title:       "I manually set the location.mp4",
-			Description: "I manually set the location",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "`-=[]_,._~!@#$_^&_()_+{}_-videos.csv"
 					Path: "`-=[]\\;',./~!@#$%^&*()_+{}|:\"?",
-					Name: "`-=[]\\;',./~!@#$%^&*()_+{}|:\"?",
+					Title: "`-=[]\\;',./~!@#$%^&*()_+{}|:\"?",
 				},
 				browser.LocalAlbum{
 					//Path: "A playlist-videos.csv"
 					Path: "A playlist",
-					Name: "A playlist",
+					Title: "A playlist",
 				},
 				browser.LocalAlbum{
 					//Path: "👱👱🏻👱🏼👱🏽👱🏾👱🏿 🧟‍♀️🧟‍♂️ 👨‍❤️‍💋‍👨👩.csv"
 					Path: "👱👱🏻👱🏼👱🏽👱🏾👱🏿 🧟‍♀️🧟‍♂️ 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷",
-					Name: "👱👱🏻👱🏼👱🏽👱🏾👱🏿 🧟‍♀️🧟‍♂️ 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷",
+					Title: "👱👱🏻👱🏼👱🏽👱🏾👱🏿 🧟‍♀️🧟‍♂️ 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷",
 				},
 				browser.LocalAlbum{
 					//Path: "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص-videos.csv"
 					Path: "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
-					Name: "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
+					Title: "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
 				},
 			},
 
-			DateTaken:   time.Date(int(2023), time.December, int(14), int(0), int(34), int(22), int(0), time.UTC).In(local),
-			Latitude:    38.8977,
-			Longitude:   -77.0365,
-			Altitude:    0,
+			Metadata: metadata.Metadata{
+				Description: "I manually set the location",
+				DateTaken:   time.Date(int(2023), time.December, int(14), int(0), int(34), int(22), int(0), time.UTC).In(local),
+				Latitude:    38.8977,
+				Longitude:   -77.0365,
+				Altitude:    0,
+			},
 
 			Trashed:     false,
 			Archived:    false,
@@ -612,30 +619,32 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "`-=[]_,._~!@#$_^&_()_+{}_ 👱🏻🧟‍♀️👨‍❤️‍💋.mp4",
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
-			Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 			},
 
-			DateTaken:   time.Date(int(2023), time.December, int(14), int(0), int(36), int(14), int(0), time.UTC).In(local),
-			Latitude:    0,
-			Longitude:   0,
-			Altitude:    0,
+			Metadata: metadata.Metadata{
+				Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
+				DateTaken:   time.Date(int(2023), time.December, int(14), int(0), int(36), int(14), int(0), time.UTC).In(local),
+				Latitude:    0,
+				Longitude:   0,
+				Altitude:    0,
+			},
 
 			Trashed:     false,
 			Archived:    false,
@@ -648,35 +657,37 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "`-=[]_,._~!@#$_^&_()_+{}_ 👱🏻🧟‍♀️👨‍❤️‍💋(1).mp4",
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
-			Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص\n\nA description of a Short video.",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "A playlist-videos.csv"
 					Path: "A playlist",
-					Name: "A playlist",
+					Title: "A playlist",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 			},
 
-			DateTaken:   time.Date(int(2023), time.December, int(14), int(1), int(5), int(57), int(0), time.UTC).In(local),
-			Latitude:    0,
-			Longitude:   0,
-			Altitude:    0,
+			Metadata: metadata.Metadata{
+				Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص\n\nA description of a Short video.",
+				DateTaken:   time.Date(int(2023), time.December, int(14), int(1), int(5), int(57), int(0), time.UTC).In(local),
+				Latitude:    0,
+				Longitude:   0,
+				Altitude:    0,
+			},
 
 			Trashed:     false,
 			Archived:    false,
@@ -689,30 +700,32 @@ func TestPrepareAndBrowse(t *testing.T) {
 		&browser.LocalAssetFile{
 			FileName:    "`-=[]_,._~!@#$_^&_()_+{}_ 👱🏻🧟‍♀️👨‍❤️‍💋(2).mp4",
 			Title:       "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص.mp4",
-			Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
 			Albums:      []browser.LocalAlbum{
 				channelAlbum,
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 				browser.LocalAlbum{
 					//Path: "My playlist with a duplicate name-videos.csv
 					Path: "My playlist with a duplicate name",
-					Name: "My playlist with a duplicate name",
+					Title: "My playlist with a duplicate name",
 				},
 			},
 
-			DateTaken:   time.Date(int(2023), time.December, int(17), int(14), int(14), int(46), int(0), time.UTC).In(local),
-			Latitude:    0,
-			Longitude:   0,
-			Altitude:    0,
+			Metadata: metadata.Metadata{
+				Description: "`-=[]\\;',./~!@#$%^\u0026*()_+{}|:\"? 👱🏻🧟‍♀️👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷 Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇ اختبار النص",
+				DateTaken:   time.Date(int(2023), time.December, int(17), int(14), int(14), int(46), int(0), time.UTC).In(local),
+				Latitude:    0,
+				Longitude:   0,
+				Altitude:    0,
+			},
 
 			Trashed:     false,
 			Archived:    false,
@@ -744,8 +757,8 @@ assetLoop:
 		// the order of the playlists in playlists.csv, which seems to
 		// be random.  Also we don't really care in the first place,
 		// so just make it predictable for the test:
-		sort.Sort(LocalAlbumsByName(gotLafs[i].Albums))
-		sort.Sort(LocalAlbumsByName(wantLafs[i].Albums))
+		sort.Sort(LocalAlbumsByTitle(gotLafs[i].Albums))
+		sort.Sort(LocalAlbumsByTitle(wantLafs[i].Albums))
 
 		if !reflect.DeepEqual(gotLafs[i], wantLafs[i]) {
 			want_json, _ := json.MarshalIndent(wantLafs[i], "", "	")

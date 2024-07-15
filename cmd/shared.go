@@ -162,20 +162,6 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		if app.API != "" {
 			app.Immich.SetEndPoint(app.API)
 		}
-		if app.APITrace {
-			if app.APITraceWriter == nil {
-				err := configuration.MakeDirForFile(app.LogFile)
-				if err != nil {
-					return err
-				}
-				app.APITraceWriterName = strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".trace.log"
-				app.APITraceWriter, err = os.OpenFile(app.APITraceWriterName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
-				if err != nil {
-					return err
-				}
-				app.Immich.EnableAppTrace(app.APITraceWriter)
-			}
-		}
 		if app.DeviceUUID != "" {
 			app.Immich.SetDeviceUUID(app.DeviceUUID)
 		}
@@ -191,6 +177,21 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			return err
 		}
 		app.Log.Info(fmt.Sprintf("Connected, user: %s", user.Email))
+	}
+
+	if app.APITrace {
+		if app.APITraceWriter == nil {
+			err := configuration.MakeDirForFile(app.LogFile)
+			if err != nil {
+				return err
+			}
+			app.APITraceWriterName = strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".trace.log"
+			app.APITraceWriter, err = os.OpenFile(app.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
+			if err != nil {
+				return err
+			}
+			app.Immich.EnableAppTrace(app.APITraceWriter)
+		}
 	}
 	return nil
 }

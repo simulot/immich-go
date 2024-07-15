@@ -2,19 +2,15 @@
 
 **Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
+![screen](/docs/v.20.gif)
 
-![screen](/docs/render1719696528932.gif)
+
+## You can now support my work on `Immich-go`:
+
+- [Github Sponsor page](https://github.com/sponsors/simulot)
+- [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
 
-## ⚠️ Immich has changed its API
-Latest release of `immich` comes with some changes in the API. This version of `immich-go` is adapted to the latest version of Immich.
-
-For older version of `immich`, please use `immich-go` version [0.16.0](https://github.com/simulot/immich-go/releases/tag/0.16.0).
-
-Using an immich-go version not compatible with your immich server generates this error message:
-```
-ValidateConnection, GET, http://your-immich-server:2283/api/user/me, 404 Not Found
-```
 
 ## Key Features:
 
@@ -107,7 +103,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 | `-select-types=".ext,.ext,.ext..."`  | List of accepted extensions.                                                            |                   |
 | `-exclude-types=".ext,.ext,.ext..."` | List of excluded extensions.                                                            |                   |
 | `-when-no-date=FILE\|NOW`            | When the date of take can't be determined, use the FILE's date or the current time NOW. | `FILE`            |
-
+| `-exclude-files=pattern` | Ignore files based on a pattern. Case insensitive. Repeat the option for each pattern do you need. | `@eaDir/`<br>`@__thumb/`<br>`SYNOFILE_THUMB_*.*`<br>`Lightroom Catalog/`<br>`thumbnails/`|
 
 ### Date selection:
 Fine-tune import based on specific dates:
@@ -118,6 +114,21 @@ Fine-tune import based on specific dates:
 | `-date=YYYY-MM`    | select photos taken during a particular month. |
 | `-date=YYYY`       | select photos taken during a particular year.  |
 
+### Exclude files based on a pattern
+
+Use the `-exclude-files=PATTERN` to exclude certain files or directories from the upload. Repeat the option for each pattern do you need. The following directories are excluded automatically:
+- @eaDir/
+- @__thumb/
+- SYNOFILE_THUMB_\*.\*
+- Lightroom Catalog/
+- thumbnails/
+- .DS_Store/
+
+
+Example, the following command excludes any files in directories called backup or draft and any file with name finishing with "copy)" as PXL_20231006_063121958 (another copy).jpg:
+```sh
+immich-go -sever=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=draft/ -exclude=copy).*  /path/to/your/files
+```
 
 ### Google photos options:
 Specialized options for Google Photos management:
@@ -145,32 +156,9 @@ Specialized options for YouTube management:
 
 `-create-albums` will create an album for the YouTube channel and each playlist.
 
+`-exclude-files` will match both video filenames and video titles.
+
 Read [here](docs/youtube-takeout.md) to understand how YouTube takeout isn't easy to handle and some shortcomings of the YouTube import process.
-
-### How date of photos is determined
-
-
-#### When importing a Google Photos takeout archive:
- `immich-go` takes the photo's date from the associated JSON file.
-
-> The server ignores the date provided by immich-go and takes the MP4's date even when it is incorrect. 
-> <br>See [#322 Creation timestamp from metadata is wrong](https://github.com/simulot/immich-go/issues/332)
-
-#### When importing photos from a directory:
-
-Immich-go tries to determine the date of capture with the file name, or the file path.
-
-Ex:
-| Path                                    | Photo's capture date |
-| --------------------------------------- | -------------------- |
-| photos/album/PXL_20220909_154515546.jpg | 2022-09-09 15:51:55  |
-| photos/scanned/19991231.jpg             | 1999-12-31 00:00:00  |
-| photos/20221109/IMG_1234.HEIC           | 2022-11-19 00:00:00  |
-| photos/2022.11.09T20.30/IMG_1234.HEIC   | 2022-11-19 20:30:00  |
-| photos/2022/11/09/IMG_1234.HEIC         | 2022-11-19 00:00:00  |
-
-If the path can't be used to determine the capture date, immich-go read the file's `metadata` or `exif`.
-
 
 ### Burst detection
 Currently the bursts following this schema are detected:
@@ -198,6 +186,61 @@ To illustrate, here's a command importing photos from a Google Photos takeout ar
 ./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ upload
 -create-albums -google-photos -date=2019-06 ~/Download/takeout-*.zip             
 ```
+
+ 
+### Metadata determination
+
+Immich-go get the first available data in the following order.
+
+#### Date of capture:
+
+* Google photos takeout
+    1. Google photos JSON field `photoTakenTime`
+    1. Photo's file name: ex `PXL_20220909_154515546.jpg`
+    1. Photo's exif data
+* Folder import
+    1. XMP file
+    1. Photo's file name: ex `PXL_20220909_154515546.jpg`
+    1. Photo's file path: ex `/photos/2022/11/09/IMG_1234.HEIC`
+    1. Photo's exif data 
+
+#### GPS location:
+
+* Google photos takeout
+    1. Google photos JSON field `geoDataExif`
+    1. Google photos JSON field `geoData`
+    1. Google photos album JSON field `locationEnrichment`
+    1. Photo's exif data 
+* Folder import
+    1. XMP file
+    1. Photo's exif data 
+
+
+
+
+#### When importing a Google Photos takeout archive:
+ `immich-go` takes the photo's date from the associated JSON file.
+
+> The server ignores the date provided by immich-go and takes the MP4's date even when it is incorrect. 
+> <br>See [#322 Creation timestamp from metadata is wrong](https://github.com/simulot/immich-go/issues/332)
+
+#### When importing photos from a directory:
+
+Immich-go tries to determine the date of capture with the file name, or the file path.
+
+Ex:
+| Path                                    | Photo's capture date |
+| --------------------------------------- | -------------------- |
+| photos/album/PXL_20220909_154515546.jpg | 2022-09-09 15:51:55  |
+| photos/scanned/19991231.jpg             | 1999-12-31 00:00:00  |
+| photos/20221109/IMG_1234.HEIC           | 2022-11-19 00:00:00  |
+| photos/2022.11.09T20.30/IMG_1234.HEIC   | 2022-11-19 20:30:00  |
+| photos/2022/11/09/IMG_1234.HEIC         | 2022-11-19 00:00:00  |
+
+If the path can't be used to determine the capture date, immich-go read the file's `metadata` or `exif`.
+
+
+
 
 ## Command `duplicate`
 

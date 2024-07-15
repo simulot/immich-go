@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPresentFields(t *testing.T) {
@@ -272,6 +273,93 @@ func TestPresentFields(t *testing.T) {
 			}
 			if c.isPartner != md.isPartner() {
 				t.Errorf("expected isPartner to be %t, got %t", c.isPartner, md.isPartner())
+			}
+		})
+	}
+}
+
+func TestEnrichedAlbum(t *testing.T) {
+	tc := []struct {
+		name            string
+		json            string
+		wantDescription string
+		wantLongitude   float64
+		wantLatitude    float64
+		wantDate        time.Time
+	}{
+		{
+			name: "test1",
+			json: `{
+  "title": "Album test 6/10/23",
+  "description": "",
+  "access": "protected",
+  "date": {
+    "timestamp": "1697872351",
+    "formatted": "21 oct. 2023, 07:12:31 UTC"
+  },
+  "enrichments": [
+    {
+      "narrativeEnrichment": {
+        "text": "Ici c\u0027est du text"
+      }
+    },
+    {
+      "narrativeEnrichment": {
+        "text": "Et hop"
+      }
+    },
+    {
+      "locationEnrichment": {
+        "location": [
+          {
+            "name": "Saint-Maur-des-Fossés",
+            "description": "Île-de-France",
+            "latitudeE7": 488029439,
+            "longitudeE7": 24854290
+          }
+        ]
+      }
+    },
+    {
+      "locationEnrichment": {
+        "location": [
+          {
+            "name": "Champigny-sur-Marne",
+            "description": "Île-de-France",
+            "latitudeE7": 488236547,
+            "longitudeE7": 24964847
+          }
+        ]
+      }
+    }
+  ]
+}`,
+			wantDescription: "Ici c\u0027est du text\nEt hop\nSaint-Maur-des-Fossés - Île-de-France\nChampigny-sur-Marne - Île-de-France",
+			wantLatitude:    48.8236547,
+			wantLongitude:   2.4964847,
+			wantDate:        time.Unix(1697872351, 0),
+		},
+	}
+
+	for _, c := range tc {
+		t.Run(c.name, func(t *testing.T) {
+			var album GoogleMetaData
+
+			err := json.NewDecoder(strings.NewReader(c.json)).Decode(&album)
+			if err != nil {
+				t.Error(err)
+			}
+			if album.Enrichments.Text != c.wantDescription {
+				t.Errorf("Enrichments.Text=%s, expected=%s", album.Enrichments.Text, c.wantDescription)
+			}
+			if album.Enrichments.Latitude != c.wantLatitude {
+				t.Errorf("album.Enrichments.Latitude=%f, expected=%f", album.Enrichments.Latitude, c.wantLatitude)
+			}
+			if album.Enrichments.Longitude != c.wantLongitude {
+				t.Errorf("album.Enrichments.Longitude=%f, expected=%f", album.Enrichments.Longitude, c.wantLongitude)
+			}
+			if !album.Date.Time().Equal(c.wantDate) {
+				t.Errorf("album.Date.Time()=%s, expected=%s", album.Date.Time(), c.wantDate)
 			}
 		})
 	}

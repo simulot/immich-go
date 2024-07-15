@@ -11,7 +11,9 @@ import (
 
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/fileevent"
+	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/immich/metadata"
 )
@@ -23,12 +25,13 @@ type fileLinks struct {
 }
 
 type LocalAssetBrowser struct {
-	fsyss      []fs.FS
-	albums     map[string]string
-	catalogs   map[fs.FS]map[string]map[string]fileLinks // per FS, DIR and base name
-	log        *fileevent.Recorder
-	sm         immich.SupportedMedia
-	whenNoDate string
+	fsyss       []fs.FS
+	albums      map[string]string
+	catalogs    map[fs.FS]map[string]map[string]fileLinks // per FS, DIR and base name
+	log         *fileevent.Recorder
+	sm          immich.SupportedMedia
+	bannedFiles namematcher.List // list of file pattern to be exclude
+	whenNoDate  string
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
@@ -43,6 +46,11 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, fsyss ...fs.FS) (
 
 func (la *LocalAssetBrowser) SetSupportedMedia(sm immich.SupportedMedia) *LocalAssetBrowser {
 	la.sm = sm
+	return la
+}
+
+func (la *LocalAssetBrowser) SetBannedFiles(banned namematcher.List) *LocalAssetBrowser {
+	la.bannedFiles = banned
 	return la
 }
 
@@ -115,6 +123,11 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 					links.sidecar = name
 					la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name)
 				}
+
+				if la.bannedFiles.Match(name) {
+					la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "banned file")
+					return nil
+				}
 				dirLinks[linkBase] = links
 				fsCatalog[dir] = dirLinks
 			}
@@ -169,10 +182,10 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 						}
 					}
 
-					if links.sidecar != "" {
-						a.SideCar = &metadata.SideCar{
+					if a != nil && links.sidecar != "" {
+						a.SideCar = metadata.SideCarFile{
+							FSys:     fsys,
 							FileName: links.sidecar,
-							OnFSsys:  true,
 						}
 						la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, links.sidecar, "main", a.FileName)
 					}
@@ -181,7 +194,9 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 					case <-ctx.Done():
 						return
 					default:
-						fileChan <- a
+						if a != nil {
+							fileChan <- a
+						}
 					}
 				}
 			}
@@ -195,28 +210,33 @@ var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func (la *LocalAssetBrowser) assetFromFile(fsys fs.FS, name string) (*browser.LocalAssetFile, error) {
 	a := &browser.LocalAssetFile{
-		FileName:  name,
-		Title:     filepath.Base(name),
-		DateTaken: metadata.TakeTimeFromPath(name),
-		FSys:      fsys,
+		FileName: name,
+		Title:    filepath.Base(name),
+		FSys:     fsys,
 	}
+
+	fullPath := name
+	if fsys, ok := fsys.(fshelper.NameFS); ok {
+		fullPath = filepath.Join(fsys.Name(), name)
+	}
+	a.Metadata.DateTaken = metadata.TakeTimeFromPath(fullPath)
 
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
 		return nil, err
 	}
 	a.FileSize = int(i.Size())
-	if a.DateTaken.IsZero() {
+	if a.Metadata.DateTaken.IsZero() {
 		err = la.ReadMetadataFromFile(a)
 		if err != nil {
 			return nil, err
 		}
-		if a.DateTaken.Before(toOldDate) {
+		if a.Metadata.DateTaken.Before(toOldDate) {
 			switch la.whenNoDate {
 			case "FILE":
-				a.DateTaken = i.ModTime()
+				a.Metadata.DateTaken = i.ModTime()
 			case "NOW":
-				a.DateTaken = time.Now()
+				a.Metadata.DateTaken = time.Now()
 			}
 		}
 	}
@@ -233,7 +253,7 @@ func (la *LocalAssetBrowser) ReadMetadataFromFile(a *browser.LocalAssetFile) err
 	}
 	m, err := metadata.GetFromReader(r, ext)
 	if err == nil {
-		a.DateTaken = m.DateTaken
+		a.Metadata.DateTaken = m.DateTaken
 	}
 	return nil
 }

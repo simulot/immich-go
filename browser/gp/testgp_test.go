@@ -207,9 +207,9 @@ func TestAlbums(t *testing.T) {
 			for a := range b.Browse(ctx) {
 				if len(a.Albums) > 0 {
 					for _, al := range a.Albums {
-						l := albums[al.Name]
+						l := albums[al.Title]
 						l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
-						albums[al.Name] = l
+						albums[al.Title] = l
 					}
 				}
 			}

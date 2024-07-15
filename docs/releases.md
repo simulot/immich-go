@@ -1,7 +1,55 @@
 # Release notes 
 
-- feat: provide a trace of all API calls.
-Use the option `-api-trace` to log all immich calls in a file.
+## You can now support my work on `Immich-go`:
+
+- [Github Sponsor page](https://github.com/sponsors/simulot)
+- [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
+
+## Release 0.20
+
+### feature exclude files based on a pattern
+
+Use the `-exclude-files=PATTERN` to exclude certain files or directories from the upload. Repeat the option for each pattern do you need. The following directories are excluded automatically:
+- @eaDir/
+- @__thumb/
+- SYNOFILE_THUMB_\*.\*
+- Lightroom Catalog/
+- thumbnails/
+- .DS_Store/
+
+Example, the following command excludes any files in directories called backup or draft and any file with name finishing with "copy)" as PXL_20231006_063121958 (another copy).jpg:
+```sh
+immich-go -sever=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=draft/ -exclude=copy).*  /path/to/your/files
+```
+
+fixes:
+- [#365](https://github.com/simulot/immich-go/issues/365) missing associated metadata file isn't correct
+- [#299](https://github.com/simulot/immich-go/issues/299) Real time GUI log only shows 4 lines
+- [#370](https://github.com/simulot/immich-go/issues/370) ui: clearly mention when the upload in completed
+- [#232](https://github.com/simulot/immich-go/issues/232) Exclude based on filename / glob
+- [#357](https://github.com/simulot/immich-go/issues/357) clarify error message when a zip file is corrupted
+
+## Release 0.19.1
+
+### fix: UploadAsset
+- [#359](https://github.com/simulot/immich-go/issues/359)Unexpected Discrepancy in 'Server has same quality' Metric After Re-uploading Images
+- [#343](https://github.com/simulot/immich-go/issues/343)Getting stuck at 75% - server assets to delete
+
+Fix the UploadAsset call causing some unexpected counts
+
+## Release 0.19
+
+### feat [#297](https://github.com/simulot/immich-go/issues/297) Derive Immich album description and location from Google photos JSON "enrichments"
+
+Description, place and additional texts of Google Photos are now imported by `immich-go` in immich albums.
+![screenshot](/docs/v0.19.Album%20description.png)
+
+Immich-go add the album's place to photos not having GPS coordinates.
+
+Thanks to @chrisscotland for his suggestion and the preparation of test samples.
+
+### feat: provide a trace of all API calls.
+Use the option `-api-trace` to log all immich calls in a file. The API key is redacted.
 
 ```log
 2024-07-03T08:17:25+02:00 AssetUpload POST http://localhost:2283/api/assets
@@ -14,9 +62,34 @@ Use the option `-api-trace` to log all immich calls in a file.
 {
    "id": "1d839b04-fcf8-4bbb-bfbb-ab873159231b",
    "duplicate": false
-  }
+}
 -- response body end --
 ```
+
+### fix: [#355](https://github.com/simulot/immich-go/issues/355) update albums of duplicated photos
+Given the takeout 1 with
+- photo1 in Album A
+- photo2
+- photo3
+
+Given the takeout 2 with
+- photo1 in Album A and Album B
+- photo2 in Album B
+- photo3
+- photo4 in Album A
+
+After importing the 2 takeouts:
+- Album A: photo1, photo4
+- Album B: photo1, photo2
+
+
+
+
+### upload refactored
+Photos are added the albums immediately after their upload to prevent a timeout at the end.
+
+
+
 
 ## Release 0.18.2
 

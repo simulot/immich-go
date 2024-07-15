@@ -12,7 +12,9 @@ import (
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/immich/metadata"
 )
 
 type SynthesizedYouTubeVideo struct {
@@ -30,6 +32,7 @@ type Takeout struct {
 	faves      map[string]bool
 	log        *fileevent.Recorder
 	sm         immich.SupportedMedia
+	banned     namematcher.List // Banned files
 }
 
 func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
@@ -44,6 +47,10 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 	return &to, nil
 }
 
+func (to *Takeout) SetBannedFiles(banned namematcher.List) *Takeout {
+	to.banned = banned
+	return to
+}
 
 // Prepare scans all files to build gather and aggregate the metadata
 func (to *Takeout) Prepare(ctx context.Context) error {
@@ -224,6 +231,17 @@ func (to *Takeout) Prepare(ctx context.Context) error {
 				continue
 			}
 
+			// We've got to get to here to actually determine the
+			// filename and increment the extension-specific counter
+			// correctly.
+			if to.banned.Match(video.Title) {
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, video.Title, "reason", "banned title")
+				continue
+			} else if to.banned.Match(filename) {
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, filename, "reason", "banned filename")
+				continue
+			}
+
 			synth := SynthesizedYouTubeVideo{
 				Channel:   channels[video.ChannelID],
 				Playlists: playlists[video.VideoID],
@@ -255,7 +273,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 			albums := []browser.LocalAlbum{
 				browser.LocalAlbum{
 					Path: video.Channel.Title + "'s YouTube channel",
-					Name: video.Channel.Title + "'s YouTube channel",
+					Title: video.Channel.Title + "'s YouTube channel",
 				},
 			}
 			for _, playlist := range video.Playlists {
@@ -272,7 +290,7 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 				// well enough to undertake that.
 				album := browser.LocalAlbum{
 					Path: playlist.Title,
-					Name: playlist.Title,
+					Title: playlist.Title,
 				}
 				albums = append(albums, album)
 			}
@@ -287,16 +305,20 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 
 			_, favorite := to.faves[video.Video.VideoID]
 
-			a := browser.LocalAssetFile{
-				FileName:    video.Filename,
-				Title:       video.Video.Title + path.Ext(video.Filename),
+			m := metadata.Metadata{
 				Description: description,
-				Albums:      albums,
-
 				DateTaken:   video.Video.Time(),
 				Latitude:    video.Recording.Latitude,
 				Longitude:   video.Recording.Longitude,
 				Altitude:    video.Recording.Altitude,
+			}
+
+			a := browser.LocalAssetFile{
+				FileName:    video.Filename,
+				Title:       video.Video.Title + path.Ext(video.Filename),
+				Albums:      albums,
+
+				Metadata:    m,
 
 				Trashed:     false,
 				Archived:    false,

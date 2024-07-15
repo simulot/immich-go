@@ -39,7 +39,7 @@ func (c *stubIC) AddAssetToAlbum(context.Context, string, []string) ([]immich.Up
 	return nil, nil
 }
 
-func (c *stubIC) CreateAlbum(context.Context, string, []string) (immich.AlbumSimplified, error) {
+func (c *stubIC) CreateAlbum(context.Context, string, string, []string) (immich.AlbumSimplified, error) {
 	return immich.AlbumSimplified{}, nil
 }
 
@@ -101,6 +101,10 @@ func (c *stubIC) GetJobs(ctx context.Context) (map[string]immich.Job, error) {
 	return nil, nil
 }
 
+func (c *stubIC) GetAlbumInfo(context.Context, string, bool) (immich.AlbumContent, error) {
+	return immich.AlbumContent{}, nil
+}
+
 type icCatchUploadsAssets struct {
 	stubIC
 
@@ -116,10 +120,12 @@ func (c *icCatchUploadsAssets) AssetUpload(ctx context.Context, a *browser.Local
 }
 
 func (c *icCatchUploadsAssets) AddAssetToAlbum(ctx context.Context, album string, ids []string) ([]immich.UpdateAlbumResult, error) {
+	l := c.albums[album]
+	c.albums[album] = append(l, ids...)
 	return nil, nil
 }
 
-func (c *icCatchUploadsAssets) CreateAlbum(ctx context.Context, album string, ids []string) (immich.AlbumSimplified, error) {
+func (c *icCatchUploadsAssets) CreateAlbum(ctx context.Context, album string, description string, ids []string) (immich.AlbumSimplified, error) {
 	if album == "" {
 		panic("can't create album without name")
 	}
@@ -336,6 +342,7 @@ func TestUpload(t *testing.T) {
 			},
 			expectedAlbums: map[string][]string{},
 		},
+
 		{
 			name: "google photo, ignore untitled, keep partner, partner album",
 			args: []string{
@@ -459,6 +466,7 @@ func TestUpload(t *testing.T) {
 				},
 			},
 		},
+
 		//		// {
 		//		// 	name: "google photo, homonyms, keep partner",
 		//		// 	args: []string{
