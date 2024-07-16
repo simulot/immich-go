@@ -617,6 +617,22 @@ func Test_MotionPictures_303_280(t *testing.T) {
 	runCase(t, tc)
 }
 
+func Test_Duplicates_380(t *testing.T) {
+	initMyEnv(t)
+
+	tc := testCase{
+		name: "Test_Duplicates_380",
+		args: []string{
+			"-google-photos",
+			"-debug-counters",
+			myEnv["IMMICH_TESTFILES"] + "/#380 duplicates in GP/Takeout*.zip",
+		},
+		resetImmich: true,
+		expectError: false,
+	}
+	runCase(t, tc)
+}
+
 // ResetImmich
 // ⛔: will remove the content of the server.‼️
 // Give the user of the connection to confirm the server instance: debug@example.com
