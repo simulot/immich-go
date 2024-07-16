@@ -5,6 +5,11 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+
+### changes
+- git action to build and release
+
+
 ## Release 0.20
 
 ### feature exclude files based on a pattern
@@ -22,7 +27,7 @@ Example, the following command excludes any files in directories called backup o
 immich-go -sever=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=draft/ -exclude=copy).*  /path/to/your/files
 ```
 
-fixes:
+### fixes:
 - [#365](https://github.com/simulot/immich-go/issues/365) missing associated metadata file isn't correct
 - [#299](https://github.com/simulot/immich-go/issues/299) Real time GUI log only shows 4 lines
 - [#370](https://github.com/simulot/immich-go/issues/370) ui: clearly mention when the upload in completed
