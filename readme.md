@@ -10,7 +10,7 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
-
+<iframe src="https://github.com/sponsors/simulot/button" title="Sponsor simulot" height="32" width="114" style="border: 0; border-radius: 6px;"></iframe>
 
 ## Key Features:
 
@@ -325,11 +325,13 @@ Or you can add `immich-go` to your `configuration.nix` in the `environment.syste
 Kudos to the Immich team for their stunning project! 🤩
 
 This program use following 3rd party libraries:
-- github.com/rwcarlsen/goexif to get date of capture from JPEG files
-- github.com/ttacon/chalk for having logs nicely colored 
--	github.com/thlib/go-timezone-local for its windows timezone management
+- [https://github.com/rivo/tview](https://github.com/rivo/tview) the terminal user interface
+- [github.com/rwcarlsen/goexif](github.com/rwcarlsen/goexif) to get date of capture from JPEG files
+-	[github.com/thlib/go-timezone-local](github.com/thlib/go-timezone-local) for its windows timezone management
 
 A big thank you to the project contributors:
 - [rodneyosodo](https://github.com/rodneyosodo) gitub CI, go linter, and advice 
 - [sigmahour](https://github.com/sigmahour) SSL management
 - [mrwulf](https://github.com/mrwulf) Partner sharing album
+- [erkexzcx](https://github.com/erkexzcx) Date determination based on file path and file name
+
