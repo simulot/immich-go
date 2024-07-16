@@ -279,6 +279,7 @@ func responseJSON[T any](object *T) serverResponseOption {
 				if sc.ic.apiTraceWriter != nil {
 					seq := sc.ctx.Value(ctxCallSequenceID)
 					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "RESPONSE", seq, sc.endPoint, resp.Request.Method, resp.Request.URL.String())
+					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
 					dec.SetIndent("", " ")
