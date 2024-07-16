@@ -10,7 +10,6 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
-<iframe src="https://github.com/sponsors/simulot/button" title="Sponsor simulot" height="32" width="114" style="border: 0; border-radius: 6px;"></iframe>
 
 ## Key Features:
 
