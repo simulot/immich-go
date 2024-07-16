@@ -279,6 +279,7 @@ func responseJSON[T any](object *T) serverResponseOption {
 				if sc.ic.apiTraceWriter != nil {
 					seq := sc.ctx.Value(ctxCallSequenceID)
 					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "RESPONSE", seq, sc.endPoint, resp.Request.Method, resp.Request.URL.String())
+					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
 					dec.SetIndent("", " ")
@@ -291,75 +292,3 @@ func responseJSON[T any](object *T) serverResponseOption {
 		return errors.New("can't decode nil response")
 	}
 }
-
-/*
-func responseAccumulateJSON[T any](acc *[]T) serverResponseOption {
-	return func(sc *serverCall, resp *http.Response) error {
-		eof := true
-		if resp != nil {
-			if resp.Body != nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == http.StatusNoContent {
-					return nil
-				}
-				arr := []T{}
-				err := json.NewDecoder(resp.Body).Decode(&arr)
-				if err != nil {
-					return err
-				}
-				if len(arr) > 0 && sc.p != nil {
-					eof = false
-				}
-				(*acc) = append((*acc), arr...)
-				if eof {
-					sc.p.setEOF()
-				}
-				return nil
-			}
-		}
-		return errors.New("can't decode nil response")
-	}
-}
-*/
-/*
-func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
-	return func(sc *serverCall, resp *http.Response) error {
-		eof := true
-		if resp != nil {
-			if resp.Body != nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == http.StatusNoContent {
-					return nil
-				}
-				dec := json.NewDecoder(resp.Body)
-				// read open bracket "["
-				_, err := dec.Token()
-				if err != nil {
-					return nil
-				}
-
-				// while the array contains values
-				for dec.More() {
-					var o T
-					// decode an array value (Message)
-					err = dec.Decode(&o)
-					if err != nil {
-						return err
-					}
-					if sc.p != nil {
-						eof = false
-					}
-					filter(&o)
-				}
-				// read closing bracket "]"
-				_, err = dec.Token()
-				if eof {
-					sc.p.setEOF()
-				}
-				return err
-			}
-		}
-		return errors.New("can't decode nil response")
-	}
-}
-*/
