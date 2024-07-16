@@ -7,8 +7,10 @@
 
 
 ### changes
-- git action to build and release
+- add git action to build and release
 
+### fixes:
+- [#380](https://github.com/simulot/immich-go/issues/380) not all GP duplicates are detected correctly, counters are wrong
 
 ## Release 0.20
 

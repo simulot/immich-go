@@ -44,6 +44,7 @@ type fileInfo struct {
 	fsys   fs.FS           // Remember in which part of the archive the the file
 	base   string          // Remember the original file name
 	length int             // file length in bytes
+	count  int             // Track duplicates
 	md     *GoogleMetaData // will point to the associated metadata
 }
 
@@ -170,10 +171,16 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "banned file")
 					return nil
 				}
-				dirCatalog.unMatchedFiles[base] = fileInfo{
-					base:   base,
-					fsys:   w,
-					length: int(finfo.Size()),
+
+				fi := dirCatalog.unMatchedFiles[base]
+				fi.base = base
+				fi.fsys = w
+				fi.length = int(finfo.Size())
+				fi.count++
+				dirCatalog.unMatchedFiles[base] = fi
+				if fi.count > 1 {
+					// #380 not all GP duplicates are detected correctly, counters are wrong
+					to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
 				}
 			}
 			to.catalogs[dir] = dirCatalog
