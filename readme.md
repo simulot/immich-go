@@ -13,14 +13,14 @@
 
 ## Key Features:
 
-* **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, date taken, and album information.
+* **Effortlessly Upload Large Google Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos and YouTube using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, date taken, and album information.
 * **Flexible Uploads:**  Immich-Go isn't limited to Google Photos. You can upload photos directly from your computer folders, folders tree and ZIP archives.
 * **Simple Installation:** Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
 * **Prioritize Quality:**  Immich-Go discards any lower-resolution versions that might be included in Google Photos Takeout, ensuring you have the best possible copies on your Immich server.
 * **Stack burst and raw/jpg photos**: Group together related photos in Immich.
 
 
-## Google Photos Best Practices:
+## Google Photos and YouTube Best Practices:
 
 * **Taking Out Your Photos:**
   * Choose the ZIP format when creating your takeout for easier import.
@@ -34,6 +34,7 @@
   * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. When using the import tool, don't forget the `-google-photos` option.
   * You can remove any unwanted files or folders from your takeout before importing. Immich-go might warn you about missing JSON files, but it should still import your photos successfully.
   * Restarting an interrupted import won't cause any problems and it will resume the work where it was left.
+  * Use `-google-photos` and `-youtube` on separate runs; you cannot import both types of data simultaneously
 
 
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
@@ -144,6 +145,20 @@ Specialized options for Google Photos management:
 | `-discard-archived`                | don't import archived assets.                                                    | `FALSE`           |
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
+
+### YouTube options:
+Specialized options for YouTube management:
+
+| **Parameter**                      | **Description**                                                            | **Default value** |
+| ---------------------------------- | -------------------------------------------------------------------------- | ----------------- |
+| `-youtube`                         | Import from a YouTube structured archive, recreating corresponding albums. |                   |
+| `-create-albums`                   | Controls creation of YouTube albums in Immich.                             | `TRUE`            |
+
+`-create-albums` will create an album for the YouTube channel and each playlist.
+
+`-exclude-files` will match both video filenames and video titles.
+
+Read [here](docs/youtube-takeout.md) to understand how YouTube takeout isn't easy to handle and some shortcomings of the YouTube import process.
 
 ### Burst detection
 Currently the bursts following this schema are detected:

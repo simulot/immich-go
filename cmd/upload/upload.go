@@ -4,6 +4,7 @@ package upload
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -19,6 +20,7 @@ import (
 	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/browser/gp"
+	"github.com/simulot/immich-go/browser/yt"
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
@@ -35,6 +37,7 @@ type UpCmd struct {
 	fsyss []fs.FS // pseudo file system to browse
 
 	GooglePhotos           bool             // For reading Google Photos takeout files
+	YouTube                bool             // For reading YouTube takeout files
 	Delete                 bool             // Delete original file after import
 	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
 	ImportIntoAlbum        string           // All assets will be added to this album
@@ -120,8 +123,12 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		"Import GooglePhotos takeout zip files",
 		myflag.BoolFlagFn(&app.GooglePhotos, false))
 	cmd.BoolFunc(
+		"youtube",
+		"Import YouTube takeout zip files",
+		myflag.BoolFlagFn(&app.YouTube, false))
+	cmd.BoolFunc(
 		"create-albums",
-		" google-photos only: Create albums like there were in the source (default: TRUE)",
+		" google-photos/youtube only: Create albums like there were in the source (default: TRUE)",
 		myflag.BoolFlagFn(&app.CreateAlbums, true))
 	cmd.StringVar(&app.PartnerAlbum,
 		"partner-album",
@@ -188,7 +195,12 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		return nil, err
 	}
 
-	app.fsyss, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
+	if app.GooglePhotos && app.YouTube {
+		err = errors.New("-google-photos and -youtube cannot be used simultaneously")
+		return nil, err
+	}
+
+	app.fsyss, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos || app.YouTube)
 	if err != nil {
 		return nil, err
 	}
@@ -213,6 +225,9 @@ func (app *UpCmd) run(ctx context.Context) error {
 	case app.GooglePhotos:
 		app.Log.Info("Browsing google take out archive...")
 		app.browser, err = app.ReadGoogleTakeOut(ctx, app.fsyss)
+	case app.YouTube:
+		app.Log.Info("Browsing youtube take out archive...")
+		app.browser, err = app.ReadYouTubeTakeOut(ctx, app.fsyss)
 	default:
 		app.Log.Info("Browsing folder(s)...")
 		app.browser, err = app.ExploreLocalFolder(ctx, app.fsyss)
@@ -561,6 +576,16 @@ func (app *UpCmd) isInAlbum(a *browser.LocalAssetFile, album string) bool {
 func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
 	app.Delete = false
 	b, err := gp.NewTakeout(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
+	if err != nil {
+		return nil, err
+	}
+	b.SetBannedFiles(app.BannedFiles)
+	return b, err
+}
+
+func (app *UpCmd) ReadYouTubeTakeOut(ctx context.Context, fsyss []fs.FS) (browser.Browser, error) {
+	app.Delete = false
+	b, err := yt.NewTakeout(ctx, app.Jnl, app.Immich.SupportedMedia(), fsyss...)
 	if err != nil {
 		return nil, err
 	}
