@@ -5,6 +5,9 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+### fixes:
+- [#380](https://github.com/simulot/immich-go/issues/380) not all GP duplicates are detected correctly, counters are wrong
+
 ## Release 0.20
 
 ### feature exclude files based on a pattern
