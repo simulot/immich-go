@@ -5,6 +5,11 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release next
+
+### fixes:
+- [[#376](https://github.com/simulot/immich-go/issues/376)] errors when uploading are disturbing the the % of the progression
+
 ## Release 0.20.1
 
 ### changes
