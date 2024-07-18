@@ -131,7 +131,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 						ui.immichPrepare.SetMaxValue(int(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
 						ui.immichPrepare.SetValue(int(counts[fileevent.AnalysisAssociatedMetadata]))
 
-						ui.immichUpload.SetMaxValue(int(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
+						ui.immichUpload.SetMaxValue(int(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo] - counts[fileevent.UploadServerError]))
 						ui.immichUpload.SetValue(int(counts[fileevent.UploadNotSelected] +
 							counts[fileevent.UploadUpgraded] +
 							counts[fileevent.UploadServerDuplicate] +
