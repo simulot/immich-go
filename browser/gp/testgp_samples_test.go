@@ -220,3 +220,16 @@ func issue68ForgottenDuplicates() *inMemFS {
 		addImage("Takeout/Google Photos/Photos from 2022/original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg", 1).
 		addImage("Takeout/Google Photos/Photos from 2022/original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg", 2)
 }
+
+// #390 Question: report shows way less images uploaded than scanned
+func issue390WrongCount() *inMemFS {
+	return newInMemFS().
+		addJSONImage("Takeout/Google Photos/Photos from 2018/IMG_0170.JPG.json", "IMG_0170.JPG", takenTime("20180101")).
+		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.JPG", 10).
+		addJSONAlbum("Takeout/Google Photos/2018 - Cambodia/metadata.json", "2018 - Cambodia").
+		addJSONImage("Takeout/Google Photos/2018 - Cambodia/IMG_0170.JPG.json", "IMG_0170.JPG", takenTime("20180101")).
+		addImage("Takeout/Google Photos/2018 - Cambodia/IMG_0170.JPG/Photos from 2018/IMG_0170.JPG", 10).
+		addJSONImage("Takeout/Google Photos/Photos from 2018/IMG_0170.HEIC.json", "IMG_0170.HEIC", takenTime("20180601")).
+		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.HEIC", 20).
+		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.MP4", 200)
+}
