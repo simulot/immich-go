@@ -62,7 +62,7 @@ type NameFS interface {
 }
 
 func TestFakeFS(t *testing.T) {
-	fsyss, err := ScanFileList("TESTDATA/one.lst", "2006-01-02 15:04")
+	fsyss, err := ScanFileList("TESTDATA/small.lst", "2006-01-02 15:04")
 	if err != nil {
 		t.Error(err)
 		return

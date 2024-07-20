@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/immich/metadata"
 )
 
 /*
@@ -26,7 +27,7 @@ type FakeDirEntry struct {
 	modTime time.Time   // modification time
 }
 
-func (fi FakeDirEntry) Name() string               { return filepath.Base(fi.name) }
+func (fi FakeDirEntry) Name() string               { return path.Base(fi.name) }
 func (fi FakeDirEntry) Size() int64                { return fi.size }
 func (fi FakeDirEntry) Mode() fs.FileMode          { return fi.mode }
 func (fi FakeDirEntry) ModTime() time.Time         { return fi.modTime }
@@ -37,6 +38,7 @@ func (fi FakeDirEntry) Info() (fs.FileInfo, error) { return fi, nil }
 
 type FakeFile struct {
 	fi  FakeDirEntry
+	r   io.Reader
 	pos int64
 }
 
@@ -46,10 +48,9 @@ func (f FakeFile) Stat() (fs.FileInfo, error) {
 
 func (f *FakeFile) Read(b []byte) (int, error) {
 	if f.pos < f.fi.size {
-		l := min(len(b), int(f.fi.size-f.pos))
-		b = b[:l]
-		f.pos += int64(l)
-		return rand.Read(b)
+		n, err := f.r.Read(b)
+		f.pos += int64(n)
+		return n, err
 	}
 	return 0, io.EOF
 }
@@ -64,7 +65,19 @@ type FakeFS struct {
 	files map[string]map[string]FakeDirEntry
 }
 
+func (fsys FakeFS) Name() string {
+	return fsys.name
+}
+
+func normalizeName(name string) string {
+	if name != "." && !strings.HasPrefix(name, "./") {
+		return "./" + name
+	}
+	return name
+}
+
 func (fsys FakeFS) Stat(name string) (fs.FileInfo, error) {
+	name = normalizeName(name)
 	name = filepath.ToSlash(name)
 	dir, base := path.Split(name)
 	dir = strings.TrimSuffix(dir, "/")
@@ -83,17 +96,38 @@ func (fsys FakeFS) Stat(name string) (fs.FileInfo, error) {
 }
 
 func (fsys FakeFS) Open(name string) (fs.File, error) {
+	// name = normalizeName(name)
 	info, err := fsys.Stat(name)
 	if err != nil {
 		return nil, err
 	}
-	return &FakeFile{fi: info.(FakeDirEntry)}, nil
+
+	fakeInfo := info.(FakeDirEntry)
+	var r io.Reader
+
+	ext := path.Ext(name)
+	if strings.ToLower(ext) == ".json" {
+		base := path.Base(name)
+		switch base {
+		case "métadonnées.json", "metadata.json", "metadati.json", "metadáta.json":
+			album := path.Base(path.Dir(name))
+			r, fakeInfo.size = fakeAlbumData(album)
+		default:
+			d := info.ModTime()
+			if d2 := metadata.TakeTimeFromName(name); !d2.IsZero() {
+				d = d2
+			}
+			title := strings.TrimSuffix(path.Base(name), path.Ext(base))
+			r, fakeInfo.size = fakePhotoData(title, d)
+		}
+	} else {
+		r = rand.Reader
+	}
+	return &FakeFile{fi: fakeInfo, r: r}, nil
 }
 
 func (fsys FakeFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	if name != "." {
-		name = "./" + name
-	}
+	name = normalizeName(name)
 	info, err := fsys.Stat(name)
 	if err != nil {
 		return nil, err
@@ -119,7 +153,8 @@ func (fsys FakeFS) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 func (fsys FakeFS) addFile(name string, size int64, modDate time.Time) {
-	dir, base := path.Split("./" + name)
+	name = normalizeName(name)
+	dir, base := path.Split(name)
 	dir = strings.TrimSuffix(dir, "/")
 	parts := strings.Split(dir, "/")
 

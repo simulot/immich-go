@@ -70,7 +70,9 @@ type UpCmd struct {
 }
 
 func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
-	app, err := newCommand(ctx, common, args)
+	app, err := newCommand(ctx, common, args, func() ([]fs.FS, error) {
+		return fshelper.ParsePath(args)
+	})
 	if err != nil {
 		return err
 	}
@@ -80,7 +82,9 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	return app.run(ctx)
 }
 
-func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpCmd, error) {
+type fsOpener func() ([]fs.FS, error)
+
+func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsOpener fsOpener) (*UpCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
@@ -188,7 +192,7 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		return nil, err
 	}
 
-	app.fsyss, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
+	app.fsyss, err = fsOpener()
 	if err != nil {
 		return nil, err
 	}

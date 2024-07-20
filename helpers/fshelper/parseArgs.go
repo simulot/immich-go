@@ -16,7 +16,7 @@ import (
 //
 // TODO: Implement a tgz reader for non google-photos archives
 
-func ParsePath(args []string, googlePhoto bool) ([]fs.FS, error) {
+func ParsePath(args []string) ([]fs.FS, error) {
 	var errs error
 	fsyss := []fs.FS{}
 

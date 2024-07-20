@@ -78,7 +78,7 @@ takeout-20240712T112341Z-010.zip:
 | ---------- | ------------------------- | ---------------- |
 | US English | Google Photos             | metadata.json    |
 | French     | Google Photos             | métadonnées.json |
-| Italian    | Google Foto               |                  |
+| Italian    | Google Foto               | metadati.json    |
 | Slovak     | Fotky Google              | metadáta.json    |
 
 
