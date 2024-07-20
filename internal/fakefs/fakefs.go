@@ -17,7 +17,6 @@ import (
 /*
 	simulate a file system based on the list of files contained into a set of archive.
 
-
 */
 
 type FakeDirEntry struct {
@@ -96,7 +95,7 @@ func (fsys FakeFS) Stat(name string) (fs.FileInfo, error) {
 }
 
 func (fsys FakeFS) Open(name string) (fs.File, error) {
-	// name = normalizeName(name)
+	name = normalizeName(name)
 	info, err := fsys.Stat(name)
 	if err != nil {
 		return nil, err

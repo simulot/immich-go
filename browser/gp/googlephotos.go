@@ -549,6 +549,7 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 	title := md.Title
 	titleExt := path.Ext(title)
 	fileExt := path.Ext(name)
+
 	if titleExt != fileExt {
 		title = strings.TrimSuffix(title, titleExt)
 		titleExt = path.Ext(title)
@@ -561,6 +562,7 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 	if err != nil {
 		return nil, err
 	}
+
 	a := browser.LocalAssetFile{
 		FileName:    name,
 		FileSize:    int(i.Size()),
@@ -574,14 +576,17 @@ func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) 
 	}
 
 	// Prepare sidecar data to force Immich with Google metadata
+
 	sidecar := metadata.Metadata{
 		Description: md.Description,
 		DateTaken:   md.PhotoTakenTime.Time(),
 	}
+
 	if md.GeoDataExif.Latitude != 0 || md.GeoDataExif.Longitude != 0 {
 		sidecar.Latitude = md.GeoDataExif.Latitude
 		sidecar.Longitude = md.GeoDataExif.Longitude
 	}
+
 	if md.GeoData.Latitude != 0 || md.GeoData.Longitude != 0 {
 		sidecar.Latitude = md.GeoData.Latitude
 		sidecar.Longitude = md.GeoData.Longitude
