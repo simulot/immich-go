@@ -83,6 +83,6 @@ takeout-20240712T112341Z-010.zip:
 
 
 # What if you have problems with a takeout archive?
-Please open an issue with details. You cna share your files using Discord DM @`simulot`.
+Please open an issue with details. You cna share your files using Discord DM `@simulot`.
 I'll check if I can improve the program.
 Sometime a manual import is the best option.

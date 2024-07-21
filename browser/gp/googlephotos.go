@@ -43,7 +43,6 @@ type assetFile struct {
 	fsys   fs.FS           // Remember in which part of the archive the the file
 	base   string          // Remember the original file name
 	length int             // file length in bytes
-	count  int             // Track duplicates
 	md     *GoogleMetaData // will point to the associated metadata
 }
 
@@ -115,6 +114,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				if err == nil {
 					switch {
 					case md.isAsset():
+						md.foundInPaths = append(md.foundInPaths, dir)
 						dirCatalog.jsons[base] = md
 						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "asset metadata", "title", md.Title)
 					case md.isAlbum():
@@ -446,6 +446,9 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 	return assetChan
 }
 
+// detect livephotos and motion pictures
+// 1. get all pictures
+// 2. scan vidoes, if a picture matches, this is a live photo
 func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *browser.LocalAssetFile) error {
 	catalog := to.catalogs[dir]
 
@@ -454,24 +457,57 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 		image *assetFile
 	}{}
 
-	// detects couples image + video, likely been a motion picture
+	// Scan pictures
 	for _, f := range gen.MapKeys(catalog.matchedFiles) {
 		ext := path.Ext(f)
-		// base := strings.TrimSuffix(f, ext)
-		// ext2 := path.Ext(base)
-		// if to.sm.IsMedia(ext2) {
-		// 	base = strings.TrimSuffix(base, ext2)
-		// }
-
-		linked := linkedFiles[f]
-		switch to.sm.TypeFromExt(ext) {
-		case immich.TypeVideo:
-			linked.video = catalog.matchedFiles[f]
-		case immich.TypeImage:
+		if to.sm.TypeFromExt(ext) == immich.TypeImage {
+			linked := linkedFiles[f]
 			linked.image = catalog.matchedFiles[f]
+			linkedFiles[f] = linked
 		}
-		linkedFiles[f] = linked
 	}
+
+	// Scan videos
+nextVideo:
+	for _, f := range gen.MapKeys(catalog.matchedFiles) {
+		ext := path.Ext(f)
+		if to.sm.TypeFromExt(ext) == immich.TypeVideo {
+			name := strings.TrimSuffix(f, ext)
+			for i, linked := range linkedFiles {
+				p := linked.image.base
+				ext := path.Ext(p)
+				p = strings.TrimSuffix(p, ext)
+				ext = path.Ext(p)
+				if strings.ToUpper(ext) == ".MP" {
+					p = strings.TrimSuffix(p, ext)
+				}
+				if p == name {
+					linked.video = catalog.matchedFiles[f]
+					linkedFiles[i] = linked
+					continue nextVideo
+				}
+			}
+			linked := linkedFiles[f]
+			linked.video = catalog.matchedFiles[f]
+			linkedFiles[f] = linked
+		}
+	}
+
+	// base := strings.TrimSuffix(f, ext)
+	// ext2 := path.Ext(base)
+	// if to.sm.IsMedia(ext2) {
+	// 	base = strings.TrimSuffix(base, ext2)
+	// }
+
+	// 	linked := linkedFiles[f]
+	// 	switch to.sm.TypeFromExt(ext) {
+	// 	case immich.TypeVideo:
+	// 		linked.video = catalog.matchedFiles[f]
+	// 	case immich.TypeImage:
+	// 		linked.image = catalog.matchedFiles[f]
+	// 	}
+	// 	linkedFiles[f] = linked
+	// }
 
 	for _, base := range gen.MapKeys(linkedFiles) {
 		var a *browser.LocalAssetFile

@@ -12,7 +12,7 @@
         - [ ] [#390](https://github.com/simulot/immich-go/issues/390)   
         - [ ] [#376](https://github.com/simulot/immich-go/issues/376)
         - [X] Some files are not matched (PIXIL) 
-        - [ ] Check .MP.JPG
+        - [X] Check .MP.JPG
         - [ ] run tests
         - [ ] remove break points
 - [ ] Report connection errors

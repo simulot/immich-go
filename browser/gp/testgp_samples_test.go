@@ -140,14 +140,14 @@ func simpleAlbum() *inMemFS {
 
 func albumWithoutImage() *inMemFS {
 	return newInMemFS().
-		addJSONImage("Photos from 2023/PXL_20230922_144936660.jpg.json", "PXL_20230922_144936660.jpg").
-		addImage("Photos from 2023/PXL_20230922_144936660.jpg", 10).
-		addJSONImage("Photos from 2023/PXL_20230922_144934440.jpg.json", "PXL_20230922_144934440.jpg").
-		addImage("Photos from 2023/PXL_20230922_144934440.jpg", 15).
 		addJSONAlbum("Album/anyname.json", "Album").
 		addJSONImage("Album/PXL_20230922_144936660.jpg.json", "PXL_20230922_144936660.jpg").
+		addJSONImage("Album/PXL_20230922_144934440.jpg.json", "PXL_20230922_144934440.jpg").
 		addImage("Album/PXL_20230922_144936660.jpg", 10).
-		addJSONImage("Album/PXL_20230922_144934440.jpg.json", "PXL_20230922_144934440.jpg")
+		addJSONImage("Photos from 2023/PXL_20230922_144934440.jpg.json", "PXL_20230922_144934440.jpg").
+		addJSONImage("Photos from 2023/PXL_20230922_144936660.jpg.json", "PXL_20230922_144936660.jpg").
+		addImage("Photos from 2023/PXL_20230922_144934440.jpg", 15).
+		addImage("Photos from 2023/PXL_20230922_144936660.jpg", 10)
 }
 
 func namesWithNumbers() *inMemFS {
@@ -254,4 +254,14 @@ func issue390WrongCount2() *inMemFS {
 		addImage("Takeout/Google Photos/2023 - Belize/IMG_0170.MP4", 6024972).
 		addImage("Takeout/Google Photos/2023 - Belize/IMG_0170.HEIC", 4443973).
 		addImage("Takeout/Google Photos/Photos from 2017/IMG_0170.jpg", 514963)
+}
+
+func checkLivePhoto() *inMemFS {
+	return newInMemFS().
+		addJSONImage("Motion test/20231227_152817.jpg.json", "20231227_152817.jpg").
+		addImage("Motion test/20231227_152817.jpg", 7426453).
+		addImage("Motion test/20231227_152817.MP4", 5192477).
+		addJSONImage("Motion Test/PXL_20231118_035751175.MP.jpg.json", "20231118_035751175.MP.jpg").
+		addImage("Motion Test/PXL_20231118_035751175.MP", 3478685).
+		addImage("Motion Test/PXL_20231118_035751175.MP.jpg", 8025699)
 }
