@@ -7,8 +7,29 @@
 
 ## Release next
 
+### TO DO
+- [ ] Counters / missing assets
+        - [ ] [#390](https://github.com/simulot/immich-go/issues/390)   
+        - [ ] [#376](https://github.com/simulot/immich-go/issues/376)
+- [ ] Report connection errors
+        - [ ] [#395](https://github.com/simulot/immich-go/issues/395)
+        - [ ] [#396](https://github.com/simulot/immich-go/issues/396)
+        - [ ] [#393](https://github.com/simulot/immich-go/issues/393)
+- [ ] Creation date incorrect
+        - [ ] [#392](https://github.com/simulot/immich-go/issues/392)
+        - [ ] [#397](https://github.com/simulot/immich-go/issues/397)
+
+ 
+
+
+### Refactoring the Google Photos import another time
+Lot of users have reported inconsistencies in upload counters. Because we are manipulating personal photos and because it's not practical to test with user's archives, 
+I have developed a way to simulate user cases using only the list files from the takeout archives.
+
+
 ### fixes:
 - [[#376](https://github.com/simulot/immich-go/issues/376)] errors when uploading are disturbing the the % of the progression
+- [ ] IPhone's Live photos recognition when the name is duplicated: ex IMG_2710(1).MP4 and IMG_2710(1).HEIC
 
 ## Release 0.20.1
 

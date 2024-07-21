@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -26,6 +28,8 @@ type Takeout struct {
 	sm             immich.SupportedMedia
 	banned         namematcher.List // Banned files
 	totalUnmatched int              // count the number of asset not matched
+	totalSent      int              // DEBUG
+	files          map[string]any   // DEBUG
 }
 
 // directoryCatalog captures all files in a given directory
@@ -44,12 +48,6 @@ type assetFile struct {
 	md     *GoogleMetaData // will point to the associated metadata
 }
 
-// fileKey track the duplicates based on the file name and its length
-type fileKey struct {
-	base   string
-	length int
-}
-
 func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
 	to := Takeout{
 		fsyss:    fsyss,
@@ -57,6 +55,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 		albums:   map[string]browser.LocalAlbum{},
 		log:      l,
 		sm:       sm,
+		files:    map[string]any{},
 	}
 
 	return &to, nil
@@ -159,6 +158,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					return nil
 				}
 
+				to.files[name] = nil // DEBUG
 				dirCatalog.unMatchedFiles[base] = &assetFile{
 					fsys:   w,
 					base:   base,
@@ -285,21 +285,24 @@ func livePhotoMatch(jsonName string, fileName string, sm immich.SupportedMedia) 
 //	PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGIN.json
 //	PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg
 //
-//	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jp.json
+//	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jp.json <-- match also with LivePhoto matcher
 //	05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg
 //
 //  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json
 //  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg
 
 func matchWithOneCharOmitted(jsonName string, fileName string, sm immich.SupportedMedia) bool {
-	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	if strings.HasPrefix(fileName, base) {
-		if t := sm.TypeFromExt(path.Ext(base)); t == immich.TypeImage || t == immich.TypeVideo {
-			// Trim only if the EXT is known extension, and not .COVER or .ORIGINAL
-			base = strings.TrimSuffix(base, path.Ext(base))
-		}
-		fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
-		a, b := utf8.RuneCountInString(fileName), utf8.RuneCountInString(base)
+	baseJSON := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	ext := path.Ext(baseJSON)
+	if sm.IsExtensionPrefix(ext) {
+		baseJSON = strings.TrimSuffix(baseJSON, ext)
+	}
+	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
+	if fileName == baseJSON {
+		return true
+	}
+	if strings.HasPrefix(fileName, baseJSON) {
+		a, b := utf8.RuneCountInString(fileName), utf8.RuneCountInString(baseJSON)
 		if a-b <= 1 {
 			return true
 		}
@@ -337,22 +340,46 @@ func matchVeryLongNameWithNumber(jsonName string, fileName string, sm immich.Sup
 //
 //	IMG_3479.JPG(2).json
 //	IMG_3479(2).JPG
-func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedMedia) bool {
-	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	p1JSON := strings.Index(jsonName, "(")
-	if p1JSON < 1 {
-		return false
-	}
-	p2JSON := strings.Index(jsonName, ")")
-	if p2JSON < 0 || p2JSON != len(jsonName)-1 {
-		return false
-	}
+//
 
-	num := jsonName[p1JSON:]
-	jsonName = strings.TrimSuffix(jsonName, num)
-	ext := path.Ext(jsonName)
-	jsonName = strings.TrimSuffix(jsonName, ext) + num + ext
-	return jsonName == fileName
+// Fast implementation, but does't work with live photos
+// func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedMedia) bool {
+// 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
+// 	p1JSON := strings.Index(jsonName, "(")
+// 	if p1JSON < 1 {
+// 		return false
+// 	}
+// 	p2JSON := strings.Index(jsonName, ")")
+// 	if p2JSON < 0 || p2JSON != len(jsonName)-1 {
+// 		return false
+// 	}
+
+// 	num := jsonName[p1JSON:]
+// 	jsonName = strings.TrimSuffix(jsonName, num)
+// 	ext := path.Ext(jsonName)
+// 	jsonName = strings.TrimSuffix(jsonName, ext) + num + ext
+// 	return jsonName == fileName
+// }
+
+// Regexp implementation, work with live photos, 10 times slower
+var (
+	reDupInYearJSON = regexp.MustCompile(`(.*)\.(.{2,4})\((\d+)\)\..{2,4}$`)
+	reDupInYearFile = regexp.MustCompile(`(.*)\((\d+)\)\..{2,4}$`)
+)
+
+func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedMedia) bool {
+	mFile := reDupInYearFile.FindStringSubmatch(fileName)
+	if len(mFile) < 3 {
+		return false
+	}
+	mJSON := reDupInYearJSON.FindStringSubmatch(jsonName)
+	if len(mJSON) < 4 {
+		return false
+	}
+	if mFile[1] == mJSON[1] && mFile[2] == mJSON[3] {
+		return true
+	}
+	return false
 }
 
 // matchEditedName
@@ -376,7 +403,7 @@ func matchEditedName(jsonName string, fileName string, sm immich.SupportedMedia)
 // TODO: This one interferes with matchVeryLongNameWithNumber
 
 // matchForgottenDuplicates
-// original_1d4caa6f-16c6-4c3d-901b-9387de10e528_.json
+// "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_.json"
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg
 
@@ -474,11 +501,22 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 				continue
 			}
 		}
-
+		if base == "image000000" {
+			runtime.Breakpoint()
+		}
+		if a.FileName == "Takeout/Google Photos/Photos from 2021/image000000.gif" {
+			runtime.Breakpoint()
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			delete(to.files, a.FileName)
+			to.totalSent++
+			if a.LivePhoto != nil {
+				delete(to.files, a.LivePhoto.FileName)
+				to.totalSent++
+			}
 			assetChan <- a
 		}
 	}

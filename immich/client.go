@@ -225,6 +225,9 @@ func (sm SupportedMedia) IsMedia(ext string) bool {
 
 func (sm SupportedMedia) IsExtensionPrefix(ext string) bool {
 	ext = strings.ToLower(ext)
+	if len(ext) > 4 {
+		return false
+	}
 	for e, t := range sm {
 		if t == TypeVideo || t == TypeImage {
 			if ext == e[:len(e)-1] {

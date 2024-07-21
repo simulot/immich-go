@@ -66,3 +66,12 @@ func fakePhotoData(name string, captureDate time.Time) (io.Reader, int64) {
 	t := fmt.Sprintf(pictureTemplate, name, captureDate.Unix())
 	return strings.NewReader(t), int64(len(t))
 }
+
+const fakeJSONTemplate = `{
+  "Nothing": ""
+}`
+
+func fakeJSON() (io.Reader, int64) {
+	t := fakeJSONTemplate
+	return strings.NewReader(t), int64(len(t))
+}

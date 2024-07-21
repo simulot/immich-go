@@ -111,6 +111,8 @@ func (fsys FakeFS) Open(name string) (fs.File, error) {
 		case "métadonnées.json", "metadata.json", "metadati.json", "metadáta.json":
 			album := path.Base(path.Dir(name))
 			r, fakeInfo.size = fakeAlbumData(album)
+		case "print-subscriptions.json", "shared_album_comments.json", "user-generated-memory-titles.json":
+			r, fakeInfo.size = fakeJSON()
 		default:
 			d := info.ModTime()
 			if d2 := metadata.TakeTimeFromName(name); !d2.IsZero() {
