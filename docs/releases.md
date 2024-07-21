@@ -11,7 +11,10 @@
 - [ ] Counters / missing assets GooglePhotos
         - [ ] [#390](https://github.com/simulot/immich-go/issues/390)   
         - [ ] [#376](https://github.com/simulot/immich-go/issues/376)
-        - [ ] Some files are not matched (PIXIL) 
+        - [X] Some files are not matched (PIXIL) 
+        - [ ] Check .MP.JPG
+        - [ ] run tests
+        - [ ] remove break points
 - [ ] Report connection errors
         - [ ] [#395](https://github.com/simulot/immich-go/issues/395)
         - [ ] [#396](https://github.com/simulot/immich-go/issues/396)
@@ -31,6 +34,7 @@ I have developed a way to simulate user cases using only the list files from the
 ### fixes:
 - [[#376](https://github.com/simulot/immich-go/issues/376)] errors when uploading are disturbing the the % of the progression
 - [ ] IPhone's Live photos recognition when the name is duplicated: ex IMG_2710(1).MP4 and IMG_2710(1).HEIC
+- [ ] Missing a file when a directory contain several file withe the same name, but of a different type. Ex: IMG_0170.HEIC,  IMG_0170.JPG
 
 ## Release 0.20.1
 
