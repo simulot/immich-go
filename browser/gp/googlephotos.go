@@ -6,7 +6,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -458,20 +457,20 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 	// detects couples image + video, likely been a motion picture
 	for _, f := range gen.MapKeys(catalog.matchedFiles) {
 		ext := path.Ext(f)
-		base := strings.TrimSuffix(f, ext)
-		ext2 := path.Ext(base)
-		if to.sm.IsMedia(ext2) {
-			base = strings.TrimSuffix(base, ext2)
-		}
+		// base := strings.TrimSuffix(f, ext)
+		// ext2 := path.Ext(base)
+		// if to.sm.IsMedia(ext2) {
+		// 	base = strings.TrimSuffix(base, ext2)
+		// }
 
-		linked := linkedFiles[base]
+		linked := linkedFiles[f]
 		switch to.sm.TypeFromExt(ext) {
 		case immich.TypeVideo:
 			linked.video = catalog.matchedFiles[f]
 		case immich.TypeImage:
 			linked.image = catalog.matchedFiles[f]
 		}
-		linkedFiles[base] = linked
+		linkedFiles[f] = linked
 	}
 
 	for _, base := range gen.MapKeys(linkedFiles) {
@@ -500,12 +499,6 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 				to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
 				continue
 			}
-		}
-		if base == "image000000" {
-			runtime.Breakpoint()
-		}
-		if a.FileName == "Takeout/Google Photos/Photos from 2021/image000000.gif" {
-			runtime.Breakpoint()
 		}
 		select {
 		case <-ctx.Done():

@@ -5,6 +5,7 @@ package fakefs
 */
 import (
 	"bufio"
+	"io"
 	"io/fs"
 	"os"
 	"strconv"
@@ -25,13 +26,22 @@ func readFileLine(l string, dateFormat string) (string, int64, time.Time) {
 	return name, size, modTime
 }
 
+func ScanStringList(dateFormat string, s string) ([]fs.FS, error) {
+	r := strings.NewReader(s)
+
+	return ScanFileListReader(r, dateFormat)
+}
+
 func ScanFileList(name string, dateFormat string) ([]fs.FS, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
+	return ScanFileListReader(f, dateFormat)
+}
 
+func ScanFileListReader(f io.Reader, dateFormat string) ([]fs.FS, error) {
 	fsyss := map[string]*FakeFS{}
 	var fsys *FakeFS
 	currentZip := ""

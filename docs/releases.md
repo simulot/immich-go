@@ -8,9 +8,10 @@
 ## Release next
 
 ### TO DO
-- [ ] Counters / missing assets
+- [ ] Counters / missing assets GooglePhotos
         - [ ] [#390](https://github.com/simulot/immich-go/issues/390)   
         - [ ] [#376](https://github.com/simulot/immich-go/issues/376)
+        - [ ] Some files are not matched (PIXIL) 
 - [ ] Report connection errors
         - [ ] [#395](https://github.com/simulot/immich-go/issues/395)
         - [ ] [#396](https://github.com/simulot/immich-go/issues/396)
