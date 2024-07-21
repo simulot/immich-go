@@ -2,7 +2,6 @@ package gp
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 	"path"
 	"path/filepath"
@@ -20,27 +19,24 @@ import (
 )
 
 type Takeout struct {
-	fsyss      []fs.FS
-	catalogs   dirCatalog                    // file catalogs by directory in the set of the all takeout parts
-	jsonByYear map[jsonKey]*GoogleMetaData   // assets by year of capture and base name
-	uploaded   map[fileKey]any               // track files already uploaded
-	albums     map[string]browser.LocalAlbum // tack album names by folder
-	log        *fileevent.Recorder
-	sm         immich.SupportedMedia
-	banned     namematcher.List // Banned files
+	fsyss          []fs.FS
+	catalogs       map[string]directoryCatalog   // file catalogs by directory in the set of the all takeout parts
+	albums         map[string]browser.LocalAlbum // track album names by folder
+	log            *fileevent.Recorder
+	sm             immich.SupportedMedia
+	banned         namematcher.List // Banned files
+	totalUnmatched int              // count the number of asset not matched
 }
-
-// dirCatalog collects all directory catalogs
-type dirCatalog map[string]directoryCatalog // by directory in the walker
 
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
-	unMatchedFiles map[string]fileInfo // map of fileInfo by base name
-	matchedFiles   map[string]fileInfo // map of fileInfo by base name
+	jsons          map[string]*GoogleMetaData // JSONs in the catalog by base name
+	unMatchedFiles map[string]*assetFile      // files to be matched map  by base name
+	matchedFiles   map[string]*assetFile      // files matched by base name
 }
 
-// fileInfo keep information collected during pass one
-type fileInfo struct {
+// assetFile keep information collected during pass one
+type assetFile struct {
 	fsys   fs.FS           // Remember in which part of the archive the the file
 	base   string          // Remember the original file name
 	length int             // file length in bytes
@@ -48,27 +44,19 @@ type fileInfo struct {
 	md     *GoogleMetaData // will point to the associated metadata
 }
 
-// fileKey is the key of the uploaded files map
-// GP can't have duplicate JSON name in the same year.
+// fileKey track the duplicates based on the file name and its length
 type fileKey struct {
 	base   string
 	length int
-	year   int
-}
-
-// jsonKey allow to map jsons by base name and year of capture
-type jsonKey struct {
-	name string
-	year int
 }
 
 func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedMedia, fsyss ...fs.FS) (*Takeout, error) {
 	to := Takeout{
-		fsyss:      fsyss,
-		jsonByYear: map[jsonKey]*GoogleMetaData{},
-		albums:     map[string]browser.LocalAlbum{},
-		log:        l,
-		sm:         sm,
+		fsyss:    fsyss,
+		catalogs: map[string]directoryCatalog{},
+		albums:   map[string]browser.LocalAlbum{},
+		log:      l,
+		sm:       sm,
 	}
 
 	return &to, nil
@@ -83,7 +71,6 @@ func (to *Takeout) SetBannedFiles(banned namematcher.List) *Takeout {
 // metadata files content is read and kept
 
 func (to *Takeout) Prepare(ctx context.Context) error {
-	to.catalogs = dirCatalog{}
 	for _, w := range to.fsyss {
 		err := to.passOneFsWalk(ctx, w)
 		if err != nil {
@@ -113,15 +100,15 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
 
-			dirCatalog := to.catalogs[dir]
-			if dirCatalog.unMatchedFiles == nil {
-				dirCatalog.unMatchedFiles = map[string]fileInfo{}
-			}
-			if dirCatalog.matchedFiles == nil {
-				dirCatalog.matchedFiles = map[string]fileInfo{}
+			dirCatalog, ok := to.catalogs[dir]
+			if !ok {
+				dirCatalog.jsons = map[string]*GoogleMetaData{}
+				dirCatalog.unMatchedFiles = map[string]*assetFile{}
+				dirCatalog.matchedFiles = map[string]*assetFile{}
 			}
 			finfo, err := d.Info()
 			if err != nil {
+				to.log.Record(ctx, fileevent.Error, nil, name, "error", err.Error())
 				return err
 			}
 			switch ext {
@@ -130,7 +117,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				if err == nil {
 					switch {
 					case md.isAsset():
-						to.addJSON(dir, base, md)
+						dirCatalog.jsons[base] = md
 						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "asset metadata", "title", md.Title)
 					case md.isAlbum():
 						a := to.albums[dir]
@@ -172,15 +159,10 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					return nil
 				}
 
-				fi := dirCatalog.unMatchedFiles[base]
-				fi.base = base
-				fi.fsys = w
-				fi.length = int(finfo.Size())
-				fi.count++
-				dirCatalog.unMatchedFiles[base] = fi
-				if fi.count > 1 {
-					// #380 not all GP duplicates are detected correctly, counters are wrong
-					to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
+				dirCatalog.unMatchedFiles[base] = &assetFile{
+					fsys:   w,
+					base:   base,
+					length: int(finfo.Size()),
 				}
 			}
 			to.catalogs[dir] = dirCatalog
@@ -190,19 +172,33 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 	return err
 }
 
-// addJSON stores metadata and all paths where the combo base+year has been found
-func (to *Takeout) addJSON(dir, base string, md *GoogleMetaData) {
-	k := jsonKey{
-		name: base,
-		year: md.PhotoTakenTime.Time().Year(),
-	}
-
-	if mdPresent, ok := to.jsonByYear[k]; ok {
-		md = mdPresent
-	}
-	md.foundInPaths = append(md.foundInPaths, dir)
-	to.jsonByYear[k] = md
-}
+// solvePuzzle prepares metadata with information collected during pass one for each accepted files
+//
+// JSON files give important information about the relative photos / movies:
+//   - The original name (useful when it as been truncated)
+//   - The date of capture (useful when the files doesn't have this date)
+//   - The GPS coordinates (will be useful in a future release)
+//
+// Each JSON is checked. JSON is duplicated in albums folder.
+// --Associated files with the JSON can be found in the JSON's folder, or in the Year photos.--
+// ++JSON and files are located in the same folder
+///
+// Once associated and sent to the main program, files are tagged for not been associated with an other one JSON.
+// Association is done with the help of a set of matcher functions. Each one implement a rule
+//
+// 1 JSON can be associated with 1+ files that have a part of their name in common.
+// -   the file is named after the JSON name
+// -   the file name can be 1 UTF-16 char shorter (🤯) than the JSON name
+// -   the file name is longer than 46 UTF-16 chars (🤯) is truncated. But the truncation can creates duplicates, then a number is added.
+// -   if there are several files with same original name, the first instance kept as it is, the next has a sequence number.
+//       File is renamed as IMG_1234(1).JPG and the JSON is renamed as IMG_1234.JPG(1).JSON
+// -   of course those rules are likely to collide. They have to be applied from the most common to the least one.
+// -   sometimes the file isn't in the same folder than the json... It can be found in Year's photos folder
+//
+// --The duplicates files (same name, same length in bytes) found in the local source are discarded before been presented to the immich server.
+// ++ Duplicates are presented to the next layer to allow the album handling
+//
+// To solve the puzzle, each directory is checked with all matchers in the order of the most common to the least.
 
 type matcherFn func(jsonName string, fileName string, sm immich.SupportedMedia) bool
 
@@ -220,83 +216,37 @@ var matchers = []struct {
 	{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
 }
 
-// solvePuzzle prepares metadata with information collected during pass one for each accepted files
-//
-// JSON files give important information about the relative photos / movies:
-//   - The original name (useful when it as been truncated)
-//   - The date of capture (useful when the files doesn't have this date)
-//   - The GPS coordinates (will be useful in a future release)
-//
-// Each JSON is checked. JSON is duplicated in albums folder.
-// Associated files with the JSON can be found in the JSON's folder, or in the Year photos.
-// Once associated and sent to the main program, files are tagged for not been associated with an other one JSON.
-// Association is done with the help of a set of matcher functions. Each one implement a rule
-//
-// 1 JSON can be associated with 1+ files that have a part of their name in common.
-// -   the file is named after the JSON name
-// -   the file name can be 1 UTF-16 char shorter (🤯) than the JSON name
-// -   the file name is longer than 46 UTF-16 chars (🤯) is truncated. But the truncation can creates duplicates, then a number is added.
-// -   if there are several files with same original name, the first instance kept as it is, the next has a sequence number.
-//       File is renamed as IMG_1234(1).JPG and the JSON is renamed as IMG_1234.JPG(1).JSON
-// -   of course those rules are likely to collide. They have to be applied from the most common to the least one.
-// -   sometimes the file isn't in the same folder than the json... It can be found in Year's photos folder
-//
-// The duplicates files (same name, same length in bytes) found in the local source are discarded before been presented to the immich server.
-//
-
 func (to *Takeout) solvePuzzle(ctx context.Context) error {
-	jsonKeys := gen.MapKeys(to.jsonByYear)
-	sort.Slice(jsonKeys, func(i, j int) bool {
-		yd := jsonKeys[i].year - jsonKeys[j].year
-		switch {
-		case yd < 0:
-			return true
-		case yd > 0:
-			return false
-		}
-		return jsonKeys[i].name < jsonKeys[j].name
-	})
-
-	// For the most common matcher to the least,
-	for _, matcher := range matchers {
-		// Check files that match each json files
-		for _, k := range jsonKeys {
-			md := to.jsonByYear[k]
-
-			// list of paths where to search the assets: paths where this json has been found + year path in all of the walkers
-			paths := map[string]any{}
-			paths[path.Join(path.Dir(md.foundInPaths[0]), fmt.Sprintf("Photos from %d", md.PhotoTakenTime.Time().Year()))] = nil
-			for _, d := range md.foundInPaths {
-				paths[d] = nil
-			}
-			for d := range paths {
-				l := to.catalogs[d]
-				for f := range l.unMatchedFiles {
+	dirs := gen.MapKeys(to.catalogs)
+	sort.Strings(dirs)
+	for _, dir := range dirs {
+		cat := to.catalogs[dir]
+		jsons := gen.MapKeys(cat.jsons)
+		sort.Strings(jsons)
+		for _, matcher := range matchers {
+			for _, json := range jsons {
+				md := cat.jsons[json]
+				for f := range cat.unMatchedFiles {
 					select {
 					case <-ctx.Done():
 						return ctx.Err()
 					default:
-						if matcher.fn(k.name, f, to.sm) {
-							i := l.unMatchedFiles[f]
+						if matcher.fn(json, f, to.sm) {
+							i := cat.unMatchedFiles[f]
 							i.md = md
-							l.matchedFiles[f] = i
-							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, l.unMatchedFiles[f], filepath.Join(d, f), "json", k.name, "year", k.year, "size", i.length, "matcher", matcher.name)
-							delete(l.unMatchedFiles, f)
+							cat.matchedFiles[f] = i
+							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, cat.unMatchedFiles[f], filepath.Join(dir, f), "json", json, "size", i.length, "matcher", matcher.name)
+							delete(cat.unMatchedFiles, f)
 						}
 					}
 				}
-				to.catalogs[d] = l
 			}
 		}
-	}
-
-	paths := gen.MapKeys(to.catalogs)
-	sort.Strings(paths)
-	for _, p := range paths {
-		files := gen.MapKeys(to.catalogs[p].unMatchedFiles)
+		to.catalogs[dir] = cat
+		files := gen.MapKeys(cat.unMatchedFiles)
 		sort.Strings(files)
 		for _, f := range files {
-			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, to.catalogs[p].unMatchedFiles[f], filepath.Join(p, f))
+			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, f, filepath.Join(dir, f))
 		}
 	}
 	return nil
@@ -448,18 +398,23 @@ func matchForgottenDuplicates(jsonName string, fileName string, sm immich.Suppor
 // each file net yet sent to immich is sent with associated metadata
 
 func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
-	to.uploaded = map[fileKey]any{}
 	assetChan := make(chan *browser.LocalAssetFile)
 
 	go func() {
 		defer close(assetChan)
-		for dir := range to.catalogs {
+		dirs := gen.MapKeys(to.catalogs)
+		sort.Strings(dirs)
+		for _, dir := range dirs {
 			if len(to.catalogs[dir].matchedFiles) > 0 {
 				err := to.passTwo(ctx, dir, assetChan)
 				if err != nil {
 					assetChan <- &browser.LocalAssetFile{Err: err}
 				}
 			}
+		}
+
+		if to.totalUnmatched > 0 {
+			to.log.Record(ctx, fileevent.Error, nil, "", "error", "too many unmatched files with JSON. Have you processed all parts of the takeout in this run?")
 		}
 	}()
 	return assetChan
@@ -469,8 +424,8 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 	catalog := to.catalogs[dir]
 
 	linkedFiles := map[string]struct {
-		video fileInfo
-		image fileInfo
+		video *assetFile
+		image *assetFile
 	}{}
 
 	// detects couples image + video, likely been a motion picture
@@ -498,13 +453,13 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 
 		linked := linkedFiles[base]
 
-		if linked.image.md != nil {
+		if linked.image != nil {
 			a, err = to.googleMDToAsset(linked.image.md, linked.image.fsys, path.Join(dir, linked.image.base))
 			if err != nil {
 				to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.image.base), "error", err.Error())
 				continue
 			}
-			if linked.video.md != nil {
+			if linked.video != nil {
 				i, err := to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
 				if err != nil {
 					to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
@@ -524,20 +479,7 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			fk := fileKey{
-				base:   filepath.Base(a.FileName),
-				length: a.FileSize,
-				year:   a.Metadata.DateTaken.Year(),
-			}
-			if _, found := to.uploaded[fk]; !found {
-				assetChan <- a
-				to.uploaded[fk] = nil
-			} else {
-				to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, a.FileName, "title", a.Title)
-				if a.LivePhoto != nil {
-					to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, a.LivePhoto.FileName, "title", a.LivePhoto.Title)
-				}
-			}
+			assetChan <- a
 		}
 	}
 	return nil
