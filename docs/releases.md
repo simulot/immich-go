@@ -11,10 +11,25 @@
 - [ ] Counters / missing assets GooglePhotos
         - [ ] [#390](https://github.com/simulot/immich-go/issues/390)   
         - [ ] [#376](https://github.com/simulot/immich-go/issues/376)
+        - [ ] [#401](https://github.com/simulot/immich-go/issues/401)
+        - [ ] [#402](https://github.com/simulot/immich-go/issues/402)
         - [X] Some files are not matched (PIXIL) 
         - [X] Check .MP.JPG
-        - [ ] run tests
+        - [X] Check asset in multiple albums
+        - [ ] Phyl404 case
+                - [X] Ziplist reader broken (Phyl404)
+                - [X] Some file aren't matched (Phyl404)
+                - [ ] fix gp solving percent (Phyl404)
+        - [ ] [#402](https://github.com/simulot/immich-go/issues/402) Steve81 issue
+                - [X] wrong album
+        - [ ] Add message about missing JSON  UI and NOUI
+        - [ ] Display errors on UI
+        - [ ] Deactivate stack option
+        - [ ] Performances
+                - [X] matchDuplicateInYear 27%
+                - [X] SupportedMedia.IsExtensionPrefix
         - [ ] remove break points
+        - [ ] run tests
 - [ ] Report connection errors
         - [ ] [#395](https://github.com/simulot/immich-go/issues/395)
         - [ ] [#396](https://github.com/simulot/immich-go/issues/396)
@@ -32,9 +47,12 @@ I have developed a way to simulate user cases using only the list files from the
 
 
 ### fixes:
-- [[#376](https://github.com/simulot/immich-go/issues/376)] errors when uploading are disturbing the the % of the progression
-- [ ] IPhone's Live photos recognition when the name is duplicated: ex IMG_2710(1).MP4 and IMG_2710(1).HEIC
-- [ ] Missing a file when a directory contain several file withe the same name, but of a different type. Ex: IMG_0170.HEIC,  IMG_0170.JPG
+- [#376](https://github.com/simulot/immich-go/issues/376) errors when uploading are disturbing the the % of the progression
+- files with same path and name, but in different part of the takeout file set was forgotten in duplicate counters
+- iPhone's Live photos recognition when the name is duplicated: ex IMG_2710(1).MP4 and IMG_2710(1).HEIC
+- Missing a file when a directory contain several files with the same name, but of a different type. Ex: IMG_0170.HEIC,  IMG_0170.JPG
+- Live videos attached to duplicated photos are now counted as duplicate as well, making the final report more relevant
+- [#402](https://github.com/simulot/immich-go/issues/402) Wrong album assignment for images with the same name
 
 ## Release 0.20.1
 

@@ -1,8 +1,12 @@
+//go:build e2e
+// +build e2e
+
 package upload
 
 import (
 	"context"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -28,6 +32,7 @@ func simulate_upload(t *testing.T, zipList string, dateFormat string) {
 	fsOpener := func() ([]fs.FS, error) {
 		return fakefs.ScanFileList(zipList, dateFormat)
 	}
+	os.Remove(filepath.Dir(zipList) + "/debug.log")
 	args := []string{"-google-photos", "-no-ui", "-debug-counters", "-log-file=" + filepath.Dir(zipList) + "/debug.log"}
 
 	app, err := newCommand(ctx, &serv, args, fsOpener)
@@ -53,4 +58,10 @@ func TestPhyl404TakeOut(t *testing.T) {
 	initMyEnv(t)
 
 	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/Counters/Phyl404/list.lst", "2006-01-02 15:04")
+}
+
+func TestSteve81TakeOut(t *testing.T) {
+	initMyEnv(t)
+
+	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/Counters/Steve81/list.list", "2006-01-02 15:04")
 }

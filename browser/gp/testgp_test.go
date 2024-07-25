@@ -3,6 +3,7 @@ package gp
 import (
 	"context"
 	"io"
+	"io/fs"
 	"log/slog"
 	"path"
 	"reflect"
@@ -16,7 +17,7 @@ import (
 func TestBrowse(t *testing.T) {
 	tc := []struct {
 		name string
-		gen  func() *inMemFS
+		gen  func() []fs.FS
 		want []fileResult // file name / title
 	}{
 		{
@@ -138,15 +139,12 @@ func TestBrowse(t *testing.T) {
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			fsys := c.gen()
-			if fsys.err != nil {
-				t.Error(fsys.err)
-				return
-			}
+
 			ctx := context.Background()
 
 			log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(log, false), immich.DefaultSupportedMedia, fsys)
+			b, err := NewTakeout(ctx, fileevent.NewRecorder(log, false), immich.DefaultSupportedMedia, fsys...)
 			if err != nil {
 				t.Error(err)
 			}
@@ -159,6 +157,9 @@ func TestBrowse(t *testing.T) {
 			results := []fileResult{}
 			for a := range b.Browse(ctx) {
 				results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
+				if a.LivePhoto != nil {
+					results = append(results, fileResult{name: path.Base(a.LivePhoto.FileName), size: a.LivePhoto.FileSize, title: a.LivePhoto.Title})
+				}
 			}
 			results = sortFileResult(results)
 
@@ -174,7 +175,7 @@ func TestAlbums(t *testing.T) {
 	type album map[string][]fileResult
 	tc := []struct {
 		name string
-		gen  func() *inMemFS
+		gen  func() []fs.FS
 		want album
 	}{
 		{
@@ -218,11 +219,8 @@ func TestAlbums(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 			fsys := c.gen()
-			if fsys.err != nil {
-				t.Error(fsys.err)
-				return
-			}
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), immich.DefaultSupportedMedia, fsys)
+
+			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), immich.DefaultSupportedMedia, fsys...)
 			if err != nil {
 				t.Error(err)
 			}
@@ -254,52 +252,125 @@ func TestAlbums(t *testing.T) {
 	}
 }
 
-func TestLivePhotos(t *testing.T) {
-	type livephoto map[string]string
+func TestArchives(t *testing.T) {
+	type photo map[string]string
+	type album map[string][]string
 	tc := []struct {
-		name string
-		gen  func() *inMemFS
-		want livephoto
+		name              string
+		gen               func() []fs.FS
+		acceptMissingJSON bool
+		wantLivePhotos    photo
+		wantAlbum         album
+		wantAsset         photo
 	}{
 		{
-			name: "checkLivePhoto",
-			gen:  checkLivePhoto,
-			want: livephoto{
-				"20231227_152817.jpg":           "20231227_152817.MP4",
-				"PXL_20231118_035751175.MP.jpg": "PXL_20231118_035751175.MP",
+			name:      "checkLivePhoto",
+			gen:       checkLivePhoto,
+			wantAsset: photo{},
+			wantLivePhotos: photo{
+				"Motion Test/PXL_20231118_035751175.MP.jpg": "Motion Test/PXL_20231118_035751175.MP",
+				"Motion test/20231227_152817.jpg":           "Motion test/20231227_152817.MP4",
 			},
+			wantAlbum: album{},
+		},
+		{
+			name:      "checkLivePhotoPixil",
+			gen:       checkLivePhotoPixil,
+			wantAsset: photo{},
+			wantLivePhotos: photo{
+				"Takeout/Google Photos/2022 - Germany - Private/IMG_4573.HEIC": "Takeout/Google Photos/2022 - Germany - Private/IMG_4573.MP4",
+				"Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC":         "Takeout/Google Photos/Photos from 2022/IMG_4573.MP4",
+				"Takeout/Google Photos/2022 - Germany/IMG_4573.HEIC":           "Takeout/Google Photos/2022 - Germany/IMG_4573.MP4",
+			},
+			wantAlbum: album{
+				"2022 - Germany - Private": []string{"IMG_4573.HEIC"},
+				"2022 - Germany":           []string{"IMG_4573.HEIC"},
+			},
+		},
+		{
+			name: "checkMissingJSON-No",
+			gen:  checkMissingJSON,
+			wantAsset: photo{
+				"Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC": "",
+			},
+			wantLivePhotos: photo{},
+			wantAlbum:      album{},
+		},
+		{
+			name:              "checkMissingJSON-Yes",
+			gen:               checkMissingJSON,
+			acceptMissingJSON: true,
+			wantAsset: photo{
+				"Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC":          "",
+				"Takeout/Google Foto/Photos from 2016/IMG-20161201-WA0035.jpeg": "",
+				"Takeout/Google Photos/2022 - Germany - Private/IMG_4553.HEIC":  "",
+			},
+			wantLivePhotos: photo{
+				"Takeout/Google Photos/2022 - Germany/IMG_1234.HEIC": "Takeout/Google Photos/2022 - Germany/IMG_1234.MP4",
+			},
+			wantAlbum: album{
+				"2022 - Germany": []string{"IMG_1234.HEIC"},
+			},
+		},
+		{
+			name: "checkDuplicates",
+			gen:  checkDuplicates,
+			wantAsset: photo{
+				"Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg": "",
+				"Takeout/Google Foto/Photos from 2016/20160105_121621_LLS.jpg":                                   "",
+				"Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg":                                    "",
+			},
+			wantLivePhotos: photo{},
+			wantAlbum:      album{},
 		},
 	}
 	for _, c := range tc {
-		t.Run(c.name, func(t *testing.T) {
-			ctx := context.Background()
-			fsys := c.gen()
-			if fsys.err != nil {
-				t.Error(fsys.err)
-				return
-			}
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), immich.DefaultSupportedMedia, fsys)
-			if err != nil {
-				t.Error(err)
-			}
-			err = b.Prepare(ctx)
-			if err != nil {
-				t.Error(err)
-			}
+		t.Run(
+			c.name,
+			func(t *testing.T) {
+				ctx := context.Background()
+				fsys := c.gen()
 
-			livePhotos := livephoto{}
-			for a := range b.Browse(ctx) {
-				if a.LivePhoto != nil {
-					photo := path.Base(a.FileName)
-					video := path.Base(a.LivePhoto.FileName)
-					livePhotos[photo] = video
+				b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), immich.DefaultSupportedMedia, fsys...)
+				if err != nil {
+					t.Error(err)
 				}
-			}
+				b.SetAcceptMissingJSON(c.acceptMissingJSON)
+				err = b.Prepare(ctx)
+				if err != nil {
+					t.Error(err)
+				}
 
-			if !reflect.DeepEqual(livePhotos, c.want) {
-				t.Errorf("difference\n")
-				pretty.Ldiff(t, c.want, livePhotos)
-			}
-		})
+				livePhotos := photo{}
+				assets := photo{}
+				albums := album{}
+				for a := range b.Browse(ctx) {
+					if a.LivePhoto != nil {
+						photo := a.FileName
+						video := a.LivePhoto.FileName
+						livePhotos[photo] = video
+					} else {
+						assets[a.FileName] = ""
+					}
+					for _, al := range a.Albums {
+						l := albums[al.Title]
+						l = append(l, path.Base(a.FileName))
+						albums[al.Title] = l
+					}
+				}
+				if !reflect.DeepEqual(assets, c.wantAsset) {
+					t.Errorf("difference assets\n")
+					pretty.Ldiff(t, c.wantAsset, assets)
+				}
+				if !reflect.DeepEqual(livePhotos, c.wantLivePhotos) {
+					t.Errorf("difference LivePhotos\n")
+					pretty.Ldiff(t, c.wantLivePhotos, livePhotos)
+				}
+				if !reflect.DeepEqual(albums, c.wantAlbum) {
+					t.Errorf("difference Album\n")
+					pretty.Ldiff(t, c.wantAlbum, albums)
+				}
+			},
+		)
 	}
 }

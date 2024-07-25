@@ -206,6 +206,14 @@ PASS
 ok  	github.com/simulot/immich-go/browser/gp	1.332s
 
 
+goos: linux
+goarch: amd64
+pkg: github.com/simulot/immich-go/browser/gp
+cpu: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+Benchmark_matchDuplicateInYear-12    	25737067	        43.88 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/simulot/immich-go/browser/gp	1.180s
+
 */
 
 func Benchmark_matchDuplicateInYear(b *testing.B) {

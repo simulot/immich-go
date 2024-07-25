@@ -28,25 +28,30 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		immichPct := 0
 		if maxImmich > 0 {
 			immichPct = 100 * currImmich / maxImmich
+		} else {
+			immichPct = 100
 		}
-		ScannedAssets := counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo] - counts[fileevent.DiscoveredDiscarded]
+		AssetsToUpload := counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo] - counts[fileevent.AnalysisLocalDuplicate]
+
 		ProcessedAssets := counts[fileevent.Uploaded] +
 			counts[fileevent.UploadServerError] +
 			counts[fileevent.UploadNotSelected] +
 			counts[fileevent.UploadUpgraded] +
 			counts[fileevent.UploadServerDuplicate] +
 			counts[fileevent.UploadServerBetter] +
-			counts[fileevent.DiscoveredDiscarded] +
-			counts[fileevent.AnalysisLocalDuplicate]
+			counts[fileevent.DiscoveredDiscarded]
+		if !app.ForceUploadWhenNoJSON {
+			ProcessedAssets += counts[fileevent.AnalysisMissingAssociatedMetadata]
+		}
 
 		if app.GooglePhotos {
 			gpPct := 0
 			upPct := 0
-			if ScannedAssets > 0 {
-				gpPct = int(100 * counts[fileevent.AnalysisAssociatedMetadata] / ScannedAssets)
-			}
-			if counts[fileevent.AnalysisAssociatedMetadata] > 0 {
-				upPct = int(100 * ProcessedAssets / counts[fileevent.AnalysisAssociatedMetadata])
+
+			if AssetsToUpload > 0 {
+				gpPct = int(100 * (counts[fileevent.AnalysisAssociatedMetadata] + counts[fileevent.AnalysisMissingAssociatedMetadata]) / (counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
+
+				upPct = int(100 * ProcessedAssets / AssetsToUpload)
 			}
 
 			s = fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s", immichPct, gpPct, counts[fileevent.UploadServerError], upPct, string(spinner[spinIdx]))

@@ -7,7 +7,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -223,19 +226,24 @@ func (sm SupportedMedia) IsMedia(ext string) bool {
 	return t == TypeVideo || t == TypeImage
 }
 
+var (
+	_supportedExtension []string
+	initSupportedExtion sync.Once
+)
+
 func (sm SupportedMedia) IsExtensionPrefix(ext string) bool {
-	ext = strings.ToLower(ext)
-	if len(ext) > 4 {
-		return false
-	}
-	for e, t := range sm {
-		if t == TypeVideo || t == TypeImage {
-			if ext == e[:len(e)-1] {
-				return true
-			}
+	initSupportedExtion.Do(func() {
+		_supportedExtension = make([]string, len(sm))
+		i := 0
+		for k := range sm {
+			_supportedExtension[i] = k[:len(k)-2]
+			i++
 		}
-	}
-	return false
+		sort.Strings(_supportedExtension)
+	})
+	ext = strings.ToLower(ext)
+	_, b := slices.BinarySearch(_supportedExtension, ext)
+	return b
 }
 
 func (sm SupportedMedia) IsIgnoredExt(ext string) bool {

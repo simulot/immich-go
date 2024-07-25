@@ -55,6 +55,7 @@ type UpCmd struct {
 	StackBurst             bool             // Stack burst (Default: TRUE)
 	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
 	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
+	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
 	BannedFiles            namematcher.List // List of banned file name patterns
 
 	BrowserConfig Configuration
@@ -173,6 +174,8 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		" When the date of take can't be determined, use the FILE's date or the current time NOW. (default: FILE)")
 
 	cmd.Var(&app.BannedFiles, "exclude-files", "Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.")
+
+	cmd.BoolVar(&app.ForceUploadWhenNoJSON, "upload-when-missing-JSON", app.ForceUploadWhenNoJSON, "when true, photos are upload even without associated JSON file.")
 
 	err = cmd.Parse(args)
 	if err != nil {
@@ -463,6 +466,9 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName)
 		} else {
 			app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.FileName)
+			if a.LivePhoto != nil {
+				app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.LivePhoto.FileName)
+			}
 		}
 		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 

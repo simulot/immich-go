@@ -2,6 +2,7 @@ package fakefs
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io"
 	"io/fs"
 	"path"
@@ -86,7 +87,7 @@ func (fsys FakeFS) Stat(name string) (fs.FileInfo, error) {
 	}
 	l = fsys.files[dir]
 	if len(l) == 0 {
-		return nil, fs.ErrNotExist
+		return nil, fmt.Errorf("%s:%s: %w", fsys.name, name, fs.ErrNotExist)
 	}
 	if e, ok := l[base]; ok {
 		return e, nil

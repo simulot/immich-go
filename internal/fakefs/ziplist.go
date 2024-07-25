@@ -8,22 +8,30 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/gen"
 )
+
+// `  2104348  07-20-2023 00:00   Takeout/Google Photos/2020 - Costa Rica/IMG_3235.MP4`
+
+var reZipList = regexp.MustCompile(`^(-..-..-..-\s\d+/\d+)?\s+(\d+)\s+(.{16})\s+(.*)$`)
 
 func readFileLine(l string, dateFormat string) (string, int64, time.Time) {
 	if len(l) < 30 {
 		return "", 0, time.Time{}
 	}
-	// `  2104348  07-20-2023 00:00   Takeout/Google Photos/2020 - Costa Rica/IMG_3235.MP4`
-	s := strings.TrimSpace(l[:9])
-	d := l[11:27]
-	name := l[30:]
-	size, _ := strconv.ParseInt(s, 10, 64)
-	modTime, _ := time.ParseInLocation(dateFormat, d, time.Local)
-	return name, size, modTime
+	m := reZipList.FindStringSubmatch(l)
+	if len(m) < 5 {
+		return "", 0, time.Time{}
+	}
+	size, _ := strconv.ParseInt(m[2], 10, 64)
+	modTime, _ := time.ParseInLocation(dateFormat, m[3], time.Local)
+	return m[4], size, modTime
 }
 
 func ScanStringList(dateFormat string, s string) ([]fs.FS, error) {
@@ -45,14 +53,13 @@ func ScanFileListReader(f io.Reader, dateFormat string) ([]fs.FS, error) {
 	fsyss := map[string]*FakeFS{}
 	var fsys *FakeFS
 	currentZip := ""
-	inList := false
 	ok := false
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		l := scanner.Text()
-		if strings.HasPrefix(l, "Archive:  ") {
-			currentZip = strings.TrimPrefix(l, "Archive:  ")
+		if strings.HasPrefix(l, "Archive:") {
+			currentZip = strings.TrimSpace(strings.TrimPrefix(l, "Archive:"))
 			fsys, ok = fsyss[currentZip]
 			if !ok {
 				fsys = &FakeFS{
@@ -62,22 +69,10 @@ func ScanFileListReader(f io.Reader, dateFormat string) ([]fs.FS, error) {
 
 				fsyss[currentZip] = fsys
 			}
-			scanner.Scan()
-			scanner.Scan()
-			inList = true
 			continue
 		}
-		if strings.HasPrefix(l, "--------- ") {
-			scanner.Scan()
-			inList = false
-			continue
-		}
-		if inList {
-			if name, size, modTime := readFileLine(l, dateFormat); name != "" {
-				fsys.addFile(name, size, modTime)
-			} else {
-				inList = false
-			}
+		if name, size, modTime := readFileLine(l, dateFormat); name != "" {
+			fsys.addFile(name, size, modTime)
 		}
 	}
 
@@ -85,10 +80,12 @@ func ScanFileListReader(f io.Reader, dateFormat string) ([]fs.FS, error) {
 		return nil, err
 	}
 
+	names := gen.MapKeys(fsyss)
+	sort.Strings(names)
 	output := make([]fs.FS, len(fsyss))
 	i := 0
-	for _, fs := range fsyss {
-		output[i] = fs
+	for _, name := range names {
+		output[i] = fsyss[name]
 		i++
 	}
 	return output, nil

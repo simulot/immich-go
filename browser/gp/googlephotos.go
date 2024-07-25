@@ -2,10 +2,10 @@ package gp
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -20,15 +20,18 @@ import (
 )
 
 type Takeout struct {
-	fsyss          []fs.FS
-	catalogs       map[string]directoryCatalog   // file catalogs by directory in the set of the all takeout parts
-	albums         map[string]browser.LocalAlbum // track album names by folder
-	log            *fileevent.Recorder
-	sm             immich.SupportedMedia
-	banned         namematcher.List // Banned files
-	totalUnmatched int              // count the number of asset not matched
-	totalSent      int              // DEBUG
-	files          map[string]any   // DEBUG
+	fsyss    []fs.FS
+	catalogs map[string]directoryCatalog   // file catalogs by directory in the set of the all takeout parts
+	albums   map[string]browser.LocalAlbum // track album names by folder
+	log      *fileevent.Recorder
+	sm       immich.SupportedMedia
+
+	banned             namematcher.List // Banned files
+	acceptMissingJSON  bool
+	totalUnmatched     int            // count the number of asset not matched
+	totalSent          int            // DEBUG
+	totalMotionPicture int            // DEBUG
+	files              map[string]int // DEBUG
 }
 
 // directoryCatalog captures all files in a given directory
@@ -53,7 +56,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 		albums:   map[string]browser.LocalAlbum{},
 		log:      l,
 		sm:       sm,
-		files:    map[string]any{},
+		files:    map[string]int{},
 	}
 
 	return &to, nil
@@ -61,6 +64,11 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 
 func (to *Takeout) SetBannedFiles(banned namematcher.List) *Takeout {
 	to.banned = banned
+	return to
+}
+
+func (to *Takeout) SetAcceptMissingJSON(flag bool) *Takeout {
+	to.acceptMissingJSON = flag
 	return to
 }
 
@@ -103,6 +111,11 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				dirCatalog.unMatchedFiles = map[string]*assetFile{}
 				dirCatalog.matchedFiles = map[string]*assetFile{}
 			}
+			if _, ok := dirCatalog.unMatchedFiles[base]; ok {
+				// to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
+				return nil
+			}
+
 			finfo, err := d.Info()
 			if err != nil {
 				to.log.Record(ctx, fileevent.Error, nil, name, "error", err.Error())
@@ -157,7 +170,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					return nil
 				}
 
-				to.files[name] = nil // DEBUG
+				to.files[name] = to.files[name] + 1 // DEBUG
 				dirCatalog.unMatchedFiles[base] = &assetFile{
 					fsys:   w,
 					base:   base,
@@ -246,6 +259,10 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 		sort.Strings(files)
 		for _, f := range files {
 			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, f, filepath.Join(dir, f))
+			if to.acceptMissingJSON {
+				cat.matchedFiles[f] = cat.unMatchedFiles[f]
+				delete(cat.unMatchedFiles, f)
+			}
 		}
 	}
 	return nil
@@ -342,24 +359,48 @@ func matchVeryLongNameWithNumber(jsonName string, fileName string, sm immich.Sup
 //
 
 // Fast implementation, but does't work with live photos
-// func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedMedia) bool {
-// 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
-// 	p1JSON := strings.Index(jsonName, "(")
-// 	if p1JSON < 1 {
-// 		return false
-// 	}
-// 	p2JSON := strings.Index(jsonName, ")")
-// 	if p2JSON < 0 || p2JSON != len(jsonName)-1 {
-// 		return false
-// 	}
+func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedMedia) bool {
+	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	p1JSON := strings.Index(jsonName, "(")
+	if p1JSON < 1 {
+		return false
+	}
+	p1File := strings.Index(fileName, "(")
+	if p1File < 0 {
+		return false
+	}
+	jsonExt := path.Ext(jsonName[:p1JSON])
 
-// 	num := jsonName[p1JSON:]
-// 	jsonName = strings.TrimSuffix(jsonName, num)
-// 	ext := path.Ext(jsonName)
-// 	jsonName = strings.TrimSuffix(jsonName, ext) + num + ext
-// 	return jsonName == fileName
-// }
+	p2JSON := strings.Index(jsonName, ")")
+	if p2JSON < 0 || p2JSON != len(jsonName)-1 {
+		return false
+	}
 
+	p2File := strings.Index(fileName, ")")
+	if p2File < 0 || p2File < p1File {
+		return false
+	}
+
+	fileExt := path.Ext(fileName)
+
+	if fileExt != jsonExt {
+		return false
+	}
+
+	jsonBase := strings.TrimSuffix(jsonName[:p1JSON], path.Ext(jsonName[:p1JSON]))
+
+	if jsonBase != fileName[:p1File] {
+		return false
+	}
+
+	if fileName[p1File+1:p2File] != jsonName[p1JSON+1:p2JSON] {
+		return false
+	}
+
+	return true
+}
+
+/*
 // Regexp implementation, work with live photos, 10 times slower
 var (
 	reDupInYearJSON = regexp.MustCompile(`(.*)\.(.{2,4})\((\d+)\)\..{2,4}$`)
@@ -380,6 +421,7 @@ func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedM
 	}
 	return false
 }
+*/
 
 // matchEditedName
 //   PXL_20220405_090123740.PORTRAIT.jpg.json
@@ -442,6 +484,9 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 		if to.totalUnmatched > 0 {
 			to.log.Record(ctx, fileevent.Error, nil, "", "error", "too many unmatched files with JSON. Have you processed all parts of the takeout in this run?")
 		}
+		if len(to.files) > 0 {
+			to.log.Record(ctx, fileevent.Error, nil, "", "error", fmt.Sprintf("%d scanned images/video, but not processed. Contact the developer.\n", len(to.files)))
+		}
 	}()
 	return assetChan
 }
@@ -474,6 +519,12 @@ nextVideo:
 		if to.sm.TypeFromExt(ext) == immich.TypeVideo {
 			name := strings.TrimSuffix(f, ext)
 			for i, linked := range linkedFiles {
+				if linked.image == nil {
+					continue
+				}
+				if linked.image != nil && linked.video != nil {
+					continue
+				}
 				p := linked.image.base
 				ext := path.Ext(p)
 				p = strings.TrimSuffix(p, ext)
@@ -484,6 +535,7 @@ nextVideo:
 				if p == name {
 					linked.video = catalog.matchedFiles[f]
 					linkedFiles[i] = linked
+					to.totalMotionPicture++
 					continue nextVideo
 				}
 			}
@@ -493,22 +545,6 @@ nextVideo:
 		}
 	}
 
-	// base := strings.TrimSuffix(f, ext)
-	// ext2 := path.Ext(base)
-	// if to.sm.IsMedia(ext2) {
-	// 	base = strings.TrimSuffix(base, ext2)
-	// }
-
-	// 	linked := linkedFiles[f]
-	// 	switch to.sm.TypeFromExt(ext) {
-	// 	case immich.TypeVideo:
-	// 		linked.video = catalog.matchedFiles[f]
-	// 	case immich.TypeImage:
-	// 		linked.image = catalog.matchedFiles[f]
-	// 	}
-	// 	linkedFiles[f] = linked
-	// }
-
 	for _, base := range gen.MapKeys(linkedFiles) {
 		var a *browser.LocalAssetFile
 		var err error
@@ -516,13 +552,13 @@ nextVideo:
 		linked := linkedFiles[base]
 
 		if linked.image != nil {
-			a, err = to.googleMDToAsset(linked.image.md, linked.image.fsys, path.Join(dir, linked.image.base))
+			a, err = to.makeAsset(linked.image.md, linked.image.fsys, path.Join(dir, linked.image.base))
 			if err != nil {
 				to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.image.base), "error", err.Error())
 				continue
 			}
 			if linked.video != nil {
-				i, err := to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+				i, err := to.makeAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
 				if err != nil {
 					to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
 				} else {
@@ -530,7 +566,7 @@ nextVideo:
 				}
 			}
 		} else {
-			a, err = to.googleMDToAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
+			a, err = to.makeAsset(linked.video.md, linked.video.fsys, path.Join(dir, linked.video.base))
 			if err != nil {
 				to.log.Record(ctx, fileevent.Error, nil, path.Join(dir, linked.video.base), "error", err.Error())
 				continue
@@ -540,10 +576,10 @@ nextVideo:
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			delete(to.files, a.FileName)
+			to.files[a.FileName] = to.files[a.FileName] - 1
 			to.totalSent++
 			if a.LivePhoto != nil {
-				delete(to.files, a.LivePhoto.FileName)
+				to.files[a.LivePhoto.FileName] = to.files[a.LivePhoto.FileName] - 1
 				to.totalSent++
 			}
 			assetChan <- a
@@ -552,65 +588,69 @@ nextVideo:
 	return nil
 }
 
-// googleMDToAsset makes a localAssetFile based on the google metadata
-func (to *Takeout) googleMDToAsset(md *GoogleMetaData, fsys fs.FS, name string) (*browser.LocalAssetFile, error) {
-	// Change file's title with the asset's title and the actual file's extension
-	title := md.Title
-	titleExt := path.Ext(title)
-	fileExt := path.Ext(name)
-
-	if titleExt != fileExt {
-		title = strings.TrimSuffix(title, titleExt)
-		titleExt = path.Ext(title)
-		if titleExt != fileExt {
-			title = strings.TrimSuffix(title, titleExt) + fileExt
-		}
-	}
-
+// makeAsset makes a localAssetFile based on the google metadata
+func (to *Takeout) makeAsset(md *GoogleMetaData, fsys fs.FS, name string) (*browser.LocalAssetFile, error) {
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
 		return nil, err
 	}
 
 	a := browser.LocalAssetFile{
-		FileName:    name,
-		FileSize:    int(i.Size()),
-		Title:       title,
-		Archived:    md.Archived,
-		FromPartner: md.isPartner(),
-		Trashed:     md.Trashed,
-		Favorite:    md.Favorited,
-
-		FSys: fsys,
+		FileName: name,
+		FileSize: int(i.Size()),
+		Title:    path.Base(name),
+		FSys:     fsys,
 	}
 
-	// Prepare sidecar data to force Immich with Google metadata
-
-	sidecar := metadata.Metadata{
-		Description: md.Description,
-		DateTaken:   md.PhotoTakenTime.Time(),
+	if album, ok := to.albums[path.Dir(name)]; ok {
+		a.Albums = append(a.Albums, album)
 	}
 
-	if md.GeoDataExif.Latitude != 0 || md.GeoDataExif.Longitude != 0 {
-		sidecar.Latitude = md.GeoDataExif.Latitude
-		sidecar.Longitude = md.GeoDataExif.Longitude
-	}
+	if md != nil {
+		// Change file's title with the asset's title and the actual file's extension
+		title := md.Title
+		titleExt := path.Ext(title)
+		fileExt := path.Ext(name)
 
-	if md.GeoData.Latitude != 0 || md.GeoData.Longitude != 0 {
-		sidecar.Latitude = md.GeoData.Latitude
-		sidecar.Longitude = md.GeoData.Longitude
-	}
-
-	for _, p := range md.foundInPaths {
-		if album, exists := to.albums[p]; exists {
-			if (album.Latitude != 0 || album.Longitude != 0) && (sidecar.Latitude == 0 && sidecar.Longitude == 0) {
-				sidecar.Latitude = album.Latitude
-				sidecar.Longitude = album.Longitude
+		if titleExt != fileExt {
+			title = strings.TrimSuffix(title, titleExt)
+			titleExt = path.Ext(title)
+			if titleExt != fileExt {
+				title = strings.TrimSuffix(title, titleExt) + fileExt
 			}
-			a.Albums = append(a.Albums, album)
 		}
+		a.Title = title
+		a.Archived = md.Archived
+		a.FromPartner = md.isPartner()
+		a.Trashed = md.Trashed
+		a.Favorite = md.Favorited
+
+		// Prepare sidecar data to force Immich with Google metadata
+
+		sidecar := metadata.Metadata{
+			Description: md.Description,
+			DateTaken:   md.PhotoTakenTime.Time(),
+		}
+
+		if md.GeoDataExif.Latitude != 0 || md.GeoDataExif.Longitude != 0 {
+			sidecar.Latitude = md.GeoDataExif.Latitude
+			sidecar.Longitude = md.GeoDataExif.Longitude
+		}
+
+		if md.GeoData.Latitude != 0 || md.GeoData.Longitude != 0 {
+			sidecar.Latitude = md.GeoData.Latitude
+			sidecar.Longitude = md.GeoData.Longitude
+		}
+		for _, p := range md.foundInPaths {
+			if album, exists := to.albums[p]; exists {
+				if (album.Latitude != 0 || album.Longitude != 0) && (sidecar.Latitude == 0 && sidecar.Longitude == 0) {
+					sidecar.Latitude = album.Latitude
+					sidecar.Longitude = album.Longitude
+				}
+			}
+		}
+		a.Metadata = sidecar
 	}
 
-	a.Metadata = sidecar
 	return &a, nil
 }
