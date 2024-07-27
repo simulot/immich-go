@@ -109,7 +109,7 @@ func (fsys FakeFS) Open(name string) (fs.File, error) {
 	if strings.ToLower(ext) == ".json" {
 		base := path.Base(name)
 		switch base {
-		case "métadonnées.json", "metadata.json", "metadati.json", "metadáta.json":
+		case "métadonnées.json", "metadata.json", "metadati.json", "metadáta.json", "Metadaten.json":
 			album := path.Base(path.Dir(name))
 			r, fakeInfo.size = fakeAlbumData(album)
 		case "print-subscriptions.json", "shared_album_comments.json", "user-generated-memory-titles.json":

@@ -35,7 +35,7 @@
         - [ ] [#396](https://github.com/simulot/immich-go/issues/396)
         - [ ] [#393](https://github.com/simulot/immich-go/issues/393)
 - [ ] Creation date incorrect
-        - [ ] [#392](https://github.com/simulot/immich-go/issues/392)
+        - [X] [#392](https://github.com/simulot/immich-go/issues/392)
         - [ ] [#397](https://github.com/simulot/immich-go/issues/397)
 
  

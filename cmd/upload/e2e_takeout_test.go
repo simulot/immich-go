@@ -51,17 +51,23 @@ func simulate_upload(t *testing.T, zipList string, dateFormat string) {
 func TestPixilTakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/Counters/pixil/list.lst", "01-02-2006 15:04")
+	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/User Files/pixil/list.lst", "01-02-2006 15:04")
 }
 
 func TestPhyl404TakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/Counters/Phyl404/list.lst", "2006-01-02 15:04")
+	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/User Files/Phyl404/list.lst", "2006-01-02 15:04")
 }
 
 func TestSteve81TakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/Counters/Steve81/list.list", "2006-01-02 15:04")
+	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/User Files/Steve81/list.list", "2006-01-02 15:04")
+}
+
+func TestMuetyTakeOut(t *testing.T) {
+	initMyEnv(t)
+
+	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/User Files/muety/list.lst", "01-02-2006 15:04")
 }
