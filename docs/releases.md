@@ -9,10 +9,11 @@
 
 ### TO DO
 - [ ] Counters / missing assets GooglePhotos
-        - [ ] [#390](https://github.com/simulot/immich-go/issues/390)   
-        - [ ] [#376](https://github.com/simulot/immich-go/issues/376)
-        - [ ] [#401](https://github.com/simulot/immich-go/issues/401)
-        - [ ] [#402](https://github.com/simulot/immich-go/issues/402)
+        - [X] [#390](https://github.com/simulot/immich-go/issues/390)   
+        - [X] [#376](https://github.com/simulot/immich-go/issues/376)
+        - [X] [#401](https://github.com/simulot/immich-go/issues/401)
+        - [X] [#402](https://github.com/simulot/immich-go/issues/402) Problem with images with same name
+        - [ ] [#405](https://github.com/simulot/immich-go/issues/405) MP~2 files
         - [X] Some files are not matched (PIXIL) 
         - [X] Check .MP.JPG
         - [X] Check asset in multiple albums
@@ -53,7 +54,9 @@ I have developed a way to simulate user cases using only the list files from the
 - Missing a file when a directory contain several files with the same name, but of a different type. Ex: IMG_0170.HEIC,  IMG_0170.JPG
 - Live videos attached to duplicated photos are now counted as duplicate as well, making the final report more relevant
 - [#402](https://github.com/simulot/immich-go/issues/402) Wrong album assignment for images with the same name
-
+- [#390](https://github.com/simulot/immich-go/issues/390) Question: report shows way less images uploaded than scanned
+- [#376](https://github.com/simulot/immich-go/issues/376) errors when uploading are disturbing the the % of the progression
+- [#401](https://github.com/simulot/immich-go/issues/401) Add an option to import images/movies even if there is no JSON file in the takeout
 ## Release 0.20.1
 
 ### changes

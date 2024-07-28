@@ -72,15 +72,15 @@ takeout-20240712T112341Z-010.zip:
 ```
 
 
-## Some key names are spelled in the user language
+## Some key file names are spelled in the user language
 
-| Language   | Google Photos folder name | Album's metadata |
-| ---------- | ------------------------- | ---------------- |
-| US English | Google Photos             | metadata.json    |
-| French     | Google Photos             | métadonnées.json |
-| Italian    | Google Foto               | metadati.json    |
-| Slovak     | Fotky Google              | metadáta.json    |
-| German     | Google Fotos              | Metadaten.json   |
+| Language   | Google Photos folder | Album's metadata | Edited photo name |
+| ---------- | -------------------- | ---------------- | ----------------- |
+| US English | Google Photos        | metadata.json    |                   |
+| French     | Google Photos        | métadonnées.json | \*-modifié.\*     |
+| Italian    | Google Foto          | metadati.json    | \*-modificato.\*  |
+| Slovak     | Fotky Google         | metadáta.json    |                   |
+| German     | Google Fotos         | Metadaten.json   | \*-bearbeitet.\*  |
 
 
 # What if you have problems with a takeout archive?

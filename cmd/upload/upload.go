@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -27,6 +28,7 @@ import (
 	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/fakefs"
 )
 
 type UpCmd struct {
@@ -65,6 +67,7 @@ type UpCmd struct {
 	AssetIndex       *AssetIndex               // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
 	deleteLocalList  []*browser.LocalAssetFile // List of local assets to remove
+	gpProcessDone    atomic.Bool               // True when terminated
 	// updateAlbums     map[string]map[string]any // track immich albums changes
 	stacks  *stacking.StackBuilder
 	browser browser.Browser
@@ -176,10 +179,23 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 	cmd.Var(&app.BannedFiles, "exclude-files", "Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.")
 
 	cmd.BoolVar(&app.ForceUploadWhenNoJSON, "upload-when-missing-JSON", app.ForceUploadWhenNoJSON, "when true, photos are upload even without associated JSON file.")
+	cmd.BoolVar(&app.DebugFileList, "debug-file-list", app.DebugFileList, "Check how the your file list would be processed")
 
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
+	}
+
+	if app.DebugFileList {
+		if len(cmd.Args()) < 2 {
+			return nil, fmt.Errorf("the option -debug-file-list requires a file name and a date format")
+		}
+		app.LogFile = strings.TrimSuffix(cmd.Arg(0), filepath.Ext(cmd.Arg(0))) + ".log"
+		_ = os.Remove(app.LogFile)
+
+		fsOpener = func() ([]fs.FS, error) {
+			return fakefs.ScanFileList(cmd.Arg(0), cmd.Arg(1))
+		}
 	}
 
 	app.WhenNoDate = strings.ToUpper(app.WhenNoDate)

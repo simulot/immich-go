@@ -221,3 +221,25 @@ func (r *Recorder) WriteFileCounts(w io.Writer) error {
 	}
 	return nil
 }
+
+func (r *Recorder) TotalAssets() int64 {
+	return atomic.LoadInt64(&r.counts[DiscoveredImage]) + atomic.LoadInt64(&r.counts[DiscoveredVideo])
+}
+
+func (r *Recorder) TotalProcessedGP() int64 {
+	return atomic.LoadInt64(&r.counts[AnalysisAssociatedMetadata]) +
+		atomic.LoadInt64(&r.counts[AnalysisMissingAssociatedMetadata]) +
+		atomic.LoadInt64(&r.counts[DiscoveredDiscarded])
+}
+
+func (r *Recorder) TotalProcessed() int64 {
+	return atomic.LoadInt64(&r.counts[Uploaded]) +
+		atomic.LoadInt64(&r.counts[UploadServerError]) +
+		atomic.LoadInt64(&r.counts[UploadNotSelected]) +
+		atomic.LoadInt64(&r.counts[UploadUpgraded]) +
+		atomic.LoadInt64(&r.counts[UploadServerDuplicate]) +
+		atomic.LoadInt64(&r.counts[UploadServerBetter]) +
+		atomic.LoadInt64(&r.counts[DiscoveredDiscarded]) +
+		atomic.LoadInt64(&r.counts[AnalysisLocalDuplicate]) +
+		atomic.LoadInt64(&r.counts[AnalysisMissingAssociatedMetadata])
+}

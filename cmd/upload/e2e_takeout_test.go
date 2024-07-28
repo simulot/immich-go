@@ -60,6 +60,12 @@ func TestPhyl404TakeOut(t *testing.T) {
 	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/User Files/Phyl404/list.lst", "2006-01-02 15:04")
 }
 
+func TestPhyl404_2TakeOut(t *testing.T) {
+	initMyEnv(t)
+
+	simulate_upload(t, myEnv["IMMICH_TESTFILES"]+"/User Files/Phy404#2/list.lst", "2006-01-02 15:04")
+}
+
 func TestSteve81TakeOut(t *testing.T) {
 	initMyEnv(t)
 

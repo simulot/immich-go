@@ -128,15 +128,13 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 						ui.getCountView(c, counts[c])
 					}
 					if app.GooglePhotos {
-						ui.immichPrepare.SetMaxValue(int(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
-						ui.immichPrepare.SetValue(int(counts[fileevent.AnalysisAssociatedMetadata]))
+						ui.immichPrepare.SetMaxValue(int(app.Jnl.TotalAssets()))
+						ui.immichPrepare.SetValue(int(app.Jnl.TotalProcessedGP()))
 
-						ui.immichUpload.SetMaxValue(int(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo] - counts[fileevent.UploadServerError]))
-						ui.immichUpload.SetValue(int(counts[fileevent.UploadNotSelected] +
-							counts[fileevent.UploadUpgraded] +
-							counts[fileevent.UploadServerDuplicate] +
-							counts[fileevent.UploadServerBetter] +
-							counts[fileevent.Uploaded]))
+						if preparationDone.Load() {
+							ui.immichUpload.SetMaxValue(int(app.Jnl.TotalAssets()))
+						}
+						ui.immichUpload.SetValue(int(app.Jnl.TotalProcessed()))
 					}
 				})
 			}
