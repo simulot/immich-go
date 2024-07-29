@@ -19,7 +19,7 @@ import (
 
 // `  2104348  07-20-2023 00:00   Takeout/Google Photos/2020 - Costa Rica/IMG_3235.MP4`
 
-var reZipList = regexp.MustCompile(`^(-..-..-..-\s\d+/\d+)?\s+(\d+)\s+(.{16})\s+(.*)$`)
+var reZipList = regexp.MustCompile(`(-rw-r--r-- 0/0\s+)?(\d+)\s+(.{16})\s+(.*)$`)
 
 func readFileLine(l string, dateFormat string) (string, int64, time.Time) {
 	if len(l) < 30 {

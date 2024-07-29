@@ -323,6 +323,10 @@ func TestArchives(t *testing.T) {
 			wantLivePhotos: photo{},
 			wantAlbum:      album{},
 		},
+		// { // #405
+		// 	name: "checkMP_405",
+		// 	gen:  checkMP_405,
+		// },
 	}
 	for _, c := range tc {
 		t.Run(

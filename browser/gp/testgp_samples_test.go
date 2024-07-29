@@ -325,3 +325,31 @@ Archive:  takeout-20230720T065335Z-002.zip
 -rw-r--r-- 0/0             708 2024-07-19 02:13 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg.json
 `)
 }
+
+func checkMP_405() []fs.FS {
+	return loadFromString("2006-01-02 15:04", `Archive:  takeout-20230720T065335Z-001.zip
+	  893  2024-01-21 16:33   Takeout/Google Photos/Family _ friends/PXL_20210102_221126856.MP.jpg.json
+      896  2024-01-21 16:33   Takeout/Google Photos/Family _ friends/PXL_20210102_221126856.MP~2.jpg.json
+      895  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg.json
+      893  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg.json
+      893  2024-01-21 17:46   Takeout/Google Photos/Photos from 2021/PXL_20210102_221126856.MP.jpg.json
+      895  2024-01-21 17:46   Takeout/Google Photos/Photos from 2021/PXL_20210102_221126856.MP~2.jpg.json
+  3242290  2024-01-21 16:58   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP
+  1214365  2024-01-21 16:58   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2
+  4028710  2024-01-21 16:59   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg
+  6486725  2024-01-21 16:59   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg
+  1214365  2024-01-21 15:40   Takeout/Google Photos/Family _ friends/PXL_20210102_221126856.MP~2
+  3242290  2024-01-21 15:40   Takeout/Google Photos/Family _ friends/PXL_20210102_221126856.MP
+  6486725  2024-01-21 15:41   Takeout/Google Photos/Family _ friends/PXL_20210102_221126856.MP.jpg
+  4028710  2024-01-21 15:41   Takeout/Google Photos/Family _ friends/PXL_20210102_221126856.MP~2.jpg
+  3242290  2024-01-21 17:53   Takeout/Google Photos/Photos from 2021/PXL_20210102_221126856.MP
+  1214365  2024-01-21 17:53   Takeout/Google Photos/Photos from 2021/PXL_20210102_221126856.MP~2
+  6486725  2024-01-21 17:53   Takeout/Google Photos/Photos from 2021/PXL_20210102_221126856.MP.jpg
+  4028710  2024-01-21 17:53   Takeout/Google Photos/Photos from 2021/PXL_20210102_221126856.MP~2.jpg
+  1214365  2024-01-21 16:14   Takeout/Google Photos/pi_info/PXL_20210102_221126856.MP~2
+  3242290  2024-01-21 16:14   Takeout/Google Photos/pi_info/PXL_20210102_221126856.MP
+      892  2024-01-21 16:14   Takeout/Google Photos/pi_info/PXL_20210102_221126856.MP.jpg.json
+      895  2024-01-21 16:14   Takeout/Google Photos/pi_info/PXL_20210102_221126856.MP~2.jpg.json
+  4028710  2024-01-21 16:14   Takeout/Google Photos/pi_info/PXL_20210102_221126856.MP~2.jpg
+  6486725  2024-01-21 16:14   Takeout/Google Photos/pi_info/PXL_20210102_221126856.MP.jpg`)
+}

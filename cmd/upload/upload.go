@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -67,16 +66,13 @@ type UpCmd struct {
 	AssetIndex       *AssetIndex               // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
 	deleteLocalList  []*browser.LocalAssetFile // List of local assets to remove
-	gpProcessDone    atomic.Bool               // True when terminated
 	// updateAlbums     map[string]map[string]any // track immich albums changes
 	stacks  *stacking.StackBuilder
 	browser browser.Browser
 }
 
 func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
-	app, err := newCommand(ctx, common, args, func() ([]fs.FS, error) {
-		return fshelper.ParsePath(args)
-	})
+	app, err := newCommand(ctx, common, args, nil)
 	if err != nil {
 		return err
 	}
@@ -157,14 +153,14 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 
 	cmd.BoolFunc(
 		"create-stacks",
-		"Stack jpg/raw or bursts  (default TRUE)", myflag.BoolFlagFn(&app.CreateStacks, true))
+		"Stack jpg/raw or bursts  (default FALSE)", myflag.BoolFlagFn(&app.CreateStacks, false))
 
 	cmd.BoolFunc(
 		"stack-jpg-raw",
-		"Control the stacking of jpg/raw photos (default TRUE)", myflag.BoolFlagFn(&app.StackJpgRaws, true))
+		"Control the stacking of jpg/raw photos (default TRUE)", myflag.BoolFlagFn(&app.StackJpgRaws, false))
 	cmd.BoolFunc(
 		"stack-burst",
-		"Control the stacking bursts (default TRUE)", myflag.BoolFlagFn(&app.StackBurst, true))
+		"Control the stacking bursts (default TRUE)", myflag.BoolFlagFn(&app.StackBurst, false))
 
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 
@@ -196,6 +192,7 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		fsOpener = func() ([]fs.FS, error) {
 			return fakefs.ScanFileList(cmd.Arg(0), cmd.Arg(1))
 		}
+	} else {
 	}
 
 	app.WhenNoDate = strings.ToUpper(app.WhenNoDate)
@@ -211,6 +208,11 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		return nil, err
 	}
 
+	if fsOpener == nil {
+		fsOpener = func() ([]fs.FS, error) {
+			return fshelper.ParsePath(cmd.Args())
+		}
+	}
 	app.fsyss, err = fsOpener()
 	if err != nil {
 		return nil, err

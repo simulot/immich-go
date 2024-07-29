@@ -2,7 +2,6 @@ package gp
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 	"path"
 	"path/filepath"
@@ -26,12 +25,8 @@ type Takeout struct {
 	log      *fileevent.Recorder
 	sm       immich.SupportedMedia
 
-	banned             namematcher.List // Banned files
-	acceptMissingJSON  bool
-	totalUnmatched     int            // count the number of asset not matched
-	totalSent          int            // DEBUG
-	totalMotionPicture int            // DEBUG
-	files              map[string]int // DEBUG
+	banned            namematcher.List // Banned files
+	acceptMissingJSON bool
 }
 
 // directoryCatalog captures all files in a given directory
@@ -56,7 +51,6 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, sm immich.SupportedM
 		albums:   map[string]browser.LocalAlbum{},
 		log:      l,
 		sm:       sm,
-		files:    map[string]int{},
 	}
 
 	return &to, nil
@@ -170,7 +164,6 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					return nil
 				}
 
-				to.files[name] = to.files[name] + 1 // DEBUG
 				dirCatalog.unMatchedFiles[base] = &assetFile{
 					fsys:   w,
 					base:   base,
@@ -480,13 +473,6 @@ func (to *Takeout) Browse(ctx context.Context) chan *browser.LocalAssetFile {
 				}
 			}
 		}
-
-		if to.totalUnmatched > 0 {
-			to.log.Record(ctx, fileevent.Error, nil, "", "error", "too many unmatched files with JSON. Have you processed all parts of the takeout in this run?")
-		}
-		if len(to.files) > 0 {
-			to.log.Record(ctx, fileevent.Error, nil, "", "error", fmt.Sprintf("%d scanned images/video, but not processed. Contact the developer.\n", len(to.files)))
-		}
 	}()
 	return assetChan
 }
@@ -535,7 +521,6 @@ nextVideo:
 				if p == name {
 					linked.video = catalog.matchedFiles[f]
 					linkedFiles[i] = linked
-					to.totalMotionPicture++
 					continue nextVideo
 				}
 			}
@@ -576,12 +561,6 @@ nextVideo:
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			to.files[a.FileName] = to.files[a.FileName] - 1
-			to.totalSent++
-			if a.LivePhoto != nil {
-				to.files[a.LivePhoto.FileName] = to.files[a.LivePhoto.FileName] - 1
-				to.totalSent++
-			}
 			assetChan <- a
 		}
 	}

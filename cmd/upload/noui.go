@@ -2,7 +2,9 @@ package upload
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -114,6 +116,20 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		err = app.uploadLoop(ctx)
 		if err != nil {
 			cancel(err)
+		}
+
+		counts := app.Jnl.GetCounts()
+		messages := strings.Builder{}
+		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
+			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
+		}
+		if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 {
+			messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
+			messages.WriteString("- have you processed all takeout parts together?\n")
+			messages.WriteString("- ask for another takeout, or ask one year at a time.\n")
+		}
+		if messages.Len() > 0 {
+			cancel(errors.New(messages.String()))
 		}
 		close(stopProgress)
 		return err

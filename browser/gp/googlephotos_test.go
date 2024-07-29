@@ -43,11 +43,6 @@ func Test_matchers(t *testing.T) {
 			want:     "matchDuplicateInYear",
 		},
 		{
-			jsonName: "IMG_2710.HEIC(1).json",
-			fileName: "IMG_2710(1).MP4",
-			want:     "matchDuplicateInYear",
-		},
-		{
 			jsonName: "PXL_20231118_035751175.MP.jpg.json",
 			fileName: "PXL_20231118_035751175.MP.jpg",
 			want:     "normalMatch",

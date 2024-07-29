@@ -20,11 +20,10 @@
         - [ ] Phyl404 case
                 - [X] Ziplist reader broken (Phyl404)
                 - [X] Some file aren't matched (Phyl404)
-                - [ ] fix gp solving percent (Phyl404)
+                - [X] fix gp solving percent (Phyl404)
         - [ ] [#402](https://github.com/simulot/immich-go/issues/402) Steve81 issue
                 - [X] wrong album
-        - [ ] Add message about missing JSON  UI and NOUI
-        - [ ] Display errors on UI
+        - [X] Add message about missing JSON  UI and NOUI
         - [ ] Deactivate stack option
         - [ ] Performances
                 - [X] matchDuplicateInYear 27%
@@ -43,8 +42,23 @@
 
 
 ### Refactoring the Google Photos import another time
-Lot of users have reported inconsistencies in upload counters. Because we are manipulating personal photos and because it's not practical to test with user's archives, 
-I have developed a way to simulate user cases using only the list files from the takeout archives.
+Lot of users have reported inconsistencies in upload counters. Each user case a different, and the takeout structure varies a bit. 
+In order to debug those cases, I have developed a way to simulate the takeout import using only the the file list.  Read [how to send debug data](/docs/how-to-send-debug-data.md) without sharing photos.
+
+
+### Option to force the upload of images despite the lack of JSON
+Each image in a takeout is supposed to come with A JSON file giving the date of capture and the GPS coordinate. There a few reason for this:
+1. The original file is copied, modified... and sometime there ins't a JSON for all versions
+2. JSON aren't in the same ZIP file than the image, and only one part of the takeout is processed
+3. The takeout misses a bunch of JSON
+
+When asking another takeout isn't an option, it's possible to force the upload of photos with no JSON. Use the option `-upload-when-missing-JSON` 
+
+### The stack function is disabled
+The stack function need to be improved [#399](https://github.com/simulot/immich-go/issues/399), [#345](https://github.com/simulot/immich-go/issues/345), [#235](https://github.com/simulot/immich-go/issues/235)
+Meanwhile, it is disabled by default. You can enable it using the option `-create-stacks=TRUE`.
+
+
 
 
 ### fixes:
@@ -57,6 +71,8 @@ I have developed a way to simulate user cases using only the list files from the
 - [#390](https://github.com/simulot/immich-go/issues/390) Question: report shows way less images uploaded than scanned
 - [#376](https://github.com/simulot/immich-go/issues/376) errors when uploading are disturbing the the % of the progression
 - [#401](https://github.com/simulot/immich-go/issues/401) Add an option to import images/movies even if there is no JSON file in the takeout
+
+
 ## Release 0.20.1
 
 ### changes
