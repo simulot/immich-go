@@ -63,8 +63,8 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
-github.com/telemachus/humane v0.5.1 h1:GgYzcpJKPzuwDcCd1YjPU8vzj/AU4gqbt46pUX+mVis=
-github.com/telemachus/humane v0.5.1/go.mod h1:lToNtEtpBOvw6DSyq7mzBhVbbEm6756mzl4KwXkcckY=
+github.com/telemachus/humane v0.6.0 h1:JNT5SWeg8pOHTRo3STy24E247LpQYBy2vxD2HwYwyvU=
+github.com/telemachus/humane v0.6.0/go.mod h1:T2XzA97m+JPk/WDe9VHamk/JOArXlOy4jlIGDKte3ic=
 github.com/thlib/go-timezone-local v0.0.3 h1:ie5XtZWG5lQ4+1MtC5KZ/FeWlOKzW2nPoUnXYUbV/1s=
 github.com/thlib/go-timezone-local v0.0.3/go.mod h1:/Tnicc6m/lsJE0irFMA0LfIwTBo4QP7A8IfyIv4zZKI=
 github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31 h1:OXcKh35JaYsGMRzpvFkLv/MEyPuL49CThT1pZ8aSml4=
