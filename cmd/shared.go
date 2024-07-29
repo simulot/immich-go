@@ -99,7 +99,6 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 	if app.DebugFileList {
 		app.Immich = &fakeimmich.MockedCLient{}
 		_ = os.Remove(app.LogFile)
-
 	}
 
 	if app.LogFile != "" {
