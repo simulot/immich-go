@@ -1,6 +1,7 @@
 module github.com/simulot/immich-go
 
-go 1.21
+go 1.22
+
 toolchain go1.22.5
 
 require (
@@ -13,7 +14,7 @@ require (
 	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
 	github.com/rivo/tview v0.0.0-20240616192244-23476fa0bab2
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
-	github.com/telemachus/humane v0.5.1
+	github.com/telemachus/humane v0.6.0
 	github.com/thlib/go-timezone-local v0.0.3
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
 	golang.org/x/sync v0.7.0
