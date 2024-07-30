@@ -5,41 +5,7 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
-## Release next
-
-### TO DO
-- [ ] Counters / missing assets GooglePhotos
-        - [X] [#390](https://github.com/simulot/immich-go/issues/390)   
-        - [X] [#376](https://github.com/simulot/immich-go/issues/376)
-        - [X] [#401](https://github.com/simulot/immich-go/issues/401)
-        - [X] [#402](https://github.com/simulot/immich-go/issues/402) Problem with images with same name
-        - [ ] [#405](https://github.com/simulot/immich-go/issues/405) MP~2 files
-        - [X] Some files are not matched (PIXIL) 
-        - [X] Check .MP.JPG
-        - [X] Check asset in multiple albums
-        - [ ] Phyl404 case
-                - [X] Ziplist reader broken (Phyl404)
-                - [X] Some file aren't matched (Phyl404)
-                - [X] fix gp solving percent (Phyl404)
-        - [ ] [#402](https://github.com/simulot/immich-go/issues/402) Steve81 issue
-                - [X] wrong album
-        - [X] Add message about missing JSON  UI and NOUI
-        - [ ] Deactivate stack option
-        - [ ] Performances
-                - [X] matchDuplicateInYear 27%
-                - [X] SupportedMedia.IsExtensionPrefix
-        - [ ] remove break points
-        - [ ] run tests
-- [ ] Report connection errors
-        - [ ] [#395](https://github.com/simulot/immich-go/issues/395)
-        - [ ] [#396](https://github.com/simulot/immich-go/issues/396)
-        - [ ] [#393](https://github.com/simulot/immich-go/issues/393)
-- [ ] Creation date incorrect
-        - [X] [#392](https://github.com/simulot/immich-go/issues/392)
-        - [ ] [#397](https://github.com/simulot/immich-go/issues/397)
-
- 
-
+## Release 0.20.1
 
 ### Refactoring the Google Photos import another time
 Lot of users have reported inconsistencies in upload counters. Each user case a different, and the takeout structure varies a bit. 
