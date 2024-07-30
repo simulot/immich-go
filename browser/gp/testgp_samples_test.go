@@ -281,7 +281,8 @@ func loadFromString(dateFormat string, s string) []fs.FS {
 }
 
 func checkLivePhotoPixil() []fs.FS {
-	return loadFromString("01-02-2006 15:04", `Archive:  takeout-20230720T065335Z-001.zip
+	return loadFromString("01-02-2006 15:04", `Part: takeout-20230720T065335Z-001.zip
+Archive:  takeout-20230720T065335Z-001.zip
   Length      Date    Time    Name
 ---------  ---------- -----   ----
       309  03-05-2023 10:10   Takeout/Google Photos/2022 - Germany/metadata.json
@@ -299,7 +300,8 @@ func checkLivePhotoPixil() []fs.FS {
 }
 
 func checkMissingJSON() []fs.FS {
-	return loadFromString("01-02-2006 15:04", `Archive:  takeout-20230720T065335Z-001.zip
+	return loadFromString("01-02-2006 15:04", `Part:  takeout-20230720T065335Z-001.zip
+Archive:  takeout-20230720T065335Z-001.zip
   Length      Date    Time    Name
 ---------  ---------- -----   ----
       803  07-19-2023 23:58   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC.json
@@ -313,14 +315,14 @@ func checkMissingJSON() []fs.FS {
 }
 
 func checkDuplicates() []fs.FS {
-	return loadFromString("01-02-2006 15:04", `Archive:  takeout-20230720T065335Z-001.zip
+	return loadFromString("01-02-2006 15:04", `Part:  takeout-20230720T065335Z-001.tgz
 -rw-r--r-- 0/0          365022 2024-07-19 01:19 Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg
 -rw-r--r-- 0/0             708 2024-07-19 01:19 Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg.json
 -rw-r--r-- 0/0          364041 2024-07-19 01:51 Takeout/Google Foto/Photos from 2016/20160105_121621_LLS.jpg
 -rw-r--r-- 0/0             709 2024-07-19 01:51 Takeout/Google Foto/Photos from 2016/20160105_121621_LLS.jpg.json
 -rw-r--r-- 0/0             708 2024-07-19 02:13 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg.json
 -rw-r--r-- 0/0          364041 2024-07-19 02:20 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg
-Archive:  takeout-20230720T065335Z-002.zip
+Part:  takeout-20230720T065335Z-002.tgz
 -rw-r--r-- 0/0          364041 2024-07-19 06:14 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg
 -rw-r--r-- 0/0             708 2024-07-19 02:13 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg.json
 `)
