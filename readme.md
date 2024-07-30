@@ -32,9 +32,13 @@
   * It's important to import all the parts of the takeout together, since some data might be spread across multiple files. 
     <br>Use `/path/to/your/files/takeout-*.zip` as file name.
   * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. When using the import tool, don't forget the `-google-photos` option.
-  * You can remove any unwanted files or folders from your takeout before importing. Immich-go might warn you about missing JSON files, but it should still import your photos successfully.
+  * You can remove any unwanted files or folders from your takeout before importing. 
   * Restarting an interrupted import won't cause any problems and it will resume the work where it was left.
 
+* **Lot of files are not imported**: What are the options?
+  * Verify if all takeout parts have been included in the processing.
+  * Request another takeout, either for an entire year or in smaller increments.
+  * Force the import of files despite the missing JSON. Use the option `-upload-when-missing-JSON`
 
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
 
