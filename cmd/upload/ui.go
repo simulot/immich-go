@@ -134,7 +134,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 						if preparationDone.Load() {
 							ui.immichUpload.SetMaxValue(int(app.Jnl.TotalAssets()))
 						}
-						ui.immichUpload.SetValue(int(app.Jnl.TotalProcessed()))
+						ui.immichUpload.SetValue(int(app.Jnl.TotalProcessed(app.ForceUploadWhenNoJSON)))
 					}
 				})
 			}
@@ -199,8 +199,8 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		}
 		if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 && !app.ForceUploadWhenNoJSON {
 			messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
-			messages.WriteString("- have you processed all takeout parts together?\n")
-			messages.WriteString("- ask for another takeout, or ask one year at a time.\n")
+			messages.WriteString("- Verify if all takeout parts have been included in the processing.\n")
+			messages.WriteString("- Request another takeout,  either for one year at a time or in smaller increments.\n")
 		}
 
 		modal := newModal(messages.String())

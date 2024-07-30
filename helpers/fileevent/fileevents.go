@@ -232,14 +232,17 @@ func (r *Recorder) TotalProcessedGP() int64 {
 		atomic.LoadInt64(&r.counts[DiscoveredDiscarded])
 }
 
-func (r *Recorder) TotalProcessed() int64 {
-	return atomic.LoadInt64(&r.counts[Uploaded]) +
+func (r *Recorder) TotalProcessed(forcedMissingJSON bool) int64 {
+	v := atomic.LoadInt64(&r.counts[Uploaded]) +
 		atomic.LoadInt64(&r.counts[UploadServerError]) +
 		atomic.LoadInt64(&r.counts[UploadNotSelected]) +
 		atomic.LoadInt64(&r.counts[UploadUpgraded]) +
 		atomic.LoadInt64(&r.counts[UploadServerDuplicate]) +
 		atomic.LoadInt64(&r.counts[UploadServerBetter]) +
 		atomic.LoadInt64(&r.counts[DiscoveredDiscarded]) +
-		atomic.LoadInt64(&r.counts[AnalysisLocalDuplicate]) +
-		atomic.LoadInt64(&r.counts[AnalysisMissingAssociatedMetadata])
+		atomic.LoadInt64(&r.counts[AnalysisLocalDuplicate])
+	if !forcedMissingJSON {
+		v += atomic.LoadInt64(&r.counts[AnalysisMissingAssociatedMetadata])
+	}
+	return v
 }

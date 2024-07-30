@@ -251,11 +251,11 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 		files := gen.MapKeys(cat.unMatchedFiles)
 		sort.Strings(files)
 		for _, f := range files {
+			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, f, filepath.Join(dir, f))
 			if to.acceptMissingJSON {
 				cat.matchedFiles[f] = cat.unMatchedFiles[f]
 				delete(cat.unMatchedFiles, f)
 			} else {
-				to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, f, filepath.Join(dir, f))
 			}
 		}
 	}

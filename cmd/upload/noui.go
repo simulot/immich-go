@@ -49,16 +49,16 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 			gpPercent := int(100 * gpProcessed / gpTotal)
 			upProcessed := int64(0)
 			if preparationDone.Load() {
-				upProcessed = app.Jnl.TotalProcessed()
+				upProcessed = app.Jnl.TotalProcessed(app.ForceUploadWhenNoJSON)
 			}
 			upTotal := app.Jnl.TotalAssets()
 			upPercent := 100 * upProcessed / upTotal
 
-			return fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s",
-				immichPct, gpPercent, counts[fileevent.UploadServerError], upPercent, string(spinner[spinIdx]))
+			return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s",
+				immichPct, app.Jnl.TotalAssets(), gpPercent, counts[fileevent.UploadServerError], upPercent, string(spinner[spinIdx]))
 		}
 
-		return fmt.Sprintf("\rImmich read %d%%, Upload errors: %d, Uploaded %d %s", immichPct, counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
+		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl.TotalAssets(), counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
 	}
 	uiGrp := errgroup.Group{}
 
@@ -125,8 +125,8 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		}
 		if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 && !app.ForceUploadWhenNoJSON {
 			messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
-			messages.WriteString("- have you processed all takeout parts together?\n")
-			messages.WriteString("- ask for another takeout, or ask one year at a time.\n")
+			messages.WriteString("- Verify if all takeout parts have been included in the processing.\n")
+			messages.WriteString("- Request another takeout, either for one year at a time or in smaller increments.\n")
 		}
 		if messages.Len() > 0 {
 			cancel(errors.New(messages.String()))
