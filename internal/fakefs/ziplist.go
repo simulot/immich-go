@@ -71,6 +71,19 @@ func ScanFileListReader(f io.Reader, dateFormat string) ([]fs.FS, error) {
 			}
 			continue
 		}
+		if strings.HasPrefix(l, "Archive:") {
+			currentZip = strings.TrimSpace(strings.TrimPrefix(l, "Archive:"))
+			fsys, ok = fsyss[currentZip]
+			if !ok {
+				fsys = &FakeFS{
+					name:  currentZip,
+					files: map[string]map[string]FakeDirEntry{},
+				}
+
+				fsyss[currentZip] = fsys
+			}
+			continue
+		}
 		if name, size, modTime := readFileLine(l, dateFormat); name != "" {
 			fsys.addFile(name, size, modTime)
 		}
