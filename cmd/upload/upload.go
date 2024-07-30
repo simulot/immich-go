@@ -593,6 +593,7 @@ func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser
 		return nil, err
 	}
 	b.SetBannedFiles(app.BannedFiles)
+	b.SetAcceptMissingJSON(app.ForceUploadWhenNoJSON)
 	return b, err
 }
 

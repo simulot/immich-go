@@ -304,7 +304,7 @@ func checkMissingJSON() []fs.FS {
 ---------  ---------- -----   ----
       803  07-19-2023 23:58   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC.json
   3530351  07-19-2023 23:59   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC
-  1352455  2024-07-12 15:18   Takeout/Google Foto/Photos from 2016/IMG-20161201-WA0035.jpeg
+  1352455  07-19-2023 15:18   Takeout/Google Foto/Photos from 2016/IMG-20161201-WA0035.jpeg
   3530351  07-19-2023 23:56   Takeout/Google Photos/2022 - Germany - Private/IMG_4553.HEIC
       309  03-05-2023 10:10   Takeout/Google Photos/2022 - Germany/metadata.json
   2232086  07-19-2023 23:59   Takeout/Google Photos/2022 - Germany/IMG_1234.MP4
