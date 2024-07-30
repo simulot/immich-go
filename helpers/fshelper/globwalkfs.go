@@ -1,6 +1,7 @@
 package fshelper
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -108,7 +109,7 @@ func (gw GlobWalkFS) ReadDir(name string) ([]fs.DirEntry, error) {
 	}
 	entries, err := fs.ReadDir(gw.rootFS, name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ReadDir %s: %w", name, err)
 	}
 
 	returned := []fs.DirEntry{}

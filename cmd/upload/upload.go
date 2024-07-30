@@ -27,6 +27,7 @@ import (
 	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/fakefs"
 )
 
 type UpCmd struct {
@@ -55,6 +56,7 @@ type UpCmd struct {
 	StackBurst             bool             // Stack burst (Default: TRUE)
 	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
 	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
+	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
 	BannedFiles            namematcher.List // List of banned file name patterns
 
 	BrowserConfig Configuration
@@ -70,7 +72,7 @@ type UpCmd struct {
 }
 
 func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
-	app, err := newCommand(ctx, common, args)
+	app, err := newCommand(ctx, common, args, nil)
 	if err != nil {
 		return err
 	}
@@ -80,7 +82,9 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	return app.run(ctx)
 }
 
-func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpCmd, error) {
+type fsOpener func() ([]fs.FS, error)
+
+func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsOpener fsOpener) (*UpCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
@@ -149,14 +153,14 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 
 	cmd.BoolFunc(
 		"create-stacks",
-		"Stack jpg/raw or bursts  (default TRUE)", myflag.BoolFlagFn(&app.CreateStacks, true))
+		"Stack jpg/raw or bursts  (default FALSE)", myflag.BoolFlagFn(&app.CreateStacks, false))
 
 	cmd.BoolFunc(
 		"stack-jpg-raw",
-		"Control the stacking of jpg/raw photos (default TRUE)", myflag.BoolFlagFn(&app.StackJpgRaws, true))
+		"Control the stacking of jpg/raw photos (default TRUE)", myflag.BoolFlagFn(&app.StackJpgRaws, false))
 	cmd.BoolFunc(
 		"stack-burst",
-		"Control the stacking bursts (default TRUE)", myflag.BoolFlagFn(&app.StackBurst, true))
+		"Control the stacking bursts (default TRUE)", myflag.BoolFlagFn(&app.StackBurst, false))
 
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 
@@ -170,9 +174,25 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 
 	cmd.Var(&app.BannedFiles, "exclude-files", "Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.")
 
+	cmd.BoolVar(&app.ForceUploadWhenNoJSON, "upload-when-missing-JSON", app.ForceUploadWhenNoJSON, "when true, photos are upload even without associated JSON file.")
+	cmd.BoolVar(&app.DebugFileList, "debug-file-list", app.DebugFileList, "Check how the your file list would be processed")
+
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
+	}
+
+	if app.DebugFileList {
+		if len(cmd.Args()) < 2 {
+			return nil, fmt.Errorf("the option -debug-file-list requires a file name and a date format")
+		}
+		app.LogFile = strings.TrimSuffix(cmd.Arg(0), filepath.Ext(cmd.Arg(0))) + ".log"
+		_ = os.Remove(app.LogFile)
+
+		fsOpener = func() ([]fs.FS, error) {
+			return fakefs.ScanFileList(cmd.Arg(0), cmd.Arg(1))
+		}
+	} else {
 	}
 
 	app.WhenNoDate = strings.ToUpper(app.WhenNoDate)
@@ -188,7 +208,12 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		return nil, err
 	}
 
-	app.fsyss, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
+	if fsOpener == nil {
+		fsOpener = func() ([]fs.FS, error) {
+			return fshelper.ParsePath(cmd.Args())
+		}
+	}
+	app.fsyss, err = fsOpener()
 	if err != nil {
 		return nil, err
 	}
@@ -459,6 +484,9 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName)
 		} else {
 			app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.FileName)
+			if a.LivePhoto != nil {
+				app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.LivePhoto.FileName)
+			}
 		}
 		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 
@@ -565,6 +593,7 @@ func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser
 		return nil, err
 	}
 	b.SetBannedFiles(app.BannedFiles)
+	b.SetAcceptMissingJSON(app.ForceUploadWhenNoJSON)
 	return b, err
 }
 

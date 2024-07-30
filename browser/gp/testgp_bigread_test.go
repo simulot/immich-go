@@ -31,7 +31,7 @@ func TestReadBigTakeout(t *testing.T) {
 		return
 	}
 	cnt := 0
-	fsyss, err := fshelper.ParsePath(m, true)
+	fsyss, err := fshelper.ParsePath(m)
 	to, err := NewTakeout(context.Background(), j, immich.DefaultSupportedMedia, fsyss...)
 	if err != nil {
 		t.Error(err)
