@@ -7,5 +7,6 @@
     - [ ] [#393](https://github.com/simulot/immich-go/issues/393)
 - Creation date incorrect
     - [ ] [#397](https://github.com/simulot/immich-go/issues/397)
-
+- Various
+    - [ ] [#357](https://github.com/simulot/immich-go/issues/357)
  

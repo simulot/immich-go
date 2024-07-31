@@ -106,7 +106,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				dirCatalog.matchedFiles = map[string]*assetFile{}
 			}
 			if _, ok := dirCatalog.unMatchedFiles[base]; ok {
-				// to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
+				to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
 				return nil
 			}
 
