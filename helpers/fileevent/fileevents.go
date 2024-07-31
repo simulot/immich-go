@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/simulot/immich-go/browser"
 	"github.com/simulot/immich-go/helpers/gen"
 )
 
@@ -123,6 +124,9 @@ func (r *Recorder) Record(ctx context.Context, code Code, object any, file strin
 			}
 		}
 		r.log.Log(ctx, level, code.String(), args...)
+	}
+	if a, ok := object.(*browser.LocalAssetFile); ok && a.LivePhoto != nil {
+		r.Record(ctx, code, a.LivePhoto, a.LivePhoto.FileName, args...)
 	}
 }
 

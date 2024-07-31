@@ -409,7 +409,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		return nil
 	}
 	if !app.BrowserConfig.SelectExtensions.Include(ext) {
-		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a.FileName, "reason", "extension not in selection list")
+		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "extension not in selection list")
 		return nil
 	}
 
@@ -465,8 +465,8 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		app.manageAssetAlbum(ctx, ID, a, advice)
 
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
-		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName)
-		// add the superior asset into albums of the original asset
+		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName, "reason", advice.Message)
+		// add the superior asset into albums of the original asset.
 		ID, err := app.UploadAsset(ctx, a)
 		if err != nil {
 			return nil
@@ -481,17 +481,14 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	case SameOnServer: // manage albums
 		// Set add the server asset into albums determined locally
 		if !advice.ServerAsset.JustUploaded {
-			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName)
+			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "reason", advice.Message)
 		} else {
 			app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.FileName)
-			if a.LivePhoto != nil {
-				app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.LivePhoto.FileName)
-			}
 		}
 		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 
 	case BetterOnServer: // and manage albums
-		app.Jnl.Record(ctx, fileevent.UploadServerBetter, a, a.FileName)
+		app.Jnl.Record(ctx, fileevent.UploadServerBetter, a, a.FileName, "reason", advice.Message)
 		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 	}
 
