@@ -126,7 +126,15 @@ func (r *Recorder) Record(ctx context.Context, code Code, object any, file strin
 		r.log.Log(ctx, level, code.String(), args...)
 	}
 	if a, ok := object.(*browser.LocalAssetFile); ok && a.LivePhoto != nil {
-		r.Record(ctx, code, a.LivePhoto, a.LivePhoto.FileName, args...)
+		arg2 := []any{}
+		for i := 0; i < len(args); i++ {
+			if args[i] == "file" {
+				i += 1
+				continue
+			}
+			arg2 = append(arg2, args[i])
+		}
+		r.Record(ctx, code, a.LivePhoto, a.LivePhoto.FileName, arg2...)
 	}
 }
 

@@ -641,7 +641,6 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		// dry-run mode
 		if a.LivePhoto != nil {
 			liveResp.ID = uuid.NewString()
-			app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 		}
 		resp.ID = uuid.NewString()
 		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
