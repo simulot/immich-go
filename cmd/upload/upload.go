@@ -619,19 +619,21 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 				if liveResp.Status == immich.UploadDuplicate {
 					app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
 				} else {
-					a.LivePhotoID = liveResp.ID
 					app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 				}
+				a.LivePhotoID = liveResp.ID
 			} else {
 				app.Jnl.Record(ctx, fileevent.UploadServerError, a.LivePhoto, a.LivePhoto.FileName, "error", err.Error())
 			}
 		}
+		b := *a // Keep a copy of the asset to log errors specifically on the image
 		resp, err = app.Immich.AssetUpload(ctx, a)
 		if err == nil {
 			if resp.Status == immich.UploadDuplicate {
 				app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
 			} else {
-				app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
+				b.LivePhoto = nil
+				app.Jnl.Record(ctx, fileevent.Uploaded, &b, b.FileName, "capture date", b.Metadata.DateTaken.String())
 			}
 		} else {
 			app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
@@ -646,7 +648,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
 	}
 	if resp.Status != immich.UploadDuplicate {
-		if a.LivePhoto != nil {
+		if a.LivePhoto != nil && liveResp.ID != "" {
 			app.AssetIndex.AddLocalAsset(a, liveResp.ID)
 		}
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
