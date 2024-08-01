@@ -5,7 +5,13 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
-## Release 0.20.1
+## Release 0.21.1
+
+### Fixes:
+- [#405](https://github.com/simulot/immich-go/issues/405) motion photo files with MP~2 extension marked unsupported and skipped
+- Live photos not correctly counted
+
+## Release 0.21.0
 
 ### Refactoring the Google Photos import another time
 Lot of users have reported inconsistencies in upload counters. Each user case a different, and the takeout structure varies a bit. 
