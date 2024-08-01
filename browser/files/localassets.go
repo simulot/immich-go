@@ -27,7 +27,7 @@ type fileLinks struct {
 type LocalAssetBrowser struct {
 	fsyss       []fs.FS
 	albums      map[string]string
-	catalogs    map[fs.FS]map[string]map[string]fileLinks // per FS, DIR and base name
+	catalogs    map[fs.FS]map[string][]string
 	log         *fileevent.Recorder
 	sm          immich.SupportedMedia
 	bannedFiles namematcher.List // list of file pattern to be exclude
@@ -38,9 +38,10 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, fsyss ...fs.FS) (
 	return &LocalAssetBrowser{
 		fsyss:      fsyss,
 		albums:     map[string]string{},
-		catalogs:   map[fs.FS]map[string]map[string]fileLinks{},
+		catalogs:   map[fs.FS]map[string][]string{},
 		log:        l,
 		whenNoDate: "FILE",
+		sm:         immich.DefaultSupportedMedia,
 	}, nil
 }
 
@@ -71,17 +72,16 @@ func (la *LocalAssetBrowser) Prepare(ctx context.Context) error {
 }
 
 func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) error {
-	fsCatalog := map[string]map[string]fileLinks{}
+	la.catalogs[fsys] = map[string][]string{}
 	err := fs.WalkDir(fsys, ".",
 		func(name string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
-			if d.IsDir() {
-				fsCatalog[name] = map[string]fileLinks{}
-				return nil
-			}
 
+			if d.IsDir() {
+				la.catalogs[fsys][name] = []string{}
+			}
 			select {
 			case <-ctx.Done():
 				// If the context has been cancelled, return immediately
@@ -100,27 +100,14 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 					return nil
 				}
 
-				linkBase := strings.TrimSuffix(base, ext)
-				for {
-					e := path.Ext(linkBase)
-					if la.sm.IsMedia(e) {
-						linkBase = strings.TrimSuffix(linkBase, e)
-						continue
-					}
-					break
-				}
-				dirLinks := fsCatalog[dir]
-				links := dirLinks[linkBase]
+				cat := la.catalogs[fsys][dir]
 
 				switch mediaType {
 				case immich.TypeImage:
-					links.image = name
 					la.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
 				case immich.TypeVideo:
-					links.video = name
 					la.log.Record(ctx, fileevent.DiscoveredVideo, nil, name)
 				case immich.TypeSidecar:
-					links.sidecar = name
 					la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name)
 				}
 
@@ -128,12 +115,10 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 					la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "banned file")
 					return nil
 				}
-				dirLinks[linkBase] = links
-				fsCatalog[dir] = dirLinks
+				la.catalogs[fsys][dir] = append(cat, name)
 			}
 			return nil
 		})
-	la.catalogs[fsys] = fsCatalog
 	return err
 }
 
@@ -150,46 +135,118 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 			}
 		}
 		for _, fsys := range la.fsyss {
-			dirLinks := la.catalogs[fsys]
-			dirKeys := gen.MapKeys(dirLinks)
-			sort.Strings(dirKeys)
-			for _, d := range dirKeys {
-				linksList := la.catalogs[fsys][d]
-				linksKeys := gen.MapKeys(linksList)
-				sort.Strings(linksKeys)
-				for _, l := range linksKeys {
-					var a *browser.LocalAssetFile
-					links := linksList[l]
+			dirs := gen.MapKeys(la.catalogs[fsys])
+			sort.Strings(dirs)
+			for _, dir := range dirs {
+				links := map[string]fileLinks{}
+				files := la.catalogs[fsys][dir]
 
-					if links.image != "" {
-						a, err = la.assetFromFile(fsys, links.image)
+				if len(files) == 0 {
+					continue
+				}
+
+				// Scan images first
+				for _, file := range files {
+					ext := path.Ext(file)
+					if la.sm.TypeFromExt(ext) == immich.TypeImage {
+						linked := links[file]
+						linked.image = file
+						links[file] = linked
+					}
+				}
+
+			next:
+				for _, file := range files {
+					ext := path.Ext(file)
+					t := la.sm.TypeFromExt(ext)
+					if t == immich.TypeImage {
+						continue next
+					}
+
+					base := strings.TrimSuffix(file, ext)
+					switch t {
+					case immich.TypeSidecar:
+						if image, ok := links[base]; ok {
+							// file.ext.XMP -> file.ext
+							image.sidecar = file
+							links[base] = image
+							continue next
+						}
+						for f := range links {
+							if strings.TrimSuffix(f, path.Ext(f)) == base {
+								if image, ok := links[f]; ok {
+									// base.XMP -> base.ext
+									image.sidecar = file
+									links[f] = image
+									continue next
+								}
+							}
+						}
+					case immich.TypeVideo:
+						if image, ok := links[base]; ok {
+							// file.MP.ext -> file.ext
+							image.sidecar = file
+							links[base] = image
+							continue next
+						}
+						for f := range links {
+							if strings.TrimSuffix(f, path.Ext(f)) == base {
+								if image, ok := links[f]; ok {
+									// base.MP4 -> base.ext
+									image.video = file
+									links[f] = image
+									continue next
+								}
+							}
+							if strings.TrimSuffix(f, path.Ext(f)) == file {
+								if image, ok := links[f]; ok {
+									// base.MP4 -> base.ext
+									image.video = file
+									links[f] = image
+									continue next
+								}
+							}
+						}
+						// Unlinked video
+						links[file] = fileLinks{video: file}
+					}
+
+				}
+
+				files = gen.MapKeys(links)
+				sort.Strings(files)
+				for _, file := range files {
+					var a *browser.LocalAssetFile
+					linked := links[file]
+
+					if linked.image != "" {
+						a, err = la.assetFromFile(fsys, linked.image)
 						if err != nil {
-							errFn(links.image, err)
+							errFn(linked.image, err)
 							return
 						}
-						if links.video != "" {
-							a.LivePhoto, err = la.assetFromFile(fsys, links.video)
+						if linked.video != "" {
+							a.LivePhoto, err = la.assetFromFile(fsys, linked.video)
 							if err != nil {
-								errFn(links.video, err)
+								errFn(linked.video, err)
 								return
 							}
 						}
-					} else if links.video != "" {
-						a, err = la.assetFromFile(fsys, links.video)
+					} else if linked.video != "" {
+						a, err = la.assetFromFile(fsys, linked.video)
 						if err != nil {
-							errFn(links.video, err)
+							errFn(linked.video, err)
 							return
 						}
 					}
 
-					if a != nil && links.sidecar != "" {
+					if a != nil && linked.sidecar != "" {
 						a.SideCar = metadata.SideCarFile{
 							FSys:     fsys,
-							FileName: links.sidecar,
+							FileName: linked.sidecar,
 						}
-						la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, links.sidecar, "main", a.FileName)
+						la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, linked.sidecar, "main", a.FileName)
 					}
-
 					select {
 					case <-ctx.Done():
 						return

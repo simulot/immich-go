@@ -1,16 +1,15 @@
-package files_test
+package files
 
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"path"
 	"reflect"
-	"sort"
 	"testing"
 
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
-	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/immich"
@@ -37,49 +36,77 @@ func (mfs *inMemFS) addFile(name string) *inMemFS {
 	return mfs
 }
 
-func generateFS() *inMemFS {
-	return newInMemFS().
-		addFile("root_01.jpg").
-		addFile("photos/photo_01.jpg").
-		addFile("photos/photo_02.cr3").
-		addFile("photos/photo_03.jpg").
-		addFile("photos/summer 2023/20230801-001.jpg").
-		addFile("photos/summer 2023/20230801-002.jpg").
-		addFile("photos/summer 2023/20230801-003.cr3").
-		addFile("@eaDir/thb1.jpg").
-		addFile("photos/SYNOFILE_THUMB_0001.jpg").
-		addFile("photos/summer 2023/.@__thumb/thb2.jpg")
-}
-
 func TestLocalAssets(t *testing.T) {
 	tc := []struct {
 		name     string
-		expected []string
+		fsys     fs.FS
+		expected map[string]fileLinks
 	}{
 		{
-			name: "all",
-			expected: []string{
-				"root_01.jpg",
-				"photos/photo_01.jpg",
-				"photos/photo_02.cr3",
-				"photos/photo_03.jpg",
-				"photos/summer 2023/20230801-001.jpg",
-				"photos/summer 2023/20230801-002.jpg",
-				"photos/summer 2023/20230801-003.cr3",
+			name: "simple",
+			fsys: newInMemFS().
+				addFile("root_01.jpg").
+				addFile("photos/photo_01.jpg").
+				addFile("photos/photo_02.cr3").
+				addFile("photos/photo_03.jpg").
+				addFile("photos/summer 2023/20230801-001.jpg").
+				addFile("photos/summer 2023/20230801-002.jpg").
+				addFile("photos/summer 2023/20230801-003.cr3").
+				addFile("@eaDir/thb1.jpg").
+				addFile("photos/SYNOFILE_THUMB_0001.jpg").
+				addFile("photos/summer 2023/.@__thumb/thb2.jpg"),
+			expected: map[string]fileLinks{
+				"root_01.jpg":                         {image: "root_01.jpg"},
+				"photos/photo_01.jpg":                 {image: "photos/photo_01.jpg"},
+				"photos/photo_02.cr3":                 {image: "photos/photo_02.cr3"},
+				"photos/photo_03.jpg":                 {image: "photos/photo_03.jpg"},
+				"photos/summer 2023/20230801-001.jpg": {image: "photos/summer 2023/20230801-001.jpg"},
+				"photos/summer 2023/20230801-002.jpg": {image: "photos/summer 2023/20230801-002.jpg"},
+				"photos/summer 2023/20230801-003.cr3": {image: "photos/summer 2023/20230801-003.cr3"},
+			},
+		},
+		{
+			name: "motion picture",
+			fsys: newInMemFS().
+				addFile("motion/PXL_20210102_221126856.MP~2").
+				addFile("motion/PXL_20210102_221126856.MP~2.jpg").
+				addFile("motion/PXL_20210102_221126856.MP.jpg").
+				addFile("motion/PXL_20210102_221126856.MP").
+				addFile("motion/20231227_152817.jpg").
+				addFile("motion/20231227_152817.MP4"),
+			expected: map[string]fileLinks{
+				"motion/PXL_20210102_221126856.MP.jpg":   {image: "motion/PXL_20210102_221126856.MP.jpg", video: "motion/PXL_20210102_221126856.MP"},
+				"motion/PXL_20210102_221126856.MP~2.jpg": {image: "motion/PXL_20210102_221126856.MP~2.jpg", video: "motion/PXL_20210102_221126856.MP~2"},
+				"motion/20231227_152817.jpg":             {image: "motion/20231227_152817.jpg", video: "motion/20231227_152817.MP4"},
+			},
+		},
+		{
+			name: "sidecar",
+			fsys: newInMemFS().
+				addFile("root_01.jpg").
+				addFile("root_01.XMP").
+				addFile("root_02.jpg").
+				addFile("root_02.jpg.XMP").
+				addFile("video_01.mp4").
+				addFile("video_01.mp4.XMP").
+				addFile("root_03.MP.jpg").
+				addFile("root_03.MP.jpg.XMP").
+				addFile("root_03.MP"),
+			expected: map[string]fileLinks{
+				"root_01.jpg":    {image: "root_01.jpg", sidecar: "root_01.XMP"},
+				"root_02.jpg":    {image: "root_02.jpg", sidecar: "root_02.jpg.XMP"},
+				"root_03.MP.jpg": {image: "root_03.MP.jpg", sidecar: "root_03.MP.jpg.XMP", video: "root_03.MP"},
+				"video_01.mp4":   {video: "video_01.mp4", sidecar: "video_01.mp4.XMP"},
 			},
 		},
 	}
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-			fsys := generateFS()
-			if fsys.err != nil {
-				t.Error(fsys.err)
-				return
-			}
+			fsys := c.fsys
 			ctx := context.Background()
 
-			b, err := files.NewLocalFiles(ctx, fileevent.NewRecorder(nil, false), fsys)
+			b, err := NewLocalFiles(ctx, fileevent.NewRecorder(nil, false), fsys)
 			if err != nil {
 				t.Error(err)
 			}
@@ -96,12 +123,23 @@ func TestLocalAssets(t *testing.T) {
 				t.Error(err)
 			}
 
-			results := []string{}
+			results := map[string]fileLinks{}
 			for a := range b.Browse(ctx) {
-				results = append(results, a.FileName)
+				links := fileLinks{}
+				ext := path.Ext(a.FileName)
+				if b.sm.TypeFromExt(ext) == immich.TypeImage {
+					links.image = a.FileName
+					if a.LivePhoto != nil {
+						links.video = a.LivePhoto.FileName
+					}
+				} else {
+					links.video = a.FileName
+				}
+				if a.SideCar.FileName != "" {
+					links.sidecar = a.SideCar.FileName
+				}
+				results[a.FileName] = links
 			}
-			sort.Strings(c.expected)
-			sort.Strings(results)
 
 			if !reflect.DeepEqual(results, c.expected) {
 				t.Errorf("difference\n")

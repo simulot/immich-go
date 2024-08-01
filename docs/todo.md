@@ -1,6 +1,9 @@
 # TO DO list
 - Motion pictures
-    - [ ] [#405](https://github.com/simulot/immich-go/issues/405) MP~2 files    
+    - [ ] [#405](https://github.com/simulot/immich-go/issues/405) MP~2 files   
+        - Test with GP photo
+        - Test with folder import
+        - test upload  with clean installation
 - Report connection errors
     - [ ] [#395](https://github.com/simulot/immich-go/issues/395)
     - [ ] [#396](https://github.com/simulot/immich-go/issues/396)
