@@ -502,9 +502,9 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *brow
 	// Scan videos
 nextVideo:
 	for _, f := range gen.MapKeys(catalog.matchedFiles) {
-		ext := path.Ext(f)
-		if to.sm.TypeFromExt(ext) == immich.TypeVideo {
-			name := strings.TrimSuffix(f, ext)
+		fExt := path.Ext(f)
+		if to.sm.TypeFromExt(fExt) == immich.TypeVideo {
+			name := strings.TrimSuffix(f, fExt)
 			for i, linked := range linkedFiles {
 				if linked.image == nil {
 					continue
@@ -516,7 +516,10 @@ nextVideo:
 				ext := path.Ext(p)
 				p = strings.TrimSuffix(p, ext)
 				ext = path.Ext(p)
-				if strings.ToUpper(ext) == ".MP" {
+				if strings.ToUpper(ext) == ".MP" || strings.HasPrefix(strings.ToUpper(ext), ".MP~") {
+					if fExt != ext {
+						continue
+					}
 					p = strings.TrimSuffix(p, ext)
 				}
 				if p == name {
