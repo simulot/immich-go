@@ -328,7 +328,7 @@ Part:  takeout-20230720T065335Z-002.tgz
 `)
 }
 
-func checkMP_405() []fs.FS {
+func checkMPissue405() []fs.FS {
 	return loadFromString("2006-01-02 15:04", `Part:  takeout-20230720T065335Z-001.zip
       895  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg.json
       893  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg.json

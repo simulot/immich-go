@@ -325,7 +325,7 @@ func TestArchives(t *testing.T) {
 		},
 		{ // #405
 			name: "checkMP_405",
-			gen:  checkMP_405,
+			gen:  checkMPissue405,
 			wantLivePhotos: photo{
 				"Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg":   "Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP",
 				"Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg": "Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2",

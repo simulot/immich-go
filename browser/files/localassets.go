@@ -210,7 +210,6 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 						// Unlinked video
 						links[file] = fileLinks{video: file}
 					}
-
 				}
 
 				files = gen.MapKeys(links)
