@@ -82,6 +82,11 @@ func Test_matchers(t *testing.T) {
 			fileName: "original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg",
 			want:     "matchForgottenDuplicates",
 		},
+		{ // #405
+			jsonName: "PXL_20210102_221126856.MP~2.jpg.json",
+			fileName: "PXL_20210102_221126856.MP~2",
+			want:     "livePhotoMatch",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {

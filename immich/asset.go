@@ -45,7 +45,16 @@ func formatDuration(duration time.Duration) string {
 
 func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetFile) (AssetResponse, error) {
 	var ar AssetResponse
-	mtype := ic.TypeFromExt(path.Ext(la.FileName))
+	ext := path.Ext(la.FileName)
+	if strings.TrimSuffix(la.Title, ext) == "" {
+		la.Title = "No Name" + ext // fix #88, #128
+	}
+
+	if strings.HasPrefix(strings.ToUpper(ext), ".MP") {
+		ext = ".MP4" // #405
+		la.Title = la.Title + ".MP4"
+	}
+	mtype := ic.TypeFromExt(ext)
 	switch mtype {
 	case "video", "image":
 	default:
@@ -70,17 +79,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-		assetType := strings.ToUpper(mtype)
-		ext := path.Ext(la.Title)
-		if strings.TrimSuffix(la.Title, ext) == "" {
-			la.Title = "No Name" + ext // fix #88, #128
-		}
-
-		// disguise MP files as MP4
-		if strings.ToLower(ext) == ".mp" {
-			la.Title = strings.TrimSuffix(la.Title, ext) + ".MP4"
-			ext = ".MP4"
-		}
 
 		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
 		if err != nil {
@@ -90,7 +88,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-		err = m.WriteField("assetType", assetType)
+		err = m.WriteField("assetType", mtype)
 		if err != nil {
 			return
 		}

@@ -218,6 +218,10 @@ func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMe
 
 func (sm SupportedMedia) TypeFromExt(ext string) string {
 	ext = strings.ToLower(ext)
+	if strings.HasPrefix(ext, ".mp~") {
+		// #405
+		ext = ".mp4"
+	}
 	return sm[ext]
 }
 
