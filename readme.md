@@ -102,7 +102,7 @@ Use this command for uploading photos and videos from a local directory, a zippe
 | `-create-album-folder`               | Generate immich albums after folder names.                                                         | `FALSE`                                                                                   |
 | `-create-stacks`                     | Stack jpg/raw or bursts.                                                                           | `FALSE`                                                                                   |
 | `-stack-jpg-raw`                     | Control the stacking of jpg/raw photos.                                                            | `FALSE`                                                                                   |
-| `-stack-burst`                       | Control the stacking bursts.                                                                       | `FALS`                                                                                    |
+| `-stack-burst`                       | Control the stacking bursts.                                                                       | `FALSE`                                                                                    |
 | `-select-types=".ext,.ext,.ext..."`  | List of accepted extensions.                                                                       |                                                                                           |
 | `-exclude-types=".ext,.ext,.ext..."` | List of excluded extensions.                                                                       |                                                                                           |
 | `-when-no-date=FILE\|NOW`            | When the date of take can't be determined, use the FILE's date or the current time NOW.            | `FILE`                                                                                    |
@@ -130,7 +130,7 @@ Use the `-exclude-files=PATTERN` to exclude certain files or directories from th
 
 Example, the following command excludes any files in directories called backup or draft and any file with name finishing with "copy)" as PXL_20231006_063121958 (another copy).jpg:
 ```sh
-immich-go -sever=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=draft/ -exclude=copy).*  /path/to/your/files
+immich-go -server=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=draft/ -exclude=copy).*  /path/to/your/files
 ```
 
 ### Google photos options:
