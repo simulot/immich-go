@@ -6,7 +6,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/simulot/immich-go/browser/picasa"
 	"io/fs"
+	"log/slog"
 	"math"
 	"os"
 	"path"
@@ -38,6 +40,7 @@ type UpCmd struct {
 	GooglePhotos           bool             // For reading Google Photos takeout files
 	Delete                 bool             // Delete original file after import
 	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
+	Picasa                 bool             // Look for album and image metadata in .picasa.ini files
 	ImportIntoAlbum        string           // All assets will be added to this album
 	PartnerAlbum           string           // Partner's assets will be added to this album
 	Import                 bool             // Import instead of upload
@@ -119,6 +122,10 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		"create-album-folder",
 		" folder import only: Create albums for assets based on the parent folder",
 		myflag.BoolFlagFn(&app.CreateAlbumAfterFolder, false))
+	cmd.BoolFunc(
+		"picasa",
+		" folder import only: Use picasa metadata for albums and assets",
+		myflag.BoolFlagFn(&app.Picasa, false))
 	cmd.BoolFunc(
 		"google-photos",
 		"Import GooglePhotos takeout zip files",
@@ -451,6 +458,33 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		})
 	}
 
+	if app.Picasa {
+		if rootDir, ok := a.FSys.(fshelper.DirFS); ok {
+			if picasaDirectoryData, ok := picasa.DirectoryCache[path.Join(rootDir.Dir(), path.Dir(a.FileName))]; ok {
+				if fileData, ok := picasaDirectoryData.Files[filepath.Base(a.FileName)]; ok {
+					a.Metadata.Description = fileData.Caption
+					a.Favorite = fileData.IsStar
+					for _, token := range fileData.Albums {
+						if albumData, ok := picasaDirectoryData.Albums[token]; ok {
+							description := albumData.Description
+							if albumData.Location != "" {
+								description = strings.TrimSpace(description + "  Location: " + albumData.Location)
+							}
+							a.Albums = append(a.Albums, browser.LocalAlbum{
+								Title:       albumData.Name,
+								Description: description,
+							})
+						} else {
+							// NOTE: .picasa.ini seems to always define the album if it is referenced
+							// so hopefully, this warning never occurs.
+							slog.Warn("could not find album: ", token)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	advice, err := app.AssetIndex.ShouldUpload(a)
 	if err != nil {
 		return err
@@ -556,6 +590,8 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 	} else {
 		if app.CreateAlbumAfterFolder {
 			album := path.Base(path.Dir(a.FileName))
+			description := ""
+
 			if album == "" || album == "." {
 				if fsys, ok := a.FSys.(fshelper.NameFS); ok {
 					album = fsys.Name()
@@ -563,9 +599,26 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 					album = "no-folder-name"
 				}
 			}
+
+			if app.Picasa {
+				if rootDir, ok := a.FSys.(fshelper.DirFS); ok {
+					if data, ok := picasa.DirectoryCache[path.Join(rootDir.Dir(), path.Dir(a.FileName))]; ok {
+						if data.Name != "" {
+							album = data.Name
+						}
+						if data.Description != "" {
+							description = data.Description
+						}
+						if data.Location != "" {
+							description = strings.TrimSpace(data.Description + "  Location: " + data.Location)
+						}
+					}
+				}
+			}
+
 			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album, "reason", "option -create-album-folder")
 			if !app.DryRun {
-				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album})
+				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album, Description: description})
 				if err != nil {
 					app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
 				}

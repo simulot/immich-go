@@ -2,6 +2,7 @@ package files
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"path"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/browser/picasa"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
@@ -73,6 +75,11 @@ func (la *LocalAssetBrowser) Prepare(ctx context.Context) error {
 
 func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) error {
 	la.catalogs[fsys] = map[string][]string{}
+	baseDir, ok := fsys.(fshelper.DirFS)
+	if !ok {
+		return errors.New("could not cast to fshelper.DirFS")
+	}
+
 	err := fs.WalkDir(fsys, ".",
 		func(name string, d fs.DirEntry, err error) error {
 			if err != nil {
@@ -92,6 +99,15 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 				if dir == "" {
 					dir = "."
 				}
+
+				// TODO Add check for app.Picasa first.
+				// But `app` is not available here. so inject(?) it on app.ExploreLocalFolder()
+				if base == ".picasa.ini" {
+					picasa.CacheDirectory(filepath.Join(baseDir.Dir(), dir))
+					la.log.Record(ctx, fileevent.DiscoveredPicasaIni, nil, name)
+					return nil
+				}
+
 				ext := filepath.Ext(base)
 				mediaType := la.sm.TypeFromExt(ext)
 
