@@ -199,7 +199,6 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			return err
 		}
 		app.Log.Info(fmt.Sprintf("Connected, user: %s", user.Email))
-
 	}
 
 	return nil
