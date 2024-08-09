@@ -140,6 +140,10 @@ func (gw GlobWalkFS) Name() string {
 	return filepath.Base(gw.dir)
 }
 
+func (gw GlobWalkFS) Dir() string {
+	return gw.dir
+}
+
 // FixedPathAndMagic split the path with the fixed part and the variable part
 func FixedPathAndMagic(name string) (string, string) {
 	if !HasMagic(name) {
@@ -203,4 +207,8 @@ func (f FSWithName) ReadFile(name string) ([]byte, error) {
 
 type NameFS interface {
 	Name() string
+}
+
+type DirFS interface {
+	Dir() string
 }
