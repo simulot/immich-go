@@ -1,6 +1,7 @@
 package immich
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -111,9 +112,10 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 // Ping server
 func (ic *ImmichClient) PingServer(ctx context.Context) error {
 	r := PingResponse{}
-	err := ic.newServerCall(ctx, "PingServer").do(getRequest("/server-info/ping", setAcceptJSON()), responseJSON(&r))
+	b := bytes.NewBuffer(nil)
+	err := ic.newServerCall(ctx, "PingServer").do(getRequest("/server-info/ping", setAcceptJSON()), responseCopy(b), responseJSON(&r))
 	if err != nil {
-		return fmt.Errorf("the ping API end point doesn't respond at this address: %s", ic.endPoint+"/server-info/ping")
+		return fmt.Errorf("unexpected response to the immich's ping API at this address: %s:\n%s", ic.endPoint+"/server-info/ping", b.String())
 	}
 	if r.Res != "pong" {
 		return fmt.Errorf("incorrect ping response: %s", r.Res)

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/simulot/immich-go/helpers/fshelper"
 )
 
 type TooManyInternalError struct {
@@ -290,5 +292,18 @@ func responseJSON[T any](object *T) serverResponseOption {
 			}
 		}
 		return errors.New("can't decode nil response")
+	}
+}
+
+func responseCopy(buffer *bytes.Buffer) serverResponseOption {
+	return func(sc *serverCall, resp *http.Response) error {
+		if resp != nil {
+			if resp.Body != nil {
+				newBody := fshelper.TeeReadCloser(resp.Body, buffer)
+				resp.Body = newBody
+				return nil
+			}
+		}
+		return nil
 	}
 }
