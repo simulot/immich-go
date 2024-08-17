@@ -121,7 +121,7 @@ var callSequence atomic.Int64
 const ctxCallSequenceID = "api-call-sequence"
 
 func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
-	if sc.ic.apiTraceWriter != nil {
+	if sc.ic.apiTraceWriter != nil && sc.endPoint != "GetJobs" {
 		seq := callSequence.Add(1)
 		sc.ctx = context.WithValue(sc.ctx, ctxCallSequenceID, seq)
 	}
@@ -185,7 +185,7 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		return sc.Err(req, nil, nil)
 	}
 
-	if sc.ic.apiTraceWriter != nil /* && req.Header.Get("Content-Type") == "application/json"*/ {
+	if sc.ic.apiTraceWriter != nil && sc.endPoint != "GetJobs" {
 		_ = sc.joinError(setTraceRequest()(sc, req))
 	}
 
@@ -247,7 +247,7 @@ func setJSONBody(object any) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		b := bytes.NewBuffer(nil)
 		enc := json.NewEncoder(b)
-		if sc.ic.apiTraceWriter != nil {
+		if sc.ic.apiTraceWriter != nil && sc.endPoint != "GetJobs" {
 			enc.SetIndent("", " ")
 		}
 		err := enc.Encode(object)
@@ -278,7 +278,7 @@ func responseJSON[T any](object *T) serverResponseOption {
 					return nil
 				}
 				err := json.NewDecoder(resp.Body).Decode(object)
-				if sc.ic.apiTraceWriter != nil {
+				if sc.ic.apiTraceWriter != nil && sc.endPoint != "GetJobs" {
 					seq := sc.ctx.Value(ctxCallSequenceID)
 					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "RESPONSE", seq, sc.endPoint, resp.Request.Method, resp.Request.URL.String())
 					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
