@@ -26,6 +26,7 @@ const (
 	DiscoveredSidecar                 // = "Scanned side car file"
 	DiscoveredDiscarded               // = "Discarded"
 	DiscoveredUnsupported             // = "File type not supported"
+	DiscoveredPicasaIni
 
 	AnalysisAssociatedMetadata
 	AnalysisMissingAssociatedMetadata
@@ -54,6 +55,7 @@ var _code = map[Code]string{
 	DiscoveredSidecar:     "scanned sidecar file",
 	DiscoveredDiscarded:   "discarded file",
 	DiscoveredUnsupported: "unsupported file",
+	DiscoveredPicasaIni:   "found picasa ini file",
 
 	AnalysisAssociatedMetadata:        "associated metadata file",
 	AnalysisMissingAssociatedMetadata: "missing associated metadata file",
