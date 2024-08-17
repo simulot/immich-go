@@ -95,17 +95,19 @@ Use this command for uploading photos and videos from a local directory, a zippe
 
 ### Switches and options:
 
-| **Parameter**                        | **Description**                                                                                    | **Default value**                                                                         |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `-album="ALBUM NAME"`                | Import assets into the Immich album `ALBUM NAME`.                                                  |                                                                                           |
-| `-dry-run`                           | Preview all actions as they would be done.                                                         | `FALSE`                                                                                   |
-| `-create-album-folder`               | Generate immich albums after folder names.                                                         | `FALSE`                                                                                   |
-| `-create-stacks`                     | Stack jpg/raw or bursts.                                                                           | `FALSE`                                                                                   |
-| `-stack-jpg-raw`                     | Control the stacking of jpg/raw photos.                                                            | `FALSE`                                                                                   |
-| `-stack-burst`                       | Control the stacking bursts.                                                                       | `FALSE`                                                                                    |
-| `-select-types=".ext,.ext,.ext..."`  | List of accepted extensions.                                                                       |                                                                                           |
-| `-exclude-types=".ext,.ext,.ext..."` | List of excluded extensions.                                                                       |                                                                                           |
-| `-when-no-date=FILE\|NOW`            | When the date of take can't be determined, use the FILE's date or the current time NOW.            | `FILE`                                                                                    |
+| **Parameter**                        | **Description**                                                                                 | **Default value**                                                                         |
+|--------------------------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| `-album="ALBUM NAME"`                | Import assets into the Immich album `ALBUM NAME`.                                               |                                                                                           |
+| `-dry-run`                           | Preview all actions as they would be done.                                                      | `FALSE`                                                                                   |
+| `-create-album-folder`               | Generate immich albums after folder names.                                                      | `FALSE`                                                                                   |
+| `-use-full-path-album-name`          | Use the full path to the file to determine the album name.                                      | `FALSE`                                                                                   |
+| `-album-name-path-separator`         | Determines how multiple (sub) folders, if any, will be joined                                   | ` `                                                                                       |
+| `-create-stacks`                     | Stack jpg/raw or bursts.                                                                        | `FALSE`                                                                                   |
+| `-stack-jpg-raw`                     | Control the stacking of jpg/raw photos.                                                         | `FALSE`                                                                                   |
+| `-stack-burst`                       | Control the stacking bursts.                                                                    | `FALSE`                                                                                   |
+| `-select-types=".ext,.ext,.ext..."`  | List of accepted extensions.                                                                    |                                                                                           |
+| `-exclude-types=".ext,.ext,.ext..."` | List of excluded extensions.                                                                    |                                                                                           |
+| `-when-no-date=FILE\|NOW`            | When the date of take can't be determined, use the FILE's date or the current time NOW.         | `FILE`                                                                                    |
 | `-exclude-files=pattern`             | Ignore files based on a pattern. Case insensitive. Repeat the option for each pattern do you need. | `@eaDir/`<br>`@__thumb/`<br>`SYNOFILE_THUMB_*.*`<br>`Lightroom Catalog/`<br>`thumbnails/` |
 
 ### Date selection:
