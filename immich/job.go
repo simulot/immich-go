@@ -19,6 +19,6 @@ type Job struct {
 
 func (ic *ImmichClient) GetJobs(ctx context.Context) (map[string]Job, error) {
 	var resp map[string]Job
-	err := ic.newServerCall(ctx, "GetJobs").do(getRequest("/jobs", setAcceptJSON()), responseJSON(&resp))
+	err := ic.newServerCall(ctx, EndPointGetJobs).do(getRequest("/jobs", setAcceptJSON()), responseJSON(&resp))
 	return resp, err
 }
