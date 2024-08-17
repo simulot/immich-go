@@ -348,7 +348,7 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 	return ui
 }
 
-type progressUpdate func(value, max int)
+type progressUpdate func(value, maxValue int)
 
 // call back to get the progression
 func (p *uiPage) updateImmichReading(value, total int) {
