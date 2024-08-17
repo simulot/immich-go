@@ -30,7 +30,7 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req *searchMetad
 			return ctx.Err()
 		default:
 			resp := searchMetadataResponse{}
-			err := ic.newServerCall(ctx, "GetAllAssets").do(postRequest("/search/metadata", "application/json", setJSONBody(&req), setAcceptJSON()), responseJSON(&resp))
+			err := ic.newServerCall(ctx, EndPointGetAllAssets).do(postRequest("/search/metadata", "application/json", setJSONBody(&req), setAcceptJSON()), responseJSON(&resp))
 			if err != nil {
 				return err
 			}
