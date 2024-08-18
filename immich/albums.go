@@ -23,7 +23,7 @@ type AlbumSimplified struct {
 
 func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error) {
 	var albums []AlbumSimplified
-	err := ic.newServerCall(ctx, "GetAllAlbums").do(getRequest("/albums", setAcceptJSON()), responseJSON(&albums))
+	err := ic.newServerCall(ctx, EndPointGetAllAlbums).do(getRequest("/albums", setAcceptJSON()), responseJSON(&albums))
 	if err != nil {
 		return nil, err
 	}
@@ -77,13 +77,13 @@ func (ic *ImmichClient) GetAlbumInfo(ctx context.Context, id string, withoutAsse
 	if withoutAssets {
 		query += "?withoutAssets=true"
 	}
-	err := ic.newServerCall(ctx, "GetAlbumInfo").do(getRequest("/albums/"+query, setAcceptJSON()), responseJSON(&album))
+	err := ic.newServerCall(ctx, EndPointGetAlbumInfo).do(getRequest("/albums/"+query, setAcceptJSON()), responseJSON(&album))
 	return album, err
 }
 
 func (ic *ImmichClient) GetAssetsAlbums(ctx context.Context, id string) ([]AlbumSimplified, error) {
 	var albums []AlbumSimplified
-	err := ic.newServerCall(ctx, "GetAllAlbums").do(getRequest("/albums", setAcceptJSON()), responseJSON(&albums))
+	err := ic.newServerCall(ctx, EndPointGetAlbumInfo).do(getRequest("/albums", setAcceptJSON()), responseJSON(&albums))
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (ic *ImmichClient) AddAssetToAlbum(ctx context.Context, albumID string, ass
 	body := UpdateAlbum{
 		IDS: assets,
 	}
-	err := ic.newServerCall(ctx, "AddAssetToAlbum").do(
+	err := ic.newServerCall(ctx, EndPointAddAsstToAlbum).do(
 		putRequest(fmt.Sprintf("/albums/%s/assets", albumID), setAcceptJSON(),
 			setJSONBody(body)),
 		responseJSON(&r))
@@ -122,7 +122,7 @@ func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, descriptio
 		AssetIDs:    assetsIDs,
 	}
 	var r AlbumSimplified
-	err := ic.newServerCall(ctx, "CreateAlbum").do(
+	err := ic.newServerCall(ctx, EndPointCreateAlbum).do(
 		postRequest("/albums", "application/json", setAcceptJSON(), setJSONBody(body)),
 		responseJSON(&r))
 	if err != nil {
@@ -133,12 +133,12 @@ func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, descriptio
 
 func (ic *ImmichClient) GetAssetAlbums(ctx context.Context, id string) ([]AlbumSimplified, error) {
 	var r []AlbumSimplified
-	err := ic.newServerCall(ctx, "GetAssetAlbums").do(
+	err := ic.newServerCall(ctx, EndPointGetAssetAlbums).do(
 		getRequest("/albums?assetId="+id, setAcceptJSON()),
 		responseJSON(&r))
 	return r, err
 }
 
 func (ic *ImmichClient) DeleteAlbum(ctx context.Context, id string) error {
-	return ic.newServerCall(ctx, "DeleteAlbum").do(deleteRequest("/albums/" + id))
+	return ic.newServerCall(ctx, EndPointDeleteAlbum).do(deleteRequest("/albums/" + id))
 }

@@ -50,7 +50,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		la.Title = "No Name" + ext // fix #88, #128
 	}
 
-	if strings.HasPrefix(strings.ToUpper(ext), ".MP") {
+	if strings.ToUpper(ext) == ".MP" {
 		ext = ".MP4" // #405
 		la.Title = la.Title + ".MP4"
 	}
