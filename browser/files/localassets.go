@@ -275,6 +275,7 @@ func (la *LocalAssetBrowser) assetFromFile(fsys fs.FS, name string) (*browser.Lo
 	if fsys, ok := fsys.(fshelper.NameFS); ok {
 		fullPath = filepath.Join(fsys.Name(), name)
 	}
+
 	a.Metadata.DateTaken = metadata.TakeTimeFromPath(fullPath)
 
 	i, err := fs.Stat(fsys, name)

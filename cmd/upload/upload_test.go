@@ -466,7 +466,51 @@ func TestUpload(t *testing.T) {
 				},
 			},
 		},
-
+		{
+			name: "folder and albums creation using full path",
+			args: []string{
+				"-create-album-folder",
+				"-use-full-path-album-name",
+				"TEST_DATA/Takeout2",
+			},
+			expectedAssets: []string{
+				"Google Photos/Photos from 2023/PXL_20231006_063528961.jpg",
+				"Google Photos/Photos from 2023/PXL_20231006_063000139.jpg",
+				"Google Photos/Sans titre(9)/PXL_20231006_063108407.jpg",
+			},
+			expectedAlbums: map[string][]string{
+				"Google Photos Photos from 2023": {
+					"Google Photos/Photos from 2023/PXL_20231006_063000139.jpg",
+					"Google Photos/Photos from 2023/PXL_20231006_063528961.jpg",
+				},
+				"Google Photos Sans titre(9)": {
+					"Google Photos/Sans titre(9)/PXL_20231006_063108407.jpg",
+				},
+			},
+		},
+		{
+			name: "folder and albums creation using full path and custom separator",
+			args: []string{
+				"-create-album-folder",
+				"-use-full-path-album-name",
+				"-album-name-path-separator= & ",
+				"TEST_DATA/Takeout2",
+			},
+			expectedAssets: []string{
+				"Google Photos/Photos from 2023/PXL_20231006_063528961.jpg",
+				"Google Photos/Photos from 2023/PXL_20231006_063000139.jpg",
+				"Google Photos/Sans titre(9)/PXL_20231006_063108407.jpg",
+			},
+			expectedAlbums: map[string][]string{
+				"Google Photos & Photos from 2023": {
+					"Google Photos/Photos from 2023/PXL_20231006_063000139.jpg",
+					"Google Photos/Photos from 2023/PXL_20231006_063528961.jpg",
+				},
+				"Google Photos & Sans titre(9)": {
+					"Google Photos/Sans titre(9)/PXL_20231006_063108407.jpg",
+				},
+			},
+		},
 		//		// {
 		//		// 	name: "google photo, homonyms, keep partner",
 		//		// 	args: []string{
