@@ -54,12 +54,15 @@ The `immich-go` program uses the Immich API. Hence it needs the server address a
 **On linux, MacOS, FreeBSD and linux friends:**
 
 ```sh
-./immich-go -server URL -key KEY -general_options COMMAND -command_options... {path/to/files}
+./immich-go -server=URL -key=KEY -general_options COMMAND -command_options... {path/to/files}
 ```
+
+> [!IMPORTANT] 
+> MAC OS users have to allow immich-go to run. Open Privacy & Security > Security Settings
 
 **On Windows systems:**
 ```powershell
-.\immich-go -server URL -key KEY -general_options COMMAND -command_options... {path/to/files}
+.\immich-go -server=URL -key=KEY -general_options COMMAND -command_options... {path/to/files}
 ```
 
 ## How boolean options are handled
