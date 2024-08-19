@@ -81,6 +81,7 @@ takeout-20240712T112341Z-010.zip:
 | Italian    | Google Foto          | metadati.json    | \*-modificato.\*  |
 | Slovak     | Fotky Google         | metadáta.json    |                   |
 | German     | Google Fotos         | Metadaten.json   | \*-bearbeitet.\*  |
+| Russian    | Google Фото          | метаданные.json  |                   |
 
 
 # What if you have problems with a takeout archive?
