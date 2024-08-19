@@ -81,6 +81,7 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 
 			if d.IsDir() {
 				la.catalogs[fsys][name] = []string{}
+				return nil
 			}
 			select {
 			case <-ctx.Done():
