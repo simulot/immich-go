@@ -57,6 +57,7 @@ type UpCmd struct {
 	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
 	StackBurst             bool             // Stack burst (Default: TRUE)
 	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
+	AutoArchive            bool             // Automatically archive photos that are also archived in google photos (Default: FALSE)
 	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
 	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
 	BannedFiles            namematcher.List // List of banned file name patterns
@@ -160,6 +161,10 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 	cmd.BoolFunc(
 		"discard-archived",
 		" google-photos only: Do not import archived photos (default FALSE)", myflag.BoolFlagFn(&app.DiscardArchived, false))
+
+	cmd.BoolFunc(
+		"auto-archive",
+		" google-photos only: Automatically archive photos that are also archived in google photos (default FALSE)", myflag.BoolFlagFn(&app.AutoArchive, false))
 
 	cmd.BoolFunc(
 		"create-stacks",
@@ -473,6 +478,10 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			return nil
 		}
 		app.manageAssetAlbum(ctx, ID, a, advice)
+		if app.AutoArchive && a.Archived {
+			a.Archived = true
+			app.Immich.UpdateAsset(ctx, ID, a)
+		}
 
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName, "reason", advice.Message)
