@@ -141,17 +141,18 @@ immich-go -server=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=
 ### Google photos options:
 Specialized options for Google Photos management:
 
-| **Parameter**                      | **Description**                                                                  | **Default value** |
-| ---------------------------------- | -------------------------------------------------------------------------------- | ----------------- |
-| `-google-photos`                   | import from a Google Photos structured archive, recreating corresponding albums. |                   |
-| `-from-album="GP Album"`           | Create the album in `immich` and import album's assets.                          |                   |
-| `-create-albums`                   | Controls creation of Google Photos albums in Immich.                             | `TRUE`            |
-| `-keep-untitled-albums`            | Untitled albums are imported into `immich` with the name of the folder as title. | `FALSE`           |
-| `-use-album-folder-as-name`        | Use the folder's name instead of the album title.                                | `FALSE`           |
-| `-keep-partner`                    | Specifies inclusion or exclusion of partner-taken photos.                        | `TRUE`            |
-| `-partner-album="partner's album"` | import assets from partner into given album.                                     |                   |
-| `-discard-archived`                | don't import archived assets.                                                    | `FALSE`           |
-| `-upload-when-missing-JSON`        | Upload photos not associated with a JSON metadata file                           | `FALSE`           |
+| **Parameter**                       | **Description**                                                                  | **Default value** |
+|-------------------------------------|----------------------------------------------------------------------------------| ----------------- |
+| `-google-photos`                    | import from a Google Photos structured archive, recreating corresponding albums. |                   |
+| `-from-album="GP Album"`            | Create the album in `immich` and import album's assets.                          |                   |
+| `-create-albums`                    | Controls creation of Google Photos albums in Immich.                             | `TRUE`            |
+| `-keep-untitled-albums`             | Untitled albums are imported into `immich` with the name of the folder as title. | `FALSE`           |
+| `-use-album-folder-as-name`         | Use the folder's name instead of the album title.                                | `FALSE`           |
+| `-keep-partner`                     | Specifies inclusion or exclusion of partner-taken photos.                        | `TRUE`            |
+| `-partner-album="partner's album"`  | import assets from partner into given album.                                     |                   |
+| `-discard-archived`                 | don't import archived assets.                                                    | `FALSE`           |
+| `-auto-archive`                     | Automatically archive photos that are also archived in google photos             | `FALSE`           |
+| `-upload-when-missing-JSON`         | Upload photos not associated with a JSON metadata file                           | `FALSE`           |
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
 
