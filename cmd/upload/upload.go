@@ -568,9 +568,6 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 				}
 			}
 		}
-		if app.AutoArchive && a.Archived {
-
-		}
 	} else {
 		if app.CreateAlbumAfterFolder {
 			album := path.Base(path.Dir(a.FileName))
