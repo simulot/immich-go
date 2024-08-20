@@ -142,7 +142,7 @@ immich-go -server=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=
 Specialized options for Google Photos management:
 
 | **Parameter**                       | **Description**                                                                  | **Default value** |
-|-------------------------------------|----------------------------------------------------------------------------------| ----------------- |
+|-------------------------------------|----------------------------------------------------------------------------------|-------------------|
 | `-google-photos`                    | import from a Google Photos structured archive, recreating corresponding albums. |                   |
 | `-from-album="GP Album"`            | Create the album in `immich` and import album's assets.                          |                   |
 | `-create-albums`                    | Controls creation of Google Photos albums in Immich.                             | `TRUE`            |
@@ -151,7 +151,7 @@ Specialized options for Google Photos management:
 | `-keep-partner`                     | Specifies inclusion or exclusion of partner-taken photos.                        | `TRUE`            |
 | `-partner-album="partner's album"`  | import assets from partner into given album.                                     |                   |
 | `-discard-archived`                 | don't import archived assets.                                                    | `FALSE`           |
-| `-auto-archive`                     | Automatically archive photos that are also archived in google photos             | `FALSE`           |
+| `-auto-archive`                     | Automatically archive photos that are also archived in google photos             | `TRUE`            |
 | `-upload-when-missing-JSON`         | Upload photos not associated with a JSON metadata file                           | `FALSE`           |
 
 Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.

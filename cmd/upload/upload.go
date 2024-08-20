@@ -57,7 +57,7 @@ type UpCmd struct {
 	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
 	StackBurst             bool             // Stack burst (Default: TRUE)
 	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
-	AutoArchive            bool             // Automatically archive photos that are also archived in google photos (Default: FALSE)
+	AutoArchive            bool             // Automatically archive photos that are also archived in google photos (Default: TRUE)
 	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
 	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
 	BannedFiles            namematcher.List // List of banned file name patterns
@@ -164,7 +164,7 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 
 	cmd.BoolFunc(
 		"auto-archive",
-		" google-photos only: Automatically archive photos that are also archived in google photos (default FALSE)", myflag.BoolFlagFn(&app.AutoArchive, false))
+		" google-photos only: Automatically archive photos that are also archived in google photos (default FALSE)", myflag.BoolFlagFn(&app.AutoArchive, true))
 
 	cmd.BoolFunc(
 		"create-stacks",
@@ -478,10 +478,6 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			return nil
 		}
 		app.manageAssetAlbum(ctx, ID, a, advice)
-		if app.AutoArchive && a.Archived {
-			a.Archived = true
-			app.Immich.UpdateAsset(ctx, ID, a)
-		}
 
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName, "reason", advice.Message)
@@ -572,6 +568,9 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 				}
 			}
 		}
+		if app.AutoArchive && a.Archived {
+
+		}
 	} else {
 		if app.CreateAlbumAfterFolder {
 			album := path.Base(path.Dir(a.FileName))
@@ -627,10 +626,12 @@ func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browse
 // UploadAsset upload the asset on the server
 // Add the assets into listed albums
 // return ID of the asset
-
 func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (string, error) {
 	var resp, liveResp immich.AssetResponse
 	var err error
+	if !app.AutoArchive && a.Archived {
+		a.Archived = false
+	}
 	if !app.DryRun {
 		if a.LivePhoto != nil {
 			liveResp, err = app.Immich.AssetUpload(ctx, a.LivePhoto)
