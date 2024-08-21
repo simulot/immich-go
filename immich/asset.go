@@ -116,6 +116,10 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
+		err := m.WriteField("isArchived", myBool(la.Archived).String())
+		if err != nil {
+			return
+		}
 		if la.LivePhotoID != "" {
 			err = m.WriteField("livePhotoVideoId", la.LivePhotoID)
 			if err != nil {
@@ -123,7 +127,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 			}
 		}
 
-		// m.WriteField("isArchived", myBool(la.Archived).String()) // Not supported by the api
 		h := textproto.MIMEHeader{}
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
