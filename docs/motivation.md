@@ -27,7 +27,7 @@ While the provided tool is very fast and do the job, certain limitations persist
 
 ### Advanced Expertise Required
 
-The CLI tool is available within the Immich server container, eliminating the need to install the `Node.js` tool belt on your PC. Editing the `docker-compose.yml` file is necessary to access the host's files and retrieve your photos. Uploading photos from a different PC than the Immich server requires advanced skills.
+The CLI tool is available within the Immich server container, eliminating the need to install `Node.js` on your PC. Editing the `docker-compose.yml` file is necessary to access the host's files and retrieve your photos. Uploading photos from a different PC than the Immich server requires advanced skills.
 
 ### Limitations with Google Takeout Data
 
@@ -42,5 +42,5 @@ After unzipping the archive, you can use the CLI tool to upload its contents. Ho
 
 ## Why the GO language?
 
-The main reason is that my higher proficiency in GO compared to Typescript language.
+The main reason is that I am more profecient in GO compared to Typescript.
 Additionally, deploying a Node.js program on user machines presents challenges.

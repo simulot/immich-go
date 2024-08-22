@@ -7,13 +7,13 @@
 
 ## You can now support my work on `Immich-go`:
 
-- [Github Sponsor page](https://github.com/sponsors/simulot)
-- [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
+- [Github Sponsor](https://github.com/sponsors/simulot)
+- [Paypal Donation](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
 
 ## Key Features:
 
-* **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, date taken, and album information.
+* **Effortlessly Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, capture date, and album information.
 * **Flexible Uploads:**  Immich-Go isn't limited to Google Photos. You can upload photos directly from your computer folders, folders tree and ZIP archives.
 * **Simple Installation:** Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
 * **Prioritize Quality:**  Immich-Go discards any lower-resolution versions that might be included in Google Photos Takeout, ensuring you have the best possible copies on your Immich server.
@@ -25,7 +25,7 @@
 * **Taking Out Your Photos:**
   * Choose the ZIP format when creating your takeout for easier import.
   * Select the largest file size available (50GB) to minimize the number of archive parts.
-  * Download all parts on your computer
+  * Download all parts to your computer.
 
 * **Importing Your Photos:**
   * If your takeout is in ZIP format, you can import it directly without needing to unzip the files first.
@@ -51,14 +51,14 @@ For insights into the reasoning behind this alternative to `immich-cli`, please 
 The `immich-go` is a command line tool that must be run from a terminal window.  
 The `immich-go` program uses the Immich API. Hence it needs the server address and a valid API key.
 
-**On linux, MacOS, FreeBSD and linux friends:**
+**On Linux, macOS and FreeBSD friends:**
 
 ```sh
 ./immich-go -server=URL -key=KEY -general_options COMMAND -command_options... {path/to/files}
 ```
 
 > [!IMPORTANT] 
-> MAC OS users have to allow immich-go to run. Open Privacy & Security > Security Settings
+> macOS users have to explicitly allow immich-go to run. Open Privacy & Security > Security Settings to allow
 
 **On Windows systems:**
 ```powershell
@@ -68,7 +68,7 @@ The `immich-go` program uses the Immich API. Hence it needs the server address a
 ## How boolean options are handled
 
 Boolean options have a default value indicated below. Mentioning any option on the common line changes the option to TRUE.
-to force an option to FALSE, use the following syntax: `-option=FALSE`.
+To force an option to FALSE, use the following syntax: `-option=FALSE`.
 
 Example: Immich-go check the server's SSL certificate. you can disable this behavior by turning on the `skip-verify-ssl` option. Just add `-skip-verify-ssl`.
 `-skip-verify-ssl` is equivalent to `-skip-verify-ssl=TRUE`. To turn off the feature (which is the default behavior), use `-skip-verify-ssl=FALSE`
@@ -77,24 +77,24 @@ Example: Immich-go check the server's SSL certificate. you can disable this beha
 
 | **Parameter**                            | **Description**                                                                                                                                                               | **Default value**                                                                                                                                                                                                      |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-use-configuration=path/to/config/file` | Specifies the configuration file to use. <br>Server URL and the API key are stored into the immich-go configuration file. They can be omitted for the next runs.              | Linux `$HOME/.config/immich-go/immich-go.json`<br>Windows `%AppData%\immich-go\immich-go.json`<br>Apple `$HOME/Library/Application Support/immich-go/immich-go.json`                                                   |
-| `-server=URL`                            | URL of the Immich service, example http://<your-ip>:2283 or https://your-domain                                                                                               |                                                                                                                                                                                                                        |
+| `-use-configuration=path/to/config/file` | Specifies the configuration file to use. <br>Server URL and the API key are stored into the immich-go configuration file. They can be omitted for the next runs.              | Linux `$HOME/.config/immich-go/immich-go.json`<br>Windows `%AppData%\immich-go\immich-go.json`<br>macOS `$HOME/Library/Application Support/immich-go/immich-go.json`                                                   |
+| `-server=URL`                            | URL of the Immich service, example http://<your-ip>:2283 or https://your-domain.tld                                                                                               |                                                                                                                                                                                                                        |
 | `-api=URL`                               | URL of the Immich api endpoint (http://container_ip:3301)                                                                                                                     |                                                                                                                                                                                                                        |
 | `-device-uuid=VALUE`                     | Force the device identification                                                                                                                                               | `$HOSTNAME`                                                                                                                                                                                                            |
 | `-client-timeout=duration`               | Set the timeout for server calls. The duration is a decimal number with a unit suffix, such as "300ms", "1.5m" or "45m". Valid time units are "ms", "s", "m", "h".            | `5m`                                                                                                                                                                                                                   |
 | `-skip-verify-ssl`                       | Skip SSL verification for use with self-signed certificates                                                                                                                   | `false`                                                                                                                                                                                                                |
 | `-key=KEY`                               | A key generated by the user. Uploaded photos will belong to the key's owner.                                                                                                  |                                                                                                                                                                                                                        |
 | `-log-level=LEVEL`                       | Adjust the log verbosity as follows: <br> - `ERROR`: Display only errors  <br>  - `WARNING`: Same as previous one plus non-blocking error <br> - `INFO`: Information messages | `INFO`                                                                                                                                                                                                                 |
-| `-log-file=/path/to/log/file`            | Write all messages to a file                                                                                                                                                  | Linux `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` <br>Windows `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log` <br>Apple `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` |
+| `-log-file=/path/to/log/file`            | Write all messages to a file                                                                                                                                                  | Linux `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` <br>Windows `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log` <br>macOS `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` |
 | `-log-json`                              | Output the log as line-delimited JSON file                                                                                                                                    | `false`                                                                                                                                                                                                                |
-| `-time-zone=time_zone_name`              | Set the time zone for dates without time zone information                                                                                                                     | the system's time zone                                                                                                                                                                                                 |
+| `-time-zone=time_zone_name`              | Set the time zone for dates without time zone information                                                                                                                     | The system's time zone                                                                                                                                                                                                 |
 | `-no-ui`                                 | Disable the user interface                                                                                                                                                    | `false`                                                                                                                                                                                                                |
 | `-debug-counters`                        | Enable the generation a CSV beside the log file                                                                                                                               | `false`                                                                                                                                                                                                                |
 | `-api-trace`                             | Enable trace of API calls                                                                                                                                                     | `false`                                                                                                                                                                                                                |
 
 ## Command `upload`
 
-Use this command for uploading photos and videos from a local directory, a zipped folder or all zip files that google photo takeout procedure has generated.
+Use this command for uploading photos and videos from a local directory, a zipped folder or all zip files that the Google Photos takeout procedure has generated.
 
 ### Switches and options:
 
@@ -138,7 +138,7 @@ Example, the following command excludes any files in directories called backup o
 immich-go -server=xxxxx -key=yyyyy upload -exclude-files=backup/ -exclude-files=draft/ -exclude=copy).*  /path/to/your/files
 ```
 
-### Google photos options:
+### Google Photos options:
 Specialized options for Google Photos management:
 
 | **Parameter**                       | **Description**                                                                  | **Default value** |
@@ -151,10 +151,10 @@ Specialized options for Google Photos management:
 | `-keep-partner`                     | Specifies inclusion or exclusion of partner-taken photos.                        | `TRUE`            |
 | `-partner-album="partner's album"`  | import assets from partner into given album.                                     |                   |
 | `-discard-archived`                 | don't import archived assets.                                                    | `FALSE`           |
-| `-auto-archive`                     | Automatically archive photos that are also archived in google photos             | `TRUE`            |
+| `-auto-archive`                     | Automatically archive photos that are also archived in Google Photos             | `TRUE`            |
 | `-upload-when-missing-JSON`         | Upload photos not associated with a JSON metadata file                           | `FALSE`           |
 
-Read [here](docs/google-takeout.md) to understand how Google Photos takeout isn't easy to handle.
+Read [here](docs/google-takeout.md) to understand why Google Photos takeout isn't easy to handle.
 
 ### Burst detection
 Currently the bursts following this schema are detected:
@@ -174,7 +174,7 @@ The JPG image will be the cover.
 
 Please open an issue to cover more possibilities.
 
-### Example Usage: uploading a Google photos takeout archive
+### Example Usage: uploading a Google Photos takeout archive
 
 To illustrate, here's a command importing photos from a Google Photos takeout archive captured between June 1st and June 30th, 2019, while auto-generating albums:
 
@@ -190,8 +190,8 @@ Immich-go get the first available data in the following order.
 
 #### Date of capture:
 
-* Google photos takeout
-    1. Google photos JSON field `photoTakenTime`
+* Google Photos takeout
+    1. Google Photos JSON field `photoTakenTime`
     1. Photo's file name: ex `PXL_20220909_154515546.jpg`
     1. Photo's exif data
 * Folder import
@@ -202,10 +202,10 @@ Immich-go get the first available data in the following order.
 
 #### GPS location:
 
-* Google photos takeout
-    1. Google photos JSON field `geoDataExif`
-    1. Google photos JSON field `geoData`
-    1. Google photos album JSON field `locationEnrichment`
+* Google Photos takeout
+    1. Google Photos JSON field `geoDataExif`
+    1. Google Photos JSON field `geoData`
+    1. Google Photos album JSON field `locationEnrichment`
     1. Photo's exif data 
 * Folder import
     1. XMP file
@@ -251,7 +251,7 @@ Before deleting the inferior copies, the system gets all albums they belong to, 
 | `-ignore-tz-errors` | Ignore timezone difference when searching for duplicates    | `FALSE`                 |
 | `-ignore-extension` | Ignore filetype extensions when searching for duplicates    | `FALSE`                 |
 
-### Example Usage: clean the `immich` server after having merged a google photo archive and original files
+### Example Usage: clean the `immich` server after having merged a Google Photos archive and the original files
 
 This command examines the immich server content, remove less quality images, and preserve albums.
 
@@ -292,7 +292,7 @@ This command deletes all albums created with de pattern YYYY-MM-DD
 
 # Installation
 
-## Installation from the github release:
+## Installation from the Github release:
 
 Installing `immich-go` is a straightforward process. Visit the [latest release page](https://github.com/simulot/immich-go/releases/latest) and select the binary file compatible with your system:
 
