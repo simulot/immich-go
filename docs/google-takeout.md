@@ -1,14 +1,14 @@
-# The Google photos takeout case
-This project aims to make the process of importing Google photos takeouts as easy and accurate as possible. But keep in mind that 
-Google takeout structure is complex and not documented. Some information may miss or even is wrong. 
+# The Google Photos takeout case
+This project aims to make the process of importing Google Photos takeouts as easy and accurate as possible. But keep in mind that 
+Google takeout structure is complex and not documented. Some information may be missed or may even be wrong. 
 
 ## Folders in takeout
-  - The Year folder contains all image taken that year
+  - The Year folder contains all images taken that year
   - Albums are in separate folders named as the album
     - A json file contains the album title
     - The title can be empty
     - The JSON is named in the user's language : metadata.json métadonnées.json, metadatos.json, metadades.json ...
-    - Contains all a album's images, most of the tile
+    - Contains all of an album's images, most of the time
     - Images are also in the year folders if you have them. 
   - The trash folder is names in the user's language Trash, Corbeille..
     - Hopefully, the JSON has a Trashed field.
@@ -84,7 +84,7 @@ takeout-20240712T112341Z-010.zip:
 | Russian    | Google Фото          | метаданные.json  |                   |
 
 
-# What if you have problems with a takeout archive?
-Please open an issue with details. You cna share your files using Discord DM `@simulot`.
+# What if I have problems with a takeout archive?
+Please open an issue with details. You can share your files using Discord DM `@simulot`.
 I'll check if I can improve the program.
-Sometime a manual import is the best option.
+Sometimes a manual import is the best option.
