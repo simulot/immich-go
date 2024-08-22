@@ -164,7 +164,7 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 
 	cmd.BoolFunc(
 		"auto-archive",
-		" google-photos only: Automatically archive photos that are also archived in google photos (default FALSE)", myflag.BoolFlagFn(&app.AutoArchive, true))
+		" google-photos only: Automatically archive photos that are also archived in google photos (default TRUE)", myflag.BoolFlagFn(&app.AutoArchive, true))
 
 	cmd.BoolFunc(
 		"create-stacks",
