@@ -58,7 +58,7 @@ The `immich-go` program uses the Immich API. Hence it needs the server address a
 ```
 
 > [!IMPORTANT] 
-> macOS users have to explicitly allow mmich-go to run. Open Privacy & Security > Security Settings to allow
+> macOS users have to explicitly allow immich-go to run. Open Privacy & Security > Security Settings to allow
 
 **On Windows systems:**
 ```powershell
