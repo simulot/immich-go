@@ -534,13 +534,13 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 	if app.CreateAlbums {
 		for _, al := range a.Albums {
 			album := al.Title
-			if app.GooglePhotos && (app.UseFolderAsAlbumName || album == "") {
+			if app.GooglePhotos && (app.CreateAlbumAfterFolder || app.UseFolderAsAlbumName || album == "") {
 				album = filepath.Base(al.Path)
 			}
 			if _, exist := addedTo[album]; !exist {
 				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album)
 				if !app.DryRun {
-					err := app.AddToAlbum(ctx, assetID, al)
+					err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album})
 					if err != nil {
 						app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
 					}
@@ -571,6 +571,10 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 	} else {
 		if app.CreateAlbumAfterFolder {
 			album := path.Base(path.Dir(a.FileName))
+			if !app.GooglePhotos && app.UseFullPathAsAlbumName {
+				// full path
+				album = strings.Replace(filepath.Dir(a.FileName), string(os.PathSeparator), app.AlbumNamePathSeparator, -1)
+			}
 			if album == "" || album == "." {
 				if fsys, ok := a.FSys.(fshelper.NameFS); ok {
 					album = fsys.Name()
@@ -580,7 +584,7 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 			}
 			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album, "reason", "option -create-album-folder")
 			if !app.DryRun {
-				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album, Path: a.FileName})
+				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album})
 				if err != nil {
 					app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
 				}
@@ -693,12 +697,6 @@ func (app *UpCmd) albumName(al browser.LocalAlbum) string {
 // AddToAlbum add the ID to the immich album having the same name as the local album
 func (app *UpCmd) AddToAlbum(ctx context.Context, id string, album browser.LocalAlbum) error {
 	title := album.Title
-	if (app.GooglePhotos && (title == "" || app.CreateAlbumAfterFolder)) || app.UseFolderAsAlbumName {
-		title = filepath.Base(album.Path)
-	} else if !app.GooglePhotos && app.UseFullPathAsAlbumName {
-		// full path
-		title = strings.Replace(filepath.Dir(album.Path), "/", app.AlbumNamePathSeparator, -1)
-	}
 
 	l, exist := app.albums[title]
 	if !exist {
