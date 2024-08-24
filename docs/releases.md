@@ -5,6 +5,36 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.22.0
+Many thanks to @maybeanerd for their meticulous proofreading of the documentation files.
+
+### New feature: Use the full image path as album name
+Thanks to @giejay for their contribution
+When the `-use-full-path-album-name` option is enabled, photos are added to a new album named after their full file path.
+The path separator can be replaced using the `-album-name-path-separator=CHAR`
+
+
+### New feature: google photos archived photos are imported as immich archive by default
+Thanks to @Alex1607 for their contribution
+Use the option `-auto-archive=FALSE` to disable this feature.
+
+### What's Changed
+* fix Takeout zip is unsupported file type #357 by @simulot in https://github.com/simulot/immich-go/pull/415
+* docs: fix typos in readme by @maybeanerd in https://github.com/simulot/immich-go/pull/421
+* Program errors out due to no ping API response despite API responding by @simulot in https://github.com/simulot/immich-go/pull/431
+* remove "GetJobs" call from API traces by @simulot in https://github.com/simulot/immich-go/pull/442
+* Add support for -use-full-path-album-name to be able to use the full path to the file as album name/title by @giejay in https://github.com/simulot/immich-go/pull/444
+* Documentation-update by @simulot in https://github.com/simulot/immich-go/pull/446
+* Add new AutoArchive option by @Alex1607 in https://github.com/simulot/immich-go/pull/450
+* Update README.md, google-takeout.md, and motivation.md by @aaronjrodrigues in https://github.com/simulot/immich-go/pull/454
+
+### New Contributors
+* @maybeanerd made their first contribution in https://github.com/simulot/immich-go/pull/421
+* @giejay made their first contribution in https://github.com/simulot/immich-go/pull/444
+* @Alex1607 made their first contribution in https://github.com/simulot/immich-go/pull/450
+
+**Full Changelog**: https://github.com/simulot/immich-go/compare/0.21.0...0.22.0
+
 ## Release 0.21.1
 
 ### Fixes:
