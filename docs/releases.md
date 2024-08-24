@@ -5,10 +5,83 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.22.0
+Many thanks to @maybeanerd for their meticulous proofreading of the documentation files.
+
+### New feature: Use the full image path as album name
+Thanks to @giejay for their contribution
+When the `-use-full-path-album-name` option is enabled, photos are added to a new album named after their full file path.
+The path separator can be replaced using the `-album-name-path-separator=CHAR`
+
+
+### New feature: google photos archived photos are imported as immich archive by default
+Thanks to @Alex1607 for their contribution
+Use the option `-auto-archive=FALSE` to disable this feature.
+
+### What's Changed
+* fix Takeout zip is unsupported file type #357 by @simulot in https://github.com/simulot/immich-go/pull/415
+* docs: fix typos in readme by @maybeanerd in https://github.com/simulot/immich-go/pull/421
+* Program errors out due to no ping API response despite API responding by @simulot in https://github.com/simulot/immich-go/pull/431
+* remove "GetJobs" call from API traces by @simulot in https://github.com/simulot/immich-go/pull/442
+* Add support for -use-full-path-album-name to be able to use the full path to the file as album name/title by @giejay in https://github.com/simulot/immich-go/pull/444
+* Documentation-update by @simulot in https://github.com/simulot/immich-go/pull/446
+* Add new AutoArchive option by @Alex1607 in https://github.com/simulot/immich-go/pull/450
+* Update README.md, google-takeout.md, and motivation.md by @aaronjrodrigues in https://github.com/simulot/immich-go/pull/454
+
+### New Contributors
+* @maybeanerd made their first contribution in https://github.com/simulot/immich-go/pull/421
+* @giejay made their first contribution in https://github.com/simulot/immich-go/pull/444
+* @Alex1607 made their first contribution in https://github.com/simulot/immich-go/pull/450
+
+**Full Changelog**: https://github.com/simulot/immich-go/compare/0.21.0...0.22.0
+
+## Release 0.21.1
+
+### Fixes:
+- [#405](https://github.com/simulot/immich-go/issues/405) motion photo files with MP~2 extension marked unsupported and skipped
+- Live photos not correctly counted
+
+## Release 0.21.0
+
+### Refactoring the Google Photos import another time
+Lot of users have reported inconsistencies in upload counters. Each user case a different, and the takeout structure varies a bit. 
+In order to debug those cases, I have developed a way to simulate the takeout import using only the the file list.  Read [how to send debug data](/docs/how-to-send-debug-data.md) without sharing photos.
+
+
+### Option to force the upload of images despite the lack of JSON
+Each image in a takeout is supposed to come with A JSON file giving the date of capture and the GPS coordinate. There a few reason for this:
+1. The original file is copied, modified... and sometime there ins't a JSON for all versions
+2. JSON aren't in the same ZIP file than the image, and only one part of the takeout is processed
+3. The takeout misses a bunch of JSON
+
+When asking another takeout isn't an option, it's possible to force the upload of photos with no JSON. Use the option `-upload-when-missing-JSON` 
+
+### The stack function is disabled
+The stack function need to be improved [#399](https://github.com/simulot/immich-go/issues/399), [#345](https://github.com/simulot/immich-go/issues/345), [#235](https://github.com/simulot/immich-go/issues/235)
+Meanwhile, it is disabled by default. You can enable it using the option `-create-stacks=TRUE`.
+
+
+
+
+### fixes:
+- [#376](https://github.com/simulot/immich-go/issues/376) errors when uploading are disturbing the the % of the progression
+- files with same path and name, but in different part of the takeout file set was forgotten in duplicate counters
+- iPhone's Live photos recognition when the name is duplicated: ex IMG_2710(1).MP4 and IMG_2710(1).HEIC
+- Missing a file when a directory contain several files with the same name, but of a different type. Ex: IMG_0170.HEIC,  IMG_0170.JPG
+- Live videos attached to duplicated photos are now counted as duplicate as well, making the final report more relevant
+- [#402](https://github.com/simulot/immich-go/issues/402) Wrong album assignment for images with the same name
+- [#390](https://github.com/simulot/immich-go/issues/390) Question: report shows way less images uploaded than scanned
+- [#376](https://github.com/simulot/immich-go/issues/376) errors when uploading are disturbing the the % of the progression
+- [#401](https://github.com/simulot/immich-go/issues/401) Add an option to import images/movies even if there is no JSON file in the takeout
+
+
+## Release 0.20.1
 
 ### changes
-- git action to build and release
+- add git action to build and release
 
+### fixes:
+- [#380](https://github.com/simulot/immich-go/issues/380) not all GP duplicates are detected correctly, counters are wrong
 
 ## Release 0.20
 

@@ -1,13 +1,17 @@
 package immich
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"slices"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -108,9 +112,10 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 // Ping server
 func (ic *ImmichClient) PingServer(ctx context.Context) error {
 	r := PingResponse{}
-	err := ic.newServerCall(ctx, "PingServer").do(getRequest("/server-info/ping", setAcceptJSON()), responseJSON(&r))
+	b := bytes.NewBuffer(nil)
+	err := ic.newServerCall(ctx, EndPointPingServer).do(getRequest("/server-info/ping", setAcceptJSON()), responseCopy(b), responseJSON(&r))
 	if err != nil {
-		return fmt.Errorf("the ping API end point doesn't respond at this address: %s", ic.endPoint+"/server-info/ping")
+		return fmt.Errorf("unexpected response to the immich's ping API at this address: %s:\n%s", ic.endPoint+"/server-info/ping", b.String())
 	}
 	if r.Res != "pong" {
 		return fmt.Errorf("incorrect ping response: %s", r.Res)
@@ -124,7 +129,7 @@ func (ic *ImmichClient) PingServer(ctx context.Context) error {
 func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
 	var user User
 
-	err := ic.newServerCall(ctx, "ValidateConnection").
+	err := ic.newServerCall(ctx, EndPointValidateConnection).
 		do(getRequest("/users/me", setAcceptJSON()), responseJSON(&user))
 	if err != nil {
 		return user, err
@@ -158,7 +163,7 @@ type ServerStatistics struct {
 func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatistics, error) {
 	var s ServerStatistics
 
-	err := ic.newServerCall(ctx, "GetServerStatistics").do(getRequest("/server-info/statistics", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, EndPointGetServerStatistics).do(getRequest("/server-info/statistics", setAcceptJSON()), responseJSON(&s))
 	return s, err
 }
 
@@ -173,7 +178,7 @@ type UserStatistics struct {
 
 func (ic *ImmichClient) GetAssetStatistics(ctx context.Context) (UserStatistics, error) {
 	var s UserStatistics
-	err := ic.newServerCall(ctx, "GetAssetStatistics").do(getRequest("/assets/statistics", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, EndPointGetAssetStatistics).do(getRequest("/assets/statistics", setAcceptJSON()), responseJSON(&s))
 	return s, err
 }
 
@@ -199,7 +204,7 @@ var DefaultSupportedMedia = SupportedMedia{
 func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMedia, error) {
 	var s map[string][]string
 
-	err := ic.newServerCall(ctx, "GetSupportedMediaTypes").do(getRequest("/server-info/media-types", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, EndPointGetSupportedMediaTypes).do(getRequest("/server-info/media-types", setAcceptJSON()), responseJSON(&s))
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +220,10 @@ func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMe
 
 func (sm SupportedMedia) TypeFromExt(ext string) string {
 	ext = strings.ToLower(ext)
+	if strings.HasPrefix(ext, ".mp~") {
+		// #405
+		ext = ".mp4"
+	}
 	return sm[ext]
 }
 
@@ -223,16 +232,24 @@ func (sm SupportedMedia) IsMedia(ext string) bool {
 	return t == TypeVideo || t == TypeImage
 }
 
+var (
+	_supportedExtension []string
+	initSupportedExtion sync.Once
+)
+
 func (sm SupportedMedia) IsExtensionPrefix(ext string) bool {
-	ext = strings.ToLower(ext)
-	for e, t := range sm {
-		if t == TypeVideo || t == TypeImage {
-			if ext == e[:len(e)-1] {
-				return true
-			}
+	initSupportedExtion.Do(func() {
+		_supportedExtension = make([]string, len(sm))
+		i := 0
+		for k := range sm {
+			_supportedExtension[i] = k[:len(k)-2]
+			i++
 		}
-	}
-	return false
+		sort.Strings(_supportedExtension)
+	})
+	ext = strings.ToLower(ext)
+	_, b := slices.BinarySearch(_supportedExtension, ext)
+	return b
 }
 
 func (sm SupportedMedia) IsIgnoredExt(ext string) bool {

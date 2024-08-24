@@ -2,7 +2,10 @@ package upload
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/simulot/immich-go/helpers/fileevent"
@@ -12,6 +15,8 @@ import (
 func (app *UpCmd) runNoUI(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
+
+	var preparationDone atomic.Bool
 
 	stopProgress := make(chan any)
 	var maxImmich, currImmich int
@@ -23,41 +28,37 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 	}
 
 	progressString := func() string {
-		var s string
 		counts := app.Jnl.GetCounts()
+		defer func() {
+			spinIdx++
+			if spinIdx == len(spinner) {
+				spinIdx = 0
+			}
+		}()
 		immichPct := 0
 		if maxImmich > 0 {
 			immichPct = 100 * currImmich / maxImmich
+		} else {
+			immichPct = 100
 		}
-		ScannedAssets := counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo] - counts[fileevent.DiscoveredDiscarded]
-		ProcessedAssets := counts[fileevent.Uploaded] +
-			counts[fileevent.UploadServerError] +
-			counts[fileevent.UploadNotSelected] +
-			counts[fileevent.UploadUpgraded] +
-			counts[fileevent.UploadServerDuplicate] +
-			counts[fileevent.UploadServerBetter] +
-			counts[fileevent.DiscoveredDiscarded] +
-			counts[fileevent.AnalysisLocalDuplicate]
 
 		if app.GooglePhotos {
-			gpPct := 0
-			upPct := 0
-			if ScannedAssets > 0 {
-				gpPct = int(100 * counts[fileevent.AnalysisAssociatedMetadata] / ScannedAssets)
-			}
-			if counts[fileevent.AnalysisAssociatedMetadata] > 0 {
-				upPct = int(100 * ProcessedAssets / counts[fileevent.AnalysisAssociatedMetadata])
-			}
+			gpTotal := app.Jnl.TotalAssets()
+			gpProcessed := app.Jnl.TotalProcessedGP()
 
-			s = fmt.Sprintf("\rImmich read %d%%, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s", immichPct, gpPct, counts[fileevent.UploadServerError], upPct, string(spinner[spinIdx]))
-		} else {
-			s = fmt.Sprintf("\rImmich read %d%%, Processed %d, Upload errors: %d, Uploaded %d %s", immichPct, ProcessedAssets, counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
+			gpPercent := int(100 * gpProcessed / gpTotal)
+			upProcessed := int64(0)
+			if preparationDone.Load() {
+				upProcessed = app.Jnl.TotalProcessed(app.ForceUploadWhenNoJSON)
+			}
+			upTotal := app.Jnl.TotalAssets()
+			upPercent := 100 * upProcessed / upTotal
+
+			return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s",
+				immichPct, app.Jnl.TotalAssets(), gpPercent, counts[fileevent.UploadServerError], upPercent, string(spinner[spinIdx]))
 		}
-		spinIdx++
-		if spinIdx == len(spinner) {
-			spinIdx = 0
-		}
-		return s
+
+		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl.TotalAssets(), counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
 	}
 	uiGrp := errgroup.Group{}
 
@@ -111,9 +112,24 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 				return err
 			}
 		}
+		preparationDone.Store(true)
 		err = app.uploadLoop(ctx)
 		if err != nil {
 			cancel(err)
+		}
+
+		counts := app.Jnl.GetCounts()
+		messages := strings.Builder{}
+		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
+			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
+		}
+		if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 && !app.ForceUploadWhenNoJSON {
+			messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
+			messages.WriteString("- Verify if all takeout parts have been included in the processing.\n")
+			messages.WriteString("- Request another takeout, either for one year at a time or in smaller increments.\n")
+		}
+		if messages.Len() > 0 {
+			cancel(errors.New(messages.String()))
 		}
 		close(stopProgress)
 		return err

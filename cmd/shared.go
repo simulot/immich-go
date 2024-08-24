@@ -17,6 +17,7 @@ import (
 	"github.com/simulot/immich-go/helpers/myflag"
 	"github.com/simulot/immich-go/helpers/tzone"
 	"github.com/simulot/immich-go/immich"
+	fakeimmich "github.com/simulot/immich-go/internal/fakeImmich"
 	"github.com/simulot/immich-go/ui"
 	"github.com/telemachus/humane"
 )
@@ -38,6 +39,7 @@ type SharedFlags struct {
 	NoUI              bool          // Disable user interface
 	JSONLog           bool          // Enable JSON structured log
 	DebugCounters     bool          // Enable CSV action counters per file
+	DebugFileList     bool          // When true, the file argument is a file wile the list of Takeout files
 
 	Immich             immich.ImmichInterface // Immich client
 	Log                *slog.Logger           // Logger
@@ -92,6 +94,11 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 
 	if app.Jnl == nil {
 		app.Jnl = fileevent.NewRecorder(nil, app.DebugCounters)
+	}
+
+	if app.DebugFileList {
+		app.Immich = &fakeimmich.MockedCLient{}
+		_ = os.Remove(app.LogFile)
 	}
 
 	if app.LogFile != "" {
@@ -166,6 +173,21 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 			app.Immich.SetDeviceUUID(app.DeviceUUID)
 		}
 
+		if app.APITrace {
+			if app.APITraceWriter == nil {
+				err := configuration.MakeDirForFile(app.LogFile)
+				if err != nil {
+					return err
+				}
+				app.APITraceWriterName = strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".trace.log"
+				app.APITraceWriter, err = os.OpenFile(app.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
+				if err != nil {
+					return err
+				}
+				app.Immich.EnableAppTrace(app.APITraceWriter)
+			}
+		}
+
 		err = app.Immich.PingServer(ctx)
 		if err != nil {
 			return err
@@ -179,20 +201,6 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		app.Log.Info(fmt.Sprintf("Connected, user: %s", user.Email))
 	}
 
-	if app.APITrace {
-		if app.APITraceWriter == nil {
-			err := configuration.MakeDirForFile(app.LogFile)
-			if err != nil {
-				return err
-			}
-			app.APITraceWriterName = strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".trace.log"
-			app.APITraceWriter, err = os.OpenFile(app.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
-			if err != nil {
-				return err
-			}
-			app.Immich.EnableAppTrace(app.APITraceWriter)
-		}
-	}
 	return nil
 }
 

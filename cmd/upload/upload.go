@@ -27,6 +27,7 @@ import (
 	"github.com/simulot/immich-go/helpers/namematcher"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/fakefs"
 )
 
 type UpCmd struct {
@@ -37,6 +38,8 @@ type UpCmd struct {
 	GooglePhotos           bool             // For reading Google Photos takeout files
 	Delete                 bool             // Delete original file after import
 	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
+	UseFullPathAsAlbumName bool             // Create albums for assets based on the full path to the asset
+	AlbumNamePathSeparator string           // Determines how multiple (sub) folders, if any, will be joined
 	ImportIntoAlbum        string           // All assets will be added to this album
 	PartnerAlbum           string           // Partner's assets will be added to this album
 	Import                 bool             // Import instead of upload
@@ -54,7 +57,9 @@ type UpCmd struct {
 	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
 	StackBurst             bool             // Stack burst (Default: TRUE)
 	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
+	AutoArchive            bool             // Automatically archive photos that are also archived in google photos (Default: TRUE)
 	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
+	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
 	BannedFiles            namematcher.List // List of banned file name patterns
 
 	BrowserConfig Configuration
@@ -70,7 +75,7 @@ type UpCmd struct {
 }
 
 func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
-	app, err := newCommand(ctx, common, args)
+	app, err := newCommand(ctx, common, args, nil)
 	if err != nil {
 		return err
 	}
@@ -80,7 +85,9 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 	return app.run(ctx)
 }
 
-func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*UpCmd, error) {
+type fsOpener func() ([]fs.FS, error)
+
+func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsOpener fsOpener) (*UpCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
@@ -116,6 +123,14 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		" folder import only: Create albums for assets based on the parent folder",
 		myflag.BoolFlagFn(&app.CreateAlbumAfterFolder, false))
 	cmd.BoolFunc(
+		"use-full-path-album-name",
+		" folder import only: Use the full path towards the asset for determining the Album name",
+		myflag.BoolFlagFn(&app.UseFullPathAsAlbumName, false))
+	cmd.StringVar(&app.AlbumNamePathSeparator,
+		"album-name-path-separator",
+		" ",
+		" when use-full-path-album-name = true, determines how multiple (sub) folders, if any, will be joined")
+	cmd.BoolFunc(
 		"google-photos",
 		"Import GooglePhotos takeout zip files",
 		myflag.BoolFlagFn(&app.GooglePhotos, false))
@@ -148,15 +163,19 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		" google-photos only: Do not import archived photos (default FALSE)", myflag.BoolFlagFn(&app.DiscardArchived, false))
 
 	cmd.BoolFunc(
+		"auto-archive",
+		" google-photos only: Automatically archive photos that are also archived in google photos (default TRUE)", myflag.BoolFlagFn(&app.AutoArchive, true))
+
+	cmd.BoolFunc(
 		"create-stacks",
-		"Stack jpg/raw or bursts  (default TRUE)", myflag.BoolFlagFn(&app.CreateStacks, true))
+		"Stack jpg/raw or bursts  (default FALSE)", myflag.BoolFlagFn(&app.CreateStacks, false))
 
 	cmd.BoolFunc(
 		"stack-jpg-raw",
-		"Control the stacking of jpg/raw photos (default TRUE)", myflag.BoolFlagFn(&app.StackJpgRaws, true))
+		"Control the stacking of jpg/raw photos (default TRUE)", myflag.BoolFlagFn(&app.StackJpgRaws, false))
 	cmd.BoolFunc(
 		"stack-burst",
-		"Control the stacking bursts (default TRUE)", myflag.BoolFlagFn(&app.StackBurst, true))
+		"Control the stacking bursts (default TRUE)", myflag.BoolFlagFn(&app.StackBurst, false))
 
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 
@@ -170,9 +189,25 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 
 	cmd.Var(&app.BannedFiles, "exclude-files", "Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.")
 
+	cmd.BoolVar(&app.ForceUploadWhenNoJSON, "upload-when-missing-JSON", app.ForceUploadWhenNoJSON, "when true, photos are upload even without associated JSON file.")
+	cmd.BoolVar(&app.DebugFileList, "debug-file-list", app.DebugFileList, "Check how the your file list would be processed")
+
 	err = cmd.Parse(args)
 	if err != nil {
 		return nil, err
+	}
+
+	if app.DebugFileList {
+		if len(cmd.Args()) < 2 {
+			return nil, fmt.Errorf("the option -debug-file-list requires a file name and a date format")
+		}
+		app.LogFile = strings.TrimSuffix(cmd.Arg(0), filepath.Ext(cmd.Arg(0))) + ".log"
+		_ = os.Remove(app.LogFile)
+
+		fsOpener = func() ([]fs.FS, error) {
+			return fakefs.ScanFileList(cmd.Arg(0), cmd.Arg(1))
+		}
+	} else {
 	}
 
 	app.WhenNoDate = strings.ToUpper(app.WhenNoDate)
@@ -188,7 +223,12 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string) (*U
 		return nil, err
 	}
 
-	app.fsyss, err = fshelper.ParsePath(cmd.Args(), app.GooglePhotos)
+	if fsOpener == nil {
+		fsOpener = func() ([]fs.FS, error) {
+			return fshelper.ParsePath(cmd.Args())
+		}
+	}
+	app.fsyss, err = fsOpener()
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +424,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		return nil
 	}
 	if !app.BrowserConfig.SelectExtensions.Include(ext) {
-		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a.FileName, "reason", "extension not in selection list")
+		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "extension not in selection list")
 		return nil
 	}
 
@@ -440,8 +480,8 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		app.manageAssetAlbum(ctx, ID, a, advice)
 
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
-		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName)
-		// add the superior asset into albums of the original asset
+		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName, "reason", advice.Message)
+		// add the superior asset into albums of the original asset.
 		ID, err := app.UploadAsset(ctx, a)
 		if err != nil {
 			return nil
@@ -456,14 +496,14 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	case SameOnServer: // manage albums
 		// Set add the server asset into albums determined locally
 		if !advice.ServerAsset.JustUploaded {
-			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName)
+			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "reason", advice.Message)
 		} else {
 			app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.FileName)
 		}
 		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 
 	case BetterOnServer: // and manage albums
-		app.Jnl.Record(ctx, fileevent.UploadServerBetter, a, a.FileName)
+		app.Jnl.Record(ctx, fileevent.UploadServerBetter, a, a.FileName, "reason", advice.Message)
 		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 	}
 
@@ -494,13 +534,13 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 	if app.CreateAlbums {
 		for _, al := range a.Albums {
 			album := al.Title
-			if app.GooglePhotos && (app.UseFolderAsAlbumName || album == "") {
+			if app.GooglePhotos && (app.CreateAlbumAfterFolder || app.UseFolderAsAlbumName || album == "") {
 				album = filepath.Base(al.Path)
 			}
 			if _, exist := addedTo[album]; !exist {
 				app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album)
 				if !app.DryRun {
-					err := app.AddToAlbum(ctx, assetID, al)
+					err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album})
 					if err != nil {
 						app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
 					}
@@ -531,6 +571,10 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 	} else {
 		if app.CreateAlbumAfterFolder {
 			album := path.Base(path.Dir(a.FileName))
+			if !app.GooglePhotos && app.UseFullPathAsAlbumName {
+				// full path
+				album = strings.Replace(filepath.Dir(a.FileName), string(os.PathSeparator), app.AlbumNamePathSeparator, -1)
+			}
 			if album == "" || album == "." {
 				if fsys, ok := a.FSys.(fshelper.NameFS); ok {
 					album = fsys.Name()
@@ -565,6 +609,7 @@ func (app *UpCmd) ReadGoogleTakeOut(ctx context.Context, fsyss []fs.FS) (browser
 		return nil, err
 	}
 	b.SetBannedFiles(app.BannedFiles)
+	b.SetAcceptMissingJSON(app.ForceUploadWhenNoJSON)
 	return b, err
 }
 
@@ -582,10 +627,12 @@ func (app *UpCmd) ExploreLocalFolder(ctx context.Context, fsyss []fs.FS) (browse
 // UploadAsset upload the asset on the server
 // Add the assets into listed albums
 // return ID of the asset
-
 func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (string, error) {
 	var resp, liveResp immich.AssetResponse
 	var err error
+	if !app.AutoArchive && a.Archived {
+		a.Archived = false
+	}
 	if !app.DryRun {
 		if a.LivePhoto != nil {
 			liveResp, err = app.Immich.AssetUpload(ctx, a.LivePhoto)
@@ -593,19 +640,21 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 				if liveResp.Status == immich.UploadDuplicate {
 					app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
 				} else {
-					a.LivePhotoID = liveResp.ID
 					app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 				}
+				a.LivePhotoID = liveResp.ID
 			} else {
 				app.Jnl.Record(ctx, fileevent.UploadServerError, a.LivePhoto, a.LivePhoto.FileName, "error", err.Error())
 			}
 		}
+		b := *a // Keep a copy of the asset to log errors specifically on the image
 		resp, err = app.Immich.AssetUpload(ctx, a)
 		if err == nil {
 			if resp.Status == immich.UploadDuplicate {
 				app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
 			} else {
-				app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
+				b.LivePhoto = nil
+				app.Jnl.Record(ctx, fileevent.Uploaded, &b, b.FileName, "capture date", b.Metadata.DateTaken.String())
 			}
 		} else {
 			app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
@@ -615,13 +664,12 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		// dry-run mode
 		if a.LivePhoto != nil {
 			liveResp.ID = uuid.NewString()
-			app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 		}
 		resp.ID = uuid.NewString()
 		app.Jnl.Record(ctx, fileevent.Uploaded, a, a.FileName, "capture date", a.Metadata.DateTaken.String())
 	}
 	if resp.Status != immich.UploadDuplicate {
-		if a.LivePhoto != nil {
+		if a.LivePhoto != nil && liveResp.ID != "" {
 			app.AssetIndex.AddLocalAsset(a, liveResp.ID)
 		}
 		app.AssetIndex.AddLocalAsset(a, resp.ID)
@@ -649,9 +697,6 @@ func (app *UpCmd) albumName(al browser.LocalAlbum) string {
 // AddToAlbum add the ID to the immich album having the same name as the local album
 func (app *UpCmd) AddToAlbum(ctx context.Context, id string, album browser.LocalAlbum) error {
 	title := album.Title
-	if (app.GooglePhotos && (title == "" || app.CreateAlbumAfterFolder)) || app.UseFolderAsAlbumName {
-		title = filepath.Base(album.Path)
-	}
 
 	l, exist := app.albums[title]
 	if !exist {

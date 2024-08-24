@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -51,6 +52,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	var preparationDone atomic.Bool
 	var uploadDone atomic.Bool
 	var uiGroup errgroup.Group
+	var messages strings.Builder
 
 	uiApp.SetRoot(pages, true)
 
@@ -61,9 +63,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		}
 	}
 
-	modal := newModal()
 	pages.AddPage("ui", ui.screen, true, true)
-	pages.AddPage("modal", modal, true, false)
 
 	// handle Ctrl+C and Ctrl+Q
 	uiApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -128,15 +128,13 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 						ui.getCountView(c, counts[c])
 					}
 					if app.GooglePhotos {
-						ui.immichPrepare.SetMaxValue(int(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
-						ui.immichPrepare.SetValue(int(counts[fileevent.AnalysisAssociatedMetadata]))
+						ui.immichPrepare.SetMaxValue(int(app.Jnl.TotalAssets()))
+						ui.immichPrepare.SetValue(int(app.Jnl.TotalProcessedGP()))
 
-						ui.immichUpload.SetMaxValue(int(counts[fileevent.DiscoveredImage] + counts[fileevent.DiscoveredVideo]))
-						ui.immichUpload.SetValue(int(counts[fileevent.UploadNotSelected] +
-							counts[fileevent.UploadUpgraded] +
-							counts[fileevent.UploadServerDuplicate] +
-							counts[fileevent.UploadServerBetter] +
-							counts[fileevent.Uploaded]))
+						if preparationDone.Load() {
+							ui.immichUpload.SetMaxValue(int(app.Jnl.TotalAssets()))
+						}
+						ui.immichUpload.SetValue(int(app.Jnl.TotalProcessed(app.ForceUploadWhenNoJSON)))
 					}
 				})
 			}
@@ -195,9 +193,21 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 			return context.Cause(ctx)
 		}
 		uploadDone.Store(true)
+		counts := app.Jnl.GetCounts()
+		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
+			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
+		}
+		if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 && !app.ForceUploadWhenNoJSON {
+			messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
+			messages.WriteString("- Verify if all takeout parts have been included in the processing.\n")
+			messages.WriteString("- Request another takeout,  either for one year at a time or in smaller increments.\n")
+		}
 
+		modal := newModal(messages.String())
+		pages.AddPage("modal", modal, true, false)
 		// upload is done!
 		pages.ShowPage("modal")
+
 		return err
 	})
 
@@ -209,10 +219,15 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 	// Time to leave
 	app.Jnl.Report()
+	if messages.Len() > 0 {
+		return (errors.New(messages.String()))
+	}
 	return err
 }
 
-func newModal() tview.Primitive {
+func newModal(message string) tview.Primitive {
+	message += "\nYou can quit the program safely.\n\nPress the [enter] key to exit."
+	lines := strings.Count(message, "\n")
 	// Returns a new primitive which puts the provided primitive in the center and
 	// sets its size to the given width and height.
 	modal := func(p tview.Primitive, width, height int) tview.Primitive {
@@ -224,12 +239,12 @@ func newModal() tview.Primitive {
 				AddItem(nil, 0, 1, false), width, 1, true).
 			AddItem(nil, 0, 1, false)
 	}
-	text := tview.NewTextView().SetText("\nYou can quit the program safely.\n\nPress the [enter] key to exit.").SetTextAlign(tview.AlignCenter)
+	text := tview.NewTextView().SetText(message)
 	box := tview.NewBox().
 		SetBorder(true).
 		SetTitle("Upload completed")
 	text.Box = box
-	return modal(text, 40, 7)
+	return modal(text, 80, 2+lines)
 }
 
 func newUI(ctx context.Context, app *UpCmd) *uiPage {
@@ -333,7 +348,7 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 	return ui
 }
 
-type progressUpdate func(value, max int)
+type progressUpdate func(value, maxValue int)
 
 // call back to get the progression
 func (p *uiPage) updateImmichReading(value, total int) {

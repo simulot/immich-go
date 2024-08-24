@@ -1,14 +1,14 @@
-# The Google photos takeout case
-This project aims to make the process of importing Google photos takeouts as easy and accurate as possible. But keep in mind that 
-Google takeout structure is complex and not documented. Some information may miss or even is wrong. 
+# The Google Photos takeout case
+This project aims to make the process of importing Google Photos takeouts as easy and accurate as possible. But keep in mind that 
+Google takeout structure is complex and not documented. Some information may be missed or may even be wrong. 
 
 ## Folders in takeout
-  - The Year folder contains all image taken that year
+  - The Year folder contains all images taken that year
   - Albums are in separate folders named as the album
     - A json file contains the album title
     - The title can be empty
     - The JSON is named in the user's language : metadata.json métadonnées.json, metadatos.json, metadades.json ...
-    - Contains all a album's images, most of the tile
+    - Contains all of an album's images, most of the time
     - Images are also in the year folders if you have them. 
   - The trash folder is names in the user's language Trash, Corbeille..
     - Hopefully, the JSON has a Trashed field.
@@ -47,8 +47,44 @@ but one JSON
 
 Note that "edited" name is localized.
 
+## Images are duplicated with no apparent logic
+Example from the  [#380](https://github.com/simulot/immich-go/issues/380)
+```sh
+~$ for f in *.zip; do echo "$f: "; unzip -l $f | grep 130917ad28385b5a; done
+takeout-20240712T112341Z-001.zip:
+   167551  2024-07-12 13:38   Takeout/Google Foto/1 anno fa/130917ad28385b5a-photo.jpg
+      808  2024-07-12 13:38   Takeout/Google Foto/1 anno fa/130917ad28385b5a-photo.jpg.json
+takeout-20240712T112341Z-002.zip:
+takeout-20240712T112341Z-003.zip:
+      808  2024-07-12 13:52   Takeout/Google Foto/Photos from 2022/130917ad28385b5a-photo.jpg.json
+takeout-20240712T112341Z-004.zip:
+   167551  2024-07-12 13:45   Takeout/Google Foto/Photos from 2022/130917ad28385b5a-photo.jpg
+takeout-20240712T112341Z-005.zip:
+takeout-20240712T112341Z-006.zip:
+takeout-20240712T112341Z-007.zip:
+takeout-20240712T112341Z-008.zip:
+takeout-20240712T112341Z-009.zip:
+      808  2024-07-12 14:33   Takeout/Google Foto/Amsterdam 2022/130917ad28385b5a-photo.jpg.json
+   167551  2024-07-12 14:33   Takeout/Google Foto/Amsterdam 2022/130917ad28385b5a-photo.jpg
+      808  2024-07-12 14:35   Takeout/Google Foto/1 anno fa/130917ad28385b5a-photo.jpg.json
+takeout-20240712T112341Z-010.zip:
+   167551  2024-07-12 14:35   Takeout/Google Foto/1 anno fa/130917ad28385b5a-photo.jpg
+```
 
-# What if you have problems with a takeout archive?
-Please open an issue with details. You cna share your files using Discord DM @`simulot`.
+
+## Some key file names are spelled in the user language
+
+| Language   | Google Photos folder | Album's metadata | Edited photo name |
+| ---------- | -------------------- | ---------------- | ----------------- |
+| US English | Google Photos        | metadata.json    |                   |
+| French     | Google Photos        | métadonnées.json | \*-modifié.\*     |
+| Italian    | Google Foto          | metadati.json    | \*-modificato.\*  |
+| Slovak     | Fotky Google         | metadáta.json    |                   |
+| German     | Google Fotos         | Metadaten.json   | \*-bearbeitet.\*  |
+| Russian    | Google Фото          | метаданные.json  |                   |
+
+
+# What if I have problems with a takeout archive?
+Please open an issue with details. You can share your files using Discord DM `@simulot`.
 I'll check if I can improve the program.
-Sometime a manual import is the best option.
+Sometimes a manual import is the best option.
