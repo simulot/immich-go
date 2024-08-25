@@ -10,6 +10,8 @@ import (
 
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/cmd/cmdVersion"
+	"github.com/simulot/immich-go/cmd/stack"
+	"github.com/simulot/immich-go/ui"
 )
 
 var (
@@ -74,10 +76,13 @@ func main() {
 }
 
 func Run(ctx context.Context) error {
-	rootCmd := cmd.CreateRootCommand()
+	banner := ui.NewBanner(version, commit, date)
+	rootCmd := cmd.CreateRootCommand(banner)
 	cmdVersion.AddCommand(rootCmd, version, getCommitInfo(), date)
 
-	err := rootCmd.Command.Execute()
+	stack.AddCommand(rootCmd)
+
+	err := rootCmd.Command.ExecuteContext(ctx)
 
 	// fmt.Println(app.Banner.String())
 

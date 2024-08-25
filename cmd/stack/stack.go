@@ -1,53 +1,52 @@
 package stack
 
 import (
-	"context"
-	"flag"
 	"fmt"
 	"sort"
-	"strconv"
+	"time"
 
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/ui"
+	"github.com/spf13/cobra"
 )
 
 type StackCmd struct {
+	Command *cobra.Command
 	*cmd.RootImmichFlags
+	cmd.ImmichServerFlags
 	AssumeYes bool
 	DateRange immich.DateRange // Set capture date range
 }
 
-func initStack(ctx context.Context, common *cmd.RootImmichFlags, args []string) (*StackCmd, error) {
-	cmd := flag.NewFlagSet("stack", flag.ExitOnError)
-	validRange := immich.DateRange{}
+func AddCommand(root *cmd.RootImmichFlags) {
+	stackCmd := StackCmd{
+		RootImmichFlags: root,
+		Command: &cobra.Command{
+			Use:   "stack",
+			Short: "Stack photos",
+			Long:  `Stack photos taken in the short periode of time.`,
+		},
+	}
+	now := time.Now().Add(24 * time.Hour)
 
-	_ = validRange.Set("1850-01-04,2030-01-01")
-	app := StackCmd{
-		RootImmichFlags: common,
-		DateRange:       validRange,
-	}
-	app.RootImmichFlags.SetFlags(cmd)
-	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
-		var err error
-		app.AssumeYes, err = strconv.ParseBool(s)
-		return err
-	})
-	cmd.Var(&app.DateRange, "date", "Process only documents having a capture date in that range.")
-	err := cmd.Parse(args)
-	if err != nil {
-		return nil, err
-	}
-	err = app.RootImmichFlags.Start(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &app, err
+	_ = stackCmd.DateRange.Set(time.Date(now.Year()-10, 1, 1, 0, 0, 0, 0, time.Local).Format("2006-01-02") + "," + now.Format("2006-01-02"))
+	stackCmd.Command.RunE = stackCmd.run
+	stackCmd.Command.Flags().Var(&stackCmd.DateRange, "date-range", "photos must be in the date range")
+	stackCmd.Command.Flags().Bool("force-yes", false, "Assume YES to all questions")
+
+	cmd.NewImmichServerFlagSet(stackCmd.Command, &stackCmd.ImmichServerFlags)
+	root.Command.AddCommand(stackCmd.Command)
 }
 
-func NewStackCommand(ctx context.Context, common *cmd.RootImmichFlags, args []string) error {
-	app, err := initStack(ctx, common, args)
+func (app *StackCmd) run(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
+	err := app.RootImmichFlags.Initialize()
+	if err != nil {
+		return err
+	}
+	err = app.ImmichServerFlags.Initialize(app.RootImmichFlags)
 	if err != nil {
 		return err
 	}

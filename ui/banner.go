@@ -48,3 +48,7 @@ func (b Banner) String() string {
 	}
 	return sb.String()
 }
+
+func (b Banner) Version() string {
+	return fmt.Sprintf("immich-go version:%s,  commit:%s, date:%s", b.version, b.commit, b.date)
+}

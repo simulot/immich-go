@@ -6,8 +6,13 @@ import (
 )
 
 // DateRange represent the date range for capture date
+// either:
+// A day:    2022-01-01
+// A month:  2022-01
+// A year:   2022
+// A range:  2022-01-01,2022-12-31
 type DateRange struct {
-	After, Before         time.Time
+	After, Before         time.Time // todo: make After and Before private
 	day, month, year, set bool
 }
 
@@ -72,4 +77,8 @@ func (dr DateRange) InRange(d time.Time) bool {
 	}
 	//	--------------After----------d------------Before
 	return (d.Compare(dr.After) >= 0 && dr.Before.Compare(d) > 0)
+}
+
+func (dr *DateRange) Type() string {
+	return "date-range"
 }
