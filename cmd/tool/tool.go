@@ -8,7 +8,7 @@ import (
 	"github.com/simulot/immich-go/cmd/album"
 )
 
-func CommandTool(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+func CommandTool(ctx context.Context, common *cmd.RootImmichFlags, args []string) error {
 	if len(args) > 0 {
 		cmd := args[0]
 		args = args[1:]

@@ -31,7 +31,7 @@ import (
 )
 
 type UpCmd struct {
-	*cmd.SharedFlags // shared flags and immich client
+	*cmd.RootImmichFlags // shared flags and immich client
 
 	fsyss []fs.FS // pseudo file system to browse
 
@@ -74,7 +74,7 @@ type UpCmd struct {
 	browser browser.Browser
 }
 
-func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+func UploadCommand(ctx context.Context, common *cmd.RootImmichFlags, args []string) error {
 	app, err := newCommand(ctx, common, args, nil)
 	if err != nil {
 		return err
@@ -87,12 +87,12 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 
 type fsOpener func() ([]fs.FS, error)
 
-func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsOpener fsOpener) (*UpCmd, error) {
+func newCommand(ctx context.Context, common *cmd.RootImmichFlags, args []string, fsOpener fsOpener) (*UpCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
 	app := UpCmd{
-		SharedFlags: common,
+		RootImmichFlags: common,
 	}
 	app.BannedFiles, err = namematcher.New(
 		`@eaDir/`,
@@ -106,7 +106,7 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		return nil, err
 	}
 
-	app.SharedFlags.SetFlags(cmd)
+	app.RootImmichFlags.SetFlags(cmd)
 	cmd.BoolFunc(
 		"dry-run",
 		"display actions but don't touch source or destination",
@@ -218,7 +218,7 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 	}
 
 	app.BrowserConfig.Validate()
-	err = app.SharedFlags.Start(ctx)
+	err = app.RootImmichFlags.Start(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -20,7 +20,7 @@ import (
 )
 
 type DuplicateCmd struct {
-	*cmd.SharedFlags
+	*cmd.RootImmichFlags
 	AssumeYes       bool             // When true, doesn't ask to the user
 	DateRange       immich.DateRange // Set capture date range
 	IgnoreTZErrors  bool             // Enable TZ error tolerance
@@ -36,18 +36,18 @@ type duplicateKey struct {
 	Type string
 }
 
-func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*DuplicateCmd, error) {
+func NewDuplicateCmd(ctx context.Context, common *cmd.RootImmichFlags, args []string) (*DuplicateCmd, error) {
 	cmd := flag.NewFlagSet("duplicate", flag.ExitOnError)
 	validRange := immich.DateRange{}
 	_ = validRange.Set("1850-01-04,2030-01-01")
 	app := DuplicateCmd{
-		SharedFlags:         common,
+		RootImmichFlags:     common,
 		DateRange:           validRange,
 		assetsByID:          map[string]*immich.Asset{},
 		assetsByBaseAndDate: map[duplicateKey][]*immich.Asset{},
 	}
 
-	app.SharedFlags.SetFlags(cmd)
+	app.RootImmichFlags.SetFlags(cmd)
 
 	cmd.BoolFunc("ignore-tz-errors", "Ignore timezone difference to check duplicates (default: FALSE).", myflag.BoolFlagFn(&app.IgnoreTZErrors, false))
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", myflag.BoolFlagFn(&app.AssumeYes, false))
@@ -57,14 +57,14 @@ func NewDuplicateCmd(ctx context.Context, common *cmd.SharedFlags, args []string
 	if err != nil {
 		return nil, err
 	}
-	err = app.SharedFlags.Start(ctx)
+	err = app.RootImmichFlags.Start(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &app, err
 }
 
-func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+func DuplicateCommand(ctx context.Context, common *cmd.RootImmichFlags, args []string) error {
 	app, err := NewDuplicateCmd(ctx, common, args)
 	if err != nil {
 		return err

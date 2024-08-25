@@ -534,7 +534,7 @@ func TestUpload(t *testing.T) {
 			ctx := context.Background()
 
 			log := slog.New(slog.NewTextHandler(io.Discard, nil))
-			serv := cmd.SharedFlags{
+			serv := cmd.RootImmichFlags{
 				Immich: ic,
 				Jnl:    fileevent.NewRecorder(log, false),
 				Log:    log,

@@ -106,7 +106,7 @@ func runCase(t *testing.T, tc testCase) {
 
 	args = append(args, tc.args...)
 
-	app := cmd.SharedFlags{
+	app := cmd.RootImmichFlags{
 		Immich: ic,
 	}
 

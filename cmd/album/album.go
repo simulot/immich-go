@@ -12,7 +12,7 @@ import (
 	"github.com/simulot/immich-go/ui"
 )
 
-func AlbumCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+func AlbumCommand(ctx context.Context, common *cmd.RootImmichFlags, args []string) error {
 	if len(args) > 0 {
 		cmd := args[0]
 		args = args[1:]
@@ -25,17 +25,17 @@ func AlbumCommand(ctx context.Context, common *cmd.SharedFlags, args []string) e
 }
 
 type DeleteAlbumCmd struct {
-	*cmd.SharedFlags
+	*cmd.RootImmichFlags
 	pattern   *regexp.Regexp // album pattern
 	AssumeYes bool
 }
 
-func deleteAlbum(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+func deleteAlbum(ctx context.Context, common *cmd.RootImmichFlags, args []string) error {
 	app := &DeleteAlbumCmd{
-		SharedFlags: common,
+		RootImmichFlags: common,
 	}
 	cmd := flag.NewFlagSet("album delete", flag.ExitOnError)
-	app.SharedFlags.SetFlags(cmd)
+	app.RootImmichFlags.SetFlags(cmd)
 
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
 		var err error
@@ -46,7 +46,7 @@ func deleteAlbum(ctx context.Context, common *cmd.SharedFlags, args []string) er
 	if err != nil {
 		return err
 	}
-	err = app.SharedFlags.Start(ctx)
+	err = app.RootImmichFlags.Start(ctx)
 	if err != nil {
 		return err
 	}

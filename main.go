@@ -3,21 +3,17 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"runtime/debug"
 
-	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/cmd/duplicate"
 	"github.com/simulot/immich-go/cmd/metadata"
 	"github.com/simulot/immich-go/cmd/stack"
 	"github.com/simulot/immich-go/cmd/tool"
 	"github.com/simulot/immich-go/cmd/upload"
-	"github.com/simulot/immich-go/ui"
-	"github.com/telemachus/humane"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -86,17 +82,33 @@ func main() {
 }
 
 func Run(ctx context.Context) error {
-	app := cmd.SharedFlags{
-		Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
-		Banner: ui.NewBanner(version, commit, date),
-	}
-	fs := flag.NewFlagSet("main", flag.ExitOnError)
-	fs.BoolFunc("version", "Get immich-go version", func(s string) error {
-		printVersion()
-		os.Exit(0)
-		return nil
-	})
+	printVersion()
 
+	rootCmd := &cobra.Command{
+		Use:   "immich-go",
+		Short: "Immich-go is a command line application to interact with the Immich application using its API",
+		Long:  `An alternative to the immich-CLI command that doesn't depend on nodejs installation. It tries its best for importing google photos takeout archives.`,
+		// Run: func(cmd *cobra.Command, args []string) {
+		// 	// Do Stuff Here
+		// },
+	}
+
+	rootCmd.PersistentFlags().Add
+
+	fmt.Println(app.Banner.String())
+
+	/*
+		app := cmd.ImmichServerFlags{
+			Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
+			Banner: ui.NewBanner(version, commit, date),
+		}
+		fs := flag.NewFlagSet("main", flag.ExitOnError)
+		fs.BoolFunc("version", "Get immich-go version", func(s string) error {
+			printVersion()
+			os.Exit(0)
+			return nil
+		})
+	*/
 	app.InitSharedFlags()
 	app.SetFlags(fs)
 
@@ -105,9 +117,6 @@ func Run(ctx context.Context) error {
 		app.Log.Error(err.Error())
 		return err
 	}
-
-	printVersion()
-	fmt.Println(app.Banner.String())
 
 	if len(fs.Args()) == 0 {
 		err = errors.New("missing command upload|duplicate|stack|tool")

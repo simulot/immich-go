@@ -14,21 +14,21 @@ import (
 )
 
 type StackCmd struct {
-	*cmd.SharedFlags
+	*cmd.RootImmichFlags
 	AssumeYes bool
 	DateRange immich.DateRange // Set capture date range
 }
 
-func initStack(ctx context.Context, common *cmd.SharedFlags, args []string) (*StackCmd, error) {
+func initStack(ctx context.Context, common *cmd.RootImmichFlags, args []string) (*StackCmd, error) {
 	cmd := flag.NewFlagSet("stack", flag.ExitOnError)
 	validRange := immich.DateRange{}
 
 	_ = validRange.Set("1850-01-04,2030-01-01")
 	app := StackCmd{
-		SharedFlags: common,
-		DateRange:   validRange,
+		RootImmichFlags: common,
+		DateRange:       validRange,
 	}
-	app.SharedFlags.SetFlags(cmd)
+	app.RootImmichFlags.SetFlags(cmd)
 	cmd.BoolFunc("yes", "When true, assume Yes to all actions", func(s string) error {
 		var err error
 		app.AssumeYes, err = strconv.ParseBool(s)
@@ -39,14 +39,14 @@ func initStack(ctx context.Context, common *cmd.SharedFlags, args []string) (*St
 	if err != nil {
 		return nil, err
 	}
-	err = app.SharedFlags.Start(ctx)
+	err = app.RootImmichFlags.Start(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &app, err
 }
 
-func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+func NewStackCommand(ctx context.Context, common *cmd.RootImmichFlags, args []string) error {
 	app, err := initStack(ctx, common, args)
 	if err != nil {
 		return err
