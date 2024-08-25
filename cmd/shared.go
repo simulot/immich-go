@@ -36,17 +36,17 @@ func CreateRootCommand() *RootImmichFlags {
 	rootFlags.Command.Flags().BoolVar(&rootFlags.JSONLog, "log-json", false, "Output line-delimited JSON file, default FALSE")
 
 	// A déplacer dans les sous commandes
-	rootFlags.Command.Flags().StringVar(&rootFlags.Server, "server", rootFlags.Server, "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
-	rootFlags.Command.Flags().StringVar(&rootFlags.API, "api", rootFlags.API, "Immich api endpoint (http://container_ip:3301)")
-	rootFlags.Command.Flags().StringVar(&rootFlags.Key, "key", rootFlags.Key, "API Key")
-	rootFlags.Command.Flags().StringVar(&rootFlags.DeviceUUID, "device-uuid", rootFlags.DeviceUUID, "Set a device UUID")
-	rootFlags.Command.Flags().BoolVar(&rootFlags.Debug, "debug", false, "enable debug messages")
-	rootFlags.Command.Flags().BoolVar(&rootFlags.APITrace, "api-trace", false, "enable trace of api calls")
-	rootFlags.Command.Flags().StringVar(&rootFlags.TimeZone, "time-zone", rootFlags.TimeZone, "Override the system time zone")
-	rootFlags.Command.Flags().BoolVar(&rootFlags.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
-	rootFlags.Command.Flags().BoolVar(&rootFlags.NoUI, "no-ui", false, "Disable the user interface")
-	rootFlags.Command.Flags().DurationVar(&rootFlags.ClientTimeout, "client-timeout", 1*time.Minute, "Set server calls timeout, default 1m")
-	rootFlags.Command.Flags().BoolVar(&rootFlags.DebugCounters, "debug-counters", false, "generate a CSV file with actions per handled files")
+	// rootFlags.Command.Flags().StringVar(&rootFlags.Server, "server", rootFlags.Server, "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
+	// rootFlags.Command.Flags().StringVar(&rootFlags.API, "api", rootFlags.API, "Immich api endpoint (http://container_ip:3301)")
+	// rootFlags.Command.Flags().StringVar(&rootFlags.Key, "key", rootFlags.Key, "API Key")
+	// rootFlags.Command.Flags().StringVar(&rootFlags.DeviceUUID, "device-uuid", rootFlags.DeviceUUID, "Set a device UUID")
+	// rootFlags.Command.Flags().BoolVar(&rootFlags.Debug, "debug", false, "enable debug messages")
+	// rootFlags.Command.Flags().BoolVar(&rootFlags.APITrace, "api-trace", false, "enable trace of api calls")
+	// rootFlags.Command.Flags().StringVar(&rootFlags.TimeZone, "time-zone", rootFlags.TimeZone, "Override the system time zone")
+	// rootFlags.Command.Flags().BoolVar(&rootFlags.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
+	// rootFlags.Command.Flags().BoolVar(&rootFlags.NoUI, "no-ui", false, "Disable the user interface")
+	// rootFlags.Command.Flags().DurationVar(&rootFlags.ClientTimeout, "client-timeout", 1*time.Minute, "Set server calls timeout, default 1m")
+	// rootFlags.Command.Flags().BoolVar(&rootFlags.DebugCounters, "debug-counters", false, "generate a CSV file with actions per handled files")
 	return &rootFlags
 }
 

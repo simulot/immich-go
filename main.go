@@ -8,12 +8,8 @@ import (
 	"os/signal"
 	"runtime/debug"
 
-	"github.com/simulot/immich-go/cmd/duplicate"
-	"github.com/simulot/immich-go/cmd/metadata"
-	"github.com/simulot/immich-go/cmd/stack"
-	"github.com/simulot/immich-go/cmd/tool"
-	"github.com/simulot/immich-go/cmd/upload"
-	"github.com/spf13/cobra"
+	"github.com/simulot/immich-go/cmd"
+	"github.com/simulot/immich-go/cmd/cmdVersion"
 )
 
 var (
@@ -44,10 +40,6 @@ func getCommitInfo() string {
 		commit += "-dirty"
 	}
 	return commit
-}
-
-func printVersion() {
-	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, getCommitInfo(), date)
 }
 
 func main() {
@@ -82,20 +74,12 @@ func main() {
 }
 
 func Run(ctx context.Context) error {
-	printVersion()
+	rootCmd := cmd.CreateRootCommand()
+	cmdVersion.AddCommand(rootCmd, version, getCommitInfo(), date)
 
-	rootCmd := &cobra.Command{
-		Use:   "immich-go",
-		Short: "Immich-go is a command line application to interact with the Immich application using its API",
-		Long:  `An alternative to the immich-CLI command that doesn't depend on nodejs installation. It tries its best for importing google photos takeout archives.`,
-		// Run: func(cmd *cobra.Command, args []string) {
-		// 	// Do Stuff Here
-		// },
-	}
+	err := rootCmd.Command.Execute()
 
-	rootCmd.PersistentFlags().Add
-
-	fmt.Println(app.Banner.String())
+	// fmt.Println(app.Banner.String())
 
 	/*
 		app := cmd.ImmichServerFlags{
@@ -109,46 +93,50 @@ func Run(ctx context.Context) error {
 			return nil
 		})
 	*/
-	app.InitSharedFlags()
-	app.SetFlags(fs)
+	/*
+		app.InitSharedFlags()
+		app.SetFlags(fs)
 
-	err := fs.Parse(os.Args[1:])
-	if err != nil {
-		app.Log.Error(err.Error())
-		return err
-	}
+		err := fs.Parse(os.Args[1:])
+		if err != nil {
+			app.Log.Error(err.Error())
+			return err
+		}
 
-	if len(fs.Args()) == 0 {
-		err = errors.New("missing command upload|duplicate|stack|tool")
-	}
+		if len(fs.Args()) == 0 {
+			err = errors.New("missing command upload|duplicate|stack|tool")
+		}
 
-	if err != nil {
-		app.Log.Error(err.Error())
-		return err
-	}
+		if err != nil {
+			app.Log.Error(err.Error())
+			return err
+		}
 
-	cmd := fs.Args()[0]
-	switch cmd {
-	case "upload":
-		err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
-	case "duplicate":
-		err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
-	case "metadata":
-		err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
-	case "stack":
-		err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
-	case "tool":
-		err = tool.CommandTool(ctx, &app, fs.Args()[1:])
-	default:
-		err = fmt.Errorf("unknown command: %q", cmd)
-	}
+		cmd := fs.Args()[0]
+		switch cmd {
+		case "upload":
+			err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
+		case "duplicate":
+			err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
+		case "metadata":
+			err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
+		case "stack":
+			err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
+		case "tool":
+			err = tool.CommandTool(ctx, &app, fs.Args()[1:])
+		default:
+			err = fmt.Errorf("unknown command: %q", cmd)
+		}
+	*/
 
-	if err != nil {
-		app.Log.Error(err.Error())
-	}
-	fmt.Println("Check the log file: ", app.LogFile)
-	if app.APITraceWriter != nil {
-		fmt.Println("Check the trace file: ", app.APITraceWriterName)
-	}
+	// if err != nil {
+	// 	app.Log.Error(err.Error())
+	// }
+	// fmt.Println("Check the log file: ", app.LogFile)
+	// if app.APITraceWriter != nil {
+	// 	fmt.Println("Check the trace file: ", app.APITraceWriterName)
+	// }
+	// return err
+
 	return err
 }
