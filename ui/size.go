@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-func FormatBytes(s int) string {
+func FormatBytes(s int64) string {
 	suffixes := []string{"B", "KB", "MB", "GB"}
 	bytes := float64(s)
 	base := 1024.0
