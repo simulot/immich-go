@@ -833,7 +833,7 @@ type Advice struct {
 	LocalAsset  *browser.LocalAssetFile
 }
 
-func formatBytes(s int) string {
+func formatBytes(s int64) string {
 	suffixes := []string{"B", "KB", "MB", "GB"}
 	bytes := float64(s)
 	base := 1024.0
@@ -912,7 +912,7 @@ func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) 
 
 	if len(l) > 0 {
 		dateTaken := la.Metadata.DateTaken
-		size := int(la.Size())
+		size := int64(la.Size())
 
 		for _, sa = range l {
 			compareDate := compareDate(dateTaken, sa.ExifInfo.DateTimeOriginal.Time)

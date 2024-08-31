@@ -152,7 +152,7 @@ type ExifInfo struct {
 	Model            string     `json:"model"`
 	ExifImageWidth   int        `json:"exifImageWidth"`
 	ExifImageHeight  int        `json:"exifImageHeight"`
-	FileSizeInByte   int        `json:"fileSizeInByte"`
+	FileSizeInByte   int64      `json:"fileSizeInByte"`
 	Orientation      string     `json:"orientation"`
 	DateTimeOriginal ImmichTime `json:"dateTimeOriginal,omitempty"`
 	// 	ModifyDate       time.Time `json:"modifyDate"`
