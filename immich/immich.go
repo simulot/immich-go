@@ -37,7 +37,7 @@ type ImmichInterface interface {
 	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
 	DeleteAlbum(ctx context.Context, id string) error
 
-	StackAssets(ctx context.Context, cover string, IDs []string) error
+	StackAssets(ctx context.Context, cover string, IDs []string) (*Stack, error)
 
 	SupportedMedia() SupportedMedia
 	GetJobs(ctx context.Context) (map[string]Job, error)
@@ -207,4 +207,10 @@ func (t ImmichTime) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(t.Time.Format("\"" + time.RFC3339 + "\""))
+}
+
+type Stack struct {
+	ID             string  `json:"id"`
+	PrimateAssetID string  `json:"primaryAssetId"`
+	Assets         []Asset `json:"assets"`
 }

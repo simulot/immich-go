@@ -38,8 +38,8 @@ func (c *MockedCLient) UpdateAssets(ctx context.Context, ids []string, isArchive
 	return nil
 }
 
-func (c *MockedCLient) StackAssets(ctx context.Context, cover string, ids []string) error {
-	return nil
+func (c *MockedCLient) StackAssets(ctx context.Context, cover string, ids []string) (*immich.Stack, error) {
+	return nil, nil
 }
 
 func (c *MockedCLient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*immich.Asset, error) {
