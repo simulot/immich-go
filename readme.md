@@ -96,6 +96,8 @@ Example: Immich-go check the server's SSL certificate. you can disable this beha
 
 Use this command for uploading photos and videos from a local directory, a zipped folder or all zip files that the Google Photos takeout procedure has generated.
 
+> ℹ️ If you are uploading from Google Photos don't forget the `-google-photos` option (see below documentation for more details)
+
 ### Switches and options:
 
 | **Parameter**                        | **Description**                                                                                 | **Default value**                                                                         |
