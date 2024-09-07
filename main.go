@@ -3,21 +3,15 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"runtime/debug"
 
 	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/cmd/duplicate"
-	"github.com/simulot/immich-go/cmd/metadata"
+	"github.com/simulot/immich-go/cmd/cmdVersion"
 	"github.com/simulot/immich-go/cmd/stack"
-	"github.com/simulot/immich-go/cmd/tool"
-	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/ui"
-	"github.com/telemachus/humane"
 )
 
 var (
@@ -48,10 +42,6 @@ func getCommitInfo() string {
 		commit += "-dirty"
 	}
 	return commit
-}
-
-func printVersion() {
-	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, getCommitInfo(), date)
 }
 
 func main() {
@@ -86,60 +76,72 @@ func main() {
 }
 
 func Run(ctx context.Context) error {
-	app := cmd.SharedFlags{
-		Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
-		Banner: ui.NewBanner(version, commit, date),
-	}
-	fs := flag.NewFlagSet("main", flag.ExitOnError)
-	fs.BoolFunc("version", "Get immich-go version", func(s string) error {
-		printVersion()
-		os.Exit(0)
-		return nil
-	})
+	banner := ui.NewBanner(version, commit, date)
+	rootCmd := cmd.CreateRootCommand(banner)
+	cmdVersion.AddCommand(rootCmd, version, getCommitInfo(), date)
 
-	app.InitSharedFlags()
-	app.SetFlags(fs)
+	stack.AddCommand(rootCmd)
 
-	err := fs.Parse(os.Args[1:])
-	if err != nil {
-		app.Log.Error(err.Error())
-		return err
-	}
+	err := rootCmd.Command.ExecuteContext(ctx)
 
-	printVersion()
-	fmt.Println(app.Banner.String())
+	// fmt.Println(app.Banner.String())
 
-	if len(fs.Args()) == 0 {
-		err = errors.New("missing command upload|duplicate|stack|tool")
-	}
+	/*
+		app := cmd.ImmichServerFlags{
+			Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
+			Banner: ui.NewBanner(version, commit, date),
+		}
+		fs := flag.NewFlagSet("main", flag.ExitOnError)
+		fs.BoolFunc("version", "Get immich-go version", func(s string) error {
+			printVersion()
+			os.Exit(0)
+			return nil
+		})
+	*/
+	/*
+		app.InitSharedFlags()
+		app.SetFlags(fs)
 
-	if err != nil {
-		app.Log.Error(err.Error())
-		return err
-	}
+		err := fs.Parse(os.Args[1:])
+		if err != nil {
+			app.Log.Error(err.Error())
+			return err
+		}
 
-	cmd := fs.Args()[0]
-	switch cmd {
-	case "upload":
-		err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
-	case "duplicate":
-		err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
-	case "metadata":
-		err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
-	case "stack":
-		err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
-	case "tool":
-		err = tool.CommandTool(ctx, &app, fs.Args()[1:])
-	default:
-		err = fmt.Errorf("unknown command: %q", cmd)
-	}
+		if len(fs.Args()) == 0 {
+			err = errors.New("missing command upload|duplicate|stack|tool")
+		}
 
-	if err != nil {
-		app.Log.Error(err.Error())
-	}
-	fmt.Println("Check the log file: ", app.LogFile)
-	if app.APITraceWriter != nil {
-		fmt.Println("Check the trace file: ", app.APITraceWriterName)
-	}
+		if err != nil {
+			app.Log.Error(err.Error())
+			return err
+		}
+
+		cmd := fs.Args()[0]
+		switch cmd {
+		case "upload":
+			err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
+		case "duplicate":
+			err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
+		case "metadata":
+			err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
+		case "stack":
+			err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
+		case "tool":
+			err = tool.CommandTool(ctx, &app, fs.Args()[1:])
+		default:
+			err = fmt.Errorf("unknown command: %q", cmd)
+		}
+	*/
+
+	// if err != nil {
+	// 	app.Log.Error(err.Error())
+	// }
+	// fmt.Println("Check the log file: ", app.LogFile)
+	// if app.APITraceWriter != nil {
+	// 	fmt.Println("Check the trace file: ", app.APITraceWriterName)
+	// }
+	// return err
+
 	return err
 }

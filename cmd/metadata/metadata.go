@@ -16,20 +16,20 @@ import (
 )
 
 type MetadataCmd struct {
-	*cmd.SharedFlags
+	*cmd.RootImmichFlags
 	DryRun                 bool
 	MissingDateDespiteName bool
 	MissingDate            bool
 }
 
-func NewMetadataCmd(ctx context.Context, common *cmd.SharedFlags, args []string) (*MetadataCmd, error) {
+func NewMetadataCmd(ctx context.Context, common *cmd.RootImmichFlags, args []string) (*MetadataCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("metadata", flag.ExitOnError)
 	app := MetadataCmd{
-		SharedFlags: common,
+		RootImmichFlags: common,
 	}
 
-	app.SharedFlags.SetFlags(cmd)
+	app.RootImmichFlags.SetFlags(cmd)
 	cmd.BoolFunc("dry-run", "display actions, but don't touch the server assets", myflag.BoolFlagFn(&app.DryRun, false))
 	cmd.BoolFunc("missing-date", "select all assets where the date is missing", myflag.BoolFlagFn(&app.MissingDate, false))
 	cmd.BoolFunc("missing-date-with-name", "select all assets where the date is missing but the name contains a the date", myflag.BoolFlagFn(&app.MissingDateDespiteName, false))
@@ -37,18 +37,18 @@ func NewMetadataCmd(ctx context.Context, common *cmd.SharedFlags, args []string)
 	if err != nil {
 		return nil, err
 	}
-	err = app.SharedFlags.Start(ctx)
+	err = app.RootImmichFlags.Start(ctx)
 	return &app, err
 }
 
-func MetadataCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
+func MetadataCommand(ctx context.Context, common *cmd.RootImmichFlags, args []string) error {
 	app, err := NewMetadataCmd(ctx, common, args)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("Get server's assets...")
-	list, err := app.SharedFlags.Immich.GetAllAssets(ctx)
+	list, err := app.RootImmichFlags.Immich.GetAllAssets(ctx)
 	if err != nil {
 		return err
 	}

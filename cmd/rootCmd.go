@@ -1,86 +1,87 @@
 package cmd
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/simulot/immich-go/helpers/configuration"
-	"github.com/simulot/immich-go/helpers/fileevent"
-	"github.com/simulot/immich-go/helpers/tzone"
-	"github.com/simulot/immich-go/immich"
-	fakeimmich "github.com/simulot/immich-go/internal/fakeImmich"
 	"github.com/simulot/immich-go/ui"
 	"github.com/spf13/cobra"
 	"github.com/telemachus/humane"
 )
 
-func CreateRootCommand() *RootImmichFlags {
+func CreateRootCommand(b ui.Banner) *RootImmichFlags {
 	rootFlags := RootImmichFlags{
 		Command: &cobra.Command{
 			Use:   "immich-go",
 			Short: "Immich-go is a command line application to interact with the Immich application using its API",
 			Long:  `An alternative to the immich-CLI command that doesn't depend on nodejs installation. It tries its best for importing google photos takeout archives.`,
 		},
+		Banner: b,
 	}
 
-	rootFlags.Command.Flags().StringVar(&rootFlags.ConfigurationFile, "use-configuration", rootFlags.ConfigurationFile, "Specifies the configuration to use")
-	rootFlags.Command.Flags().StringVar(&rootFlags.LogLevel, "log-level", rootFlags.LogLevel, "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
-	rootFlags.Command.Flags().StringVar(&rootFlags.LogFile, "log-file", rootFlags.LogFile, "Write log messages into the file")
-	rootFlags.Command.Flags().BoolVar(&rootFlags.JSONLog, "log-json", false, "Output line-delimited JSON file, default FALSE")
-
-	// A déplacer dans les sous commandes
-	// rootFlags.Command.Flags().StringVar(&rootFlags.Server, "server", rootFlags.Server, "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
-	// rootFlags.Command.Flags().StringVar(&rootFlags.API, "api", rootFlags.API, "Immich api endpoint (http://container_ip:3301)")
-	// rootFlags.Command.Flags().StringVar(&rootFlags.Key, "key", rootFlags.Key, "API Key")
-	// rootFlags.Command.Flags().StringVar(&rootFlags.DeviceUUID, "device-uuid", rootFlags.DeviceUUID, "Set a device UUID")
-	// rootFlags.Command.Flags().BoolVar(&rootFlags.Debug, "debug", false, "enable debug messages")
-	// rootFlags.Command.Flags().BoolVar(&rootFlags.APITrace, "api-trace", false, "enable trace of api calls")
-	// rootFlags.Command.Flags().StringVar(&rootFlags.TimeZone, "time-zone", rootFlags.TimeZone, "Override the system time zone")
-	// rootFlags.Command.Flags().BoolVar(&rootFlags.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
-	// rootFlags.Command.Flags().BoolVar(&rootFlags.NoUI, "no-ui", false, "Disable the user interface")
-	// rootFlags.Command.Flags().DurationVar(&rootFlags.ClientTimeout, "client-timeout", 1*time.Minute, "Set server calls timeout, default 1m")
-	// rootFlags.Command.Flags().BoolVar(&rootFlags.DebugCounters, "debug-counters", false, "generate a CSV file with actions per handled files")
+	rootFlags.Command.PersistentFlags().StringVar(&rootFlags.ConfigurationFile, "use-configuration", rootFlags.ConfigurationFile, "Specifies the configuration to use")
+	rootFlags.Command.PersistentFlags().StringVar(&rootFlags.LogLevel, "log-level", "INFO", "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
+	rootFlags.Command.PersistentFlags().StringVar(&rootFlags.LogFile, "log-file", configuration.DefaultLogFile(), "Write log messages into the file")
+	rootFlags.Command.PersistentFlags().BoolVar(&rootFlags.JSONLog, "log-json", false, "Output line-delimited JSON file, default FALSE")
 	return &rootFlags
 }
 
 // RootImmichFlags is the root command flags
 type RootImmichFlags struct {
-	Command           *cobra.Command      // Cobra root command
-	ConfigurationFile string              // Path to the configuration file to use
-	JSONLog           bool                // Enable JSON structured log
-	Banner            ui.Banner           // Immich-go banner
-	Log               *slog.Logger        // Logger
-	Jnl               *fileevent.Recorder // Program's logger
-	LogFile           string              // Log file name
-	LogWriterCloser   io.WriteCloser      // the log writer
-	LogLevel          string              // Indicate the log level (string)
-	Level             slog.Level          // Set the log level
-
-	// a déplacer dans les sous commandes
-	Server             string         // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	API                string         // Immich api endpoint (http://container_ip:3301)
-	Key                string         // API Key
-	DeviceUUID         string         // Set a device UUID
-	APITrace           bool           // Enable API call traces
-	Debug              bool           // Enable the debug mode
-	TimeZone           string         // Override default TZ
-	SkipSSL            bool           // Skip SSL Verification
-	ClientTimeout      time.Duration  // Set the client request timeout
-	NoUI               bool           // Disable user interface
-	DebugCounters      bool           // Enable CSV action counters per file
-	DebugFileList      bool           // When true, the file argument is a file wile the list of Takeout files
-	APITraceWriter     io.WriteCloser // API tracer
-	APITraceWriterName string         // API trace log name
-
-	Immich immich.ImmichInterface // Immich client
+	Command           *cobra.Command // Cobra root command
+	ConfigurationFile string         // Path to the configuration file to use
+	JSONLog           bool           // Enable JSON structured log
+	Banner            ui.Banner      // Immich-go banner
+	Log               *slog.Logger   // Logger
+	LogFile           string         // Log file name
+	LogWriterCloser   io.WriteCloser // the log writer
+	LogLevel          string         // Indicate the log level (string)
+	Level             slog.Level     // Set the log level
 }
+
+func (app *RootImmichFlags) Initialize() error {
+	fmt.Println(app.Banner.String())
+	var w io.WriteCloser
+	if app.LogFile != "" {
+		if app.LogWriterCloser == nil {
+			err := configuration.MakeDirForFile(app.LogFile)
+			if err != nil {
+				return err
+			}
+			w, err = os.OpenFile(app.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
+			if err != nil {
+				return err
+			}
+			err = app.Level.UnmarshalText([]byte(strings.ToUpper(app.LogLevel)))
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		w = os.Stdout
+	}
+	app.SetLogWriter(w)
+	app.LogWriterCloser = w
+	app.Log.Info(app.Banner.Version())
+
+	return nil
+}
+
+func (app *RootImmichFlags) SetLogWriter(w io.Writer) {
+	var handler slog.Handler
+	if app.JSONLog {
+		handler = slog.NewJSONHandler(w, &slog.HandlerOptions{})
+	} else {
+		handler = humane.NewHandler(w, &humane.Options{Level: app.Level})
+	}
+	app.Log = slog.New(handler)
+}
+
+/*
 
 func (app *RootImmichFlags) InitSharedFlags() {
 	app.ConfigurationFile = configuration.DefaultConfigFile()
@@ -235,11 +236,4 @@ func (app *RootImmichFlags) Start(ctx context.Context) error {
 	return nil
 }
 
-func (app *RootImmichFlags) SetLogWriter(w io.Writer) {
-	if app.JSONLog {
-		app.Log = slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{}))
-	} else {
-		app.Log = slog.New(humane.NewHandler(w, &humane.Options{Level: app.Level}))
-	}
-	app.Jnl.SetLogger(app.Log)
-}
+*/

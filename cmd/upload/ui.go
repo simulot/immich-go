@@ -305,15 +305,15 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 
 	// Hijack the log
 	ui.logView = tview.NewTextView().SetMaxLines(100).ScrollToEnd()
-	ui.prevSlog = app.SharedFlags.Log
+	ui.prevSlog = app.RootImmichFlags.Log
 
-	if app.SharedFlags.LogWriterCloser != nil {
-		w := io.MultiWriter(app.SharedFlags.LogWriterCloser, ui.logView)
+	if app.RootImmichFlags.LogWriterCloser != nil {
+		w := io.MultiWriter(app.RootImmichFlags.LogWriterCloser, ui.logView)
 		app.SetLogWriter(w)
 	} else {
 		app.SetLogWriter(ui.logView)
 	}
-	app.SharedFlags.Jnl.SetLogger(app.SharedFlags.Log)
+	app.RootImmichFlags.Jnl.SetLogger(app.RootImmichFlags.Log)
 	ui.logView.SetBorder(true).SetTitle("Log")
 	ui.screen.AddItem(ui.logView, 2, 0, 1, 1, 0, 0, false)
 
