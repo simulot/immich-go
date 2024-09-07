@@ -378,7 +378,7 @@ assetLoop:
 				}
 				app.Log.Info(fmt.Sprintf("Stacking %s...", strings.Join(s.Names, ", ")))
 				if !app.DryRun {
-					err = app.Immich.StackAssets(ctx, s.CoverID, s.IDs)
+					_, err = app.Immich.StackAssets(ctx, s.CoverID, s.IDs)
 					if err != nil {
 						app.Log.Error(fmt.Sprintf("Can't stack images: %s", err))
 					}

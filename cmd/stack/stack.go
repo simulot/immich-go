@@ -92,7 +92,7 @@ func NewStackCommand(ctx context.Context, common *cmd.SharedFlags, args []string
 			}
 		}
 		if yes {
-			err := app.Immich.StackAssets(ctx, cover, s.IDs)
+			_, err := app.Immich.StackAssets(ctx, cover, s.IDs)
 			if err != nil {
 				fmt.Printf("Can't stack images: %s\n", err)
 			}
