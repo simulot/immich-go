@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 const (

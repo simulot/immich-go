@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,8 +9,8 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/helpers/configuration"
-	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/tzone"
 	"github.com/spf13/cobra"
 )
 
@@ -24,34 +23,37 @@ type ImmichServerFlags struct {
 	SkipSSL       bool          // Skip SSL Verification
 	ClientTimeout time.Duration // Set the client request timeout
 	DeviceUUID    string        // Set a device UUID
+	DryRun        bool          // Protect the server from changes
+	TimeZone      string        // Override default TZ
 
-	Jnl                *fileevent.Recorder    // Program's logger
+	// Jnl                *fileevent.Recorder    // Program's logger
 	APITraceWriter     io.WriteCloser         // API tracer
 	APITraceWriterName string                 // API trace log name
 	Immich             immich.ImmichInterface // Immich client
-	DebugCounters      bool                   // Enable CSV action counters per file
 
-	// TimeZone      string        // Override default TZ
 	// NoUI               bool           // Disable user interface
 	// DebugFileList      bool           // When true, the file argument is a file wile the list of Takeout files
 }
 
 // NewImmichServerFlagSet add server flags to the command cmd
-func NewImmichServerFlagSet(cmd *cobra.Command, serverFlags *ImmichServerFlags) {
+func AddImmichServerFlagSet(cmd *cobra.Command, rootFlags *RootImmichFlags) *ImmichServerFlags {
+	flags := ImmichServerFlags{}
 	//  Server flags are available for sub commands
-	serverFlags.DeviceUUID, _ = os.Hostname()
-	cmd.PersistentFlags().StringVar(&serverFlags.Server, "server", serverFlags.Server, "Immich server address (example http://<your-ip>:2283 or https://<your-domain>)")
-	cmd.PersistentFlags().StringVar(&serverFlags.API, "api", serverFlags.API, "Immich api endpoint (example http://container_ip:3301)")
-	cmd.PersistentFlags().StringVar(&serverFlags.Key, "key", serverFlags.Key, "API Key")
-	cmd.PersistentFlags().BoolVar(&serverFlags.APITrace, "api-trace", false, "enable trace of api calls")
-	cmd.PersistentFlags().BoolVar(&serverFlags.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
-	cmd.PersistentFlags().DurationVar(&serverFlags.ClientTimeout, "client-timeout", 5*time.Minute, "Set server calls timeout")
-	cmd.PersistentFlags().StringVar(&serverFlags.DeviceUUID, "device-uuid", serverFlags.DeviceUUID, "Set a device UUID")
+	flags.DeviceUUID, _ = os.Hostname()
+	cmd.Flags().StringVarP(&flags.Server, "server", "s", flags.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
+	cmd.Flags().StringVar(&flags.API, "api", flags.API, "Immich api endpoint (example http://container_ip:3301)")
+	cmd.Flags().StringVarP(&flags.Key, "key", "k", flags.Key, "API Key")
+	cmd.Flags().BoolVar(&flags.APITrace, "api-trace", false, "Enable trace of api calls")
+	cmd.Flags().BoolVar(&flags.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
+	cmd.Flags().DurationVar(&flags.ClientTimeout, "client-timeout", 5*time.Minute, "Set server calls timeout")
+	cmd.Flags().StringVar(&flags.DeviceUUID, "device-uuid", flags.DeviceUUID, "Set a device UUID")
+	cmd.Flags().BoolVar(&flags.DryRun, "dry-run", false, "Simulate all actions")
+	cmd.Flags().StringVar(&flags.TimeZone, "time-zone", flags.TimeZone, "Override the system time zone")
 
-	// cmd.PersistentFlags().BoolVar(&serverFlags.DebugCounters, "debug-counters", false, "generate a CSV file with actions per handled files")
-	// fs.StringVar(&serverFlags.TimeZone, "time-zone", serverFlags.TimeZone, "Override the system time zone")
-	// fs.BoolVar(&serverFlags.Debug, "debug", false, "enable debug messages")
-	// fs.BoolVar(&serverFlags.NoUI, "no-ui", false, "Disable the user interface")
+	cmd.PostRunE = func(cmd *cobra.Command, args []string) error {
+		return flags.Close(rootFlags)
+	}
+	return &flags
 }
 
 // Initialize the ImmichServerFlags flagset
@@ -59,62 +61,79 @@ func NewImmichServerFlagSet(cmd *cobra.Command, serverFlags *ImmichServerFlags) 
 // - fields fs.Server and fs.API are mutually exclusive
 // - either fields fs.Server or fs.API must be given
 // - fs.Key is mandatory
-func (app *ImmichServerFlags) Initialize(rootFlags *RootImmichFlags) error {
+func (SrvFlags *ImmichServerFlags) Open(rootFlags *RootImmichFlags) error {
 	var err error
 
-	if app.Server != "" && app.API != "" {
+	if SrvFlags.Server != "" && SrvFlags.API != "" {
 		err = errors.Join(err, errors.New(`flags 'server' and 'api' are mutually exclusive`))
 	}
-	if app.Server == "" && app.API == "" {
+	if SrvFlags.Server == "" && SrvFlags.API == "" {
 		err = errors.Join(err, errors.New(`either 'server' or 'api' flag must be provided`))
 	}
-	if app.Key == "" {
+	if SrvFlags.Key == "" {
 		err = errors.Join(err, errors.New(`flag 'key' is mandatory`))
 	}
-
-	rootFlags.Log.Info(`Connection to the server ` + app.Server)
-
-	app.Immich, err = immich.NewImmichClient(app.Server, app.Key, immich.OptionVerifySSL(app.SkipSSL), immich.OptionConnectionTimeout(app.ClientTimeout))
+	if SrvFlags.TimeZone != "" {
+		if _, e := tzone.SetLocal(SrvFlags.TimeZone); e != nil {
+			err = errors.Join(err, e)
+		}
+	}
 	if err != nil {
 		return err
 	}
-	if app.API != "" {
-		app.Immich.SetEndPoint(app.API)
+
+	rootFlags.Message(`Connection to the server %s`, SrvFlags.Server)
+	SrvFlags.Immich, err = immich.NewImmichClient(SrvFlags.Server, SrvFlags.Key,
+		immich.OptionVerifySSL(SrvFlags.SkipSSL),
+		immich.OptionConnectionTimeout(SrvFlags.ClientTimeout),
+		immich.OptionDryRun(SrvFlags.DryRun),
+	)
+	if err != nil {
+		return err
 	}
-	if app.DeviceUUID != "" {
-		app.Immich.SetDeviceUUID(app.DeviceUUID)
+	if SrvFlags.API != "" {
+		SrvFlags.Immich.SetEndPoint(SrvFlags.API)
+	}
+	if SrvFlags.DeviceUUID != "" {
+		SrvFlags.Immich.SetDeviceUUID(SrvFlags.DeviceUUID)
 	}
 
-	if app.APITrace {
-		if app.APITraceWriter == nil {
+	if SrvFlags.APITrace {
+		if SrvFlags.APITraceWriter == nil {
 			err := configuration.MakeDirForFile(rootFlags.LogFile)
 			if err != nil {
 				return err
 			}
-			app.APITraceWriterName = strings.TrimSuffix(rootFlags.LogFile, filepath.Ext(rootFlags.LogFile)) + ".trace.log"
-			app.APITraceWriter, err = os.OpenFile(app.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
+			SrvFlags.APITraceWriterName = strings.TrimSuffix(rootFlags.LogFile, filepath.Ext(rootFlags.LogFile)) + ".trace.log"
+			SrvFlags.APITraceWriter, err = os.OpenFile(SrvFlags.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
 			if err != nil {
 				return err
 			}
-			app.Immich.EnableAppTrace(app.APITraceWriter)
+			SrvFlags.Immich.EnableAppTrace(SrvFlags.APITraceWriter)
+			rootFlags.Message("API log file: %s", SrvFlags.APITraceWriterName)
 		}
 	}
 
 	ctx := rootFlags.Command.Context()
-	err = app.Immich.PingServer(ctx)
+	err = SrvFlags.Immich.PingServer(ctx)
 	if err != nil {
 		return err
 	}
-	rootFlags.Log.Info(`Server status: OK`)
+	rootFlags.Message(`Server status: OK`)
 
-	user, err := app.Immich.ValidateConnection(ctx)
+	user, err := SrvFlags.Immich.ValidateConnection(ctx)
 	if err != nil {
 		return err
 	}
-	rootFlags.Log.Info(fmt.Sprintf(
-		`Connected, user: %s`,
-		user.Email,
-	))
+	rootFlags.Message(`Connected, user: %s`, user.Email)
 
 	return err
+}
+
+func (flags *ImmichServerFlags) Close(rootFlags *RootImmichFlags) error {
+	if flags.APITrace {
+		flags.APITraceWriter.Close()
+		rootFlags.Message("Check the API traces files %s", flags.APITraceWriterName)
+	}
+	return rootFlags.Close()
 }

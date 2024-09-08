@@ -27,6 +27,7 @@ func CreateRootCommand(b ui.Banner) *RootImmichFlags {
 	rootFlags.Command.PersistentFlags().StringVar(&rootFlags.LogLevel, "log-level", "INFO", "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
 	rootFlags.Command.PersistentFlags().StringVar(&rootFlags.LogFile, "log-file", configuration.DefaultLogFile(), "Write log messages into the file")
 	rootFlags.Command.PersistentFlags().BoolVar(&rootFlags.JSONLog, "log-json", false, "Output line-delimited JSON file, default FALSE")
+
 	return &rootFlags
 }
 
@@ -43,7 +44,7 @@ type RootImmichFlags struct {
 	Level             slog.Level     // Set the log level
 }
 
-func (app *RootImmichFlags) Initialize() error {
+func (app *RootImmichFlags) Open() error {
 	fmt.Println(app.Banner.String())
 	var w io.WriteCloser
 	if app.LogFile != "" {
@@ -60,6 +61,7 @@ func (app *RootImmichFlags) Initialize() error {
 			if err != nil {
 				return err
 			}
+			app.Message("Log file: %s", app.LogFile)
 		}
 	} else {
 		w = os.Stdout
@@ -79,6 +81,21 @@ func (app *RootImmichFlags) SetLogWriter(w io.Writer) {
 		handler = humane.NewHandler(w, &humane.Options{Level: app.Level})
 	}
 	app.Log = slog.New(handler)
+}
+
+func (app *RootImmichFlags) Message(msg string, values ...any) {
+	s := fmt.Sprintf(msg, values...)
+	fmt.Println(s)
+	if app.Log != nil {
+		app.Log.Info(s)
+	}
+}
+
+func (app *RootImmichFlags) Close() error {
+	if app.LogFile != "" {
+		app.Message("Check the log file: %s", app.LogFile)
+	}
+	return nil
 }
 
 /*

@@ -11,6 +11,7 @@ import (
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/cmd/cmdVersion"
 	"github.com/simulot/immich-go/cmd/stack"
+	"github.com/simulot/immich-go/cmd/upload"
 	"github.com/simulot/immich-go/ui"
 )
 
@@ -81,6 +82,7 @@ func Run(ctx context.Context) error {
 	cmdVersion.AddCommand(rootCmd, version, getCommitInfo(), date)
 
 	stack.AddCommand(rootCmd)
+	upload.AddCommand(rootCmd)
 
 	err := rootCmd.Command.ExecuteContext(ctx)
 

@@ -14,7 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/browser"
+	"github.com/google/uuid"
+	"github.com/simulot/immich-go/adapters"
 )
 
 type AssetResponse struct {
@@ -43,7 +44,13 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
-func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetFile) (AssetResponse, error) {
+func (ic *ImmichClient) AssetUpload(ctx context.Context, la *adapters.LocalAssetFile) (AssetResponse, error) {
+	if ic.dryRun {
+		return AssetResponse{
+			ID:     uuid.NewString(),
+			Status: UploadCreated,
+		}, nil
+	}
 	var ar AssetResponse
 	ext := path.Ext(la.FileName)
 	if strings.TrimSuffix(la.Title, ext) == "" {
@@ -243,6 +250,9 @@ func (o *GetAssetOptions) Values() url.Values {
 }
 
 func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDelete bool) error {
+	if ic.dryRun {
+		return nil
+	}
 	req := struct {
 		Force bool     `json:"force"`
 		IDs   []string `json:"ids"`
@@ -270,6 +280,9 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 	latitude float64, longitude float64,
 	removeParent bool, stackParentID string,
 ) error {
+	if ic.dryRun {
+		return nil
+	}
 	type updAssets struct {
 		IDs           []string `json:"ids"`
 		IsArchived    bool     `json:"isArchived"`
@@ -292,7 +305,10 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 	return ic.newServerCall(ctx, "updateAssets").do(putRequest("/assets", setJSONBody(param)))
 }
 
-func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*Asset, error) {
+func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *adapters.LocalAssetFile) (*Asset, error) {
+	if ic.dryRun {
+		return nil, nil
+	}
 	type updAsset struct {
 		IsArchived  bool    `json:"isArchived"`
 		IsFavorite  bool    `json:"isFavorite"`

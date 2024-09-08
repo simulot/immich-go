@@ -13,7 +13,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/navidys/tvxwidgets"
 	"github.com/rivo/tview"
-	"github.com/simulot/immich-go/helpers/fileevent"
+	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -69,7 +69,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	uiApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
-			app.Log = ui.prevSlog
+			app.Root.Log = ui.prevSlog
 			cancel(errors.New("interrupted: Ctrl+C or Ctrl+Q pressed"))
 		case tcell.KeyEnter:
 			if uploadDone.Load() {
@@ -89,7 +89,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 					tick.Stop()
 					return
 				case <-tick.C:
-					jobs, err := app.Immich.GetJobs(ctx)
+					jobs, err := app.Server.Immich.GetJobs(ctx)
 					if err == nil {
 						jobCount := 0
 						jobWaiting := 0
@@ -127,15 +127,16 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 					for c := range ui.counts {
 						ui.getCountView(c, counts[c])
 					}
-					if app.GooglePhotos {
-						ui.immichPrepare.SetMaxValue(int(app.Jnl.TotalAssets()))
-						ui.immichPrepare.SetValue(int(app.Jnl.TotalProcessedGP()))
+					// TODO:
+					// if app.GooglePhotos {
+					// 	ui.immichPrepare.SetMaxValue(int(app.Jnl.TotalAssets()))
+					// 	ui.immichPrepare.SetValue(int(app.Jnl.TotalProcessedGP()))
 
-						if preparationDone.Load() {
-							ui.immichUpload.SetMaxValue(int(app.Jnl.TotalAssets()))
-						}
-						ui.immichUpload.SetValue(int(app.Jnl.TotalProcessed(app.ForceUploadWhenNoJSON)))
-					}
+					// 	if preparationDone.Load() {
+					// 		ui.immichUpload.SetMaxValue(int(app.Jnl.TotalAssets()))
+					// 	}
+					// 	ui.immichUpload.SetValue(int(app.Jnl.TotalProcessed(app.ForceUploadWhenNoJSON)))
+					// }
 				})
 			}
 		}
@@ -197,11 +198,12 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
-		if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 && !app.ForceUploadWhenNoJSON {
-			messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
-			messages.WriteString("- Verify if all takeout parts have been included in the processing.\n")
-			messages.WriteString("- Request another takeout,  either for one year at a time or in smaller increments.\n")
-		}
+		// TODO:
+		// if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 && !app.ForceUploadWhenNoJSON {
+		// 	messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
+		// 	messages.WriteString("- Verify if all takeout parts have been included in the processing.\n")
+		// 	messages.WriteString("- Request another takeout,  either for one year at a time or in smaller increments.\n")
+		// }
 
 		modal := newModal(messages.String())
 		pages.AddPage("modal", modal, true, false)
@@ -254,7 +256,7 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 
 	ui.screen = tview.NewGrid()
 
-	ui.screen.AddItem(tview.NewTextView().SetText(app.Banner.String()), 0, 0, 1, 1, 0, 0, false)
+	ui.screen.AddItem(tview.NewTextView().SetText(app.Root.Banner.String()), 0, 0, 1, 1, 0, 0, false)
 
 	ui.prepareCounts = tview.NewGrid()
 	ui.prepareCounts.SetBorder(true).SetTitle("Input analysis")
@@ -281,7 +283,7 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 
-	if _, err := app.Immich.GetJobs(ctx); err == nil {
+	if _, err := app.Server.Immich.GetJobs(ctx); err == nil {
 		ui.watchJobs = true
 
 		ui.serverJobs = tvxwidgets.NewSparkline()
@@ -305,15 +307,15 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 
 	// Hijack the log
 	ui.logView = tview.NewTextView().SetMaxLines(100).ScrollToEnd()
-	ui.prevSlog = app.RootImmichFlags.Log
+	ui.prevSlog = app.Root.Log
 
-	if app.RootImmichFlags.LogWriterCloser != nil {
-		w := io.MultiWriter(app.RootImmichFlags.LogWriterCloser, ui.logView)
-		app.SetLogWriter(w)
+	if app.Root.LogWriterCloser != nil {
+		w := io.MultiWriter(app.Root.LogWriterCloser, ui.logView)
+		app.Root.SetLogWriter(w)
 	} else {
-		app.SetLogWriter(ui.logView)
+		app.Root.SetLogWriter(ui.logView)
 	}
-	app.RootImmichFlags.Jnl.SetLogger(app.RootImmichFlags.Log)
+	app.Jnl.SetLogger(app.Root.Log)
 	ui.logView.SetBorder(true).SetTitle("Log")
 	ui.screen.AddItem(ui.logView, 2, 0, 1, 1, 0, 0, false)
 
@@ -334,13 +336,15 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 
 	ui.footer = tview.NewGrid()
 	ui.footer.AddItem(tview.NewTextView().SetText("Immich content:").SetTextAlign(tview.AlignCenter), 0, 0, 1, 1, 0, 0, false).AddItem(ui.immichReading, 0, 1, 1, 1, 0, 0, false)
-	if app.GooglePhotos {
-		ui.footer.AddItem(tview.NewTextView().SetText("Google Photo puzzle:").SetTextAlign(tview.AlignCenter), 0, 2, 1, 1, 0, 0, false).AddItem(ui.immichPrepare, 0, 3, 1, 1, 0, 0, false)
-		ui.footer.AddItem(tview.NewTextView().SetText("Uploading:").SetTextAlign(tview.AlignCenter), 0, 4, 1, 1, 0, 0, false).AddItem(ui.immichUpload, 0, 5, 1, 1, 0, 0, false)
-		ui.footer.SetColumns(25, 0, 25, 0, 25, 0)
-	} else {
-		ui.footer.SetColumns(25, 0)
-	}
+
+	// TODO
+	// if app.GooglePhotos {
+	// 	ui.footer.AddItem(tview.NewTextView().SetText("Google Photo puzzle:").SetTextAlign(tview.AlignCenter), 0, 2, 1, 1, 0, 0, false).AddItem(ui.immichPrepare, 0, 3, 1, 1, 0, 0, false)
+	// 	ui.footer.AddItem(tview.NewTextView().SetText("Uploading:").SetTextAlign(tview.AlignCenter), 0, 4, 1, 1, 0, 0, false).AddItem(ui.immichUpload, 0, 5, 1, 1, 0, 0, false)
+	// 	ui.footer.SetColumns(25, 0, 25, 0, 25, 0)
+	// } else {
+	ui.footer.SetColumns(25, 0)
+	// }
 	ui.screen.AddItem(ui.footer, 3, 0, 1, 1, 0, 0, false)
 
 	// Adjust section's height

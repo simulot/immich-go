@@ -8,11 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"slices"
-	"sort"
-	"strings"
-	"sync"
 	"time"
+
+	"github.com/simulot/immich-go/internal/metadata"
 )
 
 /*
@@ -30,7 +28,8 @@ type ImmichClient struct {
 	Retries             int           // Number of attempts on 500 errors
 	RetriesDelay        time.Duration // Duration between retries
 	apiTraceWriter      io.Writer
-	supportedMediaTypes SupportedMedia // Server's list of supported medias
+	supportedMediaTypes metadata.SupportedMedia // Server's list of supported medias
+	dryRun              bool                    //  If true, do not send any data to the server
 }
 
 func (ic *ImmichClient) SetEndPoint(endPoint string) {
@@ -45,7 +44,7 @@ func (ic *ImmichClient) EnableAppTrace(w io.Writer) {
 	ic.apiTraceWriter = w
 }
 
-func (ic *ImmichClient) SupportedMedia() SupportedMedia {
+func (ic *ImmichClient) SupportedMedia() metadata.SupportedMedia {
 	return ic.supportedMediaTypes
 }
 
@@ -61,6 +60,13 @@ func OptionVerifySSL(verify bool) clientOption {
 func OptionConnectionTimeout(d time.Duration) clientOption {
 	return func(ic *ImmichClient) error {
 		ic.client.Timeout = d
+		return nil
+	}
+}
+
+func OptionDryRun(dryRun bool) clientOption {
+	return func(ic *ImmichClient) error {
+		ic.dryRun = dryRun
 		return nil
 	}
 }
@@ -182,79 +188,21 @@ func (ic *ImmichClient) GetAssetStatistics(ctx context.Context) (UserStatistics,
 	return s, err
 }
 
-type SupportedMedia map[string]string
-
-const (
-	TypeVideo   = "video"
-	TypeImage   = "image"
-	TypeSidecar = "sidecar"
-	TypeUnknown = ""
-)
-
-var DefaultSupportedMedia = SupportedMedia{
-	".3gp": TypeVideo, ".avi": TypeVideo, ".flv": TypeVideo, ".insv": TypeVideo, ".m2ts": TypeVideo, ".m4v": TypeVideo, ".mkv": TypeVideo, ".mov": TypeVideo, ".mp4": TypeVideo, ".mpg": TypeVideo, ".mts": TypeVideo, ".webm": TypeVideo, ".wmv": TypeVideo,
-	".3fr": TypeImage, ".ari": TypeImage, ".arw": TypeImage, ".avif": TypeImage, ".bmp": TypeImage, ".cap": TypeImage, ".cin": TypeImage, ".cr2": TypeImage, ".cr3": TypeImage, ".crw": TypeImage, ".dcr": TypeImage, ".dng": TypeImage, ".erf": TypeImage,
-	".fff": TypeImage, ".gif": TypeImage, ".heic": TypeImage, ".heif": TypeImage, ".hif": TypeImage, ".iiq": TypeImage, ".insp": TypeImage, ".jpe": TypeImage, ".jpeg": TypeImage, ".jpg": TypeImage,
-	".jxl": TypeImage, ".k25": TypeImage, ".kdc": TypeImage, ".mrw": TypeImage, ".nef": TypeImage, ".orf": TypeImage, ".ori": TypeImage, ".pef": TypeImage, ".png": TypeImage, ".psd": TypeImage, ".raf": TypeImage, ".raw": TypeImage, ".rw2": TypeImage,
-	".rwl": TypeImage, ".sr2": TypeImage, ".srf": TypeImage, ".srw": TypeImage, ".tif": TypeImage, ".tiff": TypeImage, ".webp": TypeImage, ".x3f": TypeImage,
-	".xmp": TypeSidecar,
-	".mp":  TypeVideo,
-}
-
-func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMedia, error) {
+func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (metadata.SupportedMedia, error) {
 	var s map[string][]string
 
 	err := ic.newServerCall(ctx, EndPointGetSupportedMediaTypes).do(getRequest("/server-info/media-types", setAcceptJSON()), responseJSON(&s))
 	if err != nil {
 		return nil, err
 	}
-	sm := make(SupportedMedia)
+	sm := make(metadata.SupportedMedia)
 	for t, l := range s {
 		for _, e := range l {
 			sm[e] = t
 		}
 	}
-	sm[".mp"] = TypeVideo
+	sm[".mp"] = metadata.TypeVideo
 	return sm, err
-}
-
-func (sm SupportedMedia) TypeFromExt(ext string) string {
-	ext = strings.ToLower(ext)
-	if strings.HasPrefix(ext, ".mp~") {
-		// #405
-		ext = ".mp4"
-	}
-	return sm[ext]
-}
-
-func (sm SupportedMedia) IsMedia(ext string) bool {
-	t := sm.TypeFromExt(ext)
-	return t == TypeVideo || t == TypeImage
-}
-
-var (
-	_supportedExtension []string
-	initSupportedExtion sync.Once
-)
-
-func (sm SupportedMedia) IsExtensionPrefix(ext string) bool {
-	initSupportedExtion.Do(func() {
-		_supportedExtension = make([]string, len(sm))
-		i := 0
-		for k := range sm {
-			_supportedExtension[i] = k[:len(k)-2]
-			i++
-		}
-		sort.Strings(_supportedExtension)
-	})
-	ext = strings.ToLower(ext)
-	_, b := slices.BinarySearch(_supportedExtension, ext)
-	return b
-}
-
-func (sm SupportedMedia) IsIgnoredExt(ext string) bool {
-	t := sm.TypeFromExt(ext)
-	return t == ""
 }
 
 func (ic *ImmichClient) TypeFromExt(ext string) string {

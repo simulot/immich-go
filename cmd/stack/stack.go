@@ -6,47 +6,49 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/helpers/stacking"
 	"github.com/simulot/immich-go/immich"
+	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/stacking"
 	"github.com/simulot/immich-go/ui"
 	"github.com/spf13/cobra"
 )
 
 type StackCmd struct {
-	Command *cobra.Command
-	*cmd.RootImmichFlags
-	cmd.ImmichServerFlags
-	AssumeYes bool
-	DateRange immich.DateRange // Set capture date range
+	Command                *cobra.Command
+	*cmd.RootImmichFlags   //  global flags
+	*cmd.ImmichServerFlags // Immich server flags
+	AssumeYes              bool
+	DateRange              cliflags.DateRange // Set capture date range
 }
 
 func AddCommand(root *cmd.RootImmichFlags) {
-	stackCmd := StackCmd{
-		RootImmichFlags: root,
-		Command: &cobra.Command{
-			Use:   "stack",
-			Short: "Stack photos",
-			Long:  `Stack photos taken in the short periode of time.`,
-		},
+	stackCmd := &cobra.Command{
+		Use:   "stack",
+		Short: "Stack photos",
+		Long:  `Stack photos taken in the short period of time.`,
 	}
 	now := time.Now().Add(24 * time.Hour)
 
-	_ = stackCmd.DateRange.Set(time.Date(now.Year()-10, 1, 1, 0, 0, 0, 0, time.Local).Format("2006-01-02") + "," + now.Format("2006-01-02"))
-	stackCmd.Command.RunE = stackCmd.run
-	stackCmd.Command.Flags().Var(&stackCmd.DateRange, "date-range", "photos must be in the date range")
-	stackCmd.Command.Flags().Bool("force-yes", false, "Assume YES to all questions")
+	ImmichServerFlags := cmd.AddImmichServerFlagSet(stackCmd, root)
 
-	cmd.NewImmichServerFlagSet(stackCmd.Command, &stackCmd.ImmichServerFlags)
-	root.Command.AddCommand(stackCmd.Command)
+	flags := &StackCmd{
+		ImmichServerFlags: ImmichServerFlags,
+		DateRange:         cliflags.DateRange{Before: time.Date(1980, 1, 1, 0, 0, 0, 0, time.Local), After: now},
+	}
+	stackCmd.Flags().Var(&flags.DateRange, "date-range", "photos must be taken in the date range")
+	stackCmd.Flags().Bool("force-yes", false, "Assume YES to all questions")
+	root.Command.AddCommand(stackCmd)
+
+	// TODO: call the run
 }
 
 func (app *StackCmd) run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	err := app.RootImmichFlags.Initialize()
+	err := app.RootImmichFlags.Open()
 	if err != nil {
 		return err
 	}
-	err = app.ImmichServerFlags.Initialize(app.RootImmichFlags)
+	err = app.ImmichServerFlags.Open(app.RootImmichFlags)
 	if err != nil {
 		return err
 	}
