@@ -35,11 +35,11 @@ type LocalAssetFile struct {
 	SideCar  metadata.SideCarFile // sidecar file if found
 	Metadata metadata.Metadata    // Metadata fields
 
-	// Google Photos flags
-	Trashed     bool // The asset is trashed
-	Archived    bool // The asset is archived
-	FromPartner bool // the asset comes from a partner
-	Favorite    bool
+	// // Google Photos flags
+	// Trashed     bool // The asset is trashed
+	// Archived    bool // The asset is archived
+	// FromPartner bool // the asset comes from a partner
+	// Favorite    bool
 
 	// Live Photos
 	LivePhoto   *LocalAssetFile // Local asset of the movie part

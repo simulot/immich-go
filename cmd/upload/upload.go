@@ -7,6 +7,7 @@ import (
 
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/adapters/folder"
+	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/stacking"
 
@@ -23,7 +24,7 @@ type UpCmd struct {
 	Server            *cmd.ImmichServerFlags // server flags attached to the import command
 	*CommonFlags                             // Common flags between import sub-commands
 	UploadFolderFlags *folder.ImportFlags    // Folder import flags
-	// GooglePhotosFlags      *gp.ImportFlags     // Google Photos import flags
+	GooglePhotosFlags *gp.ImportFlags        // Google Photos import flags
 
 	AssetIndex       *AssetIndex     // List of assets present on the server
 	deleteServerList []*immich.Asset // List of server assets to remove
@@ -48,7 +49,7 @@ func AddCommand(root *cmd.RootImmichFlags) {
 	}
 	root.Command.AddCommand(upCommand)
 	addFromFolderCommand(upCommand, root)
-	// addFromGooglePhotosCommand(upCommand, root)
+	addFromGooglePhotosCommand(upCommand, root)
 }
 
 /*

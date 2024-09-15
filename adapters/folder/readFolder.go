@@ -55,14 +55,14 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFlag
 	return &la, nil
 }
 
-func (la *LocalAssetBrowser) Prepare(ctx context.Context) error {
+func (la *LocalAssetBrowser) Browse(ctx context.Context) (chan *adapters.LocalAssetFile, error) {
 	for _, fsys := range la.fsyss {
 		err := la.passOneFsWalk(ctx, fsys)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return la.passTwo(ctx), nil
 }
 
 func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) error {
@@ -135,7 +135,7 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 	return err
 }
 
-func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *adapters.LocalAssetFile {
+func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.LocalAssetFile {
 	fileChan := make(chan *adapters.LocalAssetFile)
 	// Browse all given FS to collect the list of files
 	go func(ctx context.Context) {

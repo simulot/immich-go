@@ -10,19 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// type ImportFlags struct {
-// 	UsePathAsAlbumName     AlbumFolderMode            // Create albums for assets based on the full path to the asset
-// 	AlbumNamePathSeparator string                     // Determines how multiple (sub) folders, if any, will be joined
-// 	ImportIntoAlbum        string                     // All assets will be added to this album
-// 	BannedFiles            namematcher.List           // List of banned file name patterns
-// 	Recursive              bool                       // Explore the folder and all sub-folders
-// 	InclusionFlags         cliflags.InclusionFlags    // Flags  for controlling the extensions of the files to be uploaded
-// 	DateHandlingFlags      cliflags.DateHandlingFlags // Options for control how the capture date is  handled
-// 	ExifToolFlags          metadata.ExifToolFlags     // Options for the exif command
-// 	IgnoreSideCarFiles     bool                       // Ignore XMP files
-// 	SupportedMedia         metadata.SupportedMedia    // Server actual list of supported media, not a flag
-// }
-
 // ImportFlags represents the flags used for importing assets from a file system.
 type ImportFlags struct {
 	// UsePathAsAlbumName determines whether to create albums based on the full path to the asset.
@@ -76,6 +63,7 @@ func AddUploadFolderFlags(cmd *cobra.Command, flags *ImportFlags) {
 	cliflags.AddInclusionFlags(cmd, &flags.InclusionFlags)
 	cliflags.AddDateHandlingFlags(cmd, &flags.DateHandlingFlags)
 	metadata.AddExifToolFlags(cmd, &flags.ExifToolFlags)
+	flags.SupportedMedia = metadata.DefaultSupportedMedia
 }
 
 // AlbumFolderMode represents the mode in which album folders are organized.

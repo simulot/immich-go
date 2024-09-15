@@ -12,10 +12,10 @@ type DateMethod string
 
 const (
 	DateMethodNone         DateMethod = "NONE"
-	DateMethodName         DateMethod = "NAME"
+	DateMethodName         DateMethod = "FILENAME"
 	DateMethodEXIF         DateMethod = "EXIF"
-	DateMethodNameThenExif DateMethod = "NAME-EXIF"
-	DateMethodExifThenName DateMethod = "EXIF-NAME"
+	DateMethodNameThenExif DateMethod = "FILENAME-EXIF"
+	DateMethodExifThenName DateMethod = "EXIF-FILENAME"
 )
 
 func (dm *DateMethod) Set(s string) error {
@@ -32,7 +32,7 @@ func (dm *DateMethod) Set(s string) error {
 		*dm = DateMethod(s)
 		return nil
 	default:
-		return fmt.Errorf("invalid DateMethod: %s, expecting NONE|NAME|EXIF|NAME-EXIF|EXIF-NAME", s)
+		return fmt.Errorf("invalid DateMethod: %s, expecting NONE|FILENAME|EXIF|FILENAME-EXIF|EXIF-FILENAME", s)
 	}
 }
 

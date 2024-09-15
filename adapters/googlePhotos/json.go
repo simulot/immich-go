@@ -6,7 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/tzone"
+	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/tzone"
 )
 
 type Metablock struct {
@@ -32,6 +33,25 @@ type GoogleMetaData struct {
 	AlbumData *Metablock `json:"albumdata"`
 	// Not in the JSON, for local treatment
 	foundInPaths []string //  keep track of paths where the json has been found
+}
+
+func (gmd GoogleMetaData) AsMetadata() *metadata.Metadata {
+	latitude, longitude := gmd.GeoDataExif.Latitude, gmd.GeoDataExif.Longitude
+	if latitude == 0 && longitude == 0 {
+		latitude, longitude = gmd.GeoData.Latitude, gmd.GeoData.Longitude
+	}
+
+	return &metadata.Metadata{
+		FileName:    gmd.Title,
+		Description: gmd.Description,
+		DateTaken:   gmd.PhotoTakenTime.Time(),
+		Latitude:    latitude,
+		Longitude:   longitude,
+		Trashed:     gmd.Trashed,
+		Archived:    gmd.Archived,
+		Favorited:   gmd.Favorited,
+		FromPartner: gmd.isPartner(),
+	}
 }
 
 func (gmd *GoogleMetaData) UnmarshalJSON(data []byte) error {

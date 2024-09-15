@@ -1,0 +1,1 @@
+- improve the duplicate counter

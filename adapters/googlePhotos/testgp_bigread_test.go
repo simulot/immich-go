@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/simulot/immich-go/helpers/fileevent"
-	"github.com/simulot/immich-go/helpers/fshelper"
+	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/telemachus/humane"
 )
@@ -42,7 +42,13 @@ func TestReadBigTakeout(t *testing.T) {
 		return
 	}
 
-	for range to.Browse(context.Background()) {
+	assets, err := to.Browse(context.Background())
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for range assets {
 		cnt++
 	}
 	l.Info(fmt.Sprintf("files seen %d", cnt))

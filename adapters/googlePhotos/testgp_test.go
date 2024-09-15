@@ -10,8 +10,7 @@ import (
 	"testing"
 
 	"github.com/kr/pretty"
-	"github.com/simulot/immich-go/browser"
-	"github.com/simulot/immich-go/helpers/fileevent"
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
@@ -144,21 +143,23 @@ func TestBrowse(t *testing.T) {
 			ctx := context.Background()
 
 			log := slog.New(slog.NewTextHandler(io.Discard, nil))
-			flags := &FlagImport{
+			flags := &ImportFlags{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 			}
 			b, err := NewTakeout(ctx, fileevent.NewRecorder(log, false), flags, fsys...)
 			if err != nil {
 				t.Error(err)
+				return
 			}
 
-			err = b.Prepare(ctx)
+			assetChan, err := b.Browse(ctx)
 			if err != nil {
 				t.Error(err)
+				return
 			}
 
 			results := []fileResult{}
-			for a := range b.Browse(ctx) {
+			for a := range assetChan {
 				results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
 				if a.LivePhoto != nil {
 					results = append(results, fileResult{name: path.Base(a.LivePhoto.FileName), size: a.LivePhoto.FileSize, title: a.LivePhoto.Title})
@@ -222,20 +223,22 @@ func TestAlbums(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 			fsys := c.gen()
-			flags := &FlagsImport{
+			flags := &ImportFlags{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 			}
 			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), flags, fsys...)
 			if err != nil {
 				t.Error(err)
+				return
 			}
-			err = b.Prepare(ctx)
+			assetChan, err := b.Browse(ctx)
 			if err != nil {
 				t.Error(err)
+				return
 			}
 
 			albums := album{}
-			for a := range b.Browse(ctx) {
+			for a := range assetChan {
 				if len(a.Albums) > 0 {
 					for _, al := range a.Albums {
 						l := albums[al.Title]
@@ -345,23 +348,26 @@ func TestArchives(t *testing.T) {
 			func(t *testing.T) {
 				ctx := context.Background()
 				fsys := c.gen()
-				flags := &browser.GooglePhotosFlags{
+				flags := &ImportFlags{
 					SupportedMedia: metadata.DefaultSupportedMedia,
 					KeepJSONLess:   c.acceptMissingJSON,
+					CreateAlbums:   true,
 				}
 				b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), flags, fsys...)
 				if err != nil {
 					t.Error(err)
+					return
 				}
-				err = b.Prepare(ctx)
+				assetChan, err := b.Browse(ctx)
 				if err != nil {
 					t.Error(err)
+					return
 				}
 
 				livePhotos := photo{}
 				assets := photo{}
 				albums := album{}
-				for a := range b.Browse(ctx) {
+				for a := range assetChan {
 					if a.LivePhoto != nil {
 						photo := a.FileName
 						video := a.LivePhoto.FileName

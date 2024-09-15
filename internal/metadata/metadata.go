@@ -9,11 +9,17 @@ import (
 )
 
 type Metadata struct {
-	Description string    // Long description
-	DateTaken   time.Time // Date of exposure
 	Latitude    float64   // GPS
-	Longitude   float64
-	Collections []string // Used to list albums that contain the file
+	Longitude   float64   //  GPS
+	FileName    string    // File name of the photo / video
+	DateTaken   time.Time // Date of exposure
+	Description string    // Long description
+	Collections []string  // Used to list albums that contain the file
+	Rating      byte      // 0 to 5
+	Trashed     bool      // Flag to indicate if the image has been trashed
+	Archived    bool      // Flag to indicate if the image has been archived
+	Favorited   bool      // Flag to indicate if the image has been favorited
+	FromPartner bool      // Flag to indicate if the image is from a partner
 }
 
 func (m Metadata) IsSet() bool {

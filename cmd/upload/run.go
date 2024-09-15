@@ -99,7 +99,10 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 
 func (app *UpCmd) uploadLoop(ctx context.Context) error {
 	var err error
-	assetChan := app.browser.Browse(ctx)
+	assetChan, err := app.browser.Browse(ctx)
+	if err != nil {
+		return err
+	}
 assetLoop:
 	for {
 		select {

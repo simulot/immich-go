@@ -15,6 +15,7 @@ func addFromFolderCommand(uploadCmd *cobra.Command, rootFlags *cmd.RootImmichFla
 	cmdFolder := &cobra.Command{
 		Use:   "from-folder [flags] <folder> [<folder>...]",
 		Short: "import files from a folder structure",
+		Args:  cobra.MinimumNArgs(1),
 	}
 	cmdFolder.Flags().SortFlags = false
 
@@ -36,9 +37,6 @@ func addFromFolderCommand(uploadCmd *cobra.Command, rootFlags *cmd.RootImmichFla
 	uploadCmd.AddCommand(cmdFolder)
 
 	cmdFolder.RunE = func(cmd *cobra.Command, args []string) error {
-		// if UploadFolderFlags.ImportIntoAlbum != "" && UploadFolderFlags.UsePathAsAlbumName != folder.FolderModeNone {
-		// 	UploadFolderFlags.UsePathAsAlbumName = folder.FolderModeNone
-		// }
 		UpCmd := &UpCmd{
 			Root:              rootFlags,
 			Server:            cmdUpServerFlags,
@@ -68,9 +66,9 @@ func addFromFolderCommand(uploadCmd *cobra.Command, rootFlags *cmd.RootImmichFla
 		if err != nil {
 			return err
 		}
-		UploadFolderFlags.SupportedMedia = UpCmd.Server.Immich.SupportedMedia()
+		UpCmd.UploadFolderFlags.SupportedMedia = UpCmd.Server.Immich.SupportedMedia()
 
-		adapter, err := folder.NewLocalFiles(ctx, UpCmd.Jnl, &UploadFolderFlags, fsyss...)
+		adapter, err := folder.NewLocalFiles(ctx, UpCmd.Jnl, UpCmd.UploadFolderFlags, fsyss...)
 		if err != nil {
 			return err
 		}

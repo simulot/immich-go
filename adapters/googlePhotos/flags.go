@@ -1,4 +1,5 @@
 // Package gp provides functionality for importing Google Photos takeout into Immich.
+
 package gp
 
 import (
@@ -10,6 +11,9 @@ import (
 
 // ImportFlags represents the command-line flags for the Google Photos takeout import command.
 type ImportFlags struct {
+	// UseJSONMetadata  indicates whether to use JSON metadata. A virtual XMP sidecar is created to convey the GPS location and the date of capture
+	UseJSONMetadata bool
+
 	// CreateAlbums determines whether to create albums in Immich that match the albums in the Google Photos takeout.
 	CreateAlbums bool
 
@@ -37,19 +41,25 @@ type ImportFlags struct {
 	// KeepJSONLess determines whether to import photos that do not have a matching JSON file in the takeout.
 	KeepJSONLess bool
 
-	// SupportedMedia represents the server's actual list of supported media. This is not a flag.
-	SupportedMedia metadata.SupportedMedia
-
 	// Flags  for controlling the extensions of the files to be uploaded
-	*cliflags.InclusionFlags
+	InclusionFlags cliflags.InclusionFlags
+
+	// DateHandlingFlags provides options for handling the capture date of the assets.
+	DateHandlingFlags cliflags.DateHandlingFlags
+
+	// ExifToolFlags specifies options for the exif.
+	ExifToolFlags metadata.ExifToolFlags
 
 	// List of banned files
 	BannedFiles namematcher.List // List of banned file name patterns
+
+	// SupportedMedia represents the server's actual list of supported media. This is not a flag.
+	SupportedMedia metadata.SupportedMedia
 }
 
 // AddGoogleTakeoutFlags adds the command-line flags for the Google Photos takeout import command to the provided Cobra command.
-func AddGoogleTakeoutFlags(cmd *cobra.Command) *ImportFlags {
-	flags := ImportFlags{}
+func AddGoogleTakeoutFlags(cmd *cobra.Command, flags *ImportFlags) {
+	cmd.Flags().BoolVarP(&flags.UseJSONMetadata, "use-json-metadata", "j", true, "Use JSON metadata for date and GPS information")
 	cmd.Flags().BoolVar(&flags.CreateAlbums, "sync-albums", true, "Automatically create albums in Immich that match the albums in your Google Photos takeout")
 	cmd.Flags().StringVar(&flags.ImportFromAlbum, "import-from-album-name", "", "Only import photos from the specified Google Photos album")
 	cmd.Flags().BoolVar(&flags.KeepUntitled, "include-untitled-albums", false, "Include photos from albums without a title in the import process")
@@ -59,6 +69,8 @@ func AddGoogleTakeoutFlags(cmd *cobra.Command) *ImportFlags {
 	cmd.Flags().BoolVarP(&flags.KeepArchived, "include-archived", "a", true, "Import archived Google Photos")
 	cmd.Flags().BoolVarP(&flags.KeepJSONLess, "include-unmatched", "u", false, "Import photos that do not have a matching JSON file in the takeout")
 	cmd.Flags().Var(&flags.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
-	flags.InclusionFlags = cliflags.AddInclusionFlags(cmd)
-	return &flags
+	cliflags.AddInclusionFlags(cmd, &flags.InclusionFlags)
+	cliflags.AddDateHandlingFlags(cmd, &flags.DateHandlingFlags)
+	metadata.AddExifToolFlags(cmd, &flags.ExifToolFlags)
+	flags.SupportedMedia = metadata.DefaultSupportedMedia
 }
