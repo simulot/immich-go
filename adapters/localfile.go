@@ -62,7 +62,7 @@ func (l LocalAssetFile) DebugObject() any {
 
 func (l *LocalAssetFile) AddAlbum(album LocalAlbum) {
 	for _, al := range l.Albums {
-		if al == album {
+		if al.Title == album.Title {
 			return
 		}
 	}

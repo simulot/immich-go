@@ -35,7 +35,7 @@ func initMyEnv(t *testing.T) {
 
 type expectedCounts map[fileevent.Code]int64
 
-func checkAgainstFileList(t *testing.T, fileList string, flags *gp.ImportFlags, expected expectedCounts, fsyss []fs.FS) {
+func simulateAndCheck(t *testing.T, fileList string, flags *gp.ImportFlags, expected expectedCounts, fsyss []fs.FS) {
 	if flags.SupportedMedia == nil {
 		flags.SupportedMedia = metadata.DefaultSupportedMedia
 	}
@@ -46,6 +46,19 @@ func checkAgainstFileList(t *testing.T, fileList string, flags *gp.ImportFlags, 
 	}
 
 	counts := jnl.GetCounts()
+
+	shouldUpload := counts[fileevent.DiscoveredImage] +
+		counts[fileevent.DiscoveredVideo] -
+		counts[fileevent.AnalysisLocalDuplicate] -
+		counts[fileevent.DiscoveredDiscarded]
+	if !flags.KeepJSONLess {
+		shouldUpload -= counts[fileevent.AnalysisMissingAssociatedMetadata]
+	}
+	diff := shouldUpload - counts[fileevent.Uploaded]
+	if diff != 0 {
+		t.Errorf("The counter[Uploaded]==%d, expected %d, diff %d", counts[fileevent.Uploaded], shouldUpload, diff)
+	}
+
 	for c := fileevent.Code(0); c < fileevent.MaxCode; c++ {
 		if v, ok := expected[c]; ok {
 			if counts[c] != v {
@@ -55,7 +68,7 @@ func checkAgainstFileList(t *testing.T, fileList string, flags *gp.ImportFlags, 
 	}
 }
 
-// Simulate a takeout archive with the list of zipped files
+// Simulate takeout archive upload
 func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fileevent.Recorder, error) {
 	ctx := context.Background()
 
@@ -80,24 +93,20 @@ func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fil
 		if a.Err != nil {
 			return nil, a.Err
 		}
+		jnl.Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
+		for _, album := range a.Albums {
+			jnl.Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "album", album.Title)
+		}
 	}
 
-	csvFile, err := os.Create(testname + ".csv")
-	if err != nil {
-		return nil, err
-	}
-	defer csvFile.Close()
-	err = jnl.WriteFileCounts(csvFile)
-	if err != nil {
-		return nil, err
-	}
+	jnl.Report()
 
-	dupFile, err := os.Create(testname + ".dup.csv")
+	trackerFile, err := os.Create(testname + ".tracker.csv")
 	if err != nil {
 		return nil, err
 	}
-	defer dupFile.Close()
-	adapter.DebugDuplicates(dupFile)
+	defer trackerFile.Close()
+	adapter.DebugFileTracker(trackerFile)
 
 	linkedFiles, err := os.Create(testname + ".linked.csv")
 	if err != nil {
@@ -105,13 +114,6 @@ func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fil
 	}
 	defer linkedFiles.Close()
 	adapter.DebugLinkedFiles(linkedFiles)
-
-	trackedFiles, err := os.Create(testname + ".tracked.csv")
-	if err != nil {
-		return nil, err
-	}
-	defer trackedFiles.Close()
-	adapter.DebugFileTracker(trackedFiles)
 
 	return jnl, nil
 }

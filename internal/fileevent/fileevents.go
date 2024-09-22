@@ -2,18 +2,22 @@
 
 package fileevent
 
+/*
+	TODO:
+	- rename the package as journal
+	- use a filenemame type that keeps the fsys and the name in that fsys
+
+*/
 import (
 	"context"
 	"fmt"
-	"io"
+	"io/fs"
 	"log/slog"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/simulot/immich-go/adapters"
-	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 /*
@@ -23,11 +27,12 @@ import (
 type Code int
 
 const (
-	DiscoveredImage       Code = iota // = "Scanned image"
-	DiscoveredVideo                   // = "Scanned video"
-	DiscoveredSidecar                 // = "Scanned side car file"
-	DiscoveredDiscarded               // = "Discarded"
-	DiscoveredUnsupported             // = "File type not supported"
+	NotHandled            Code = iota
+	DiscoveredImage            // = "Scanned image"
+	DiscoveredVideo            // = "Scanned video"
+	DiscoveredSidecar          // = "Scanned side car file"
+	DiscoveredDiscarded        // = "Discarded"
+	DiscoveredUnsupported      // = "File type not supported"
 
 	AnalysisAssociatedMetadata
 	AnalysisMissingAssociatedMetadata
@@ -51,6 +56,7 @@ const (
 )
 
 var _code = map[Code]string{
+	NotHandled:            "Not handled",
 	DiscoveredImage:       "scanned image file",
 	DiscoveredVideo:       "scanned video file",
 	DiscoveredSidecar:     "scanned sidecar file",
@@ -85,42 +91,44 @@ func (e Code) String() string {
 }
 
 type Recorder struct {
-	lock       sync.RWMutex
-	counts     counts
-	fileEvents map[string]map[Code]int
-	log        *slog.Logger
-	debug      bool
+	lock   sync.RWMutex
+	counts counts
+	log    *slog.Logger
+}
+
+type FileAndName struct {
+	fsys fs.FS
+	name string
+}
+
+func AsFileAndName(fsys fs.FS, name string) FileAndName {
+	return FileAndName{fsys: fsys, name: name}
+}
+
+func (fn FileAndName) Name() string {
+	fsys := fn.fsys
+	if fsys, ok := fsys.(fshelper.NameFS); ok {
+		return fsys.Name() + ":" + fn.name
+	}
+	return fn.name
 }
 
 type counts []int64
 
 func NewRecorder(l *slog.Logger, debug bool) *Recorder {
 	r := &Recorder{
-		counts:     make([]int64, MaxCode),
-		fileEvents: map[string]map[Code]int{},
-		log:        l,
-		debug:      debug,
+		counts: make([]int64, MaxCode),
+		log:    l,
 	}
 	return r
 }
 
-func (r *Recorder) Record(ctx context.Context, code Code, object any, file string, args ...any) {
+func (r *Recorder) Record(ctx context.Context, code Code, file FileAndName, args ...any) {
 	atomic.AddInt64(&r.counts[code], 1)
-	if r.debug && file != "" {
-		r.lock.Lock()
-		events := r.fileEvents[file]
-		if events == nil {
-			events = map[Code]int{}
-		}
-		v := events[code] + 1
-		events[code] = v
-		r.fileEvents[file] = events
-		r.lock.Unlock()
-	}
 	if r.log != nil {
 		level := slog.LevelInfo
-		if file != "" {
-			args = append([]any{"file", file}, args...)
+		if file.name != "" {
+			args = append([]any{"file", file.Name()}, args...)
 		}
 		for _, a := range args {
 			if a == "error" {
@@ -128,17 +136,6 @@ func (r *Recorder) Record(ctx context.Context, code Code, object any, file strin
 			}
 		}
 		r.log.Log(ctx, level, code.String(), args...)
-	}
-	if a, ok := object.(*adapters.LocalAssetFile); ok && a.LivePhoto != nil {
-		arg2 := []any{}
-		for i := 0; i < len(args); i++ {
-			if args[i] == "file" {
-				i += 1
-				continue
-			}
-			arg2 = append(arg2, args[i])
-		}
-		r.Record(ctx, code, a.LivePhoto, a.LivePhoto.FileName, arg2...)
 	}
 }
 
@@ -189,53 +186,6 @@ func (r *Recorder) GetCounts() []int64 {
 	counts := make([]int64, MaxCode)
 	copy(counts, r.counts)
 	return counts
-}
-
-func (r *Recorder) WriteFileCounts(w io.Writer) error {
-	reportCodes := []Code{
-		-1,
-		DiscoveredImage,
-		DiscoveredVideo,
-		AnalysisAssociatedMetadata,
-		DiscoveredDiscarded,
-		DiscoveredUnsupported,
-		AnalysisLocalDuplicate,
-		UploadNotSelected,
-		UploadUpgraded,
-		UploadServerBetter,
-		UploadServerDuplicate,
-		Uploaded,
-	}
-	fmt.Fprint(w, "File,")
-	for _, c := range reportCodes {
-		if c >= 0 {
-			fmt.Fprint(w, strings.Replace(c.String(), " ", "_", -1)+",")
-		} else {
-			fmt.Fprint(w, "check,")
-		}
-	}
-	fmt.Fprintln(w)
-	keys := gen.MapKeys(r.fileEvents)
-	sort.Strings(keys)
-	for _, f := range keys {
-		fmt.Fprint(w, "\"", f, "\",")
-		e := r.fileEvents[f]
-		check := 0
-		for _, c := range reportCodes {
-			if c >= 0 {
-				check += e[c]
-			}
-		}
-		for _, c := range reportCodes {
-			if c >= 0 {
-				fmt.Fprint(w, e[c], ",")
-			} else {
-				fmt.Fprint(w, check, ",")
-			}
-		}
-		fmt.Fprintln(w)
-	}
-	return nil
 }
 
 func (r *Recorder) TotalAssets() int64 {

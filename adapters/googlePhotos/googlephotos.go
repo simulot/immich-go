@@ -17,21 +17,27 @@ import (
 
 type Takeout struct {
 	fsyss            []fs.FS
-	catalogs         map[string]directoryCatalog    // file catalogs by directory in the set of the all takeout parts
-	albums           map[string]adapters.LocalAlbum // track album names by folder
-	fileTracker      map[tackerKey][]string         // key is base name + file size,  value is list of file paths
-	duplicates       map[tackerKey]int              // track local duplicates
+	catalogs         map[string]directoryCatalog     // file catalogs by directory in the set of the all takeout parts
+	albums           map[string]adapters.LocalAlbum  // track album names by folder
+	fileTracker      map[fileKeyTracker]trackingInfo // key is base name + file size,  value is list of file paths
 	debugLinkedFiles []linkedFiles
 	log              *fileevent.Recorder
 	flags            *ImportFlags // command-line flags
 }
 
-type tackerKey struct {
+type fileKeyTracker struct {
 	baseName string
 	size     int64
 }
 
-func tackerKeySortFunc(a, b tackerKey) int {
+type trackingInfo struct {
+	paths    []string
+	count    int
+	metadata *metadata.Metadata
+	status   fileevent.Code
+}
+
+func trackerKeySortFunc(a, b fileKeyTracker) int {
 	cmp := strings.Compare(a.baseName, b.baseName)
 	if cmp != 0 {
 		return cmp
@@ -59,8 +65,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 		fsyss:       fsyss,
 		catalogs:    map[string]directoryCatalog{},
 		albums:      map[string]adapters.LocalAlbum{},
-		fileTracker: map[tackerKey][]string{},
-		duplicates:  map[tackerKey]int{},
+		fileTracker: map[fileKeyTracker]trackingInfo{},
 		log:         l,
 		flags:       flags,
 	}
@@ -110,14 +115,9 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				dirCatalog.unMatchedFiles = map[string]*assetFile{}
 				dirCatalog.matchedFiles = map[string]*assetFile{}
 			}
-			if _, ok := dirCatalog.unMatchedFiles[base]; ok {
-				to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, nil, name)
-				return nil
-			}
-
 			finfo, err := d.Info()
 			if err != nil {
-				to.log.Record(ctx, fileevent.Error, nil, name, "error", err.Error())
+				to.log.Record(ctx, fileevent.Error, fileevent.AsFileAndName(w, name), "error", err.Error())
 				return err
 			}
 			switch ext {
@@ -126,12 +126,11 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				if err == nil {
 					switch {
 					case md.isAsset():
-						md.foundInPaths = append(md.foundInPaths, dir)
 						dirCatalog.jsons[base] = md.AsMetadata() // Keep metadata
-						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "asset metadata", "title", md.Title)
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, fileevent.AsFileAndName(w, name), "type", "asset metadata", "title", md.Title)
 					case md.isAlbum():
 						if !to.flags.KeepUntitled && md.Title == "" {
-							to.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "discard untitled album")
+							to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "discard untitled album")
 							return nil
 						}
 						a := to.albums[dir]
@@ -146,43 +145,58 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 							a.Longitude = e.Longitude
 						}
 						to.albums[dir] = a
-						to.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name, "type", "album metadata", "title", md.Title)
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, fileevent.AsFileAndName(w, name), "type", "album metadata", "title", md.Title)
 					default:
-						to.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "unknown JSONfile")
+						to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "unknown JSONfile")
 						return nil
 					}
 				} else {
-					to.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "unknown JSONfile")
+					to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "unknown JSONfile")
 					return nil
 				}
 			default:
 
 				if to.flags.BannedFiles.Match(name) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "banned file")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(w, name), "reason", "banned file")
 					return nil
 				}
 
 				if !to.flags.InclusionFlags.IncludedExtensions.Include(ext) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "file extension not selected")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(w, name), "reason", "file extension not selected")
 					return nil
 				}
 				if to.flags.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "file extension not allowed")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(w, name), "reason", "file extension not allowed")
 					return nil
 				}
 				t := to.flags.SupportedMedia.TypeFromExt(ext)
 				switch t {
 				case metadata.TypeUnknown:
-					to.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "unsupported file type")
+					to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "unsupported file type")
 					return nil
 				case metadata.TypeVideo:
-					to.log.Record(ctx, fileevent.DiscoveredVideo, nil, name)
+					to.log.Record(ctx, fileevent.DiscoveredVideo, fileevent.AsFileAndName(w, name))
 					if strings.Contains(name, "Failed Videos") {
-						to.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "can't upload failed videos")
+						to.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(w, name), "reason", "can't upload failed videos")
 						return nil
 					}
 				case metadata.TypeImage:
-					to.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
+					to.log.Record(ctx, fileevent.DiscoveredImage, fileevent.AsFileAndName(w, name))
+				}
+
+				key := fileKeyTracker{
+					baseName: base,
+					size:     finfo.Size(),
+				}
+
+				tracking := to.fileTracker[key]
+				tracking.paths = append(tracking.paths, dir)
+				tracking.count++
+				to.fileTracker[key] = tracking
+
+				if _, ok := dirCatalog.unMatchedFiles[base]; ok {
+					to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, fileevent.AsFileAndName(w, name), "reason", "duplicated in the folder")
+					return nil
 				}
 
 				dirCatalog.unMatchedFiles[base] = &assetFile{
@@ -190,14 +204,6 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					base:   base,
 					length: int(finfo.Size()),
 				}
-				key := tackerKey{
-					baseName: base,
-					size:     finfo.Size(),
-				}
-				if _, exists := to.fileTracker[key]; !exists {
-					to.fileTracker[key] = []string{}
-				}
-				to.fileTracker[key] = append(to.fileTracker[key], dir)
 			}
 			to.catalogs[dir] = dirCatalog
 			return nil
@@ -267,7 +273,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 							i := cat.unMatchedFiles[f]
 							i.md = md
 							cat.matchedFiles[f] = i
-							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, cat.unMatchedFiles[f], filepath.Join(dir, f), "json", json, "size", i.length, "matcher", matcher.name)
+							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(nil, filepath.Join(dir, f)), "json", json, "size", i.length, "matcher", matcher.name)
 							delete(cat.unMatchedFiles, f)
 						}
 					}
@@ -275,13 +281,15 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 			}
 		}
 		to.catalogs[dir] = cat
-		files := gen.MapKeys(cat.unMatchedFiles)
-		sort.Strings(files)
-		for _, f := range files {
-			to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, f, filepath.Join(dir, f))
-			if to.flags.KeepJSONLess {
-				cat.matchedFiles[f] = cat.unMatchedFiles[f]
-				delete(cat.unMatchedFiles, f)
+		if len(cat.unMatchedFiles) > 0 {
+			files := gen.MapKeys(cat.unMatchedFiles)
+			sort.Strings(files)
+			for _, f := range files {
+				to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, fileevent.AsFileAndName(nil, filepath.Join(dir, f)), filepath.Join(dir, f))
+				if to.flags.KeepJSONLess {
+					cat.matchedFiles[f] = cat.unMatchedFiles[f]
+					delete(cat.unMatchedFiles, f)
+				}
 			}
 		}
 	}
@@ -329,27 +337,24 @@ func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *adap
 	newMatchedFiles := []string{}
 	for _, name := range matchedFiles {
 		file := catalog.matchedFiles[name]
-		key := tackerKey{baseName: file.base, size: int64(file.length)}
-		count := to.duplicates[key] + 1
-		to.duplicates[key] = count
-
-		if count == 1 {
+		key := fileKeyTracker{baseName: file.base, size: int64(file.length)}
+		track := to.fileTracker[key]
+		if track.status == fileevent.Uploaded {
+			// track.count++
+			// to.fileTracker[key] = track
+			to.logMessage(ctx, fileevent.AnalysisLocalDuplicate, fileevent.AsFileAndName(file.fsys, path.Join(dir, name)), "local duplicate")
 			continue
 		}
-		newMatchedFiles = append(newMatchedFiles, name)
-		to.logMessage(ctx, fileevent.AnalysisLocalDuplicate, path.Join(dir, name), "local duplicate")
-	}
-	matchedFiles = newMatchedFiles
 
-	// Handle pictures first
-	for _, f := range matchedFiles {
-		ext := filepath.Ext(f)
+		newMatchedFiles = append(newMatchedFiles, name)
+		ext := filepath.Ext(name)
 		if to.flags.SupportedMedia.TypeFromExt(ext) == metadata.TypeImage {
-			linked := linkedFiles[f]
-			linked.image = catalog.matchedFiles[f]
-			linkedFiles[f] = linked
+			linked := linkedFiles[name]
+			linked.image = catalog.matchedFiles[name]
+			linkedFiles[name] = linked
 		}
 	}
+	matchedFiles = newMatchedFiles
 
 	// Scan videos and try to detect motion pictures
 nextVideo:
@@ -407,12 +412,16 @@ nextVideo:
 
 		switch {
 		case linked.image != nil && linked.video != nil:
-			mainAsset = to.makeAsset(ctx, dir, linked.image, linked.image.md)
 			liveVideo = to.makeAsset(ctx, dir, linked.video, linked.video.md)
+			mainAsset = to.makeAsset(ctx, dir, linked.image, linked.image.md)
 		case linked.image != nil && linked.video == nil:
 			mainAsset = to.makeAsset(ctx, dir, linked.image, linked.image.md)
 		case linked.video != nil && linked.image == nil:
 			mainAsset = to.makeAsset(ctx, dir, linked.video, linked.video.md)
+		}
+
+		if mainAsset == nil {
+			continue
 		}
 
 		if liveVideo != nil {
@@ -437,39 +446,56 @@ func (to *Takeout) pushAsset(ctx context.Context, assetChan chan *adapters.Local
 		return ctx.Err()
 	default:
 		assetChan <- a
+		key := fileKeyTracker{
+			baseName: path.Base(a.FileName),
+			size:     int64(a.FileSize),
+		}
+		track := to.fileTracker[key]
+		track.status = fileevent.Uploaded
+		to.fileTracker[key] = track
 	}
 	return nil
 }
 
 // makeAsset makes a localAssetFile based on the google metadata
 func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *metadata.Metadata) *adapters.LocalAssetFile {
-	key := tackerKey{
+	key := fileKeyTracker{
 		baseName: f.base,
 		size:     int64(f.length),
 	}
+	track := to.fileTracker[key]
+	track.metadata = md
+	defer func() {
+		to.fileTracker[key] = track
+	}()
 
 	file := path.Join(dir, f.base)
 	i, err := fs.Stat(f.fsys, file)
 	if err != nil {
-		to.logMessage(ctx, fileevent.Error, file, err.Error())
+		to.logMessage(ctx, fileevent.Error, fileevent.AsFileAndName(f.fsys, file), err.Error())
+		track.status = fileevent.Error
 		return nil
 	}
 
 	if md != nil {
 		if !to.flags.KeepArchived && md.Archived {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, file, "discarding archived file")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding archived file")
+			track.status = fileevent.DiscoveredDiscarded
 			return nil
 		}
 		if !to.flags.KeepPartner && md.FromPartner {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, file, "discarding partner file")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding partner file")
+			track.status = fileevent.DiscoveredDiscarded
 			return nil
 		}
 		if !to.flags.KeepTrashed && md.Trashed {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, file, "discarding trashed file")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding trashed file")
+			track.status = fileevent.DiscoveredDiscarded
 			return nil
 		}
 		if !to.flags.InclusionFlags.DateRange.InRange(md.DateTaken) {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, file, "discarding files out of date range")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding files out of date range")
+			track.status = fileevent.DiscoveredDiscarded
 			return nil
 		}
 	}
@@ -503,7 +529,8 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 			keep = keep || album.Title == to.flags.ImportFromAlbum
 		}
 		if !keep {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, file, "discarding files not in the specified album")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding files not in the specified album")
+			track.status = fileevent.DiscoveredDiscarded
 			return nil
 		}
 	}
@@ -511,12 +538,12 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 	if to.flags.CreateAlbums {
 		if to.flags.ImportIntoAlbum != "" {
 			// Force this album
-			a.Albums = []adapters.LocalAlbum{{Title: to.flags.ImportIntoAlbum}}
+			a.AddAlbum(adapters.LocalAlbum{Title: to.flags.ImportIntoAlbum})
 		} else {
 			// check if its duplicates are in some albums, and push them all at once
 
-			seenInPaths := to.fileTracker[key]
-			for _, p := range seenInPaths {
+			track := to.fileTracker[key]
+			for _, p := range track.paths {
 				if album, ok := to.albums[p]; ok {
 					title := album.Title
 					if title == "" {
@@ -525,7 +552,7 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 						}
 						title = filepath.Base(album.Path)
 					}
-					a.Albums = append(a.Albums, adapters.LocalAlbum{
+					a.AddAlbum(adapters.LocalAlbum{
 						Title:       title,
 						Path:        p,
 						Description: album.Description,
@@ -538,7 +565,14 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 
 		// Force this album for partners photos
 		if to.flags.PartnerSharedAlbum != "" && md != nil && md.FromPartner {
-			a.Albums = append(a.Albums, adapters.LocalAlbum{Title: to.flags.PartnerSharedAlbum})
+			a.AddAlbum(adapters.LocalAlbum{Title: to.flags.PartnerSharedAlbum})
+		}
+
+		if md != nil {
+			md.Collections = md.Collections[0:0]
+			for _, album := range a.Albums {
+				md.Collections = append(md.Collections, album.Title)
+			}
 		}
 	}
 

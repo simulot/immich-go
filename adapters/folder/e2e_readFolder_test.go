@@ -188,14 +188,14 @@ func TestE2ELocalAssets(t *testing.T) {
 				t.Error(err)
 			}
 
-			err = b.Prepare(ctx)
+			assetChan, err := b.Browse(ctx)
 			if err != nil {
 				t.Error(err)
 			}
 
 			results := map[string]fileLinks{}
 			albums := map[string][]string{}
-			for a := range b.Browse(ctx) {
+			for a := range assetChan {
 				links := fileLinks{}
 				ext := path.Ext(a.FileName)
 				if b.flags.SupportedMedia.TypeFromExt(ext) == metadata.TypeImage {

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/tzone"
 )
@@ -32,7 +33,7 @@ type GoogleMetaData struct {
 	} `json:"googlePhotosOrigin"`
 	AlbumData *Metablock `json:"albumdata"`
 	// Not in the JSON, for local treatment
-	foundInPaths []string //  keep track of paths where the json has been found
+	foundInPaths []fileevent.FileAndName //  keep track of paths where the json has been found
 }
 
 func (gmd GoogleMetaData) AsMetadata() *metadata.Metadata {
