@@ -86,7 +86,7 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 				return ctx.Err()
 			default:
 				if la.flags.BannedFiles.Match(name) {
-					la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "banned file")
+					la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "banned file")
 					return nil
 				}
 
@@ -99,7 +99,7 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 				mediaType := la.flags.SupportedMedia.TypeFromExt(ext)
 
 				if mediaType == metadata.TypeUnknown {
-					la.log.Record(ctx, fileevent.DiscoveredUnsupported, nil, name, "reason", "unsupported file type")
+					la.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(fsys, name), "reason", "unsupported file type")
 					return nil
 				}
 
@@ -107,24 +107,24 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 
 				switch mediaType {
 				case metadata.TypeImage:
-					la.log.Record(ctx, fileevent.DiscoveredImage, nil, name)
+					la.log.Record(ctx, fileevent.DiscoveredImage, fileevent.AsFileAndName(fsys, name))
 				case metadata.TypeVideo:
-					la.log.Record(ctx, fileevent.DiscoveredVideo, nil, name)
+					la.log.Record(ctx, fileevent.DiscoveredVideo, fileevent.AsFileAndName(fsys, name))
 				case metadata.TypeSidecar:
-					la.log.Record(ctx, fileevent.DiscoveredSidecar, nil, name)
+					la.log.Record(ctx, fileevent.DiscoveredSidecar, fileevent.AsFileAndName(fsys, name))
 					if la.flags.IgnoreSideCarFiles {
-						la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "sidecar file ignored")
+						la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "sidecar file ignored")
 						return nil
 					}
 				}
 
 				if !la.flags.InclusionFlags.IncludedExtensions.Include(ext) {
-					la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "extension not included")
+					la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "extension not included")
 					return nil
 				}
 
 				if la.flags.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-					la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "extension excluded")
+					la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "extension excluded")
 					return nil
 				}
 
@@ -145,9 +145,9 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.LocalAs
 			defer la.exiftool.Close()
 		}
 
-		errFn := func(name string, err error) {
+		errFn := func(name fileevent.FileAndName, err error) {
 			if err != nil {
-				la.log.Record(ctx, fileevent.Error, nil, name, "error", err.Error())
+				la.log.Record(ctx, fileevent.Error, name, "error", err.Error())
 			}
 		}
 		for _, fsys := range la.fsyss {
@@ -237,20 +237,20 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.LocalAs
 					if linked.image != "" {
 						a, err = la.assetFromFile(ctx, fsys, linked.image)
 						if err != nil {
-							errFn(linked.image, err)
+							errFn(fileevent.AsFileAndName(fsys, linked.image), err)
 							return
 						}
 						if linked.video != "" {
 							a.LivePhoto, err = la.assetFromFile(ctx, fsys, linked.video)
 							if err != nil {
-								errFn(linked.video, err)
+								errFn(fileevent.AsFileAndName(fsys, linked.video), err)
 								return
 							}
 						}
 					} else if linked.video != "" {
 						a, err = la.assetFromFile(ctx, fsys, linked.video)
 						if err != nil {
-							errFn(linked.video, err)
+							errFn(fileevent.AsFileAndName(fsys, linked.video), err)
 							return
 						}
 					}
@@ -260,7 +260,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.LocalAs
 							FSys:     fsys,
 							FileName: linked.sidecar,
 						}
-						la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, nil, linked.sidecar, "main", a.FileName)
+						la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
 					}
 
 					// manage album
@@ -344,7 +344,7 @@ func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name
 
 	if la.flags.InclusionFlags.DateRange.IsSet() && !la.flags.InclusionFlags.DateRange.InRange(a.Metadata.DateTaken) {
 		a.Close()
-		la.log.Record(ctx, fileevent.DiscoveredDiscarded, nil, name, "reason", "asset outside date range")
+		la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "asset outside date range")
 		return nil, nil
 	}
 	return a, nil
