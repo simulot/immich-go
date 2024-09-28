@@ -38,6 +38,7 @@ type AssetGroup struct {
 	Assets     []*LocalAssetFile
 	Albums     []*LocalAlbum
 	SideCar    metadata.SideCarFile
+	Metadata   *metadata.Metadata
 }
 
 func (g AssetGroup) Validate() error {
