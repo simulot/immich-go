@@ -16,75 +16,68 @@ type ReadMetadataOptions struct {
 	FilenameTimeZone *time.Location
 }
 
-func (la *LocalAssetFile) ReadMetadata(method cliflags.DateMethod, options ReadMetadataOptions) error {
+func (la *LocalAssetFile) ReadMetadata(method cliflags.DateMethod, options ReadMetadataOptions) (*metadata.Metadata, error) {
 	ms := strings.Split(string(method), "-")
 	for _, m := range ms {
 		switch cliflags.DateMethod(m) {
 		case cliflags.DateMethodNone:
-			return nil
+			return nil, nil
 		case cliflags.DateMethodEXIF:
 			if options.ExifTool != nil {
-				err := la.metadataFromExiftool(options)
+				md, err := la.metadataFromExiftool(options)
 				if err != nil {
 					continue
 				}
-				if !la.Metadata.DateTaken.IsZero() {
-					return nil
+				if !md.DateTaken.IsZero() {
+					return md, nil
 				}
 			} else {
-				err := la.metadataFromDirectRead(options.ExiftoolTimezone)
+				md, err := la.metadataFromDirectRead(options.ExiftoolTimezone)
 				if err != nil {
 					continue
 				}
-				if !la.Metadata.DateTaken.IsZero() {
-					return nil
+				if !md.DateTaken.IsZero() {
+					return md, nil
 				}
 			}
 		case cliflags.DateMethodName:
 			t := metadata.TakeTimeFromPath(la.FileName, options.FilenameTimeZone)
 			if !t.IsZero() {
-				la.Metadata.DateTaken = t
-				return nil
+				return &metadata.Metadata{
+					DateTaken: t,
+				}, nil
 			}
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // metadataFromExiftool call exiftool
-func (la *LocalAssetFile) metadataFromExiftool(options ReadMetadataOptions) error {
+func (la *LocalAssetFile) metadataFromExiftool(options ReadMetadataOptions) (*metadata.Metadata, error) {
 	// Get a handler on a temporary file
 	r, err := la.PartialSourceReader()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// be sure the file is completely extracted in the temp file
 	_, err = io.Copy(io.Discard, r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	md, err := options.ExifTool.ReadMetaData(la.tempFile.Name())
-	if err != nil {
-		return err
-	}
-	la.Metadata = *md
-	return nil
+	return md, err
 }
 
-func (la *LocalAssetFile) metadataFromDirectRead(localTZ *time.Location) error {
+func (la *LocalAssetFile) metadataFromDirectRead(localTZ *time.Location) (*metadata.Metadata, error) {
 	// Get a handler on a temporary file
 	r, err := la.PartialSourceReader()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ext := filepath.Ext(la.FileName)
 	md, err := metadata.GetFromReader(r, ext, localTZ)
-	if err != nil {
-		return err
-	}
-	la.Metadata = *md
-	return nil
+	return md, err
 }
