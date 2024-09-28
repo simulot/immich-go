@@ -195,27 +195,34 @@ func TestE2ELocalAssets(t *testing.T) {
 
 			results := map[string]fileLinks{}
 			albums := map[string][]string{}
-			for a := range assetChan {
+			for g := range assetChan {
+				if err := g.Validate(); err != nil {
+					t.Error(err)
+					return
+				}
 				links := fileLinks{}
-				ext := path.Ext(a.FileName)
-				if b.flags.SupportedMedia.TypeFromExt(ext) == metadata.TypeImage {
-					links.image = a.FileName
-					if a.LivePhoto != nil {
-						links.video = a.LivePhoto.FileName
+				fileName := g.Assets[0].FileName
+				for _, a := range g.Assets {
+					ext := path.Ext(a.FileName)
+					if b.flags.SupportedMedia.TypeFromExt(ext) == metadata.TypeImage {
+						links.image = a.FileName
+						if a.LivePhoto != nil {
+							links.video = a.LivePhoto.FileName
+						}
+					} else {
+						links.video = a.FileName
 					}
-				} else {
-					links.video = a.FileName
+					a.Close()
 				}
-				if a.SideCar.FileName != "" {
-					links.sidecar = a.SideCar.FileName
+				if g.SideCar.FileName != "" {
+					links.sidecar = g.SideCar.FileName
 				}
-				results[a.FileName] = links
+				results[fileName] = links
 				if len(c.expectedAlbums) > 0 {
-					for _, album := range a.Albums {
-						albums[album.Title] = append(albums[album.Title], a.FileName)
+					for _, album := range g.Albums {
+						albums[album.Title] = append(albums[album.Title], fileName)
 					}
 				}
-				a.Close()
 			}
 
 			if !reflect.DeepEqual(results, c.expectedFiles) {

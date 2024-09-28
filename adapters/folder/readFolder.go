@@ -55,7 +55,7 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFlag
 	return &la, nil
 }
 
-func (la *LocalAssetBrowser) Browse(ctx context.Context) (chan *adapters.LocalAssetFile, error) {
+func (la *LocalAssetBrowser) Browse(ctx context.Context) (chan *adapters.AssetGroup, error) {
 	for _, fsys := range la.fsyss {
 		err := la.passOneFsWalk(ctx, fsys)
 		if err != nil {
@@ -135,8 +135,8 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 	return err
 }
 
-func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.LocalAssetFile {
-	fileChan := make(chan *adapters.LocalAssetFile)
+func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGroup {
+	fileChan := make(chan *adapters.AssetGroup)
 	// Browse all given FS to collect the list of files
 	go func(ctx context.Context) {
 		defer close(fileChan)
@@ -216,7 +216,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.LocalAs
 							}
 							if strings.TrimSuffix(f, path.Ext(f)) == file {
 								if image, ok := links[f]; ok {
-									// base.MP4 -> base.ext
+									// base.ext -> base
 									image.video = file
 									links[f] = image
 									continue next
@@ -232,46 +232,122 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.LocalAs
 				sort.Strings(files)
 				for _, file := range files {
 					var a *adapters.LocalAssetFile
+					var g *adapters.AssetGroup
 					linked := links[file]
 
-					if linked.image != "" {
+					switch {
+					case linked.image != "" && linked.video != "":
 						a, err = la.assetFromFile(ctx, fsys, linked.image)
 						if err != nil {
 							errFn(fileevent.AsFileAndName(fsys, linked.image), err)
 							return
 						}
-						if linked.video != "" {
-							a.LivePhoto, err = la.assetFromFile(ctx, fsys, linked.video)
+						if a == nil {
+							continue
+						}
+						i, err := la.assetFromFile(ctx, fsys, linked.video)
+						if i != nil {
+							g = &adapters.AssetGroup{
+								Kind:       adapters.GroupKindMotionPhoto,
+								Assets:     []*adapters.LocalAssetFile{a, i},
+								CoverIndex: 0,
+							}
+						} else {
+							errFn(fileevent.AsFileAndName(fsys, linked.video), err)
+							g = &adapters.AssetGroup{
+								Kind:   adapters.GroupKindNone,
+								Assets: []*adapters.LocalAssetFile{a},
+							}
+						}
+					case linked.image != "":
+						a, err = la.assetFromFile(ctx, fsys, linked.image)
+						if err != nil {
+							errFn(fileevent.AsFileAndName(fsys, linked.image), err)
+							return
+						}
+						if a == nil {
+							continue
+						}
+						g = &adapters.AssetGroup{
+							Kind:       adapters.GroupKindNone,
+							Assets:     []*adapters.LocalAssetFile{a},
+							CoverIndex: 0,
+						}
+					case linked.video != "":
+						{
+							a, err = la.assetFromFile(ctx, fsys, linked.video)
 							if err != nil {
 								errFn(fileevent.AsFileAndName(fsys, linked.video), err)
 								return
 							}
-						}
-					} else if linked.video != "" {
-						a, err = la.assetFromFile(ctx, fsys, linked.video)
-						if err != nil {
-							errFn(fileevent.AsFileAndName(fsys, linked.video), err)
-							return
+							if a == nil {
+								continue
+							}
+
+							g = &adapters.AssetGroup{
+								Kind:       adapters.GroupKindNone,
+								Assets:     []*adapters.LocalAssetFile{a},
+								CoverIndex: 0,
+							}
+
 						}
 					}
 
-					if a != nil && linked.sidecar != "" {
-						a.SideCar = metadata.SideCarFile{
+					if g == nil {
+						continue
+					}
+
+					if linked.sidecar != "" {
+						g.SideCar = metadata.SideCarFile{
 							FSys:     fsys,
 							FileName: linked.sidecar,
 						}
 						la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
 					}
 
-					// manage album
-					if a != nil {
-						select {
-						case <-ctx.Done():
-							return
-						default:
-
-							fileChan <- a
+					// manage album options
+					if la.flags.ImportIntoAlbum != "" {
+						g.Albums = append(g.Albums, &adapters.LocalAlbum{
+							Path:  a.FileName,
+							Title: la.flags.ImportIntoAlbum,
+						})
+					} else if la.flags.UsePathAsAlbumName != FolderModeNone {
+						switch la.flags.UsePathAsAlbumName {
+						case FolderModeFolder:
+							title := filepath.Base(filepath.Dir(a.FileName))
+							if title == "." {
+								if fsys, ok := fsys.(fshelper.NameFS); ok {
+									title = fsys.Name()
+								}
+							}
+							if title != "" {
+								g.Albums = append(g.Albums, &adapters.LocalAlbum{
+									Path:  a.FileName,
+									Title: title,
+								})
+							}
+						case FolderModePath:
+							parts := []string{}
+							if fsys, ok := fsys.(fshelper.NameFS); ok {
+								parts = append(parts, fsys.Name())
+							}
+							path := filepath.Dir(a.FileName)
+							if path != "." {
+								parts = append(parts, strings.Split(path, "/")...) // TODO: Check on windows
+							}
+							Title := strings.Join(parts, la.flags.AlbumNamePathSeparator)
+							g.Albums = append(g.Albums, &adapters.LocalAlbum{
+								Path:  filepath.Dir(a.FileName),
+								Title: Title,
+							})
 						}
+					}
+
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						fileChan <- g
 					}
 				}
 			}
@@ -286,43 +362,6 @@ func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name
 		FileName: name,
 		Title:    filepath.Base(name),
 		FSys:     fsys,
-	}
-
-	if la.flags.ImportIntoAlbum != "" {
-		a.Albums = append(a.Albums, adapters.LocalAlbum{
-			Path:  a.FileName,
-			Title: la.flags.ImportIntoAlbum,
-		})
-	} else if la.flags.UsePathAsAlbumName != FolderModeNone {
-		switch la.flags.UsePathAsAlbumName {
-		case FolderModeFolder:
-			title := filepath.Base(filepath.Dir(a.FileName))
-			if title == "." {
-				if fsys, ok := fsys.(fshelper.NameFS); ok {
-					title = fsys.Name()
-				}
-			}
-			if title != "" {
-				a.Albums = append(a.Albums, adapters.LocalAlbum{
-					Path:  a.FileName,
-					Title: title,
-				})
-			}
-		case FolderModePath:
-			parts := []string{}
-			if fsys, ok := fsys.(fshelper.NameFS); ok {
-				parts = append(parts, fsys.Name())
-			}
-			path := filepath.Dir(a.FileName)
-			if path != "." {
-				parts = append(parts, strings.Split(path, "/")...) // TODO: Check on windows
-			}
-			Title := strings.Join(parts, la.flags.AlbumNamePathSeparator)
-			a.Albums = append(a.Albums, adapters.LocalAlbum{
-				Path:  filepath.Dir(a.FileName),
-				Title: Title,
-			})
-		}
 	}
 
 	err := a.ReadMetadata(la.flags.DateHandlingFlags.Method, adapters.ReadMetadataOptions{
