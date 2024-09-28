@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/internal/fshelper"
-	"github.com/simulot/immich-go/internal/metadata"
 )
 
 /*
@@ -27,13 +26,17 @@ import (
 */
 
 type LocalAssetFile struct {
-	// Common fields	
-	FileName string               // The asset's path in the fsys
-	Title    string               // Google Photos may a have title longer than the filename
-	Albums   []LocalAlbum         // The asset's album, if any
-	Err      error                // keep errors encountered
-	SideCar  metadata.SideCarFile // sidecar file if found
-	Metadata metadata.Metadata    // Metadata fields
+	// Common fields
+	FileName string // The asset's path in the fsys
+	Title    string // Google Photos may a have title longer than the filename
+	FSys     fs.FS  // Asset's file system
+	FileSize int    // File size in bytes
+	Err      error  // keep errors encountered
+
+	// removed from assets to group of assets
+	// Albums   []LocalAlbum         // The asset's album, if any
+	// SideCar  metadata.SideCarFile // sidecar file if found
+	// Metadata metadata.Metadata    // Metadata fields
 
 	// // Google Photos flags
 	// Trashed     bool // The asset is trashed
@@ -42,11 +45,8 @@ type LocalAssetFile struct {
 	// Favorite    bool
 
 	// Live Photos
-	LivePhoto   *LocalAssetFile // Local asset of the movie part
-	LivePhotoID string          // ID of the movie part, just uploaded
-
-	FSys     fs.FS // Asset's file system
-	FileSize int   // File size in bytes
+	// LivePhoto   *LocalAssetFile // Local asset of the movie part
+	// LivePhotoID string          // ID of the movie part, just uploaded
 
 	// buffer management
 	sourceFile fs.File   // the opened source file
