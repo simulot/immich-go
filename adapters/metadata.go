@@ -39,7 +39,6 @@ func (la *LocalAssetFile) ReadMetadata(method cliflags.DateMethod, options ReadM
 				if !la.Metadata.DateTaken.IsZero() {
 					return nil
 				}
-				return nil
 			}
 		case cliflags.DateMethodName:
 			t := metadata.TakeTimeFromPath(la.FileName, options.FilenameTimeZone)
