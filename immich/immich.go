@@ -24,7 +24,7 @@ type ImmichInterface interface {
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
 	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
 
-	UpdateAsset(ctx context.Context, ID string, a *adapters.LocalAssetFile) (*Asset, error)
+	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
 	GetAllAssets(ctx context.Context) ([]*Asset, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error

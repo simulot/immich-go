@@ -171,9 +171,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *adapters.LocalAsset
 		if la.SideCar.IsSet() {
 			callValues[ctxSideCarName] = la.SideCar.FileName
 		}
-		if la.LivePhoto != nil {
-			callValues[ctxLiveVideoName] = la.LivePhoto.FileName
-		}
 	}
 
 	errCall := ic.newServerCall(ctx, "AssetUpload").
@@ -283,23 +280,19 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 	return ic.newServerCall(ctx, "updateAssets").do(putRequest("/assets", setJSONBody(param)))
 }
 
-func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *adapters.LocalAssetFile) (*Asset, error) {
+// UpdAssetField is used to update asset with fields given in the struct fields
+type UpdAssetField struct {
+	IsArchived       bool    `json:"isArchived"`
+	IsFavorite       bool    `json:"isFavorite"`
+	Latitude         float64 `json:"latitude,omitempty"`
+	Longitude        float64 `json:"longitude,omitempty"`
+	Description      string  `json:"description,omitempty"`
+	LivePhotoVideoID string  `json:"livePhotoVideoId,omitempty"`
+}
+
+func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error) {
 	if ic.dryRun {
 		return nil, nil
-	}
-	type updAsset struct {
-		IsArchived  bool    `json:"isArchived"`
-		IsFavorite  bool    `json:"isFavorite"`
-		Latitude    float64 `json:"latitude,omitempty"`
-		Longitude   float64 `json:"longitude,omitempty"`
-		Description string  `json:"description,omitempty"`
-	}
-	param := updAsset{
-		IsArchived:  a.Archived,
-		IsFavorite:  a.Favorite,
-		Description: a.Metadata.Description,
-		Latitude:    a.Metadata.Latitude,
-		Longitude:   a.Metadata.Longitude,
 	}
 	r := Asset{}
 	err := ic.newServerCall(ctx, "updateAsset").do(putRequest("/assets/"+id, setJSONBody(param)), responseJSON(&r))
