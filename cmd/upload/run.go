@@ -47,7 +47,7 @@ func (app *UpCmd) run(ctx context.Context, adapter adapters.Adapter) error {
 
 func (app *UpCmd) getImmichAlbums(ctx context.Context) error {
 	serverAlbums, err := app.Server.Immich.GetAllAlbums(ctx)
-	app.albums = map[string]*immich.AlbumSimplified{}
+	app.albums = map[string]immich.AlbumSimplified{}
 	if err != nil {
 		return fmt.Errorf("can't get the album list from the server: %w", err)
 	}
@@ -56,7 +56,7 @@ func (app *UpCmd) getImmichAlbums(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			app.albums[a.AlbumName] = &a
+			app.albums[a.AlbumName] = a
 		}
 	}
 	return nil
@@ -98,12 +98,8 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 	return nil
 }
 
-func (app *UpCmd) uploadLoop(ctx context.Context) error {
+func (app *UpCmd) uploadLoop(ctx context.Context, groupChan chan *adapters.AssetGroup) error {
 	var err error
-	groupChan, err := app.browser.Browse(ctx)
-	if err != nil {
-		return err
-	}
 assetLoop:
 	for {
 		select {
@@ -295,8 +291,8 @@ func (app *UpCmd) manageGroupAlbums(ctx context.Context, g *adapters.AssetGroup)
 				app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, err)
 				return
 			}
-			app.albums[title] = &newAl
-			l = &newAl
+			app.albums[title] = newAl
+			l = newAl
 		} else {
 			_, err := app.Server.Immich.AddAssetToAlbum(ctx, l.ID, assetIDs)
 			if err != nil {
@@ -313,7 +309,7 @@ func (app *UpCmd) manageGroupAlbums(ctx context.Context, g *adapters.AssetGroup)
 }
 
 func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
-	app.Root.Message(fmt.Sprintf("%d server assets to delete.", len(ids)))
+	app.Root.Message("%d server assets to delete.", len(ids))
 	return app.Server.Immich.DeleteAssets(ctx, ids, false)
 }
 

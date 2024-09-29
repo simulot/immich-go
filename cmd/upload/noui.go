@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
 )
@@ -85,6 +86,8 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 
 	uiGrp.Go(func() error {
 		processGrp := errgroup.Group{}
+		var groupChan chan *adapters.AssetGroup
+		var err error
 
 		processGrp.Go(func() error {
 			// Get immich asset
@@ -99,13 +102,13 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
-			err := app.browser.Prepare(ctx)
+			groupChan, err = app.browser.Browse(ctx)
 			if err != nil {
 				cancel(err)
 			}
 			return err
 		})
-		err := processGrp.Wait()
+		err = processGrp.Wait()
 		if err != nil {
 			err := context.Cause(ctx)
 			if err != nil {
@@ -114,7 +117,7 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 			}
 		}
 		preparationDone.Store(true)
-		err = app.uploadLoop(ctx)
+		err = app.uploadLoop(ctx, groupChan)
 		if err != nil {
 			cancel(err)
 		}

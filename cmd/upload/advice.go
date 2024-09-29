@@ -125,7 +125,7 @@ func (ai *AssetIndex) ShouldUpload(la *adapters.LocalAssetFile) (*Advice, error)
 	}
 
 	if len(l) > 0 {
-		dateTaken := la.Metadata.DateTaken
+		dateTaken := la.CaptureDate
 		size := int(la.Size())
 
 		for _, sa = range l {

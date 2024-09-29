@@ -8,18 +8,15 @@ import (
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/adapters/folder"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
-	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/stacking"
-
-	// gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/spf13/cobra"
 )
 
 type UpCmd struct {
 	UploadCmd         *cobra.Command         // The import command
-	Jnl               *fileevent.Recorder    //  File event recorder
+	Jnl               *fileevent.Recorder    // File event recorder
 	Root              *cmd.RootImmichFlags   // global flags
 	Server            *cmd.ImmichServerFlags // server flags attached to the import command
 	*CommonFlags                             // Common flags between import sub-commands
@@ -29,13 +26,13 @@ type UpCmd struct {
 	AssetIndex       *AssetIndex     // List of assets present on the server
 	deleteServerList []*immich.Asset // List of server assets to remove
 	// deleteLocalList  []*adapters.LocalAssetFile // List of local assets to remove
-	stacks        *stacking.StackBuilder
+	// stacks        *stacking.StackBuilder
 	browser       adapters.Adapter
 	DebugCounters bool // Enable CSV action counters per file
 
 	// fsyss  []fs.FS                            // pseudo file system to browse
-	Paths  []string                           // Path to explore
-	albums map[string]*immich.AlbumSimplified // Albums by title
+	Paths  []string                          // Path to explore
+	albums map[string]immich.AlbumSimplified // Albums by title
 }
 
 func AddCommand(root *cmd.RootImmichFlags) {

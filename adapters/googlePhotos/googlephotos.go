@@ -83,6 +83,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 
 // Prepare scans all files in all walker to build the file catalog of the archive
 // metadata files content is read and kept
+// return a channel of asset groups after the puzzle is solved
 
 func (to *Takeout) Browse(ctx context.Context) (chan *adapters.AssetGroup, error) {
 	for _, w := range to.fsyss {

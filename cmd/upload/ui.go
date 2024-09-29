@@ -13,6 +13,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/navidys/tvxwidgets"
 	"github.com/rivo/tview"
+	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
 )
@@ -156,17 +157,19 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 
 	// start the processes
 	uiGroup.Go(func() error {
+		var groupChan chan *adapters.AssetGroup
+		var err error
 		processGrp := errgroup.Group{}
 		processGrp.Go(func() error {
 			// Get immich asset
-			err := app.getImmichAssets(ctx, ui.updateImmichReading)
+			err = app.getImmichAssets(ctx, ui.updateImmichReading)
 			if err != nil {
 				stopUI(err)
 			}
 			return err
 		})
 		processGrp.Go(func() error {
-			err := app.getImmichAlbums(ctx)
+			err = app.getImmichAlbums(ctx)
 			if err != nil {
 				stopUI(err)
 			}
@@ -174,7 +177,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
-			err := app.browser.Prepare(ctx)
+			groupChan, err = app.browser.Browse(ctx)
 			if err != nil {
 				stopUI(err)
 			}
@@ -182,14 +185,14 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		})
 
 		// Wait the end of the preparation: immich assets, albums and first browsing
-		err := processGrp.Wait()
+		err = processGrp.Wait()
 		if err != nil {
 			return context.Cause(ctx)
 		}
 		preparationDone.Store(true)
 
 		// we can upload assets
-		err = app.uploadLoop(ctx)
+		err = app.uploadLoop(ctx, groupChan)
 		if err != nil {
 			return context.Cause(ctx)
 		}
