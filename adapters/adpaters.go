@@ -6,5 +6,5 @@ import (
 
 // TODO: rename to Importer
 type Adapter interface {
-	Browse(cxt context.Context) (chan *LocalAssetFile, error)
+	Browse(cxt context.Context) (chan *AssetGroup, error)
 }

@@ -2,8 +2,6 @@ package adapters
 
 import (
 	"errors"
-
-	"github.com/simulot/immich-go/internal/metadata"
 )
 
 // A group of assets link assets that are linked together. This
@@ -37,8 +35,14 @@ type AssetGroup struct {
 	CoverIndex int // index of the cover assert in the Assets slice
 	Assets     []*LocalAssetFile
 	Albums     []LocalAlbum
-	SideCar    metadata.SideCarFile
-	Metadata   *metadata.Metadata
+}
+
+// NewAssetGroup create a new asset group
+func NewAssetGroup(kind GroupKind, a ...*LocalAssetFile) *AssetGroup {
+	return &AssetGroup{
+		Kind:   kind,
+		Assets: a,
+	}
 }
 
 // AddAlbum assign the group to an album

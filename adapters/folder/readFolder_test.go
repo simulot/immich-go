@@ -12,6 +12,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
+	"github.com/simulot/immich-go/adapters"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
@@ -413,18 +414,19 @@ func TestLocalAssets(t *testing.T) {
 				links := fileLinks{}
 				for _, a := range g.Assets {
 					ext := path.Ext(a.FileName)
-					if b.flags.SupportedMedia.TypeFromExt(ext) == metadata.TypeImage {
+					switch b.flags.SupportedMedia.TypeFromExt(ext) {
+					case metadata.TypeImage:
 						links.image = a.FileName
-						if a.LivePhoto != nil {
-							links.video = a.LivePhoto.FileName
+						if g.Kind == adapters.GroupKindMotionPhoto {
+							fileName = a.FileName
 						}
-					} else {
+					case metadata.TypeVideo:
 						links.video = a.FileName
 					}
+					if a.SideCar.FileName != "" {
+						links.sidecar = a.SideCar.FileName
+					}
 					a.Close()
-				}
-				if g.SideCar.FileName != "" {
-					links.sidecar = g.SideCar.FileName
 				}
 				results[fileName] = links
 

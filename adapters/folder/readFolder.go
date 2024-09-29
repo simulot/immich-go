@@ -235,74 +235,69 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 					var g *adapters.AssetGroup
 					linked := links[file]
 
+				redo:
 					switch {
 					case linked.image != "" && linked.video != "":
-						a, err = la.assetFromFile(ctx, fsys, linked.image)
-						if err != nil {
-							errFn(fileevent.AsFileAndName(fsys, linked.image), err)
-							return
-						}
-						if a == nil {
-							continue
-						}
 						i, err := la.assetFromFile(ctx, fsys, linked.video)
-						if i != nil {
-							g = &adapters.AssetGroup{
-								Kind:       adapters.GroupKindMotionPhoto,
-								Assets:     []*adapters.LocalAssetFile{a, i},
-								CoverIndex: 0,
-							}
-						} else {
+						if err != nil {
+							// If the video file is not found, remove the link and try again
 							errFn(fileevent.AsFileAndName(fsys, linked.video), err)
-							g = &adapters.AssetGroup{
-								Kind:   adapters.GroupKindNone,
-								Assets: []*adapters.LocalAssetFile{a},
+							linked.video = ""
+							goto redo
+						}
+
+						a, err = la.assetFromFile(ctx, fsys, linked.image)
+						if err != nil {
+							// If the image file is not found, remove the link and try again
+							linked.image = ""
+							errFn(fileevent.AsFileAndName(fsys, linked.image), err)
+							goto redo
+						}
+
+						if linked.sidecar != "" {
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							a.SideCar = metadata.SideCarFile{
+								FSys:     fsys,
+								FileName: linked.sidecar,
 							}
 						}
-					case linked.image != "":
+						// The video must be the first asset in the group
+						g = adapters.NewAssetGroup(adapters.GroupKindMotionPhoto, i, a)
+					case linked.image != "" && linked.video == "":
 						a, err = la.assetFromFile(ctx, fsys, linked.image)
 						if err != nil {
 							errFn(fileevent.AsFileAndName(fsys, linked.image), err)
-							return
-						}
-						if a == nil {
 							continue
 						}
-						g = &adapters.AssetGroup{
-							Kind:       adapters.GroupKindNone,
-							Assets:     []*adapters.LocalAssetFile{a},
-							CoverIndex: 0,
+						if linked.sidecar != "" {
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							a.SideCar = metadata.SideCarFile{
+								FSys:     fsys,
+								FileName: linked.sidecar,
+							}
 						}
-					case linked.video != "":
-						{
-							a, err = la.assetFromFile(ctx, fsys, linked.video)
-							if err != nil {
-								errFn(fileevent.AsFileAndName(fsys, linked.video), err)
-								return
-							}
-							if a == nil {
-								continue
-							}
+						g = adapters.NewAssetGroup(adapters.GroupKindNone, a)
 
-							g = &adapters.AssetGroup{
-								Kind:       adapters.GroupKindNone,
-								Assets:     []*adapters.LocalAssetFile{a},
-								CoverIndex: 0,
-							}
-
+					case linked.video != "" && linked.image == "":
+						a, err = la.assetFromFile(ctx, fsys, linked.video)
+						if err != nil {
+							errFn(fileevent.AsFileAndName(fsys, linked.video), err)
+							continue
 						}
+
+						if linked.sidecar != "" {
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							a.SideCar = metadata.SideCarFile{
+								FSys:     fsys,
+								FileName: linked.sidecar,
+							}
+						}
+						g = adapters.NewAssetGroup(adapters.GroupKindNone, a)
 					}
 
-					if g == nil {
+					// If the asset is not found, skip it
+					if g == nil || g.Validate() != nil {
 						continue
-					}
-
-					if linked.sidecar != "" {
-						g.SideCar = metadata.SideCarFile{
-							FSys:     fsys,
-							FileName: linked.sidecar,
-						}
-						la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
 					}
 
 					// manage album options
@@ -364,7 +359,7 @@ func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name
 		FSys:     fsys,
 	}
 
-	err := a.ReadMetadata(la.flags.DateHandlingFlags.Method, adapters.ReadMetadataOptions{
+	md, err := a.ReadMetadata(la.flags.DateHandlingFlags.Method, adapters.ReadMetadataOptions{
 		ExifTool:         la.exiftool,
 		ExiftoolTimezone: la.flags.ExifToolFlags.Timezone.Location(),
 		FilenameTimeZone: la.flags.DateHandlingFlags.FilenameTimeZone.Location(),
@@ -381,7 +376,11 @@ func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name
 	}
 	a.FileSize = int(i.Size())
 
-	if la.flags.InclusionFlags.DateRange.IsSet() && !la.flags.InclusionFlags.DateRange.InRange(a.Metadata.DateTaken) {
+	if md != nil {
+		a.CaptureDate = md.DateTaken
+	}
+
+	if la.flags.InclusionFlags.DateRange.IsSet() && !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
 		a.Close()
 		la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "asset outside date range")
 		return nil, nil

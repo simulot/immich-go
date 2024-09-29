@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/metadata"
 )
 
 /*
@@ -45,9 +46,15 @@ type LocalAssetFile struct {
 	Favorite    bool      // the asset is marked as favorite
 	Stars       int       // the asset is marked with stars
 
+	// GPS location
+	Latitude  float64 // GPS latitude
+	Longitude float64 // GPS longitude
+
+	// When a sidecar is found beside the asset
+	SideCar metadata.SideCarFile // sidecar file if found
+
 	// removed from assets to group of assets
 	// Albums   []LocalAlbum         // The asset's album, if any
-	// SideCar  metadata.SideCarFile // sidecar file if found
 	// Metadata metadata.Metadata    // Metadata fields
 
 	// Live Photos

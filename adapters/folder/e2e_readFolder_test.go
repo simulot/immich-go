@@ -201,21 +201,17 @@ func TestE2ELocalAssets(t *testing.T) {
 					return
 				}
 				links := fileLinks{}
+
 				fileName := g.Assets[0].FileName
+
 				for _, a := range g.Assets {
 					ext := path.Ext(a.FileName)
 					if b.flags.SupportedMedia.TypeFromExt(ext) == metadata.TypeImage {
 						links.image = a.FileName
-						if a.LivePhoto != nil {
-							links.video = a.LivePhoto.FileName
-						}
 					} else {
 						links.video = a.FileName
 					}
 					a.Close()
-				}
-				if g.SideCar.FileName != "" {
-					links.sidecar = g.SideCar.FileName
 				}
 				results[fileName] = links
 				if len(c.expectedAlbums) > 0 {

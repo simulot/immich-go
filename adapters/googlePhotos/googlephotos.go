@@ -422,8 +422,9 @@ nextVideo:
 
 		switch {
 		case linked.image != nil && linked.video != nil:
-			mainAsset = to.makeAsset(ctx, g, dir, linked.image, linked.image.md)
+			// Live video must be the first asset in the group...
 			liveVideo = to.makeAsset(ctx, g, dir, linked.video, linked.video.md)
+			mainAsset = to.makeAsset(ctx, g, dir, linked.image, linked.image.md)
 			if mainAsset != nil && liveVideo != nil {
 				g.Kind = adapters.GroupKindMotionPhoto
 			} else if mainAsset != nil && liveVideo == nil {
@@ -564,17 +565,22 @@ func (to *Takeout) makeAsset(ctx context.Context, g *adapters.AssetGroup, dir st
 	}
 
 	if md != nil {
-		if md.Latitude == 0 && md.Longitude == 0 {
+		a.Archived = md.Archived
+		a.Favorite = md.Favorited
+		a.Trashed = md.Trashed
+		a.Latitude = md.Latitude
+		a.Longitude = md.Longitude
+
+		if a.Latitude == 0 && a.Longitude == 0 {
 			for _, album := range g.Albums {
 				if album.Latitude != 0 || album.Longitude != 0 {
 					// when there isn't GPS information on the photo, but the album has a location,  use that location
-					md.Latitude = album.Latitude
-					md.Longitude = album.Longitude
+					a.Latitude = album.Latitude
+					a.Longitude = album.Longitude
 					break
 				}
 			}
 		}
-		g.Metadata = md
 	}
 	g.AddAsset(a)
 	return a
