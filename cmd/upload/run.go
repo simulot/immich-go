@@ -2,14 +2,15 @@ package upload
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
+	"path"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/stacking"
+	"github.com/simulot/immich-go/internal/metadata"
 )
 
 func (app *UpCmd) run(ctx context.Context, adapter adapters.Adapter) error {
@@ -99,7 +100,7 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 
 func (app *UpCmd) uploadLoop(ctx context.Context) error {
 	var err error
-	assetChan, err := app.browser.Browse(ctx)
+	groupChan, err := app.browser.Browse(ctx)
 	if err != nil {
 		return err
 	}
@@ -109,41 +110,37 @@ assetLoop:
 		case <-ctx.Done():
 			return ctx.Err()
 
-		case a, ok := <-assetChan:
+		case g, ok := <-groupChan:
 			if !ok {
 				break assetLoop
 			}
-			if a.Err != nil {
-				app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, a.Err.Error())
-			} else {
-				err = app.handleAsset(ctx, a)
-				if err != nil {
-					app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, a.Err.Error())
-				}
+			err = app.handleGroup(ctx, g)
+			if err != nil {
+				return err
 			}
 		}
 	}
 
-	if app.StackBurstPhotos || app.StackJpgWithRaw {
-		stacks := app.stacks.Stacks()
-		if len(stacks) > 0 {
-			app.Root.Log.Info("Creating stacks")
-		nextStack:
-			for _, s := range stacks {
-				switch {
-				case !app.StackBurstPhotos && s.StackType == stacking.StackBurst:
-					continue nextStack
-				case !app.StackJpgWithRaw && s.StackType == stacking.StackRawJpg:
-					continue nextStack
-				}
-				app.Root.Message(fmt.Sprintf("Stacking %s...", strings.Join(s.Names, ", ")))
-				err = app.Server.Immich.StackAssets(ctx, s.CoverID, s.IDs)
-				if err != nil {
-					app.Root.Log.Error(fmt.Sprintf("Can't stack images: %s", err))
-				}
-			}
-		}
-	}
+	// if app.StackBurstPhotos || app.StackJpgWithRaw {
+	// 	stacks := app.stacks.Stacks()
+	// 	if len(stacks) > 0 {
+	// 		app.Root.Log.Info("Creating stacks")
+	// 	nextStack:
+	// 		for _, s := range stacks {
+	// 			switch {
+	// 			case !app.StackBurstPhotos && s.StackType == stacking.StackBurst:
+	// 				continue nextStack
+	// 			case !app.StackJpgWithRaw && s.StackType == stacking.StackRawJpg:
+	// 				continue nextStack
+	// 			}
+	// 			app.Root.Message(fmt.Sprintf("Stacking %s...", strings.Join(s.Names, ", ")))
+	// 			err = app.Server.Immich.StackAssets(ctx, s.CoverID, s.IDs)
+	// 			if err != nil {
+	// 				app.Root.Log.Error(fmt.Sprintf("Can't stack images: %s", err))
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	// if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
 	// 	app.Log.Info("Managing albums")
@@ -172,7 +169,45 @@ assetLoop:
 	return err
 }
 
-func (app *UpCmd) handleAsset(ctx context.Context, a *adapters.LocalAssetFile) error {
+func (app *UpCmd) handleGroup(ctx context.Context, g *adapters.AssetGroup) error {
+	var errGroup error
+
+	// Upload assets from the group
+	for _, a := range g.Assets {
+		err := app.handleAsset(ctx, g, a)
+		errGroup = errors.Join(err)
+	}
+	if errGroup != nil {
+		return errGroup
+	}
+
+	switch g.Kind {
+	case adapters.GroupKindMotionPhoto:
+		var imageAsset *adapters.LocalAssetFile
+		var videoAsset *adapters.LocalAssetFile
+		for _, a := range g.Assets {
+			switch app.Server.Immich.SupportedMedia().TypeFromExt(path.Ext(a.FileName)) {
+			case metadata.TypeImage:
+				imageAsset = a
+			case metadata.TypeVideo:
+				videoAsset = a
+			}
+		}
+		app.Jnl.Record(ctx, fileevent.LivePhoto, fileevent.AsFileAndName(imageAsset.FSys, imageAsset.FileName), "video", videoAsset.FileName)
+		_, err := app.Server.Immich.UpdateAsset(ctx, imageAsset.ID, immich.UpdAssetField{LivePhotoVideoID: videoAsset.ID})
+		if err != nil {
+			app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err.Error())
+		}
+	}
+
+	// Manage albums
+	if len(g.Albums) > 0 {
+		app.manageGroupAlbums(ctx, g)
+	}
+	return nil
+}
+
+func (app *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *adapters.LocalAssetFile) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
@@ -184,130 +219,102 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *adapters.LocalAssetFile) e
 
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
-		ID, err := app.UploadAsset(ctx, a)
-		if err != nil {
-			return nil
-		}
-		app.manageAssetAlbum(ctx, ID, a)
-
+		err = app.uploadAsset(ctx, a)
+		return err
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
-		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName, "reason", advice.Message)
+		app.Jnl.Record(ctx, fileevent.UploadUpgraded, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
 
-		// Get existing asset's albums, if any
+		// Remember existing asset's albums, if any
 		for _, al := range advice.ServerAsset.Albums {
-			a.Albums = append(a.Albums, adapters.LocalAlbum{
+			g.AddAlbum(adapters.LocalAlbum{
 				Title:       al.AlbumName,
 				Description: al.Description,
 			})
 		}
 
 		// Upload the superior asset
-		ID, err := app.UploadAsset(ctx, a)
+		err = app.uploadAsset(ctx, a)
 		if err != nil {
-			return nil
+			return err
 		}
-		app.manageAssetAlbum(ctx, ID, a)
 
 		// delete the existing lower quality asset
-		err = app.Server.Immich.DeleteAssets(ctx, []string{ID}, true)
+		err = app.Server.Immich.DeleteAssets(ctx, []string{advice.ServerAsset.ID}, true)
 		if err != nil {
-			app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
+			app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err.Error())
 		}
+		return err
 
-	case SameOnServer: // manage albums
-		// Set add the server asset into albums determined locally
-		if !advice.ServerAsset.JustUploaded {
-			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "reason", advice.Message)
-		} else {
-			app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.FileName)
+	case SameOnServer:
+		a.ID = advice.ServerAsset.ID
+		for _, al := range advice.ServerAsset.Albums {
+			g.AddAlbum(adapters.LocalAlbum{
+				Title:       al.AlbumName,
+				Description: al.Description,
+			})
 		}
-		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a)
+		app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
 
 	case BetterOnServer: // and manage albums
-		app.Jnl.Record(ctx, fileevent.UploadServerBetter, a, a.FileName, "reason", advice.Message)
-		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a)
+		app.Jnl.Record(ctx, fileevent.UploadServerBetter, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
 	}
 
 	return nil
 }
 
-// manageAssetAlbum adds the asset to all albums it should be in.
+func (app *UpCmd) uploadAsset(ctx context.Context, a *adapters.LocalAssetFile) error {
+	ar, err := app.Server.Immich.AssetUpload(ctx, a)
+	if err != nil {
+		app.Jnl.Record(ctx, fileevent.UploadServerError, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+		return err // Must signal the error to the caller
+	}
+	if ar.Status == immich.UploadDuplicate {
+		app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "info", "the server has this file")
+	} else {
+		app.Jnl.Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
+	}
+	a.ID = ar.ID
+	return nil
+}
+
+// manageGroupAlbums add the assets to the albums listed in the group.
 // If an album does not exist, it is created.
 // Errors are logged.
-func (app *UpCmd) manageAssetAlbum(ctx context.Context, id string, a *adapters.LocalAssetFile) {
-	addedTo := map[string]bool{}
+func (app *UpCmd) manageGroupAlbums(ctx context.Context, g *adapters.AssetGroup) {
+	assetIDs := []string{}
+	for _, a := range g.Assets {
+		assetIDs = append(assetIDs, a.ID)
+	}
 
-	for _, album := range a.Albums {
-		if addedTo[album.Title] {
-			continue
-		}
+	for _, album := range g.Albums {
 		title := album.Title
 		l, exist := app.albums[title]
 		if !exist {
-			newAl, err := app.Server.Immich.CreateAlbum(ctx, title, album.Description, []string{id})
+			newAl, err := app.Server.Immich.CreateAlbum(ctx, title, album.Description, assetIDs)
 			if err != nil {
-				app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, err)
-				continue
+				app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, err)
+				return
 			}
-			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "Album", newAl.AlbumName)
 			app.albums[title] = &newAl
 			l = &newAl
 		} else {
-			_, err := app.Server.Immich.AddAssetToAlbum(ctx, l.ID, []string{id})
+			_, err := app.Server.Immich.AddAssetToAlbum(ctx, l.ID, assetIDs)
 			if err != nil {
-				app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, err)
-				continue
+				app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, err)
+				return
 			}
-			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "Album", l.AlbumName)
 		}
-		addedTo[l.AlbumName] = true
+
+		// Log the action
+		for _, a := range g.Assets {
+			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "Album", title)
+		}
 	}
 }
 
-// func (app *UpCmd) isInAlbum(a *adapters.LocalAssetFile, album string) bool {
-// 	for _, al := range a.Albums {
-// 		if app.albumName(al) == album {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
-// UploadAsset upload the asset on the server
-// Add the assets into listed albums
-// return ID of the asset
-func (app *UpCmd) UploadAsset(ctx context.Context, a *adapters.LocalAssetFile) (string, error) {
-	var resp, liveResp immich.AssetResponse
-	var err error
-
-	if a.LivePhoto != nil {
-		liveResp, err = app.Server.Immich.AssetUpload(ctx, a.LivePhoto)
-		if err == nil {
-			if liveResp.Status == immich.UploadDuplicate {
-				app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
-			} else {
-				app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
-			}
-			a.LivePhotoID = liveResp.ID
-		} else {
-			app.Jnl.Record(ctx, fileevent.UploadServerError, a.LivePhoto, a.LivePhoto.FileName, "error", err.Error())
-		}
-	}
-	b := *a // Keep a copy of the asset to log errors specifically on the image
-	resp, err = app.Server.Immich.AssetUpload(ctx, a)
-	if err == nil {
-		if resp.Status == immich.UploadDuplicate {
-			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
-		} else {
-			b.LivePhoto = nil
-			app.Jnl.Record(ctx, fileevent.Uploaded, &b, b.FileName, "capture date", b.Metadata.DateTaken.String())
-		}
-	} else {
-		app.Jnl.Record(ctx, fileevent.UploadServerError, a, a.FileName, "error", err.Error())
-		return "", err
-	}
-
-	return resp.ID, nil
+func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
+	app.Root.Message(fmt.Sprintf("%d server assets to delete.", len(ids)))
+	return app.Server.Immich.DeleteAssets(ctx, ids, false)
 }
 
 /*
@@ -328,8 +335,3 @@ func (app *UpCmd) DeleteLocalAssets() error {
 	return nil
 }
 */
-
-func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
-	app.Root.Message(fmt.Sprintf("%d server assets to delete.", len(ids)))
-	return app.Server.Immich.DeleteAssets(ctx, ids, false)
-}
