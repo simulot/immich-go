@@ -267,7 +267,7 @@ func checkLivePhoto() []fs.FS {
 		addJSONImage("Motion test/20231227_152817.jpg.json", "20231227_152817.jpg").
 		addImage("Motion test/20231227_152817.jpg", 7426453).
 		addImage("Motion test/20231227_152817.MP4", 5192477).
-		addJSONImage("Motion Test/PXL_20231118_035751175.MP.jpg.json", "20231118_035751175.MP.jpg").
+		addJSONImage("Motion Test/PXL_20231118_035751175.MP.jpg.json", "PXL_20231118_035751175.MP.jpg").
 		addImage("Motion Test/PXL_20231118_035751175.MP", 3478685).
 		addImage("Motion Test/PXL_20231118_035751175.MP.jpg", 8025699).FSs()
 }

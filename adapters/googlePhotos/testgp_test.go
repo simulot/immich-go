@@ -7,9 +7,12 @@ import (
 	"log/slog"
 	"path"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/kr/pretty"
+	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
 )
@@ -32,10 +35,8 @@ func TestBrowse(t *testing.T) {
 			"simpleAlbum", simpleAlbum,
 			sortFileResult([]fileResult{
 				{name: "PXL_20230922_144936660.jpg", size: 10, title: "PXL_20230922_144936660.jpg"},
-				{name: "PXL_20230922_144936660.jpg", size: 10, title: "PXL_20230922_144936660.jpg"},
 				{name: "PXL_20230922_144934440.jpg", size: 15, title: "PXL_20230922_144934440.jpg"},
 				{name: "IMG_8172.jpg", size: 25, title: "IMG_8172.jpg"},
-				{name: "IMG_8172.jpg", size: 52, title: "IMG_8172.jpg"},
 				{name: "IMG_8172.jpg", size: 52, title: "IMG_8172.jpg"},
 			}),
 		},
@@ -43,7 +44,6 @@ func TestBrowse(t *testing.T) {
 		{
 			"albumWithoutImage", albumWithoutImage,
 			sortFileResult([]fileResult{
-				{name: "PXL_20230922_144936660.jpg", size: 10, title: "PXL_20230922_144936660.jpg"},
 				{name: "PXL_20230922_144936660.jpg", size: 10, title: "PXL_20230922_144936660.jpg"},
 				{name: "PXL_20230922_144934440.jpg", size: 15, title: "PXL_20230922_144934440.jpg"},
 			}),
@@ -84,10 +84,7 @@ func TestBrowse(t *testing.T) {
 			"namesIssue39", namesIssue39,
 			sortFileResult([]fileResult{
 				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m.jpg", size: 1, title: "Backyard_ceremony_wedding_photography_xxxxxxx_magnoliastudios-371.jpg"},
-				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m.jpg", size: 1, title: "Backyard_ceremony_wedding_photography_xxxxxxx_magnoliastudios-371.jpg"},
 				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m(1).jpg", size: 181, title: "Backyard_ceremony_wedding_photography_xxxxxxx_magnoliastudios-181.jpg"},
-				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m(1).jpg", size: 181, title: "Backyard_ceremony_wedding_photography_xxxxxxx_magnoliastudios-181.jpg"},
-				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m(494).jpg", size: 494, title: "Backyard_ceremony_wedding_photography_markham_magnoliastudios-19.jpg"},
 				{name: "Backyard_ceremony_wedding_photography_xxxxxxx_m(494).jpg", size: 494, title: "Backyard_ceremony_wedding_photography_markham_magnoliastudios-19.jpg"},
 			}),
 		},
@@ -129,10 +126,6 @@ func TestBrowse(t *testing.T) {
 				{name: "IMG_0170.MP4", size: 6024972, title: "IMG_0170.MP4"},
 				{name: "IMG_0170.HEIC", size: 4443973, title: "IMG_0170.HEIC"},
 				{name: "IMG_0170.MP4", size: 2288647, title: "IMG_0170.MP4"},
-				{name: "IMG_0170.JPG", size: 4570661, title: "IMG_0170.JPG"},
-				{name: "IMG_0170.MP4", size: 6024972, title: "IMG_0170.MP4"},
-				{name: "IMG_0170.HEIC", size: 4443973, title: "IMG_0170.HEIC"},
-				{name: "IMG_0170.jpg", size: 514963, title: "IMG_0170.jpg"},
 			}),
 		},
 	}
@@ -145,6 +138,7 @@ func TestBrowse(t *testing.T) {
 			log := slog.New(slog.NewTextHandler(io.Discard, nil))
 			flags := &ImportFlags{
 				SupportedMedia: metadata.DefaultSupportedMedia,
+				CreateAlbums:   true,
 			}
 			b, err := NewTakeout(ctx, fileevent.NewRecorder(log, false), flags, fsys...)
 			if err != nil {
@@ -159,10 +153,13 @@ func TestBrowse(t *testing.T) {
 			}
 
 			results := []fileResult{}
-			for a := range assetChan {
-				results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
-				if a.LivePhoto != nil {
-					results = append(results, fileResult{name: path.Base(a.LivePhoto.FileName), size: a.LivePhoto.FileSize, title: a.LivePhoto.Title})
+			for g := range assetChan {
+				if err = g.Validate(); err != nil {
+					t.Error(err)
+					return
+				}
+				for _, a := range g.Assets {
+					results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
 				}
 			}
 			results = sortFileResult(results)
@@ -225,6 +222,7 @@ func TestAlbums(t *testing.T) {
 			fsys := c.gen()
 			flags := &ImportFlags{
 				SupportedMedia: metadata.DefaultSupportedMedia,
+				CreateAlbums:   true,
 			}
 			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), flags, fsys...)
 			if err != nil {
@@ -238,12 +236,14 @@ func TestAlbums(t *testing.T) {
 			}
 
 			albums := album{}
-			for a := range assetChan {
-				if len(a.Albums) > 0 {
-					for _, al := range a.Albums {
-						l := albums[al.Title]
-						l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
-						albums[al.Title] = l
+			for g := range assetChan {
+				for _, a := range g.Assets {
+					if len(g.Albums) > 0 {
+						for _, al := range g.Albums {
+							l := albums[al.Title]
+							l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
+							albums[al.Title] = l
+						}
 					}
 				}
 			}
@@ -261,8 +261,8 @@ func TestAlbums(t *testing.T) {
 }
 
 func TestArchives(t *testing.T) {
-	type photo map[string]string
-	type album map[string][]string
+	type photo map[fileKeyTracker]fileKeyTracker
+	type album map[string][]fileKeyTracker
 	tc := []struct {
 		name              string
 		gen               func() []fs.FS
@@ -276,8 +276,8 @@ func TestArchives(t *testing.T) {
 			gen:       checkLivePhoto,
 			wantAsset: photo{},
 			wantLivePhotos: photo{
-				"Motion Test/PXL_20231118_035751175.MP.jpg": "Motion Test/PXL_20231118_035751175.MP",
-				"Motion test/20231227_152817.jpg":           "Motion test/20231227_152817.MP4",
+				fileKeyTracker{baseName: "PXL_20231118_035751175.MP.jpg", size: 8025699}: fileKeyTracker{baseName: "PXL_20231118_035751175.MP", size: 3478685},
+				fileKeyTracker{baseName: "20231227_152817.jpg", size: 7426453}:           fileKeyTracker{baseName: "20231227_152817.MP4", size: 5192477},
 			},
 			wantAlbum: album{},
 		},
@@ -286,20 +286,18 @@ func TestArchives(t *testing.T) {
 			gen:       checkLivePhotoPixil,
 			wantAsset: photo{},
 			wantLivePhotos: photo{
-				"Takeout/Google Photos/2022 - Germany - Private/IMG_4573.HEIC": "Takeout/Google Photos/2022 - Germany - Private/IMG_4573.MP4",
-				"Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC":         "Takeout/Google Photos/Photos from 2022/IMG_4573.MP4",
-				"Takeout/Google Photos/2022 - Germany/IMG_4573.HEIC":           "Takeout/Google Photos/2022 - Germany/IMG_4573.MP4",
+				fileKeyTracker{baseName: "IMG_4573.HEIC", size: 3530351}: fileKeyTracker{baseName: "IMG_4573.MP4", size: 2232086},
 			},
 			wantAlbum: album{
-				"2022 - Germany - Private": []string{"IMG_4573.HEIC"},
-				"2022 - Germany":           []string{"IMG_4573.HEIC"},
+				"2022 - Germany - Private": []fileKeyTracker{{baseName: "IMG_4573.HEIC", size: 3530351}},
+				"2022 - Germany":           []fileKeyTracker{{baseName: "IMG_4573.HEIC", size: 3530351}},
 			},
 		},
 		{
 			name: "checkMissingJSON-No",
 			gen:  checkMissingJSON,
 			wantAsset: photo{
-				"Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC": "",
+				fileKeyTracker{baseName: "IMG_4573.HEIC", size: 3530351}: fileKeyTracker{},
 			},
 			wantLivePhotos: photo{},
 			wantAlbum:      album{},
@@ -309,24 +307,23 @@ func TestArchives(t *testing.T) {
 			gen:               checkMissingJSON,
 			acceptMissingJSON: true,
 			wantAsset: photo{
-				"Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC":          "",
-				"Takeout/Google Foto/Photos from 2016/IMG-20161201-WA0035.jpeg": "",
-				"Takeout/Google Photos/2022 - Germany - Private/IMG_4553.HEIC":  "",
+				fileKeyTracker{baseName: "IMG_4573.HEIC", size: 3530351}:            fileKeyTracker{},
+				fileKeyTracker{baseName: "IMG-20161201-WA0035.jpeg", size: 1352455}: fileKeyTracker{},
+				fileKeyTracker{baseName: "IMG_4553.HEIC", size: 3530351}:            fileKeyTracker{},
 			},
 			wantLivePhotos: photo{
-				"Takeout/Google Photos/2022 - Germany/IMG_1234.HEIC": "Takeout/Google Photos/2022 - Germany/IMG_1234.MP4",
+				fileKeyTracker{baseName: "IMG_1234.HEIC", size: 3530351}: fileKeyTracker{baseName: "IMG_1234.MP4", size: 2232086},
 			},
 			wantAlbum: album{
-				"2022 - Germany": []string{"IMG_1234.HEIC"},
+				"2022 - Germany": []fileKeyTracker{{baseName: "IMG_1234.HEIC", size: 3530351}},
 			},
 		},
 		{
 			name: "checkDuplicates",
 			gen:  checkDuplicates,
 			wantAsset: photo{
-				"Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg": "",
-				"Takeout/Google Foto/Photos from 2016/20160105_121621_LLS.jpg":                                   "",
-				"Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg":                                    "",
+				fileKeyTracker{baseName: "20160105_121621_LLS.jpg", size: 365022}: fileKeyTracker{},
+				fileKeyTracker{baseName: "20160105_121621_LLS.jpg", size: 364041}: fileKeyTracker{},
 			},
 			wantLivePhotos: photo{},
 			wantAlbum:      album{},
@@ -335,8 +332,8 @@ func TestArchives(t *testing.T) {
 			name: "checkMP_405",
 			gen:  checkMPissue405,
 			wantLivePhotos: photo{
-				"Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg":   "Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP",
-				"Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg": "Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2",
+				fileKeyTracker{baseName: "PXL_20210102_221126856.MP.jpg", size: 6486725}:   fileKeyTracker{baseName: "PXL_20210102_221126856.MP", size: 3242290},
+				fileKeyTracker{baseName: "PXL_20210102_221126856.MP~2.jpg", size: 4028710}: fileKeyTracker{baseName: "PXL_20210102_221126856.MP~2", size: 1214365},
 			},
 			wantAlbum: album{},
 			wantAsset: photo{},
@@ -367,25 +364,25 @@ func TestArchives(t *testing.T) {
 				livePhotos := photo{}
 				assets := photo{}
 				albums := album{}
-				for a := range assetChan {
-					if a.LivePhoto != nil {
-						photo := a.FileName
-						video := a.LivePhoto.FileName
-						livePhotos[photo] = video
-					} else {
-						assets[a.FileName] = ""
+				for g := range assetChan {
+					switch g.Kind {
+					case adapters.GroupKindNone:
+						assets[fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()}] = fileKeyTracker{}
+					case adapters.GroupKindMotionPhoto:
+						livePhotos[fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()}] = fileKeyTracker{baseName: g.Assets[1].Title, size: g.Assets[1].Size()}
 					}
-					for _, al := range a.Albums {
+					for _, al := range g.Albums {
 						l := albums[al.Title]
-						l = append(l, path.Base(a.FileName))
+						l = append(l, fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()})
 						albums[al.Title] = l
 					}
 				}
-				if !reflect.DeepEqual(assets, c.wantAsset) {
+
+				if !equalPhotos(assets, c.wantAsset) {
 					t.Errorf("difference assets\n")
 					pretty.Ldiff(t, c.wantAsset, assets)
 				}
-				if !reflect.DeepEqual(livePhotos, c.wantLivePhotos) {
+				if !equalPhotos(livePhotos, c.wantLivePhotos) {
 					t.Errorf("difference LivePhotos\n")
 					pretty.Ldiff(t, c.wantLivePhotos, livePhotos)
 				}
@@ -396,4 +393,26 @@ func TestArchives(t *testing.T) {
 			},
 		)
 	}
+}
+
+func equalPhotos(a, b map[fileKeyTracker]fileKeyTracker) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	ka := gen.MapKeys(a)
+	kb := gen.MapKeys(b)
+
+	slices.SortFunc(ka, trackerKeySortFunc)
+	slices.SortFunc(kb, trackerKeySortFunc)
+
+	if !reflect.DeepEqual(ka, kb) {
+		return false
+	}
+
+	for key, value := range a {
+		if val, ok := b[key]; !ok || val != value {
+			return false
+		}
+	}
+	return true
 }

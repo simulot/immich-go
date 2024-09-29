@@ -85,17 +85,18 @@ func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fil
 		return nil, err
 	}
 
-	assets, err := adapter.Browse(ctx)
+	assetsGroups, err := adapter.Browse(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for a := range assets {
-		if a.Err != nil {
-			return nil, a.Err
-		}
-		jnl.Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
-		for _, album := range a.Albums {
-			jnl.Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "album", album.Title)
+	for g := range assetsGroups {
+		for i, a := range g.Assets {
+			jnl.Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
+			if i >= 0 {
+				for _, album := range g.Albums {
+					jnl.Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "album", album.Title)
+				}
+			}
 		}
 	}
 

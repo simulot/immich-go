@@ -307,7 +307,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 
 					// manage album options
 					if la.flags.ImportIntoAlbum != "" {
-						g.Albums = append(g.Albums, &adapters.LocalAlbum{
+						g.Albums = append(g.Albums, adapters.LocalAlbum{
 							Path:  a.FileName,
 							Title: la.flags.ImportIntoAlbum,
 						})
@@ -321,7 +321,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 								}
 							}
 							if title != "" {
-								g.Albums = append(g.Albums, &adapters.LocalAlbum{
+								g.Albums = append(g.Albums, adapters.LocalAlbum{
 									Path:  a.FileName,
 									Title: title,
 								})
@@ -336,7 +336,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 								parts = append(parts, strings.Split(path, "/")...) // TODO: Check on windows
 							}
 							Title := strings.Join(parts, la.flags.AlbumNamePathSeparator)
-							g.Albums = append(g.Albums, &adapters.LocalAlbum{
+							g.Albums = append(g.Albums, adapters.LocalAlbum{
 								Path:  filepath.Dir(a.FileName),
 								Title: Title,
 							})

@@ -23,6 +23,7 @@ type Takeout struct {
 	debugLinkedFiles []linkedFiles
 	log              *fileevent.Recorder
 	flags            *ImportFlags // command-line flags
+	exiftool         *metadata.ExifTool
 }
 
 type fileKeyTracker struct {
@@ -69,6 +70,13 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 		log:         l,
 		flags:       flags,
 	}
+	if flags.ExifToolFlags.UseExifTool {
+		et, err := metadata.NewExifTool(&flags.ExifToolFlags)
+		if err != nil {
+			return nil, err
+		}
+		to.exiftool = et
+	}
 
 	return &to, nil
 }
@@ -76,7 +84,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 // Prepare scans all files in all walker to build the file catalog of the archive
 // metadata files content is read and kept
 
-func (to *Takeout) Browse(ctx context.Context) (chan *adapters.LocalAssetFile, error) {
+func (to *Takeout) Browse(ctx context.Context) (chan *adapters.AssetGroup, error) {
 	for _, w := range to.fsyss {
 		err := to.passOneFsWalk(ctx, w)
 		if err != nil {
@@ -301,8 +309,8 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 // Walkers are rewind, and scanned again
 // each file net yet sent to immich is sent with associated metadata
 
-func (to *Takeout) nextPass(ctx context.Context) chan *adapters.LocalAssetFile {
-	assetChan := make(chan *adapters.LocalAssetFile)
+func (to *Takeout) nextPass(ctx context.Context) chan *adapters.AssetGroup {
+	assetChan := make(chan *adapters.AssetGroup)
 
 	go func() {
 		defer close(assetChan)
@@ -312,7 +320,8 @@ func (to *Takeout) nextPass(ctx context.Context) chan *adapters.LocalAssetFile {
 			if len(to.catalogs[dir].matchedFiles) > 0 {
 				err := to.passTwo(ctx, dir, assetChan)
 				if err != nil {
-					assetChan <- &adapters.LocalAssetFile{Err: err}
+					// TODO: check how errors are managed in the passTwo function
+					return
 				}
 			}
 		}
@@ -327,7 +336,7 @@ type linkedFiles struct {
 	image *assetFile
 }
 
-func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *adapters.LocalAssetFile) error {
+func (to *Takeout) passTwo(ctx context.Context, dir string, assetChan chan *adapters.AssetGroup) error {
 	catalog := to.catalogs[dir]
 
 	linkedFiles := map[string]linkedFiles{}
@@ -404,6 +413,7 @@ nextVideo:
 			mainAsset *adapters.LocalAssetFile
 			liveVideo *adapters.LocalAssetFile
 		)
+		g := &adapters.AssetGroup{}
 
 		linked := linkedFiles[base]
 		linked.base = base
@@ -412,53 +422,49 @@ nextVideo:
 
 		switch {
 		case linked.image != nil && linked.video != nil:
-			liveVideo = to.makeAsset(ctx, dir, linked.video, linked.video.md)
-			mainAsset = to.makeAsset(ctx, dir, linked.image, linked.image.md)
+			mainAsset = to.makeAsset(ctx, g, dir, linked.image, linked.image.md)
+			liveVideo = to.makeAsset(ctx, g, dir, linked.video, linked.video.md)
+			if mainAsset != nil && liveVideo != nil {
+				g.Kind = adapters.GroupKindMotionPhoto
+			} else if mainAsset != nil && liveVideo == nil {
+				g.Kind = adapters.GroupKindNone
+			} else if liveVideo != nil {
+				g.Kind = adapters.GroupKindNone
+			}
 		case linked.image != nil && linked.video == nil:
-			mainAsset = to.makeAsset(ctx, dir, linked.image, linked.image.md)
+			mainAsset = to.makeAsset(ctx, g, dir, linked.image, linked.image.md)
 		case linked.video != nil && linked.image == nil:
-			mainAsset = to.makeAsset(ctx, dir, linked.video, linked.video.md)
+			mainAsset = to.makeAsset(ctx, g, dir, linked.video, linked.video.md)
 		}
 
-		if mainAsset == nil {
+		if g.Validate() != nil {
 			continue
 		}
 
-		if liveVideo != nil {
-			err := to.pushAsset(ctx, assetChan, liveVideo)
-			if err != nil {
-				return err
+		// debugging trackers
+		for _, a := range g.Assets {
+			key := fileKeyTracker{
+				baseName: path.Base(a.FileName),
+				size:     int64(a.FileSize),
 			}
-			mainAsset.LivePhoto = liveVideo
+			track := to.fileTracker[key]
+			track.status = fileevent.Uploaded
+			to.fileTracker[key] = track
 		}
-		err := to.pushAsset(ctx, assetChan, mainAsset)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
-// pushAsset sends the asset to the next layer
-func (to *Takeout) pushAsset(ctx context.Context, assetChan chan *adapters.LocalAssetFile, a *adapters.LocalAssetFile) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		assetChan <- a
-		key := fileKeyTracker{
-			baseName: path.Base(a.FileName),
-			size:     int64(a.FileSize),
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			assetChan <- g
+
 		}
-		track := to.fileTracker[key]
-		track.status = fileevent.Uploaded
-		to.fileTracker[key] = track
 	}
 	return nil
 }
 
 // makeAsset makes a localAssetFile based on the google metadata
-func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *metadata.Metadata) *adapters.LocalAssetFile {
+func (to *Takeout) makeAsset(ctx context.Context, g *adapters.AssetGroup, dir string, f *assetFile, md *metadata.Metadata) *adapters.LocalAssetFile {
 	key := fileKeyTracker{
 		baseName: f.base,
 		size:     int64(f.length),
@@ -470,39 +476,23 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 	}()
 
 	file := path.Join(dir, f.base)
-	i, err := fs.Stat(f.fsys, file)
-	if err != nil {
-		to.logMessage(ctx, fileevent.Error, fileevent.AsFileAndName(f.fsys, file), err.Error())
-		track.status = fileevent.Error
+	a := &adapters.LocalAssetFile{
+		FileName: file,
+		FileSize: f.length,
+		Title:    f.base,
+		FSys:     f.fsys,
+	}
+
+	md, code := to.filterOnMetadata(ctx, a, md)
+	if code != 0 {
+		track.status = code
 		return nil
 	}
 
-	if md != nil {
-		if !to.flags.KeepArchived && md.Archived {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding archived file")
-			track.status = fileevent.DiscoveredDiscarded
-			return nil
-		}
-		if !to.flags.KeepPartner && md.FromPartner {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding partner file")
-			track.status = fileevent.DiscoveredDiscarded
-			return nil
-		}
-		if !to.flags.KeepTrashed && md.Trashed {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding trashed file")
-			track.status = fileevent.DiscoveredDiscarded
-			return nil
-		}
-		if !to.flags.InclusionFlags.DateRange.InRange(md.DateTaken) {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding files out of date range")
-			track.status = fileevent.DiscoveredDiscarded
-			return nil
-		}
-	}
+	// get the original file name from metadata
+	if md != nil && md.FileName != "" {
+		title := md.FileName
 
-	title := f.base
-	if md != nil {
-		title = md.FileName
 		// trim superfluous extensions
 		titleExt := path.Ext(title)
 		fileExt := path.Ext(file)
@@ -514,14 +504,11 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 				title = strings.TrimSuffix(title, titleExt) + fileExt
 			}
 		}
-		md.FileName = title
+		// md.FileName = title
+		a.Title = title
 	}
-	a := adapters.LocalAssetFile{
-		FileName: file,
-		FileSize: int(i.Size()),
-		Title:    title,
-		FSys:     f.fsys,
-	}
+
+	// Manage albums
 
 	if to.flags.ImportFromAlbum != "" {
 		keep := false
@@ -538,7 +525,7 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 	if to.flags.CreateAlbums {
 		if to.flags.ImportIntoAlbum != "" {
 			// Force this album
-			a.AddAlbum(adapters.LocalAlbum{Title: to.flags.ImportIntoAlbum})
+			g.AddAlbum(adapters.LocalAlbum{Title: to.flags.ImportIntoAlbum})
 		} else {
 			// check if its duplicates are in some albums, and push them all at once
 
@@ -552,7 +539,7 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 						}
 						title = filepath.Base(album.Path)
 					}
-					a.AddAlbum(adapters.LocalAlbum{
+					g.AddAlbum(adapters.LocalAlbum{
 						Title:       title,
 						Path:        p,
 						Description: album.Description,
@@ -565,29 +552,66 @@ func (to *Takeout) makeAsset(ctx context.Context, dir string, f *assetFile, md *
 
 		// Force this album for partners photos
 		if to.flags.PartnerSharedAlbum != "" && md != nil && md.FromPartner {
-			a.AddAlbum(adapters.LocalAlbum{Title: to.flags.PartnerSharedAlbum})
+			g.AddAlbum(adapters.LocalAlbum{Title: to.flags.PartnerSharedAlbum})
 		}
 
 		if md != nil {
 			md.Collections = md.Collections[0:0]
-			for _, album := range a.Albums {
+			for _, album := range g.Albums {
 				md.Collections = append(md.Collections, album.Title)
 			}
 		}
 	}
 
 	if md != nil {
-		a.Metadata = *md
-		if a.Metadata.Latitude == 0 && a.Metadata.Longitude == 0 {
-			for _, album := range a.Albums {
+		if md.Latitude == 0 && md.Longitude == 0 {
+			for _, album := range g.Albums {
 				if album.Latitude != 0 || album.Longitude != 0 {
 					// when there isn't GPS information on the photo, but the album has a location,  use that location
-					a.Metadata.Latitude = album.Latitude
-					a.Metadata.Longitude = album.Longitude
+					md.Latitude = album.Latitude
+					md.Longitude = album.Longitude
 					break
 				}
 			}
 		}
+		g.Metadata = md
 	}
-	return &a
+	g.AddAsset(a)
+	return a
+}
+
+func (to *Takeout) filterOnMetadata(ctx context.Context, a *adapters.LocalAssetFile, md *metadata.Metadata) (*metadata.Metadata, fileevent.Code) {
+	if md != nil {
+		if !to.flags.KeepArchived && md.Archived {
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "discarding archived file")
+			return nil, fileevent.DiscoveredDiscarded
+		}
+		if !to.flags.KeepPartner && md.FromPartner {
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "discarding partner file")
+			return nil, fileevent.DiscoveredDiscarded
+		}
+		if !to.flags.KeepTrashed && md.Trashed {
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "discarding trashed file")
+			return nil, fileevent.DiscoveredDiscarded
+		}
+	} else {
+		// wasn't associated
+		var err error
+		md, err = a.ReadMetadata(to.flags.DateHandlingFlags.Method, adapters.ReadMetadataOptions{
+			ExifTool:         to.exiftool,
+			ExiftoolTimezone: to.flags.ExifToolFlags.Timezone.Location(),
+			FilenameTimeZone: to.flags.DateHandlingFlags.FilenameTimeZone.Location(),
+		})
+		if err != nil {
+			to.logMessage(ctx, fileevent.Error, fileevent.AsFileAndName(a.FSys, a.FileName), err.Error())
+			a.Close()
+			return nil, fileevent.Error
+		}
+	}
+	if to.flags.InclusionFlags.DateRange.IsSet() && md != nil && !to.flags.InclusionFlags.DateRange.InRange(md.DateTaken) {
+		to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "discarding files out of date range")
+		a.Close()
+		return nil, fileevent.DiscoveredDiscarded
+	}
+	return md, fileevent.Code(0)
 }

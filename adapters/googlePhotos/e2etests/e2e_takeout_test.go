@@ -31,7 +31,7 @@ func TestPixilTakeOut(t *testing.T) {
 		fileevent.DiscoveredDiscarded:               0,
 		fileevent.AnalysisAssociatedMetadata:        29984,
 		fileevent.AnalysisLocalDuplicate:            13151,
-		fileevent.UploadAddToAlbum:                  13335,
+		fileevent.UploadAddToAlbum:                  13391,
 		fileevent.Uploaded:                          16833,
 		fileevent.AnalysisMissingAssociatedMetadata: 0,
 	}, fsyss)
@@ -88,7 +88,7 @@ func TestPhyl404TakeOut(t *testing.T) {
 		fileevent.DiscoveredUnsupported:             5,
 		fileevent.AnalysisAssociatedMetadata:        111592,
 		fileevent.AnalysisLocalDuplicate:            20776,
-		fileevent.UploadAddToAlbum:                  1776,
+		fileevent.UploadAddToAlbum:                  1782,
 		fileevent.Uploaded:                          109966,
 		fileevent.AnalysisMissingAssociatedMetadata: 2978,
 	}, fsyss)
@@ -112,7 +112,7 @@ func TestPhyl404_2TakeOut(t *testing.T) {
 		fileevent.DiscoveredUnsupported:             5,
 		fileevent.AnalysisAssociatedMetadata:        124521,
 		fileevent.AnalysisLocalDuplicate:            2896,
-		fileevent.UploadAddToAlbum:                  2902,
+		fileevent.UploadAddToAlbum:                  2933,
 		fileevent.Uploaded:                          121625,
 		fileevent.AnalysisMissingAssociatedMetadata: 1,
 	}, fsyss)
@@ -137,7 +137,7 @@ func TestSteve81TakeOut(t *testing.T) {
 		fileevent.DiscoveredUnsupported:             57,
 		fileevent.AnalysisAssociatedMetadata:        44907,
 		fileevent.AnalysisLocalDuplicate:            23131,
-		fileevent.UploadAddToAlbum:                  22894,
+		fileevent.UploadAddToAlbum:                  23026,
 		fileevent.Uploaded:                          25097,
 		fileevent.AnalysisMissingAssociatedMetadata: 4,
 	}, fsyss)
@@ -163,7 +163,7 @@ func TestMuetyTakeOut(t *testing.T) {
 		fileevent.DiscoveredUnsupported:             6,
 		fileevent.AnalysisAssociatedMetadata:        21420,
 		fileevent.AnalysisLocalDuplicate:            10045,
-		fileevent.UploadAddToAlbum:                  5987,
+		fileevent.UploadAddToAlbum:                  5990,
 		fileevent.Uploaded:                          16127,
 		fileevent.AnalysisMissingAssociatedMetadata: 13,
 	}, fsyss)
