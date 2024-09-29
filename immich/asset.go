@@ -282,12 +282,14 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 
 // UpdAssetField is used to update asset with fields given in the struct fields
 type UpdAssetField struct {
-	IsArchived       bool    `json:"isArchived"`
-	IsFavorite       bool    `json:"isFavorite"`
-	Latitude         float64 `json:"latitude,omitempty"`
-	Longitude        float64 `json:"longitude,omitempty"`
-	Description      string  `json:"description,omitempty"`
-	LivePhotoVideoID string  `json:"livePhotoVideoId,omitempty"`
+	IsArchived       bool      `json:"isArchived"`
+	IsFavorite       bool      `json:"isFavorite"`
+	Latitude         float64   `json:"latitude,omitempty"`
+	Longitude        float64   `json:"longitude,omitempty"`
+	Description      string    `json:"description,omitempty"`
+	Rating           int       `json:"rating,omitempty"`
+	LivePhotoVideoID string    `json:"livePhotoVideoId,omitempty"`
+	DateTimeOriginal time.Time `json:"dateTimeOriginal,omitempty"`
 }
 
 func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error) {
