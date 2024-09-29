@@ -36,12 +36,30 @@ type AssetGroup struct {
 	Kind       GroupKind
 	CoverIndex int // index of the cover assert in the Assets slice
 	Assets     []*LocalAssetFile
-	Albums     []*LocalAlbum
+	Albums     []LocalAlbum
 	SideCar    metadata.SideCarFile
 	Metadata   *metadata.Metadata
 }
 
-func (g AssetGroup) Validate() error {
+// AddAlbum assign the group to an album
+func (g *AssetGroup) AddAlbum(album LocalAlbum) {
+	for _, al := range g.Albums {
+		if al.Title == album.Title {
+			return
+		}
+	}
+	g.Albums = append(g.Albums, album)
+}
+
+// AddAsset add an asset to the group
+func (g *AssetGroup) AddAsset(a *LocalAssetFile) {
+	g.Assets = append(g.Assets, a)
+}
+
+func (g *AssetGroup) Validate() error {
+	if g == nil {
+		return errors.New("nil group")
+	}
 	if len(g.Assets) == 0 {
 		return errors.New("empty group")
 	}

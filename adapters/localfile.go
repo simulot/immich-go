@@ -31,7 +31,7 @@ type LocalAssetFile struct {
 	Title    string // Google Photos may a have title longer than the filename
 	FSys     fs.FS  // Asset's file system
 	FileSize int    // File size in bytes
-	Err      error  // keep errors encountered
+	// Err      error     // keep errors encountered
 
 	// removed from assets to group of assets
 	// Albums   []LocalAlbum         // The asset's album, if any
@@ -58,15 +58,6 @@ type LocalAssetFile struct {
 func (l LocalAssetFile) DebugObject() any {
 	l.FSys = nil
 	return l
-}
-
-func (l *LocalAssetFile) AddAlbum(album LocalAlbum) {
-	for _, al := range l.Albums {
-		if al.Title == album.Title {
-			return
-		}
-	}
-	l.Albums = append(l.Albums, album)
 }
 
 // Remove the temporary file
@@ -173,7 +164,11 @@ func (l *LocalAssetFile) Mode() fs.FileMode { return 0 }
 
 // ModTime implements the fs.FILE interface
 func (l *LocalAssetFile) ModTime() time.Time {
-	return l.Metadata.DateTaken
+	s, err := fs.Stat(l.FSys, l.FileName)
+	if err != nil {
+		return time.Time{}
+	}
+	return s.ModTime()
 }
 
 // Sys implements the fs.FILE interface
