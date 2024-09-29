@@ -26,23 +26,29 @@ import (
 */
 
 type LocalAssetFile struct {
-	// Common fields
-	FileName string // The asset's path in the fsys
-	Title    string // Google Photos may a have title longer than the filename
+	// File system and file name
 	FSys     fs.FS  // Asset's file system
+	FileName string // The asset's path in the fsys
+
+	// Common fields
+	Title    string // Google Photos may a have title longer than the filename
 	FileSize int    // File size in bytes
-	// Err      error     // keep errors encountered
+	ID       string // Immich ID after upload
+
+	// Err error // keep errors encountered
+
+	// Flags that are provided to Immich Upload API call
+	CaptureDate time.Time // Date of the capture
+	Trashed     bool      // The asset is trashed
+	Archived    bool      // The asset is archived
+	FromPartner bool      // the asset comes from a partner
+	Favorite    bool      // the asset is marked as favorite
+	Stars       int       // the asset is marked with stars
 
 	// removed from assets to group of assets
 	// Albums   []LocalAlbum         // The asset's album, if any
 	// SideCar  metadata.SideCarFile // sidecar file if found
 	// Metadata metadata.Metadata    // Metadata fields
-
-	// // Google Photos flags
-	// Trashed     bool // The asset is trashed
-	// Archived    bool // The asset is archived
-	// FromPartner bool // the asset comes from a partner
-	// Favorite    bool
 
 	// Live Photos
 	// LivePhoto   *LocalAssetFile // Local asset of the movie part
