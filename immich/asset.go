@@ -99,7 +99,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *adapters.LocalAsset
 		if err != nil {
 			return
 		}
-		err = m.WriteField("fileCreatedAt", la.Metadata.DateTaken.Format(time.RFC3339))
+		err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(time.RFC3339))
 		if err != nil {
 			return
 		}
@@ -126,12 +126,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *adapters.LocalAsset
 		err := m.WriteField("isArchived", myBool(la.Archived).String())
 		if err != nil {
 			return
-		}
-		if la.LivePhotoID != "" {
-			err = m.WriteField("livePhotoVideoId", la.LivePhotoID)
-			if err != nil {
-				return
-			}
 		}
 
 		h := textproto.MIMEHeader{}
@@ -163,22 +157,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *adapters.LocalAsset
 				return
 			}
 			err = la.SideCar.Write(part)
-			if err != nil {
-				return
-			}
-		} else if la.Metadata.IsSet() {
-			scName := path.Base(la.FileName) + ".xmp"
-			h.Set("Content-Disposition",
-				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-					escapeQuotes("sidecarData"), escapeQuotes(scName)))
-			h.Set("Content-Type", "application/xml")
-
-			var part io.Writer
-			part, err = m.CreatePart(h)
-			if err != nil {
-				return
-			}
-			err = la.Metadata.Write(part)
 			if err != nil {
 				return
 			}
