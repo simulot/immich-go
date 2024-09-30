@@ -84,15 +84,21 @@ func DuplicateCommand(ctx context.Context, common *cmd.SharedFlags, args []strin
 		if app.IgnoreTZErrors {
 			d = time.Date(d.Year(), d.Month(), d.Day(), 0, d.Minute(), d.Second(), 0, time.UTC)
 		}
+
+		name := strings.ToUpper(a.OriginalFileName)
+		suffix := strings.ToUpper(path.Ext(a.OriginalPath))
+		if app.IgnoreExtension && strings.HasSuffix(name, suffix) {
+			name = strings.TrimSuffix(name, suffix)
+		} else if !app.IgnoreExtension && !strings.HasSuffix(name, suffix) {
+			name = name + suffix
+		}
+		
 		k := duplicateKey{
 			Date: d,
-			Name: strings.ToUpper(a.OriginalFileName + path.Ext(a.OriginalPath)),
+			Name: name,
 			Type: a.Type,
 		}
 
-		if app.IgnoreExtension {
-			k.Name = strings.TrimSuffix(k.Name, path.Ext(a.OriginalPath))
-		}
 		l := app.assetsByBaseAndDate[k]
 		if len(l) > 0 {
 			dupCount++
