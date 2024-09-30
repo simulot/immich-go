@@ -1,8 +1,7 @@
 module github.com/simulot/immich-go
 
 go 1.22
-
-toolchain go1.22.5
+toolchain go1.22.7
 
 require (
 	github.com/gdamore/tcell/v2 v2.7.4
@@ -10,7 +9,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kr/pretty v0.3.1
 	github.com/melbahja/goph v1.4.0
-	github.com/navidys/tvxwidgets v0.7.0
+	github.com/navidys/tvxwidgets v0.8.0
 	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
 	github.com/rivo/tview v0.0.0-20240616192244-23476fa0bab2
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
@@ -31,7 +30,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/term v0.23.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 )
