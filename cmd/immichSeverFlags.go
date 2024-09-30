@@ -12,6 +12,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/tzone"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // ImmichServerFlags provides all flags to establish a connection with an immich server
@@ -40,6 +41,7 @@ func AddImmichServerFlagSet(cmd *cobra.Command, rootFlags *RootImmichFlags) *Imm
 	flags := ImmichServerFlags{}
 	//  Server flags are available for sub commands
 	flags.DeviceUUID, _ = os.Hostname()
+
 	cmd.Flags().StringVarP(&flags.Server, "server", "s", flags.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
 	cmd.Flags().StringVar(&flags.API, "api", flags.API, "Immich api endpoint (example http://container_ip:3301)")
 	cmd.Flags().StringVarP(&flags.Key, "key", "k", flags.Key, "API Key")
@@ -63,6 +65,14 @@ func AddImmichServerFlagSet(cmd *cobra.Command, rootFlags *RootImmichFlags) *Imm
 // - fs.Key is mandatory
 func (SrvFlags *ImmichServerFlags) Open(rootFlags *RootImmichFlags) error {
 	var err error
+
+	// Bind the Server flag with the environment variable IMMICH_HOST
+	viper.BindEnv("server", "IMMICH_HOST")
+	SrvFlags.Server = viper.GetString("server")
+
+	// Bind the Key flag with the environment variable IMMICH_KEY
+	viper.BindEnv("key", "IMMICH_KEY")
+	SrvFlags.Key = viper.GetString("key")
 
 	if SrvFlags.Server != "" && SrvFlags.API != "" {
 		err = errors.Join(err, errors.New(`flags 'server' and 'api' are mutually exclusive`))
