@@ -10,6 +10,7 @@ import (
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/ui"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/telemachus/humane"
 )
 
@@ -44,7 +45,7 @@ type RootImmichFlags struct {
 	Level             slog.Level     // Set the log level
 }
 
-func (app *RootImmichFlags) Open() error {
+func (app *RootImmichFlags) Open(cmd *cobra.Command) error {
 	fmt.Println(app.Banner.String())
 	var w io.WriteCloser
 	if app.LogFile != "" {
@@ -69,6 +70,22 @@ func (app *RootImmichFlags) Open() error {
 	app.SetLogWriter(w)
 	app.LogWriterCloser = w
 	app.Log.Info(app.Banner.Version())
+
+	// List flags
+	app.Log.Info("Flags:")
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		val := flag.Value.String()
+		// if flag.Name == "key" {
+		// 	val = "********"
+		// }
+		app.Log.Info(fmt.Sprintf("  --%s: %q", flag.Name, val))
+	})
+
+	// List arguments
+	app.Log.Info("Arguments:")
+	for _, arg := range cmd.Flags().Args() {
+		app.Log.Info(fmt.Sprintf("  %q", arg))
+	}
 
 	return nil
 }
