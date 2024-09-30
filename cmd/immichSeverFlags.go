@@ -62,16 +62,19 @@ func AddImmichServerFlagSet(cmd *cobra.Command, rootFlags *RootImmichFlags) *Imm
 // Validate the flags and initialize the server as required
 // - fields fs.Server and fs.API are mutually exclusive
 // - either fields fs.Server or fs.API must be given
-// - fs.Key is mandatory
+// - Key is mandatory
 func (SrvFlags *ImmichServerFlags) Open(rootFlags *RootImmichFlags) error {
 	var err error
-
 	// Bind the Server flag with the environment variable IMMICH_HOST
-	viper.BindEnv("server", "IMMICH_HOST")
+	if err := viper.BindEnv("server", "IMMICH_HOST"); err != nil {
+		return err
+	}
 	SrvFlags.Server = viper.GetString("server")
 
 	// Bind the Key flag with the environment variable IMMICH_KEY
-	viper.BindEnv("key", "IMMICH_KEY")
+	if err := viper.BindEnv("key", "IMMICH_KEY"); err != nil {
+		return err
+	}
 	SrvFlags.Key = viper.GetString("key")
 
 	if SrvFlags.Server != "" && SrvFlags.API != "" {
@@ -110,8 +113,7 @@ func (SrvFlags *ImmichServerFlags) Open(rootFlags *RootImmichFlags) error {
 
 	if SrvFlags.APITrace {
 		if SrvFlags.APITraceWriter == nil {
-			err := configuration.MakeDirForFile(rootFlags.LogFile)
-			if err != nil {
+			if err := configuration.MakeDirForFile(rootFlags.LogFile); err != nil {
 				return err
 			}
 			SrvFlags.APITraceWriterName = strings.TrimSuffix(rootFlags.LogFile, filepath.Ext(rootFlags.LogFile)) + ".trace.log"
@@ -125,8 +127,7 @@ func (SrvFlags *ImmichServerFlags) Open(rootFlags *RootImmichFlags) error {
 	}
 
 	ctx := rootFlags.Command.Context()
-	err = SrvFlags.Immich.PingServer(ctx)
-	if err != nil {
+	if err := SrvFlags.Immich.PingServer(ctx); err != nil {
 		return err
 	}
 	rootFlags.Message(`Server status: OK`)
