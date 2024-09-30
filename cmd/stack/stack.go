@@ -44,7 +44,7 @@ func AddCommand(root *cmd.RootImmichFlags) {
 
 func (app *StackCmd) run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	err := app.RootImmichFlags.Open()
+	err := app.RootImmichFlags.Open(cmd)
 	if err != nil {
 		return err
 	}
