@@ -43,7 +43,8 @@ const (
 	UploadServerDuplicate // = "Server has photo"
 	UploadServerBetter    // = "Server's asset is better"
 	UploadAlbumCreated
-	UploadAddToAlbum  // = "Added to an album"
+	UploadAddToAlbum // = "Added to an album"
+	UploadLi
 	UploadServerError // = "Server error"
 
 	Uploaded  // = "Uploaded"
@@ -175,9 +176,11 @@ func (r *Recorder) Report() {
 	} {
 		sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
 	}
-
-	r.log.Info(sb.String())
 	fmt.Println(sb.String())
+	lines := strings.Split(sb.String(), "\n")
+	for _, s := range lines {
+		r.log.Info(s)
+	}
 }
 
 func (r *Recorder) GetCounts() []int64 {
