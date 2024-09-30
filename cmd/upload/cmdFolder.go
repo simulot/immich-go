@@ -46,7 +46,7 @@ func addFromFolderCommand(uploadCmd *cobra.Command, rootFlags *cmd.RootImmichFla
 
 		ctx := cmd.Context()
 
-		err := UpCmd.Root.Open()
+		err := UpCmd.Root.Open(cmdFolder)
 		if err != nil {
 			return err
 		}
