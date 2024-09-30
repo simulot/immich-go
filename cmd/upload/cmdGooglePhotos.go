@@ -34,7 +34,7 @@ func addFromGooglePhotosCommand(uploadCmd *cobra.Command, rootFlags *cmd.RootImm
 		}
 
 		ctx := cmdGP.Context()
-		err := UpCmd.Root.Open()
+		err := UpCmd.Root.Open(cmdGP)
 		if err != nil {
 			return err
 		}
