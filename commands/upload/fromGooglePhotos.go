@@ -40,8 +40,8 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 	// cmd.Flags().BoolVar(&options.StackBurstPhotos, "stack-burst-photos", false, "Stack bursts of photos in Immich")
 
 	cliflags.AddInclusionFlags(cmd, &options.InclusionFlags)
-	cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
-	metadata.AddExifToolFlags(cmd, &options.ExifToolFlags)
+	// cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
+	// metadata.AddExifToolFlags(cmd, &options.ExifToolFlags)
 	options.SupportedMedia = metadata.DefaultSupportedMedia
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
