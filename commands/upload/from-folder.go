@@ -64,12 +64,12 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 
 		// create the adapter for folders
 		options.SupportedMedia = client.Immich.SupportedMedia()
-		adapter, err := folder.NewLocalFiles(ctx, upOptions.Jnl, options, fsyss...)
+		adapter, err := folder.NewLocalFiles(ctx, app.Jnl(), options, fsyss...)
 		if err != nil {
 			return err
 		}
 
-		return newUpload(app, upOptions).run(ctx, adapter)
+		return newUpload(app, upOptions).run(ctx, adapter, app)
 	}
 
 	return cmd

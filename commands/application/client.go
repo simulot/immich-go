@@ -68,7 +68,7 @@ func StartClient(ctx context.Context, cmd *cobra.Command, app *Application) erro
 
 	// Plug the journal on the Log
 	if log.File != "" {
-		if log.writerCloser == nil {
+		if log.writer == nil {
 			err := configuration.MakeDirForFile(log.File)
 			if err != nil {
 				return err
@@ -82,7 +82,7 @@ func StartClient(ctx context.Context, cmd *cobra.Command, app *Application) erro
 				return err
 			}
 			log.SetLogWriter(f)
-			log.writerCloser = f
+			log.writer = f
 		}
 	}
 

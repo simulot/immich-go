@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +15,8 @@ type (
 // Application holds configuration used by commands
 type Application struct {
 	client Client
-	log    Log
+	log    *Log
+	jnl    *fileevent.Recorder
 
 	// TODO manage configuration file
 	// ConfigurationFile string // Path to the configuration file to use
@@ -22,7 +24,9 @@ type Application struct {
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {
 	// application's context
-	app := &Application{}
+	app := &Application{
+		log: &Log{},
+	}
 	// app.PersistentFlags().StringVar(&app.ConfigurationFile, "use-configuration", app.ConfigurationFile, "Specifies the configuration to use")
 	AddLogFlags(ctx, cmd, app)
 	return app
@@ -32,8 +36,20 @@ func (app *Application) Client() *Client {
 	return &app.client
 }
 
+func (app *Application) Jnl() *fileevent.Recorder {
+	return app.jnl
+}
+
+func (app *Application) SetJnl(jnl *fileevent.Recorder) {
+	app.jnl = jnl
+}
+
 func (app *Application) Log() *Log {
-	return &app.log
+	return app.log
+}
+
+func (app *Application) SetLog(log *Log) {
+	app.log = log
 }
 
 func ChainRunEFunctions(prev RunE, fn RunEAdaptor, ctx context.Context, cmd *cobra.Command, app *Application) RunE {

@@ -13,7 +13,6 @@ import (
 type UploadOptions struct {
 	// TODO place this option at the top
 	NoUI bool // Disable UI
-	Jnl  *fileevent.Recorder
 }
 
 // NewUploadCommand adds the Upload command
@@ -36,8 +35,8 @@ func NewUploadCommand(ctx context.Context, app *application.Application) *cobra.
 
 func (options *UploadOptions) Open(ctx context.Context, cmd *cobra.Command, app *application.Application) error {
 	// Initialize the Journal
-	if options.Jnl == nil {
-		options.Jnl = fileevent.NewRecorder(app.Log().Logger)
+	if app.Jnl() == nil {
+		app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
 	}
 	return nil
 }

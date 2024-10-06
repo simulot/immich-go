@@ -13,6 +13,7 @@ import (
 	"github.com/navidys/tvxwidgets"
 	"github.com/rivo/tview"
 	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/commands/version"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
@@ -28,8 +29,7 @@ type uiPage struct {
 	counts        map[fileevent.Code]*tview.TextView
 
 	// preserve the inherited log writer
-	prevSlogWriter io.WriteCloser
-
+	prevLogWriter io.Writer
 	// server's activity history
 	serverActivity []float64
 
@@ -46,11 +46,21 @@ type uiPage struct {
 	// quitting  chan any
 }
 
-func (upCmd *UpCmd) runUI(ctx context.Context) error {
+func (ui *uiPage) highJackLogger(app *application.Application) {
+	ui.prevLogWriter = app.Log().GetWriter()
+	w := io.MultiWriter(ui.prevLogWriter, ui.logView)
+	app.Jnl().SetLogger(app.Log().SetLogWriter(w))
+}
+
+func (ui *uiPage) restoreLogger(app *application.Application) {
+	app.Jnl().SetLogger(app.Log().SetLogWriter(ui.prevLogWriter))
+}
+
+func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	uiApp := tview.NewApplication()
-	ui := newUI(ctx, upCmd)
+	ui := newUI(ctx, app)
 
 	defer cancel(nil)
 	pages := tview.NewPages()
@@ -75,7 +85,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context) error {
 	uiApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
-			upCmd.Log.SetLogWriter(ui.prevSlogWriter)
+			ui.restoreLogger(app)
 			cancel(errors.New("interrupted: Ctrl+C or Ctrl+Q pressed"))
 		case tcell.KeyEnter:
 			if uploadDone.Load() {
@@ -95,7 +105,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context) error {
 					tick.Stop()
 					return
 				case <-tick.C:
-					jobs, err := upCmd.Immich.GetJobs(ctx)
+					jobs, err := upCmd.app.Client().Immich.GetJobs(ctx)
 					if err == nil {
 						jobCount := 0
 						jobWaiting := 0
@@ -129,7 +139,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context) error {
 				return
 			case <-tick.C:
 				uiApp.QueueUpdateDraw(func() {
-					counts := upCmd.Jnl.GetCounts()
+					counts := app.Jnl().GetCounts()
 					for c := range ui.counts {
 						ui.getCountView(c, counts[c])
 					}
@@ -202,7 +212,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context) error {
 			return context.Cause(ctx)
 		}
 		uploadDone.Store(true)
-		counts := upCmd.Jnl.GetCounts()
+		counts := app.Jnl().GetCounts()
 		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
@@ -228,7 +238,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context) error {
 	}
 
 	// Time to leave
-	upCmd.Jnl.Report()
+	app.Jnl().Report()
 	if messages.Len() > 0 {
 		return (errors.New(messages.String()))
 	}
@@ -257,7 +267,7 @@ func newModal(message string) tview.Primitive {
 	return modal(text, 80, 2+lines)
 }
 
-func newUI(ctx context.Context, app *UpCmd) *uiPage {
+func newUI(ctx context.Context, app *application.Application) *uiPage {
 	ui := &uiPage{
 		counts: map[fileevent.Code]*tview.TextView{},
 	}
@@ -291,7 +301,7 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 
-	if _, err := app.Immich.GetJobs(ctx); err == nil {
+	if _, err := app.Client().Immich.GetJobs(ctx); err == nil {
 		ui.watchJobs = true
 
 		ui.serverJobs = tvxwidgets.NewSparkline()
@@ -315,9 +325,8 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 
 	// Hijack the log
 	ui.logView = tview.NewTextView().SetMaxLines(100).ScrollToEnd()
+	ui.highJackLogger(app)
 
-	ui.prevSlogWriter = app.Log.GetWriter()
-	app.Log.SetLogWriter(io.MultiWriter(ui.prevSlogWriter, ui.logView))
 	ui.logView.SetBorder(true).SetTitle("Log")
 	ui.screen.AddItem(ui.logView, 2, 0, 1, 1, 0, 0, false)
 

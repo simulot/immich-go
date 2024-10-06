@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/telemachus/humane"
 )
 
 type Log struct {
@@ -23,8 +22,8 @@ type Log struct {
 	File  string // Log file name
 	Level string // Indicate the log level (string)
 
-	writerCloser io.WriteCloser // the log writer
-	sLevel       slog.Level     // the log level value
+	writer io.Writer  // the log writer
+	sLevel slog.Level // the log level value
 }
 
 func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
@@ -44,7 +43,7 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 		log.File = configuration.DefaultLogFile()
 	}
 	if log.File != "" {
-		if log.writerCloser == nil {
+		if log.writer == nil {
 			err := configuration.MakeDirForFile(log.File)
 			if err != nil {
 				return err
@@ -63,7 +62,6 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 		w = os.Stdout
 	}
 	log.SetLogWriter(w)
-	log.writerCloser = w
 	log.Info(version.GetVersion())
 
 	// List flags
@@ -91,16 +89,22 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	return nil
 }
 
-func (log *Log) SetLogWriter(w io.Writer) {
+func (log *Log) SetLogWriter(w io.Writer) *slog.Logger {
 	var handler slog.Handler
 
 	switch log.Type {
 	case "JSON":
 		handler = slog.NewJSONHandler(w, &slog.HandlerOptions{})
 	default:
-		handler = humane.NewHandler(w, &humane.Options{Level: log.sLevel})
+		handler = slog.NewTextHandler(w, &slog.HandlerOptions{
+			Level: log.sLevel,
+		})
+
+		// humane.NewHandler(w, &humane.Options{Level: log.sLevel})
 	}
+	log.writer = w
 	log.Logger = slog.New(handler)
+	return log.Logger
 }
 
 func (log *Log) Message(msg string, values ...any) {
@@ -115,9 +119,12 @@ func (log *Log) Close(cmd *cobra.Command, args []string) error {
 	if log.File != "" {
 		log.Message("Check the log file: %s", log.File)
 	}
+	if closer, ok := log.writer.(io.Closer); ok {
+		return closer.Close()
+	}
 	return nil
 }
 
-func (log *Log) GetWriter() io.WriteCloser {
-	return log.writerCloser
+func (log *Log) GetWriter() io.Writer {
+	return log.writer
 }

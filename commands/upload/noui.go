@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
 )
 
-func (app *UpCmd) runNoUI(ctx context.Context) error {
+func (upCmd *UpCmd) runNoUI(ctx context.Context, app *application.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 
@@ -29,7 +30,7 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 	}
 
 	progressString := func() string {
-		counts := app.Jnl.GetCounts()
+		counts := app.Jnl().GetCounts()
 		defer func() {
 			spinIdx++
 			if spinIdx == len(spinner) {
@@ -60,7 +61,7 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		// 		immichPct, app.Jnl.TotalAssets(), gpPercent, counts[fileevent.UploadServerError], upPercent, string(spinner[spinIdx]))
 		// }
 
-		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl.TotalAssets(), counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
+		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl().TotalAssets(), counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
 	}
 	uiGrp := errgroup.Group{}
 
@@ -91,18 +92,18 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 
 		processGrp.Go(func() error {
 			// Get immich asset
-			err := app.getImmichAssets(ctx, immichUpdate)
+			err := upCmd.getImmichAssets(ctx, immichUpdate)
 			if err != nil {
 				cancel(err)
 			}
 			return err
 		})
 		processGrp.Go(func() error {
-			return app.getImmichAlbums(ctx)
+			return upCmd.getImmichAlbums(ctx)
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
-			groupChan, err = app.adapter.Browse(ctx)
+			groupChan, err = upCmd.adapter.Browse(ctx)
 			if err != nil {
 				cancel(err)
 			}
@@ -117,12 +118,12 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 			}
 		}
 		preparationDone.Store(true)
-		err = app.uploadLoop(ctx, groupChan)
+		err = upCmd.uploadLoop(ctx, groupChan)
 		if err != nil {
 			cancel(err)
 		}
 
-		counts := app.Jnl.GetCounts()
+		counts := app.Jnl().GetCounts()
 		messages := strings.Builder{}
 		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
@@ -144,6 +145,6 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 	if err != nil {
 		err = context.Cause(ctx)
 	}
-	app.Jnl.Report()
+	app.Jnl().Report()
 	return err
 }
