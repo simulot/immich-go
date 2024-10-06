@@ -30,6 +30,7 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 	cmd := &cobra.Command{
 		Use:   "from-folder [flags] <path>...",
 		Short: "Upload photos from a folder",
+		Args:  cobra.MinimumNArgs(1),
 	}
 	cmd.SetContext(ctx)
 
@@ -39,6 +40,8 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 	cmd.Flags().BoolVar(&options.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
 	cmd.Flags().Var(&options.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	cmd.Flags().BoolVar(&options.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
+
+	// TODO
 	// cmd.Flags().BoolVar(&options.StackJpgWithRaw, "stack-jpg-with-raw", false, "Stack JPG images with their corresponding raw images in Immich")
 	// cmd.Flags().BoolVar(&options.StackBurstPhotos, "stack-burst-photos", false, "Stack bursts of photos in Immich")
 

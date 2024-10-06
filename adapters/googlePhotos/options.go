@@ -6,7 +6,6 @@ import (
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
-	"github.com/spf13/cobra"
 )
 
 // ImportFlags represents the command-line flags for the Google Photos takeout import command.
@@ -55,22 +54,4 @@ type ImportFlags struct {
 
 	// SupportedMedia represents the server's actual list of supported media. This is not a flag.
 	SupportedMedia metadata.SupportedMedia
-}
-
-// AddGoogleTakeoutFlags adds the command-line flags for the Google Photos takeout import command to the provided Cobra command.
-func AddGoogleTakeoutFlags(cmd *cobra.Command, flags *ImportFlags) {
-	cmd.Flags().BoolVarP(&flags.UseJSONMetadata, "use-json-metadata", "j", true, "Use JSON metadata for date and GPS information")
-	cmd.Flags().BoolVar(&flags.CreateAlbums, "sync-albums", true, "Automatically create albums in Immich that match the albums in your Google Photos takeout")
-	cmd.Flags().StringVar(&flags.ImportFromAlbum, "import-from-album-name", "", "Only import photos from the specified Google Photos album")
-	cmd.Flags().BoolVar(&flags.KeepUntitled, "include-untitled-albums", false, "Include photos from albums without a title in the import process")
-	cmd.Flags().BoolVarP(&flags.KeepTrashed, "include-trashed", "t", false, "Import photos that are marked as trashed in Google Photos")
-	cmd.Flags().BoolVarP(&flags.KeepPartner, "include-partner", "p", true, "Import photos from your partner's Google Photos account")
-	cmd.Flags().StringVar(&flags.PartnerSharedAlbum, "partner-shared-album", "", "Add partner's photo to the specified album name")
-	cmd.Flags().BoolVarP(&flags.KeepArchived, "include-archived", "a", true, "Import archived Google Photos")
-	cmd.Flags().BoolVarP(&flags.KeepJSONLess, "include-unmatched", "u", false, "Import photos that do not have a matching JSON file in the takeout")
-	cmd.Flags().Var(&flags.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
-	cliflags.AddInclusionFlags(cmd, &flags.InclusionFlags)
-	cliflags.AddDateHandlingFlags(cmd, &flags.DateHandlingFlags)
-	metadata.AddExifToolFlags(cmd, &flags.ExifToolFlags)
-	flags.SupportedMedia = metadata.DefaultSupportedMedia
 }
