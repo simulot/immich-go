@@ -369,7 +369,7 @@ func TestArchives(t *testing.T) {
 					case adapters.GroupKindNone:
 						assets[fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()}] = fileKeyTracker{}
 					case adapters.GroupKindMotionPhoto:
-						livePhotos[fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()}] = fileKeyTracker{baseName: g.Assets[1].Title, size: g.Assets[1].Size()}
+						livePhotos[fileKeyTracker{baseName: g.Assets[1].Title, size: g.Assets[1].Size()}] = fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()}
 					}
 					for _, al := range g.Albums {
 						l := albums[al.Title]
