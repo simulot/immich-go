@@ -365,15 +365,29 @@ func TestArchives(t *testing.T) {
 				assets := photo{}
 				albums := album{}
 				for g := range assetChan {
+					var (
+						photo *adapters.LocalAssetFile
+						video *adapters.LocalAssetFile
+					)
+					for _, a := range g.Assets {
+						ext := path.Ext(a.FileName)
+						switch b.flags.SupportedMedia.TypeFromExt(ext) {
+						case metadata.TypeImage:
+							photo = a
+						case metadata.TypeVideo:
+							video = a
+						}
+						a.Close()
+					}
 					switch g.Kind {
 					case adapters.GroupKindNone:
-						assets[fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()}] = fileKeyTracker{}
+						assets[fileKeyTracker{baseName: photo.Title, size: photo.Size()}] = fileKeyTracker{}
 					case adapters.GroupKindMotionPhoto:
-						livePhotos[fileKeyTracker{baseName: g.Assets[1].Title, size: g.Assets[1].Size()}] = fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()}
+						livePhotos[fileKeyTracker{baseName: photo.Title, size: photo.Size()}] = fileKeyTracker{baseName: video.Title, size: video.Size()}
 					}
 					for _, al := range g.Albums {
 						l := albums[al.Title]
-						l = append(l, fileKeyTracker{baseName: g.Assets[0].Title, size: g.Assets[0].Size()})
+						l = append(l, fileKeyTracker{baseName: photo.Title, size: photo.Size()})
 						albums[al.Title] = l
 					}
 				}
