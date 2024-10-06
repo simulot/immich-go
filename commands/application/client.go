@@ -50,10 +50,11 @@ func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
 	cmd.PersistentFlags().BoolVar(&client.DryRun, "dry-run", false, "Simulate all actions")
 	cmd.PersistentFlags().StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
 
-	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, StartClient, ctx, cmd, app)
+	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, OpenClient, ctx, cmd, app)
+	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, CloseClient, ctx, cmd, app)
 }
 
-func StartClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
+func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
 	client := app.Client()
 	log := app.Log()
 
@@ -148,7 +149,19 @@ func StartClient(ctx context.Context, cmd *cobra.Command, app *Application) erro
 			return err
 		}
 		log.Info(fmt.Sprintf("Connected, user: %s", user.Email))
+		if client.DryRun {
+			log.Info("Dry-run mode enabled. No changes will be made to the server.")
+		}
 	}
 
+	return nil
+}
+
+func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	client := app.Client()
+	log := app.Log()
+	if client.DryRun {
+		log.Info("Dry-run mode enabled. No changes were made to the server.")
+	}
 	return nil
 }
