@@ -18,8 +18,8 @@ type UploadOptions struct {
 func NewUploadCommand(ctx context.Context, app *application.Application) *cobra.Command {
 	options := &UploadOptions{}
 	cmd := &cobra.Command{
-		Use:   "upload command",
-		Short: "Upload photos on an Immich server from various sources",
+		Use:   "upload",
+		Short: "Upload photos to an Immich server from various sources",
 	}
 	application.AddClientFlags(ctx, cmd, app)
 	cmd.TraverseChildren = true
