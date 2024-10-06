@@ -74,9 +74,9 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 				val = v
 			}
 		}
-		// if flag.Name == "key" {
-		// 	val = "********"
-		// }
+		if flag.Name == "api-key" && len(val) > 4 {
+			val = strings.Repeat("*", len(val)-4) + val[len(val)-4:]
+		}
 		log.Info(fmt.Sprintf("  --%s: %q", flag.Name, val))
 	})
 
