@@ -105,7 +105,13 @@ func StartClient(ctx context.Context, cmd *cobra.Command, app *Application) erro
 		log.Info("Connection to the server " + client.Server)
 
 		var err error
-		client.Immich, err = immich.NewImmichClient(client.Server, client.APIKey, immich.OptionVerifySSL(client.SkipSSL), immich.OptionConnectionTimeout(client.ClientTimeout))
+		client.Immich, err = immich.NewImmichClient(
+			client.Server,
+			client.APIKey,
+			immich.OptionVerifySSL(client.SkipSSL),
+			immich.OptionConnectionTimeout(client.ClientTimeout),
+			immich.OptionDryRun(client.DryRun),
+		)
 		if err != nil {
 			return err
 		}
