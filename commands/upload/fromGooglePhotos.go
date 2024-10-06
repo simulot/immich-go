@@ -18,7 +18,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 
 	cmd := &cobra.Command{
 		Use:   "from-google-photos [flags] <takeout-*.zip> | <takeout-folder>",
-		Short: "Upload files either from a zipped Google Photos takeout or decompressed archive",
+		Short: "Upload photos either from a zipped Google Photos takeout or decompressed archive",
 		Args:  cobra.MinimumNArgs(1),
 	}
 	cmd.SetContext(ctx)
