@@ -6,144 +6,65 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime/debug"
 
-	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/cmd/cmdVersion"
-	"github.com/simulot/immich-go/cmd/stack"
-	"github.com/simulot/immich-go/cmd/upload"
-	"github.com/simulot/immich-go/ui"
+	"github.com/simulot/immich-go/commands"
+	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/commands/version"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
-)
-
-func getCommitInfo() string {
-	dirty := false
-	buildvcs := false
-
-	buildinfo, _ := debug.ReadBuildInfo()
-	for _, s := range buildinfo.Settings {
-		switch s.Key {
-		case "vcs.revision":
-			buildvcs = true
-			commit = s.Value
-		case "vcs.modified":
-			if s.Value == "true" {
-				dirty = true
-			}
-		case "vcs.time":
-			date = s.Value
+// immich-go entry point
+func main() {
+	ctx := context.Background()
+	err := immichGoMain(ctx)
+	if err != nil {
+		if e := context.Cause(ctx); e != nil {
+			err = e
 		}
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	if buildvcs && dirty {
-		commit += "-dirty"
-	}
-	return commit
 }
 
-func main() {
-	var err error
-
+// makes immich-go breakable with ^C and run it
+func immichGoMain(ctx context.Context) error {
 	// Create a context with cancel function to gracefully handle Ctrl+C events
-	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx, cancel := context.WithCancelCause(ctx)
 
 	// Handle Ctrl+C signal (SIGINT)
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt)
 
+	// Watch for ^C to be pressed
 	go func() {
 		<-signalChannel
 		fmt.Println("\nCtrl+C received. Shutting down...")
 		cancel(errors.New("Ctrl+C received")) // Cancel the context when Ctrl+C is received
 	}()
 
-	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-	default:
-		err = Run(ctx)
-	}
-	if err != nil {
-		if e := context.Cause(ctx); e != nil {
-			err = e
-		}
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
+	return runImmichGo(ctx)
 }
 
-func Run(ctx context.Context) error {
-	banner := ui.NewBanner(version, commit, date)
-	rootCmd := cmd.CreateRootCommand(banner)
-	cmdVersion.AddCommand(rootCmd, version, getCommitInfo(), date)
+// Run immich-go
+func runImmichGo(ctx context.Context) error {
+	viper.SetEnvPrefix("IMMICHGO")
 
-	stack.AddCommand(rootCmd)
-	upload.AddCommand(rootCmd)
+	// Create the application context
 
-	err := rootCmd.Command.ExecuteContext(ctx)
+	// Add the root command
+	cmd := &cobra.Command{
+		Use:     "immich-go",
+		Short:   "Immich-go is a command line application to interact with the Immich application using its API",
+		Long:    `An alternative to the immich-CLI command that doesn't depend on nodejs installation. It tries its best for importing google photos takeout archives.`,
+		Version: version.Version,
+	}
+	cobra.EnableTraverseRunHooks = true // doc: cobra/site/content/user_guide.md
+	app := application.New(ctx, cmd)
 
-	// fmt.Println(app.Banner.String())
+	// add immich-go commands
+	commands.AddCommands(cmd, ctx, app)
 
-	/*
-		app := cmd.ImmichServerFlags{
-			Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
-			Banner: ui.NewBanner(version, commit, date),
-		}
-		fs := flag.NewFlagSet("main", flag.ExitOnError)
-		fs.BoolFunc("version", "Get immich-go version", func(s string) error {
-			printVersion()
-			os.Exit(0)
-			return nil
-		})
-	*/
-	/*
-		app.InitSharedFlags()
-		app.SetFlags(fs)
-
-		err := fs.Parse(os.Args[1:])
-		if err != nil {
-			app.Log.Error(err.Error())
-			return err
-		}
-
-		if len(fs.Args()) == 0 {
-			err = errors.New("missing command upload|duplicate|stack|tool")
-		}
-
-		if err != nil {
-			app.Log.Error(err.Error())
-			return err
-		}
-
-		cmd := fs.Args()[0]
-		switch cmd {
-		case "upload":
-			err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
-		case "duplicate":
-			err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
-		case "metadata":
-			err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
-		case "stack":
-			err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
-		case "tool":
-			err = tool.CommandTool(ctx, &app, fs.Args()[1:])
-		default:
-			err = fmt.Errorf("unknown command: %q", cmd)
-		}
-	*/
-
-	// if err != nil {
-	// 	app.Log.Error(err.Error())
-	// }
-	// fmt.Println("Check the log file: ", app.LogFile)
-	// if app.APITraceWriter != nil {
-	// 	fmt.Println("Check the trace file: ", app.APITraceWriterName)
-	// }
-	// return err
-
-	return err
+	// let's start
+	return cmd.ExecuteContext(ctx)
 }

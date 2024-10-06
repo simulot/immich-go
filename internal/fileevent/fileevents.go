@@ -116,7 +116,7 @@ func (fn FileAndName) Name() string {
 
 type counts []int64
 
-func NewRecorder(l *slog.Logger, debug bool) *Recorder {
+func NewRecorder(l *slog.Logger) *Recorder {
 	r := &Recorder{
 		counts: make([]int64, MaxCode),
 		log:    l,

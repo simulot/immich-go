@@ -27,11 +27,11 @@ type LocalAssetBrowser struct {
 	albums   map[string]string
 	catalogs map[fs.FS]map[string][]string
 	log      *fileevent.Recorder
-	flags    *ImportFlags
+	flags    *ImportFolderOptions
 	exiftool *metadata.ExifTool
 }
 
-func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 	if flags.ImportIntoAlbum != "" && flags.UsePathAsAlbumName != FolderModeNone {
 		return nil, errors.New("cannot use both --into-album and --folder-as-album")
 	}

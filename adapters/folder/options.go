@@ -7,11 +7,10 @@ import (
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
-	"github.com/spf13/cobra"
 )
 
-// ImportFlags represents the flags used for importing assets from a file system.
-type ImportFlags struct {
+// ImportFolderOptions represents the flags used for importing assets from a file system.
+type ImportFolderOptions struct {
 	// UsePathAsAlbumName determines whether to create albums based on the full path to the asset.
 	UsePathAsAlbumName AlbumFolderMode
 
@@ -41,29 +40,6 @@ type ImportFlags struct {
 
 	// SupportedMedia is the server's actual list of supported media types.
 	SupportedMedia metadata.SupportedMedia
-}
-
-func AddUploadFolderFlags(cmd *cobra.Command, flags *ImportFlags) {
-	flags.BannedFiles, _ = namematcher.New(
-		`@eaDir/`,
-		`@__thumb/`,          // QNAP
-		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
-		`Lightroom Catalog/`, // LR
-		`thumbnails/`,        // Android photo
-		`.DS_Store/`,         // Mac OS custom attributes
-	)
-	flags.UsePathAsAlbumName = FolderModeNone
-
-	cmd.Flags().StringVar(&flags.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
-	cmd.Flags().Var(&flags.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
-	cmd.Flags().StringVar(&flags.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
-	cmd.Flags().BoolVar(&flags.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
-	cmd.Flags().Var(&flags.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
-	cmd.Flags().BoolVar(&flags.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
-	cliflags.AddInclusionFlags(cmd, &flags.InclusionFlags)
-	cliflags.AddDateHandlingFlags(cmd, &flags.DateHandlingFlags)
-	metadata.AddExifToolFlags(cmd, &flags.ExifToolFlags)
-	flags.SupportedMedia = metadata.DefaultSupportedMedia
 }
 
 // AlbumFolderMode represents the mode in which album folders are organized.

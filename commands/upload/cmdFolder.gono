@@ -1,18 +1,19 @@
 package upload
 
 import (
+	"context"
 	"errors"
 	"strings"
 
 	"github.com/simulot/immich-go/adapters/folder"
-	"github.com/simulot/immich-go/cmd"
+	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/spf13/cobra"
 )
 
-func addFromFolderCommand(uploadCmd *cobra.Command, rootFlags *cmd.RootImmichFlags) {
-	cmdFolder := &cobra.Command{
+func NewUplodaFormFolder(ctx context.Context, app *application.Application) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "from-folder [flags] <folder> [<folder>...]",
 		Short: "import files from a folder structure",
 		Args:  cobra.MinimumNArgs(1),
@@ -22,7 +23,7 @@ func addFromFolderCommand(uploadCmd *cobra.Command, rootFlags *cmd.RootImmichFla
 	cmdUpServerFlags := cmd.AddImmichServerFlagSet(cmdFolder, rootFlags)
 	CommonFlags := addCommonFlags(cmdFolder)
 
-	UploadFolderFlags := folder.ImportFlags{}
+	UploadFolderFlags := folder.ImportFolderOptions{}
 	folder.AddUploadFolderFlags(cmdFolder, &UploadFolderFlags)
 
 	// TODO: provide the mapping between old and new flags

@@ -20,14 +20,14 @@ func TestE2ELocalAssets(t *testing.T) {
 	tc := []struct {
 		name           string
 		fsys           []fs.FS
-		flags          ImportFlags
+		flags          ImportFolderOptions
 		expectedFiles  map[string]fileLinks
 		expectedCounts []int64
 		expectedAlbums map[string][]string
 	}{
 		{
 			name: "easy",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
@@ -49,7 +49,7 @@ func TestE2ELocalAssets(t *testing.T) {
 		},
 		{
 			name: "date on name",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodName,
@@ -71,7 +71,7 @@ func TestE2ELocalAssets(t *testing.T) {
 		},
 		{
 			name: "select exif date not using exiftool",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodEXIF,
@@ -98,7 +98,7 @@ func TestE2ELocalAssets(t *testing.T) {
 		},
 		{
 			name: "select exif date using exiftool",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodEXIF,
@@ -125,7 +125,7 @@ func TestE2ELocalAssets(t *testing.T) {
 		},
 		{
 			name: "select exif date using exiftool then date",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodExifThenName,
@@ -153,7 +153,7 @@ func TestE2ELocalAssets(t *testing.T) {
 		},
 		{
 			name: "select on date in the name",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodName,

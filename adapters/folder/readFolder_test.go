@@ -51,14 +51,14 @@ func TestLocalAssets(t *testing.T) {
 	tc := []struct {
 		name           string
 		fsys           []fs.FS
-		flags          ImportFlags
+		flags          ImportFolderOptions
 		expectedFiles  map[string]fileLinks
 		expectedCounts []int64
 		expectedAlbums map[string][]string
 	}{
 		{
 			name: "easy",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 			},
 			fsys: []fs.FS{
@@ -72,7 +72,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 		{
 			name: "recursive",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				Recursive:      true,
 			},
@@ -89,7 +89,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 		{
 			name: "non-recursive",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				Recursive:      false,
 			},
@@ -105,7 +105,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 		{
 			name: "banned files",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "*/Database/*"),
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
@@ -145,7 +145,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 		{
 			name: "excluded extensions",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
@@ -181,7 +181,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 		{
 			name: "included extensions",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
@@ -214,7 +214,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 		{
 			name: "motion picture",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
@@ -243,7 +243,7 @@ func TestLocalAssets(t *testing.T) {
 
 		{
 			name: "sidecar",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				BannedFiles: namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
@@ -277,7 +277,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 		{
 			name: "date in range",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodName,
@@ -311,7 +311,7 @@ func TestLocalAssets(t *testing.T) {
 
 		{
 			name: "path as album name",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia:         metadata.DefaultSupportedMedia,
 				UsePathAsAlbumName:     FolderModePath,
 				AlbumNamePathSeparator: " ¤ ",
@@ -350,7 +350,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 		{
 			name: "folder as album name",
-			flags: ImportFlags{
+			flags: ImportFolderOptions{
 				SupportedMedia:         metadata.DefaultSupportedMedia,
 				UsePathAsAlbumName:     FolderModeFolder,
 				AlbumNamePathSeparator: " ¤ ",
