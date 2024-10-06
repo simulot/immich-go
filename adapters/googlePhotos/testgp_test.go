@@ -140,7 +140,7 @@ func TestBrowse(t *testing.T) {
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				CreateAlbums:   true,
 			}
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(log, false), flags, fsys...)
+			b, err := NewTakeout(ctx, fileevent.NewRecorder(log), flags, fsys...)
 			if err != nil {
 				t.Error(err)
 				return
@@ -224,7 +224,7 @@ func TestAlbums(t *testing.T) {
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				CreateAlbums:   true,
 			}
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), flags, fsys...)
+			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil), flags, fsys...)
 			if err != nil {
 				t.Error(err)
 				return
@@ -350,7 +350,7 @@ func TestArchives(t *testing.T) {
 					KeepJSONLess:   c.acceptMissingJSON,
 					CreateAlbums:   true,
 				}
-				b, err := NewTakeout(ctx, fileevent.NewRecorder(nil, false), flags, fsys...)
+				b, err := NewTakeout(ctx, fileevent.NewRecorder(nil), flags, fsys...)
 				if err != nil {
 					t.Error(err)
 					return

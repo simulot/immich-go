@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -14,24 +13,30 @@ import (
 	"github.com/navidys/tvxwidgets"
 	"github.com/rivo/tview"
 	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/commands/version"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
 )
 
 type uiPage struct {
-	// app            *UpCmd
-	screen         *tview.Grid
-	footer         *tview.Grid
-	prepareCounts  *tview.Grid
-	uploadCounts   *tview.Grid
-	serverJobs     *tvxwidgets.Sparkline
-	logView        *tview.TextView
-	counts         map[fileevent.Code]*tview.TextView
-	prevSlog       *slog.Logger
+	screen        *tview.Grid
+	footer        *tview.Grid
+	prepareCounts *tview.Grid
+	uploadCounts  *tview.Grid
+	serverJobs    *tvxwidgets.Sparkline
+	logView       *tview.TextView
+	counts        map[fileevent.Code]*tview.TextView
+
+	// preserve the inherited log writer
+	prevSlogWriter io.WriteCloser
+
+	// server's activity history
 	serverActivity []float64
-	// prevLogFile   io.WriteCloser
+
+	// detect when the server is idling
 	lastTimeServerActive atomic.Int64
 
+	// gauges
 	immichReading *tvxwidgets.PercentageModeGauge
 	immichPrepare *tvxwidgets.PercentageModeGauge
 	immichUpload  *tvxwidgets.PercentageModeGauge
@@ -41,11 +46,11 @@ type uiPage struct {
 	// quitting  chan any
 }
 
-func (app *UpCmd) runUI(ctx context.Context) error {
+func (upCmd *UpCmd) runUI(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	uiApp := tview.NewApplication()
-	ui := newUI(ctx, app)
+	ui := newUI(ctx, upCmd)
 
 	defer cancel(nil)
 	pages := tview.NewPages()
@@ -70,7 +75,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	uiApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
-			app.Root.Log = ui.prevSlog
+			upCmd.Log.SetLogWriter(ui.prevSlogWriter)
 			cancel(errors.New("interrupted: Ctrl+C or Ctrl+Q pressed"))
 		case tcell.KeyEnter:
 			if uploadDone.Load() {
@@ -90,7 +95,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 					tick.Stop()
 					return
 				case <-tick.C:
-					jobs, err := app.Server.Immich.GetJobs(ctx)
+					jobs, err := upCmd.Immich.GetJobs(ctx)
 					if err == nil {
 						jobCount := 0
 						jobWaiting := 0
@@ -124,7 +129,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 				return
 			case <-tick.C:
 				uiApp.QueueUpdateDraw(func() {
-					counts := app.Jnl.GetCounts()
+					counts := upCmd.Jnl.GetCounts()
 					for c := range ui.counts {
 						ui.getCountView(c, counts[c])
 					}
@@ -162,14 +167,14 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		processGrp := errgroup.Group{}
 		processGrp.Go(func() error {
 			// Get immich asset
-			err = app.getImmichAssets(ctx, ui.updateImmichReading)
+			err = upCmd.getImmichAssets(ctx, ui.updateImmichReading)
 			if err != nil {
 				stopUI(err)
 			}
 			return err
 		})
 		processGrp.Go(func() error {
-			err = app.getImmichAlbums(ctx)
+			err = upCmd.getImmichAlbums(ctx)
 			if err != nil {
 				stopUI(err)
 			}
@@ -177,7 +182,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
-			groupChan, err = app.browser.Browse(ctx)
+			groupChan, err = upCmd.adapter.Browse(ctx)
 			if err != nil {
 				stopUI(err)
 			}
@@ -192,12 +197,12 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 		preparationDone.Store(true)
 
 		// we can upload assets
-		err = app.uploadLoop(ctx, groupChan)
+		err = upCmd.uploadLoop(ctx, groupChan)
 		if err != nil {
 			return context.Cause(ctx)
 		}
 		uploadDone.Store(true)
-		counts := app.Jnl.GetCounts()
+		counts := upCmd.Jnl.GetCounts()
 		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
@@ -223,7 +228,7 @@ func (app *UpCmd) runUI(ctx context.Context) error {
 	}
 
 	// Time to leave
-	app.Jnl.Report()
+	upCmd.Jnl.Report()
 	if messages.Len() > 0 {
 		return (errors.New(messages.String()))
 	}
@@ -259,7 +264,7 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 
 	ui.screen = tview.NewGrid()
 
-	ui.screen.AddItem(tview.NewTextView().SetText(app.Root.Banner.String()), 0, 0, 1, 1, 0, 0, false)
+	ui.screen.AddItem(tview.NewTextView().SetText(version.Banner()), 0, 0, 1, 1, 0, 0, false)
 
 	ui.prepareCounts = tview.NewGrid()
 	ui.prepareCounts.SetBorder(true).SetTitle("Input analysis")
@@ -286,7 +291,7 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 
-	if _, err := app.Server.Immich.GetJobs(ctx); err == nil {
+	if _, err := app.Immich.GetJobs(ctx); err == nil {
 		ui.watchJobs = true
 
 		ui.serverJobs = tvxwidgets.NewSparkline()
@@ -310,15 +315,9 @@ func newUI(ctx context.Context, app *UpCmd) *uiPage {
 
 	// Hijack the log
 	ui.logView = tview.NewTextView().SetMaxLines(100).ScrollToEnd()
-	ui.prevSlog = app.Root.Log
 
-	if app.Root.LogWriterCloser != nil {
-		w := io.MultiWriter(app.Root.LogWriterCloser, ui.logView)
-		app.Root.SetLogWriter(w)
-	} else {
-		app.Root.SetLogWriter(ui.logView)
-	}
-	app.Jnl.SetLogger(app.Root.Log)
+	ui.prevSlogWriter = app.Log.GetWriter()
+	app.Log.SetLogWriter(io.MultiWriter(ui.prevSlogWriter, ui.logView))
 	ui.logView.SetBorder(true).SetTitle("Log")
 	ui.screen.AddItem(ui.logView, 2, 0, 1, 1, 0, 0, false)
 

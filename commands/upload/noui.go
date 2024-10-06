@@ -102,7 +102,7 @@ func (app *UpCmd) runNoUI(ctx context.Context) error {
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
-			groupChan, err = app.browser.Browse(ctx)
+			groupChan, err = app.adapter.Browse(ctx)
 			if err != nil {
 				cancel(err)
 			}

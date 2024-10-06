@@ -24,7 +24,7 @@ func TestReadBigTakeout(t *testing.T) {
 	}
 
 	l := slog.New(humane.NewHandler(f, &humane.Options{Level: slog.LevelInfo}))
-	j := fileevent.NewRecorder(l, false)
+	j := fileevent.NewRecorder(l)
 	m, err := filepath.Glob("../../../test-data/full_takeout/*.zip")
 	if err != nil {
 		t.Error(err)

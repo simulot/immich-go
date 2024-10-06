@@ -8,12 +8,41 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
-func (app *UpCmd) run(ctx context.Context, adapter adapters.Adapter) error {
+type UpCmd struct {
+	*UploadOptions
+	*application.Log
+	*application.Client
+
+	AssetIndex       *AssetIndex     // List of assets present on the server
+	deleteServerList []*immich.Asset // List of server assets to remove
+
+	// deleteLocalList  []*adapters.LocalAssetFile // List of local assets to remove
+	// stacks        *stacking.StackBuilder
+	adapter       adapters.Adapter
+	DebugCounters bool // Enable CSV action counters per file
+
+	// fsyss  []fs.FS                            // pseudo file system to browse
+	Paths  []string                          // Path to explore
+	albums map[string]immich.AlbumSimplified // Albums by title
+}
+
+func newUpload(app *application.Application, options *UploadOptions) *UpCmd {
+	upCmd := &UpCmd{
+		UploadOptions: options,
+		Log:           app.Log(),
+		Client:        app.Client(),
+	}
+	return upCmd
+}
+
+func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Adapter) error {
+	upCmd.adapter = adapter
 	// if app.CommonFlags.StackBurstPhotos || app.CommonFlags.StackJpgWithRaw {
 	// 	app.stacks = stacking.NewStackBuilder(app.ImmichServerFlags.Immich.SupportedMedia())
 	// }
@@ -31,22 +60,20 @@ func (app *UpCmd) run(ctx context.Context, adapter adapters.Adapter) error {
 	// 	}
 	// }()
 
-	app.browser = adapter
-
-	if app.NoUI {
-		return app.runNoUI(ctx)
+	if upCmd.NoUI {
+		return upCmd.runNoUI(ctx)
 	}
 	_, err := tcell.NewScreen()
 	if err != nil {
-		app.Root.Log.Error("can't initialize the screen for the UI mode. Falling back to no-gui mode")
+		upCmd.Error("can't initialize the screen for the UI mode. Falling back to no-gui mode")
 		fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
-		return app.runNoUI(ctx)
+		return upCmd.runNoUI(ctx)
 	}
-	return app.runUI(ctx)
+	return upCmd.runUI(ctx)
 }
 
 func (app *UpCmd) getImmichAlbums(ctx context.Context) error {
-	serverAlbums, err := app.Server.Immich.GetAllAlbums(ctx)
+	serverAlbums, err := app.Immich.GetAllAlbums(ctx)
 	app.albums = map[string]immich.AlbumSimplified{}
 	if err != nil {
 		return fmt.Errorf("can't get the album list from the server: %w", err)
@@ -63,7 +90,7 @@ func (app *UpCmd) getImmichAlbums(ctx context.Context) error {
 }
 
 func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) error {
-	statistics, err := app.Server.Immich.GetAssetStatistics(ctx)
+	statistics, err := app.Immich.GetAssetStatistics(ctx)
 	if err != nil {
 		return err
 	}
@@ -72,7 +99,7 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 
 	var list []*immich.Asset
 
-	err = app.Server.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
+	err = app.Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -182,7 +209,7 @@ func (app *UpCmd) handleGroup(ctx context.Context, g *adapters.AssetGroup) error
 		var imageAsset *adapters.LocalAssetFile
 		var videoAsset *adapters.LocalAssetFile
 		for _, a := range g.Assets {
-			switch app.Server.Immich.SupportedMedia().TypeFromExt(path.Ext(a.FileName)) {
+			switch app.Immich.SupportedMedia().TypeFromExt(path.Ext(a.FileName)) {
 			case metadata.TypeImage:
 				imageAsset = a
 			case metadata.TypeVideo:
@@ -190,7 +217,7 @@ func (app *UpCmd) handleGroup(ctx context.Context, g *adapters.AssetGroup) error
 			}
 		}
 		app.Jnl.Record(ctx, fileevent.LivePhoto, fileevent.AsFileAndName(imageAsset.FSys, imageAsset.FileName), "video", videoAsset.FileName)
-		_, err := app.Server.Immich.UpdateAsset(ctx, imageAsset.ID, immich.UpdAssetField{LivePhotoVideoID: videoAsset.ID})
+		_, err := app.Immich.UpdateAsset(ctx, imageAsset.ID, immich.UpdAssetField{LivePhotoVideoID: videoAsset.ID})
 		if err != nil {
 			app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err.Error())
 		}
@@ -235,7 +262,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *ad
 		}
 
 		// delete the existing lower quality asset
-		err = app.Server.Immich.DeleteAssets(ctx, []string{advice.ServerAsset.ID}, true)
+		err = app.Immich.DeleteAssets(ctx, []string{advice.ServerAsset.ID}, true)
 		if err != nil {
 			app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err.Error())
 		}
@@ -259,7 +286,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *ad
 }
 
 func (app *UpCmd) uploadAsset(ctx context.Context, a *adapters.LocalAssetFile) error {
-	ar, err := app.Server.Immich.AssetUpload(ctx, a)
+	ar, err := app.Immich.AssetUpload(ctx, a)
 	if err != nil {
 		app.Jnl.Record(ctx, fileevent.UploadServerError, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
 		return err // Must signal the error to the caller
@@ -286,15 +313,14 @@ func (app *UpCmd) manageGroupAlbums(ctx context.Context, g *adapters.AssetGroup)
 		title := album.Title
 		l, exist := app.albums[title]
 		if !exist {
-			newAl, err := app.Server.Immich.CreateAlbum(ctx, title, album.Description, assetIDs)
+			newAl, err := app.Immich.CreateAlbum(ctx, title, album.Description, assetIDs)
 			if err != nil {
 				app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, err)
-				return
 			}
 			app.albums[title] = newAl
 			l = newAl
 		} else {
-			_, err := app.Server.Immich.AddAssetToAlbum(ctx, l.ID, assetIDs)
+			_, err := app.Immich.AddAssetToAlbum(ctx, l.ID, assetIDs)
 			if err != nil {
 				app.Jnl.Record(ctx, fileevent.Error, fileevent.FileAndName{}, err)
 				return
@@ -309,8 +335,8 @@ func (app *UpCmd) manageGroupAlbums(ctx context.Context, g *adapters.AssetGroup)
 }
 
 func (app *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
-	app.Root.Message("%d server assets to delete.", len(ids))
-	return app.Server.Immich.DeleteAssets(ctx, ids, false)
+	app.Message("%d server assets to delete.", len(ids))
+	return app.Immich.DeleteAssets(ctx, ids, false)
 }
 
 /*

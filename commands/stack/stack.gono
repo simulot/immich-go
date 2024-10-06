@@ -5,7 +5,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/immich"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/stacking"

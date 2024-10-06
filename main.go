@@ -66,5 +66,9 @@ func runImmichGo(ctx context.Context) error {
 	commands.AddCommands(cmd, ctx, app)
 
 	// let's start
-	return cmd.ExecuteContext(ctx)
+	err := cmd.ExecuteContext(ctx)
+	if err != nil {
+		app.Log().Error(err.Error())
+	}
+	return err
 }

@@ -38,6 +38,12 @@ type ImportFolderOptions struct {
 	// IgnoreSideCarFiles indicates whether to ignore XMP files during the import process.
 	IgnoreSideCarFiles bool
 
+	// Stack jpg/raw
+	StackJpgWithRaw bool
+
+	// Stack burst
+	StackBurstPhotos bool
+
 	// SupportedMedia is the server's actual list of supported media types.
 	SupportedMedia metadata.SupportedMedia
 }

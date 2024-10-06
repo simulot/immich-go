@@ -182,7 +182,7 @@ func TestE2ELocalAssets(t *testing.T) {
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			recorder := fileevent.NewRecorder(nil, false)
+			recorder := fileevent.NewRecorder(nil)
 			b, err := NewLocalFiles(ctx, recorder, &c.flags, c.fsys...)
 			if err != nil {
 				t.Error(err)

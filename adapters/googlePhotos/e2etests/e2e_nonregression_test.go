@@ -79,7 +79,7 @@ func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fil
 	defer logFile.Close()
 
 	log := slog.New(slog.NewTextHandler(logFile, nil))
-	jnl := fileevent.NewRecorder(log, true)
+	jnl := fileevent.NewRecorder(log)
 	adapter, err := gp.NewTakeout(ctx, jnl, flags, fsys...)
 	if err != nil {
 		return nil, err

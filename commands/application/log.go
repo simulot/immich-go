@@ -117,3 +117,7 @@ func (log *Log) Close(cmd *cobra.Command, args []string) error {
 	}
 	return nil
 }
+
+func (log *Log) GetWriter() io.WriteCloser {
+	return log.writerCloser
+}

@@ -3,55 +3,18 @@ package upload
 import (
 	"context"
 	"errors"
-	"fmt"
+	"strings"
 
 	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/commands/application"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/spf13/cobra"
 )
 
-// UploadOption represents a set of common flags used for filtering assets.
-type UploadOption struct {
-	NoUI             bool // Disable UI
-	StackJpgWithRaw  bool // Stack jpg/raw (Default: TRUE)
-	StackBurstPhotos bool // Stack burst (Default: TRUE)
-
-	Jnl *fileevent.Recorder // Log file events
-}
-
-// NewUploadCommand adds the Upload command
-func NewUploadCommand(ctx context.Context, app *application.Application) *cobra.Command {
-	options := &UploadOption{}
-	cmd := &cobra.Command{
-		Use:   "upload sub-command",
-		Short: "Upload photos on an Immich server",
-	}
-	application.AddClientFlags(ctx, cmd, app)
-	cmd.TraverseChildren = true
-	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
-	cmd.PersistentFlags().BoolVar(&options.StackJpgWithRaw, "stack-jpg-with-raw", false, "Stack JPG images with their corresponding raw images in Immich")
-	cmd.PersistentFlags().BoolVar(&options.StackBurstPhotos, "stack-burst-photos", false, "Stack bursts of photos in Immich")
-	cmd.PersistentPreRunE = application.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, app)
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		return errors.New("misisng sub-command")
-	}
-	cmd.AddCommand(NewUploadFolderCommand(ctx, app))
-	return cmd
-}
-
-func (options *UploadOption) Open(ctx context.Context, cmd *cobra.Command, app *application.Application) error {
-	// Initialize the Journal
-	if options.Jnl == nil {
-		options.Jnl = fileevent.NewRecorder(app.Log().Logger)
-	}
-	return nil
-}
-
-func NewUploadFolderCommand(ctx context.Context, app *application.Application) *cobra.Command {
+func NewFromFolderCommand(ctx context.Context, app *application.Application, upOptions *UploadOptions) *cobra.Command {
 	options := &folder.ImportFolderOptions{}
 	options.BannedFiles, _ = namematcher.New(
 		`@eaDir/`,
@@ -65,10 +28,10 @@ func NewUploadFolderCommand(ctx context.Context, app *application.Application) *
 	options.UsePathAsAlbumName = folder.FolderModeNone
 
 	cmd := &cobra.Command{
-		Use:   "from-folder [OPTIONS] <path> <path>...",
+		Use:   "from-folder [flags] <path>...",
 		Short: "Upload photos from a folder",
 	}
-	// cmd.Flags().SortFlags = false
+	cmd.SetContext(ctx)
 
 	cmd.Flags().StringVar(&options.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
 	cmd.Flags().Var(&options.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
@@ -76,13 +39,38 @@ func NewUploadFolderCommand(ctx context.Context, app *application.Application) *
 	cmd.Flags().BoolVar(&options.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
 	cmd.Flags().Var(&options.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	cmd.Flags().BoolVar(&options.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
+	// cmd.Flags().BoolVar(&options.StackJpgWithRaw, "stack-jpg-with-raw", false, "Stack JPG images with their corresponding raw images in Immich")
+	// cmd.Flags().BoolVar(&options.StackBurstPhotos, "stack-burst-photos", false, "Stack bursts of photos in Immich")
+
 	cliflags.AddInclusionFlags(cmd, &options.InclusionFlags)
 	cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
 	metadata.AddExifToolFlags(cmd, &options.ExifToolFlags)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		fmt.Println("Upload folder!", args)
-		return nil
+		// ready to run
+		ctx := cmd.Context()
+		log := app.Log()
+		client := app.Client()
+
+		// parse arguments
+		fsyss, err := fshelper.ParsePath(args)
+		if err != nil {
+			return err
+		}
+		if len(fsyss) == 0 {
+			log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
+			return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
+		}
+
+		// create the adapter for folders
+		options.SupportedMedia = client.Immich.SupportedMedia()
+		adapter, err := folder.NewLocalFiles(ctx, upOptions.Jnl, options, fsyss...)
+		if err != nil {
+			return err
+		}
+
+		return newUpload(app, upOptions).run(ctx, adapter)
 	}
+
 	return cmd
 }
