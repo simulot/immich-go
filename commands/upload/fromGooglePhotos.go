@@ -25,7 +25,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 
 	// AddGoogleTakeoutFlags adds the command-line flags for the Google Photos takeout import command
 	cmd.Flags().BoolVar(&options.CreateAlbums, "sync-albums", true, "Automatically create albums in Immich that match the albums in your Google Photos takeout")
-	cmd.Flags().StringVar(&options.ImportFromAlbum, "import-from-album-name", "", "Only import photos from the specified Google Photos album")
+	cmd.Flags().StringVar(&options.ImportFromAlbum, "from-album-name", "", "Only import photos from the specified Google Photos album")
 	cmd.Flags().BoolVar(&options.KeepUntitled, "include-untitled-albums", false, "Include photos from albums without a title in the import process")
 	cmd.Flags().BoolVarP(&options.KeepTrashed, "include-trashed", "t", false, "Import photos that are marked as trashed in Google Photos")
 	cmd.Flags().BoolVarP(&options.KeepPartner, "include-partner", "p", true, "Import photos from your partner's Google Photos account")
