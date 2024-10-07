@@ -10,9 +10,6 @@ import (
 
 // ImportFlags represents the command-line flags for the Google Photos takeout import command.
 type ImportFlags struct {
-	// UseJSONMetadata  indicates whether to use JSON metadata. A virtual XMP sidecar is created to convey the GPS location and the date of capture
-	UseJSONMetadata bool
-
 	// CreateAlbums determines whether to create albums in Immich that match the albums in the Google Photos takeout.
 	CreateAlbums bool
 

@@ -24,7 +24,6 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 	cmd.SetContext(ctx)
 
 	// AddGoogleTakeoutFlags adds the command-line flags for the Google Photos takeout import command
-	cmd.Flags().BoolVarP(&options.UseJSONMetadata, "use-json-metadata", "j", true, "Use JSON metadata for date and GPS information")
 	cmd.Flags().BoolVar(&options.CreateAlbums, "sync-albums", true, "Automatically create albums in Immich that match the albums in your Google Photos takeout")
 	cmd.Flags().StringVar(&options.ImportFromAlbum, "import-from-album-name", "", "Only import photos from the specified Google Photos album")
 	cmd.Flags().BoolVar(&options.KeepUntitled, "include-untitled-albums", false, "Include photos from albums without a title in the import process")
