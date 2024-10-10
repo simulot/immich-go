@@ -179,8 +179,7 @@ Please open an issue to cover more possibilities.
 To illustrate, here's a command importing photos from a Google Photos takeout archive captured between June 1st and June 30th, 2019, while auto-generating albums:
 
 ```sh
-./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ upload
--create-albums -google-photos -date=2019-06 ~/Download/takeout-*.zip             
+./immich-go -server=http://mynas:2283 -key=zzV6k65KGLNB9mpGeri9n8Jk1VaNGHSCdoH1dY8jQ upload -create-albums -google-photos -date=2019-06 ~/Download/takeout-*.zip             
 ```
 
  
