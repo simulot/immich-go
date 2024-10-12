@@ -3,6 +3,7 @@ package gp
 import (
 	"context"
 	"io/fs"
+	"log/slog"
 	"path"
 	"path/filepath"
 	"sort"
@@ -55,10 +56,19 @@ type directoryCatalog struct {
 
 // assetFile keep information collected during pass one
 type assetFile struct {
-	fsys   fs.FS              // Remember in which part of the archive the the file
+	fsys   fs.FS              // Remember in which part of the archive the file
 	base   string             // Remember the original file name
 	length int                // file length in bytes
 	md     *metadata.Metadata // will point to the associated metadata
+}
+
+// Implement slog.LogValuer for assetFile
+func (af assetFile) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("base", af.base),
+		slog.Int("length", af.length),
+		slog.Any("metadata", af.md),
+	)
 }
 
 func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, fsyss ...fs.FS) (*Takeout, error) {
@@ -203,8 +213,8 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				tracking.count++
 				to.fileTracker[key] = tracking
 
-				if _, ok := dirCatalog.unMatchedFiles[base]; ok {
-					to.log.Record(ctx, fileevent.AnalysisLocalDuplicate, fileevent.AsFileAndName(w, name), "reason", "duplicated in the folder")
+				if a, ok := dirCatalog.unMatchedFiles[base]; ok {
+					to.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a, "duplicated in the directory")
 					return nil
 				}
 
@@ -282,7 +292,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 							i := cat.unMatchedFiles[f]
 							i.md = md
 							cat.matchedFiles[f] = i
-							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(nil, filepath.Join(dir, f)), "json", json, "size", i.length, "matcher", matcher.name)
+							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, i, "json", json, "matcher", matcher.name)
 							delete(cat.unMatchedFiles, f)
 						}
 					}
@@ -294,7 +304,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 			files := gen.MapKeys(cat.unMatchedFiles)
 			sort.Strings(files)
 			for _, f := range files {
-				to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, fileevent.AsFileAndName(nil, filepath.Join(dir, f)), filepath.Join(dir, f))
+				to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, cat.unMatchedFiles[f], "folder", dir)
 				if to.flags.KeepJSONLess {
 					cat.matchedFiles[f] = cat.unMatchedFiles[f]
 					delete(cat.unMatchedFiles, f)
@@ -518,7 +528,7 @@ func (to *Takeout) makeAsset(ctx context.Context, g *adapters.AssetGroup, dir st
 			keep = keep || album.Title == to.flags.ImportFromAlbum
 		}
 		if !keep {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(f.fsys, file), "discarding files not in the specified album")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files not in the specified album")
 			track.status = fileevent.DiscoveredDiscarded
 			return nil
 		}
@@ -590,15 +600,15 @@ func (to *Takeout) makeAsset(ctx context.Context, g *adapters.AssetGroup, dir st
 func (to *Takeout) filterOnMetadata(ctx context.Context, a *adapters.LocalAssetFile, md *metadata.Metadata) (*metadata.Metadata, fileevent.Code) {
 	if md != nil {
 		if !to.flags.KeepArchived && md.Archived {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "discarding archived file")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding archived file")
 			return nil, fileevent.DiscoveredDiscarded
 		}
 		if !to.flags.KeepPartner && md.FromPartner {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "discarding partner file")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding partner file")
 			return nil, fileevent.DiscoveredDiscarded
 		}
 		if !to.flags.KeepTrashed && md.Trashed {
-			to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "discarding trashed file")
+			to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding trashed file")
 			return nil, fileevent.DiscoveredDiscarded
 		}
 	} else {
@@ -610,13 +620,13 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *adapters.LocalAssetF
 			FilenameTimeZone: to.flags.DateHandlingFlags.FilenameTimeZone.Location(),
 		})
 		if err != nil {
-			to.logMessage(ctx, fileevent.Error, fileevent.AsFileAndName(a.FSys, a.FileName), err.Error())
+			to.logMessage(ctx, fileevent.Error, a, err.Error())
 			a.Close()
 			return nil, fileevent.Error
 		}
 	}
 	if to.flags.InclusionFlags.DateRange.IsSet() && md != nil && !to.flags.InclusionFlags.DateRange.InRange(md.DateTaken) {
-		to.logMessage(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "discarding files out of date range")
+		to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files out of date range")
 		a.Close()
 		return nil, fileevent.DiscoveredDiscarded
 	}
