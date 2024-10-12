@@ -35,8 +35,7 @@ func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
 	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, log.Open, ctx, cmd, app)
 }
 
-func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) error {
-	fmt.Println(version.Banner())
+func (log *Log) OpenLogFile() error {
 	var w io.WriteCloser
 
 	if log.File == "" {
@@ -62,9 +61,18 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 		w = os.Stdout
 	}
 	log.SetLogWriter(w)
+	return nil
+}
+
+func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	fmt.Println(version.Banner())
+	err := log.OpenLogFile()
+	if err != nil {
+		return err
+	}
+	// List flags
 	log.Info(version.GetVersion())
 
-	// List flags
 	log.Info(fmt.Sprintf("Command: %s", cmd.Use))
 	log.Info("Flags:")
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
@@ -85,7 +93,6 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	for _, arg := range cmd.Flags().Args() {
 		log.Info(fmt.Sprintf("  %q", arg))
 	}
-
 	return nil
 }
 
