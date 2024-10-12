@@ -14,6 +14,8 @@ func TestPresentFields(t *testing.T) {
 		isPartner bool
 		isAlbum   bool
 		isAsset   bool
+		dateTaken time.Time
+		title     string
 	}{
 		{
 			name: "regularJSON",
@@ -56,28 +58,33 @@ func TestPresentFields(t *testing.T) {
 			isPartner: false,
 			isAlbum:   false,
 			isAsset:   true,
+			dateTaken: time.Unix(1695394176, 0),
+			title:     "title",
 		},
 		{
-			name: "albumJson",
+			name: "old albumJson issue #212",
 			json: `{
-				"title": "Album Name",
-				"description": "",
-				"access": "",
-				"date": {
-				  "timestamp": "0",
-				  "formatted": "1 janv. 1970, 00:00:00 UTC"
-				},
-				"location": "",
-				"geoData": {
-				  "latitude": 0.0,
-				  "longitude": 0.0,
-				  "altitude": 0.0,
-				  "latitudeSpan": 0.0,
-				  "longitudeSpan": 0.0
-				}
-			  }`,
+					"albumData": {
+						"title": "Trip to Gdańsk",
+						"description": "",
+						"access": "protected",
+						"location": "",
+						"date": {
+						"timestamp": "1502439626",
+						"formatted": "11 sie 2017, 08:20:26 UTC"
+						},
+						"geoData": {
+						"latitude": 0.0,
+						"longitude": 0.0,
+						"altitude": 0.0,
+						"latitudeSpan": 0.0,
+						"longitudeSpan": 0.0
+						}
+					}
+					}`,
 			isPartner: false,
 			isAlbum:   true,
+			title:     "Trip to Gdańsk",
 		},
 		{
 			name: "partner",
@@ -116,27 +123,29 @@ func TestPresentFields(t *testing.T) {
 			isPartner: true,
 			isAlbum:   false,
 			isAsset:   true,
+			title:     "IMG_1559.HEIC",
 		},
 		{
 			name: "new_takeout_album",
 			json: `{
-				"title": "Trip to Gdańsk",
-				"description": "",
-				"access": "protected",
-				"date": {
-					"timestamp": "1502439626",
-					"formatted": "11 sie 2017, 08:20:26 UTC"
-				},
-				"geoData": {
-					"latitude": 0.0,
-					"longitude": 0.0,
-					"altitude": 0.0,
-					"latitudeSpan": 0.0,
-					"longitudeSpan": 0.0
-				}
-			}`,
+					"title": "Trip to Gdańsk",
+					"description": "",
+					"access": "protected",
+					"date": {
+						"timestamp": "1502439626",
+						"formatted": "11 sie 2017, 08:20:26 UTC"
+					},
+					"geoData": {
+						"latitude": 0.0,
+						"longitude": 0.0,
+						"altitude": 0.0,
+						"latitudeSpan": 0.0,
+						"longitudeSpan": 0.0
+					}
+			    }`,
 			isPartner: false,
 			isAlbum:   true,
+			title:     "Trip to Gdańsk",
 		},
 		{
 			name: "old_takeout_album",
@@ -161,6 +170,7 @@ func TestPresentFields(t *testing.T) {
 						}`,
 			isPartner: false,
 			isAlbum:   true,
+			title:     "Trip to Gdańsk",
 		},
 		{
 			name: "old_takeout_photo",
@@ -196,6 +206,7 @@ func TestPresentFields(t *testing.T) {
 					}
 				}`,
 			isAsset: true,
+			title:   "IMG_20170803_115431469_HDR.jpg",
 		},
 		{
 			name: "new takeout_asset",
@@ -236,6 +247,7 @@ func TestPresentFields(t *testing.T) {
 						}
 						}`,
 			isAsset: true,
+			title:   "IMG_20170803_115431469_HDR.jpg",
 		},
 		{
 			name: "print_order",
@@ -273,6 +285,12 @@ func TestPresentFields(t *testing.T) {
 			}
 			if c.isPartner != md.isPartner() {
 				t.Errorf("expected isPartner to be %t, got %t", c.isPartner, md.isPartner())
+			}
+			if !c.dateTaken.IsZero() && !c.dateTaken.Equal(md.PhotoTakenTime.Time()) {
+				t.Errorf("expected dateTaken to be %s, got %s", c.dateTaken, md.PhotoTakenTime.Time())
+			}
+			if c.title != md.Title {
+				t.Errorf("expected Title to be %s, got %s", c.title, md.Title)
 			}
 		})
 	}
