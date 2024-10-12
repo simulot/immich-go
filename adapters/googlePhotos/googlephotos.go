@@ -146,8 +146,10 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					switch {
 					case md.isAsset():
 						dirCatalog.jsons[base] = md.AsMetadata() // Keep metadata
+						to.log.Log().Debug("Asset JSON", "metadata", md)
 						to.log.Record(ctx, fileevent.DiscoveredSidecar, fileevent.AsFileAndName(w, name), "type", "asset metadata", "title", md.Title)
 					case md.isAlbum():
+						to.log.Log().Debug("Album JSON", "metadata", md)
 						if !to.flags.KeepUntitled && md.Title == "" {
 							to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "discard untitled album")
 							return nil
@@ -292,7 +294,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 							i := cat.unMatchedFiles[f]
 							i.md = md
 							cat.matchedFiles[f] = i
-							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, i, "json", json, "matcher", matcher.name)
+							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(i.fsys, path.Join(dir, i.base)), "json", json, "matcher", matcher.name)
 							delete(cat.unMatchedFiles, f)
 						}
 					}
@@ -304,7 +306,8 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 			files := gen.MapKeys(cat.unMatchedFiles)
 			sort.Strings(files)
 			for _, f := range files {
-				to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, cat.unMatchedFiles[f], "folder", dir)
+				i := cat.unMatchedFiles[f]
+				to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, fileevent.AsFileAndName(i.fsys, path.Join(dir, i.base)))
 				if to.flags.KeepJSONLess {
 					cat.matchedFiles[f] = cat.unMatchedFiles[f]
 					delete(cat.unMatchedFiles, f)

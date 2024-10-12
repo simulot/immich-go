@@ -243,7 +243,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *
 		err = upCmd.uploadAsset(ctx, a)
 		return err
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a, "reason", advice.Message)
 
 		// Remember existing asset's albums, if any
 		for _, al := range advice.ServerAsset.Albums {
@@ -286,13 +286,13 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *
 func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *adapters.LocalAssetFile) error {
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a, "error", err.Error())
 		return err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "info", "the server has this file")
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a, "info", "the server has this file")
 	} else {
-		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
+		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a)
 	}
 	a.ID = ar.ID
 	return nil
