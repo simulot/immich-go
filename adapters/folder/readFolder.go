@@ -197,24 +197,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							links[base] = image
 							continue
 						}
-						/*
-							if image, ok := links[base]; ok {
-								// file.XMP -> file.ext
-								image.sidecar = file
-								links[base] = image
-								continue
-							}
-							for lk, l := range links {
-								f := l.image
-								if strings.TrimSuffix(f, path.Ext(f)) == file {
-									// file.ext.XMP -> file.ext
-									l.sidecar = file
-									links[lk] = l
-									continue
-								}
 
-							}
-						*/
 					case metadata.TypeVideo:
 						if image, ok := links[file]; ok {
 							// file.MP.jpg -> file.MP
@@ -373,9 +356,10 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							}
 							if abs(baseDate.Sub(aDate)) > 1*time.Minute {
 								// take this asset out of the group
-								g.Assets = append(g.Assets[:i], g.Assets[i+1:]...)
+								g.Assets = append(g.Assets[:i+1], g.Assets[i+2:]...)
 								// create a group for this assed
 								g2 := adapters.NewAssetGroup(adapters.GroupKindNone, a)
+								g2.Albums = g.Albums
 								gs = append(gs, g2)
 							}
 						}
