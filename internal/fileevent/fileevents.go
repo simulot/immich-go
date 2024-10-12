@@ -11,13 +11,10 @@ package fileevent
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
-
-	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 /*
@@ -97,27 +94,6 @@ type Recorder struct {
 	log    *slog.Logger
 }
 
-type FileAndName struct {
-	fsys fs.FS
-	name string
-}
-
-func (fn FileAndName) LogValue() slog.Value {
-	return slog.StringValue(fn.Name())
-}
-
-func AsFileAndName(fsys fs.FS, name string) FileAndName {
-	return FileAndName{fsys: fsys, name: name}
-}
-
-func (fn FileAndName) Name() string {
-	fsys := fn.fsys
-	if fsys, ok := fsys.(fshelper.NameFS); ok {
-		return fsys.Name() + ":" + fn.name
-	}
-	return fn.name
-}
-
 type counts []int64
 
 func NewRecorder(l *slog.Logger) *Recorder {
@@ -126,6 +102,10 @@ func NewRecorder(l *slog.Logger) *Recorder {
 		log:    l,
 	}
 	return r
+}
+
+func (r *Recorder) Log() *slog.Logger {
+	return r.log
 }
 
 func (r *Recorder) Record(ctx context.Context, code Code, file slog.LogValuer, args ...any) {
