@@ -3,37 +3,72 @@ package gp
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
-	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/tzone"
 )
 
-type Metablock struct {
-	Title          string             `json:"title"`
-	Description    string             `json:"description"`
-	Category       string             `json:"category"`
-	Date           *googTimeObject    `json:"date,omitempty"`
-	PhotoTakenTime googTimeObject     `json:"photoTakenTime"`
-	GeoDataExif    googGeoData        `json:"geoDataExif"`
-	GeoData        googGeoData        `json:"geoData"`
-	Trashed        bool               `json:"trashed,omitempty"`
-	Archived       bool               `json:"archived,omitempty"`
-	URLPresent     googIsPresent      `json:"url,omitempty"`         // true when the file is an asset metadata
-	Favorited      bool               `json:"favorited,omitempty"`   // true when starred in GP
-	Enrichments    *googleEnrichments `json:"enrichments,omitempty"` // Album enrichments
-}
-
 type GoogleMetaData struct {
-	Metablock
+	Title              string             `json:"title"`
+	Description        string             `json:"description"`
+	Category           string             `json:"category"`
+	Date               *googTimeObject    `json:"date,omitempty"`
+	PhotoTakenTime     *googTimeObject    `json:"photoTakenTime"`
+	GeoDataExif        *googGeoData       `json:"geoDataExif"`
+	GeoData            *googGeoData       `json:"geoData"`
+	Trashed            bool               `json:"trashed,omitempty"`
+	Archived           bool               `json:"archived,omitempty"`
+	URLPresent         googIsPresent      `json:"url,omitempty"`         // true when the file is an asset metadata
+	Favorited          bool               `json:"favorited,omitempty"`   // true when starred in GP
+	Enrichments        *googleEnrichments `json:"enrichments,omitempty"` // Album enrichments
 	GooglePhotosOrigin struct {
 		FromPartnerSharing googIsPresent `json:"fromPartnerSharing,omitempty"` // true when this is a partner's asset
 	} `json:"googlePhotosOrigin"`
-	AlbumData *Metablock `json:"albumdata"`
-	// Not in the JSON, for local treatment
-	foundInPaths []fileevent.FileAndName //  keep track of paths where the json has been found
+}
+
+func (gmd *GoogleMetaData) UnmarshalJSON(data []byte) error {
+	// test the presence of the key albumData
+	type md GoogleMetaData
+	type album struct {
+		AlbumData *md `json:"albumData"`
+	}
+
+	var t album
+	err := json.Unmarshal(data, &t)
+	if err == nil && t.AlbumData != nil {
+		*gmd = GoogleMetaData(*(t.AlbumData))
+		return nil
+	}
+
+	var gg md
+	err = json.Unmarshal(data, &gg)
+	if err != nil {
+		return err
+	}
+
+	*gmd = GoogleMetaData(gg)
+	return nil
+}
+
+func (gmd GoogleMetaData) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("Title", gmd.Title),
+		slog.String("Description", gmd.Description),
+		slog.String("Category", gmd.Category),
+		slog.Any("Date", gmd.Date),
+		slog.Any("PhotoTakenTime", gmd.PhotoTakenTime),
+		slog.Any("GeoDataExif", gmd.GeoDataExif),
+		slog.Any("GeoData", gmd.GeoData),
+		slog.Bool("Trashed", gmd.Trashed),
+		slog.Bool("Archived", gmd.Archived),
+		slog.Bool("URLPresent", bool(gmd.URLPresent)),
+		slog.Bool("Favorited", gmd.Favorited),
+		slog.Any("Enrichments", gmd.Enrichments),
+		slog.Bool("FromPartnerSharing", bool(gmd.GooglePhotosOrigin.FromPartnerSharing)),
+	)
 }
 
 func (gmd GoogleMetaData) AsMetadata() *metadata.Metadata {
@@ -42,10 +77,12 @@ func (gmd GoogleMetaData) AsMetadata() *metadata.Metadata {
 		latitude, longitude = gmd.GeoData.Latitude, gmd.GeoData.Longitude
 	}
 
+	t := time.Time{}
+
 	return &metadata.Metadata{
 		FileName:    gmd.Title,
 		Description: gmd.Description,
-		DateTaken:   gmd.PhotoTakenTime.Time(),
+		DateTaken:   t,
 		Latitude:    latitude,
 		Longitude:   longitude,
 		Trashed:     gmd.Trashed,
@@ -55,34 +92,24 @@ func (gmd GoogleMetaData) AsMetadata() *metadata.Metadata {
 	}
 }
 
-func (gmd *GoogleMetaData) UnmarshalJSON(data []byte) error {
-	type gmetadata GoogleMetaData
-	var gg gmetadata
-
-	err := json.Unmarshal(data, &gg)
-	if err != nil {
-		return err
+func (gmd *GoogleMetaData) isAlbum() bool {
+	if gmd == nil || gmd.Date == nil {
+		return false
 	}
-
-	// compensate metadata version
-	if gg.AlbumData != nil {
-		gg.Metablock = *gg.AlbumData
-		gg.AlbumData = nil
-	}
-
-	*gmd = GoogleMetaData(gg)
-	return nil
+	return gmd.Date.Timestamp != ""
 }
 
-func (gmd GoogleMetaData) isAlbum() bool {
-	return gmd.Date != nil
-}
-
-func (gmd GoogleMetaData) isAsset() bool {
+func (gmd *GoogleMetaData) isAsset() bool {
+	if gmd == nil || gmd.PhotoTakenTime == nil {
+		return false
+	}
 	return gmd.PhotoTakenTime.Timestamp != ""
 }
 
-func (gmd GoogleMetaData) isPartner() bool {
+func (gmd *GoogleMetaData) isPartner() bool {
+	if gmd == nil {
+		return false
+	}
 	return bool(gmd.GooglePhotosOrigin.FromPartnerSharing)
 }
 
@@ -120,17 +147,32 @@ type googGeoData struct {
 	Altitude  float64 `json:"altitude"`
 }
 
+func (ggd *googGeoData) LogValue() slog.Value {
+	if ggd == nil {
+		return slog.Value{}
+	}
+	return slog.GroupValue(
+		slog.Float64("Latitude", ggd.Latitude),
+		slog.Float64("Longitude", ggd.Longitude),
+		slog.Float64("Altitude", ggd.Altitude),
+	)
+}
+
 // googTimeObject to handle the epoch timestamp
 type googTimeObject struct {
 	Timestamp string `json:"timestamp"`
 	// Formatted string    `json:"formatted"`
 }
 
-// Time return the time.Time of the epoch
-func (gt *googTimeObject) Time() time.Time {
+func (gt *googTimeObject) LogValue() slog.Value {
 	if gt == nil {
-		return time.Time{}
+		return slog.Value{}
 	}
+	return slog.TimeValue(gt.Time())
+}
+
+// Time return the time.Time of the epoch
+func (gt googTimeObject) Time() time.Time {
 	ts, _ := strconv.ParseInt(gt.Timestamp, 10, 64)
 	if ts == 0 {
 		return time.Time{}
@@ -145,6 +187,17 @@ type googleEnrichments struct {
 	Text      string
 	Latitude  float64
 	Longitude float64
+}
+
+func (ge *googleEnrichments) LogValue() slog.Value {
+	if ge == nil {
+		return slog.Value{}
+	}
+	return slog.GroupValue(
+		slog.String("Text", ge.Text),
+		slog.Float64("Latitude", ge.Latitude),
+		slog.Float64("Longitude", ge.Longitude),
+	)
 }
 
 func (ge *googleEnrichments) UnmarshalJSON(b []byte) error {

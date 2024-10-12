@@ -2,6 +2,8 @@ package gp
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -379,6 +381,115 @@ func TestEnrichedAlbum(t *testing.T) {
 			if !album.Date.Time().Equal(c.wantDate) {
 				t.Errorf("album.Date.Time()=%s, expected=%s", album.Date.Time(), c.wantDate)
 			}
+		})
+	}
+}
+
+func TestLog(t *testing.T) {
+	tcs := []struct {
+		name string
+		json string
+	}{
+		{
+			name: "regularJSON",
+			json: `{
+				"title": "title",
+				"description": "",
+				"imageViews": "0",
+				"creationTime": {
+				  "timestamp": "1695397525",
+				  "formatted": "22 sept. 2023, 15:45:25 UTC"
+				},
+				"photoTakenTime": {
+				  "timestamp": "1695394176",
+				  "formatted": "22 sept. 2023, 14:49:36 UTC"
+				},
+				"geoData": {
+				  "latitude": 48.7981917,
+				  "longitude": 2.4866832999999997,
+				  "altitude": 90.25,
+				  "latitudeSpan": 0.0,
+				  "longitudeSpan": 0.0
+				},
+				"geoDataExif": {
+				  "latitude": 48.7981917,
+				  "longitude": 2.4866832999999997,
+				  "altitude": 90.25,
+				  "latitudeSpan": 0.0,
+				  "longitudeSpan": 0.0
+				},
+				"url": "https://photos.google.com/photo/AAMKMAKZMAZMKAZMKZMAK",
+				"googlePhotosOrigin": {
+				  "mobileUpload": {
+					"deviceFolder": {
+					  "localFolderName": ""
+					},
+					"deviceType": "ANDROID_PHONE"
+				  }
+				}
+			  }`,
+		},
+		{
+			name: "album enrichments",
+			json: `{
+				"title": "Album test 6/10/23",
+				"description": "",
+				"access": "protected",
+				"date": {
+				  "timestamp": "1697872351",
+				  "formatted": "21 oct. 2023, 07:12:31 UTC"
+				},
+				"enrichments": [
+				  {
+					"narrativeEnrichment": {
+					  "text": "Ici c\u0027est du text"
+					}
+				  },
+				  {
+					"narrativeEnrichment": {
+					  "text": "Et hop"
+					}
+				  },
+				  {
+					"locationEnrichment": {
+					  "location": [
+						{
+						  "name": "Saint-Maur-des-Fossés",
+						  "description": "Île-de-France",
+						  "latitudeE7": 488029439,
+						  "longitudeE7": 24854290
+						}
+					  ]
+					}
+				  },
+				  {
+					"locationEnrichment": {
+					  "location": [
+						{
+						  "name": "Champigny-sur-Marne",
+						  "description": "Île-de-France",
+						  "latitudeE7": 488236547,
+						  "longitudeE7": 24964847
+						}
+					  ]
+					}
+				  }
+				]
+			  }`,
+		},
+	}
+	for _, c := range tcs {
+		t.Run(c.name, func(t *testing.T) {
+			var md GoogleMetaData
+
+			err := json.NewDecoder(strings.NewReader(c.json)).Decode(&md)
+			if err != nil {
+				t.Error(err)
+			}
+			sb := strings.Builder{}
+			log := slog.New(slog.NewTextHandler(&sb, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			log.Debug("debug", "md", md)
+			fmt.Println(sb.String())
 		})
 	}
 }
