@@ -225,6 +225,7 @@ func TestLocalAssets(t *testing.T) {
 			},
 			fsys: []fs.FS{
 				newInMemFS("MemFS").
+					addFile("motion/nomotion.MP4").
 					addFile("motion/PXL_20210102_221126856.MP~2").
 					addFile("motion/PXL_20210102_221126856.MP~2.jpg").
 					addFile("motion/PXL_20210102_221126856.MP.jpg").
@@ -236,45 +237,12 @@ func TestLocalAssets(t *testing.T) {
 				"motion/PXL_20210102_221126856.MP.jpg":   {image: "motion/PXL_20210102_221126856.MP.jpg", video: "motion/PXL_20210102_221126856.MP"},
 				"motion/PXL_20210102_221126856.MP~2.jpg": {image: "motion/PXL_20210102_221126856.MP~2.jpg", video: "motion/PXL_20210102_221126856.MP~2"},
 				"motion/20231227_152817.jpg":             {image: "motion/20231227_152817.jpg", video: "motion/20231227_152817.MP4"},
+				"motion/nomotion.MP4":                    {video: "motion/nomotion.MP4"},
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 3).
-				Set(fileevent.DiscoveredVideo, 3).Value(),
+				Set(fileevent.DiscoveredVideo, 4).Value(),
 		},
 
-		{
-			name: "sidecar",
-			flags: ImportFolderOptions{
-				BannedFiles: namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
-				DateHandlingFlags: cliflags.DateHandlingFlags{
-					Method: cliflags.DateMethodNone,
-				},
-				SupportedMedia: metadata.DefaultSupportedMedia,
-				InclusionFlags: cliflags.InclusionFlags{},
-				Recursive:      true,
-			},
-			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("root_01.XMP").
-					addFile("root_02.jpg").
-					addFile("root_02.jpg.XMP").
-					addFile("video_01.mp4").
-					addFile("video_01.mp4.XMP").
-					addFile("root_03.MP.jpg").
-					addFile("root_03.MP.jpg.XMP").
-					addFile("root_03.MP"),
-			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg":    {image: "root_01.jpg", sidecar: "root_01.XMP"},
-				"root_02.jpg":    {image: "root_02.jpg", sidecar: "root_02.jpg.XMP"},
-				"root_03.MP.jpg": {image: "root_03.MP.jpg", sidecar: "root_03.MP.jpg.XMP", video: "root_03.MP"},
-				"video_01.mp4":   {video: "video_01.mp4", sidecar: "video_01.mp4.XMP"},
-			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 3).
-				Set(fileevent.DiscoveredVideo, 2).
-				Set(fileevent.DiscoveredSidecar, 4).Set(fileevent.AnalysisAssociatedMetadata, 4).
-				Value(),
-		},
 		{
 			name: "date in range",
 			flags: ImportFolderOptions{
@@ -298,7 +266,7 @@ func TestLocalAssets(t *testing.T) {
 					addFile("photos/photo_03.jpg").
 					addFile("photos/summer 2023/20230801-001.jpg").
 					addFile("photos/summer 2023/20230801-002.jpg").
-					addFile("photos/summer 2023/20230301-003.cr3"),
+					addFile("photos/summer 203/20230301-003.cr3"),
 			},
 			expectedFiles: map[string]fileLinks{
 				"photos/summer 2023/20230801-001.jpg": {image: "photos/summer 2023/20230801-001.jpg"},

@@ -28,8 +28,9 @@ import (
 
 type LocalAssetFile struct {
 	// File system and file name
-	FSys     fs.FS  // Asset's file system
-	FileName string // The asset's path in the fsys
+	FSys     fs.FS     // Asset's file system
+	FileName string    // The asset's path in the fsys
+	FileDate time.Time // File creation date
 
 	// Common fields
 	Title    string // Google Photos may a have title longer than the filename

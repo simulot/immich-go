@@ -177,6 +177,33 @@ func TestE2ELocalAssets(t *testing.T) {
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Value(),
 		},
+		{
+			name: "same name, but not live photo, select exif date using exiftool then date",
+			flags: ImportFolderOptions{
+				SupportedMedia: metadata.DefaultSupportedMedia,
+				DateHandlingFlags: cliflags.DateHandlingFlags{
+					Method: cliflags.DateMethodExifThenName,
+					FilenameTimeZone: tzone.Timezone{
+						TZ: time.Local,
+					},
+				},
+				InclusionFlags: cliflags.InclusionFlags{
+					DateRange: cliflags.InitDateRange("2023-10-06"),
+				},
+				ExifToolFlags: metadata.ExifToolFlags{
+					UseExifTool: true,
+					Timezone:    tzone.Timezone{TZ: time.Local},
+				},
+			},
+			fsys: []fs.FS{
+				os.DirFS("DATA/not-motion"),
+			},
+			expectedFiles: map[string]fileLinks{
+				"IMG_1234.jpg": {image: "IMG_1234.jpg"},
+				"IMG_1234.mp4": {video: "IMG_1234.mp4"},
+			},
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Set(fileevent.DiscoveredVideo, 1).Value(),
+		},
 	}
 
 	for _, c := range tc {

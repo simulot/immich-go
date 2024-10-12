@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/metadata"
+	"golang.org/x/exp/constraints"
 )
 
 type fileLinks struct {
@@ -165,63 +167,66 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 				for _, file := range files {
 					ext := path.Ext(file)
 					if la.flags.SupportedMedia.TypeFromExt(ext) == metadata.TypeImage {
-						linked := links[file]
+						base := strings.TrimSuffix(file, ext)
+						linked := links[base]
 						linked.image = file
-						links[file] = linked
+						links[base] = linked
 					}
 				}
 
-			next:
+				// Link videos and XMP to the image when needed
 				for _, file := range files {
 					ext := path.Ext(file)
 					t := la.flags.SupportedMedia.TypeFromExt(ext)
 					if t == metadata.TypeImage {
-						continue next
+						continue
 					}
 
 					base := strings.TrimSuffix(file, ext)
 					switch t {
 					case metadata.TypeSidecar:
+						if image, ok := links[file]; ok {
+							// file.ext.XMP -> file.exp
+							image.sidecar = file
+							links[file] = image
+							continue
+						}
 						if image, ok := links[base]; ok {
-							// file.ext.XMP -> file.ext
+							// file.XMP -> file.JPG
 							image.sidecar = file
 							links[base] = image
-							continue next
+							continue
 						}
-						for f := range links {
-							if strings.TrimSuffix(f, path.Ext(f)) == base {
-								if image, ok := links[f]; ok {
-									// base.XMP -> base.ext
-									image.sidecar = file
-									links[f] = image
-									continue next
-								}
+						/*
+							if image, ok := links[base]; ok {
+								// file.XMP -> file.ext
+								image.sidecar = file
+								links[base] = image
+								continue
 							}
-						}
+							for lk, l := range links {
+								f := l.image
+								if strings.TrimSuffix(f, path.Ext(f)) == file {
+									// file.ext.XMP -> file.ext
+									l.sidecar = file
+									links[lk] = l
+									continue
+								}
+
+							}
+						*/
 					case metadata.TypeVideo:
-						if image, ok := links[base]; ok {
-							// file.MP.ext -> file.ext
-							image.sidecar = file
-							links[base] = image
-							continue next
+						if image, ok := links[file]; ok {
+							// file.MP.jpg -> file.MP
+							image.video = file
+							links[file] = image
+							continue
 						}
-						for f := range links {
-							if strings.TrimSuffix(f, path.Ext(f)) == base {
-								if image, ok := links[f]; ok {
-									// base.MP4 -> base.ext
-									image.video = file
-									links[f] = image
-									continue next
-								}
-							}
-							if strings.TrimSuffix(f, path.Ext(f)) == file {
-								if image, ok := links[f]; ok {
-									// base.ext -> base
-									image.video = file
-									links[f] = image
-									continue next
-								}
-							}
+						if image, ok := links[base]; ok {
+							// file.MP4 -> file.JPG
+							image.video = file
+							links[base] = image
+							continue
 						}
 						// Unlinked video
 						links[file] = fileLinks{video: file}
@@ -230,40 +235,55 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 
 				files = gen.MapKeys(links)
 				sort.Strings(files)
+
 				for _, file := range files {
 					var a *adapters.LocalAssetFile
 					var g *adapters.AssetGroup
 					linked := links[file]
 
-				redo:
 					switch {
 					case linked.image != "" && linked.video != "":
-						i, err := la.assetFromFile(ctx, fsys, linked.video)
+						kind := adapters.GroupKindMotionPhoto
+						v, err := la.assetFromFile(ctx, fsys, linked.video)
 						if err != nil {
-							// If the video file is not found, remove the link and try again
+							// If the video file is not found, remove the video's link
 							errFn(fileevent.AsFileAndName(fsys, linked.video), err)
 							linked.video = ""
-							goto redo
+							kind = adapters.GroupKindNone
+							if v != nil {
+								v.Close()
+							}
+							v = nil
 						}
 
 						a, err = la.assetFromFile(ctx, fsys, linked.image)
 						if err != nil {
-							// If the image file is not found, remove the link and try again
+							// If the image file is not found, remove the photo's link
 							linked.image = ""
 							errFn(fileevent.AsFileAndName(fsys, linked.image), err)
-							goto redo
-						}
+							kind = adapters.GroupKindNone
 
-						if linked.sidecar != "" {
+							if a != nil {
+								a.Close()
+								a = nil
+							}
+						}
+						if a == nil && v == nil {
+							continue
+						}
+						if a != nil && linked.sidecar != "" {
 							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
 							a.SideCar = metadata.SideCarFile{
 								FSys:     fsys,
 								FileName: linked.sidecar,
 							}
 						}
+
 						// The video must be the first asset in the group
-						g = adapters.NewAssetGroup(adapters.GroupKindMotionPhoto, i, a)
+						g = adapters.NewAssetGroup(kind, v, a)
+
 					case linked.image != "" && linked.video == "":
+						// image alone
 						a, err = la.assetFromFile(ctx, fsys, linked.image)
 						if err != nil {
 							errFn(fileevent.AsFileAndName(fsys, linked.image), err)
@@ -279,12 +299,12 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 						g = adapters.NewAssetGroup(adapters.GroupKindNone, a)
 
 					case linked.video != "" && linked.image == "":
+						// video alone
 						a, err = la.assetFromFile(ctx, fsys, linked.video)
 						if err != nil {
 							errFn(fileevent.AsFileAndName(fsys, linked.video), err)
 							continue
 						}
-
 						if linked.sidecar != "" {
 							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
 							a.SideCar = metadata.SideCarFile{
@@ -338,11 +358,40 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 						}
 					}
 
-					select {
-					case <-ctx.Done():
-						return
-					default:
-						fileChan <- g
+					gs := []*adapters.AssetGroup{g}
+
+					// Check if all assets share the same capture date
+					if g.Kind == adapters.GroupKindMotionPhoto {
+						baseDate := g.Assets[0].CaptureDate
+						if baseDate.IsZero() {
+							baseDate = g.Assets[0].FileDate
+						}
+						for i, a := range g.Assets[1:] {
+							aDate := a.CaptureDate
+							if aDate.IsZero() {
+								aDate = a.FileDate
+							}
+							if abs(baseDate.Sub(aDate)) > 1*time.Minute {
+								// take this asset out of the group
+								g.Assets = append(g.Assets[:i], g.Assets[i+1:]...)
+								// create a group for this assed
+								g2 := adapters.NewAssetGroup(adapters.GroupKindNone, a)
+								gs = append(gs, g2)
+							}
+						}
+						if len(g.Assets) == 1 {
+							g.Kind = adapters.GroupKindNone
+						}
+					}
+					for _, g := range gs {
+						select {
+						case <-ctx.Done():
+							return
+						default:
+							if len(g.Assets) > 0 {
+								fileChan <- g
+							}
+						}
 					}
 				}
 			}
@@ -375,6 +424,7 @@ func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name
 		return nil, err
 	}
 	a.FileSize = int(i.Size())
+	a.FileDate = i.ModTime()
 
 	if md != nil {
 		a.CaptureDate = md.DateTaken
@@ -386,4 +436,11 @@ func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name
 		return nil, nil
 	}
 	return a, nil
+}
+
+func abs[T constraints.Integer](a T) T {
+	if a < 0 {
+		return -a
+	}
+	return a
 }
