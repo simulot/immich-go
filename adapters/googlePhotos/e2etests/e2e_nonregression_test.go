@@ -28,8 +28,8 @@ func initMyEnv(t *testing.T) {
 		t.Fatalf("cant initialize environment variables: %s", err)
 	}
 	myEnv = e
-	if myEnv["IMMICH_TESTFILES"] == "" {
-		t.Fatal("missing IMMICH_TESTFILES in .env file")
+	if myEnv["IMMICHGO_TESTFILES"] == "" {
+		t.Fatal("missing IMMICHGO_TESTFILES in .env file")
 	}
 }
 

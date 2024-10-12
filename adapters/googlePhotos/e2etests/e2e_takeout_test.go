@@ -15,7 +15,7 @@ import (
 func TestPixilTakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	files := myEnv["IMMICH_TESTFILES"] + "/User Files/pixil/0.22.0/list.lst.zip"
+	files := myEnv["IMMICHGO_TESTFILES"] + "/User Files/pixil/0.22.0/list.lst.zip"
 	fsyss, err := fakefs.ScanFileList(files, "01-02-2006 15:04")
 	if err != nil {
 		t.Error(err)
@@ -40,7 +40,7 @@ func TestPixilTakeOut(t *testing.T) {
 func TestDemoTakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	files := myEnv["IMMICH_TESTFILES"] + "/demo takeout/Takeout"
+	files := myEnv["IMMICHGO_TESTFILES"] + "/demo takeout/Takeout"
 	fsyss, err := fshelper.ParsePath([]string{files})
 	if err != nil {
 		t.Error(err)
@@ -72,7 +72,7 @@ In this dataset, a file can be present in different ZIP files, with the same pat
 func TestPhyl404TakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	files := myEnv["IMMICH_TESTFILES"] + "/User Files/Phyl404/list.lst"
+	files := myEnv["IMMICHGO_TESTFILES"] + "/User Files/Phyl404/list.lst"
 	fsyss, err := fakefs.ScanFileList(files, "2006-01-02 15:04")
 	if err != nil {
 		t.Error(err)
@@ -97,7 +97,7 @@ func TestPhyl404TakeOut(t *testing.T) {
 func TestPhyl404_2TakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	files := myEnv["IMMICH_TESTFILES"] + "/User Files/Phyl404#2/list.lst"
+	files := myEnv["IMMICHGO_TESTFILES"] + "/User Files/Phyl404#2/list.lst"
 	fsyss, err := fakefs.ScanFileList(files, "2006-01-02 15:04")
 	if err != nil {
 		t.Error(err)
@@ -121,7 +121,7 @@ func TestPhyl404_2TakeOut(t *testing.T) {
 func TestSteve81TakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	files := myEnv["IMMICH_TESTFILES"] + "/User Files/Steve81/list.list"
+	files := myEnv["IMMICHGO_TESTFILES"] + "/User Files/Steve81/list.list"
 	fsyss, err := fakefs.ScanFileList(files, "2006-01-02 15:04")
 	if err != nil {
 		t.Error(err)
@@ -146,7 +146,7 @@ func TestSteve81TakeOut(t *testing.T) {
 func TestMuetyTakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	files := myEnv["IMMICH_TESTFILES"] + "/User Files/muety/list.lst.zip"
+	files := myEnv["IMMICHGO_TESTFILES"] + "/User Files/muety/list.lst.zip"
 	fsyss, err := fakefs.ScanFileList(files, "01-02-2006 15:04")
 	if err != nil {
 		t.Error(err)
@@ -172,7 +172,7 @@ func TestMuetyTakeOut(t *testing.T) {
 func TestMissingJSONTakeOut(t *testing.T) {
 	initMyEnv(t)
 
-	files := myEnv["IMMICH_TESTFILES"] + "/User Files/MissingJSON/list.lst"
+	files := myEnv["IMMICHGO_TESTFILES"] + "/User Files/MissingJSON/list.lst"
 	fsyss, err := fakefs.ScanFileList(files, "01-02-2006 15:04")
 	if err != nil {
 		t.Error(err)

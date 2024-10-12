@@ -255,7 +255,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							continue
 						}
 						if a != nil && linked.sidecar != "" {
-							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, a, "sidecar", linked.sidecar)
 							a.SideCar = metadata.SideCarFile{
 								FSys:     fsys,
 								FileName: linked.sidecar,
@@ -273,7 +273,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							continue
 						}
 						if linked.sidecar != "" {
-							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, a, "sidecar", linked.sidecar)
 							a.SideCar = metadata.SideCarFile{
 								FSys:     fsys,
 								FileName: linked.sidecar,
@@ -289,7 +289,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							continue
 						}
 						if linked.sidecar != "" {
-							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, a, "sidecar", linked.sidecar)
 							a.SideCar = metadata.SideCarFile{
 								FSys:     fsys,
 								FileName: linked.sidecar,
@@ -416,7 +416,7 @@ func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name
 
 	if la.flags.InclusionFlags.DateRange.IsSet() && !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
 		a.Close()
-		la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "asset outside date range")
+		la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
 		return nil, nil
 	}
 	return a, nil
