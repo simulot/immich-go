@@ -10,13 +10,15 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
+	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/tzone"
 )
 
-func TestE2ELocalAssets(t *testing.T) {
+func TestLocalAssets(t *testing.T) {
 	tc := []struct {
 		name           string
 		fsys           []fs.FS
@@ -45,7 +47,7 @@ func TestE2ELocalAssets(t *testing.T) {
 				"photo1_2024-10-06_w_exif.jpg":  {image: "photo1_2024-10-06_w_exif.jpg"},
 				"photo1_2023-10-06_wo_exif.jpg": {image: "photo1_2023-10-06_wo_exif.jpg"},
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.Uploaded, 4).Value(),
 		},
 		{
 			name: "date on name",
@@ -67,7 +69,7 @@ func TestE2ELocalAssets(t *testing.T) {
 			expectedFiles: map[string]fileLinks{
 				"photo1_2023-10-06_wo_exif.jpg": {image: "photo1_2023-10-06_wo_exif.jpg"},
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Set(fileevent.Uploaded, 1).Value(),
 		},
 		{
 			name: "select exif date not using exiftool",
@@ -94,7 +96,7 @@ func TestE2ELocalAssets(t *testing.T) {
 				"photo1_w_exif.jpg":            {image: "photo1_w_exif.jpg"},
 				"photo1_2024-10-06_w_exif.jpg": {image: "photo1_2024-10-06_w_exif.jpg"},
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 2).Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 2).Set(fileevent.Uploaded, 2).Value(),
 		},
 		{
 			name: "select exif date using exiftool",
@@ -121,7 +123,7 @@ func TestE2ELocalAssets(t *testing.T) {
 				"photo1_w_exif.jpg":            {image: "photo1_w_exif.jpg"},
 				"photo1_2024-10-06_w_exif.jpg": {image: "photo1_2024-10-06_w_exif.jpg"},
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 2).Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 2).Set(fileevent.Uploaded, 2).Value(),
 		},
 		{
 			name: "select exif date using exiftool then date",
@@ -149,7 +151,7 @@ func TestE2ELocalAssets(t *testing.T) {
 				"photo1_2023-10-06_wo_exif.jpg": {image: "photo1_2023-10-06_wo_exif.jpg"},
 				"photo1_2024-10-06_w_exif.jpg":  {image: "photo1_2024-10-06_w_exif.jpg"},
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 1).Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 1).Set(fileevent.Uploaded, 3).Value(),
 		},
 		{
 			name: "select on date in the name",
@@ -175,7 +177,7 @@ func TestE2ELocalAssets(t *testing.T) {
 			expectedFiles: map[string]fileLinks{
 				"photo1_2023-10-06_wo_exif.jpg": {image: "photo1_2023-10-06_wo_exif.jpg"},
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Set(fileevent.Uploaded, 1).Value(),
 		},
 		{
 			name: "same name, but not live photo, select exif date using exiftool then date",
@@ -202,14 +204,26 @@ func TestE2ELocalAssets(t *testing.T) {
 				"IMG_1234.jpg": {image: "IMG_1234.jpg"},
 				"IMG_1234.mp4": {video: "IMG_1234.mp4"},
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Set(fileevent.DiscoveredVideo, 1).Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Set(fileevent.DiscoveredVideo, 1).Set(fileevent.Uploaded, 2).Value(),
 		},
 	}
 
+	logFile := configuration.DefaultLogFile()
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			recorder := fileevent.NewRecorder(nil)
+
+			log := application.Log{
+				File:  logFile,
+				Level: "INFO",
+			}
+			err := log.OpenLogFile()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			log.Info("Test case: " + c.name)
+			recorder := fileevent.NewRecorder(log.Logger)
 			b, err := NewLocalFiles(ctx, recorder, &c.flags, c.fsys...)
 			if err != nil {
 				t.Error(err)
@@ -239,6 +253,7 @@ func TestE2ELocalAssets(t *testing.T) {
 						links.video = a.FileName
 					}
 					a.Close()
+					recorder.Record(ctx, fileevent.Uploaded, a)
 				}
 				results[fileName] = links
 				if len(c.expectedAlbums) > 0 {

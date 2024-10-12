@@ -30,8 +30,8 @@ func initMyEnv(t *testing.T) {
 		t.Fatalf("cant initialize environment variables: %s", err)
 	}
 	myEnv = e
-	if myEnv["IMMICH_TESTFILES"] == "" {
-		t.Fatal("missing IMMICH_TESTFILES in .env file")
+	if myEnv["IMMICHGO_TESTFILES"] == "" {
+		t.Fatal("missing IMMICHGO_TESTFILES in .env file")
 	}
 }
 
@@ -126,7 +126,7 @@ func TestE2eUpload(t *testing.T) {
 		{
 			name: "upload folder",
 			args: []string{
-				myEnv["IMMICH_TESTFILES"] + "/low_high/high",
+				myEnv["IMMICHGO_TESTFILES"] + "/low_high/high",
 			},
 			resetImmich: true,
 
@@ -135,7 +135,7 @@ func TestE2eUpload(t *testing.T) {
 		{
 			name: "upload folder",
 			args: []string{
-				myEnv["IMMICH_TESTFILES"] + "/low_high/high",
+				myEnv["IMMICHGO_TESTFILES"] + "/low_high/high",
 			},
 
 			// resetImmich: true,
@@ -145,7 +145,7 @@ func TestE2eUpload(t *testing.T) {
 			name: "upload folder *.jpg",
 			args: []string{
 				"-google-photos",
-				myEnv["IMMICH_TESTFILES"] + "/test_folder/*.jpg",
+				myEnv["IMMICHGO_TESTFILES"] + "/test_folder/*.jpg",
 			},
 
 			resetImmich: true,
@@ -154,7 +154,7 @@ func TestE2eUpload(t *testing.T) {
 		{
 			name: "upload folder *.jpg",
 			args: []string{
-				myEnv["IMMICH_TESTFILES"] + "/test_folder/*/*.jpg",
+				myEnv["IMMICHGO_TESTFILES"] + "/test_folder/*/*.jpg",
 			},
 
 			// resetImmich: true,
@@ -165,7 +165,7 @@ func TestE2eUpload(t *testing.T) {
 		// 	name: "upload folder *.jpg - dry run",
 		// 	args: []string{
 		// 		"-dry-run",
-		// 		myEnv["IMMICH_TESTFILES"] + "/full_takeout (copy)/Takeout/Google Photos/Photos from 2023",
+		// 		myEnv["IMMICHGO_TESTFILES"] + "/full_takeout (copy)/Takeout/Google Photos/Photos from 2023",
 		// 	},
 
 		// 	// resetImmich: true,
@@ -176,7 +176,7 @@ func TestE2eUpload(t *testing.T) {
 			name: "upload google photos",
 			args: []string{
 				"-google-photos",
-				myEnv["IMMICH_TESTFILES"] + "/low_high/Takeout",
+				myEnv["IMMICHGO_TESTFILES"] + "/low_high/Takeout",
 			},
 			// resetImmich: true,
 			expectError: false,
@@ -186,7 +186,7 @@ func TestE2eUpload(t *testing.T) {
 			args: []string{
 				"-stack-burst=FALSE",
 				"-stack-jpg-raw=TRUE",
-				myEnv["IMMICH_TESTFILES"] + "/burst/Tel",
+				myEnv["IMMICHGO_TESTFILES"] + "/burst/Tel",
 			},
 			resetImmich: true,
 			expectError: false,
@@ -246,7 +246,7 @@ func Test_PermissionError(t *testing.T) {
 	tc := testCase{
 		name: "Test_PermissionError",
 		args: []string{
-			myEnv["IMMICH_TESTFILES"] + "/low_high/high",
+			myEnv["IMMICHGO_TESTFILES"] + "/low_high/high",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -261,7 +261,7 @@ func Test_CreateAlbumFolder(t *testing.T) {
 		name: "Test_CreateAlbumFolder",
 		args: []string{
 			"-create-album-folder",
-			myEnv["IMMICH_TESTFILES"] + "/albums",
+			myEnv["IMMICHGO_TESTFILES"] + "/albums",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -277,7 +277,7 @@ func Test_XMP(t *testing.T) {
 		name: "Test_XMP",
 		args: []string{
 			"-create-stacks=false",
-			myEnv["IMMICH_TESTFILES"] + "/xmp",
+			myEnv["IMMICHGO_TESTFILES"] + "/xmp",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -294,9 +294,9 @@ func Test_XMP2(t *testing.T) {
 		args: []string{
 			"-create-stacks=false",
 			"-create-album-folder",
-			// myEnv["IMMICH_TESTFILES"] + "/xmp/files",
-			// myEnv["IMMICH_TESTFILES"] + "/xmp/files/*.CR2",
-			myEnv["IMMICH_TESTFILES"] + "/xmp/files*/*.CR2",
+			// myEnv["IMMICHGO_TESTFILES"] + "/xmp/files",
+			// myEnv["IMMICHGO_TESTFILES"] + "/xmp/files/*.CR2",
+			myEnv["IMMICHGO_TESTFILES"] + "/xmp/files*/*.CR2",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -313,7 +313,7 @@ func Test_Album_Issue_119(t *testing.T) {
 			name: "Test_Album 1",
 			args: []string{
 				"-album", "The Album",
-				myEnv["IMMICH_TESTFILES"] + "/xmp/files",
+				myEnv["IMMICHGO_TESTFILES"] + "/xmp/files",
 			},
 			setup: func(ctx context.Context, t *testing.T, ic *immich.ImmichClient) func(t *testing.T) {
 				_, err := ic.CreateAlbum(ctx, "The Album", "Description", nil)
@@ -330,7 +330,7 @@ func Test_Album_Issue_119(t *testing.T) {
 			name: "Test_Album 2",
 			args: []string{
 				"-album", "The Album",
-				myEnv["IMMICH_TESTFILES"] + "/albums/Album test 6-10-23",
+				myEnv["IMMICHGO_TESTFILES"] + "/albums/Album test 6-10-23",
 			},
 			resetImmich: false,
 			expectError: false,
@@ -349,7 +349,7 @@ func Test_Issue_126A(t *testing.T) {
 		args: []string{
 			"-exclude-types",
 			".dng,.cr2,.arw,.rw2,.tif,.tiff,.gif,.psd",
-			myEnv["IMMICH_TESTFILES"] + "/burst/PXL6",
+			myEnv["IMMICHGO_TESTFILES"] + "/burst/PXL6",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -366,7 +366,7 @@ func Test_Issue_126B(t *testing.T) {
 		args: []string{
 			"-select-types",
 			".jpg",
-			myEnv["IMMICH_TESTFILES"] + "/burst/PXL6",
+			myEnv["IMMICHGO_TESTFILES"] + "/burst/PXL6",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -382,7 +382,7 @@ func Test_Issue_129(t *testing.T) {
 		name: "Test_Issue_129",
 		args: []string{
 			"-google-photos",
-			myEnv["IMMICH_TESTFILES"] + "/Weird file names #88",
+			myEnv["IMMICHGO_TESTFILES"] + "/Weird file names #88",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -400,7 +400,7 @@ func Test_Issue_128(t *testing.T) {
 		name: "Test_Issue_128",
 		args: []string{
 			"-google-photos",
-			myEnv["IMMICH_TESTFILES"] + "/Issue 128",
+			myEnv["IMMICHGO_TESTFILES"] + "/Issue 128",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -417,7 +417,7 @@ func Test_GP_MultiZip(t *testing.T) {
 		name: "Test_Issue_128",
 		args: []string{
 			"-google-photos",
-			myEnv["IMMICH_TESTFILES"] + "/google-photos/zip*.zip",
+			myEnv["IMMICHGO_TESTFILES"] + "/google-photos/zip*.zip",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -433,7 +433,7 @@ func Test_ExtensionsFromTheServer(t *testing.T) {
 		name: "ExtensionsFromTheServer",
 		args: []string{
 			// "-log-json",
-			myEnv["IMMICH_TESTFILES"] + "/low_high/high",
+			myEnv["IMMICHGO_TESTFILES"] + "/low_high/high",
 		},
 
 		// resetImmich: true,
@@ -495,7 +495,7 @@ func Test_CreateAlbumFolder_304(t *testing.T) {
 		},
 		resetImmich: true,
 		expectError: false,
-		changeCWD:   myEnv["IMMICH_TESTFILES"] + "/Error Upload #304",
+		changeCWD:   myEnv["IMMICHGO_TESTFILES"] + "/Error Upload #304",
 	}
 	runCase(t, tc)
 }
@@ -511,7 +511,7 @@ func Test_CreateAlbumFolder_304_2(t *testing.T) {
 		},
 		resetImmich: true,
 		expectError: false,
-		changeCWD:   myEnv["IMMICH_TESTFILES"] + "/Error Upload #304",
+		changeCWD:   myEnv["IMMICHGO_TESTFILES"] + "/Error Upload #304",
 	}
 	runCase(t, tc)
 }
@@ -523,7 +523,7 @@ func Test_EnrichedAlbum_297(t *testing.T) {
 		name: "Test_EnrichedAlbum_297",
 		args: []string{
 			"-google-photos",
-			myEnv["IMMICH_TESTFILES"] + "/#297 Album enrichis #329 #297/Album texts #287/takeout-20240613T094535Z-001.zip",
+			myEnv["IMMICHGO_TESTFILES"] + "/#297 Album enrichis #329 #297/Album texts #287/takeout-20240613T094535Z-001.zip",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -576,7 +576,7 @@ func Test_SmallTakeout_Better_p1(t *testing.T) {
 		name: "Test_SmallTakeout_Better_p1",
 		args: []string{
 			"-google-photos",
-			myEnv["IMMICH_TESTFILES"] + "/low_high/Takeout",
+			myEnv["IMMICHGO_TESTFILES"] + "/low_high/Takeout",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -591,7 +591,7 @@ func Test_SmallTakeout_Better_p2(t *testing.T) {
 	tc := testCase{
 		name: "Test_SmallTakeout_Better_p2",
 		args: []string{
-			myEnv["IMMICH_TESTFILES"] + "/low_high/high",
+			myEnv["IMMICHGO_TESTFILES"] + "/low_high/high",
 		},
 		resetImmich: false,
 		expectError: false,
@@ -608,7 +608,7 @@ func Test_MotionPictures_303_280(t *testing.T) {
 		args: []string{
 			"-api-trace",
 			"-google-photos",
-			myEnv["IMMICH_TESTFILES"] + "/Motion photo #303 #280/takeout-motion-test.zip",
+			myEnv["IMMICHGO_TESTFILES"] + "/Motion photo #303 #280/takeout-motion-test.zip",
 		},
 		resetImmich: true,
 		expectError: false,
@@ -625,7 +625,7 @@ func Test_Duplicates_380(t *testing.T) {
 		args: []string{
 			"-google-photos",
 			"-debug-counters",
-			myEnv["IMMICH_TESTFILES"] + "/#380 duplicates in GP/Takeout*.zip",
+			myEnv["IMMICHGO_TESTFILES"] + "/#380 duplicates in GP/Takeout*.zip",
 		},
 		resetImmich: true,
 		expectError: false,

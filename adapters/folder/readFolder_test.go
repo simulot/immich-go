@@ -47,7 +47,7 @@ func (mfs *inMemFS) addFile(name string) *inMemFS {
 	return mfs
 }
 
-func TestLocalAssets(t *testing.T) {
+func TestInMemLocalAssets(t *testing.T) {
 	tc := []struct {
 		name           string
 		fsys           []fs.FS
