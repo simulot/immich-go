@@ -126,6 +126,7 @@ func TestPresentFields(t *testing.T) {
 			isAlbum:   false,
 			isAsset:   true,
 			title:     "IMG_1559.HEIC",
+			dateTaken: time.Unix(1687791968, 0),
 		},
 		{
 			name: "new_takeout_album",
@@ -207,8 +208,9 @@ func TestPresentFields(t *testing.T) {
 						"formatted": "3 sie 2017, 09:54:31 UTC"
 					}
 				}`,
-			isAsset: true,
-			title:   "IMG_20170803_115431469_HDR.jpg",
+			isAsset:   true,
+			title:     "IMG_20170803_115431469_HDR.jpg",
+			dateTaken: time.Unix(1501754071, 0),
 		},
 		{
 			name: "new takeout_asset",
@@ -248,8 +250,9 @@ func TestPresentFields(t *testing.T) {
 							}
 						}
 						}`,
-			isAsset: true,
-			title:   "IMG_20170803_115431469_HDR.jpg",
+			isAsset:   true,
+			title:     "IMG_20170803_115431469_HDR.jpg",
+			dateTaken: time.Unix(1501754071, 0),
 		},
 		{
 			name: "print_order",

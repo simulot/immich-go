@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/helpers/gen"
@@ -59,6 +60,7 @@ type assetFile struct {
 	fsys   fs.FS              // Remember in which part of the archive the file
 	base   string             // Remember the original file name
 	length int                // file length in bytes
+	date   time.Time          // file modification date
 	md     *metadata.Metadata // will point to the associated metadata
 }
 
@@ -67,7 +69,7 @@ func (af assetFile) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("base", af.base),
 		slog.Int("length", af.length),
-		slog.Any("metadata", af.md),
+		slog.Time("date", af.date),
 	)
 }
 
@@ -224,6 +226,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					fsys:   w,
 					base:   base,
 					length: int(finfo.Size()),
+					date:   finfo.ModTime(),
 				}
 			}
 			to.catalogs[dir] = dirCatalog
@@ -496,6 +499,7 @@ func (to *Takeout) makeAsset(ctx context.Context, g *adapters.AssetGroup, dir st
 		FileSize: f.length,
 		Title:    f.base,
 		FSys:     f.fsys,
+		FileDate: f.date,
 	}
 
 	md, code := to.filterOnMetadata(ctx, a, md)
@@ -579,12 +583,12 @@ func (to *Takeout) makeAsset(ctx context.Context, g *adapters.AssetGroup, dir st
 	}
 
 	if md != nil {
+		a.CaptureDate = md.DateTaken
 		a.Archived = md.Archived
 		a.Favorite = md.Favorited
 		a.Trashed = md.Trashed
 		a.Latitude = md.Latitude
 		a.Longitude = md.Longitude
-
 		if a.Latitude == 0 && a.Longitude == 0 {
 			for _, album := range g.Albums {
 				if album.Latitude != 0 || album.Longitude != 0 {
