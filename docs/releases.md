@@ -5,6 +5,109 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.23.0-alpha2 🏗️ Work in progress 🏗️ 
+This an early version of immich-go version v0.23.0-alpha2 
+Yes, v0.23.0-alpha2, and not v1.0.0-alpha2. Let's stick to the semantic versioning.
+
+- [x] better logging 
+  - log level are effectives
+  - adoption of the structured log package
+  - the level DEBUG give file details and metadata
+- [x] colored log on screen
+- [x] clear separation between folder import and google import
+- [x] adoption of the linux convention of double dashes flags
+- [x] priority of EXIF data over file name for date capture
+- code restructuration to enable further possibilities
+  - [ ] Upload from Picasa
+  - [ ] Exporting of google photos archive as a folder
+
+### Big changes for the best
+
+The toy project has grown up. The code has been refactored to be more modular and to allow further development. The code is now more readable and maintainable. This opens the door to new features and new import possibilities. The down side is that the code is not backward compatible. The command line options have changed.
+
+
+### Upload from folder options
+```
+Upload photos from a folder
+
+Usage:
+  immich-go upload from-folder [flags] <path>...
+
+Flags:
+      --album-path-joiner string           Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') (default " / ")
+      --ban-file FileList                  Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. (default '@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/')
+      --capture-date-method DateMethod     Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename) (default EXIF-FILENAME)
+      --date-range date-range              Only import photos taken within the specified date range (default unset)
+      --exclude-extensions ExtensionList   Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)
+      --exiftool-enabled                   Enable the use of the external 'exiftool' program (if installed and available in the system path) to extract EXIF metadata
+      --exiftool-path string               Path to the ExifTool executable (default: search in system's PATH)
+      --exiftool-timezone timezone         Timezone to use when parsing exif timestamps without timezone Options: LOCAL (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York) (default Local)
+      --filename-timezone timezone         Specify the timezone to use when detecting the date from the filename. Options: Local (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York) (default Local)
+      --folder-as-album folderMode         Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name (default NONE)
+  -h, --help                               help for from-folder
+      --ignore-sidecar-files               Don't upload sidecar with the photo.
+      --include-extensions ExtensionList   Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)
+      --into-album string                  Specify an album to import all files into
+      --recursive                          Explore the folder and all its sub-folders (default true)
+
+Global Flags:
+      --api string                Immich api endpoint (example http://container_ip:3301)
+  -k, --api-key string            API Key
+      --api-trace                 Enable trace of api calls
+      --client-timeout duration   Set server calls timeout (default 5m0s)
+      --device-uuid string        Set a device UUID (default "gl65")
+      --dry-run                   Simulate all actions
+  -l, --log-file string           Write log messages into the file
+      --log-level string          Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string           Log formatted  as text of JSON file (default "text")
+      --no-ui                     Disable the user interface
+  -s, --server string             Immich server address (example http://your-ip:2283 or https://your-domain)
+      --skip-verify-ssl           Skip SSL verification
+      --time-zone string          Override the system time zone
+```
+
+### Upload from a google-photos 
+```
+Upload photos either from a zipped Google Photos takeout or decompressed archive
+
+Usage:
+  immich-go upload from-google-photos [flags] <takeout-*.zip> | <takeout-folder>
+
+Flags:
+      --ban-file FileList                  Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.
+      --date-range date-range              Only import photos taken within the specified date range (default unset)
+      --exclude-extensions ExtensionList   Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)
+      --from-album-name string             Only import photos from the specified Google Photos album
+  -h, --help                               help for from-google-photos
+  -a, --include-archived                   Import archived Google Photos (default true)
+      --include-extensions ExtensionList   Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)
+  -p, --include-partner                    Import photos from your partner's Google Photos account (default true)
+  -t, --include-trashed                    Import photos that are marked as trashed in Google Photos
+  -u, --include-unmatched                  Import photos that do not have a matching JSON file in the takeout
+      --include-untitled-albums            Include photos from albums without a title in the import process
+      --partner-shared-album string        Add partner's photo to the specified album name
+      --sync-albums                        Automatically create albums in Immich that match the albums in your Google Photos takeout (default true)
+
+Global Flags:
+      --api string                Immich api endpoint (example http://container_ip:3301)
+  -k, --api-key string            API Key
+      --api-trace                 Enable trace of api calls
+      --client-timeout duration   Set server calls timeout (default 5m0s)
+      --device-uuid string        Set a device UUID (default "gl65")
+      --dry-run                   Simulate all actions
+  -l, --log-file string           Write log messages into the file
+      --log-level string          Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string           Log formatted  as text of JSON file (default "text")
+      --no-ui                     Disable the user interface
+  -s, --server string             Immich server address (example http://your-ip:2283 or https://your-domain)
+      --skip-verify-ssl           Skip SSL verification
+      --time-zone string          Override the system time zone
+```
+
+
+## Release 0.23.0-alpha1 🏗️ Work in progress 🏗️ 
+
+
 ## Release 0.22.0
 Many thanks to @maybeanerd for their meticulous proofreading of the documentation files.
 
