@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -28,8 +27,6 @@ type uiPage struct {
 	logView       *tview.TextView
 	counts        map[fileevent.Code]*tview.TextView
 
-	// preserve the inherited log writer
-	prevLogWriter io.Writer
 	// server's activity history
 	serverActivity []float64
 
@@ -47,13 +44,14 @@ type uiPage struct {
 }
 
 func (ui *uiPage) highJackLogger(app *application.Application) {
-	ui.prevLogWriter = app.Log().GetWriter()
-	w := io.MultiWriter(ui.prevLogWriter, ui.logView)
-	app.Jnl().SetLogger(app.Log().SetLogWriter(w))
+	// ui.prevLogWriter = app.Log().GetWriter()
+	// w := io.MultiWriter(ui.prevLogWriter, ui.logView)
+	ui.logView.SetDynamicColors(true)
+	app.Jnl().SetLogger(app.Log().SetLogWriter(tview.ANSIWriter(ui.logView)))
 }
 
 func (ui *uiPage) restoreLogger(app *application.Application) {
-	app.Jnl().SetLogger(app.Log().SetLogWriter(ui.prevLogWriter))
+	app.Jnl().SetLogger(app.Log().SetLogWriter(nil))
 }
 
 func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) error {
