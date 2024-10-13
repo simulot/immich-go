@@ -79,6 +79,10 @@ func (la *LocalAssetBrowser) passOneFsWalk(ctx context.Context, fsys fs.FS) erro
 				if !la.flags.Recursive && name != "." {
 					return fs.SkipDir
 				}
+				if la.flags.BannedFiles.Match(name) {
+					la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "banned folder")
+					return fs.SkipDir
+				}
 				la.catalogs[fsys][name] = []string{}
 				return nil
 			}

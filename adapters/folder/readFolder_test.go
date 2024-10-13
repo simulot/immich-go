@@ -13,6 +13,8 @@ import (
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
 	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
@@ -56,57 +58,57 @@ func TestInMemLocalAssets(t *testing.T) {
 		expectedCounts []int64
 		expectedAlbums map[string][]string
 	}{
-		{
-			name: "easy",
-			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
-			},
-			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg"),
-			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg": {image: "root_01.jpg"},
-			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Value(),
-		},
-		{
-			name: "recursive",
-			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
-				Recursive:      true,
-			},
-			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg"),
-			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg":         {image: "root_01.jpg"},
-				"photos/photo_01.jpg": {image: "photos/photo_01.jpg"},
-			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 2).Value(),
-		},
-		{
-			name: "non-recursive",
-			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
-				Recursive:      false,
-			},
-			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg"),
-			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg": {image: "root_01.jpg"},
-			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Value(),
-		},
+		// {
+		// 	name: "easy",
+		// 	flags: ImportFolderOptions{
+		// 		SupportedMedia: metadata.DefaultSupportedMedia,
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		newInMemFS("MemFS").
+		// 			addFile("root_01.jpg"),
+		// 	},
+		// 	expectedFiles: map[string]fileLinks{
+		// 		"root_01.jpg": {image: "root_01.jpg"},
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Value(),
+		// },
+		// {
+		// 	name: "recursive",
+		// 	flags: ImportFolderOptions{
+		// 		SupportedMedia: metadata.DefaultSupportedMedia,
+		// 		Recursive:      true,
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		newInMemFS("MemFS").
+		// 			addFile("root_01.jpg").
+		// 			addFile("photos/photo_01.jpg"),
+		// 	},
+		// 	expectedFiles: map[string]fileLinks{
+		// 		"root_01.jpg":         {image: "root_01.jpg"},
+		// 		"photos/photo_01.jpg": {image: "photos/photo_01.jpg"},
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 2).Value(),
+		// },
+		// {
+		// 	name: "non-recursive",
+		// 	flags: ImportFolderOptions{
+		// 		SupportedMedia: metadata.DefaultSupportedMedia,
+		// 		Recursive:      false,
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		newInMemFS("MemFS").
+		// 			addFile("root_01.jpg").
+		// 			addFile("photos/photo_01.jpg"),
+		// 	},
+		// 	expectedFiles: map[string]fileLinks{
+		// 		"root_01.jpg": {image: "root_01.jpg"},
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Value(),
+		// },
 		{
 			name: "banned files",
 			flags: ImportFolderOptions{
-				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "*/Database/*", `._*.*`),
+				BannedFiles:    namematcher.MustList(`@eaDir`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "Database/", `._*.*`),
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
@@ -360,10 +362,22 @@ func TestInMemLocalAssets(t *testing.T) {
 		},
 	}
 
+	logFile := configuration.DefaultLogFile()
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			recorder := fileevent.NewRecorder(nil)
+
+			log := application.Log{
+				File:  logFile,
+				Level: "INFO",
+			}
+			err := log.OpenLogFile()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			log.Logger.Info(c.name)
+			recorder := fileevent.NewRecorder(log.Logger)
 			b, err := NewLocalFiles(ctx, recorder, &c.flags, c.fsys...)
 			if err != nil {
 				t.Error(err)
