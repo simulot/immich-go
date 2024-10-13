@@ -3,6 +3,8 @@ package immich
 import (
 	"context"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type AlbumSimplified struct {
@@ -101,6 +103,9 @@ type UpdateAlbumResult struct {
 }
 
 func (ic *ImmichClient) AddAssetToAlbum(ctx context.Context, albumID string, assets []string) ([]UpdateAlbumResult, error) {
+	if ic.dryRun {
+		return []UpdateAlbumResult{}, nil
+	}
 	var r []UpdateAlbumResult
 	body := UpdateAlbum{
 		IDS: assets,
@@ -116,6 +121,12 @@ func (ic *ImmichClient) AddAssetToAlbum(ctx context.Context, albumID string, ass
 }
 
 func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, description string, assetsIDs []string) (AlbumSimplified, error) {
+	if ic.dryRun {
+		return AlbumSimplified{
+			ID:        uuid.NewString(),
+			AlbumName: name,
+		}, nil
+	}
 	body := AlbumContent{
 		AlbumName:   name,
 		Description: description,
@@ -140,5 +151,8 @@ func (ic *ImmichClient) GetAssetAlbums(ctx context.Context, id string) ([]AlbumS
 }
 
 func (ic *ImmichClient) DeleteAlbum(ctx context.Context, id string) error {
+	if ic.dryRun {
+		return nil
+	}
 	return ic.newServerCall(ctx, EndPointDeleteAlbum).do(deleteRequest("/albums/" + id))
 }

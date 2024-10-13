@@ -1,0 +1,104 @@
+package commands
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/simulot/immich-go/helpers/configuration"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/tzone"
+	"github.com/spf13/viper"
+)
+
+// Initialize the ImmichServerFlags flagset
+// Validate the flags and initialize the server as required
+// - fields fs.Server and fs.API are mutually exclusive
+// - either fields fs.Server or fs.API must be given
+// - Key is mandatory
+func (SrvFlags *ImmichServerFlags) Open(rootFlags *Application) error {
+	var err error
+	// Bind the Server flag with the environment variable IMMICH_SERVER
+	if err := viper.BindEnv("server", "IMMICH_SERVER"); err != nil {
+		return err
+	}
+	SrvFlags.Server = viper.GetString("server")
+
+	// Bind the Key flag with the environment variable IMMICH_KEY
+	if err := viper.BindEnv("api-key", "IMMICH_APIKEY"); err != nil {
+		return err
+	}
+	SrvFlags.APIKey = viper.GetString("api-key")
+
+	if SrvFlags.Server != "" && SrvFlags.API != "" {
+		err = errors.Join(err, errors.New(`flags '--server' and '--api' are mutually exclusive`))
+	}
+	if SrvFlags.Server == "" && SrvFlags.API == "" {
+		err = errors.Join(err, errors.New(`either '--server' or '--api' flag must be provided`))
+	}
+	if SrvFlags.APIKey == "" {
+		err = errors.Join(err, errors.New(`flag '--api-key' is mandatory`))
+	}
+	if SrvFlags.TimeZone != "" {
+		if _, e := tzone.SetLocal(SrvFlags.TimeZone); e != nil {
+			err = errors.Join(err, e)
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	rootFlags.Message(`Connection to the server %s`, SrvFlags.Server)
+	SrvFlags.Immich, err = immich.NewImmichClient(SrvFlags.Server, SrvFlags.APIKey,
+		immich.OptionVerifySSL(SrvFlags.SkipSSL),
+		immich.OptionConnectionTimeout(SrvFlags.ClientTimeout),
+		immich.OptionDryRun(SrvFlags.DryRun),
+	)
+	if err != nil {
+		return err
+	}
+	if SrvFlags.API != "" {
+		SrvFlags.Immich.SetEndPoint(SrvFlags.API)
+	}
+	if SrvFlags.DeviceUUID != "" {
+		SrvFlags.Immich.SetDeviceUUID(SrvFlags.DeviceUUID)
+	}
+
+	if SrvFlags.APITrace {
+		if SrvFlags.APITraceWriter == nil {
+			if err := configuration.MakeDirForFile(rootFlags.LogFile); err != nil {
+				return err
+			}
+			SrvFlags.APITraceWriterName = strings.TrimSuffix(rootFlags.LogFile, filepath.Ext(rootFlags.LogFile)) + ".trace.log"
+			SrvFlags.APITraceWriter, err = os.OpenFile(SrvFlags.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
+			if err != nil {
+				return err
+			}
+			SrvFlags.Immich.EnableAppTrace(SrvFlags.APITraceWriter)
+			rootFlags.Message("API log file: %s", SrvFlags.APITraceWriterName)
+		}
+	}
+
+	ctx := rootFlags.Command.Context()
+	if err := SrvFlags.Immich.PingServer(ctx); err != nil {
+		return err
+	}
+	rootFlags.Message(`Server status: OK`)
+
+	user, err := SrvFlags.Immich.ValidateConnection(ctx)
+	if err != nil {
+		return err
+	}
+	rootFlags.Message(`Connected, user: %s`, user.Email)
+
+	return err
+}
+
+func (flags *ImmichServerFlags) Close(rootFlags *RootImmichFlags) error {
+	if flags.APITrace {
+		flags.APITraceWriter.Close()
+		rootFlags.Message("Check the API traces files %s", flags.APITraceWriterName)
+	}
+	return rootFlags.Close()
+}

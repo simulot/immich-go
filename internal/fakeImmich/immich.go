@@ -4,8 +4,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/simulot/immich-go/browser"
+	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/metadata"
 )
 
 type MockedCLient struct{}
@@ -14,7 +15,7 @@ func (c *MockedCLient) GetAllAssetsWithFilter(context.Context, func(*immich.Asse
 	return nil
 }
 
-func (c *MockedCLient) AssetUpload(context.Context, *browser.LocalAssetFile) (immich.AssetResponse, error) {
+func (c *MockedCLient) AssetUpload(context.Context, *adapters.LocalAssetFile) (immich.AssetResponse, error) {
 	return immich.AssetResponse{}, nil
 }
 
@@ -42,7 +43,7 @@ func (c *MockedCLient) StackAssets(ctx context.Context, cover string, ids []stri
 	return nil
 }
 
-func (c *MockedCLient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*immich.Asset, error) {
+func (c *MockedCLient) UpdateAsset(ctx context.Context, id string, a *adapters.LocalAssetFile) (*immich.Asset, error) {
 	return nil, nil
 }
 
@@ -76,8 +77,8 @@ func (c *MockedCLient) DeleteAlbum(ctx context.Context, id string) error {
 	return nil
 }
 
-func (c *MockedCLient) SupportedMedia() immich.SupportedMedia {
-	return immich.DefaultSupportedMedia
+func (c *MockedCLient) SupportedMedia() metadata.SupportedMedia {
+	return metadata.DefaultSupportedMedia
 }
 
 func (c *MockedCLient) GetAssetStatistics(ctx context.Context) (immich.UserStatistics, error) {

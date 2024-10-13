@@ -1,6 +1,10 @@
 package immich
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/simulot/immich-go/internal/metadata"
+)
 
 /*
 baseline
@@ -22,7 +26,7 @@ PASS
 ok  	github.com/simulot/immich-go/immich	1.283s
 */
 func Benchmark_IsExtensionPrefix(b *testing.B) {
-	sm := DefaultSupportedMedia
+	sm := metadata.DefaultSupportedMedia
 	sm.IsExtensionPrefix(".JP")
 	for i := 0; i < b.N; i++ {
 		sm.IsExtensionPrefix(".JP")

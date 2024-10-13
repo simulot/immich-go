@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/simulot/immich-go/browser"
-	"github.com/simulot/immich-go/helpers/tzone"
+	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/tzone"
 )
 
 // ImmichInterface is an interface that implements the minimal immich client set of features for uploading
@@ -23,12 +24,12 @@ type ImmichInterface interface {
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
 	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
 
-	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*Asset, error)
+	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
 	GetAllAssets(ctx context.Context) ([]*Asset, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
 	GetAllAssetsWithFilter(context.Context, func(*Asset) error) error
-	AssetUpload(context.Context, *browser.LocalAssetFile) (AssetResponse, error)
+	AssetUpload(context.Context, *adapters.LocalAssetFile) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
 	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
@@ -39,7 +40,7 @@ type ImmichInterface interface {
 
 	StackAssets(ctx context.Context, cover string, IDs []string) error
 
-	SupportedMedia() SupportedMedia
+	SupportedMedia() metadata.SupportedMedia
 	GetJobs(ctx context.Context) (map[string]Job, error)
 }
 
