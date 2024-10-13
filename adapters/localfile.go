@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"time"
 
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/metadata"
 )
@@ -187,3 +189,22 @@ func (l *LocalAssetFile) ModTime() time.Time {
 
 // Sys implements the fs.FILE interface
 func (l *LocalAssetFile) Sys() any { return nil }
+
+// LogValue returns a slog.Value representing the LocalAssetFile's properties.
+func (l LocalAssetFile) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("FileName", fileevent.AsFileAndName(l.FSys, l.FileName).Name()),
+		slog.Time("FileDate", l.FileDate),
+		slog.String("Title", l.Title),
+		slog.Int("FileSize", l.FileSize),
+		slog.String("ID", l.ID),
+		slog.Time("CaptureDate", l.CaptureDate),
+		slog.Bool("Trashed", l.Trashed),
+		slog.Bool("Archived", l.Archived),
+		slog.Bool("FromPartner", l.FromPartner),
+		slog.Bool("Favorite", l.Favorite),
+		slog.Int("Stars", l.Stars),
+		slog.Float64("Latitude", l.Latitude),
+		slog.Float64("Longitude", l.Longitude),
+	)
+}

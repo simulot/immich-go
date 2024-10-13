@@ -7,7 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/phsym/console-slog"
+	slogmulti "github.com/samber/slog-multi"
 	"github.com/simulot/immich-go/commands/version"
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/spf13/cobra"
@@ -22,8 +25,10 @@ type Log struct {
 	File  string // Log file name
 	Level string // Indicate the log level (string)
 
-	writer io.Writer  // the log writer
 	sLevel slog.Level // the log level value
+
+	mainWriter    io.Writer // the log writer to file
+	consoleWriter io.Writer
 }
 
 func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
@@ -33,17 +38,17 @@ func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
 	cmd.PersistentFlags().StringVar(&log.Type, "log-type", "text", "Log formatted  as text of JSON file")
 
 	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, log.Open, ctx, cmd, app)
+	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, log.Close, ctx, cmd, app)
 }
 
-func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) error {
-	fmt.Println(version.Banner())
+func (log *Log) OpenLogFile() error {
 	var w io.WriteCloser
 
 	if log.File == "" {
 		log.File = configuration.DefaultLogFile()
 	}
 	if log.File != "" {
-		if log.writer == nil {
+		if log.mainWriter == nil {
 			err := configuration.MakeDirForFile(log.File)
 			if err != nil {
 				return err
@@ -61,10 +66,19 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	} else {
 		w = os.Stdout
 	}
-	log.SetLogWriter(w)
+	log.setHandlers(w, nil)
+	return nil
+}
+
+func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	fmt.Println(version.Banner())
+	err := log.OpenLogFile()
+	if err != nil {
+		return err
+	}
+	// List flags
 	log.Info(version.GetVersion())
 
-	// List flags
 	log.Info(fmt.Sprintf("Command: %s", cmd.Use))
 	log.Info("Flags:")
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
@@ -77,7 +91,7 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 		if flag.Name == "api-key" && len(val) > 4 {
 			val = strings.Repeat("*", len(val)-4) + val[len(val)-4:]
 		}
-		log.Info(fmt.Sprintf("  --%s: %q", flag.Name, val))
+		log.Info("", "--"+flag.Name, val)
 	})
 
 	// List arguments
@@ -85,25 +99,51 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	for _, arg := range cmd.Flags().Args() {
 		log.Info(fmt.Sprintf("  %q", arg))
 	}
-
 	return nil
 }
 
-func (log *Log) SetLogWriter(w io.Writer) *slog.Logger {
-	var handler slog.Handler
-
-	switch log.Type {
-	case "JSON":
-		handler = slog.NewJSONHandler(w, &slog.HandlerOptions{})
-	default:
-		handler = slog.NewTextHandler(w, &slog.HandlerOptions{
-			Level: log.sLevel,
-		})
-
-		// humane.NewHandler(w, &humane.Options{Level: log.sLevel})
+func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.LevelKey {
+		level := a.Value.Any().(slog.Level)
+		a.Value = slog.StringValue(fmt.Sprintf("%-7s", level.String()))
 	}
-	log.writer = w
-	log.Logger = slog.New(handler)
+	return a
+}
+
+func (log *Log) setHandlers(file, con io.Writer) {
+	handlers := []slog.Handler{}
+
+	log.mainWriter = file
+	if log.Type == "JSON" {
+		handlers = append(handlers, slog.NewJSONHandler(log.mainWriter, &slog.HandlerOptions{
+			Level: log.sLevel,
+		}))
+	} else {
+		handlers = append(handlers, console.NewHandler(log.mainWriter, &console.HandlerOptions{
+			// ReplaceAttr: replaceAttr,
+			Level:      log.sLevel,
+			TimeFormat: time.DateTime,
+			NoColor:    true,
+			Theme:      console.NewDefaultTheme(),
+		}))
+	}
+
+	log.consoleWriter = con
+	if log.consoleWriter != nil {
+		handlers = append(handlers, console.NewHandler(log.consoleWriter, &console.HandlerOptions{
+			// ReplaceAttr: replaceAttr,
+			Level:      log.sLevel,
+			TimeFormat: time.DateTime,
+			NoColor:    false,
+			Theme:      console.NewDefaultTheme(),
+		}))
+	}
+
+	log.Logger = slog.New(slogmulti.Fanout(handlers...))
+}
+
+func (log *Log) SetLogWriter(w io.Writer) *slog.Logger {
+	log.setHandlers(log.mainWriter, w)
 	return log.Logger
 }
 
@@ -115,16 +155,16 @@ func (log *Log) Message(msg string, values ...any) {
 	}
 }
 
-func (log *Log) Close(cmd *cobra.Command, args []string) error {
+func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application) error {
 	if log.File != "" {
 		log.Message("Check the log file: %s", log.File)
 	}
-	if closer, ok := log.writer.(io.Closer); ok {
+	if closer, ok := log.mainWriter.(io.Closer); ok {
 		return closer.Close()
 	}
 	return nil
 }
 
-func (log *Log) GetWriter() io.Writer {
-	return log.writer
+func (log *Log) GetSLog() *slog.Logger {
+	return log.Logger
 }

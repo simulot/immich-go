@@ -28,8 +28,8 @@ func initMyEnv(t *testing.T) {
 		t.Fatalf("cant initialize environment variables: %s", err)
 	}
 	myEnv = e
-	if myEnv["IMMICH_TESTFILES"] == "" {
-		t.Fatal("missing IMMICH_TESTFILES in .env file")
+	if myEnv["IMMICHGO_TESTFILES"] == "" {
+		t.Fatal("missing IMMICHGO_TESTFILES in .env file")
 	}
 }
 
@@ -91,10 +91,10 @@ func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fil
 	}
 	for g := range assetsGroups {
 		for i, a := range g.Assets {
-			jnl.Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
+			jnl.Record(ctx, fileevent.Uploaded, a)
 			if i >= 0 {
 				for _, album := range g.Albums {
-					jnl.Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "album", album.Title)
+					jnl.Record(ctx, fileevent.UploadAddToAlbum, a, "album", album.Title)
 				}
 			}
 		}

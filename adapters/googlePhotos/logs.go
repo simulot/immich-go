@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"io"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,12 +14,12 @@ import (
 )
 
 // logMessage for the photo and the movie attached to the photo
-func (to *Takeout) logMessage(ctx context.Context, code fileevent.Code, f fileevent.FileAndName, reason string) {
+func (to *Takeout) logMessage(ctx context.Context, code fileevent.Code, a slog.LogValuer, reason string) {
 	t := "reason"
 	if code == fileevent.Error {
 		t = "error"
 	}
-	to.log.Record(ctx, code, f, t, reason)
+	to.log.Record(ctx, code, a, t, reason)
 }
 
 func (to *Takeout) DebugLinkedFiles(w io.Writer) {

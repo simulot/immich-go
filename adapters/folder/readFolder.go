@@ -197,24 +197,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							links[base] = image
 							continue
 						}
-						/*
-							if image, ok := links[base]; ok {
-								// file.XMP -> file.ext
-								image.sidecar = file
-								links[base] = image
-								continue
-							}
-							for lk, l := range links {
-								f := l.image
-								if strings.TrimSuffix(f, path.Ext(f)) == file {
-									// file.ext.XMP -> file.ext
-									l.sidecar = file
-									links[lk] = l
-									continue
-								}
 
-							}
-						*/
 					case metadata.TypeVideo:
 						if image, ok := links[file]; ok {
 							// file.MP.jpg -> file.MP
@@ -272,7 +255,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							continue
 						}
 						if a != nil && linked.sidecar != "" {
-							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, a, "sidecar", linked.sidecar)
 							a.SideCar = metadata.SideCarFile{
 								FSys:     fsys,
 								FileName: linked.sidecar,
@@ -290,7 +273,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							continue
 						}
 						if linked.sidecar != "" {
-							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, a, "sidecar", linked.sidecar)
 							a.SideCar = metadata.SideCarFile{
 								FSys:     fsys,
 								FileName: linked.sidecar,
@@ -306,7 +289,7 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							continue
 						}
 						if linked.sidecar != "" {
-							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(fsys, a.FileName), "sidecar", linked.sidecar)
+							la.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, a, "sidecar", linked.sidecar)
 							a.SideCar = metadata.SideCarFile{
 								FSys:     fsys,
 								FileName: linked.sidecar,
@@ -373,9 +356,10 @@ func (la *LocalAssetBrowser) passTwo(ctx context.Context) chan *adapters.AssetGr
 							}
 							if abs(baseDate.Sub(aDate)) > 1*time.Minute {
 								// take this asset out of the group
-								g.Assets = append(g.Assets[:i], g.Assets[i+1:]...)
+								g.Assets = append(g.Assets[:i+1], g.Assets[i+2:]...)
 								// create a group for this assed
 								g2 := adapters.NewAssetGroup(adapters.GroupKindNone, a)
+								g2.Albums = g.Albums
 								gs = append(gs, g2)
 							}
 						}
@@ -432,7 +416,7 @@ func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name
 
 	if la.flags.InclusionFlags.DateRange.IsSet() && !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
 		a.Close()
-		la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "asset outside date range")
+		la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
 		return nil, nil
 	}
 	return a, nil

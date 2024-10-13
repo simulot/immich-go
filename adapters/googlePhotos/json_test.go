@@ -2,6 +2,8 @@ package gp
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,8 @@ func TestPresentFields(t *testing.T) {
 		isPartner bool
 		isAlbum   bool
 		isAsset   bool
+		dateTaken time.Time
+		title     string
 	}{
 		{
 			name: "regularJSON",
@@ -56,28 +60,33 @@ func TestPresentFields(t *testing.T) {
 			isPartner: false,
 			isAlbum:   false,
 			isAsset:   true,
+			dateTaken: time.Unix(1695394176, 0),
+			title:     "title",
 		},
 		{
-			name: "albumJson",
+			name: "old albumJson issue #212",
 			json: `{
-				"title": "Album Name",
-				"description": "",
-				"access": "",
-				"date": {
-				  "timestamp": "0",
-				  "formatted": "1 janv. 1970, 00:00:00 UTC"
-				},
-				"location": "",
-				"geoData": {
-				  "latitude": 0.0,
-				  "longitude": 0.0,
-				  "altitude": 0.0,
-				  "latitudeSpan": 0.0,
-				  "longitudeSpan": 0.0
-				}
-			  }`,
+					"albumData": {
+						"title": "Trip to Gdańsk",
+						"description": "",
+						"access": "protected",
+						"location": "",
+						"date": {
+						"timestamp": "1502439626",
+						"formatted": "11 sie 2017, 08:20:26 UTC"
+						},
+						"geoData": {
+						"latitude": 0.0,
+						"longitude": 0.0,
+						"altitude": 0.0,
+						"latitudeSpan": 0.0,
+						"longitudeSpan": 0.0
+						}
+					}
+					}`,
 			isPartner: false,
 			isAlbum:   true,
+			title:     "Trip to Gdańsk",
 		},
 		{
 			name: "partner",
@@ -116,27 +125,30 @@ func TestPresentFields(t *testing.T) {
 			isPartner: true,
 			isAlbum:   false,
 			isAsset:   true,
+			title:     "IMG_1559.HEIC",
+			dateTaken: time.Unix(1687791968, 0),
 		},
 		{
 			name: "new_takeout_album",
 			json: `{
-				"title": "Trip to Gdańsk",
-				"description": "",
-				"access": "protected",
-				"date": {
-					"timestamp": "1502439626",
-					"formatted": "11 sie 2017, 08:20:26 UTC"
-				},
-				"geoData": {
-					"latitude": 0.0,
-					"longitude": 0.0,
-					"altitude": 0.0,
-					"latitudeSpan": 0.0,
-					"longitudeSpan": 0.0
-				}
-			}`,
+					"title": "Trip to Gdańsk",
+					"description": "",
+					"access": "protected",
+					"date": {
+						"timestamp": "1502439626",
+						"formatted": "11 sie 2017, 08:20:26 UTC"
+					},
+					"geoData": {
+						"latitude": 0.0,
+						"longitude": 0.0,
+						"altitude": 0.0,
+						"latitudeSpan": 0.0,
+						"longitudeSpan": 0.0
+					}
+			    }`,
 			isPartner: false,
 			isAlbum:   true,
+			title:     "Trip to Gdańsk",
 		},
 		{
 			name: "old_takeout_album",
@@ -161,6 +173,7 @@ func TestPresentFields(t *testing.T) {
 						}`,
 			isPartner: false,
 			isAlbum:   true,
+			title:     "Trip to Gdańsk",
 		},
 		{
 			name: "old_takeout_photo",
@@ -195,7 +208,9 @@ func TestPresentFields(t *testing.T) {
 						"formatted": "3 sie 2017, 09:54:31 UTC"
 					}
 				}`,
-			isAsset: true,
+			isAsset:   true,
+			title:     "IMG_20170803_115431469_HDR.jpg",
+			dateTaken: time.Unix(1501754071, 0),
 		},
 		{
 			name: "new takeout_asset",
@@ -235,7 +250,9 @@ func TestPresentFields(t *testing.T) {
 							}
 						}
 						}`,
-			isAsset: true,
+			isAsset:   true,
+			title:     "IMG_20170803_115431469_HDR.jpg",
+			dateTaken: time.Unix(1501754071, 0),
 		},
 		{
 			name: "print_order",
@@ -273,6 +290,12 @@ func TestPresentFields(t *testing.T) {
 			}
 			if c.isPartner != md.isPartner() {
 				t.Errorf("expected isPartner to be %t, got %t", c.isPartner, md.isPartner())
+			}
+			if !c.dateTaken.IsZero() && !c.dateTaken.Equal(md.PhotoTakenTime.Time()) {
+				t.Errorf("expected dateTaken to be %s, got %s", c.dateTaken, md.PhotoTakenTime.Time())
+			}
+			if c.title != md.Title {
+				t.Errorf("expected Title to be %s, got %s", c.title, md.Title)
 			}
 		})
 	}
@@ -361,6 +384,115 @@ func TestEnrichedAlbum(t *testing.T) {
 			if !album.Date.Time().Equal(c.wantDate) {
 				t.Errorf("album.Date.Time()=%s, expected=%s", album.Date.Time(), c.wantDate)
 			}
+		})
+	}
+}
+
+func TestLog(t *testing.T) {
+	tcs := []struct {
+		name string
+		json string
+	}{
+		{
+			name: "regularJSON",
+			json: `{
+				"title": "title",
+				"description": "",
+				"imageViews": "0",
+				"creationTime": {
+				  "timestamp": "1695397525",
+				  "formatted": "22 sept. 2023, 15:45:25 UTC"
+				},
+				"photoTakenTime": {
+				  "timestamp": "1695394176",
+				  "formatted": "22 sept. 2023, 14:49:36 UTC"
+				},
+				"geoData": {
+				  "latitude": 48.7981917,
+				  "longitude": 2.4866832999999997,
+				  "altitude": 90.25,
+				  "latitudeSpan": 0.0,
+				  "longitudeSpan": 0.0
+				},
+				"geoDataExif": {
+				  "latitude": 48.7981917,
+				  "longitude": 2.4866832999999997,
+				  "altitude": 90.25,
+				  "latitudeSpan": 0.0,
+				  "longitudeSpan": 0.0
+				},
+				"url": "https://photos.google.com/photo/AAMKMAKZMAZMKAZMKZMAK",
+				"googlePhotosOrigin": {
+				  "mobileUpload": {
+					"deviceFolder": {
+					  "localFolderName": ""
+					},
+					"deviceType": "ANDROID_PHONE"
+				  }
+				}
+			  }`,
+		},
+		{
+			name: "album enrichments",
+			json: `{
+				"title": "Album test 6/10/23",
+				"description": "",
+				"access": "protected",
+				"date": {
+				  "timestamp": "1697872351",
+				  "formatted": "21 oct. 2023, 07:12:31 UTC"
+				},
+				"enrichments": [
+				  {
+					"narrativeEnrichment": {
+					  "text": "Ici c\u0027est du text"
+					}
+				  },
+				  {
+					"narrativeEnrichment": {
+					  "text": "Et hop"
+					}
+				  },
+				  {
+					"locationEnrichment": {
+					  "location": [
+						{
+						  "name": "Saint-Maur-des-Fossés",
+						  "description": "Île-de-France",
+						  "latitudeE7": 488029439,
+						  "longitudeE7": 24854290
+						}
+					  ]
+					}
+				  },
+				  {
+					"locationEnrichment": {
+					  "location": [
+						{
+						  "name": "Champigny-sur-Marne",
+						  "description": "Île-de-France",
+						  "latitudeE7": 488236547,
+						  "longitudeE7": 24964847
+						}
+					  ]
+					}
+				  }
+				]
+			  }`,
+		},
+	}
+	for _, c := range tcs {
+		t.Run(c.name, func(t *testing.T) {
+			var md GoogleMetaData
+
+			err := json.NewDecoder(strings.NewReader(c.json)).Decode(&md)
+			if err != nil {
+				t.Error(err)
+			}
+			sb := strings.Builder{}
+			log := slog.New(slog.NewTextHandler(&sb, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			log.Debug("debug", "md", md)
+			fmt.Println(sb.String())
 		})
 	}
 }

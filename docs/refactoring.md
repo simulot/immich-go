@@ -28,5 +28,7 @@ ex:
 immich-go --log-file=file import from-folder --server=xxxx --key=qqqqq --folder-as-album-name=PATH path/to/photos
 
 
+## Better logging
+
 
 

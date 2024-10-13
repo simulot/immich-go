@@ -8,6 +8,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type UpLoadMode int
+
+const (
+	UpModeGoogleTakeout UpLoadMode = iota
+	UpModeFolder
+)
+
+func (m UpLoadMode) String() string {
+	switch m {
+	case UpModeGoogleTakeout:
+		return "Google Takeout"
+	case UpModeFolder:
+		return "Folder"
+	default:
+		return "Unknown"
+	}
+}
+
 // UploadOptions represents a set of common flags used for filtering assets.
 type UploadOptions struct {
 	// TODO place this option at the top

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
+	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -15,6 +16,7 @@ import (
 )
 
 type UpCmd struct {
+	Mode UpLoadMode
 	*UploadOptions
 	app *application.Application
 
@@ -29,13 +31,21 @@ type UpCmd struct {
 	// fsyss  []fs.FS                            // pseudo file system to browse
 	Paths  []string                          // Path to explore
 	albums map[string]immich.AlbumSimplified // Albums by title
+
+	takeoutOptions *gp.ImportFlags
 }
 
-func newUpload(app *application.Application, options *UploadOptions) *UpCmd {
+func newUpload(mode UpLoadMode, app *application.Application, options *UploadOptions) *UpCmd {
 	upCmd := &UpCmd{
 		UploadOptions: options,
 		app:           app,
+		Mode:          mode,
 	}
+	return upCmd
+}
+
+func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
+	upCmd.takeoutOptions = options
 	return upCmd
 }
 
@@ -243,7 +253,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *
 		err = upCmd.uploadAsset(ctx, a)
 		return err
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a, "reason", advice.Message)
 
 		// Remember existing asset's albums, if any
 		for _, al := range advice.ServerAsset.Albums {
@@ -284,13 +294,14 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *
 }
 
 func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *adapters.LocalAssetFile) error {
+	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
 		return err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "info", "the server has this file")
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", "the server has this file")
 	} else {
 		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
 	}

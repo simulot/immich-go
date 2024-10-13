@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -20,6 +21,22 @@ type Metadata struct {
 	Archived    bool      // Flag to indicate if the image has been archived
 	Favorited   bool      // Flag to indicate if the image has been favorited
 	FromPartner bool      // Flag to indicate if the image is from a partner
+}
+
+func (m Metadata) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Float64("latitude", m.Latitude),
+		slog.Float64("longitude", m.Longitude),
+		slog.String("fileName", m.FileName),
+		slog.Time("dateTaken", m.DateTaken),
+		slog.String("description", m.Description),
+		slog.String("collections", strings.Join(m.Collections, ",")),
+		slog.Int("rating", int(m.Rating)),
+		slog.Bool("trashed", m.Trashed),
+		slog.Bool("archived", m.Archived),
+		slog.Bool("favorited", m.Favorited),
+		slog.Bool("fromPartner", m.FromPartner),
+	)
 }
 
 func (m Metadata) IsSet() bool {

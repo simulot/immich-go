@@ -11,13 +11,10 @@ package fileevent
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
-
-	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 /*
@@ -97,23 +94,6 @@ type Recorder struct {
 	log    *slog.Logger
 }
 
-type FileAndName struct {
-	fsys fs.FS
-	name string
-}
-
-func AsFileAndName(fsys fs.FS, name string) FileAndName {
-	return FileAndName{fsys: fsys, name: name}
-}
-
-func (fn FileAndName) Name() string {
-	fsys := fn.fsys
-	if fsys, ok := fsys.(fshelper.NameFS); ok {
-		return fsys.Name() + ":" + fn.name
-	}
-	return fn.name
-}
-
 type counts []int64
 
 func NewRecorder(l *slog.Logger) *Recorder {
@@ -124,12 +104,16 @@ func NewRecorder(l *slog.Logger) *Recorder {
 	return r
 }
 
-func (r *Recorder) Record(ctx context.Context, code Code, file FileAndName, args ...any) {
+func (r *Recorder) Log() *slog.Logger {
+	return r.log
+}
+
+func (r *Recorder) Record(ctx context.Context, code Code, file slog.LogValuer, args ...any) {
 	atomic.AddInt64(&r.counts[code], 1)
 	if r.log != nil {
 		level := slog.LevelInfo
-		if file.name != "" {
-			args = append([]any{"file", file.Name()}, args...)
+		if file != nil {
+			args = append([]any{"file", file.LogValue()}, args...)
 		}
 		for _, a := range args {
 			if a == "error" {
