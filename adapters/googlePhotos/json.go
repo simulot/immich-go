@@ -78,6 +78,9 @@ func (gmd GoogleMetaData) AsMetadata() *metadata.Metadata {
 	}
 
 	t := time.Time{}
+	if gmd.PhotoTakenTime != nil && gmd.PhotoTakenTime.Timestamp != "" && gmd.PhotoTakenTime.Timestamp != "0" {
+		t = gmd.PhotoTakenTime.Time()
+	}
 
 	return &metadata.Metadata{
 		FileName:    gmd.Title,
