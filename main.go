@@ -68,7 +68,7 @@ func runImmichGo(ctx context.Context) error {
 	// let's start
 	err := cmd.ExecuteContext(ctx)
 	if err != nil {
-		if app.Log() != nil && app.Log().GetWriter() != nil {
+		if app.Log() != nil {
 			app.Log().Error(err.Error())
 		}
 	}

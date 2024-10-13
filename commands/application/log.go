@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lmittmann/tint"
+	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
 	"github.com/simulot/immich-go/commands/version"
 	"github.com/simulot/immich-go/helpers/configuration"
@@ -102,7 +102,15 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	return nil
 }
 
-func (log *Log) setHandlers(file, console io.Writer) {
+func replaceAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.LevelKey {
+		level := a.Value.Any().(slog.Level)
+		a.Value = slog.StringValue(fmt.Sprintf("%-7s", level.String()))
+	}
+	return a
+}
+
+func (log *Log) setHandlers(file, con io.Writer) {
 	handlers := []slog.Handler{}
 
 	log.mainWriter = file
@@ -111,19 +119,23 @@ func (log *Log) setHandlers(file, console io.Writer) {
 			Level: log.sLevel,
 		}))
 	} else {
-		handlers = append(handlers, tint.NewHandler(log.mainWriter, &tint.Options{
-			Level:      log.sLevel,
-			TimeFormat: time.DateTime,
-			NoColor:    true,
-		}))
-	}
-
-	log.consoleWriter = console
-	if log.consoleWriter != nil {
-		handlers = append(handlers, tint.NewHandler(log.consoleWriter, &tint.Options{
+		handlers = append(handlers, console.NewHandler(log.mainWriter, &console.HandlerOptions{
+			// ReplaceAttr: replaceAttr,
 			Level:      log.sLevel,
 			TimeFormat: time.DateTime,
 			NoColor:    false,
+			Theme:      console.NewDefaultTheme(),
+		}))
+	}
+
+	log.consoleWriter = con
+	if log.consoleWriter != nil {
+		handlers = append(handlers, console.NewHandler(log.consoleWriter, &console.HandlerOptions{
+			// ReplaceAttr: replaceAttr,
+			Level:      log.sLevel,
+			TimeFormat: time.DateTime,
+			NoColor:    false,
+			Theme:      console.NewDefaultTheme(),
 		}))
 	}
 
@@ -153,6 +165,6 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 	return nil
 }
 
-func (log *Log) GetWriter() io.Writer {
-	return log.mainWriter
-}
+// func (log *Log) GetWriter() io.Writer {
+// 	return log.mainWriter
+// }
