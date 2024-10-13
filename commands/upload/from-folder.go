@@ -23,6 +23,7 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 		`Lightroom Catalog/`, // LR
 		`thumbnails/`,        // Android photo
 		`.DS_Store/`,         // Mac OS custom attributes
+		`._*.*`,              // MacOS resource files
 	)
 	options.SupportedMedia = metadata.DefaultSupportedMedia
 	options.UsePathAsAlbumName = folder.FolderModeNone
