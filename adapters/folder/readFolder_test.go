@@ -106,7 +106,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		{
 			name: "banned files",
 			flags: ImportFolderOptions{
-				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "*/Database/*"),
+				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "*/Database/*", `._*.*`),
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
@@ -128,7 +128,9 @@ func TestInMemLocalAssets(t *testing.T) {
 					addFile("photos/summer 2023/.@__thumb/thb2.jpg").
 					addFile("BLOG/blog.jpg").
 					addFile("Project/Database/database_01.jpg").
-					addFile("photos/database_01.jpg"),
+					addFile("photos/database_01.jpg").
+					addFile("mac/image.JPG").
+					addFile("mac/._image.JPG"),
 			},
 			expectedFiles: map[string]fileLinks{
 				"root_01.jpg":                         {image: "root_01.jpg"},
@@ -139,9 +141,10 @@ func TestInMemLocalAssets(t *testing.T) {
 				"photos/summer 2023/20230801-002.jpg": {image: "photos/summer 2023/20230801-002.jpg"},
 				"photos/summer 2023/20230801-003.cr3": {image: "photos/summer 2023/20230801-003.cr3"},
 				"photos/database_01.jpg":              {image: "photos/database_01.jpg"},
+				"mac/image.JPG":                       {image: "mac/image.JPG"},
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 8).
-				Set(fileevent.DiscoveredDiscarded, 5).Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 9).
+				Set(fileevent.DiscoveredDiscarded, 6).Value(),
 		},
 		{
 			name: "excluded extensions",
