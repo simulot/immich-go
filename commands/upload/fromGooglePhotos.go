@@ -62,7 +62,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 		if err != nil {
 			return err
 		}
-		return newUpload(app, upOptions).run(ctx, adapter, app)
+		return newUpload(UpModeGoogleTakeout, app, upOptions).setTakeoutOptions(options).run(ctx, adapter, app)
 	}
 
 	return cmd

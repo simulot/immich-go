@@ -123,7 +123,7 @@ func (log *Log) setHandlers(file, con io.Writer) {
 			// ReplaceAttr: replaceAttr,
 			Level:      log.sLevel,
 			TimeFormat: time.DateTime,
-			NoColor:    false,
+			NoColor:    true,
 			Theme:      console.NewDefaultTheme(),
 		}))
 	}
@@ -165,6 +165,6 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 	return nil
 }
 
-// func (log *Log) GetWriter() io.Writer {
-// 	return log.mainWriter
-// }
+func (log *Log) GetSLog() *slog.Logger {
+	return log.Logger
+}

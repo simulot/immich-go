@@ -38,14 +38,10 @@ type uiPage struct {
 	immichPrepare *tvxwidgets.PercentageModeGauge
 	immichUpload  *tvxwidgets.PercentageModeGauge
 
-	// page      *tview.Application
 	watchJobs bool
-	// quitting  chan any
 }
 
 func (ui *uiPage) highJackLogger(app *application.Application) {
-	// ui.prevLogWriter = app.Log().GetWriter()
-	// w := io.MultiWriter(ui.prevLogWriter, ui.logView)
 	ui.logView.SetDynamicColors(true)
 	app.Jnl().SetLogger(app.Log().SetLogWriter(tview.ANSIWriter(ui.logView)))
 }
@@ -58,7 +54,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) err
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	uiApp := tview.NewApplication()
-	ui := newUI(ctx, app)
+	ui := upCmd.newUI(ctx, app)
 
 	defer cancel(nil)
 	pages := tview.NewPages()
@@ -141,16 +137,15 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) err
 					for c := range ui.counts {
 						ui.getCountView(c, counts[c])
 					}
-					// TODO:
-					// if app.GooglePhotos {
-					// 	ui.immichPrepare.SetMaxValue(int(app.Jnl.TotalAssets()))
-					// 	ui.immichPrepare.SetValue(int(app.Jnl.TotalProcessedGP()))
+					if upCmd.Mode == UpModeGoogleTakeout {
+						ui.immichPrepare.SetMaxValue(int(app.Jnl().TotalAssets()))
+						ui.immichPrepare.SetValue(int(app.Jnl().TotalProcessedGP()))
 
-					// 	if preparationDone.Load() {
-					// 		ui.immichUpload.SetMaxValue(int(app.Jnl.TotalAssets()))
-					// 	}
-					// 	ui.immichUpload.SetValue(int(app.Jnl.TotalProcessed(app.ForceUploadWhenNoJSON)))
-					// }
+						if preparationDone.Load() {
+							ui.immichUpload.SetMaxValue(int(app.Jnl().TotalAssets()))
+						}
+						ui.immichUpload.SetValue(int(app.Jnl().TotalProcessed(upCmd.takeoutOptions.KeepJSONLess)))
+					}
 				})
 			}
 		}
@@ -265,7 +260,7 @@ func newModal(message string) tview.Primitive {
 	return modal(text, 80, 2+lines)
 }
 
-func newUI(ctx context.Context, app *application.Application) *uiPage {
+func (upCmd *UpCmd) newUI(ctx context.Context, app *application.Application) *uiPage {
 	ui := &uiPage{
 		counts: map[fileevent.Code]*tview.TextView{},
 	}
@@ -346,14 +341,13 @@ func newUI(ctx context.Context, app *application.Application) *uiPage {
 	ui.footer = tview.NewGrid()
 	ui.footer.AddItem(tview.NewTextView().SetText("Immich content:").SetTextAlign(tview.AlignCenter), 0, 0, 1, 1, 0, 0, false).AddItem(ui.immichReading, 0, 1, 1, 1, 0, 0, false)
 
-	// TODO
-	// if app.GooglePhotos {
-	// 	ui.footer.AddItem(tview.NewTextView().SetText("Google Photo puzzle:").SetTextAlign(tview.AlignCenter), 0, 2, 1, 1, 0, 0, false).AddItem(ui.immichPrepare, 0, 3, 1, 1, 0, 0, false)
-	// 	ui.footer.AddItem(tview.NewTextView().SetText("Uploading:").SetTextAlign(tview.AlignCenter), 0, 4, 1, 1, 0, 0, false).AddItem(ui.immichUpload, 0, 5, 1, 1, 0, 0, false)
-	// 	ui.footer.SetColumns(25, 0, 25, 0, 25, 0)
-	// } else {
-	ui.footer.SetColumns(25, 0)
-	// }
+	if upCmd.Mode == UpModeGoogleTakeout {
+		ui.footer.AddItem(tview.NewTextView().SetText("Google Photo puzzle:").SetTextAlign(tview.AlignCenter), 0, 2, 1, 1, 0, 0, false).AddItem(ui.immichPrepare, 0, 3, 1, 1, 0, 0, false)
+		ui.footer.AddItem(tview.NewTextView().SetText("Uploading:").SetTextAlign(tview.AlignCenter), 0, 4, 1, 1, 0, 0, false).AddItem(ui.immichUpload, 0, 5, 1, 1, 0, 0, false)
+		ui.footer.SetColumns(25, 0, 25, 0, 25, 0)
+	} else {
+		ui.footer.SetColumns(25, 0)
+	}
 	ui.screen.AddItem(ui.footer, 3, 0, 1, 1, 0, 0, false)
 
 	// Adjust section's height

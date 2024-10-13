@@ -8,6 +8,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
+	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -15,6 +16,7 @@ import (
 )
 
 type UpCmd struct {
+	Mode UpLoadMode
 	*UploadOptions
 	app *application.Application
 
@@ -29,13 +31,21 @@ type UpCmd struct {
 	// fsyss  []fs.FS                            // pseudo file system to browse
 	Paths  []string                          // Path to explore
 	albums map[string]immich.AlbumSimplified // Albums by title
+
+	takeoutOptions *gp.ImportFlags
 }
 
-func newUpload(app *application.Application, options *UploadOptions) *UpCmd {
+func newUpload(mode UpLoadMode, app *application.Application, options *UploadOptions) *UpCmd {
 	upCmd := &UpCmd{
 		UploadOptions: options,
 		app:           app,
+		Mode:          mode,
 	}
+	return upCmd
+}
+
+func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
+	upCmd.takeoutOptions = options
 	return upCmd
 }
 

@@ -72,7 +72,7 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 			return err
 		}
 
-		return newUpload(app, upOptions).run(ctx, adapter, app)
+		return newUpload(UpModeFolder, app, upOptions).run(ctx, adapter, app)
 	}
 
 	return cmd
