@@ -284,15 +284,16 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *
 }
 
 func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *adapters.LocalAssetFile) error {
+	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a, "error", err.Error())
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
 		return err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a, "info", "the server has this file")
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", "the server has this file")
 	} else {
-		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a)
+		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
 	}
 	a.ID = ar.ID
 	return nil
