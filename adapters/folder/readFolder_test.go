@@ -13,6 +13,8 @@ import (
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
 	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/metadata"
@@ -106,7 +108,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		{
 			name: "banned files",
 			flags: ImportFolderOptions{
-				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "*/Database/*", `._*.*`),
+				BannedFiles:    namematcher.MustList(`@eaDir`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "Database/", `._*.*`, `._*.*`),
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
@@ -129,6 +131,8 @@ func TestInMemLocalAssets(t *testing.T) {
 					addFile("BLOG/blog.jpg").
 					addFile("Project/Database/database_01.jpg").
 					addFile("photos/database_01.jpg").
+					addFile("mac/image.JPG").
+					addFile("mac/._image.JPG").
 					addFile("mac/image.JPG").
 					addFile("mac/._image.JPG"),
 			},
@@ -360,10 +364,22 @@ func TestInMemLocalAssets(t *testing.T) {
 		},
 	}
 
+	logFile := configuration.DefaultLogFile()
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			recorder := fileevent.NewRecorder(nil)
+
+			log := application.Log{
+				File:  logFile,
+				Level: "INFO",
+			}
+			err := log.OpenLogFile()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			log.Logger.Info(c.name)
+			recorder := fileevent.NewRecorder(log.Logger)
 			b, err := NewLocalFiles(ctx, recorder, &c.flags, c.fsys...)
 			if err != nil {
 				t.Error(err)
