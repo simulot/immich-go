@@ -18,3 +18,4 @@ archive.tar
 *.test
 .env
 *.env
+test-config.yaml
