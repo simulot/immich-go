@@ -108,6 +108,12 @@ Global Flags:
 ## Release 0.23.0-alpha1 🏗️ Work in progress 🏗️ 
 
 
+## Release 0.22.1
+
+### Fixes:
+- [#509](https://github.com/simulot/immich-go/issues/509)      
+
+
 ## Release 0.22.0
 Many thanks to @maybeanerd for their meticulous proofreading of the documentation files.
 
