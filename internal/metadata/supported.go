@@ -26,6 +26,11 @@ var DefaultSupportedMedia = SupportedMedia{
 	".mp":  TypeVideo,
 }
 
+func (sm SupportedMedia) TypeFromName(name string) string {
+	ext := name[strings.LastIndex(name, "."):]
+	return sm.TypeFromExt(ext)
+}
+
 func (sm SupportedMedia) TypeFromExt(ext string) string {
 	ext = strings.ToLower(ext)
 	if strings.HasPrefix(ext, ".mp~") {
