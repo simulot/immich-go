@@ -113,9 +113,9 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 func (ic *ImmichClient) PingServer(ctx context.Context) error {
 	r := PingResponse{}
 	b := bytes.NewBuffer(nil)
-	err := ic.newServerCall(ctx, EndPointPingServer).do(getRequest("/server-info/ping", setAcceptJSON()), responseCopy(b), responseJSON(&r))
+	err := ic.newServerCall(ctx, EndPointPingServer).do(getRequest("/server/ping", setAcceptJSON()), responseCopy(b), responseJSON(&r))
 	if err != nil {
-		return fmt.Errorf("unexpected response to the immich's ping API at this address: %s:\n%s", ic.endPoint+"/server-info/ping", b.String())
+		return fmt.Errorf("unexpected response to the immich's ping API at this address: %s:\n%s", ic.endPoint+"/server/ping", b.String())
 	}
 	if r.Res != "pong" {
 		return fmt.Errorf("incorrect ping response: %s", r.Res)
@@ -163,7 +163,7 @@ type ServerStatistics struct {
 func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatistics, error) {
 	var s ServerStatistics
 
-	err := ic.newServerCall(ctx, EndPointGetServerStatistics).do(getRequest("/server-info/statistics", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, EndPointGetServerStatistics).do(getRequest("/server/statistics", setAcceptJSON()), responseJSON(&s))
 	return s, err
 }
 
@@ -204,7 +204,7 @@ var DefaultSupportedMedia = SupportedMedia{
 func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMedia, error) {
 	var s map[string][]string
 
-	err := ic.newServerCall(ctx, EndPointGetSupportedMediaTypes).do(getRequest("/server-info/media-types", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, EndPointGetSupportedMediaTypes).do(getRequest("/server/media-types", setAcceptJSON()), responseJSON(&s))
 	if err != nil {
 		return nil, err
 	}
