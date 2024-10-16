@@ -312,11 +312,14 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.L
 	return &r, err
 }
 
-func (ic *ImmichClient) StackAssets(ctx context.Context, coverID string, ids []string) error {
-	cover, err := ic.GetAssetByID(ctx, coverID)
-	if err != nil {
-		return err
+func (ic *ImmichClient) StackAssets(ctx context.Context, coverID string, ids []string) (*Stack, error) {
+	stackIds := append([]string{coverID}, ids...)
+	body := struct {
+		AssetIDs []string `json:"assetIds"`
+	}{
+		AssetIDs: stackIds,
 	}
-
-	return ic.UpdateAssets(ctx, ids, cover.IsArchived, cover.IsFavorite, cover.ExifInfo.Latitude, cover.ExifInfo.Longitude, false, coverID)
+	stackResponse := Stack{}
+	err := ic.newServerCall(ctx, "stackAssets").do(postRequest("/stacks", "application/json", setJSONBody(body)), responseJSON(&stackResponse))
+	return &stackResponse, err
 }
