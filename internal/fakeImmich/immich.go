@@ -14,7 +14,10 @@ func (c *MockedCLient) GetAllAssetsWithFilter(context.Context, func(*immich.Asse
 	return nil
 }
 
-func (c *MockedCLient) AssetUpload(context.Context, *browser.LocalAssetFile) (immich.AssetResponse, error) {
+func (c *MockedCLient) AssetUpload(
+	context.Context,
+	*browser.LocalAssetFile,
+) (immich.AssetResponse, error) {
 	return immich.AssetResponse{}, nil
 }
 
@@ -26,15 +29,33 @@ func (c *MockedCLient) GetAllAlbums(context.Context) ([]immich.AlbumSimplified, 
 	return nil, nil
 }
 
-func (c *MockedCLient) AddAssetToAlbum(context.Context, string, []string) ([]immich.UpdateAlbumResult, error) {
+func (c *MockedCLient) AddAssetToAlbum(
+	context.Context,
+	string,
+	[]string,
+) ([]immich.UpdateAlbumResult, error) {
 	return nil, nil
 }
 
-func (c *MockedCLient) CreateAlbum(context.Context, string, string, []string) (immich.AlbumSimplified, error) {
+func (c *MockedCLient) CreateAlbum(
+	context.Context,
+	string,
+	string,
+	[]string,
+) (immich.AlbumSimplified, error) {
 	return immich.AlbumSimplified{}, nil
 }
 
-func (c *MockedCLient) UpdateAssets(ctx context.Context, ids []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error {
+func (c *MockedCLient) UpdateAssets(
+	ctx context.Context,
+	ids []string,
+	isArchived bool,
+	isFavorite bool,
+	latitude float64,
+	longitude float64,
+	removeParent bool,
+	stackParentID string,
+) error {
 	return nil
 }
 
@@ -42,7 +63,11 @@ func (c *MockedCLient) StackAssets(ctx context.Context, cover string, ids []stri
 	return nil
 }
 
-func (c *MockedCLient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*immich.Asset, error) {
+func (c *MockedCLient) UpdateAsset(
+	ctx context.Context,
+	id string,
+	a *browser.LocalAssetFile,
+) (*immich.Asset, error) {
 	return nil, nil
 }
 
@@ -64,7 +89,10 @@ func (c *MockedCLient) ValidateConnection(ctx context.Context) (immich.User, err
 	return immich.User{}, nil
 }
 
-func (c *MockedCLient) GetAssetAlbums(ctx context.Context, id string) ([]immich.AlbumSimplified, error) {
+func (c *MockedCLient) GetAssetAlbums(
+	ctx context.Context,
+	id string,
+) ([]immich.AlbumSimplified, error) {
 	return nil, nil
 }
 
@@ -94,4 +122,19 @@ func (c *MockedCLient) GetJobs(ctx context.Context) (map[string]immich.Job, erro
 
 func (c *MockedCLient) GetAlbumInfo(context.Context, string, bool) (immich.AlbumContent, error) {
 	return immich.AlbumContent{}, nil
+}
+
+func (c *MockedCLient) UpsertTags(
+	ctx context.Context,
+	tags []string,
+) ([]immich.TagSimplified, error) {
+	return nil, nil
+}
+
+func (c *MockedCLient) TagAssets(
+	ctx context.Context,
+	tagID string,
+	assetIDs []string,
+) ([]immich.TagAssetsResponse, error) {
+	return nil, nil
 }

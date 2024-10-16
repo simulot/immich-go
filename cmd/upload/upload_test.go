@@ -23,7 +23,10 @@ func (c *stubIC) GetAllAssetsWithFilter(context.Context, func(*immich.Asset) err
 	return nil
 }
 
-func (c *stubIC) AssetUpload(context.Context, *browser.LocalAssetFile) (immich.AssetResponse, error) {
+func (c *stubIC) AssetUpload(
+	context.Context,
+	*browser.LocalAssetFile,
+) (immich.AssetResponse, error) {
 	return immich.AssetResponse{}, nil
 }
 
@@ -35,15 +38,33 @@ func (c *stubIC) GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error)
 	return nil, nil
 }
 
-func (c *stubIC) AddAssetToAlbum(context.Context, string, []string) ([]immich.UpdateAlbumResult, error) {
+func (c *stubIC) AddAssetToAlbum(
+	context.Context,
+	string,
+	[]string,
+) ([]immich.UpdateAlbumResult, error) {
 	return nil, nil
 }
 
-func (c *stubIC) CreateAlbum(context.Context, string, string, []string) (immich.AlbumSimplified, error) {
+func (c *stubIC) CreateAlbum(
+	context.Context,
+	string,
+	string,
+	[]string,
+) (immich.AlbumSimplified, error) {
 	return immich.AlbumSimplified{}, nil
 }
 
-func (c *stubIC) UpdateAssets(ctx context.Context, ids []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error {
+func (c *stubIC) UpdateAssets(
+	ctx context.Context,
+	ids []string,
+	isArchived bool,
+	isFavorite bool,
+	latitude float64,
+	longitude float64,
+	removeParent bool,
+	stackParentID string,
+) error {
 	return nil
 }
 
@@ -51,7 +72,11 @@ func (c *stubIC) StackAssets(ctx context.Context, cover string, ids []string) er
 	return nil
 }
 
-func (c *stubIC) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*immich.Asset, error) {
+func (c *stubIC) UpdateAsset(
+	ctx context.Context,
+	id string,
+	a *browser.LocalAssetFile,
+) (*immich.Asset, error) {
 	return nil, nil
 }
 
@@ -112,20 +137,32 @@ type icCatchUploadsAssets struct {
 	albums map[string][]string
 }
 
-func (c *icCatchUploadsAssets) AssetUpload(ctx context.Context, a *browser.LocalAssetFile) (immich.AssetResponse, error) {
+func (c *icCatchUploadsAssets) AssetUpload(
+	ctx context.Context,
+	a *browser.LocalAssetFile,
+) (immich.AssetResponse, error) {
 	c.assets = append(c.assets, a.FileName)
 	return immich.AssetResponse{
 		ID: a.FileName,
 	}, nil
 }
 
-func (c *icCatchUploadsAssets) AddAssetToAlbum(ctx context.Context, album string, ids []string) ([]immich.UpdateAlbumResult, error) {
+func (c *icCatchUploadsAssets) AddAssetToAlbum(
+	ctx context.Context,
+	album string,
+	ids []string,
+) ([]immich.UpdateAlbumResult, error) {
 	l := c.albums[album]
 	c.albums[album] = append(l, ids...)
 	return nil, nil
 }
 
-func (c *icCatchUploadsAssets) CreateAlbum(ctx context.Context, album string, description string, ids []string) (immich.AlbumSimplified, error) {
+func (c *icCatchUploadsAssets) CreateAlbum(
+	ctx context.Context,
+	album string,
+	description string,
+	ids []string,
+) (immich.AlbumSimplified, error) {
 	if album == "" {
 		panic("can't create album without name")
 	}
@@ -138,6 +175,21 @@ func (c *icCatchUploadsAssets) CreateAlbum(ctx context.Context, album string, de
 		ID:        album,
 		AlbumName: album,
 	}, nil
+}
+
+func (c *icCatchUploadsAssets) UpsertTags(
+	ctx context.Context,
+	tags []string,
+) ([]immich.TagSimplified, error) {
+	return nil, nil
+}
+
+func (c *icCatchUploadsAssets) TagAssets(
+	ctx context.Context,
+	tagID string,
+	assetIDs []string,
+) ([]immich.TagAssetsResponse, error) {
+	return nil, nil
 }
 
 func TestUpload(t *testing.T) {
