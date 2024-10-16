@@ -55,6 +55,13 @@ type ImmichInterface interface {
 
 	SupportedMedia() SupportedMedia
 	GetJobs(ctx context.Context) (map[string]Job, error)
+
+	UpsertTags(ctx context.Context, tags []string) ([]TagSimplified, error)
+	TagAssets(
+		ctx context.Context,
+		tagID string,
+		assetIDs []string,
+	) ([]TagAssetsResponse, error)
 }
 
 type UnsupportedMedia struct {

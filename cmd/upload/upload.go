@@ -61,6 +61,7 @@ type UpCmd struct {
 	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
 	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
 	BannedFiles            namematcher.List // List of banned file name patterns
+	Tags                   StringList       // List of tags to apply to assets after upload. Can use forwards slashes to create tag hierarchy (ex. "Holiday/Groundhog's Day")
 
 	BrowserConfig Configuration
 
@@ -222,6 +223,12 @@ func newCommand(
 		&app.BannedFiles,
 		"exclude-files",
 		"Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.",
+	)
+
+	cmd.Var(
+		&app.Tags,
+		"tags",
+		"Comma separated tags to apply to assets after upload. Use forwards slashes to create hierarchal tags (ex. \"Holiday/Groundhog's Day\").",
 	)
 
 	cmd.BoolVar(
@@ -813,6 +820,23 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 					"the server has this file",
 				)
 			} else {
+				if len(app.Tags) > 0 {
+					tags, err := app.Immich.UpsertTags(ctx, app.Tags)
+					if err != nil {
+						app.Jnl.Record(ctx, fileevent.UploadTagAssetError, &b, b.FileName, "tags", strings.Join(app.Tags, ", "), "error", err.Error())
+					} else {
+						for _, tag := range tags {
+							tagAssetsResp, err := app.Immich.TagAssets(ctx, tag.ID, []string{resp.ID})
+							if err != nil {
+								app.Jnl.Record(ctx, fileevent.UploadTagAssetError, &b, b.FileName, "tag", tag.Value, "error", err.Error())
+							} else if len(tagAssetsResp) > 0 && tagAssetsResp[0].Error != "" {
+								app.Jnl.Record(ctx, fileevent.UploadTagAssetError, &b, b.FileName, "tag", tag.Value, "error", tagAssetsResp[0].Error)
+							} else {
+								app.Jnl.Record(ctx, fileevent.UploadTagAsset, &b, b.FileName, "tag", tag.Value, "reason", "option -tags")
+							}
+						}
+					}
+				}
 				b.LivePhoto = nil
 				app.Jnl.Record(ctx, fileevent.Uploaded, &b, b.FileName, "capture date", b.Metadata.DateTaken.String())
 			}

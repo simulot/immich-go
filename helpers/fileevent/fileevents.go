@@ -38,6 +38,8 @@ const (
 	UploadAlbumCreated
 	UploadAddToAlbum  // = "Added to an album"
 	UploadServerError // = "Server error"
+	UploadTagAsset
+	UploadTagAssetError
 
 	Uploaded  // = "Uploaded"
 	Stacked   // = "Stacked"
@@ -66,6 +68,8 @@ var _code = map[Code]string{
 	UploadServerBetter:    "server has a better asset",
 	UploadAlbumCreated:    "album created/updated",
 	UploadServerError:     "upload error",
+	UploadTagAsset:        "tag asset",
+	UploadTagAssetError:   "tag asset error",
 	Uploaded:              "uploaded",
 
 	Stacked:   "Stacked",
@@ -235,7 +239,11 @@ func (r *Recorder) WriteFileCounts(w io.Writer) error {
 }
 
 func (r *Recorder) TotalAssets() int64 {
-	return atomic.LoadInt64(&r.counts[DiscoveredImage]) + atomic.LoadInt64(&r.counts[DiscoveredVideo])
+	return atomic.LoadInt64(
+		&r.counts[DiscoveredImage],
+	) + atomic.LoadInt64(
+		&r.counts[DiscoveredVideo],
+	)
 }
 
 func (r *Recorder) TotalProcessedGP() int64 {
