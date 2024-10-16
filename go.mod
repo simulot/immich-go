@@ -2,7 +2,7 @@ module github.com/simulot/immich-go
 
 go 1.22
 
-toolchain go1.22.5
+toolchain go1.23.2
 
 require (
 	github.com/gdamore/tcell/v2 v2.7.4

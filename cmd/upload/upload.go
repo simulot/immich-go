@@ -87,7 +87,12 @@ func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) 
 
 type fsOpener func() ([]fs.FS, error)
 
-func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsOpener fsOpener) (*UpCmd, error) {
+func newCommand(
+	ctx context.Context,
+	common *cmd.SharedFlags,
+	args []string,
+	fsOpener fsOpener,
+) (*UpCmd, error) {
 	var err error
 	cmd := flag.NewFlagSet("upload", flag.ExitOnError)
 
@@ -126,10 +131,12 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		"use-full-path-album-name",
 		" folder import only: Use the full path towards the asset for determining the Album name",
 		myflag.BoolFlagFn(&app.UseFullPathAsAlbumName, false))
-	cmd.StringVar(&app.AlbumNamePathSeparator,
+	cmd.StringVar(
+		&app.AlbumNamePathSeparator,
 		"album-name-path-separator",
 		" ",
-		" when use-full-path-album-name = true, determines how multiple (sub) folders, if any, will be joined")
+		" when use-full-path-album-name = true, determines how multiple (sub) folders, if any, will be joined",
+	)
 	cmd.BoolFunc(
 		"google-photos",
 		"Import GooglePhotos takeout zip files",
@@ -138,13 +145,17 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		"create-albums",
 		" google-photos only: Create albums like there were in the source (default: TRUE)",
 		myflag.BoolFlagFn(&app.CreateAlbums, true))
-	cmd.StringVar(&app.PartnerAlbum,
+	cmd.StringVar(
+		&app.PartnerAlbum,
 		"partner-album",
 		"",
-		" google-photos only: Assets from partner will be added to this album. (ImportIntoAlbum, must already exist)")
+		" google-photos only: Assets from partner will be added to this album. (ImportIntoAlbum, must already exist)",
+	)
 	cmd.BoolFunc(
 		"keep-partner",
-		" google-photos only: Import also partner's items (default: TRUE)", myflag.BoolFlagFn(&app.KeepPartner, true))
+		" google-photos only: Import also partner's items (default: TRUE)",
+		myflag.BoolFlagFn(&app.KeepPartner, true),
+	)
 	cmd.StringVar(&app.ImportFromAlbum,
 		"from-album",
 		"",
@@ -152,19 +163,27 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 
 	cmd.BoolFunc(
 		"keep-untitled-albums",
-		" google-photos only: Keep Untitled albums and imports their contain (default: FALSE)", myflag.BoolFlagFn(&app.KeepUntitled, false))
+		" google-photos only: Keep Untitled albums and imports their contain (default: FALSE)",
+		myflag.BoolFlagFn(&app.KeepUntitled, false),
+	)
 
 	cmd.BoolFunc(
 		"use-album-folder-as-name",
-		" google-photos only: Use folder name and ignore albums' title (default:FALSE)", myflag.BoolFlagFn(&app.UseFolderAsAlbumName, false))
+		" google-photos only: Use folder name and ignore albums' title (default:FALSE)",
+		myflag.BoolFlagFn(&app.UseFolderAsAlbumName, false),
+	)
 
 	cmd.BoolFunc(
 		"discard-archived",
-		" google-photos only: Do not import archived photos (default FALSE)", myflag.BoolFlagFn(&app.DiscardArchived, false))
+		" google-photos only: Do not import archived photos (default FALSE)",
+		myflag.BoolFlagFn(&app.DiscardArchived, false),
+	)
 
 	cmd.BoolFunc(
 		"auto-archive",
-		" google-photos only: Automatically archive photos that are also archived in google photos (default TRUE)", myflag.BoolFlagFn(&app.AutoArchive, true))
+		" google-photos only: Automatically archive photos that are also archived in google photos (default TRUE)",
+		myflag.BoolFlagFn(&app.AutoArchive, true),
+	)
 
 	cmd.BoolFunc(
 		"create-stacks",
@@ -172,25 +191,51 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 
 	cmd.BoolFunc(
 		"stack-jpg-raw",
-		"Control the stacking of jpg/raw photos (default TRUE)", myflag.BoolFlagFn(&app.StackJpgRaws, false))
+		"Control the stacking of jpg/raw photos (default TRUE)",
+		myflag.BoolFlagFn(&app.StackJpgRaws, false),
+	)
 	cmd.BoolFunc(
 		"stack-burst",
 		"Control the stacking bursts (default TRUE)", myflag.BoolFlagFn(&app.StackBurst, false))
 
 	// cmd.BoolVar(&app.Delete, "delete", false, "Delete local assets after upload")
 
-	cmd.Var(&app.BrowserConfig.SelectExtensions, "select-types", "list of selected extensions separated by a comma")
-	cmd.Var(&app.BrowserConfig.ExcludeExtensions, "exclude-types", "list of excluded extensions separated by a comma")
+	cmd.Var(
+		&app.BrowserConfig.SelectExtensions,
+		"select-types",
+		"list of selected extensions separated by a comma",
+	)
+	cmd.Var(
+		&app.BrowserConfig.ExcludeExtensions,
+		"exclude-types",
+		"list of excluded extensions separated by a comma",
+	)
 
-	cmd.StringVar(&app.WhenNoDate,
+	cmd.StringVar(
+		&app.WhenNoDate,
 		"when-no-date",
 		"FILE",
-		" When the date of take can't be determined, use the FILE's date or the current time NOW. (default: FILE)")
+		" When the date of take can't be determined, use the FILE's date or the current time NOW. (default: FILE)",
+	)
 
-	cmd.Var(&app.BannedFiles, "exclude-files", "Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.")
+	cmd.Var(
+		&app.BannedFiles,
+		"exclude-files",
+		"Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.",
+	)
 
-	cmd.BoolVar(&app.ForceUploadWhenNoJSON, "upload-when-missing-JSON", app.ForceUploadWhenNoJSON, "when true, photos are upload even without associated JSON file.")
-	cmd.BoolVar(&app.DebugFileList, "debug-file-list", app.DebugFileList, "Check how the your file list would be processed")
+	cmd.BoolVar(
+		&app.ForceUploadWhenNoJSON,
+		"upload-when-missing-JSON",
+		app.ForceUploadWhenNoJSON,
+		"when true, photos are upload even without associated JSON file.",
+	)
+	cmd.BoolVar(
+		&app.DebugFileList,
+		"debug-file-list",
+		app.DebugFileList,
+		"Check how the your file list would be processed",
+	)
 
 	err = cmd.Parse(args)
 	if err != nil {
@@ -199,7 +244,9 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 
 	if app.DebugFileList {
 		if len(cmd.Args()) < 2 {
-			return nil, fmt.Errorf("the option -debug-file-list requires a file name and a date format")
+			return nil, fmt.Errorf(
+				"the option -debug-file-list requires a file name and a date format",
+			)
 		}
 		app.LogFile = strings.TrimSuffix(cmd.Arg(0), filepath.Ext(cmd.Arg(0))) + ".log"
 		_ = os.Remove(app.LogFile)
@@ -420,42 +467,97 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	}()
 	ext := path.Ext(a.FileName)
 	if app.BrowserConfig.ExcludeExtensions.Exclude(ext) {
-		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "extension in rejection list")
+		app.Jnl.Record(
+			ctx,
+			fileevent.UploadNotSelected,
+			a,
+			a.FileName,
+			"reason",
+			"extension in rejection list",
+		)
 		return nil
 	}
 	if !app.BrowserConfig.SelectExtensions.Include(ext) {
-		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "extension not in selection list")
+		app.Jnl.Record(
+			ctx,
+			fileevent.UploadNotSelected,
+			a,
+			a.FileName,
+			"reason",
+			"extension not in selection list",
+		)
 		return nil
 	}
 
 	if !app.KeepPartner && a.FromPartner {
-		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "partners asset excluded")
+		app.Jnl.Record(
+			ctx,
+			fileevent.UploadNotSelected,
+			a,
+			a.FileName,
+			"reason",
+			"partners asset excluded",
+		)
 		return nil
 	}
 
 	if !app.KeepTrashed && a.Trashed {
-		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "trashed asset excluded")
+		app.Jnl.Record(
+			ctx,
+			fileevent.UploadNotSelected,
+			a,
+			a.FileName,
+			"reason",
+			"trashed asset excluded",
+		)
 		return nil
 	}
 
 	if app.ImportFromAlbum != "" && !app.isInAlbum(a, app.ImportFromAlbum) {
-		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a.FileName, "reason", "doesn't belong to required album")
+		app.Jnl.Record(
+			ctx,
+			fileevent.UploadNotSelected,
+			a.FileName,
+			"reason",
+			"doesn't belong to required album",
+		)
 		return nil
 	}
 
 	if app.DiscardArchived && a.Archived {
-		app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "archived asset are discarded")
+		app.Jnl.Record(
+			ctx,
+			fileevent.UploadNotSelected,
+			a,
+			a.FileName,
+			"reason",
+			"archived asset are discarded",
+		)
 		return nil
 	}
 
 	if app.DateRange.IsSet() {
 		d := a.Metadata.DateTaken
 		if d.IsZero() {
-			app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "date of capture is unknown")
+			app.Jnl.Record(
+				ctx,
+				fileevent.UploadNotSelected,
+				a,
+				a.FileName,
+				"reason",
+				"date of capture is unknown",
+			)
 			return nil
 		}
 		if !app.DateRange.InRange(d) {
-			app.Jnl.Record(ctx, fileevent.UploadNotSelected, a, a.FileName, "reason", "date of capture is out of the given range")
+			app.Jnl.Record(
+				ctx,
+				fileevent.UploadNotSelected,
+				a,
+				a.FileName,
+				"reason",
+				"date of capture is out of the given range",
+			)
 			return nil
 		}
 	}
@@ -496,7 +598,14 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 	case SameOnServer: // manage albums
 		// Set add the server asset into albums determined locally
 		if !advice.ServerAsset.JustUploaded {
-			app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "reason", advice.Message)
+			app.Jnl.Record(
+				ctx,
+				fileevent.UploadServerDuplicate,
+				a,
+				a.FileName,
+				"reason",
+				advice.Message,
+			)
 		} else {
 			app.Jnl.Record(ctx, fileevent.AnalysisLocalDuplicate, a, a.FileName)
 		}
@@ -516,13 +625,31 @@ func (app *UpCmd) deleteAsset(ctx context.Context, id string) error {
 
 // manageAssetAlbum keep the albums updated
 // errors are logged, but not returned
-func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *browser.LocalAssetFile, advice *Advice) {
+func (app *UpCmd) manageAssetAlbum(
+	ctx context.Context,
+	assetID string,
+	a *browser.LocalAssetFile,
+	advice *Advice,
+) {
 	addedTo := map[string]any{}
 	if advice.ServerAsset != nil {
 		for _, al := range advice.ServerAsset.Albums {
-			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", al.AlbumName, "reason", "lower quality asset's album")
+			app.Jnl.Record(
+				ctx,
+				fileevent.UploadAddToAlbum,
+				a,
+				a.FileName,
+				"album",
+				al.AlbumName,
+				"reason",
+				"lower quality asset's album",
+			)
 			if !app.DryRun {
-				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: al.AlbumName, Description: al.Description})
+				err := app.AddToAlbum(
+					ctx,
+					assetID,
+					browser.LocalAlbum{Title: al.AlbumName, Description: al.Description},
+				)
 				if err != nil {
 					app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
 				}
@@ -534,7 +661,8 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 	if app.CreateAlbums {
 		for _, al := range a.Albums {
 			album := al.Title
-			if app.GooglePhotos && (app.CreateAlbumAfterFolder || app.UseFolderAsAlbumName || album == "") {
+			if app.GooglePhotos &&
+				(app.CreateAlbumAfterFolder || app.UseFolderAsAlbumName || album == "") {
 				album = filepath.Base(al.Path)
 			}
 			if _, exist := addedTo[album]; !exist {
@@ -549,7 +677,16 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 		}
 	}
 	if app.ImportIntoAlbum != "" {
-		app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", app.ImportIntoAlbum, "reason", "option -album")
+		app.Jnl.Record(
+			ctx,
+			fileevent.UploadAddToAlbum,
+			a,
+			a.FileName,
+			"album",
+			app.ImportIntoAlbum,
+			"reason",
+			"option -album",
+		)
 		if !app.DryRun {
 			err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: app.ImportIntoAlbum})
 			if err != nil {
@@ -560,7 +697,16 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 
 	if app.GooglePhotos {
 		if app.PartnerAlbum != "" && a.FromPartner {
-			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", app.PartnerAlbum, "reason", "option -partner-album")
+			app.Jnl.Record(
+				ctx,
+				fileevent.UploadAddToAlbum,
+				a,
+				a.FileName,
+				"album",
+				app.PartnerAlbum,
+				"reason",
+				"option -partner-album",
+			)
 			if !app.DryRun {
 				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: app.PartnerAlbum})
 				if err != nil {
@@ -638,7 +784,14 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 			liveResp, err = app.Immich.AssetUpload(ctx, a.LivePhoto)
 			if err == nil {
 				if liveResp.Status == immich.UploadDuplicate {
-					app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a.LivePhoto, a.LivePhoto.FileName, "info", "the server has this file")
+					app.Jnl.Record(
+						ctx,
+						fileevent.UploadServerDuplicate,
+						a.LivePhoto,
+						a.LivePhoto.FileName,
+						"info",
+						"the server has this file",
+					)
 				} else {
 					app.Jnl.Record(ctx, fileevent.Uploaded, a.LivePhoto, a.LivePhoto.FileName)
 				}
@@ -651,7 +804,14 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 		resp, err = app.Immich.AssetUpload(ctx, a)
 		if err == nil {
 			if resp.Status == immich.UploadDuplicate {
-				app.Jnl.Record(ctx, fileevent.UploadServerDuplicate, a, a.FileName, "info", "the server has this file")
+				app.Jnl.Record(
+					ctx,
+					fileevent.UploadServerDuplicate,
+					a,
+					a.FileName,
+					"info",
+					"the server has this file",
+				)
 			} else {
 				b.LivePhoto = nil
 				app.Jnl.Record(ctx, fileevent.Uploaded, &b, b.FileName, "capture date", b.Metadata.DateTaken.String())
@@ -704,7 +864,11 @@ func (app *UpCmd) AddToAlbum(ctx context.Context, id string, album browser.Local
 		if err != nil {
 			return err
 		}
-		app.albums[title] = immich.AlbumSimplified{ID: a.ID, AlbumName: a.AlbumName, Description: a.Description}
+		app.albums[title] = immich.AlbumSimplified{
+			ID:          a.ID,
+			AlbumName:   a.AlbumName,
+			Description: a.Description,
+		}
 	} else {
 		_, err := app.Immich.AddAssetToAlbum(ctx, l.ID, []string{id})
 		if err != nil {
@@ -851,24 +1015,39 @@ func formatBytes(s int) string {
 
 func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
-		Advice:      SameOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Advice: SameOnServer,
+		Message: fmt.Sprintf(
+			"An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.",
+			sa.OriginalFileName,
+			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
+			formatBytes(sa.ExifInfo.FileSizeInByte),
+		),
 		ServerAsset: sa,
 	}
 }
 
 func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
-		Advice:      SmallerOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Advice: SmallerOnServer,
+		Message: fmt.Sprintf(
+			"An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.",
+			sa.OriginalFileName,
+			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
+			formatBytes(sa.ExifInfo.FileSizeInByte),
+		),
 		ServerAsset: sa,
 	}
 }
 
 func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
-		Advice:      BetterOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Advice: BetterOnServer,
+		Message: fmt.Sprintf(
+			"An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.",
+			sa.OriginalFileName,
+			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
+			formatBytes(sa.ExifInfo.FileSizeInByte),
+		),
 		ServerAsset: sa,
 	}
 }
