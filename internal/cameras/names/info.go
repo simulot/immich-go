@@ -36,6 +36,14 @@ type InfoCollector struct {
 	SM metadata.SupportedMedia
 }
 
+// NewInfoCollector creates a new InfoCollector
+func NewInfoCollector(tz *time.Location, sm metadata.SupportedMedia) *InfoCollector {
+	return &InfoCollector{
+		TZ: tz,
+		SM: sm,
+	}
+}
+
 // nameMatcher analyze the name and return
 // bool -> true when name is a part of a burst
 // NameInfo -> the information extracted from the name
