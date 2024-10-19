@@ -56,8 +56,6 @@ func (ic InfoCollector) Pixel(name string) (bool, NameInfo) {
 		info.Index, _ = strconv.Atoi(parts[4])
 	}
 	switch {
-	case strings.Contains(parts[3], "RAW"):
-		info.Kind = KindRawJpg
 	case strings.Contains(parts[3], "PORTRAIT"):
 		info.Kind = KindPortrait
 	case strings.Contains(parts[3], "NIGHT"):

@@ -13,7 +13,6 @@ type Kind int
 const (
 	KindNone Kind = iota
 	KindBurst
-	KindRawJpg
 	KindEdited
 	KindPortrait
 	KindNight
@@ -57,6 +56,7 @@ func (ic InfoCollector) GetInfo(name string) NameInfo {
 	return NameInfo{
 		Base:    name,
 		Radical: strings.TrimSuffix(name, ext),
+		Ext:     ext,
 		Taken:   t,
 		Type:    ic.SM.TypeFromExt(ext),
 	}
