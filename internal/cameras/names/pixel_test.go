@@ -8,7 +8,7 @@ import (
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
-func TestPixelBurst(t *testing.T) {
+func TestPixel(t *testing.T) {
 	tests := []struct {
 		name     string
 		filename string
@@ -96,9 +96,13 @@ func TestPixelBurst(t *testing.T) {
 		},
 	}
 
+	ic := names.InfoCollector{
+		TZ: time.UTC,
+		SM: metadata.DefaultSupportedMedia,
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, info := names.PixelBurst(tt.filename)
+			got, info := ic.Pixel(tt.filename)
 			if got != tt.expected {
 				t.Errorf("expected %v, got %v", tt.expected, got)
 			}

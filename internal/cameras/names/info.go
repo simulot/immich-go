@@ -1,6 +1,12 @@
 package names
 
-import "time"
+import (
+	"path"
+	"strings"
+	"time"
+
+	"github.com/simulot/immich-go/internal/metadata"
+)
 
 type Kind int
 
@@ -26,69 +32,32 @@ type NameInfo struct {
 	IsCover bool      // is this is the cover if the series
 }
 
-// func GetInfo(name string) Info {
-// 	for _, m := range []nameMatcher{pixelBurst, samsungBurst, nexusBurst} {
-// 		if ok, i := m(name); ok {
-// 			return i
-// 		}
-// 	}
-
-// 	return Info{}
-// }
+type InfoCollector struct {
+	TZ *time.Location
+	SM metadata.SupportedMedia
+}
 
 // nameMatcher analyze the name and return
 // bool -> true when name is a part of a burst
-// string -> base name of the burst
-// bool -> is this is the cover if the burst
+// NameInfo -> the information extracted from the name
 type nameMatcher func(name string) (bool, NameInfo)
 
-// // Samsung burst file name pattern
-// // #99  stack: Samsung #99
-// // 20231207_101605_001.jpg
-// // 20231207_101605_002.jpg
-// // 20231207_101605_xxx.jpg
+// GetInfo analyze the name and return the information extracted from the name
+func (ic InfoCollector) GetInfo(name string) NameInfo {
+	for _, m := range []nameMatcher{ic.Pixel, ic.Samsung, ic.Nexus} {
+		if ok, i := m(name); ok {
+			return i
+		}
+	}
 
-// var samsungBurstRE = regexp.MustCompile(`^(\d{8}_\d{6})_(\d{3})$`)
+	// no matcher found, return a basic info
+	t := metadata.TakeTimeFromName(name, ic.TZ)
+	ext := path.Ext(name)
 
-// func samsungBurst(name string) *stackAsset {
-// 	parts := samsungBurstRE.FindStringSubmatch(name)
-// 	if len(parts) == 0 {
-// 		return nil
-// 	}
-// 	return &stackAsset{parts[1], parts[2] == "001"}
-// }
-
-// // Nexus burst file name pattern
-// // #100 stack: Huawei Nexus 6P
-// //
-// // Burst
-// // 00001IMG_00001_BURST20171111030039.jpg
-// // ...
-// // 00014IMG_00014_BURST20171111030039.jpg
-// // 00015IMG_00015_BURST20171111030039_COVER.jpg
-// //
-// // Regular
-// // IMG_20171111_030055.jpg
-// // IMG_20171111_030128.jpg
-
-// var nexusBurstRE = regexp.MustCompile(`^\d{5}IMG_\d{5}_(BURST\d{14})(_COVER)?$`)
-
-// func nexusBurst(name string) *stackAsset {
-// 	parts := nexusBurstRE.FindStringSubmatch(name)
-// 	if len(parts) == 0 {
-// 		return nil
-// 	}
-// 	return &stackAsset{parts[1], parts[2] == "_COVER"}
-// }
-
-// // // Huawei burst file name pattern
-
-// // var huaweiBurstRE = regexp.MustCompile(`^(.*)(_BURST\d+)(_COVER)?(\..*)$`)
-
-// // func huaweiBurst(name string) (bool, string, bool) {
-// // 	parts := huaweiBurstRE.FindStringSubmatch(name)
-// // 	if len(parts) == 0 {
-// // 		return false, "", false
-// // 	}
-// // 	return true, parts[1], parts[3] != ""
-// // }
+	return NameInfo{
+		Base:    name,
+		Radical: strings.TrimSuffix(name, ext),
+		Taken:   t,
+		Type:    ic.SM.TypeFromExt(ext),
+	}
+}

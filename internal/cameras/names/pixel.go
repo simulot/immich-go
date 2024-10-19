@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/simulot/immich-go/internal/metadata"
 )
 
 // Pixel burst file name pattern
@@ -39,10 +37,10 @@ import (
 // PXL_20231220_170358366.RAW-01.COVER.jpg
 // PXL_20231220_170358366.RAW-02.ORIGINAL.dng
 
-var pixelBurstRE = regexp.MustCompile(`^(PXL_\d{8}_\d{9})((.*)?(\d{2}))?(.*)?(\..*)$`)
+var pixelRE = regexp.MustCompile(`^(PXL_\d{8}_\d{9})((.*)?(\d{2}))?(.*)?(\..*)$`)
 
-func PixelBurst(name string) (bool, NameInfo) {
-	parts := pixelBurstRE.FindStringSubmatch(name)
+func (ic InfoCollector) Pixel(name string) (bool, NameInfo) {
+	parts := pixelRE.FindStringSubmatch(name)
 	if len(parts) == 0 {
 		return false, NameInfo{}
 	}
@@ -52,7 +50,7 @@ func PixelBurst(name string) (bool, NameInfo) {
 		Base:    name,
 		IsCover: strings.HasSuffix(parts[5], "COVER"),
 		Ext:     ext,
-		Type:    metadata.DefaultSupportedMedia[ext],
+		Type:    ic.SM.TypeFromExt(ext),
 	}
 	if parts[4] != "" {
 		info.Index, _ = strconv.Atoi(parts[4])
