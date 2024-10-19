@@ -69,3 +69,23 @@ func (sm SupportedMedia) IsIgnoredExt(ext string) bool {
 	t := sm.TypeFromExt(ext)
 	return t == ""
 }
+
+// rawExtensions defines the supported RAW file extensions
+// https://github.com/immich-app/immich/blob/39b571a95c99cbc4183e5d389e6d682cd8e903d9/server/src/utils/mime-types.ts#L1-L55
+// source: https://en.wikipedia.org/wiki/Raw_image_format
+var rawExtensions = map[string]bool{
+	".3fr": true, ".ari": true, ".arw": true, ".cap": true,
+	".cin": true, ".cr2": true, ".cr3": true, ".crw": true,
+	".dcr": true, ".dng": true, ".erf": true, ".fff": true,
+	".iiq": true, ".k25": true, ".kdc": true, ".mrw": true,
+	".nef": true, ".nrw": true, ".orf": true, ".ori": true,
+	".pef": true, ".psd": true, ".raf": true, ".raw": true,
+	".rw2": true, ".rwl": true, ".sr2": true, ".srf": true,
+	".srw": true, ".x3f": true,
+}
+
+// IsRawFile checks if the given filename has a RAW file extension
+func IsRawFile(ext string) bool {
+	ext = strings.ToLower(ext)
+	return rawExtensions[ext]
+}
