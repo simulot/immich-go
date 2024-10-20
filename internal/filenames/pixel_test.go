@@ -1,10 +1,9 @@
-package names_test
+package filenames
 
 import (
 	"testing"
 	"time"
 
-	"github.com/simulot/immich-go/internal/cameras/names"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
@@ -13,13 +12,13 @@ func TestPixel(t *testing.T) {
 		name     string
 		filename string
 		expected bool
-		info     names.NameInfo
+		info     NameInfo
 	}{
 		{
 			name:     "Normal",
 			filename: "PXL_20231026_210642603.dng",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "PXL_20231026_210642603",
 				Base:    "PXL_20231026_210642603.dng",
 				IsCover: false,
@@ -32,7 +31,7 @@ func TestPixel(t *testing.T) {
 			name:     "RawJpg",
 			filename: "PXL_20231207_032111247.RAW-02.ORIGINAL.dng",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "PXL_20231207_032111247",
 				Base:    "PXL_20231207_032111247.RAW-02.ORIGINAL.dng",
 				IsCover: false,
@@ -46,7 +45,7 @@ func TestPixel(t *testing.T) {
 			name:     "RawJpg Cover",
 			filename: "PXL_20231207_032111247.RAW-01.COVER.jpg",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "PXL_20231207_032111247",
 				Base:    "PXL_20231207_032111247.RAW-01.COVER.jpg",
 				IsCover: true,
@@ -60,13 +59,13 @@ func TestPixel(t *testing.T) {
 			name:     "MotionCover",
 			filename: "PXL_20230330_184138390.MOTION-01.COVER.jpg",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "PXL_20230330_184138390",
 				Base:    "PXL_20230330_184138390.MOTION-01.COVER.jpg",
 				IsCover: true,
 				Ext:     ".jpg",
 				Type:    metadata.TypeImage,
-				Kind:    names.KindMotion,
+				Kind:    KindMotion,
 				Index:   1,
 				Taken:   time.Date(2023, 3, 30, 18, 41, 38, 0, time.UTC),
 			},
@@ -75,13 +74,13 @@ func TestPixel(t *testing.T) {
 			name:     "LONG_EXPOSURE_COVER",
 			filename: "PXL_20230809_203029471.LONG_EXPOSURE-01.COVER.jpg",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "PXL_20230809_203029471",
 				Base:    "PXL_20230809_203029471.LONG_EXPOSURE-01.COVER.jpg",
 				IsCover: true,
 				Ext:     ".jpg",
 				Type:    metadata.TypeImage,
-				Kind:    names.KindLongExposure,
+				Kind:    KindLongExposure,
 				Index:   1,
 				Taken:   time.Date(2023, 8, 9, 20, 30, 29, 0, time.UTC),
 			},
@@ -90,13 +89,13 @@ func TestPixel(t *testing.T) {
 			name:     "NIGHT ROW ORIGINAL",
 			filename: "PXL_20240615_204528165.NIGHT.RAW-02.ORIGINAL.dng",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "PXL_20240615_204528165",
 				Base:    "PXL_20240615_204528165.NIGHT.RAW-02.ORIGINAL.dng",
 				IsCover: false,
 				Ext:     ".dng",
 				Type:    metadata.TypeImage,
-				Kind:    names.KindNight,
+				Kind:    KindNight,
 				Index:   2,
 				Taken:   time.Date(2024, 6, 15, 20, 45, 28, 0, time.UTC),
 			},
@@ -105,13 +104,13 @@ func TestPixel(t *testing.T) {
 			name:     "NIGHT ROW COVER",
 			filename: "PXL_20240615_204528165.NIGHT.RAW-01.COVER.jpg",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "PXL_20240615_204528165",
 				Base:    "PXL_20240615_204528165.NIGHT.RAW-01.COVER.jpg",
 				IsCover: true,
 				Ext:     ".jpg",
 				Type:    metadata.TypeImage,
-				Kind:    names.KindNight,
+				Kind:    KindNight,
 				Index:   1,
 				Taken:   time.Date(2024, 6, 15, 20, 45, 28, 0, time.UTC),
 			},
@@ -120,11 +119,11 @@ func TestPixel(t *testing.T) {
 			name:     "InvalidFilename",
 			filename: "IMG_1123.jpg",
 			expected: false,
-			info:     names.NameInfo{},
+			info:     NameInfo{},
 		},
 	}
 
-	ic := names.InfoCollector{
+	ic := InfoCollector{
 		TZ: time.UTC,
 		SM: metadata.DefaultSupportedMedia,
 	}

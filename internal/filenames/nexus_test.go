@@ -1,10 +1,9 @@
-package names_test
+package filenames
 
 import (
 	"testing"
 	"time"
 
-	"github.com/simulot/immich-go/internal/cameras/names"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
@@ -13,19 +12,19 @@ func TestNexus(t *testing.T) {
 		name     string
 		filename string
 		expected bool
-		info     names.NameInfo
+		info     NameInfo
 	}{
 		{
 			name:     "BURST",
 			filename: "00001IMG_00001_BURST20171111030039.jpg",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "BURST20171111030039",
 				Base:    "00001IMG_00001_BURST20171111030039.jpg",
 				IsCover: false,
 				Ext:     ".jpg",
 				Type:    metadata.TypeImage,
-				Kind:    names.KindBurst,
+				Kind:    KindBurst,
 				Index:   1,
 				Taken:   time.Date(2017, 11, 11, 3, 0, 39, 0, time.Local),
 			},
@@ -34,13 +33,13 @@ func TestNexus(t *testing.T) {
 			name:     "BURST cover",
 			filename: "00015IMG_00015_BURST20171111030039_COVER.jpg",
 			expected: true,
-			info: names.NameInfo{
+			info: NameInfo{
 				Radical: "BURST20171111030039",
 				Base:    "00015IMG_00015_BURST20171111030039_COVER.jpg",
 				IsCover: true,
 				Ext:     ".jpg",
 				Type:    metadata.TypeImage,
-				Kind:    names.KindBurst,
+				Kind:    KindBurst,
 				Index:   15,
 				Taken:   time.Date(2017, 11, 11, 3, 0, 39, 0, time.Local),
 			},
@@ -50,11 +49,11 @@ func TestNexus(t *testing.T) {
 			name:     "InvalidFilename",
 			filename: "IMG_1123.jpg",
 			expected: false,
-			info:     names.NameInfo{},
+			info:     NameInfo{},
 		},
 	}
 
-	ic := names.InfoCollector{
+	ic := InfoCollector{
 		TZ: time.Local,
 		SM: metadata.DefaultSupportedMedia,
 	}

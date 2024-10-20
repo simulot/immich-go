@@ -1,8 +1,9 @@
-package names
+package filenames
 
 import (
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,7 +23,7 @@ func (ic InfoCollector) Samsung(name string) (bool, NameInfo) {
 	info := NameInfo{
 		Radical: parts[1],
 		Base:    name,
-		Ext:     parts[3],
+		Ext:     strings.ToLower(parts[3]),
 		Type:    ic.SM.TypeFromExt(parts[3]),
 		Kind:    KindBurst,
 	}

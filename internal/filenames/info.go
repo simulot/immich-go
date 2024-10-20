@@ -1,4 +1,4 @@
-package names
+package filenames
 
 import (
 	"path"
@@ -58,13 +58,13 @@ func (ic InfoCollector) GetInfo(name string) NameInfo {
 	}
 
 	// no matcher found, return a basic info
-	t := metadata.TakeTimeFromName(name, ic.TZ)
+	t := TakeTimeFromName(name, ic.TZ)
 	ext := path.Ext(name)
 
 	return NameInfo{
 		Base:    name,
 		Radical: strings.TrimSuffix(name, ext),
-		Ext:     ext,
+		Ext:     strings.ToLower(ext),
 		Taken:   t,
 		Type:    ic.SM.TypeFromExt(ext),
 	}

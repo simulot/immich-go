@@ -1,4 +1,4 @@
-package names
+package filenames
 
 import (
 	"regexp"
@@ -32,7 +32,7 @@ func (ic InfoCollector) Nexus(name string) (bool, NameInfo) {
 		Radical: parts[3],
 		Base:    name,
 		IsCover: strings.HasSuffix(parts[4], "COVER"),
-		Ext:     ext,
+		Ext:     strings.ToLower(ext),
 		Type:    ic.SM.TypeFromExt(ext),
 		Kind:    KindBurst,
 	}
