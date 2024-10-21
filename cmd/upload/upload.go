@@ -71,8 +71,9 @@ type UpCmd struct {
 	deleteServerList []*immich.Asset           // List of server assets to remove
 	deleteLocalList  []*browser.LocalAssetFile // List of local assets to remove
 	// updateAlbums     map[string]map[string]any // track immich albums changes
-	stacks  *stacking.StackBuilder
-	browser browser.Browser
+	stacks           *stacking.StackBuilder
+	browser          browser.Browser
+	uploadedAssetIDs []string
 }
 
 func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
@@ -435,6 +436,28 @@ assetLoop:
 					err = app.Immich.StackAssets(ctx, s.CoverID, s.IDs)
 					if err != nil {
 						app.Log.Error(fmt.Sprintf("Can't stack images: %s", err))
+					}
+				}
+			}
+		}
+	}
+
+	if len(app.Tags) > 0 {
+		app.Log.Info(fmt.Sprintf("Upserting tags: %s", strings.Join(app.Tags, ", ")))
+		tags, err := app.Immich.UpsertTags(ctx, app.Tags)
+		if err != nil {
+			app.Log.Error(fmt.Sprintf("Failed to UpsertTags: %s", err))
+		} else {
+			app.Log.Info(fmt.Sprintf("Tagging %d assets", len(app.uploadedAssetIDs)))
+			for _, tag := range tags {
+				tagAssetsResp, err := app.Immich.TagAssets(ctx, tag.ID, app.uploadedAssetIDs)
+				if err != nil {
+					app.Log.Error(fmt.Sprintf("Failed to TagAssets for tagID %s: %s", tag.ID, err))
+				}
+
+				for _, r := range tagAssetsResp {
+					if !r.Success {
+						app.Log.Error(fmt.Sprintf("Failed to TagAssets for tagID: %s, assetID %s: %s", tag.ID, r.ID, r.Error))
 					}
 				}
 			}
@@ -820,23 +843,7 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 					"the server has this file",
 				)
 			} else {
-				if len(app.Tags) > 0 {
-					tags, err := app.Immich.UpsertTags(ctx, app.Tags)
-					if err != nil {
-						app.Jnl.Record(ctx, fileevent.UploadTagAssetError, &b, b.FileName, "tags", strings.Join(app.Tags, ", "), "error", err.Error())
-					} else {
-						for _, tag := range tags {
-							tagAssetsResp, err := app.Immich.TagAssets(ctx, tag.ID, []string{resp.ID})
-							if err != nil {
-								app.Jnl.Record(ctx, fileevent.UploadTagAssetError, &b, b.FileName, "tag", tag.Value, "error", err.Error())
-							} else if len(tagAssetsResp) > 0 && tagAssetsResp[0].Error != "" {
-								app.Jnl.Record(ctx, fileevent.UploadTagAssetError, &b, b.FileName, "tag", tag.Value, "error", tagAssetsResp[0].Error)
-							} else {
-								app.Jnl.Record(ctx, fileevent.UploadTagAsset, &b, b.FileName, "tag", tag.Value, "reason", "option -tags")
-							}
-						}
-					}
-				}
+				app.uploadedAssetIDs = append(app.uploadedAssetIDs, resp.ID)
 				b.LivePhoto = nil
 				app.Jnl.Record(ctx, fileevent.Uploaded, &b, b.FileName, "capture date", b.Metadata.DateTaken.String())
 			}
