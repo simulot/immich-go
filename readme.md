@@ -112,7 +112,8 @@ Use this command for uploading photos and videos from a local directory, a zippe
 | `-exclude-types=".ext,.ext,.ext..."` | List of excluded extensions.                                                                    |                                                                                           |
 | `-when-no-date=FILE\|NOW`            | When the date of take can't be determined, use the FILE's date or the current time NOW.         | `FILE`                                                                                    |
 | `-exclude-files=pattern`             | Ignore files based on a pattern. Case insensitive. Repeat the option for each pattern do you need. | `@eaDir/`<br>`@__thumb/`<br>`SYNOFILE_THUMB_*.*`<br>`Lightroom Catalog/`<br>`thumbnails/` |
-| `tags="COMMA-SEPARATED,LIST/OF,TAGS"` | Tag imported assets with specified tags. Can use forward slashes for hierarchal tags (ex. "Holiday/Groundhog's Day"). | |
+| `tags="COMMA-SEPARATED,LIST/OF,TAGS"`| Tag imported assets with specified tags. Can use forward slashes for hierarchal tags (ex. "Holiday/Groundhog's Day"). | |
+| `tag-session`                        | Tag uploaded assets according to the format immich-go_YYYY-MM-DD_HH-MI-SS                       | |
 
 ### Date selection:
 Fine-tune import based on specific dates:

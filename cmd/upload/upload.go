@@ -62,6 +62,7 @@ type UpCmd struct {
 	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
 	BannedFiles            namematcher.List // List of banned file name patterns
 	Tags                   StringList       // List of tags to apply to assets after upload. Can use forwards slashes to create tag hierarchy (ex. "Holiday/Groundhog's Day")
+	TagSession             bool             // Tag uploaded assets according to the format immich-go_YYYY-MM-DD_HH-MI-SS
 
 	BrowserConfig Configuration
 
@@ -230,6 +231,12 @@ func newCommand(
 		&app.Tags,
 		"tags",
 		"Comma separated tags to apply to assets after upload. Use forwards slashes to create hierarchal tags (ex. \"Holiday/Groundhog's Day\").",
+	)
+
+	cmd.BoolFunc(
+		"tag-session",
+		"Tag uploaded assets according to the format immich-go_YYYY-MM-DD_HH-MI-SS",
+		myflag.BoolFlagFn(&app.TagSession, false),
 	)
 
 	cmd.BoolVar(
@@ -442,7 +449,12 @@ assetLoop:
 		}
 	}
 
+	if app.TagSession {
+		app.Tags = append(app.Tags, time.Now().Format("immich-go_2006-01-02_15-04-05"))
+	}
+
 	if len(app.Tags) > 0 {
+		time.Sleep(time.Second * 5)
 		app.Log.Info(fmt.Sprintf("Upserting tags: %s", strings.Join(app.Tags, ", ")))
 		tags, err := app.Immich.UpsertTags(ctx, app.Tags)
 		if err != nil {
