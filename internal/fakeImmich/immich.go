@@ -138,3 +138,15 @@ func (c *MockedCLient) TagAssets(
 ) ([]immich.TagAssetsResponse, error) {
 	return nil, nil
 }
+
+func (c *MockedCLient) BulkTagAssets(
+	ctx context.Context,
+	tagIDs []string,
+	assetIDs []string,
+) (struct {
+	Count int `json:"count"`
+}, error) {
+	return struct {
+		Count int `json:"count"`
+	}{}, nil
+}

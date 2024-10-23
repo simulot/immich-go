@@ -62,6 +62,13 @@ type ImmichInterface interface {
 		tagID string,
 		assetIDs []string,
 	) ([]TagAssetsResponse, error)
+	BulkTagAssets(
+		ctx context.Context,
+		tagIDs []string,
+		assetIDs []string,
+	) (struct {
+		Count int `json:"count"`
+	}, error)
 }
 
 type UnsupportedMedia struct {

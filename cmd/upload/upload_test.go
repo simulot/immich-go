@@ -192,6 +192,18 @@ func (c *icCatchUploadsAssets) TagAssets(
 	return nil, nil
 }
 
+func (c *icCatchUploadsAssets) BulkTagAssets(
+	ctx context.Context,
+	tagIDs []string,
+	assetIDs []string,
+) (struct {
+	Count int `json:"count"`
+}, error) {
+	return struct {
+		Count int `json:"count"`
+	}{}, nil
+}
+
 func TestUpload(t *testing.T) {
 	testCases := []struct {
 		name           string

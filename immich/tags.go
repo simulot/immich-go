@@ -48,3 +48,27 @@ func (ic *ImmichClient) TagAssets(
 	}
 	return resp, nil
 }
+
+func (ic *ImmichClient) BulkTagAssets(
+	ctx context.Context,
+	tagIDs []string,
+	assetIDs []string,
+) (struct {
+	Count int `json:"count"`
+}, error) {
+	var resp struct {
+		Count int `json:"count"`
+	}
+
+	body := struct {
+		TagIDs   []string `json:"tagIds"`
+		AssetIDs []string `json:"assetIds"`
+	}{
+		TagIDs:   tagIDs,
+		AssetIDs: assetIDs,
+	}
+	err := ic.newServerCall(ctx, EndPointBulkTagAssets).
+		do(putRequest("/tags/assets", setJSONBody(body)), responseJSON(&resp))
+
+	return resp, err
+}

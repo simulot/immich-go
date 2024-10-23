@@ -20,6 +20,7 @@ import (
 	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/browser/gp"
 	"github.com/simulot/immich-go/cmd"
+	"github.com/simulot/immich-go/helpers/backoff"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
@@ -62,7 +63,8 @@ type UpCmd struct {
 	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
 	BannedFiles            namematcher.List // List of banned file name patterns
 	Tags                   StringList       // List of tags to apply to assets after upload. Can use forwards slashes to create tag hierarchy (ex. "Holiday/Groundhog's Day")
-	TagSession             bool             // Tag uploaded assets according to the format immich-go_YYYY-MM-DD_HH-MI-SS
+	TagWithSession         bool             // Tag uploaded assets according to the format immich-go/YYYY-MM-DD/HH-MI-SS
+	TagWithPath            bool             // Hierarchically tag uploaded assets using path to assets
 
 	BrowserConfig Configuration
 
@@ -234,9 +236,15 @@ func newCommand(
 	)
 
 	cmd.BoolFunc(
-		"tag-session",
-		"Tag uploaded assets according to the format immich-go_YYYY-MM-DD_HH-MI-SS",
-		myflag.BoolFlagFn(&app.TagSession, false),
+		"tag-with-session",
+		"Tag uploaded assets according to the format immich-go/YYYY-MM-DD/HH-MI-SS",
+		myflag.BoolFlagFn(&app.TagWithSession, false),
+	)
+
+	cmd.BoolFunc(
+		"tag-with-path",
+		"Hierarchically tag uploaded assets using path to assets",
+		myflag.BoolFlagFn(&app.TagWithPath, false),
 	)
 
 	cmd.BoolVar(
@@ -449,28 +457,37 @@ assetLoop:
 		}
 	}
 
-	if app.TagSession {
-		app.Tags = append(app.Tags, time.Now().Format("immich-go_2006-01-02_15-04-05"))
+	if app.TagWithSession {
+		app.Tags = append(app.Tags, time.Now().Format("immich-go/2006-01-02/15-04-05"))
 	}
 
 	if len(app.Tags) > 0 {
-		time.Sleep(time.Second * 5)
-		app.Log.Info(fmt.Sprintf("Upserting tags: %s", strings.Join(app.Tags, ", ")))
-		tags, err := app.Immich.UpsertTags(ctx, app.Tags)
-		if err != nil {
-			app.Log.Error(fmt.Sprintf("Failed to UpsertTags: %s", err))
-		} else {
-			app.Log.Info(fmt.Sprintf("Tagging %d assets", len(app.uploadedAssetIDs)))
-			for _, tag := range tags {
-				tagAssetsResp, err := app.Immich.TagAssets(ctx, tag.ID, app.uploadedAssetIDs)
+		b := backoff.DefaultExponentialBackoff()
+		for b.Wait(ctx) == nil {
+			app.Log.Info(
+				fmt.Sprintf(
+					"Upserting tags: %s (attempt %d, delay: %s)",
+					strings.Join(app.Tags, ", "),
+					b.GetAttempt(),
+					time.Duration(b.NextDelay()),
+				),
+			)
+			tags, err := app.Immich.UpsertTags(ctx, app.Tags)
+			if err != nil {
+				app.Log.Error(fmt.Sprintf("Failed to UpsertTags: %s", err))
+			} else {
+				app.Log.Info(fmt.Sprintf("Tagging %d assets", len(app.uploadedAssetIDs)))
+				var tagIDs []string
+				for _, tag := range tags {
+					tagIDs = append(tagIDs, tag.ID)
+				}
+				tagAssetsResp, err := app.Immich.BulkTagAssets(ctx, tagIDs, app.uploadedAssetIDs)
 				if err != nil {
-					app.Log.Error(fmt.Sprintf("Failed to TagAssets for tagID %s: %s", tag.ID, err))
+					app.Log.Error(fmt.Sprintf("Failed to BulkTagAssets for tagIDs %+v: %s", tagIDs, err))
 				}
 
-				for _, r := range tagAssetsResp {
-					if !r.Success {
-						app.Log.Error(fmt.Sprintf("Failed to TagAssets for tagID: %s, assetID %s: %s", tag.ID, r.ID, r.Error))
-					}
+				if tagAssetsResp.Count >= len(tags)*len(app.uploadedAssetIDs) {
+					break
 				}
 			}
 		}
