@@ -55,6 +55,12 @@ type ImmichInterface interface {
 
 	SupportedMedia() SupportedMedia
 	GetJobs(ctx context.Context) (map[string]Job, error)
+	SendJobCommand(
+		ctx context.Context,
+		jobID JobID,
+		command JobCommand,
+		force bool,
+	) (SendJobCommandResponse, error)
 
 	UpsertTags(ctx context.Context, tags []string) ([]TagSimplified, error)
 	TagAssets(

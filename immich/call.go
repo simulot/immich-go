@@ -17,6 +17,7 @@ import (
 
 const (
 	EndPointGetJobs                = "GetJobs"
+	EndPointSendJobCommand         = "SendJobCommand"
 	EndPointGetAllAlbums           = "GetAllAlbums"
 	EndPointGetAlbumInfo           = "GetAlbumInfo"
 	EndPointAddAsstToAlbum         = "AddAssetToAlbum"

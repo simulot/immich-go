@@ -65,21 +65,56 @@ func (app *SharedFlags) InitSharedFlags() {
 
 // SetFlag add common flags to a flagset
 func (app *SharedFlags) SetFlags(fs *flag.FlagSet) {
-	fs.StringVar(&app.ConfigurationFile, "use-configuration", app.ConfigurationFile, "Specifies the configuration to use")
-	fs.StringVar(&app.Server, "server", app.Server, "Immich server address (http://<your-ip>:2283 or https://<your-domain>)")
+	fs.StringVar(
+		&app.ConfigurationFile,
+		"use-configuration",
+		app.ConfigurationFile,
+		"Specifies the configuration to use",
+	)
+	fs.StringVar(
+		&app.Server,
+		"server",
+		app.Server,
+		"Immich server address (http://<your-ip>:2283 or https://<your-domain>)",
+	)
 	fs.StringVar(&app.API, "api", app.API, "Immich api endpoint (http://container_ip:3301)")
 	fs.StringVar(&app.Key, "key", app.Key, "API Key")
 	fs.StringVar(&app.DeviceUUID, "device-uuid", app.DeviceUUID, "Set a device UUID")
-	fs.StringVar(&app.LogLevel, "log-level", app.LogLevel, "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
+	fs.StringVar(
+		&app.LogLevel,
+		"log-level",
+		app.LogLevel,
+		"Log level (DEBUG|INFO|WARN|ERROR), default INFO",
+	)
 	fs.StringVar(&app.LogFile, "log-file", app.LogFile, "Write log messages into the file")
-	fs.BoolFunc("log-json", "Output line-delimited JSON file, default FALSE", myflag.BoolFlagFn(&app.JSONLog, app.JSONLog))
-	fs.BoolFunc("api-trace", "enable trace of api calls", myflag.BoolFlagFn(&app.APITrace, app.APITrace))
+	fs.BoolFunc(
+		"log-json",
+		"Output line-delimited JSON file, default FALSE",
+		myflag.BoolFlagFn(&app.JSONLog, app.JSONLog),
+	)
+	fs.BoolFunc(
+		"api-trace",
+		"enable trace of api calls",
+		myflag.BoolFlagFn(&app.APITrace, app.APITrace),
+	)
 	fs.BoolFunc("debug", "enable debug messages", myflag.BoolFlagFn(&app.Debug, app.Debug))
 	fs.StringVar(&app.TimeZone, "time-zone", app.TimeZone, "Override the system time zone")
-	fs.BoolFunc("skip-verify-ssl", "Skip SSL verification", myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL))
+	fs.BoolFunc(
+		"skip-verify-ssl",
+		"Skip SSL verification",
+		myflag.BoolFlagFn(&app.SkipSSL, app.SkipSSL),
+	)
 	fs.BoolFunc("no-ui", "Disable the user interface", myflag.BoolFlagFn(&app.NoUI, app.NoUI))
-	fs.Func("client-timeout", "Set server calls timeout, default 1m", myflag.DurationFlagFn(&app.ClientTimeout, app.ClientTimeout))
-	fs.BoolFunc("debug-counters", "generate a CSV file with actions per handled files", myflag.BoolFlagFn(&app.DebugCounters, false))
+	fs.Func(
+		"client-timeout",
+		"Set server calls timeout, default 1m",
+		myflag.DurationFlagFn(&app.ClientTimeout, app.ClientTimeout),
+	)
+	fs.BoolFunc(
+		"debug-counters",
+		"generate a CSV file with actions per handled files",
+		myflag.BoolFlagFn(&app.DebugCounters, false),
+	)
 }
 
 func (app *SharedFlags) Start(ctx context.Context) error {
@@ -134,9 +169,17 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 
 		switch {
 		case app.Server == "" && app.API == "":
-			joinedErr = errors.Join(joinedErr, errors.New("missing -server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
+			joinedErr = errors.Join(
+				joinedErr,
+				errors.New(
+					"missing -server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)",
+				),
+			)
 		case app.Server != "" && app.API != "":
-			joinedErr = errors.Join(joinedErr, errors.New("give either the -server or the -api option"))
+			joinedErr = errors.Join(
+				joinedErr,
+				errors.New("give either the -server or the -api option"),
+			)
 		}
 		if app.Key == "" {
 			joinedErr = errors.Join(joinedErr, errors.New("missing -key"))
@@ -162,7 +205,12 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 		}
 		app.Log.Info("Connection to the server " + app.Server)
 
-		app.Immich, err = immich.NewImmichClient(app.Server, app.Key, immich.OptionVerifySSL(app.SkipSSL), immich.OptionConnectionTimeout(app.ClientTimeout))
+		app.Immich, err = immich.NewImmichClient(
+			app.Server,
+			app.Key,
+			immich.OptionVerifySSL(app.SkipSSL),
+			immich.OptionConnectionTimeout(app.ClientTimeout),
+		)
 		if err != nil {
 			return err
 		}
@@ -179,8 +227,15 @@ func (app *SharedFlags) Start(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				app.APITraceWriterName = strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".trace.log"
-				app.APITraceWriter, err = os.OpenFile(app.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
+				app.APITraceWriterName = strings.TrimSuffix(
+					app.LogFile,
+					filepath.Ext(app.LogFile),
+				) + ".trace.log"
+				app.APITraceWriter, err = os.OpenFile(
+					app.APITraceWriterName,
+					os.O_CREATE|os.O_WRONLY,
+					0o664,
+				)
 				if err != nil {
 					return err
 				}

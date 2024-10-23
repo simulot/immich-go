@@ -120,6 +120,15 @@ func (c *MockedCLient) GetJobs(ctx context.Context) (map[string]immich.Job, erro
 	return nil, nil
 }
 
+func (c *MockedCLient) SendJobCommand(
+	ctx context.Context,
+	jobID immich.JobID,
+	command immich.JobCommand,
+	force bool,
+) (immich.SendJobCommandResponse, error) {
+	return immich.SendJobCommandResponse{}, nil
+}
+
 func (c *MockedCLient) GetAlbumInfo(context.Context, string, bool) (immich.AlbumContent, error) {
 	return immich.AlbumContent{}, nil
 }

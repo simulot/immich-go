@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"math"
 	"os"
 	"path"
@@ -20,7 +21,6 @@ import (
 	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/browser/gp"
 	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/helpers/backoff"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
@@ -77,6 +77,7 @@ type UpCmd struct {
 	stacks           *stacking.StackBuilder
 	browser          browser.Browser
 	uploadedAssetIDs []string
+	tagToAssetIDs    map[string][]string
 }
 
 func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
@@ -306,6 +307,9 @@ func newCommand(
 		fmt.Println("No file found matching the pattern: ", strings.Join(cmd.Args(), ","))
 		app.Log.Info("No file found matching the pattern: " + strings.Join(cmd.Args(), ","))
 	}
+
+	app.tagToAssetIDs = make(map[string][]string)
+
 	return &app, nil
 }
 
@@ -411,6 +415,15 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 }
 
 func (app *UpCmd) uploadLoop(ctx context.Context) error {
+	if len(app.Tags) > 0 || app.TagWithPath {
+		/*
+			https://github.com/immich-app/immich/discussions/13637#discussioncomment-11017586
+			This hack resolve possible race condition where asset is moved out of upload dir
+			by pausing the storageTemplateMigration job
+		*/
+		app.Immich.SendJobCommand(ctx, immich.StorageTemplateMigration, immich.Pause, false)
+	}
+
 	var err error
 	assetChan := app.browser.Browse(ctx)
 assetLoop:
@@ -461,36 +474,18 @@ assetLoop:
 		app.Tags = append(app.Tags, time.Now().Format("immich-go/2006-01-02/15-04-05"))
 	}
 
-	if len(app.Tags) > 0 {
-		b := backoff.DefaultExponentialBackoff()
-		for b.Wait(ctx) == nil {
-			app.Log.Info(
-				fmt.Sprintf(
-					"Upserting tags: %s (attempt %d, delay: %s)",
-					strings.Join(app.Tags, ", "),
-					b.GetAttempt(),
-					time.Duration(b.NextDelay()),
-				),
-			)
-			tags, err := app.Immich.UpsertTags(ctx, app.Tags)
-			if err != nil {
-				app.Log.Error(fmt.Sprintf("Failed to UpsertTags: %s", err))
-			} else {
-				app.Log.Info(fmt.Sprintf("Tagging %d assets", len(app.uploadedAssetIDs)))
-				var tagIDs []string
-				for _, tag := range tags {
-					tagIDs = append(tagIDs, tag.ID)
-				}
-				tagAssetsResp, err := app.Immich.BulkTagAssets(ctx, tagIDs, app.uploadedAssetIDs)
-				if err != nil {
-					app.Log.Error(fmt.Sprintf("Failed to BulkTagAssets for tagIDs %+v: %s", tagIDs, err))
-				}
+	if len(app.Tags) > 0 || app.TagWithPath {
+		tagAssets(ctx, app.Immich, app.Log, app.Tags, app.uploadedAssetIDs)
 
-				if tagAssetsResp.Count >= len(tags)*len(app.uploadedAssetIDs) {
-					break
+		if app.TagWithPath {
+			for k, v := range app.tagToAssetIDs {
+				if k == "." {
+					continue
 				}
+				tagAssets(ctx, app.Immich, app.Log, []string{k}, v)
 			}
 		}
+		app.Immich.SendJobCommand(ctx, immich.StorageTemplateMigration, immich.Resume, false)
 	}
 
 	// if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
@@ -873,6 +868,14 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 				)
 			} else {
 				app.uploadedAssetIDs = append(app.uploadedAssetIDs, resp.ID)
+				if app.TagWithPath {
+					pathTag := filepath.ToSlash(filepath.Dir(a.FileName))
+					if assetIDs := app.tagToAssetIDs[pathTag]; assetIDs != nil {
+						app.tagToAssetIDs[pathTag] = append(assetIDs, resp.ID)
+					} else {
+						app.tagToAssetIDs[pathTag] = []string{resp.ID}
+					}
+				}
 				b.LivePhoto = nil
 				app.Jnl.Record(ctx, fileevent.Uploaded, &b, b.FileName, "capture date", b.Metadata.DateTaken.String())
 			}
@@ -1180,4 +1183,31 @@ func compareDate(d1 time.Time, d2 time.Time) int {
 		return +1
 	}
 	return 0
+}
+
+func tagAssets(
+	ctx context.Context,
+	imm immich.ImmichInterface,
+	logger *slog.Logger,
+	tags []string,
+	assetIDs []string,
+) {
+	if len(tags) == 0 || len(assetIDs) == 0 {
+		return
+	}
+	logger.Info(fmt.Sprintf("Upserting tags: %s", strings.Join(tags, ", ")))
+	tagResponses, err := imm.UpsertTags(ctx, tags)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to UpsertTags: %s", err))
+	} else {
+		logger.Info(fmt.Sprintf("Tagging %d assets", len(assetIDs)))
+		var tagIDs []string
+		for _, tag := range tagResponses {
+			tagIDs = append(tagIDs, tag.ID)
+		}
+		_, err := imm.BulkTagAssets(ctx, tagIDs, assetIDs)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to BulkTagAssets for tagIDs %+v: %s", tagIDs, err))
+		}
+	}
 }
