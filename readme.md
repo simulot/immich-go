@@ -117,12 +117,12 @@ Use this command for uploading photos and videos from a local directory, a zippe
 
 Fine-tune import based on specific dates (all UTC):
 
-| **Parameter**                | **Description**                                     |
-| ---------------------------- | --------------------------------------------------- |
-| `-date=YYYY-MM-DD,YYYY-MM-DD | import photos taken in given date range (inclusive) |
-| `-date=YYYY-MM-DD`           | import photos taken on a particular day.            |
-| `-date=YYYY-MM`              | select photos taken during a particular month.      |
-| `-date=YYYY`                 | select photos taken during a particular year.       |
+| **Parameter**                 | **Description**                                     |
+| ----------------------------- | --------------------------------------------------- |
+| `-date=YYYY-MM-DD,YYYY-MM-DD` | import photos taken in given date range (inclusive) |
+| `-date=YYYY-MM-DD`            | import photos taken on a particular day.            |
+| `-date=YYYY-MM`               | select photos taken during a particular month.      |
+| `-date=YYYY`                  | select photos taken during a particular year.       |
 
 ### Exclude files based on a pattern
 
