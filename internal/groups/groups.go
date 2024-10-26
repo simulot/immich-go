@@ -3,7 +3,11 @@ package groups
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
+
+	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/groups/groupby"
 )
 
 // A group of assets link assets that are linked together. This
@@ -22,35 +26,22 @@ import (
 //
 // All group's assets can be added to 0 or more albums
 
-type Kind int
-
-const (
-	KindNone Kind = iota
-	KindMotionPhoto
-	KindBurst
-	KindRawJpg
-	KindEdited
-)
-
 type Asset interface {
-	Base() string         // base name
-	Radical() string      // base name without extension
-	Ext() string          // extension
-	DateTaken() time.Time // date taken
-	Type() string         // type of the asset  video, image
+	DateTaken() time.Time
+	NameInfo() filenames.NameInfo
 }
 
 type AssetGroup struct {
 	Assets     []Asset
-	Kind       Kind
+	Grouping   groupby.GroupBy
 	CoverIndex int // index of the cover assert in the Assets slice
 }
 
 // NewAssetGroup create a new asset group
-func NewAssetGroup(kind Kind, a ...Asset) *AssetGroup {
+func NewAssetGroup(grouping groupby.GroupBy, a ...Asset) *AssetGroup {
 	return &AssetGroup{
-		Kind:   kind,
-		Assets: a,
+		Grouping: grouping,
+		Assets:   a,
 	}
 }
 
@@ -84,18 +75,8 @@ func (g *AssetGroup) Validate() error {
 	return nil
 }
 
-/*
-A grouper is a filter that inspects the assets and creates groups of assets based on date taken
-and file names.
-
-A group builder requires that assets are delivered the entry channel sorted by date taken. Doing so, isolated assets
-are released quickly, and can be processed by the next filter in the pipeline.
-
-Detected groups are sent to the output channel for been passed to the main upload program
-*/
-type Grouper interface {
-	Group(ctx context.Context, in <-chan Asset, outg <-chan *AssetGroup, outa chan<- Asset)
-}
+// Grouper is an interface for a type that can group assets.
+type Grouper func(ctx context.Context, in <-chan Asset, out chan<- Asset, gOut chan<- *AssetGroup)
 
 /*
 A grouper pipeline is a chain of groupers that process assets in sequence.
@@ -114,35 +95,39 @@ func NewGrouperPipeline(ctx context.Context, gs ...Grouper) *GrouperPipeline {
 	return g
 }
 
-func pipeChannels[T any](ctx context.Context, in chan T) chan T {
-	outa := make(chan T)
-	go func() {
-		defer close(outa)
-		for {
-			select {
-			case <-ctx.Done():
-				return
+// Group groups assets in a pipeline of groupers.
+// Group opens and closes intermediate channels as required.
+func (p *GrouperPipeline) Group(ctx context.Context, in chan Asset, out chan Asset, gOut chan *AssetGroup) {
+	// Create channels
+	inChans := make([]chan Asset, len(p.groupers))
+	outChans := make([]chan Asset, len(p.groupers))
 
-			case a, ok := <-in:
-				if !ok {
-					return
-				}
-				outa <- a
-
-			}
+	// initialize channels for each grouper
+	for i := range p.groupers {
+		if i == 0 {
+			inChans[i] = in
+		} else {
+			inChans[i] = outChans[i-1]
 		}
-	}()
-	return outa
-}
-
-func (p *GrouperPipeline) Process(ctx context.Context, in chan Asset) (<-chan *AssetGroup, chan Asset) {
-	outg := make(<-chan *AssetGroup)
-	var outa chan Asset
-
-	for _, g := range p.groupers {
-		outa := make(chan Asset)
-		go g.Group(ctx, in, outg, outa)
-		in = outa // next grouper input is the current grouper output
+		if i < len(p.groupers)-1 {
+			outChans[i] = make(chan Asset) // intermediate channels between groupers
+		} else {
+			outChans[i] = out
+		}
 	}
-	return outg, outa
+
+	// call groupers with the appropriate channels
+	wg := sync.WaitGroup{}
+	for i := range p.groupers {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			p.groupers[i](ctx, inChans[i], outChans[i], gOut)
+			if i < len(p.groupers)-1 {
+				close(outChans[i]) // close intermediate channels
+			}
+		}(i)
+	}
+	// Wait for all groupers to finish
+	wg.Wait()
 }
