@@ -114,13 +114,15 @@ Use this command for uploading photos and videos from a local directory, a zippe
 | `-exclude-files=pattern`             | Ignore files based on a pattern. Case insensitive. Repeat the option for each pattern do you need. | `@eaDir/`<br>`@__thumb/`<br>`SYNOFILE_THUMB_*.*`<br>`Lightroom Catalog/`<br>`thumbnails/` |
 
 ### Date selection:
-Fine-tune import based on specific dates:
 
-| **Parameter**      | **Description**                                |
-| ------------------ | ---------------------------------------------- |
-| `-date=YYYY-MM-DD` | import photos taken on a particular day.       |
-| `-date=YYYY-MM`    | select photos taken during a particular month. |
-| `-date=YYYY`       | select photos taken during a particular year.  |
+Fine-tune import based on specific dates (all UTC):
+
+| **Parameter**                | **Description**                                     |
+| ---------------------------- | --------------------------------------------------- |
+| `-date=YYYY-MM-DD,YYYY-MM-DD | import photos taken in given date range (inclusive) |
+| `-date=YYYY-MM-DD`           | import photos taken on a particular day.            |
+| `-date=YYYY-MM`              | select photos taken during a particular month.      |
+| `-date=YYYY`                 | select photos taken during a particular year.       |
 
 ### Exclude files based on a pattern
 
