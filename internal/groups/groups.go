@@ -95,10 +95,13 @@ func NewGrouperPipeline(ctx context.Context, gs ...Grouper) *GrouperPipeline {
 	return g
 }
 
-// Group groups assets in a pipeline of groupers.
+// PipeGrouper groups assets in a pipeline of groupers.
 // Group opens and closes intermediate channels as required.
-func (p *GrouperPipeline) Group(ctx context.Context, in chan Asset, out chan Asset, gOut chan *AssetGroup) {
+func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan Asset) chan *AssetGroup {
 	// Create channels
+	gOut := make(chan *AssetGroup) // output channel for groups
+	out := make(chan Asset)        // output channel for the last grouper
+
 	inChans := make([]chan Asset, len(p.groupers))
 	outChans := make([]chan Asset, len(p.groupers))
 
@@ -128,6 +131,31 @@ func (p *GrouperPipeline) Group(ctx context.Context, in chan Asset, out chan Ass
 			}
 		}(i)
 	}
-	// Wait for all groupers to finish
-	wg.Wait()
+
+	// wait for all groupers to finish and close the output channel
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	// groups standalone assets
+	go func() {
+		defer close(gOut)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				a, ok := <-out
+				if !ok {
+					return
+				}
+				if a != nil {
+					gOut <- NewAssetGroup(groupby.GroupByNone, a)
+				}
+			}
+		}
+	}()
+
+	return gOut
 }

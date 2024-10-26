@@ -114,10 +114,8 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "photo6.jpg", baseTime.Add(130*time.Hour)),
 	}
 
+	// inject assets in the input channel
 	in := make(chan groups.Asset)
-	out := make(chan groups.Asset)
-	gOut := make(chan *groups.AssetGroup)
-
 	go func() {
 		for _, a := range assets {
 			in <- a
@@ -125,33 +123,18 @@ func TestGroup(t *testing.T) {
 		close(in)
 	}()
 
-	ctx := context.Background()
-	go func() {
-		groups.NewGrouperPipeline(ctx, series.Group, burst.Group).Group(ctx, in, out, gOut)
-		close(out)
-		close(gOut)
-	}()
-
+	// collect the outputs in gotGroups and gotAssets
 	var gotGroups []*groups.AssetGroup
 	var gotAssets []groups.Asset
+	ctx := context.Background()
 
-	doneGroups := false
-	doneAssets := false
-
-	for !doneGroups || !doneAssets {
-		select {
-		case group, ok := <-gOut:
-			if !ok {
-				doneGroups = true
-				continue
-			}
-			gotGroups = append(gotGroups, group)
-		case asset, ok := <-out:
-			if !ok {
-				doneAssets = true
-				continue
-			}
-			gotAssets = append(gotAssets, asset)
+	gOut := groups.NewGrouperPipeline(ctx, series.Group, burst.Group).PipeGrouper(ctx, in)
+	for g := range gOut {
+		switch g.Grouping {
+		case groupby.GroupByNone:
+			gotAssets = append(gotAssets, g.Assets...)
+		default:
+			gotGroups = append(gotGroups, g)
 		}
 	}
 
