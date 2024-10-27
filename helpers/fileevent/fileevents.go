@@ -38,7 +38,9 @@ const (
 	UploadAlbumCreated
 	UploadAddToAlbum  // = "Added to an album"
 	UploadServerError // = "Server error"
-	UploadTagAssetError
+
+	// Tag
+	TagNotOnServer
 
 	Uploaded  // = "Uploaded"
 	Stacked   // = "Stacked"
@@ -67,8 +69,10 @@ var _code = map[Code]string{
 	UploadServerBetter:    "server has a better asset",
 	UploadAlbumCreated:    "album created/updated",
 	UploadServerError:     "upload error",
-	UploadTagAssetError:   "tag asset error",
 	Uploaded:              "uploaded",
+
+	// Tag
+	TagNotOnServer: "asset not on server",
 
 	Stacked:   "Stacked",
 	LivePhoto: "Live photo",

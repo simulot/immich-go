@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,6 +20,8 @@ import (
 	"github.com/simulot/immich-go/browser/files"
 	"github.com/simulot/immich-go/browser/gp"
 	"github.com/simulot/immich-go/cmd"
+	"github.com/simulot/immich-go/helpers/asset"
+	"github.com/simulot/immich-go/helpers/datatype"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
@@ -36,41 +37,41 @@ type UpCmd struct {
 
 	fsyss []fs.FS // pseudo file system to browse
 
-	GooglePhotos           bool             // For reading Google Photos takeout files
-	Delete                 bool             // Delete original file after import
-	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
-	UseFullPathAsAlbumName bool             // Create albums for assets based on the full path to the asset
-	AlbumNamePathSeparator string           // Determines how multiple (sub) folders, if any, will be joined
-	ImportIntoAlbum        string           // All assets will be added to this album
-	PartnerAlbum           string           // Partner's assets will be added to this album
-	Import                 bool             // Import instead of upload
-	DeviceUUID             string           // Set a device UUID
-	Paths                  []string         // Path to explore
-	DateRange              immich.DateRange // Set capture date range
-	ImportFromAlbum        string           // Import assets from this albums
-	CreateAlbums           bool             // Create albums when exists in the source
-	KeepTrashed            bool             // Import trashed assets
-	KeepPartner            bool             // Import partner's assets
-	KeepUntitled           bool             // Keep untitled albums
-	UseFolderAsAlbumName   bool             // Use folder's name instead of metadata's title as Album name
-	DryRun                 bool             // Display actions but don't change anything
-	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
-	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
-	StackBurst             bool             // Stack burst (Default: TRUE)
-	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
-	AutoArchive            bool             // Automatically archive photos that are also archived in google photos (Default: TRUE)
-	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
-	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
-	BannedFiles            namematcher.List // List of banned file name patterns
-	Tags                   StringList       // List of tags to apply to assets after upload. Can use forwards slashes to create tag hierarchy (ex. "Holiday/Groundhog's Day")
-	TagWithSession         bool             // Tag uploaded assets according to the format immich-go/YYYY-MM-DD/HH-MI-SS
-	TagWithPath            bool             // Hierarchically tag uploaded assets using path to assets
+	GooglePhotos           bool                // For reading Google Photos takeout files
+	Delete                 bool                // Delete original file after import
+	CreateAlbumAfterFolder bool                // Create albums for assets based on the parent folder or a given name
+	UseFullPathAsAlbumName bool                // Create albums for assets based on the full path to the asset
+	AlbumNamePathSeparator string              // Determines how multiple (sub) folders, if any, will be joined
+	ImportIntoAlbum        string              // All assets will be added to this album
+	PartnerAlbum           string              // Partner's assets will be added to this album
+	Import                 bool                // Import instead of upload
+	DeviceUUID             string              // Set a device UUID
+	Paths                  []string            // Path to explore
+	DateRange              immich.DateRange    // Set capture date range
+	ImportFromAlbum        string              // Import assets from this albums
+	CreateAlbums           bool                // Create albums when exists in the source
+	KeepTrashed            bool                // Import trashed assets
+	KeepPartner            bool                // Import partner's assets
+	KeepUntitled           bool                // Keep untitled albums
+	UseFolderAsAlbumName   bool                // Use folder's name instead of metadata's title as Album name
+	DryRun                 bool                // Display actions but don't change anything
+	CreateStacks           bool                // Stack jpg/raw/burst (Default: TRUE)
+	StackJpgRaws           bool                // Stack jpg/raw (Default: TRUE)
+	StackBurst             bool                // Stack burst (Default: TRUE)
+	DiscardArchived        bool                // Don't import archived assets (Default: FALSE)
+	AutoArchive            bool                // Automatically archive photos that are also archived in google photos (Default: TRUE)
+	WhenNoDate             string              // When the date can't be determined use the FILE's date or NOW (default: FILE)
+	ForceUploadWhenNoJSON  bool                // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
+	BannedFiles            namematcher.List    // List of banned file name patterns
+	Tags                   datatype.StringList // List of tags to apply to assets after upload. Can use forwards slashes to create tag hierarchy (ex. "Holiday/Groundhog's Day")
+	TagWithSession         bool                // Tag uploaded assets according to the format immich-go/YYYY-MM-DD/HH-MI-SS
+	TagWithPath            bool                // Hierarchically tag uploaded assets using path to assets
 
-	BrowserConfig Configuration
+	BrowserConfig asset.Configuration
 
 	albums map[string]immich.AlbumSimplified // Albums by title
 
-	AssetIndex       *AssetIndex               // List of assets present on the server
+	AssetIndex       *asset.AssetIndex         // List of assets present on the server
 	deleteServerList []*immich.Asset           // List of server assets to remove
 	deleteLocalList  []*browser.LocalAssetFile // List of local assets to remove
 	// updateAlbums     map[string]map[string]any // track immich albums changes
@@ -407,10 +408,7 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 	if updateFn != nil {
 		updateFn(totalOnImmich, totalOnImmich)
 	}
-	app.AssetIndex = &AssetIndex{
-		assets: list,
-	}
-	app.AssetIndex.ReIndex()
+	app.AssetIndex = asset.NewAssetIndex(list)
 	return nil
 }
 
@@ -622,20 +620,16 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		})
 	}
 
-	advice, err := app.AssetIndex.ShouldUpload(a)
-	if err != nil {
-		return err
-	}
-
+	advice := app.AssetIndex.GetAdvice(a)
 	switch advice.Advice {
-	case NotOnServer: // Upload and manage albums
+	case asset.NotOnServer: // Upload and manage albums
 		ID, err := app.UploadAsset(ctx, a)
 		if err != nil {
 			return nil
 		}
 		app.manageAssetAlbum(ctx, ID, a, advice)
 
-	case SmallerOnServer: // Upload, manage albums and delete the server's asset
+	case asset.SmallerOnServer: // Upload, manage albums and delete the server's asset
 		app.Jnl.Record(ctx, fileevent.UploadUpgraded, a, a.FileName, "reason", advice.Message)
 		// add the superior asset into albums of the original asset.
 		ID, err := app.UploadAsset(ctx, a)
@@ -649,7 +643,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 			app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
 		}
 
-	case SameOnServer: // manage albums
+	case asset.SameOnServer: // manage albums
 		// Set add the server asset into albums determined locally
 		if !advice.ServerAsset.JustUploaded {
 			app.Jnl.Record(
@@ -665,7 +659,7 @@ func (app *UpCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) er
 		}
 		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 
-	case BetterOnServer: // and manage albums
+	case asset.BetterOnServer: // and manage albums
 		app.Jnl.Record(ctx, fileevent.UploadServerBetter, a, a.FileName, "reason", advice.Message)
 		app.manageAssetAlbum(ctx, advice.ServerAsset.ID, a, advice)
 	}
@@ -683,7 +677,7 @@ func (app *UpCmd) manageAssetAlbum(
 	ctx context.Context,
 	assetID string,
 	a *browser.LocalAssetFile,
-	advice *Advice,
+	advice *asset.Advice,
 ) {
 	addedTo := map[string]any{}
 	if advice.ServerAsset != nil {
@@ -1024,166 +1018,6 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 	return nil
 }
 */
-// - - go:generate stringer -type=AdviceCode
-type AdviceCode int
-
-func (a AdviceCode) String() string {
-	switch a {
-	case IDontKnow:
-		return "IDontKnow"
-	// case SameNameOnServerButNotSure:
-	// 	return "SameNameOnServerButNotSure"
-	case SmallerOnServer:
-		return "SmallerOnServer"
-	case BetterOnServer:
-		return "BetterOnServer"
-	case SameOnServer:
-		return "SameOnServer"
-	case NotOnServer:
-		return "NotOnServer"
-	}
-	return fmt.Sprintf("advice(%d)", a)
-}
-
-const (
-	IDontKnow AdviceCode = iota
-	SmallerOnServer
-	BetterOnServer
-	SameOnServer
-	NotOnServer
-)
-
-type Advice struct {
-	Advice      AdviceCode
-	Message     string
-	ServerAsset *immich.Asset
-	LocalAsset  *browser.LocalAssetFile
-}
-
-func formatBytes(s int) string {
-	suffixes := []string{"B", "KB", "MB", "GB"}
-	bytes := float64(s)
-	base := 1024.0
-	if bytes < base {
-		return fmt.Sprintf("%.0f %s", bytes, suffixes[0])
-	}
-	exp := int64(0)
-	for bytes >= base && exp < int64(len(suffixes)-1) {
-		bytes /= base
-		exp++
-	}
-	roundedSize := math.Round(bytes*10) / 10
-	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
-}
-
-func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
-	return &Advice{
-		Advice: SameOnServer,
-		Message: fmt.Sprintf(
-			"An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.",
-			sa.OriginalFileName,
-			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
-			formatBytes(sa.ExifInfo.FileSizeInByte),
-		),
-		ServerAsset: sa,
-	}
-}
-
-func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
-	return &Advice{
-		Advice: SmallerOnServer,
-		Message: fmt.Sprintf(
-			"An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.",
-			sa.OriginalFileName,
-			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
-			formatBytes(sa.ExifInfo.FileSizeInByte),
-		),
-		ServerAsset: sa,
-	}
-}
-
-func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
-	return &Advice{
-		Advice: BetterOnServer,
-		Message: fmt.Sprintf(
-			"An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.",
-			sa.OriginalFileName,
-			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
-			formatBytes(sa.ExifInfo.FileSizeInByte),
-		),
-		ServerAsset: sa,
-	}
-}
-
-func (ai *AssetIndex) adviceNotOnServer() *Advice {
-	return &Advice{
-		Advice:  NotOnServer,
-		Message: "This a new asset, upload it.",
-	}
-}
-
-// ShouldUpload check if the server has this asset
-//
-// The server may have different assets with the same name. This happens with photos produced by digital cameras.
-// The server may have the asset, but in lower resolution. Compare the taken date and resolution
-
-func (ai *AssetIndex) ShouldUpload(la *browser.LocalAssetFile) (*Advice, error) {
-	filename := la.Title
-	if path.Ext(filename) == "" {
-		filename += path.Ext(la.FileName)
-	}
-
-	ID := la.DeviceAssetID()
-
-	sa := ai.byID[ID]
-	if sa != nil {
-		// the same ID exist on the server
-		return ai.adviceSameOnServer(sa), nil
-	}
-
-	var l []*immich.Asset
-
-	// check all files with the same name
-
-	n := filepath.Base(filename)
-	l = ai.byName[n]
-	if len(l) == 0 {
-		// n = strings.TrimSuffix(n, filepath.Ext(n))
-		l = ai.byName[n]
-	}
-
-	if len(l) > 0 {
-		dateTaken := la.Metadata.DateTaken
-		size := int(la.Size())
-
-		for _, sa = range l {
-			compareDate := compareDate(dateTaken, sa.ExifInfo.DateTimeOriginal.Time)
-			compareSize := size - sa.ExifInfo.FileSizeInByte
-
-			switch {
-			case compareDate == 0 && compareSize == 0:
-				return ai.adviceSameOnServer(sa), nil
-			case compareDate == 0 && compareSize > 0:
-				return ai.adviceSmallerOnServer(sa), nil
-			case compareDate == 0 && compareSize < 0:
-				return ai.adviceBetterOnServer(sa), nil
-			}
-		}
-	}
-	return ai.adviceNotOnServer(), nil
-}
-
-func compareDate(d1 time.Time, d2 time.Time) int {
-	diff := d1.Sub(d2)
-
-	switch {
-	case diff < -5*time.Minute:
-		return -1
-	case diff >= 5*time.Minute:
-		return +1
-	}
-	return 0
-}
 
 func tagAssets(
 	ctx context.Context,

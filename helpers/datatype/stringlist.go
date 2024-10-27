@@ -1,33 +1,9 @@
-package upload
+package datatype
 
 import (
 	"slices"
 	"strings"
 )
-
-type Configuration struct {
-	SelectExtensions  StringList
-	ExcludeExtensions StringList
-	Recursive         bool
-}
-
-func (c *Configuration) Validate() {
-	c.SelectExtensions = checkExtensions(c.SelectExtensions)
-	c.ExcludeExtensions = checkExtensions(c.ExcludeExtensions)
-}
-
-func checkExtensions(l StringList) StringList {
-	var r StringList
-
-	for _, e := range l {
-		if !strings.HasPrefix(e, ".") {
-			e = "." + e
-		}
-		e = strings.ToLower(e)
-		r = append(r, e)
-	}
-	return r
-}
 
 type StringList []string
 
