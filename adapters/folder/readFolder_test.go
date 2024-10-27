@@ -9,6 +9,7 @@ import (
 	"sort"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
@@ -17,6 +18,7 @@ import (
 	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/simulot/immich-go/internal/tzone"
@@ -26,12 +28,14 @@ type inMemFS struct {
 	*memfs.FS
 	name string
 	err  error
+	ic   *filenames.InfoCollector
 }
 
-func newInMemFS(name string) *inMemFS {
+func newInMemFS(name string, ic *filenames.InfoCollector) *inMemFS {
 	return &inMemFS{
 		name: name,
 		FS:   memfs.New(),
+		ic:   ic,
 	}
 }
 
@@ -39,22 +43,26 @@ func (mfs inMemFS) Name() string {
 	return mfs.name
 }
 
-func (mfs *inMemFS) addFile(name string) *inMemFS {
+func (mfs *inMemFS) addFile(name string, d time.Time) *inMemFS {
 	if mfs.err != nil {
 		return mfs
 	}
 	dir := path.Dir(name)
+	base := path.Base(name)
 	mfs.err = errors.Join(mfs.err, mfs.MkdirAll(dir, 0o777))
-	mfs.err = errors.Join(mfs.err, mfs.WriteFile(name, []byte(name), 0o777))
+	i := mfs.ic.GetInfo(base)
+	mfs.err = errors.Join(mfs.err, mfs.WriteFile(name, *(*[]byte)(unsafe.Pointer(&i)), 0o777))
 	return mfs
 }
 
 func TestInMemLocalAssets(t *testing.T) {
+	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+	ic := filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
 	tc := []struct {
 		name           string
 		fsys           []fs.FS
 		flags          ImportFolderOptions
-		expectedFiles  map[string]fileLinks
+		expectedFiles  []string
 		expectedCounts []int64
 		expectedAlbums map[string][]string
 	}{
@@ -62,49 +70,46 @@ func TestInMemLocalAssets(t *testing.T) {
 			name: "easy",
 			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
+				InfoCollector:  ic,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg": {image: "root_01.jpg"},
-			},
+			expectedFiles:  []string{"root_01.jpg"},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Value(),
 		},
 		{
 			name: "recursive",
 			flags: ImportFolderOptions{
+				InfoCollector:  ic,
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				Recursive:      true,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg":         {image: "root_01.jpg"},
-				"photos/photo_01.jpg": {image: "photos/photo_01.jpg"},
-			},
+			expectedFiles:  []string{"root_01.jpg", "photos/photo_01.jpg"},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 2).Value(),
 		},
 		{
 			name: "non-recursive",
 			flags: ImportFolderOptions{
 				SupportedMedia: metadata.DefaultSupportedMedia,
+				InfoCollector:  ic,
 				Recursive:      false,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg": {image: "root_01.jpg"},
-			},
+			expectedFiles:  []string{"root_01.jpg"},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Value(),
 		},
+
 		{
 			name: "banned files",
 			flags: ImportFolderOptions{
@@ -114,38 +119,39 @@ func TestInMemLocalAssets(t *testing.T) {
 					Method: cliflags.DateMethodNone,
 				},
 				InclusionFlags: cliflags.InclusionFlags{},
+				InfoCollector:  ic,
 				Recursive:      true,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg").
-					addFile("photos/photo_02.cr3").
-					addFile("photos/photo_03.jpg").
-					addFile("photos/summer 2023/20230801-001.jpg").
-					addFile("photos/summer 2023/20230801-002.jpg").
-					addFile("photos/summer 2023/20230801-003.cr3").
-					addFile("@eaDir/thb1.jpg").
-					addFile("photos/SYNOFILE_THUMB_0001.jpg").
-					addFile("photos/summer 2023/.@__thumb/thb2.jpg").
-					addFile("BLOG/blog.jpg").
-					addFile("Project/Database/database_01.jpg").
-					addFile("photos/database_01.jpg").
-					addFile("mac/image.JPG").
-					addFile("mac/._image.JPG").
-					addFile("mac/image.JPG").
-					addFile("mac/._image.JPG"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0).
+					addFile("photos/photo_02.cr3", t0).
+					addFile("photos/photo_03.jpg", t0).
+					addFile("photos/summer 2023/20230801-001.jpg", t0).
+					addFile("photos/summer 2023/20230801-002.jpg", t0).
+					addFile("photos/summer 2023/20230801-003.cr3", t0).
+					addFile("@eaDir/thb1.jpg", t0).
+					addFile("photos/SYNOFILE_THUMB_0001.jpg", t0).
+					addFile("photos/summer 2023/.@__thumb/thb2.jpg", t0).
+					addFile("BLOG/blog.jpg", t0).
+					addFile("Project/Database/database_01.jpg", t0).
+					addFile("photos/database_01.jpg", t0).
+					addFile("mac/image.JPG", t0).
+					addFile("mac/._image.JPG", t0).
+					addFile("mac/image.JPG", t0).
+					addFile("mac/._image.JPG", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg":                         {image: "root_01.jpg"},
-				"photos/photo_01.jpg":                 {image: "photos/photo_01.jpg"},
-				"photos/photo_02.cr3":                 {image: "photos/photo_02.cr3"},
-				"photos/photo_03.jpg":                 {image: "photos/photo_03.jpg"},
-				"photos/summer 2023/20230801-001.jpg": {image: "photos/summer 2023/20230801-001.jpg"},
-				"photos/summer 2023/20230801-002.jpg": {image: "photos/summer 2023/20230801-002.jpg"},
-				"photos/summer 2023/20230801-003.cr3": {image: "photos/summer 2023/20230801-003.cr3"},
-				"photos/database_01.jpg":              {image: "photos/database_01.jpg"},
-				"mac/image.JPG":                       {image: "mac/image.JPG"},
+			expectedFiles: []string{
+				"root_01.jpg",
+				"photos/photo_01.jpg",
+				"photos/photo_02.cr3",
+				"photos/photo_03.jpg",
+				"photos/summer 2023/20230801-001.jpg",
+				"photos/summer 2023/20230801-002.jpg",
+				"photos/summer 2023/20230801-003.cr3",
+				"photos/database_01.jpg",
+				"mac/image.JPG",
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 9).
 				Set(fileevent.DiscoveredDiscarded, 6).Value(),
@@ -161,27 +167,28 @@ func TestInMemLocalAssets(t *testing.T) {
 				InclusionFlags: cliflags.InclusionFlags{
 					ExcludedExtensions: cliflags.ExtensionList{".cr3"},
 				},
-				Recursive: true,
+				Recursive:     true,
+				InfoCollector: ic,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg").
-					addFile("photos/photo_02.cr3").
-					addFile("photos/photo_03.jpg").
-					addFile("photos/summer 2023/20230801-001.jpg").
-					addFile("photos/summer 2023/20230801-002.jpg").
-					addFile("photos/summer 2023/20230801-003.cr3").
-					addFile("@eaDir/thb1.jpg").
-					addFile("photos/SYNOFILE_THUMB_0001.jpg").
-					addFile("photos/summer 2023/.@__thumb/thb2.jpg"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0).
+					addFile("photos/photo_02.cr3", t0).
+					addFile("photos/photo_03.jpg", t0).
+					addFile("photos/summer 2023/20230801-001.jpg", t0).
+					addFile("photos/summer 2023/20230801-002.jpg", t0).
+					addFile("photos/summer 2023/20230801-003.cr3", t0).
+					addFile("@eaDir/thb1.jpg", t0).
+					addFile("photos/SYNOFILE_THUMB_0001.jpg", t0).
+					addFile("photos/summer 2023/.@__thumb/thb2.jpg", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg":                         {image: "root_01.jpg"},
-				"photos/photo_01.jpg":                 {image: "photos/photo_01.jpg"},
-				"photos/photo_03.jpg":                 {image: "photos/photo_03.jpg"},
-				"photos/summer 2023/20230801-001.jpg": {image: "photos/summer 2023/20230801-001.jpg"},
-				"photos/summer 2023/20230801-002.jpg": {image: "photos/summer 2023/20230801-002.jpg"},
+			expectedFiles: []string{
+				"root_01.jpg",
+				"photos/photo_01.jpg",
+				"photos/photo_03.jpg",
+				"photos/summer 2023/20230801-001.jpg",
+				"photos/summer 2023/20230801-002.jpg",
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).
 				Set(fileevent.DiscoveredDiscarded, 5).Value(),
@@ -197,28 +204,30 @@ func TestInMemLocalAssets(t *testing.T) {
 				InclusionFlags: cliflags.InclusionFlags{
 					IncludedExtensions: cliflags.ExtensionList{".cr3"},
 				},
-				Recursive: true,
+				Recursive:     true,
+				InfoCollector: ic,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg").
-					addFile("photos/photo_02.cr3").
-					addFile("photos/photo_03.jpg").
-					addFile("photos/summer 2023/20230801-001.jpg").
-					addFile("photos/summer 2023/20230801-002.jpg").
-					addFile("photos/summer 2023/20230801-003.cr3").
-					addFile("@eaDir/thb1.jpg").
-					addFile("photos/SYNOFILE_THUMB_0001.jpg").
-					addFile("photos/summer 2023/.@__thumb/thb2.jpg"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0).
+					addFile("photos/photo_02.cr3", t0).
+					addFile("photos/photo_03.jpg", t0).
+					addFile("photos/summer 2023/20230801-001.jpg", t0).
+					addFile("photos/summer 2023/20230801-002.jpg", t0).
+					addFile("photos/summer 2023/20230801-003.cr3", t0).
+					addFile("@eaDir/thb1.jpg", t0).
+					addFile("photos/SYNOFILE_THUMB_0001.jpg", t0).
+					addFile("photos/summer 2023/.@__thumb/thb2.jpg", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"photos/photo_02.cr3":                 {image: "photos/photo_02.cr3"},
-				"photos/summer 2023/20230801-003.cr3": {image: "photos/summer 2023/20230801-003.cr3"},
+			expectedFiles: []string{
+				"photos/photo_02.cr3",
+				"photos/summer 2023/20230801-003.cr3",
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).
 				Set(fileevent.DiscoveredDiscarded, 8).Value(),
 		},
+
 		{
 			name: "motion picture",
 			flags: ImportFolderOptions{
@@ -229,22 +238,23 @@ func TestInMemLocalAssets(t *testing.T) {
 				},
 				InclusionFlags: cliflags.InclusionFlags{},
 				Recursive:      true,
+				InfoCollector:  ic,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("motion/nomotion.MP4").
-					addFile("motion/PXL_20210102_221126856.MP~2").
-					addFile("motion/PXL_20210102_221126856.MP~2.jpg").
-					addFile("motion/PXL_20210102_221126856.MP.jpg").
-					addFile("motion/PXL_20210102_221126856.MP").
-					addFile("motion/20231227_152817.jpg").
-					addFile("motion/20231227_152817.MP4"),
+				newInMemFS("MemFS", ic).
+					addFile("motion/nomotion.MP4", t0).
+					addFile("motion/PXL_20210102_221126856.MP~2", t0).
+					addFile("motion/PXL_20210102_221126856.MP~2.jpg", t0).
+					addFile("motion/PXL_20210102_221126856.MP.jpg", t0).
+					addFile("motion/PXL_20210102_221126856.MP", t0).
+					addFile("motion/20231227_152817.jpg", t0).
+					addFile("motion/20231227_152817.MP4", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"motion/PXL_20210102_221126856.MP.jpg":   {image: "motion/PXL_20210102_221126856.MP.jpg", video: "motion/PXL_20210102_221126856.MP"},
-				"motion/PXL_20210102_221126856.MP~2.jpg": {image: "motion/PXL_20210102_221126856.MP~2.jpg", video: "motion/PXL_20210102_221126856.MP~2"},
-				"motion/20231227_152817.jpg":             {image: "motion/20231227_152817.jpg", video: "motion/20231227_152817.MP4"},
-				"motion/nomotion.MP4":                    {video: "motion/nomotion.MP4"},
+			expectedFiles: []string{
+				"motion/PXL_20210102_221126856.MP.jpg", "motion/PXL_20210102_221126856.MP",
+				"motion/PXL_20210102_221126856.MP~2.jpg", "motion/PXL_20210102_221126856.MP~2",
+				"motion/20231227_152817.jpg", "motion/20231227_152817.MP4",
+				"motion/nomotion.MP4",
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 3).
 				Set(fileevent.DiscoveredVideo, 4).Value(),
@@ -266,22 +276,22 @@ func TestInMemLocalAssets(t *testing.T) {
 				Recursive: true,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg").
-					addFile("photos/photo_02.cr3").
-					addFile("photos/photo_03.jpg").
-					addFile("photos/summer 2023/20230801-001.jpg").
-					addFile("photos/summer 2023/20230801-002.jpg").
-					addFile("photos/summer 203/20230301-003.cr3"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0).
+					addFile("photos/photo_02.cr3", t0).
+					addFile("photos/photo_03.jpg", t0).
+					addFile("photos/summer 2023/20230801-001.jpg", t0).
+					addFile("photos/summer 2023/20230801-002.jpg", t0).
+					addFile("photos/summer 2023/20230801-003.cr3", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"photos/summer 2023/20230801-001.jpg": {image: "photos/summer 2023/20230801-001.jpg"},
-				"photos/summer 2023/20230801-002.jpg": {image: "photos/summer 2023/20230801-002.jpg"},
+			expectedFiles: []string{
+				"photos/summer 2023/20230801-001.jpg",
+				"photos/summer 2023/20230801-002.jpg",
+				"photos/summer 2023/20230801-003.cr3",
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).
-				Set(fileevent.DiscoveredDiscarded, 5).
-				Value(),
+				Set(fileevent.DiscoveredDiscarded, 4).Value(),
 		},
 
 		{
@@ -294,35 +304,36 @@ func TestInMemLocalAssets(t *testing.T) {
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
 				},
-				Recursive: true,
+				Recursive:     true,
+				InfoCollector: ic,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg").
-					addFile("photos/photo_02.cr3").
-					addFile("photos/photo_03.jpg").
-					addFile("photos/summer 2023/20230801-001.jpg").
-					addFile("photos/summer 2023/20230801-002.jpg").
-					addFile("photos/summer 2023/20230801-003.cr3"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0).
+					addFile("photos/photo_02.cr3", t0).
+					addFile("photos/photo_03.jpg", t0).
+					addFile("photos/summer 2023/20230801-001.jpg", t0).
+					addFile("photos/summer 2023/20230801-002.jpg", t0).
+					addFile("photos/summer 2023/20230801-003.cr3", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg":                         {image: "root_01.jpg"},
-				"photos/photo_01.jpg":                 {image: "photos/photo_01.jpg"},
-				"photos/photo_02.cr3":                 {image: "photos/photo_02.cr3"},
-				"photos/photo_03.jpg":                 {image: "photos/photo_03.jpg"},
-				"photos/summer 2023/20230801-001.jpg": {image: "photos/summer 2023/20230801-001.jpg"},
-				"photos/summer 2023/20230801-002.jpg": {image: "photos/summer 2023/20230801-002.jpg"},
-				"photos/summer 2023/20230801-003.cr3": {image: "photos/summer 2023/20230801-003.cr3"},
+			expectedFiles: []string{
+				"root_01.jpg",
+				"photos/photo_01.jpg",
+				"photos/photo_02.cr3",
+				"photos/photo_03.jpg",
+				"photos/summer 2023/20230801-001.jpg",
+				"photos/summer 2023/20230801-002.jpg",
+				"photos/summer 2023/20230801-003.cr3",
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).
-				Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).Value(),
 			expectedAlbums: map[string][]string{
 				"MemFS":                        {"root_01.jpg"},
 				"MemFS ¤ photos":               {"photos/photo_01.jpg", "photos/photo_02.cr3", "photos/photo_03.jpg"},
 				"MemFS ¤ photos ¤ summer 2023": {"photos/summer 2023/20230801-001.jpg", "photos/summer 2023/20230801-002.jpg", "photos/summer 2023/20230801-003.cr3"},
 			},
 		},
+
 		{
 			name: "folder as album name",
 			flags: ImportFolderOptions{
@@ -333,29 +344,29 @@ func TestInMemLocalAssets(t *testing.T) {
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
 				},
-				Recursive: true,
+				Recursive:     true,
+				InfoCollector: ic,
 			},
 			fsys: []fs.FS{
-				newInMemFS("MemFS").
-					addFile("root_01.jpg").
-					addFile("photos/photo_01.jpg").
-					addFile("photos/photo_02.cr3").
-					addFile("photos/photo_03.jpg").
-					addFile("photos/summer 2023/20230801-001.jpg").
-					addFile("photos/summer 2023/20230801-002.jpg").
-					addFile("photos/summer 2023/20230801-003.cr3"),
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0).
+					addFile("photos/photo_02.cr3", t0).
+					addFile("photos/photo_03.jpg", t0).
+					addFile("photos/summer 2023/20230801-001.jpg", t0).
+					addFile("photos/summer 2023/20230801-002.jpg", t0).
+					addFile("photos/summer 2023/20230801-003.cr3", t0),
 			},
-			expectedFiles: map[string]fileLinks{
-				"root_01.jpg":                         {image: "root_01.jpg"},
-				"photos/photo_01.jpg":                 {image: "photos/photo_01.jpg"},
-				"photos/photo_02.cr3":                 {image: "photos/photo_02.cr3"},
-				"photos/photo_03.jpg":                 {image: "photos/photo_03.jpg"},
-				"photos/summer 2023/20230801-001.jpg": {image: "photos/summer 2023/20230801-001.jpg"},
-				"photos/summer 2023/20230801-002.jpg": {image: "photos/summer 2023/20230801-002.jpg"},
-				"photos/summer 2023/20230801-003.cr3": {image: "photos/summer 2023/20230801-003.cr3"},
+			expectedFiles: []string{
+				"root_01.jpg",
+				"photos/photo_01.jpg",
+				"photos/photo_02.cr3",
+				"photos/photo_03.jpg",
+				"photos/summer 2023/20230801-001.jpg",
+				"photos/summer 2023/20230801-002.jpg",
+				"photos/summer 2023/20230801-003.cr3",
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).
-				Value(),
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).Value(),
 			expectedAlbums: map[string][]string{
 				"MemFS":       {"root_01.jpg"},
 				"photos":      {"photos/photo_01.jpg", "photos/photo_02.cr3", "photos/photo_03.jpg"},
@@ -378,51 +389,37 @@ func TestInMemLocalAssets(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			log.Logger.Info(c.name)
+			log.Logger.Info("\n\n\ntest case: " + c.name)
 			recorder := fileevent.NewRecorder(log.Logger)
 			b, err := NewLocalFiles(ctx, recorder, &c.flags, c.fsys...)
 			if err != nil {
 				t.Error(err)
 			}
 
-			groupChan, err := b.Browse(ctx)
-			if err != nil {
-				t.Error(err)
-			}
+			groupChan := b.Browse(ctx)
 
-			results := map[string]fileLinks{}
+			results := []string{}
 			albums := map[string][]string{}
+
 			for g := range groupChan {
 				if err = g.Validate(); err != nil {
 					t.Error(err)
 					return
 				}
-				fileName := g.Assets[0].FileName
-				links := fileLinks{}
 				for _, a := range g.Assets {
-					ext := path.Ext(a.FileName)
-					switch b.flags.SupportedMedia.TypeFromExt(ext) {
-					case metadata.TypeImage:
-						links.image = a.FileName
-						if g.Kind == adapters.GroupKindMotionPhoto {
-							fileName = a.FileName
+					if a, ok := a.(*adapters.LocalAssetFile); ok {
+						results = append(results, a.FileName)
+						if len(c.expectedAlbums) > 0 {
+							for _, album := range g.Albums {
+								albums[album.Title] = append(albums[album.Title], a.FileName)
+							}
 						}
-					case metadata.TypeVideo:
-						links.video = a.FileName
-					}
-					if a.SideCar.FileName != "" {
-						links.sidecar = a.SideCar.FileName
-					}
-					a.Close()
-				}
-				results[fileName] = links
-
-				if len(c.expectedAlbums) > 0 {
-					for _, album := range g.Albums {
-						albums[album.Title] = append(albums[album.Title], fileName)
 					}
 				}
 			}
+
+			sort.Strings(c.expectedFiles)
+			sort.Strings(results)
 
 			if !reflect.DeepEqual(results, c.expectedFiles) {
 				t.Errorf("file list difference\n")

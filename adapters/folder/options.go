@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
 )
@@ -46,6 +47,9 @@ type ImportFolderOptions struct {
 
 	// SupportedMedia is the server's actual list of supported media types.
 	SupportedMedia metadata.SupportedMedia
+
+	// InfoCollector is used to extract information from the file name.
+	InfoCollector *filenames.InfoCollector
 }
 
 // AlbumFolderMode represents the mode in which album folders are organized.
