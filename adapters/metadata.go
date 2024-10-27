@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
@@ -41,7 +42,7 @@ func (la *LocalAssetFile) ReadMetadata(method cliflags.DateMethod, options ReadM
 				}
 			}
 		case cliflags.DateMethodName:
-			t := metadata.TakeTimeFromPath(la.FileName, options.FilenameTimeZone)
+			t := filenames.TakeTimeFromPath(la.FileName, options.FilenameTimeZone)
 			if !t.IsZero() {
 				return &metadata.Metadata{
 					DateTaken: t,

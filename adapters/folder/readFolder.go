@@ -41,7 +41,7 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 		pool:  worker.NewPool(3), // TODO: Make this configurable
 	}
 	if flags.InfoCollector == nil {
-		flags.InfoCollector = filenames.NewInfoCollector(flags.DateHandlingFlags.FilenameTimeZone.Location(), metadata.DefaultSupportedMedia)
+		flags.InfoCollector = filenames.NewInfoCollector(flags.DateHandlingFlags.FilenameTimeZone.Location(), flags.SupportedMedia)
 	}
 
 	if flags.ExifToolFlags.UseExifTool {
@@ -159,6 +159,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 	}
 
+	// process the left over dirs
 	for _, entry := range entries {
 		base := entry.Name()
 		name := filepath.Join(dir, base)

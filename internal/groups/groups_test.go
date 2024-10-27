@@ -37,37 +37,37 @@ func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) gr
 
 func TestGroup(t *testing.T) {
 	ic := filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
-	baseTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 
 	assets := []groups.Asset{
-		mockAsset(ic, "photo1.jpg", baseTime.Add(50*time.Hour)),
-		mockAsset(ic, "photo2.jpg", baseTime.Add(55*time.Hour)),
-		mockAsset(ic, "IMG_001.jpg", baseTime),                            // Group 1
-		mockAsset(ic, "IMG_002.jpg", baseTime.Add(200*time.Millisecond)),  // Group 1
-		mockAsset(ic, "IMG_003.jpg", baseTime.Add(400*time.Millisecond)),  // Group 1
-		mockAsset(ic, "IMG_004.jpg", baseTime.Add(600*time.Millisecond)),  // Group 1
-		mockAsset(ic, "IMG_005.jpg", baseTime.Add(800*time.Millisecond)),  // Group 1
-		mockAsset(ic, "IMG_006.jpg", baseTime.Add(1000*time.Millisecond)), // Group 1
-		mockAsset(ic, "IMG_007.jpg", baseTime.Add(1200*time.Millisecond)), // Group 1
-		mockAsset(ic, "IMG_008.jpg", baseTime.Add(1400*time.Millisecond)), // Group 1
-		mockAsset(ic, "IMG_009.jpg", baseTime.Add(1600*time.Millisecond)), // Group 1
-		mockAsset(ic, "photo3.jpg", baseTime.Add(5*time.Hour)),
-		mockAsset(ic, "photo4.jpg", baseTime.Add(6*time.Hour)),
-		mockAsset(ic, "IMG_001.jpg", baseTime.Add(7*time.Hour)),
+		mockAsset(ic, "photo1.jpg", t0.Add(50*time.Hour)),
+		mockAsset(ic, "photo2.jpg", t0.Add(55*time.Hour)),
+		mockAsset(ic, "IMG_001.jpg", t0),                            // Group 1
+		mockAsset(ic, "IMG_002.jpg", t0.Add(200*time.Millisecond)),  // Group 1
+		mockAsset(ic, "IMG_003.jpg", t0.Add(400*time.Millisecond)),  // Group 1
+		mockAsset(ic, "IMG_004.jpg", t0.Add(600*time.Millisecond)),  // Group 1
+		mockAsset(ic, "IMG_005.jpg", t0.Add(800*time.Millisecond)),  // Group 1
+		mockAsset(ic, "IMG_006.jpg", t0.Add(1000*time.Millisecond)), // Group 1
+		mockAsset(ic, "IMG_007.jpg", t0.Add(1200*time.Millisecond)), // Group 1
+		mockAsset(ic, "IMG_008.jpg", t0.Add(1400*time.Millisecond)), // Group 1
+		mockAsset(ic, "IMG_009.jpg", t0.Add(1600*time.Millisecond)), // Group 1
+		mockAsset(ic, "photo3.jpg", t0.Add(5*time.Hour)),
+		mockAsset(ic, "photo4.jpg", t0.Add(6*time.Hour)),
+		mockAsset(ic, "IMG_001.jpg", t0.Add(7*time.Hour)),
 		mockAsset(ic, "IMG_20231014_183246_BURST001_COVER.jpg", time.Date(2023, 10, 14, 18, 32, 46, 0, time.Local)), // Group 2
 		mockAsset(ic, "IMG_20231014_183246_BURST002.jpg", time.Date(2023, 10, 14, 18, 32, 46, 0, time.Local)),       // Group 2
-		mockAsset(ic, "IMG_003.jpg", baseTime.Add(9*time.Hour)),                                                     // Group 3
-		mockAsset(ic, "IMG_003.raw", baseTime.Add(9*time.Hour)),                                                     // Group 3
-		mockAsset(ic, "IMG_004.heic", baseTime.Add(10*time.Hour)),                                                   // Group 4
-		mockAsset(ic, "IMG_004.jpg", baseTime.Add(10*time.Hour+100*time.Millisecond)),                               // Group 4
-		mockAsset(ic, "IMG_005.raw", baseTime.Add(100*time.Hour)),
-		mockAsset(ic, "IMG_005.jpg", baseTime.Add(101*time.Hour)),
+		mockAsset(ic, "IMG_003.jpg", t0.Add(9*time.Hour)),                                                           // Group 3
+		mockAsset(ic, "IMG_003.raw", t0.Add(9*time.Hour)),                                                           // Group 3
+		mockAsset(ic, "IMG_004.heic", t0.Add(10*time.Hour)),                                                         // Group 4
+		mockAsset(ic, "IMG_004.jpg", t0.Add(10*time.Hour+100*time.Millisecond)),                                     // Group 4
+		mockAsset(ic, "IMG_005.raw", t0.Add(100*time.Hour)),
+		mockAsset(ic, "IMG_005.jpg", t0.Add(101*time.Hour)),
 		mockAsset(ic, "00001IMG_00001_BURST20210101153000.jpg", time.Date(2021, 1, 1, 15, 30, 0, 0, time.Local)),       // Group 5
 		mockAsset(ic, "00002IMG_00002_BURST20210101153000_COVER.jpg", time.Date(2021, 1, 1, 15, 30, 0, 0, time.Local)), // Group 5
 		mockAsset(ic, "00003IMG_00003_BURST20210101153000.jpg", time.Date(2021, 1, 1, 15, 30, 0, 0, time.Local)),       // Group 5
-		mockAsset(ic, "IMG_006.heic", baseTime.Add(110*time.Hour)),
-		mockAsset(ic, "photo5.jpg", baseTime.Add(120*time.Hour)),
-		mockAsset(ic, "photo6.jpg", baseTime.Add(130*time.Hour)),
+		mockAsset(ic, "IMG_006.heic", t0.Add(110*time.Hour)),
+		mockAsset(ic, "photo5.jpg", t0.Add(120*time.Hour)),
+		mockAsset(ic, "photo6.jpg", t0.Add(130*time.Hour)),
 	}
 
 	expectedGroup := []*groups.AssetGroup{
@@ -77,41 +77,41 @@ func TestGroup(t *testing.T) {
 			mockAsset(ic, "00003IMG_00003_BURST20210101153000.jpg", time.Date(2021, 1, 1, 15, 30, 0, 0, time.Local)),
 		).SetCover(1),
 		groups.NewAssetGroup(groupby.GroupByBurst,
-			mockAsset(ic, "IMG_001.jpg", baseTime),
-			mockAsset(ic, "IMG_002.jpg", baseTime.Add(200*time.Millisecond)),
-			mockAsset(ic, "IMG_003.jpg", baseTime.Add(400*time.Millisecond)),
-			mockAsset(ic, "IMG_004.jpg", baseTime.Add(600*time.Millisecond)),
-			mockAsset(ic, "IMG_005.jpg", baseTime.Add(800*time.Millisecond)),
-			mockAsset(ic, "IMG_006.jpg", baseTime.Add(1000*time.Millisecond)),
-			mockAsset(ic, "IMG_007.jpg", baseTime.Add(1200*time.Millisecond)),
-			mockAsset(ic, "IMG_008.jpg", baseTime.Add(1400*time.Millisecond)),
-			mockAsset(ic, "IMG_009.jpg", baseTime.Add(1600*time.Millisecond)),
+			mockAsset(ic, "IMG_001.jpg", t0),
+			mockAsset(ic, "IMG_002.jpg", t0.Add(200*time.Millisecond)),
+			mockAsset(ic, "IMG_003.jpg", t0.Add(400*time.Millisecond)),
+			mockAsset(ic, "IMG_004.jpg", t0.Add(600*time.Millisecond)),
+			mockAsset(ic, "IMG_005.jpg", t0.Add(800*time.Millisecond)),
+			mockAsset(ic, "IMG_006.jpg", t0.Add(1000*time.Millisecond)),
+			mockAsset(ic, "IMG_007.jpg", t0.Add(1200*time.Millisecond)),
+			mockAsset(ic, "IMG_008.jpg", t0.Add(1400*time.Millisecond)),
+			mockAsset(ic, "IMG_009.jpg", t0.Add(1600*time.Millisecond)),
 		).SetCover(0),
 		groups.NewAssetGroup(groupby.GroupByBurst,
 			mockAsset(ic, "IMG_20231014_183246_BURST001_COVER.jpg", time.Date(2023, 10, 14, 18, 32, 46, 0, time.Local)),
 			mockAsset(ic, "IMG_20231014_183246_BURST002.jpg", time.Date(2023, 10, 14, 18, 32, 46, 0, time.Local)),
 		).SetCover(0),
 		groups.NewAssetGroup(groupby.GroupByHeicJpg,
-			mockAsset(ic, "IMG_004.heic", baseTime.Add(10*time.Hour)),
-			mockAsset(ic, "IMG_004.jpg", baseTime.Add(10*time.Hour+100*time.Millisecond)),
+			mockAsset(ic, "IMG_004.heic", t0.Add(10*time.Hour)),
+			mockAsset(ic, "IMG_004.jpg", t0.Add(10*time.Hour+100*time.Millisecond)),
 		),
 		groups.NewAssetGroup(groupby.GroupByRawJpg,
-			mockAsset(ic, "IMG_003.jpg", baseTime.Add(9*time.Hour)),
-			mockAsset(ic, "IMG_003.raw", baseTime.Add(9*time.Hour)),
+			mockAsset(ic, "IMG_003.jpg", t0.Add(9*time.Hour)),
+			mockAsset(ic, "IMG_003.raw", t0.Add(9*time.Hour)),
 		),
 	}
 
 	expectedAssets := []groups.Asset{
-		mockAsset(ic, "photo1.jpg", baseTime.Add(50*time.Hour)),
-		mockAsset(ic, "photo2.jpg", baseTime.Add(55*time.Hour)),
-		mockAsset(ic, "photo3.jpg", baseTime.Add(5*time.Hour)),
-		mockAsset(ic, "photo4.jpg", baseTime.Add(6*time.Hour)),
-		mockAsset(ic, "IMG_001.jpg", baseTime.Add(7*time.Hour)),
-		mockAsset(ic, "IMG_005.raw", baseTime.Add(100*time.Hour)),
-		mockAsset(ic, "IMG_005.jpg", baseTime.Add(101*time.Hour)),
-		mockAsset(ic, "IMG_006.heic", baseTime.Add(110*time.Hour)),
-		mockAsset(ic, "photo5.jpg", baseTime.Add(120*time.Hour)),
-		mockAsset(ic, "photo6.jpg", baseTime.Add(130*time.Hour)),
+		mockAsset(ic, "photo1.jpg", t0.Add(50*time.Hour)),
+		mockAsset(ic, "photo2.jpg", t0.Add(55*time.Hour)),
+		mockAsset(ic, "photo3.jpg", t0.Add(5*time.Hour)),
+		mockAsset(ic, "photo4.jpg", t0.Add(6*time.Hour)),
+		mockAsset(ic, "IMG_001.jpg", t0.Add(7*time.Hour)),
+		mockAsset(ic, "IMG_005.raw", t0.Add(100*time.Hour)),
+		mockAsset(ic, "IMG_005.jpg", t0.Add(101*time.Hour)),
+		mockAsset(ic, "IMG_006.heic", t0.Add(110*time.Hour)),
+		mockAsset(ic, "photo5.jpg", t0.Add(120*time.Hour)),
+		mockAsset(ic, "photo6.jpg", t0.Add(130*time.Hour)),
 	}
 
 	// inject assets in the input channel

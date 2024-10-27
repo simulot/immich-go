@@ -84,6 +84,32 @@ takeout-20240712T112341Z-010.zip:
 | Russian    | Google Фото          | метаданные.json  |                   |
 
 
+
+
+## The "-edited" suffix in different languages
+TODO: verify the translations
+
+Here is the list of translations for the "-edited" suffix in the requested languages presented in a table:
+
+| Language   | Translation      | Confirmed |
+| ---------- | ---------------- | --------- |
+| Spanish    | -editado         | [ ]       |
+| French     | -modifié         | [X]       |
+| German     | -bearbeitet      | [X]       |
+| Italian    | -modificato      | [X]       |
+| Portuguese | -editado         | [ ]       |
+| Russian    | -отредактировано | [ ]       |
+| Chinese    | -编辑            | [ ]       |
+| Japanese   | -編集済み        | [ ]       |
+| Korean     | -편집됨          | [ ]       |
+| Dutch      | -bewerkt         | [ ]       |
+| Finnish    | -muokattu        | [ ]       |
+| Ukrainian  | -відредаговано   | [ ]       |
+| Polish     | -edytowane       | [ ]       |
+| Danish     | -redigeret       | [ ]       |
+| Slovak     | -upravené        | [ ]       |
+
+
 # What if I have problems with a takeout archive?
 Please open an issue with details. You can share your files using Discord DM `@simulot`.
 I'll check if I can improve the program.

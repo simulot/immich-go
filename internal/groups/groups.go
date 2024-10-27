@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/simulot/immich-go/internal/albums"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/groups/groupby"
 )
@@ -33,6 +34,7 @@ type Asset interface {
 
 type AssetGroup struct {
 	Assets     []Asset
+	Albums     []albums.Album
 	Grouping   groupby.GroupBy
 	CoverIndex int // index of the cover assert in the Assets slice
 }
@@ -48,6 +50,16 @@ func NewAssetGroup(grouping groupby.GroupBy, a ...Asset) *AssetGroup {
 // AddAsset add an asset to the group
 func (g *AssetGroup) AddAsset(a Asset) {
 	g.Assets = append(g.Assets, a)
+}
+
+// AddAlbum adds an album to the group if there is no other album with the same title
+func (g *AssetGroup) AddAlbum(album albums.Album) {
+	for _, a := range g.Albums {
+		if a.Title == album.Title {
+			return
+		}
+	}
+	g.Albums = append(g.Albums, album)
 }
 
 // SetCover set the cover asset of the group

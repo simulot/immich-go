@@ -46,7 +46,7 @@ func (ai *AssetIndex) AddLocalAsset(la *adapters.LocalAssetFile, immichID string
 		DeviceAssetID:    la.DeviceAssetID(),
 		OriginalFileName: strings.TrimSuffix(path.Base(la.Title), path.Ext(la.Title)),
 		ExifInfo: immich.ExifInfo{
-			FileSizeInByte:   int(la.Size()),
+			FileSizeInByte:   int64(la.Size()),
 			DateTimeOriginal: immich.ImmichTime{Time: la.CaptureDate},
 			Latitude:         la.Latitude,
 			Longitude:        la.Longitude,

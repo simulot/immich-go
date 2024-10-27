@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/albums"
 	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/groups"
+	"github.com/simulot/immich-go/internal/groups/groupby"
 )
 
 type UpCmd struct {
@@ -133,7 +134,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	return nil
 }
 
-func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *adapters.AssetGroup) error {
+func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *groups.AssetGroup) error {
 	var err error
 assetLoop:
 	for {
@@ -200,35 +201,22 @@ assetLoop:
 	return err
 }
 
-func (upCmd *UpCmd) handleGroup(ctx context.Context, g *adapters.AssetGroup) error {
+func (upCmd *UpCmd) handleGroup(ctx context.Context, g *groups.AssetGroup) error {
 	var errGroup error
 
 	// Upload assets from the group
 	for _, a := range g.Assets {
-		err := upCmd.handleAsset(ctx, g, a)
-		errGroup = errors.Join(err)
+		if a, ok := a.(*adapters.LocalAssetFile); ok {
+			err := upCmd.handleAsset(ctx, g, a)
+			errGroup = errors.Join(err)
+		}
 	}
 	if errGroup != nil {
 		return errGroup
 	}
 
-	switch g.Kind {
-	case adapters.GroupKindMotionPhoto:
-		var imageAsset *adapters.LocalAssetFile
-		var videoAsset *adapters.LocalAssetFile
-		for _, a := range g.Assets {
-			switch upCmd.app.Client().Immich.SupportedMedia().TypeFromExt(path.Ext(a.FileName)) {
-			case metadata.TypeImage:
-				imageAsset = a
-			case metadata.TypeVideo:
-				videoAsset = a
-			}
-		}
-		upCmd.app.Jnl().Record(ctx, fileevent.LivePhoto, fileevent.AsFileAndName(imageAsset.FSys, imageAsset.FileName), "video", videoAsset.FileName)
-		_, err := upCmd.app.Client().Immich.UpdateAsset(ctx, imageAsset.ID, immich.UpdAssetField{LivePhotoVideoID: videoAsset.ID})
-		if err != nil {
-			upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err.Error())
-		}
+	switch g.Grouping {
+	case groupby.GroupByNone:
 	}
 
 	// Manage albums
@@ -238,7 +226,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *adapters.AssetGroup) err
 	return nil
 }
 
-func (upCmd *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *adapters.LocalAssetFile) error {
+func (upCmd *UpCmd) handleAsset(ctx context.Context, g *groups.AssetGroup, a *adapters.LocalAssetFile) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
@@ -257,7 +245,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *
 
 		// Remember existing asset's albums, if any
 		for _, al := range advice.ServerAsset.Albums {
-			g.AddAlbum(adapters.LocalAlbum{
+			g.AddAlbum(albums.Album{
 				Title:       al.AlbumName,
 				Description: al.Description,
 			})
@@ -279,7 +267,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *adapters.AssetGroup, a *
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
 		for _, al := range advice.ServerAsset.Albums {
-			g.AddAlbum(adapters.LocalAlbum{
+			g.AddAlbum(albums.Album{
 				Title:       al.AlbumName,
 				Description: al.Description,
 			})
@@ -312,10 +300,12 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *adapters.LocalAssetFile)
 // manageGroupAlbums add the assets to the albums listed in the group.
 // If an album does not exist, it is created.
 // Errors are logged.
-func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *adapters.AssetGroup) {
+func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *groups.AssetGroup) {
 	assetIDs := []string{}
 	for _, a := range g.Assets {
-		assetIDs = append(assetIDs, a.ID)
+		if a, ok := a.(*adapters.LocalAssetFile); ok {
+			assetIDs = append(assetIDs, a.ID)
+		}
 	}
 
 	for _, album := range g.Albums {
@@ -338,7 +328,9 @@ func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *adapters.AssetGrou
 
 		// Log the action
 		for _, a := range g.Assets {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "Album", title)
+			if a, ok := a.(*adapters.LocalAssetFile); ok {
+				upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "Album", title)
+			}
 		}
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/metadata"
 )
@@ -56,13 +57,9 @@ type LocalAssetFile struct {
 	// When a sidecar is found beside the asset
 	SideCar metadata.SideCarFile // sidecar file if found
 
-	// removed from assets to group of assets
-	// Albums   []LocalAlbum         // The asset's album, if any
-	// Metadata metadata.Metadata    // Metadata fields
+	// Internal fields
 
-	// Live Photos
-	// LivePhoto   *LocalAssetFile // Local asset of the movie part
-	// LivePhotoID string          // ID of the movie part, just uploaded
+	nameInfo filenames.NameInfo
 
 	// buffer management
 	sourceFile fs.File   // the opened source file
@@ -74,6 +71,18 @@ type LocalAssetFile struct {
 func (l LocalAssetFile) DebugObject() any {
 	l.FSys = nil
 	return l
+}
+
+func (l *LocalAssetFile) SetNameInfo(ni filenames.NameInfo) {
+	l.nameInfo = ni
+}
+
+func (l *LocalAssetFile) NameInfo() filenames.NameInfo {
+	return l.nameInfo
+}
+
+func (l *LocalAssetFile) DateTaken() time.Time {
+	return l.CaptureDate
 }
 
 // Remove the temporary file
