@@ -42,11 +42,7 @@ func TestReadBigTakeout(t *testing.T) {
 		return
 	}
 
-	assets, err := to.Browse(context.Background())
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assets := to.Browse(context.Background())
 
 	for range assets {
 		cnt++

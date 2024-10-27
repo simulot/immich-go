@@ -88,7 +88,7 @@ func TestPhyl404TakeOut(t *testing.T) {
 		fileevent.DiscoveredUnsupported:             5,
 		fileevent.AnalysisAssociatedMetadata:        111592,
 		fileevent.AnalysisLocalDuplicate:            20776,
-		fileevent.UploadAddToAlbum:                  1782,
+		fileevent.UploadAddToAlbum:                  2625,
 		fileevent.Uploaded:                          109966,
 		fileevent.AnalysisMissingAssociatedMetadata: 2978,
 	}, fsyss)
@@ -112,7 +112,7 @@ func TestPhyl404_2TakeOut(t *testing.T) {
 		fileevent.DiscoveredUnsupported:             5,
 		fileevent.AnalysisAssociatedMetadata:        124521,
 		fileevent.AnalysisLocalDuplicate:            2896,
-		fileevent.UploadAddToAlbum:                  2933,
+		fileevent.UploadAddToAlbum:                  4379,
 		fileevent.Uploaded:                          121625,
 		fileevent.AnalysisMissingAssociatedMetadata: 1,
 	}, fsyss)
@@ -137,7 +137,7 @@ func TestSteve81TakeOut(t *testing.T) {
 		fileevent.DiscoveredUnsupported:             57,
 		fileevent.AnalysisAssociatedMetadata:        44907,
 		fileevent.AnalysisLocalDuplicate:            23131,
-		fileevent.UploadAddToAlbum:                  23026,
+		fileevent.UploadAddToAlbum:                  31364,
 		fileevent.Uploaded:                          25097,
 		fileevent.AnalysisMissingAssociatedMetadata: 4,
 	}, fsyss)
@@ -163,7 +163,7 @@ func TestMuetyTakeOut(t *testing.T) {
 		fileevent.DiscoveredUnsupported:             6,
 		fileevent.AnalysisAssociatedMetadata:        21420,
 		fileevent.AnalysisLocalDuplicate:            10045,
-		fileevent.UploadAddToAlbum:                  5990,
+		fileevent.UploadAddToAlbum:                  6178,
 		fileevent.Uploaded:                          16127,
 		fileevent.AnalysisMissingAssociatedMetadata: 13,
 	}, fsyss)

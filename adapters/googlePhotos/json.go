@@ -72,27 +72,24 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 }
 
 func (gmd GoogleMetaData) AsMetadata() *metadata.Metadata {
-	latitude, longitude := gmd.GeoDataExif.Latitude, gmd.GeoDataExif.Longitude
-	if latitude == 0 && longitude == 0 {
-		latitude, longitude = gmd.GeoData.Latitude, gmd.GeoData.Longitude
-	}
-
-	t := time.Time{}
-	if gmd.PhotoTakenTime != nil && gmd.PhotoTakenTime.Timestamp != "" && gmd.PhotoTakenTime.Timestamp != "0" {
-		t = gmd.PhotoTakenTime.Time()
-	}
-
-	return &metadata.Metadata{
+	md := metadata.Metadata{
 		FileName:    gmd.Title,
 		Description: gmd.Description,
-		DateTaken:   t,
-		Latitude:    latitude,
-		Longitude:   longitude,
 		Trashed:     gmd.Trashed,
 		Archived:    gmd.Archived,
 		Favorited:   gmd.Favorited,
 		FromPartner: gmd.isPartner(),
 	}
+	if gmd.GeoDataExif != nil {
+		md.Latitude, md.Longitude = gmd.GeoDataExif.Latitude, gmd.GeoDataExif.Longitude
+		if md.Latitude == 0 && md.Longitude == 0 && gmd.GeoData != nil {
+			md.Latitude, md.Longitude = gmd.GeoData.Latitude, gmd.GeoData.Longitude
+		}
+	}
+	if gmd.PhotoTakenTime != nil && gmd.PhotoTakenTime.Timestamp != "" && gmd.PhotoTakenTime.Timestamp != "0" {
+		md.DateTaken = gmd.PhotoTakenTime.Time()
+	}
+	return &md
 }
 
 func (gmd *GoogleMetaData) isAlbum() bool {

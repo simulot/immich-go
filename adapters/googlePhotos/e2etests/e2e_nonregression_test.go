@@ -9,10 +9,13 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/simulot/immich-go/adapters"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
@@ -39,6 +42,7 @@ func simulateAndCheck(t *testing.T, fileList string, flags *gp.ImportFlags, expe
 	if flags.SupportedMedia == nil {
 		flags.SupportedMedia = metadata.DefaultSupportedMedia
 	}
+	flags.InfoCollector = filenames.NewInfoCollector(time.Local, flags.SupportedMedia)
 	jnl, err := simulate_upload(fileList, flags, fsyss)
 	if err != nil {
 		t.Error(err)
@@ -72,29 +76,28 @@ func simulateAndCheck(t *testing.T, fileList string, flags *gp.ImportFlags, expe
 func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fileevent.Recorder, error) {
 	ctx := context.Background()
 
-	logFile, err := os.Create(testname + ".log")
+	logFile, err := os.Create(testname + ".json")
 	if err != nil {
 		return nil, err
 	}
 	defer logFile.Close()
 
-	log := slog.New(slog.NewTextHandler(logFile, nil))
+	log := slog.New(slog.NewJSONHandler(logFile, nil))
 	jnl := fileevent.NewRecorder(log)
 	adapter, err := gp.NewTakeout(ctx, jnl, flags, fsys...)
 	if err != nil {
 		return nil, err
 	}
 
-	assetsGroups, err := adapter.Browse(ctx)
-	if err != nil {
-		return nil, err
-	}
+	assetsGroups := adapter.Browse(ctx)
 	for g := range assetsGroups {
 		for i, a := range g.Assets {
-			jnl.Record(ctx, fileevent.Uploaded, a)
-			if i >= 0 {
-				for _, album := range g.Albums {
-					jnl.Record(ctx, fileevent.UploadAddToAlbum, a, "album", album.Title)
+			if a, ok := a.(*adapters.LocalAssetFile); ok {
+				jnl.Record(ctx, fileevent.Uploaded, a)
+				if i >= 0 {
+					for _, album := range g.Albums {
+						jnl.Record(ctx, fileevent.UploadAddToAlbum, a, "album", album.Title)
+					}
 				}
 			}
 		}
@@ -114,7 +117,6 @@ func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fil
 		return nil, err
 	}
 	defer linkedFiles.Close()
-	adapter.DebugLinkedFiles(linkedFiles)
 
 	return jnl, nil
 }

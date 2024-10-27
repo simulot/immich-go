@@ -22,40 +22,6 @@ func (to *Takeout) logMessage(ctx context.Context, code fileevent.Code, a slog.L
 	to.log.Record(ctx, code, a, t, reason)
 }
 
-func (to *Takeout) DebugLinkedFiles(w io.Writer) {
-	csvWriter := csv.NewWriter(w)
-	_ = csvWriter.Write([]string{"Dir", "Base", "Image", "Image Size", "Video", "Video Size"})
-
-	slices.SortFunc(to.debugLinkedFiles, func(a, b linkedFiles) int {
-		if cmp := strings.Compare(a.dir, b.dir); cmp != 0 {
-			return cmp
-		}
-		return strings.Compare(a.base, b.base)
-	})
-
-	line := make([]string, 6)
-	for _, k := range to.debugLinkedFiles {
-		line[0] = k.dir
-		line[1] = k.base
-		if k.image != nil {
-			line[2] = k.image.base
-			line[3] = strconv.Itoa(k.image.length)
-		} else {
-			line[2] = ""
-			line[3] = ""
-		}
-		if k.video != nil {
-			line[4] = k.video.base
-			line[5] = strconv.Itoa(k.video.length)
-		} else {
-			line[4] = ""
-			line[5] = ""
-		}
-		_ = csvWriter.Write(line)
-	}
-	csvWriter.Flush()
-}
-
 func (to *Takeout) DebugFileTracker(w io.Writer) {
 	csv := csv.NewWriter(w)
 	_ = csv.Write([]string{"File", "Size", "Count", "Duplicated", "Uploaded", "Status", "Date", "Albums", "Paths"})

@@ -13,7 +13,7 @@ import (
 
 	"github.com/psanford/memfs"
 	"github.com/simulot/immich-go/internal/fakefs"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filenames"
 )
 
 type inMemFS struct {
@@ -70,14 +70,15 @@ type jsonFn func(md *GoogleMetaData)
 
 func takenTime(date string) func(md *GoogleMetaData) {
 	return func(md *GoogleMetaData) {
-		md.PhotoTakenTime.Timestamp = strconv.FormatInt(metadata.TakeTimeFromName(date, time.UTC).Unix(), 10)
+		md.PhotoTakenTime.Timestamp = strconv.FormatInt(filenames.TakeTimeFromName(date, time.UTC).Unix(), 10)
 	}
 }
 
 func (mfs *inMemFS) addJSONImage(name string, title string, modifiers ...jsonFn) *inMemFS {
 	md := GoogleMetaData{
-		Title:      title,
-		URLPresent: true,
+		Title:          title,
+		URLPresent:     true,
+		PhotoTakenTime: &googTimeObject{},
 	}
 	md.PhotoTakenTime.Timestamp = strconv.FormatInt(time.Date(2023, 10, 23, 15, 0, 0, 0, time.Local).Unix(), 10)
 	for _, f := range modifiers {

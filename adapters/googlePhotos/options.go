@@ -4,6 +4,7 @@ package gp
 
 import (
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
 )
@@ -51,4 +52,6 @@ type ImportFlags struct {
 
 	// SupportedMedia represents the server's actual list of supported media. This is not a flag.
 	SupportedMedia metadata.SupportedMedia
+
+	InfoCollector *filenames.InfoCollector
 }

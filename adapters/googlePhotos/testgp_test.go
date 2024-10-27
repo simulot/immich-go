@@ -2,18 +2,18 @@ package gp
 
 import (
 	"context"
-	"io"
 	"io/fs"
-	"log/slog"
 	"path"
 	"reflect"
-	"slices"
 	"testing"
+	"time"
 
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/adapters"
-	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
@@ -129,37 +129,47 @@ func TestBrowse(t *testing.T) {
 			}),
 		},
 	}
+
+	logFile := configuration.DefaultLogFile()
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			fsys := c.gen()
 
 			ctx := context.Background()
-
-			log := slog.New(slog.NewTextHandler(io.Discard, nil))
+			log := application.Log{
+				File:  logFile,
+				Level: "INFO",
+			}
+			err := log.OpenLogFile()
+			if err != nil {
+				t.Error(err)
+				return
+			}
 			flags := &ImportFlags{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				CreateAlbums:   true,
+				InfoCollector:  filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia),
 			}
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(log), flags, fsys...)
+			log.Logger.Info("\n\n\ntest case: " + c.name)
+			recorder := fileevent.NewRecorder(log.Logger)
+			b, err := NewTakeout(ctx, recorder, flags, fsys...)
 			if err != nil {
 				t.Error(err)
 				return
 			}
 
-			assetChan, err := b.Browse(ctx)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			gChan := b.Browse(ctx)
 
 			results := []fileResult{}
-			for g := range assetChan {
+			for g := range gChan {
 				if err = g.Validate(); err != nil {
 					t.Error(err)
 					return
 				}
 				for _, a := range g.Assets {
-					results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
+					if a, ok := a.(*adapters.LocalAssetFile); ok {
+						results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
+					}
 				}
 			}
 			results = sortFileResult(results)
@@ -203,6 +213,7 @@ func TestAlbums(t *testing.T) {
 				}),
 			},
 		},
+
 		{
 			name: "namesIssue39",
 			gen:  namesIssue39,
@@ -216,33 +227,47 @@ func TestAlbums(t *testing.T) {
 		},
 	}
 
+	logFile := configuration.DefaultLogFile()
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
+
+			log := application.Log{
+				File:  logFile,
+				Level: "INFO",
+			}
+			err := log.OpenLogFile()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			log.Logger.Info("\n\n\ntest case: " + c.name)
+			recorder := fileevent.NewRecorder(log.Logger)
+
 			fsys := c.gen()
 			flags := &ImportFlags{
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				CreateAlbums:   true,
+				InfoCollector:  filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia),
 			}
-			b, err := NewTakeout(ctx, fileevent.NewRecorder(nil), flags, fsys...)
+			log.Logger.Info("\n\n\ntest case: " + c.name)
+			b, err := NewTakeout(ctx, recorder, flags, fsys...)
 			if err != nil {
 				t.Error(err)
 				return
 			}
-			assetChan, err := b.Browse(ctx)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			gChan := b.Browse(ctx)
 
 			albums := album{}
-			for g := range assetChan {
+			for g := range gChan {
 				for _, a := range g.Assets {
-					if len(g.Albums) > 0 {
-						for _, al := range g.Albums {
-							l := albums[al.Title]
-							l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
-							albums[al.Title] = l
+					if a, ok := a.(*adapters.LocalAssetFile); ok {
+						if len(g.Albums) > 0 {
+							for _, al := range g.Albums {
+								l := albums[al.Title]
+								l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
+								albums[al.Title] = l
+							}
 						}
 					}
 				}
@@ -260,6 +285,7 @@ func TestAlbums(t *testing.T) {
 	}
 }
 
+/* Live photos are not supported anymore
 func TestArchives(t *testing.T) {
 	type photo map[fileKeyTracker]fileKeyTracker
 	type album map[string][]fileKeyTracker
@@ -355,16 +381,12 @@ func TestArchives(t *testing.T) {
 					t.Error(err)
 					return
 				}
-				assetChan, err := b.Browse(ctx)
-				if err != nil {
-					t.Error(err)
-					return
-				}
+				gChan := b.Browse(ctx)
 
 				livePhotos := photo{}
 				assets := photo{}
 				albums := album{}
-				for g := range assetChan {
+				for g := range gChan {
 					var (
 						photo *adapters.LocalAssetFile
 						video *adapters.LocalAssetFile
@@ -409,6 +431,7 @@ func TestArchives(t *testing.T) {
 	}
 }
 
+
 func equalPhotos(a, b map[fileKeyTracker]fileKeyTracker) bool {
 	if len(a) != len(b) {
 		return false
@@ -430,3 +453,5 @@ func equalPhotos(a, b map[fileKeyTracker]fileKeyTracker) bool {
 	}
 	return true
 }
+
+*/
