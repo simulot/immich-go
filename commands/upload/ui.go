@@ -11,10 +11,10 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/navidys/tvxwidgets"
 	"github.com/rivo/tview"
-	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/commands/version"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/groups"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -165,7 +165,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) err
 
 	// start the processes
 	uiGroup.Go(func() error {
-		var groupChan chan *adapters.AssetGroup
+		var groupChan chan *groups.AssetGroup
 		var err error
 		processGrp := errgroup.Group{}
 		processGrp.Go(func() error {
@@ -185,11 +185,8 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) err
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
-			groupChan, err = upCmd.adapter.Browse(ctx)
-			if err != nil {
-				stopUI(err)
-			}
-			return err
+			groupChan = upCmd.adapter.Browse(ctx)
+			return nil
 		})
 
 		// Wait the end of the preparation: immich assets, albums and first browsing

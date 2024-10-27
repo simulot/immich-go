@@ -31,7 +31,7 @@ type inMemFS struct {
 	ic   *filenames.InfoCollector
 }
 
-func newInMemFS(name string, ic *filenames.InfoCollector) *inMemFS {
+func newInMemFS(name string, ic *filenames.InfoCollector) *inMemFS { // nolint: unparam
 	return &inMemFS{
 		name: name,
 		FS:   memfs.New(),
@@ -43,7 +43,7 @@ func (mfs inMemFS) Name() string {
 	return mfs.name
 }
 
-func (mfs *inMemFS) addFile(name string, d time.Time) *inMemFS {
+func (mfs *inMemFS) addFile(name string, _ time.Time) *inMemFS {
 	if mfs.err != nil {
 		return mfs
 	}

@@ -239,7 +239,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 	return nil
 }
 
-func (la *LocalAssetBrowser) assetFromFile(ctx context.Context, fsys fs.FS, name string) (*adapters.LocalAssetFile, error) {
+func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*adapters.LocalAssetFile, error) {
 	a := &adapters.LocalAssetFile{
 		FileName: name,
 		Title:    filepath.Base(name),
