@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/internal/albums"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/groups/groupby"
@@ -33,14 +34,14 @@ type Asset interface {
 }
 
 type AssetGroup struct {
-	Assets     []Asset
+	Assets     []*adapters.Asset
 	Albums     []albums.Album
 	Grouping   groupby.GroupBy
 	CoverIndex int // index of the cover assert in the Assets slice
 }
 
 // NewAssetGroup create a new asset group
-func NewAssetGroup(grouping groupby.GroupBy, a ...Asset) *AssetGroup {
+func NewAssetGroup(grouping groupby.GroupBy, a ...*adapters.Asset) *AssetGroup {
 	return &AssetGroup{
 		Grouping: grouping,
 		Assets:   a,
@@ -48,7 +49,7 @@ func NewAssetGroup(grouping groupby.GroupBy, a ...Asset) *AssetGroup {
 }
 
 // AddAsset add an asset to the group
-func (g *AssetGroup) AddAsset(a Asset) {
+func (g *AssetGroup) AddAsset(a *adapters.Asset) {
 	g.Assets = append(g.Assets, a)
 }
 
@@ -109,13 +110,13 @@ func NewGrouperPipeline(ctx context.Context, gs ...Grouper) *GrouperPipeline {
 
 // PipeGrouper groups assets in a pipeline of groupers.
 // Group opens and closes intermediate channels as required.
-func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan Asset) chan *AssetGroup {
+func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *adapters.Asset) chan *AssetGroup {
 	// Create channels
-	gOut := make(chan *AssetGroup) // output channel for groups
-	out := make(chan Asset)        // output channel for the last grouper
+	gOut := make(chan *AssetGroup)    // output channel for groups
+	out := make(chan *adapters.Asset) // output channel for the last grouper
 
-	inChans := make([]chan Asset, len(p.groupers))
-	outChans := make([]chan Asset, len(p.groupers))
+	inChans := make([]chan *adapters.Asset, len(p.groupers))
+	outChans := make([]chan *adapters.Asset, len(p.groupers))
 
 	// initialize channels for each grouper
 	for i := range p.groupers {
@@ -125,7 +126,7 @@ func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan Asset) chan *
 			inChans[i] = outChans[i-1]
 		}
 		if i < len(p.groupers)-1 {
-			outChans[i] = make(chan Asset) // intermediate channels between groupers
+			outChans[i] = make(chan *adapters.Asset) // intermediate channels between groupers
 		} else {
 			outChans[i] = out
 		}

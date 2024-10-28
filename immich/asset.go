@@ -44,7 +44,7 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
-func (ic *ImmichClient) AssetUpload(ctx context.Context, la *adapters.LocalAssetFile) (AssetResponse, error) {
+func (ic *ImmichClient) AssetUpload(ctx context.Context, la *adapters.Asset) (AssetResponse, error) {
 	if ic.dryRun {
 		return AssetResponse{
 			ID:     uuid.NewString(),

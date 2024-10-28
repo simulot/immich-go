@@ -55,9 +55,9 @@ func trackerKeySortFunc(a, b fileKeyTracker) int {
 
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
-	jsons          map[string]*metadata.Metadata       // metadata in the catalog by base name
-	unMatchedFiles map[string]*assetFile               // files to be matched map  by base name
-	matchedFiles   map[string]*adapters.LocalAssetFile // files matched by base name
+	jsons          map[string]*metadata.Metadata // metadata in the catalog by base name
+	unMatchedFiles map[string]*assetFile         // files to be matched map  by base name
+	matchedFiles   map[string]*adapters.Asset    // files matched by base name
 }
 
 // assetFile keep information collected during pass one
@@ -152,7 +152,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			if !ok {
 				dirCatalog.jsons = map[string]*metadata.Metadata{}
 				dirCatalog.unMatchedFiles = map[string]*assetFile{}
-				dirCatalog.matchedFiles = map[string]*adapters.LocalAssetFile{}
+				dirCatalog.matchedFiles = map[string]*adapters.Asset{}
 			}
 			finfo, err := d.Info()
 			if err != nil {
@@ -367,7 +367,7 @@ func (to *Takeout) passTwo(ctx context.Context, gOut chan *groups.AssetGroup) er
 func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *groups.AssetGroup) error {
 	catalog := to.catalogs[dir]
 
-	dirEntries := make([]*adapters.LocalAssetFile, 0, len(catalog.matchedFiles))
+	dirEntries := make([]*adapters.Asset, 0, len(catalog.matchedFiles))
 
 	for name := range catalog.matchedFiles {
 		a := catalog.matchedFiles[name]
@@ -486,9 +486,9 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *groups.
 }
 
 // makeAsset makes a localAssetFile based on the google metadata
-func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *metadata.Metadata) *adapters.LocalAssetFile {
+func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *metadata.Metadata) *adapters.Asset {
 	file := filepath.Join(dir, f.base)
-	a := &adapters.LocalAssetFile{
+	a := &adapters.Asset{
 		FileName: file, // File as named in the archive
 		FileSize: f.length,
 		Title:    f.base,
@@ -528,7 +528,7 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *me
 	return a
 }
 
-func (to *Takeout) filterOnMetadata(ctx context.Context, a *adapters.LocalAssetFile) fileevent.Code {
+func (to *Takeout) filterOnMetadata(ctx context.Context, a *adapters.Asset) fileevent.Code {
 	if !to.flags.KeepArchived && a.Archived {
 		to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding archived file")
 		a.Close()

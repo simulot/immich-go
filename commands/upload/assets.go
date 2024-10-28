@@ -40,7 +40,7 @@ func (ai *AssetIndex) Len() int {
 	return len(ai.assets)
 }
 
-func (ai *AssetIndex) AddLocalAsset(la *adapters.LocalAssetFile, immichID string) {
+func (ai *AssetIndex) AddLocalAsset(la *adapters.Asset, immichID string) {
 	sa := &immich.Asset{
 		ID:               immichID,
 		DeviceAssetID:    la.DeviceAssetID(),

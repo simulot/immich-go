@@ -29,7 +29,7 @@ import (
 
 */
 
-type LocalAssetFile struct {
+type Asset struct {
 	// File system and file name
 	FSys     fs.FS     // Asset's file system
 	FileName string    // The asset's path in the fsys
@@ -68,32 +68,32 @@ type LocalAssetFile struct {
 	reader     io.Reader // the reader that combines the partial read and original file for full file reading
 }
 
-func (l LocalAssetFile) DebugObject() any {
+func (l Asset) DebugObject() any {
 	l.FSys = nil
 	return l
 }
 
-func (l *LocalAssetFile) SetNameInfo(ni filenames.NameInfo) {
+func (l *Asset) SetNameInfo(ni filenames.NameInfo) {
 	l.nameInfo = ni
 }
 
-func (l *LocalAssetFile) NameInfo() filenames.NameInfo {
+func (l *Asset) NameInfo() filenames.NameInfo {
 	return l.nameInfo
 }
 
-func (l *LocalAssetFile) DateTaken() time.Time {
+func (l *Asset) DateTaken() time.Time {
 	return l.CaptureDate
 }
 
 // Remove the temporary file
-func (l *LocalAssetFile) Remove() error {
+func (l *Asset) Remove() error {
 	if fsys, ok := l.FSys.(fshelper.Remover); ok {
 		return fsys.Remove(l.FileName)
 	}
 	return nil
 }
 
-func (l *LocalAssetFile) DeviceAssetID() string {
+func (l *Asset) DeviceAssetID() string {
 	return fmt.Sprintf("%s-%d", l.Title, l.FileSize)
 }
 
@@ -105,7 +105,7 @@ func (l *LocalAssetFile) DeviceAssetID() string {
 // TODO: possible optimization: when the file is a plain file, do not copy it into a temporary file
 // TODO: use user temp folder
 
-func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
+func (l *Asset) PartialSourceReader() (reader io.Reader, err error) {
 	if l.sourceFile == nil {
 		l.sourceFile, err = l.FSys.Open(l.FileName)
 		if err != nil {
@@ -129,7 +129,7 @@ func (l *LocalAssetFile) PartialSourceReader() (reader io.Reader, err error) {
 }
 
 // Open return fs.File that reads previously read bytes followed by the actual file content.
-func (l *LocalAssetFile) Open() (fs.File, error) {
+func (l *Asset) Open() (fs.File, error) {
 	var err error
 	if l.sourceFile == nil {
 		l.sourceFile, err = l.FSys.Open(l.FileName)
@@ -150,12 +150,12 @@ func (l *LocalAssetFile) Open() (fs.File, error) {
 }
 
 // Read
-func (l *LocalAssetFile) Read(b []byte) (int, error) {
+func (l *Asset) Read(b []byte) (int, error) {
 	return l.reader.Read(b)
 }
 
 // Close close the temporary file  and close the source
-func (l *LocalAssetFile) Close() error {
+func (l *Asset) Close() error {
 	var err error
 	if l.sourceFile != nil {
 		err = errors.Join(err, l.sourceFile.Close())
@@ -171,24 +171,24 @@ func (l *LocalAssetFile) Close() error {
 }
 
 // Stat implements the fs.FILE interface
-func (l *LocalAssetFile) Stat() (fs.FileInfo, error) {
+func (l *Asset) Stat() (fs.FileInfo, error) {
 	return l, nil
 }
-func (l *LocalAssetFile) IsDir() bool { return false }
+func (l *Asset) IsDir() bool { return false }
 
-func (l *LocalAssetFile) Name() string {
+func (l *Asset) Name() string {
 	return l.FileName
 }
 
-func (l *LocalAssetFile) Size() int64 {
+func (l *Asset) Size() int64 {
 	return int64(l.FileSize)
 }
 
 // Mode Implements the fs.FILE interface
-func (l *LocalAssetFile) Mode() fs.FileMode { return 0 }
+func (l *Asset) Mode() fs.FileMode { return 0 }
 
 // ModTime implements the fs.FILE interface
-func (l *LocalAssetFile) ModTime() time.Time {
+func (l *Asset) ModTime() time.Time {
 	s, err := fs.Stat(l.FSys, l.FileName)
 	if err != nil {
 		return time.Time{}
@@ -197,10 +197,10 @@ func (l *LocalAssetFile) ModTime() time.Time {
 }
 
 // Sys implements the fs.FILE interface
-func (l *LocalAssetFile) Sys() any { return nil }
+func (l *Asset) Sys() any { return nil }
 
 // LogValue returns a slog.Value representing the LocalAssetFile's properties.
-func (l LocalAssetFile) LogValue() slog.Value {
+func (l Asset) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("FileName", fileevent.AsFileAndName(l.FSys, l.FileName).Name()),
 		slog.Time("FileDate", l.FileDate),

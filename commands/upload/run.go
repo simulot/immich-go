@@ -226,7 +226,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *groups.AssetGroup) error
 	return nil
 }
 
-func (upCmd *UpCmd) handleAsset(ctx context.Context, g *groups.AssetGroup, a *adapters.LocalAssetFile) error {
+func (upCmd *UpCmd) handleAsset(ctx context.Context, g *groups.AssetGroup, a *adapters.Asset) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
@@ -281,7 +281,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *groups.AssetGroup, a *ad
 	return nil
 }
 
-func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *adapters.LocalAssetFile) error {
+func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *adapters.Asset) error {
 	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {

@@ -44,7 +44,7 @@ type Advice struct {
 	Advice      AdviceCode
 	Message     string
 	ServerAsset *immich.Asset
-	LocalAsset  *adapters.LocalAssetFile
+	LocalAsset  *adapters.Asset
 }
 
 func formatBytes(s int64) string {
@@ -99,7 +99,7 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 // The server may have different assets with the same name. This happens with photos produced by digital cameras.
 // The server may have the asset, but in lower resolution. Compare the taken date and resolution
 
-func (ai *AssetIndex) ShouldUpload(la *adapters.LocalAssetFile) (*Advice, error) {
+func (ai *AssetIndex) ShouldUpload(la *adapters.Asset) (*Advice, error) {
 	filename := la.Title
 	if path.Ext(filename) == "" {
 		filename += path.Ext(la.FileName)

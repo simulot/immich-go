@@ -86,7 +86,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		fsName = fsys.Name()
 	}
 
-	var assets []*adapters.LocalAssetFile
+	var assets []*adapters.Asset
 	var entries []fs.DirEntry
 	var err error
 
@@ -239,8 +239,8 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 	return nil
 }
 
-func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*adapters.LocalAssetFile, error) {
-	a := &adapters.LocalAssetFile{
+func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*adapters.Asset, error) {
+	a := &adapters.Asset{
 		FileName: name,
 		Title:    filepath.Base(name),
 		FSys:     fsys,

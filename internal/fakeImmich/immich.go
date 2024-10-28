@@ -15,7 +15,7 @@ func (c *MockedCLient) GetAllAssetsWithFilter(context.Context, func(*immich.Asse
 	return nil
 }
 
-func (c *MockedCLient) AssetUpload(context.Context, *adapters.LocalAssetFile) (immich.AssetResponse, error) {
+func (c *MockedCLient) AssetUpload(context.Context, *adapters.Asset) (immich.AssetResponse, error) {
 	return immich.AssetResponse{}, nil
 }
 
@@ -43,7 +43,7 @@ func (c *MockedCLient) StackAssets(ctx context.Context, cover string, ids []stri
 	return nil
 }
 
-func (c *MockedCLient) UpdateAsset(ctx context.Context, id string, a *adapters.LocalAssetFile) (*immich.Asset, error) {
+func (c *MockedCLient) UpdateAsset(ctx context.Context, id string, a *adapters.Asset) (*immich.Asset, error) {
 	return nil, nil
 }
 
