@@ -8,6 +8,7 @@ import (
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/commands/application"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/spf13/cobra"
@@ -39,11 +40,11 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 	// cmd.Flags().BoolVar(&options.StackBurstPhotos, "stack-burst-photos", false, "Stack bursts of photos in Immich")
 
 	cliflags.AddInclusionFlags(cmd, &options.InclusionFlags)
-	// cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
-	// metadata.AddExifToolFlags(cmd, &options.ExifToolFlags)
+	cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
+	metadata.AddExifToolFlags(cmd, &options.ExifToolFlags)
 	options.SupportedMedia = metadata.DefaultSupportedMedia
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		ctx := cmd.Context()
 		log := app.Log()
 		client := app.Client()
@@ -58,6 +59,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 		}
 
 		options.SupportedMedia = client.Immich.SupportedMedia()
+		options.InfoCollector = filenames.NewInfoCollector(options.DateHandlingFlags.FilenameTimeZone.Location(), options.SupportedMedia)
 		adapter, err := gp.NewTakeout(ctx, app.Jnl(), options, fsyss...)
 		if err != nil {
 			return err

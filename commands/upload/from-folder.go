@@ -8,6 +8,7 @@ import (
 	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/commands/application"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
@@ -50,7 +51,7 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 	cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
 	metadata.AddExifToolFlags(cmd, &options.ExifToolFlags)
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
 		ctx := cmd.Context()
 		log := app.Log()
@@ -68,6 +69,7 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 
 		// create the adapter for folders
 		options.SupportedMedia = client.Immich.SupportedMedia()
+		options.InfoCollector = filenames.NewInfoCollector(options.DateHandlingFlags.FilenameTimeZone.Location(), options.SupportedMedia)
 		adapter, err := folder.NewLocalFiles(ctx, app.Jnl(), options, fsyss...)
 		if err != nil {
 			return err

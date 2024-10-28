@@ -355,25 +355,25 @@ func (upCmd *UpCmd) newUI(ctx context.Context, app *application.Application) *ui
 type progressUpdate func(value, maxValue int)
 
 // call back to get the progression
-func (p *uiPage) updateImmichReading(value, total int) {
+func (ui *uiPage) updateImmichReading(value, total int) {
 	if value == 0 && total == 0 {
 		total, value = 100, 100
 	}
-	p.immichReading.SetMaxValue(total)
-	p.immichReading.SetValue(value)
+	ui.immichReading.SetMaxValue(total)
+	ui.immichReading.SetValue(value)
 }
 
-func (p *uiPage) getCountView(c fileevent.Code, count int64) *tview.TextView {
-	v, ok := p.counts[c]
+func (ui *uiPage) getCountView(c fileevent.Code, count int64) *tview.TextView {
+	v, ok := ui.counts[c]
 	if !ok {
 		v = tview.NewTextView()
-		p.counts[c] = v
+		ui.counts[c] = v
 	}
 	v.SetText(fmt.Sprintf("%6d", count))
 	return v
 }
 
-func (p *uiPage) addCounter(g *tview.Grid, row int, label string, counter fileevent.Code) {
+func (ui *uiPage) addCounter(g *tview.Grid, row int, label string, counter fileevent.Code) {
 	g.AddItem(tview.NewTextView().SetText(label), row, 0, 1, 1, 0, 0, false)
-	g.AddItem(p.getCountView(counter, 0), row, 1, 1, 1, 0, 0, false)
+	g.AddItem(ui.getCountView(counter, 0), row, 1, 1, 1, 0, 0, false)
 }
