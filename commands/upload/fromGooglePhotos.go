@@ -16,7 +16,9 @@ import (
 
 func NewFromGooglePhotosCommand(ctx context.Context, app *application.Application, upOptions *UploadOptions) *cobra.Command {
 	options := &gp.ImportFlags{
-		ManageHEICJPG: cliflags.HeicJpgFlag(cliflags.RawJPGKeepRaw),
+		ManageHEICJPG: cliflags.HeicJpgKeepHeic,
+		ManageRawJPG:  cliflags.RawJPGKeepRaw,
+		ManageBurst:   cliflags.BurstkKeepRaw,
 	}
 
 	cmd := &cobra.Command{

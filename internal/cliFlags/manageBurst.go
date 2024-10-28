@@ -10,8 +10,8 @@ type BurstFlag int
 const (
 	BurstNothing  BurstFlag = iota
 	BurstStack              // Stack burst photos
-	StackKeepRaw            // Stack burst, keep raw photos when when have JPEG and raw
-	StackKeepJPEG           // Stack burst, keep JPEG photos when when have JPEG and raw
+	BurstkKeepRaw           // Stack burst, keep raw photos when when have JPEG and raw
+	BurstKeepJPEG           // Stack burst, keep JPEG photos when when have JPEG and raw
 )
 
 func (b *BurstFlag) Set(value string) error {
@@ -21,9 +21,9 @@ func (b *BurstFlag) Set(value string) error {
 	case "stack":
 		*b = BurstStack
 	case "stackkeepraw":
-		*b = StackKeepRaw
+		*b = BurstkKeepRaw
 	case "stackkeepjpeg":
-		*b = StackKeepJPEG
+		*b = BurstKeepJPEG
 	default:
 		return fmt.Errorf("invalid value %q for BurstFlag", value)
 	}
@@ -36,9 +36,9 @@ func (b BurstFlag) String() string {
 		return ""
 	case BurstStack:
 		return "Stack"
-	case StackKeepRaw:
+	case BurstkKeepRaw:
 		return "StackKeepRaw"
-	case StackKeepJPEG:
+	case BurstKeepJPEG:
 		return "StackKeepJPEG"
 	default:
 		return "Unknown"
