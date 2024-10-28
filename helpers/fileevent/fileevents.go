@@ -40,6 +40,7 @@ const (
 	UploadServerError // = "Server error"
 
 	// Tag
+	Tagged
 	TagNotOnServer
 
 	Uploaded  // = "Uploaded"
@@ -73,6 +74,7 @@ var _code = map[Code]string{
 
 	// Tag
 	TagNotOnServer: "asset not on server",
+	Tagged:         "tagged",
 
 	Stacked:   "Stacked",
 	LivePhoto: "Live photo",
@@ -177,6 +179,39 @@ func (r *Recorder) Report() {
 		UploadUpgraded,
 		UploadServerDuplicate,
 		UploadServerBetter,
+	} {
+		sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
+	}
+
+	r.log.Info(sb.String())
+	fmt.Println(sb.String())
+}
+
+func (r *Recorder) ReportTags() {
+	sb := strings.Builder{}
+
+	sb.WriteString("\n")
+	sb.WriteString("Input analysis:\n")
+	sb.WriteString("---------------\n")
+	for _, c := range []Code{
+		DiscoveredImage,
+		DiscoveredVideo,
+		DiscoveredSidecar,
+		DiscoveredDiscarded,
+		DiscoveredUnsupported,
+		AnalysisLocalDuplicate,
+		AnalysisAssociatedMetadata,
+		AnalysisMissingAssociatedMetadata,
+	} {
+		sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString("Tag:\n")
+	sb.WriteString("----------\n")
+	for _, c := range []Code{
+		Tagged,
+		TagNotOnServer,
 	} {
 		sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
 	}

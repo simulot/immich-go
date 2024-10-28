@@ -135,6 +135,10 @@ func (c *stubIC) SendJobCommand(
 	return immich.SendJobCommandResponse{}, nil
 }
 
+func (c *stubIC) CreateJob(ctx context.Context, name immich.JobName) error {
+	return nil
+}
+
 func (c *stubIC) GetAlbumInfo(context.Context, string, bool) (immich.AlbumContent, error) {
 	return immich.AlbumContent{}, nil
 }

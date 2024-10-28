@@ -48,6 +48,14 @@ const (
 	ClearFailed JobCommand = "clear-failed"
 )
 
+type JobName string
+
+const (
+	PersonCleanup JobName = "person-cleanup"
+	TagCleanup    JobName = "tag-cleanup"
+	UserCleanup   JobName = "user-cleanup"
+)
+
 func (ic *ImmichClient) GetJobs(ctx context.Context) (map[string]Job, error) {
 	var resp map[string]Job
 	err := ic.newServerCall(ctx, EndPointGetJobs).
@@ -67,4 +75,12 @@ func (ic *ImmichClient) SendJobCommand(
 			Force   bool       `json:"force"`
 		}{Command: command, Force: force})), responseJSON(&resp))
 	return
+}
+
+func (ic *ImmichClient) CreateJob(ctx context.Context, name JobName) error {
+	return ic.newServerCall(ctx, EndPointCreateJob).do(postRequest("/jobs",
+		"application/json",
+		setJSONBody(struct {
+			Name JobName `json:"name"`
+		}{Name: name})))
 }

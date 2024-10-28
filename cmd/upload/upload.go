@@ -7,12 +7,10 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
@@ -21,7 +19,6 @@ import (
 	"github.com/simulot/immich-go/browser/gp"
 	"github.com/simulot/immich-go/cmd"
 	"github.com/simulot/immich-go/helpers/asset"
-	"github.com/simulot/immich-go/helpers/datatype"
 	"github.com/simulot/immich-go/helpers/fileevent"
 	"github.com/simulot/immich-go/helpers/fshelper"
 	"github.com/simulot/immich-go/helpers/gen"
@@ -37,35 +34,32 @@ type UpCmd struct {
 
 	fsyss []fs.FS // pseudo file system to browse
 
-	GooglePhotos           bool                // For reading Google Photos takeout files
-	Delete                 bool                // Delete original file after import
-	CreateAlbumAfterFolder bool                // Create albums for assets based on the parent folder or a given name
-	UseFullPathAsAlbumName bool                // Create albums for assets based on the full path to the asset
-	AlbumNamePathSeparator string              // Determines how multiple (sub) folders, if any, will be joined
-	ImportIntoAlbum        string              // All assets will be added to this album
-	PartnerAlbum           string              // Partner's assets will be added to this album
-	Import                 bool                // Import instead of upload
-	DeviceUUID             string              // Set a device UUID
-	Paths                  []string            // Path to explore
-	DateRange              immich.DateRange    // Set capture date range
-	ImportFromAlbum        string              // Import assets from this albums
-	CreateAlbums           bool                // Create albums when exists in the source
-	KeepTrashed            bool                // Import trashed assets
-	KeepPartner            bool                // Import partner's assets
-	KeepUntitled           bool                // Keep untitled albums
-	UseFolderAsAlbumName   bool                // Use folder's name instead of metadata's title as Album name
-	DryRun                 bool                // Display actions but don't change anything
-	CreateStacks           bool                // Stack jpg/raw/burst (Default: TRUE)
-	StackJpgRaws           bool                // Stack jpg/raw (Default: TRUE)
-	StackBurst             bool                // Stack burst (Default: TRUE)
-	DiscardArchived        bool                // Don't import archived assets (Default: FALSE)
-	AutoArchive            bool                // Automatically archive photos that are also archived in google photos (Default: TRUE)
-	WhenNoDate             string              // When the date can't be determined use the FILE's date or NOW (default: FILE)
-	ForceUploadWhenNoJSON  bool                // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
-	BannedFiles            namematcher.List    // List of banned file name patterns
-	Tags                   datatype.StringList // List of tags to apply to assets after upload. Can use forwards slashes to create tag hierarchy (ex. "Holiday/Groundhog's Day")
-	TagWithSession         bool                // Tag uploaded assets according to the format immich-go/YYYY-MM-DD/HH-MI-SS
-	TagWithPath            bool                // Hierarchically tag uploaded assets using path to assets
+	GooglePhotos           bool             // For reading Google Photos takeout files
+	Delete                 bool             // Delete original file after import
+	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
+	UseFullPathAsAlbumName bool             // Create albums for assets based on the full path to the asset
+	AlbumNamePathSeparator string           // Determines how multiple (sub) folders, if any, will be joined
+	ImportIntoAlbum        string           // All assets will be added to this album
+	PartnerAlbum           string           // Partner's assets will be added to this album
+	Import                 bool             // Import instead of upload
+	DeviceUUID             string           // Set a device UUID
+	Paths                  []string         // Path to explore
+	DateRange              immich.DateRange // Set capture date range
+	ImportFromAlbum        string           // Import assets from this albums
+	CreateAlbums           bool             // Create albums when exists in the source
+	KeepTrashed            bool             // Import trashed assets
+	KeepPartner            bool             // Import partner's assets
+	KeepUntitled           bool             // Keep untitled albums
+	UseFolderAsAlbumName   bool             // Use folder's name instead of metadata's title as Album name
+	DryRun                 bool             // Display actions but don't change anything
+	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
+	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
+	StackBurst             bool             // Stack burst (Default: TRUE)
+	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
+	AutoArchive            bool             // Automatically archive photos that are also archived in google photos (Default: TRUE)
+	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
+	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
+	BannedFiles            namematcher.List // List of banned file name patterns
 
 	BrowserConfig asset.Configuration
 
@@ -75,10 +69,8 @@ type UpCmd struct {
 	deleteServerList []*immich.Asset           // List of server assets to remove
 	deleteLocalList  []*browser.LocalAssetFile // List of local assets to remove
 	// updateAlbums     map[string]map[string]any // track immich albums changes
-	stacks           *stacking.StackBuilder
-	browser          browser.Browser
-	uploadedAssetIDs []string
-	tagToAssetIDs    map[string][]string
+	stacks  *stacking.StackBuilder
+	browser browser.Browser
 }
 
 func UploadCommand(ctx context.Context, common *cmd.SharedFlags, args []string) error {
@@ -231,24 +223,6 @@ func newCommand(
 		"Ignore files based on a pattern. Case insensitive. Add one option for each pattern do you need.",
 	)
 
-	cmd.Var(
-		&app.Tags,
-		"tags",
-		"Comma separated tags to apply to assets after upload. Use forwards slashes to create hierarchal tags (ex. \"Holiday/Groundhog's Day\").",
-	)
-
-	cmd.BoolFunc(
-		"tag-with-session",
-		"Tag uploaded assets according to the format immich-go/YYYY-MM-DD/HH-MI-SS",
-		myflag.BoolFlagFn(&app.TagWithSession, false),
-	)
-
-	cmd.BoolFunc(
-		"tag-with-path",
-		"Hierarchically tag uploaded assets using path to assets",
-		myflag.BoolFlagFn(&app.TagWithPath, false),
-	)
-
 	cmd.BoolVar(
 		&app.ForceUploadWhenNoJSON,
 		"upload-when-missing-JSON",
@@ -308,8 +282,6 @@ func newCommand(
 		fmt.Println("No file found matching the pattern: ", strings.Join(cmd.Args(), ","))
 		app.Log.Info("No file found matching the pattern: " + strings.Join(cmd.Args(), ","))
 	}
-
-	app.tagToAssetIDs = make(map[string][]string)
 
 	return &app, nil
 }
@@ -413,15 +385,6 @@ func (app *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) 
 }
 
 func (app *UpCmd) uploadLoop(ctx context.Context) error {
-	if len(app.Tags) > 0 || app.TagWithPath {
-		/*
-			https://github.com/immich-app/immich/discussions/13637#discussioncomment-11017586
-			This hack resolve possible race condition where asset is moved out of upload dir
-			by pausing the storageTemplateMigration job
-		*/
-		app.Immich.SendJobCommand(ctx, immich.StorageTemplateMigration, immich.Pause, false)
-	}
-
 	var err error
 	assetChan := app.browser.Browse(ctx)
 assetLoop:
@@ -466,24 +429,6 @@ assetLoop:
 				}
 			}
 		}
-	}
-
-	if app.TagWithSession {
-		app.Tags = append(app.Tags, time.Now().Format("immich-go/2006-01-02/15-04-05"))
-	}
-
-	if len(app.Tags) > 0 || app.TagWithPath {
-		tagAssets(ctx, app.Immich, app.Log, app.Tags, app.uploadedAssetIDs)
-
-		if app.TagWithPath {
-			for k, v := range app.tagToAssetIDs {
-				if k == "." {
-					continue
-				}
-				tagAssets(ctx, app.Immich, app.Log, []string{k}, v)
-			}
-		}
-		app.Immich.SendJobCommand(ctx, immich.StorageTemplateMigration, immich.Resume, false)
 	}
 
 	// if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
@@ -861,15 +806,6 @@ func (app *UpCmd) UploadAsset(ctx context.Context, a *browser.LocalAssetFile) (s
 					"the server has this file",
 				)
 			} else {
-				app.uploadedAssetIDs = append(app.uploadedAssetIDs, resp.ID)
-				if app.TagWithPath {
-					pathTag := filepath.ToSlash(filepath.Dir(a.FileName))
-					if assetIDs := app.tagToAssetIDs[pathTag]; assetIDs != nil {
-						app.tagToAssetIDs[pathTag] = append(assetIDs, resp.ID)
-					} else {
-						app.tagToAssetIDs[pathTag] = []string{resp.ID}
-					}
-				}
 				b.LivePhoto = nil
 				app.Jnl.Record(ctx, fileevent.Uploaded, &b, b.FileName, "capture date", b.Metadata.DateTaken.String())
 			}
@@ -1018,30 +954,3 @@ func (app *UpCmd) ManageAlbums(ctx context.Context) error {
 	return nil
 }
 */
-
-func tagAssets(
-	ctx context.Context,
-	imm immich.ImmichInterface,
-	logger *slog.Logger,
-	tags []string,
-	assetIDs []string,
-) {
-	if len(tags) == 0 || len(assetIDs) == 0 {
-		return
-	}
-	logger.Info(fmt.Sprintf("Upserting tags: %s", strings.Join(tags, ", ")))
-	tagResponses, err := imm.UpsertTags(ctx, tags)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to UpsertTags: %s", err))
-	} else {
-		logger.Info(fmt.Sprintf("Tagging %d assets", len(assetIDs)))
-		var tagIDs []string
-		for _, tag := range tagResponses {
-			tagIDs = append(tagIDs, tag.ID)
-		}
-		_, err := imm.BulkTagAssets(ctx, tagIDs, assetIDs)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to BulkTagAssets for tagIDs %+v: %s", tagIDs, err))
-		}
-	}
-}

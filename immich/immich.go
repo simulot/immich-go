@@ -61,6 +61,7 @@ type ImmichInterface interface {
 		command JobCommand,
 		force bool,
 	) (SendJobCommandResponse, error)
+	CreateJob(ctx context.Context, name JobName) error
 
 	UpsertTags(ctx context.Context, tags []string) ([]TagSimplified, error)
 	TagAssets(

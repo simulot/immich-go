@@ -159,3 +159,7 @@ func (c *MockedCLient) BulkTagAssets(
 		Count int `json:"count"`
 	}{}, nil
 }
+
+func (c *MockedCLient) CreateJob(ctx context.Context, name immich.JobName) error {
+	return nil
+}
