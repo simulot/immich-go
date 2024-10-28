@@ -69,7 +69,7 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 
 		// create the adapter for folders
 		options.SupportedMedia = client.Immich.SupportedMedia()
-		options.InfoCollector = filenames.NewInfoCollector(options.DateHandlingFlags.FilenameTimeZone.Location(), options.SupportedMedia)
+		options.InfoCollector = filenames.NewInfoCollector(app.GetTZ(), options.SupportedMedia)
 		adapter, err := folder.NewLocalFiles(ctx, app.Jnl(), options, fsyss...)
 		if err != nil {
 			return err

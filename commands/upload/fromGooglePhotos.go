@@ -59,7 +59,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 		}
 
 		options.SupportedMedia = client.Immich.SupportedMedia()
-		options.InfoCollector = filenames.NewInfoCollector(options.DateHandlingFlags.FilenameTimeZone.Location(), options.SupportedMedia)
+		options.InfoCollector = filenames.NewInfoCollector(app.GetTZ(), options.SupportedMedia)
 		adapter, err := gp.NewTakeout(ctx, app.Jnl(), options, fsyss...)
 		if err != nil {
 			return err

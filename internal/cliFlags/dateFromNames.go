@@ -46,7 +46,7 @@ func (dm *DateMethod) String() string {
 
 type DateHandlingFlags struct {
 	Method           DateMethod
-	FilenameTimeZone tzone.Timezone
+	FilenameTimeZone tzone.Timezone // set with global flag  --time-zone string
 }
 
 func AddDateHandlingFlags(cmd *cobra.Command, flags *DateHandlingFlags) {
@@ -54,5 +54,5 @@ func AddDateHandlingFlags(cmd *cobra.Command, flags *DateHandlingFlags) {
 	_ = flags.FilenameTimeZone.Set("Local")
 
 	cmd.Flags().Var(&flags.Method, "capture-date-method", "Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename)")
-	cmd.Flags().Var(&flags.FilenameTimeZone, "filename-timezone", "Specify the timezone to use when detecting the date from the filename. Options: Local (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York)")
+	// cmd.Flags().Var(&flags.FilenameTimeZone, "filename-timezone", "Specify the timezone to use when detecting the date from the filename. Options: Local (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York)")
 }
