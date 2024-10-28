@@ -53,5 +53,15 @@ type ImportFlags struct {
 	// SupportedMedia represents the server's actual list of supported media. This is not a flag.
 	SupportedMedia metadata.SupportedMedia
 
+	// InfoCollector collects information about filenames.
 	InfoCollector *filenames.InfoCollector
+
+	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
+	ManageHEICJPG cliflags.HeicJpgFlag
+
+	// ManageRawJPG determines how to manage raw and JPEG files.
+	ManageRawJPG cliflags.RawJPGFlag
+
+	// BurstFlag determines how to manage burst photos.
+	ManageBurst cliflags.BurstFlag
 }

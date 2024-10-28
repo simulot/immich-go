@@ -15,7 +15,9 @@ import (
 )
 
 func NewFromGooglePhotosCommand(ctx context.Context, app *application.Application, upOptions *UploadOptions) *cobra.Command {
-	options := &gp.ImportFlags{}
+	options := &gp.ImportFlags{
+		ManageHEICJPG: cliflags.HeicJpgFlag(cliflags.RawJPGKeepRaw),
+	}
 
 	cmd := &cobra.Command{
 		Use:   "from-google-photos [flags] <takeout-*.zip> | <takeout-folder>",
@@ -34,10 +36,9 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 	cmd.Flags().BoolVarP(&options.KeepArchived, "include-archived", "a", true, "Import archived Google Photos")
 	cmd.Flags().BoolVarP(&options.KeepJSONLess, "include-unmatched", "u", false, "Import photos that do not have a matching JSON file in the takeout")
 	cmd.Flags().Var(&options.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
-
-	// TODO
-	// cmd.Flags().BoolVar(&options.StackJpgWithRaw, "stack-jpg-with-raw", false, "Stack JPG images with their corresponding raw images in Immich")
-	// cmd.Flags().BoolVar(&options.StackBurstPhotos, "stack-burst-photos", false, "Stack bursts of photos in Immich")
+	cmd.Flags().Var(&options.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
+	cmd.Flags().Var(&options.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
+	cmd.Flags().Var(&options.ManageBurst, "manage-burst", "Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG")
 
 	cliflags.AddInclusionFlags(cmd, &options.InclusionFlags)
 	cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
