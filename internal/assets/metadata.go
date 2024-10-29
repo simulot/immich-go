@@ -1,4 +1,4 @@
-package adapters
+package assets
 
 import (
 	"io"
@@ -17,7 +17,7 @@ type ReadMetadataOptions struct {
 	FilenameTimeZone *time.Location
 }
 
-func (la *LocalAssetFile) ReadMetadata(method cliflags.DateMethod, options ReadMetadataOptions) (*metadata.Metadata, error) {
+func (la *Asset) ReadMetadata(method cliflags.DateMethod, options ReadMetadataOptions) (*metadata.Metadata, error) {
 	ms := strings.Split(string(method), "-")
 	for _, m := range ms {
 		switch cliflags.DateMethod(m) {
@@ -54,7 +54,7 @@ func (la *LocalAssetFile) ReadMetadata(method cliflags.DateMethod, options ReadM
 }
 
 // metadataFromExiftool call exiftool
-func (la *LocalAssetFile) metadataFromExiftool(options ReadMetadataOptions) (*metadata.Metadata, error) {
+func (la *Asset) metadataFromExiftool(options ReadMetadataOptions) (*metadata.Metadata, error) {
 	// Get a handler on a temporary file
 	r, err := la.PartialSourceReader()
 	if err != nil {
@@ -71,7 +71,7 @@ func (la *LocalAssetFile) metadataFromExiftool(options ReadMetadataOptions) (*me
 	return md, err
 }
 
-func (la *LocalAssetFile) metadataFromDirectRead(localTZ *time.Location) (*metadata.Metadata, error) {
+func (la *Asset) metadataFromDirectRead(localTZ *time.Location) (*metadata.Metadata, error) {
 	// Get a handler on a temporary file
 	r, err := la.PartialSourceReader()
 	if err != nil {

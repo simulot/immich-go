@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/groups"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -87,7 +87,7 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *application.Application) e
 
 	uiGrp.Go(func() error {
 		processGrp := errgroup.Group{}
-		var groupChan chan *groups.AssetGroup
+		var groupChan chan *assets.Group
 		var err error
 
 		processGrp.Go(func() error {

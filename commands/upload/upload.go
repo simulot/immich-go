@@ -2,6 +2,7 @@ package upload
 
 import (
 	"context"
+	"time"
 
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -53,6 +54,12 @@ func (options *UploadOptions) Open(ctx context.Context, cmd *cobra.Command, app 
 	// Initialize the Journal
 	if app.Jnl() == nil {
 		app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
+	}
+	app.SetTZ(time.Local)
+	if tz, err := cmd.Flags().GetString("time-zone"); err == nil {
+		if loc, err := time.LoadLocation(tz); err == nil {
+			app.SetTZ(loc)
+		}
 	}
 	return nil
 }

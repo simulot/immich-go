@@ -5,8 +5,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 type AssetIndex struct {
@@ -40,7 +40,7 @@ func (ai *AssetIndex) Len() int {
 	return len(ai.assets)
 }
 
-func (ai *AssetIndex) AddLocalAsset(la *adapters.LocalAssetFile, immichID string) {
+func (ai *AssetIndex) AddLocalAsset(la *assets.Asset, immichID string) {
 	sa := &immich.Asset{
 		ID:               immichID,
 		DeviceAssetID:    la.DeviceAssetID(),

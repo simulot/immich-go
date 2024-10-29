@@ -1,4 +1,4 @@
-package albums
+package assets
 
 type Album struct {
 	Title               string  // either the directory base name, or metadata

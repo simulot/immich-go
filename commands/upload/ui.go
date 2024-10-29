@@ -13,8 +13,8 @@ import (
 	"github.com/rivo/tview"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/commands/version"
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/groups"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -165,7 +165,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) err
 
 	// start the processes
 	uiGroup.Go(func() error {
-		var groupChan chan *groups.AssetGroup
+		var groupChan chan *assets.Group
 		var err error
 		processGrp := errgroup.Group{}
 		processGrp.Go(func() error {
