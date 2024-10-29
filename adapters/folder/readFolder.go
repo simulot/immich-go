@@ -9,8 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/simulot/immich-go/adapters"
-	"github.com/simulot/immich-go/internal/albums"
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/groups"
@@ -55,8 +54,8 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	return &la, nil
 }
 
-func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *groups.AssetGroup {
-	gOut := make(chan *groups.AssetGroup)
+func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.Group {
+	gOut := make(chan *assets.Group)
 	go func() {
 		defer close(gOut)
 		for _, fsys := range la.fsyss {
@@ -68,7 +67,7 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *groups.AssetGroup
 	return gOut
 }
 
-func (la *LocalAssetBrowser) concurrentParseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *groups.AssetGroup) {
+func (la *LocalAssetBrowser) concurrentParseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) {
 	la.wg.Add(1)
 	ctx, cancel := context.WithCancelCause(ctx)
 	go la.pool.Submit(func() {
@@ -80,13 +79,13 @@ func (la *LocalAssetBrowser) concurrentParseDir(ctx context.Context, fsys fs.FS,
 	})
 }
 
-func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *groups.AssetGroup) error {
+func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) error {
 	fsName := ""
 	if fsys, ok := fsys.(interface{ Name() string }); ok {
 		fsName = fsys.Name()
 	}
 
-	var assets []*adapters.Asset
+	var as []*assets.Asset
 	var entries []fs.DirEntry
 	var err error
 
@@ -154,7 +153,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				return err
 			}
 			if a != nil {
-				assets = append(assets, a)
+				as = append(as, a)
 			}
 		}
 	}
@@ -175,22 +174,22 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 	}
 
-	in := make(chan groups.Asset)
+	in := make(chan *assets.Asset)
 	go func() {
 		defer close(in)
 
-		sort.Slice(assets, func(i, j int) bool {
+		sort.Slice(as, func(i, j int) bool {
 			// Sort by radical first
-			radicalI := assets[i].NameInfo().Radical
-			radicalJ := assets[j].NameInfo().Radical
+			radicalI := as[i].NameInfo().Radical
+			radicalJ := as[j].NameInfo().Radical
 			if radicalI != radicalJ {
 				return radicalI < radicalJ
 			}
 			// If radicals are the same, sort by date
-			return assets[i].CaptureDate.Before(assets[j].CaptureDate)
+			return as[i].CaptureDate.Before(as[j].CaptureDate)
 		})
 
-		for _, a := range assets {
+		for _, a := range as {
 			if la.flags.InclusionFlags.DateRange.IsSet() && !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
 				a.Close()
 				la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
@@ -208,7 +207,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 	for g := range gs {
 		// Add album information
 		if la.flags.ImportIntoAlbum != "" {
-			g.Albums = []albums.Album{{Title: la.flags.ImportIntoAlbum}}
+			g.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
 		} else if la.flags.UsePathAsAlbumName != FolderModeNone {
 			Album := ""
 			switch la.flags.UsePathAsAlbumName {
@@ -228,7 +227,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				}
 				Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
 			}
-			g.Albums = []albums.Album{{Title: Album}}
+			g.Albums = []assets.Album{{Title: Album}}
 		}
 		select {
 		case gOut <- g:
@@ -239,15 +238,15 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 	return nil
 }
 
-func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*adapters.Asset, error) {
-	a := &adapters.Asset{
+func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {
+	a := &assets.Asset{
 		FileName: name,
 		Title:    filepath.Base(name),
 		FSys:     fsys,
 	}
 	a.SetNameInfo(la.flags.InfoCollector.GetInfo(a.Title))
 
-	md, err := a.ReadMetadata(la.flags.DateHandlingFlags.Method, adapters.ReadMetadataOptions{
+	md, err := a.ReadMetadata(la.flags.DateHandlingFlags.Method, assets.ReadMetadataOptions{
 		ExifTool:         la.exiftool,
 		ExiftoolTimezone: la.flags.ExifToolFlags.Timezone.Location(),
 		FilenameTimeZone: la.flags.DateHandlingFlags.FilenameTimeZone.Location(),

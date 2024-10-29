@@ -10,9 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/helpers/gen"
-	"github.com/simulot/immich-go/internal/albums"
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -25,7 +24,7 @@ import (
 type Takeout struct {
 	fsyss       []fs.FS
 	catalogs    map[string]directoryCatalog     // file catalogs by directory in the set of the all takeout parts
-	albums      map[string]albums.Album         // track album names by folder
+	albums      map[string]assets.Album         // track album names by folder
 	fileTracker map[fileKeyTracker]trackingInfo // key is base name + file size,  value is list of file paths
 	// debugLinkedFiles []linkedFiles
 	log      *fileevent.Recorder
@@ -57,7 +56,7 @@ func trackerKeySortFunc(a, b fileKeyTracker) int {
 type directoryCatalog struct {
 	jsons          map[string]*metadata.Metadata // metadata in the catalog by base name
 	unMatchedFiles map[string]*assetFile         // files to be matched map  by base name
-	matchedFiles   map[string]*adapters.Asset    // files matched by base name
+	matchedFiles   map[string]*assets.Asset      // files matched by base name
 }
 
 // assetFile keep information collected during pass one
@@ -82,7 +81,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 	to := Takeout{
 		fsyss:       fsyss,
 		catalogs:    map[string]directoryCatalog{},
-		albums:      map[string]albums.Album{},
+		albums:      map[string]assets.Album{},
 		fileTracker: map[fileKeyTracker]trackingInfo{},
 		log:         l,
 		flags:       flags,
@@ -105,9 +104,9 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 // metadata files content is read and kept
 // return a channel of asset groups after the puzzle is solved
 
-func (to *Takeout) Browse(ctx context.Context) chan *groups.AssetGroup {
+func (to *Takeout) Browse(ctx context.Context) chan *assets.Group {
 	ctx, cancel := context.WithCancelCause(ctx)
-	gOut := make(chan *groups.AssetGroup)
+	gOut := make(chan *assets.Group)
 	go func() {
 		defer close(gOut)
 
@@ -152,7 +151,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			if !ok {
 				dirCatalog.jsons = map[string]*metadata.Metadata{}
 				dirCatalog.unMatchedFiles = map[string]*assetFile{}
-				dirCatalog.matchedFiles = map[string]*adapters.Asset{}
+				dirCatalog.matchedFiles = map[string]*assets.Asset{}
 			}
 			finfo, err := d.Info()
 			if err != nil {
@@ -343,7 +342,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 // Browse return a channel of assets
 // Each asset is a group of files that are associated with each other
 
-func (to *Takeout) passTwo(ctx context.Context, gOut chan *groups.AssetGroup) error {
+func (to *Takeout) passTwo(ctx context.Context, gOut chan *assets.Group) error {
 	dirs := gen.MapKeys(to.catalogs)
 	sort.Strings(dirs)
 	for _, dir := range dirs {
@@ -364,10 +363,10 @@ func (to *Takeout) passTwo(ctx context.Context, gOut chan *groups.AssetGroup) er
 // 	image *assetFile
 // }
 
-func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *groups.AssetGroup) error {
+func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.Group) error {
 	catalog := to.catalogs[dir]
 
-	dirEntries := make([]*adapters.Asset, 0, len(catalog.matchedFiles))
+	dirEntries := make([]*assets.Asset, 0, len(catalog.matchedFiles))
 
 	for name := range catalog.matchedFiles {
 		a := catalog.matchedFiles[name]
@@ -387,7 +386,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *groups.
 		dirEntries = append(dirEntries, a)
 	}
 
-	in := make(chan groups.Asset)
+	in := make(chan *assets.Asset)
 	go func() {
 		defer close(in)
 
@@ -415,48 +414,46 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *groups.
 	for g := range gs {
 		// Manage albums
 		for _, a := range g.Assets {
-			if a, ok := a.(*adapters.LocalAssetFile); ok {
-				if to.flags.CreateAlbums {
-					if to.flags.ImportIntoAlbum != "" {
-						// Force this album
-						g.Albums = []albums.Album{{Title: to.flags.ImportIntoAlbum}}
-					} else {
-						// check if its duplicates are in some albums, and push them all at once
-						key := fileKeyTracker{baseName: filepath.Base(a.FileName), size: int64(a.FileSize)}
-						track := to.fileTracker[key]
-						for _, p := range track.paths {
-							if album, ok := to.albums[p]; ok {
-								title := album.Title
-								if title == "" {
-									if !to.flags.KeepUntitled {
-										continue
-									}
-									title = filepath.Base(p)
+			if to.flags.CreateAlbums {
+				if to.flags.ImportIntoAlbum != "" {
+					// Force this album
+					g.Albums = []assets.Album{{Title: to.flags.ImportIntoAlbum}}
+				} else {
+					// check if its duplicates are in some albums, and push them all at once
+					key := fileKeyTracker{baseName: filepath.Base(a.FileName), size: int64(a.FileSize)}
+					track := to.fileTracker[key]
+					for _, p := range track.paths {
+						if album, ok := to.albums[p]; ok {
+							title := album.Title
+							if title == "" {
+								if !to.flags.KeepUntitled {
+									continue
 								}
-								g.AddAlbum(albums.Album{
-									Title:       title,
-									Description: album.Description,
-									Latitude:    album.Latitude,
-									Longitude:   album.Longitude,
-								})
+								title = filepath.Base(p)
 							}
+							g.AddAlbum(assets.Album{
+								Title:       title,
+								Description: album.Description,
+								Latitude:    album.Latitude,
+								Longitude:   album.Longitude,
+							})
 						}
-					}
-
-					// Force this album for partners photos
-					if to.flags.PartnerSharedAlbum != "" && a.FromPartner {
-						g.Albums = append(g.Albums, albums.Album{Title: to.flags.PartnerSharedAlbum})
 					}
 				}
-				// If the asset has no GPS information, but the album has, use the album's location
-				if a.Latitude == 0 && a.Longitude == 0 {
-					for _, album := range g.Albums {
-						if album.Latitude != 0 || album.Longitude != 0 {
-							// when there isn't GPS information on the photo, but the album has a location,  use that location
-							a.Latitude = album.Latitude
-							a.Longitude = album.Longitude
-							break
-						}
+
+				// Force this album for partners photos
+				if to.flags.PartnerSharedAlbum != "" && a.FromPartner {
+					g.Albums = append(g.Albums, assets.Album{Title: to.flags.PartnerSharedAlbum})
+				}
+			}
+			// If the asset has no GPS information, but the album has, use the album's location
+			if a.Latitude == 0 && a.Longitude == 0 {
+				for _, album := range g.Albums {
+					if album.Latitude != 0 || album.Longitude != 0 {
+						// when there isn't GPS information on the photo, but the album has a location,  use that location
+						a.Latitude = album.Latitude
+						a.Longitude = album.Longitude
+						break
 					}
 				}
 			}
@@ -465,15 +462,13 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *groups.
 		select {
 		case gOut <- g:
 			for _, a := range g.Assets {
-				if a, ok := a.(*adapters.LocalAssetFile); ok {
-					key := fileKeyTracker{
-						baseName: path.Base(a.FileName),
-						size:     int64(a.FileSize),
-					}
-					track := to.fileTracker[key]
-					track.status = fileevent.Uploaded
-					to.fileTracker[key] = track
+				key := fileKeyTracker{
+					baseName: path.Base(a.FileName),
+					size:     int64(a.FileSize),
 				}
+				track := to.fileTracker[key]
+				track.status = fileevent.Uploaded
+				to.fileTracker[key] = track
 			}
 		case <-ctx.Done():
 			return ctx.Err()
@@ -486,9 +481,9 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *groups.
 }
 
 // makeAsset makes a localAssetFile based on the google metadata
-func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *metadata.Metadata) *adapters.Asset {
+func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *metadata.Metadata) *assets.Asset {
 	file := filepath.Join(dir, f.base)
-	a := &adapters.Asset{
+	a := &assets.Asset{
 		FileName: file, // File as named in the archive
 		FileSize: f.length,
 		Title:    f.base,
@@ -528,7 +523,7 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *me
 	return a
 }
 
-func (to *Takeout) filterOnMetadata(ctx context.Context, a *adapters.Asset) fileevent.Code {
+func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileevent.Code {
 	if !to.flags.KeepArchived && a.Archived {
 		to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding archived file")
 		a.Close()
@@ -546,7 +541,7 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *adapters.Asset) file
 	}
 	if a.DateTaken().IsZero() {
 		// wasn't associated
-		md, err := a.ReadMetadata(to.flags.DateHandlingFlags.Method, adapters.ReadMetadataOptions{
+		md, err := a.ReadMetadata(to.flags.DateHandlingFlags.Method, assets.ReadMetadataOptions{
 			ExifTool:         to.exiftool,
 			ExiftoolTimezone: to.flags.ExifToolFlags.Timezone.Location(),
 			FilenameTimeZone: to.flags.DateHandlingFlags.FilenameTimeZone.Location(),

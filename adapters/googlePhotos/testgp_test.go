@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
-	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -167,9 +166,7 @@ func TestBrowse(t *testing.T) {
 					return
 				}
 				for _, a := range g.Assets {
-					if a, ok := a.(*adapters.LocalAssetFile); ok {
-						results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
-					}
+					results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
 				}
 			}
 			results = sortFileResult(results)
@@ -261,13 +258,11 @@ func TestAlbums(t *testing.T) {
 			albums := album{}
 			for g := range gChan {
 				for _, a := range g.Assets {
-					if a, ok := a.(*adapters.LocalAssetFile); ok {
-						if len(g.Albums) > 0 {
-							for _, al := range g.Albums {
-								l := albums[al.Title]
-								l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
-								albums[al.Title] = l
-							}
+					if len(g.Albums) > 0 {
+						for _, al := range g.Albums {
+							l := albums[al.Title]
+							l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
+							albums[al.Title] = l
 						}
 					}
 				}

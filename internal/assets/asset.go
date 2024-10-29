@@ -1,4 +1,4 @@
-package adapters
+package assets
 
 import (
 	"errors"
@@ -16,7 +16,7 @@ import (
 )
 
 /*
-	localFile structure hold information on assets used for building immich assets.
+	Asset structure hold information on assets used for building immich assets.
 
 	The asset is taken into a fs.FS system which doesn't implement anything else than a strait
 	reader.
@@ -66,11 +66,6 @@ type Asset struct {
 	tempFile   *os.File  // buffer that keep partial reads available for the full file reading
 	teeReader  io.Reader // write each read from it into the tempWriter
 	reader     io.Reader // the reader that combines the partial read and original file for full file reading
-}
-
-func (l Asset) DebugObject() any {
-	l.FSys = nil
-	return l
 }
 
 func (l *Asset) SetNameInfo(ni filenames.NameInfo) {

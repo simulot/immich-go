@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/simulot/immich-go/adapters"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
@@ -92,12 +91,10 @@ func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fil
 	assetsGroups := adapter.Browse(ctx)
 	for g := range assetsGroups {
 		for i, a := range g.Assets {
-			if a, ok := a.(*adapters.LocalAssetFile); ok {
-				jnl.Record(ctx, fileevent.Uploaded, a)
-				if i >= 0 {
-					for _, album := range g.Albums {
-						jnl.Record(ctx, fileevent.UploadAddToAlbum, a, "album", album.Title)
-					}
+			jnl.Record(ctx, fileevent.Uploaded, a)
+			if i >= 0 {
+				for _, album := range g.Albums {
+					jnl.Record(ctx, fileevent.UploadAddToAlbum, a, "album", album.Title)
 				}
 			}
 		}

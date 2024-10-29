@@ -2,14 +2,9 @@ package groups
 
 import (
 	"context"
-	"errors"
 	"sync"
-	"time"
 
-	"github.com/simulot/immich-go/adapters"
-	"github.com/simulot/immich-go/internal/albums"
-	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/groups/groupby"
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 // A group of assets link assets that are linked together. This
@@ -28,68 +23,8 @@ import (
 //
 // All group's assets can be added to 0 or more albums
 
-type Asset interface {
-	DateTaken() time.Time
-	NameInfo() filenames.NameInfo
-}
-
-type AssetGroup struct {
-	Assets     []*adapters.Asset
-	Albums     []albums.Album
-	Grouping   groupby.GroupBy
-	CoverIndex int // index of the cover assert in the Assets slice
-}
-
-// NewAssetGroup create a new asset group
-func NewAssetGroup(grouping groupby.GroupBy, a ...*adapters.Asset) *AssetGroup {
-	return &AssetGroup{
-		Grouping: grouping,
-		Assets:   a,
-	}
-}
-
-// AddAsset add an asset to the group
-func (g *AssetGroup) AddAsset(a *adapters.Asset) {
-	g.Assets = append(g.Assets, a)
-}
-
-// AddAlbum adds an album to the group if there is no other album with the same title
-func (g *AssetGroup) AddAlbum(album albums.Album) {
-	for _, a := range g.Albums {
-		if a.Title == album.Title {
-			return
-		}
-	}
-	g.Albums = append(g.Albums, album)
-}
-
-// SetCover set the cover asset of the group
-func (g *AssetGroup) SetCover(i int) *AssetGroup {
-	g.CoverIndex = i
-	return g
-}
-
-func (g *AssetGroup) Validate() error {
-	if g == nil {
-		return errors.New("nil group")
-	}
-	if len(g.Assets) == 0 {
-		return errors.New("empty group")
-	}
-	// test all asset not nil
-	for _, a := range g.Assets {
-		if a == nil {
-			return errors.New("nil asset in group")
-		}
-	}
-	if 0 > g.CoverIndex || g.CoverIndex > len(g.Assets) {
-		return errors.New("cover index out of range")
-	}
-	return nil
-}
-
 // Grouper is an interface for a type that can group assets.
-type Grouper func(ctx context.Context, in <-chan Asset, out chan<- Asset, gOut chan<- *AssetGroup)
+type Grouper func(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asset, gOut chan<- *assets.Group)
 
 /*
 A grouper pipeline is a chain of groupers that process assets in sequence.
@@ -110,13 +45,13 @@ func NewGrouperPipeline(ctx context.Context, gs ...Grouper) *GrouperPipeline {
 
 // PipeGrouper groups assets in a pipeline of groupers.
 // Group opens and closes intermediate channels as required.
-func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *adapters.Asset) chan *AssetGroup {
+func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset) chan *assets.Group {
 	// Create channels
-	gOut := make(chan *AssetGroup)    // output channel for groups
-	out := make(chan *adapters.Asset) // output channel for the last grouper
+	gOut := make(chan *assets.Group) // output channel for groups
+	out := make(chan *assets.Asset)  // output channel for the last grouper
 
-	inChans := make([]chan *adapters.Asset, len(p.groupers))
-	outChans := make([]chan *adapters.Asset, len(p.groupers))
+	inChans := make([]chan *assets.Asset, len(p.groupers))
+	outChans := make([]chan *assets.Asset, len(p.groupers))
 
 	// initialize channels for each grouper
 	for i := range p.groupers {
@@ -126,7 +61,7 @@ func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *adapters.Ass
 			inChans[i] = outChans[i-1]
 		}
 		if i < len(p.groupers)-1 {
-			outChans[i] = make(chan *adapters.Asset) // intermediate channels between groupers
+			outChans[i] = make(chan *assets.Asset) // intermediate channels between groupers
 		} else {
 			outChans[i] = out
 		}
@@ -164,7 +99,7 @@ func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *adapters.Ass
 					return
 				}
 				if a != nil {
-					gOut <- NewAssetGroup(groupby.GroupByNone, a)
+					gOut <- assets.NewGroup(assets.GroupByNone, a)
 				}
 			}
 		}

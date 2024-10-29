@@ -8,18 +8,17 @@ import (
 	"context"
 	"time"
 
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/groups"
-	"github.com/simulot/immich-go/internal/groups/groupby"
 	"github.com/simulot/immich-go/internal/metadata"
 	"golang.org/x/exp/constraints"
 )
 
 // Group groups assets by series, based on the radical part of the name.
 // the in channel receives assets sorted by radical, then by date taken.
-func Group(ctx context.Context, in <-chan groups.Asset, out chan<- groups.Asset, gOut chan<- *groups.AssetGroup) {
+func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asset, gOut chan<- *assets.Group) {
 	currentRadical := ""
-	currentGroup := []groups.Asset{}
+	currentGroup := []*assets.Asset{}
 
 	for {
 		select {
@@ -36,7 +35,7 @@ func Group(ctx context.Context, in <-chan groups.Asset, out chan<- groups.Asset,
 			if r := a.NameInfo().Radical; r != currentRadical {
 				if len(currentGroup) > 0 {
 					sendGroup(ctx, out, gOut, currentGroup)
-					currentGroup = []groups.Asset{}
+					currentGroup = []*assets.Asset{}
 				}
 				currentRadical = r
 			}
@@ -45,13 +44,13 @@ func Group(ctx context.Context, in <-chan groups.Asset, out chan<- groups.Asset,
 	}
 }
 
-func sendGroup(ctx context.Context, out chan<- groups.Asset, outg chan<- *groups.AssetGroup, assets []groups.Asset) {
-	if len(assets) < 2 {
+func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *assets.Group, as []*assets.Asset) {
+	if len(as) < 2 {
 		// Not a series
-		sendAsset(ctx, out, assets)
+		sendAsset(ctx, out, as)
 		return
 	}
-	grouping := groupby.GroupByOther
+	grouping := assets.GroupByOther
 
 	gotJPG := false
 	gotRAW := false
@@ -59,14 +58,14 @@ func sendGroup(ctx context.Context, out chan<- groups.Asset, outg chan<- *groups
 
 	cover := 0
 	// determine if the group is a burst
-	for i, a := range assets {
+	for i, a := range as {
 		gotJPG = gotJPG || a.NameInfo().Ext == ".jpg"
 		gotRAW = gotRAW || metadata.IsRawFile(a.NameInfo().Ext)
 		gotHEIC = gotHEIC || a.NameInfo().Ext == ".heic" || a.NameInfo().Ext == ".heif"
-		if grouping == groupby.GroupByOther {
+		if grouping == assets.GroupByOther {
 			switch a.NameInfo().Kind {
 			case filenames.KindBurst:
-				grouping = groupby.GroupByBurst
+				grouping = assets.GroupByBurst
 			}
 		}
 		if a.NameInfo().IsCover {
@@ -75,26 +74,26 @@ func sendGroup(ctx context.Context, out chan<- groups.Asset, outg chan<- *groups
 	}
 
 	// If we have only two assets, we can try to group them as raw/jpg or heic/jpg
-	if len(assets) == 2 {
-		if grouping == groupby.GroupByOther {
+	if len(as) == 2 {
+		if grouping == assets.GroupByOther {
 			if gotJPG && gotRAW && !gotHEIC {
-				grouping = groupby.GroupByRawJpg
+				grouping = assets.GroupByRawJpg
 			} else if gotJPG && !gotRAW && gotHEIC {
-				grouping = groupby.GroupByHeicJpg
+				grouping = assets.GroupByHeicJpg
 			}
 		}
 		// check the delay between the two assets, if it's too long, we don't group them
-		if grouping == groupby.GroupByRawJpg || grouping == groupby.GroupByHeicJpg {
-			d := assets[0].DateTaken()
-			if abs(d.Sub(assets[1].DateTaken())) > 500*time.Millisecond {
-				sendAsset(ctx, out, assets)
+		if grouping == assets.GroupByRawJpg || grouping == assets.GroupByHeicJpg {
+			d := as[0].DateTaken()
+			if abs(d.Sub(as[1].DateTaken())) > 500*time.Millisecond {
+				sendAsset(ctx, out, as)
 				return
 			}
 		}
 	}
 
 	// good to go
-	g := groups.NewAssetGroup(grouping, assets...)
+	g := assets.NewGroup(grouping, as...)
 	g.CoverIndex = cover
 
 	select {
@@ -105,7 +104,7 @@ func sendGroup(ctx context.Context, out chan<- groups.Asset, outg chan<- *groups
 }
 
 // sendAsset sends assets of the group as individual assets to the output channel
-func sendAsset(ctx context.Context, out chan<- groups.Asset, assets []groups.Asset) {
+func sendAsset(ctx context.Context, out chan<- *assets.Asset, assets []*assets.Asset) {
 	for _, a := range assets {
 		select {
 		case out <- a:

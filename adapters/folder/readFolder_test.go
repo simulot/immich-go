@@ -13,7 +13,6 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
-	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
@@ -407,12 +406,10 @@ func TestInMemLocalAssets(t *testing.T) {
 					return
 				}
 				for _, a := range g.Assets {
-					if a, ok := a.(*adapters.LocalAssetFile); ok {
-						results = append(results, a.FileName)
-						if len(c.expectedAlbums) > 0 {
-							for _, album := range g.Albums {
-								albums[album.Title] = append(albums[album.Title], a.FileName)
-							}
+					results = append(results, a.FileName)
+					if len(c.expectedAlbums) > 0 {
+						for _, album := range g.Albums {
+							albums[album.Title] = append(albums[album.Title], a.FileName)
 						}
 					}
 				}

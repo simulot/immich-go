@@ -10,10 +10,8 @@ import (
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/internal/albums"
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/groups"
-	"github.com/simulot/immich-go/internal/groups/groupby"
 )
 
 type UpCmd struct {
@@ -134,7 +132,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	return nil
 }
 
-func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *groups.AssetGroup) error {
+func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
 	var err error
 assetLoop:
 	for {
@@ -201,22 +199,20 @@ assetLoop:
 	return err
 }
 
-func (upCmd *UpCmd) handleGroup(ctx context.Context, g *groups.AssetGroup) error {
+func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	var errGroup error
 
 	// Upload assets from the group
 	for _, a := range g.Assets {
-		if a, ok := a.(*adapters.LocalAssetFile); ok {
-			err := upCmd.handleAsset(ctx, g, a)
-			errGroup = errors.Join(err)
-		}
+		err := upCmd.handleAsset(ctx, g, a)
+		errGroup = errors.Join(err)
 	}
 	if errGroup != nil {
 		return errGroup
 	}
 
 	switch g.Grouping {
-	case groupby.GroupByNone:
+	case assets.GroupByNone:
 	}
 
 	// Manage albums
@@ -226,7 +222,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *groups.AssetGroup) error
 	return nil
 }
 
-func (upCmd *UpCmd) handleAsset(ctx context.Context, g *groups.AssetGroup, a *adapters.Asset) error {
+func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.Asset) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
@@ -245,7 +241,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *groups.AssetGroup, a *ad
 
 		// Remember existing asset's albums, if any
 		for _, al := range advice.ServerAsset.Albums {
-			g.AddAlbum(albums.Album{
+			g.AddAlbum(assets.Album{
 				Title:       al.AlbumName,
 				Description: al.Description,
 			})
@@ -267,7 +263,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *groups.AssetGroup, a *ad
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
 		for _, al := range advice.ServerAsset.Albums {
-			g.AddAlbum(albums.Album{
+			g.AddAlbum(assets.Album{
 				Title:       al.AlbumName,
 				Description: al.Description,
 			})
@@ -281,7 +277,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *groups.AssetGroup, a *ad
 	return nil
 }
 
-func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *adapters.Asset) error {
+func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
@@ -300,12 +296,10 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *adapters.Asset) error {
 // manageGroupAlbums add the assets to the albums listed in the group.
 // If an album does not exist, it is created.
 // Errors are logged.
-func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *groups.AssetGroup) {
+func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *assets.Group) {
 	assetIDs := []string{}
 	for _, a := range g.Assets {
-		if a, ok := a.(*adapters.LocalAssetFile); ok {
-			assetIDs = append(assetIDs, a.ID)
-		}
+		assetIDs = append(assetIDs, a.ID)
 	}
 
 	for _, album := range g.Albums {
@@ -328,9 +322,7 @@ func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *groups.AssetGroup)
 
 		// Log the action
 		for _, a := range g.Assets {
-			if a, ok := a.(*adapters.LocalAssetFile); ok {
-				upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "Album", title)
-			}
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "Album", title)
 		}
 	}
 }

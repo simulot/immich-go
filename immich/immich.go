@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/tzone"
 )
@@ -29,7 +29,7 @@ type ImmichInterface interface {
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
 	GetAllAssetsWithFilter(context.Context, func(*Asset) error) error
-	AssetUpload(context.Context, *adapters.Asset) (AssetResponse, error)
+	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
 	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)

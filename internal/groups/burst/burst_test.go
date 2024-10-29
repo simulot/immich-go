@@ -6,30 +6,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/groups"
-	"github.com/simulot/immich-go/internal/groups/groupby"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
-type mockedAsset struct {
-	nameInfo  filenames.NameInfo
-	dateTaken time.Time
-}
-
-func (m mockedAsset) NameInfo() filenames.NameInfo {
-	return m.nameInfo
-}
-
-func (m mockedAsset) DateTaken() time.Time {
-	return m.dateTaken
-}
-
-func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) groups.Asset {
-	return mockedAsset{
-		nameInfo:  ic.GetInfo(name),
-		dateTaken: dateTaken,
+func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *assets.Asset {
+	a := assets.Asset{
+		FileName:    name,
+		FileDate:    dateTaken,
+		CaptureDate: dateTaken,
 	}
+	a.SetNameInfo(ic.GetInfo(name))
+	return &a
 }
 
 func TestGroup(t *testing.T) {
@@ -38,7 +27,7 @@ func TestGroup(t *testing.T) {
 
 	baseTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 	// Create assets with a DateTaken interval of 200 milliseconds
-	assets := []groups.Asset{
+	testAssets := []*assets.Asset{
 		mockAsset(ic, "IMG_001.jpg", baseTime),
 		mockAsset(ic, "IMG_002.jpg", baseTime.Add(200*time.Millisecond)),
 		mockAsset(ic, "IMG_003.jpg", baseTime.Add(400*time.Millisecond)),
@@ -59,14 +48,14 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "IMG_018.jpg", baseTime.Add(30*time.Second+400*time.Millisecond)),
 	}
 
-	expectedAssets := []groups.Asset{
+	expectedAssets := []*assets.Asset{
 		mockAsset(ic, "IMG_010.jpg", baseTime.Add(5*time.Second)),
 		mockAsset(ic, "IMG_014.jpg", baseTime.Add(15*time.Second)),
 		mockAsset(ic, "IMG_015.jpg", baseTime.Add(20*time.Second)),
 	}
 
-	expectedGroup := []*groups.AssetGroup{
-		groups.NewAssetGroup(groupby.GroupByBurst,
+	expectedGroup := []*assets.Group{
+		assets.NewGroup(assets.GroupByBurst,
 			mockAsset(ic, "IMG_001.jpg", baseTime),
 			mockAsset(ic, "IMG_002.jpg", baseTime.Add(200*time.Millisecond)),
 			mockAsset(ic, "IMG_003.jpg", baseTime.Add(400*time.Millisecond)),
@@ -77,21 +66,21 @@ func TestGroup(t *testing.T) {
 			mockAsset(ic, "IMG_008.jpg", baseTime.Add(1400*time.Millisecond)),
 			mockAsset(ic, "IMG_009.jpg", baseTime.Add(1600*time.Millisecond)),
 		),
-		groups.NewAssetGroup(groupby.GroupByBurst,
+		assets.NewGroup(assets.GroupByBurst,
 			mockAsset(ic, "IMG_011.jpg", baseTime.Add(10*time.Second)),
 			mockAsset(ic, "IMG_012.jpg", baseTime.Add(10*time.Second+200*time.Millisecond)),
 			mockAsset(ic, "IMG_013.jpg", baseTime.Add(10*time.Second+400*time.Millisecond)),
 		),
-		groups.NewAssetGroup(groupby.GroupByBurst,
+		assets.NewGroup(assets.GroupByBurst,
 			mockAsset(ic, "IMG_016.jpg", baseTime.Add(30*time.Second)),
 			mockAsset(ic, "IMG_017.jpg", baseTime.Add(30*time.Second+200*time.Millisecond)),
 			mockAsset(ic, "IMG_018.jpg", baseTime.Add(30*time.Second+400*time.Millisecond)),
 		),
 	}
 
-	in := make(chan groups.Asset, len(assets))
-	out := make(chan groups.Asset)
-	gOut := make(chan *groups.AssetGroup)
+	in := make(chan *assets.Asset, len(testAssets))
+	out := make(chan *assets.Asset)
+	gOut := make(chan *assets.Group)
 
 	go func() {
 		Group(ctx, in, out, gOut)
@@ -99,13 +88,13 @@ func TestGroup(t *testing.T) {
 		close(gOut)
 	}()
 
-	for _, asset := range assets {
-		in <- asset
+	for _, a := range testAssets {
+		in <- a
 	}
 	close(in)
 
-	gotGroups := []*groups.AssetGroup{}
-	gotAssets := []groups.Asset{}
+	gotGroups := []*assets.Group{}
+	gotAssets := []*assets.Asset{}
 
 	doneGroup := false
 	doneAsset := false
@@ -131,8 +120,8 @@ func TestGroup(t *testing.T) {
 	} else {
 		for i := range gotGroups {
 			for j := range gotGroups[i].Assets {
-				got := gotGroups[i].Assets[j].(mockedAsset)
-				expected := expectedGroup[i].Assets[j].(mockedAsset)
+				got := gotGroups[i].Assets[j]
+				expected := expectedGroup[i].Assets[j]
 				if !reflect.DeepEqual(got, expected) {
 					t.Errorf("Expected group %d asset %d \n%#v got\n%#v", i, j, expected, got)
 				}

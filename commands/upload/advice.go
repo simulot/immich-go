@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 // - - go:generate stringer -type=AdviceCode
@@ -44,7 +44,7 @@ type Advice struct {
 	Advice      AdviceCode
 	Message     string
 	ServerAsset *immich.Asset
-	LocalAsset  *adapters.Asset
+	LocalAsset  *assets.Asset
 }
 
 func formatBytes(s int64) string {
@@ -99,7 +99,7 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 // The server may have different assets with the same name. This happens with photos produced by digital cameras.
 // The server may have the asset, but in lower resolution. Compare the taken date and resolution
 
-func (ai *AssetIndex) ShouldUpload(la *adapters.Asset) (*Advice, error) {
+func (ai *AssetIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
 	filename := la.Title
 	if path.Ext(filename) == "" {
 		filename += path.Ext(la.FileName)

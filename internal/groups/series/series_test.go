@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/groups"
-	"github.com/simulot/immich-go/internal/groups/groupby"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
@@ -26,14 +25,17 @@ func (m mockedAsset) DateTaken() time.Time {
 	return m.dateTaken
 }
 
-func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) groups.Asset {
-	return mockedAsset{
-		nameInfo:  ic.GetInfo(name),
-		dateTaken: dateTaken,
+func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *assets.Asset {
+	a := assets.Asset{
+		FileName:    name,
+		FileDate:    dateTaken,
+		CaptureDate: dateTaken,
 	}
+	a.SetNameInfo(ic.GetInfo(name))
+	return &a
 }
 
-func sortAssetFn(s []groups.Asset) func(i, j int) bool {
+func sortAssetFn(s []*assets.Asset) func(i, j int) bool {
 	return func(i, j int) bool {
 		if s[i].NameInfo().Radical == s[j].NameInfo().Radical {
 			if s[i].NameInfo().Index == s[j].NameInfo().Index {
@@ -45,7 +47,7 @@ func sortAssetFn(s []groups.Asset) func(i, j int) bool {
 	}
 }
 
-func sortGroupFn(s []*groups.AssetGroup) func(i, j int) bool {
+func sortGroupFn(s []*assets.Group) func(i, j int) bool {
 	return func(i, j int) bool {
 		if s[i].Assets[0].NameInfo().Radical == s[j].Assets[0].NameInfo().Radical {
 			return s[i].Assets[0].DateTaken().Before(s[j].Assets[0].DateTaken())
@@ -59,7 +61,7 @@ func TestGroup(t *testing.T) {
 	ic := filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
 	baseTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 
-	assets := []groups.Asset{
+	as := []*assets.Asset{
 		mockAsset(ic, "IMG_0001.jpg", baseTime),
 		mockAsset(ic, "IMG_20231014_183246_BURST001_COVER.jpg", baseTime.Add(1*time.Hour)), // group 1
 		mockAsset(ic, "IMG_20231014_183246_BURST002.jpg", baseTime.Add(1*time.Hour)),       // group 1
@@ -74,7 +76,7 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "IMG_0007.jpg", baseTime.Add(6*time.Hour)),
 	}
 
-	expectedAssets := []groups.Asset{
+	expectedAssets := []*assets.Asset{
 		mockAsset(ic, "IMG_0001.jpg", baseTime),
 		mockAsset(ic, "IMG_0005.raw", baseTime.Add(4*time.Hour)),
 		mockAsset(ic, "IMG_0006.heic", baseTime.Add(4*time.Hour)),
@@ -82,30 +84,30 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "IMG_0007.jpg", baseTime.Add(6*time.Hour)),
 	}
 
-	expectedGroup := []*groups.AssetGroup{
-		groups.NewAssetGroup(groupby.GroupByBurst,
+	expectedGroup := []*assets.Group{
+		assets.NewGroup(assets.GroupByBurst,
 			mockAsset(ic, "IMG_20231014_183246_BURST001_COVER.jpg", baseTime.Add(1*time.Hour)), // group 1
 			mockAsset(ic, "IMG_20231014_183246_BURST002.jpg", baseTime.Add(1*time.Hour)),       // group 1
 			mockAsset(ic, "IMG_20231014_183246_BURST003.jpg", baseTime.Add(1*time.Hour)),       // group 1
 		),
-		groups.NewAssetGroup(groupby.GroupByRawJpg,
+		assets.NewGroup(assets.GroupByRawJpg,
 			mockAsset(ic, "IMG_0003.jpg", baseTime.Add(2*time.Hour)),
 			mockAsset(ic, "IMG_0003.raw", baseTime.Add(2*time.Hour)),
 		),
-		groups.NewAssetGroup(groupby.GroupByHeicJpg,
+		assets.NewGroup(assets.GroupByHeicJpg,
 			mockAsset(ic, "IMG_0004.heic", baseTime.Add(3*time.Hour)),
 			mockAsset(ic, "IMG_0004.jpg", baseTime.Add(3*time.Hour)),
 		),
 	}
 
-	sort.Slice(assets, sortAssetFn(assets))
+	sort.Slice(as, sortAssetFn(as))
 	sort.Slice(expectedGroup, sortGroupFn(expectedGroup))
-	source := make(chan groups.Asset, len(assets))
-	out := make(chan groups.Asset)
-	gOut := make(chan *groups.AssetGroup)
+	source := make(chan *assets.Asset, len(as))
+	out := make(chan *assets.Asset)
+	gOut := make(chan *assets.Group)
 
 	go func() {
-		for _, asset := range assets {
+		for _, asset := range as {
 			source <- asset
 		}
 		close(source)
@@ -117,8 +119,8 @@ func TestGroup(t *testing.T) {
 		close(gOut)
 	}()
 
-	gotGroups := []*groups.AssetGroup{}
-	gotAssets := []groups.Asset{}
+	gotGroups := []*assets.Group{}
+	gotAssets := []*assets.Asset{}
 
 	doneGroup := false
 	doneAsset := false
@@ -146,8 +148,8 @@ func TestGroup(t *testing.T) {
 	} else {
 		for i := range gotGroups {
 			for j := range gotGroups[i].Assets {
-				got := gotGroups[i].Assets[j].(mockedAsset)
-				expected := expectedGroup[i].Assets[j].(mockedAsset)
+				got := gotGroups[i].Assets[j]
+				expected := expectedGroup[i].Assets[j]
 				if !reflect.DeepEqual(got, expected) {
 					t.Errorf("Expected group %d asset %d \n%#v got\n%#v", i, j, expected, got)
 				}

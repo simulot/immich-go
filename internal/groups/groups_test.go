@@ -7,39 +7,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/groups/burst"
-	"github.com/simulot/immich-go/internal/groups/groupby"
 	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
-type mockedAsset struct {
-	nameInfo  filenames.NameInfo
-	dateTaken time.Time
-}
-
-func (m mockedAsset) NameInfo() filenames.NameInfo {
-	return m.nameInfo
-}
-
-func (m mockedAsset) DateTaken() time.Time {
-	return m.dateTaken
-}
-
-func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) groups.Asset {
-	return mockedAsset{
-		nameInfo:  ic.GetInfo(name),
-		dateTaken: dateTaken,
+func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *assets.Asset {
+	a := assets.Asset{
+		FileName:    name,
+		FileDate:    dateTaken,
+		CaptureDate: dateTaken,
 	}
+	a.SetNameInfo(ic.GetInfo(name))
+	return &a
 }
 
 func TestGroup(t *testing.T) {
 	ic := filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
 	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 
-	assets := []groups.Asset{
+	testAssets := []*assets.Asset{
 		mockAsset(ic, "photo1.jpg", t0.Add(50*time.Hour)),
 		mockAsset(ic, "photo2.jpg", t0.Add(55*time.Hour)),
 		mockAsset(ic, "IMG_001.jpg", t0),                            // Group 1
@@ -70,13 +60,13 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "photo6.jpg", t0.Add(130*time.Hour)),
 	}
 
-	expectedGroup := []*groups.AssetGroup{
-		groups.NewAssetGroup(groupby.GroupByBurst,
+	expectedGroup := []*assets.Group{
+		assets.NewGroup(assets.GroupByBurst,
 			mockAsset(ic, "00001IMG_00001_BURST20210101153000.jpg", time.Date(2021, 1, 1, 15, 30, 0, 0, time.Local)),
 			mockAsset(ic, "00002IMG_00002_BURST20210101153000_COVER.jpg", time.Date(2021, 1, 1, 15, 30, 0, 0, time.Local)),
 			mockAsset(ic, "00003IMG_00003_BURST20210101153000.jpg", time.Date(2021, 1, 1, 15, 30, 0, 0, time.Local)),
 		).SetCover(1),
-		groups.NewAssetGroup(groupby.GroupByBurst,
+		assets.NewGroup(assets.GroupByBurst,
 			mockAsset(ic, "IMG_001.jpg", t0),
 			mockAsset(ic, "IMG_002.jpg", t0.Add(200*time.Millisecond)),
 			mockAsset(ic, "IMG_003.jpg", t0.Add(400*time.Millisecond)),
@@ -87,21 +77,21 @@ func TestGroup(t *testing.T) {
 			mockAsset(ic, "IMG_008.jpg", t0.Add(1400*time.Millisecond)),
 			mockAsset(ic, "IMG_009.jpg", t0.Add(1600*time.Millisecond)),
 		).SetCover(0),
-		groups.NewAssetGroup(groupby.GroupByBurst,
+		assets.NewGroup(assets.GroupByBurst,
 			mockAsset(ic, "IMG_20231014_183246_BURST001_COVER.jpg", time.Date(2023, 10, 14, 18, 32, 46, 0, time.Local)),
 			mockAsset(ic, "IMG_20231014_183246_BURST002.jpg", time.Date(2023, 10, 14, 18, 32, 46, 0, time.Local)),
 		).SetCover(0),
-		groups.NewAssetGroup(groupby.GroupByHeicJpg,
+		assets.NewGroup(assets.GroupByHeicJpg,
 			mockAsset(ic, "IMG_004.heic", t0.Add(10*time.Hour)),
 			mockAsset(ic, "IMG_004.jpg", t0.Add(10*time.Hour+100*time.Millisecond)),
 		),
-		groups.NewAssetGroup(groupby.GroupByRawJpg,
+		assets.NewGroup(assets.GroupByRawJpg,
 			mockAsset(ic, "IMG_003.jpg", t0.Add(9*time.Hour)),
 			mockAsset(ic, "IMG_003.raw", t0.Add(9*time.Hour)),
 		),
 	}
 
-	expectedAssets := []groups.Asset{
+	expectedAssets := []*assets.Asset{
 		mockAsset(ic, "photo1.jpg", t0.Add(50*time.Hour)),
 		mockAsset(ic, "photo2.jpg", t0.Add(55*time.Hour)),
 		mockAsset(ic, "photo3.jpg", t0.Add(5*time.Hour)),
@@ -115,30 +105,30 @@ func TestGroup(t *testing.T) {
 	}
 
 	// inject assets in the input channel
-	in := make(chan groups.Asset)
+	in := make(chan *assets.Asset)
 	go func() {
-		for _, a := range assets {
+		for _, a := range testAssets {
 			in <- a
 		}
 		close(in)
 	}()
 
 	// collect the outputs in gotGroups and gotAssets
-	var gotGroups []*groups.AssetGroup
-	var gotAssets []groups.Asset
+	var gotGroups []*assets.Group
+	var gotAssets []*assets.Asset
 	ctx := context.Background()
 
 	gOut := groups.NewGrouperPipeline(ctx, series.Group, burst.Group).PipeGrouper(ctx, in)
 	for g := range gOut {
 		switch g.Grouping {
-		case groupby.GroupByNone:
+		case assets.GroupByNone:
 			gotAssets = append(gotAssets, g.Assets...)
 		default:
 			gotGroups = append(gotGroups, g)
 		}
 	}
 
-	sortGroupFn := func(s []*groups.AssetGroup) func(i, j int) bool {
+	sortGroupFn := func(s []*assets.Group) func(i, j int) bool {
 		return func(i, j int) bool {
 			if s[i].Assets[0].NameInfo().Radical == s[j].Assets[0].NameInfo().Radical {
 				return s[i].Assets[0].DateTaken().Before(s[j].Assets[0].DateTaken())
@@ -154,8 +144,8 @@ func TestGroup(t *testing.T) {
 	} else {
 		for i := range gotGroups {
 			for j := range gotGroups[i].Assets {
-				got := gotGroups[i].Assets[j].(mockedAsset)
-				expected := expectedGroup[i].Assets[j].(mockedAsset)
+				got := gotGroups[i].Assets[j]
+				expected := expectedGroup[i].Assets[j]
 				if !reflect.DeepEqual(got, expected) {
 					t.Errorf("Expected group %d asset %d \n%#v got\n%#v", i, j, expected, got)
 				}
@@ -163,7 +153,7 @@ func TestGroup(t *testing.T) {
 		}
 	}
 
-	sortAssetFn := func(s []groups.Asset) func(i, j int) bool {
+	sortAssetFn := func(s []*assets.Asset) func(i, j int) bool {
 		return func(i, j int) bool {
 			if s[i].NameInfo().Radical == s[j].NameInfo().Radical {
 				if s[i].NameInfo().Index == s[j].NameInfo().Index {
