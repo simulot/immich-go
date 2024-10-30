@@ -207,8 +207,8 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	// discard rejected assets
 	for _, a := range g.Removed {
-		a.Close()
-		upCmd.app.Jnl().Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", "groups options")
+		a.Asset.Close()
+		upCmd.app.Jnl().Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.Asset.FSys, a.Asset.FileName), "reason", a.Reason)
 	}
 
 	// Upload assets from the group

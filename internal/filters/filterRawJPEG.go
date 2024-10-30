@@ -48,15 +48,20 @@ func groupRawJPGKeepRaw(g *assets.Group) *assets.Group {
 		return g
 	}
 	// Keep only raw files
-	KeptAssets := []*assets.Asset{}
+	removedAssets := []*assets.Asset{}
+	keep := 0
 	for _, a := range g.Assets {
 		if metadata.IsRawFile(a.NameInfo().Ext) {
-			KeptAssets = append(KeptAssets, a)
+			keep++
 		} else {
-			g.Removed = append(g.Removed, a)
+			removedAssets = append(removedAssets, a)
 		}
 	}
-	g.Assets = KeptAssets
+	if keep > 0 {
+		for _, a := range removedAssets {
+			g.RemoveAsset(a, "Keep only RAW files in RAW/JPEG group")
+		}
+	}
 	if len(g.Assets) < 2 {
 		g.Grouping = assets.GroupByNone
 	}
@@ -68,15 +73,20 @@ func groupRawJPGKeepJPG(g *assets.Group) *assets.Group {
 		return g
 	}
 	// Keep only JPEG files
-	KeptAssets := []*assets.Asset{}
+	removedAssets := []*assets.Asset{}
+	keep := 0
 	for _, a := range g.Assets {
 		if a.NameInfo().Ext == ".jpg" || a.NameInfo().Ext == ".jpeg" {
-			KeptAssets = append(KeptAssets, a)
+			keep++
 		} else {
-			g.Removed = append(g.Removed, a)
+			removedAssets = append(removedAssets, a)
 		}
 	}
-	g.Assets = KeptAssets
+	if keep > 0 {
+		for _, a := range removedAssets {
+			g.RemoveAsset(a, "Keep only JPEG files in RAW/JPEG group")
+		}
+	}
 	if len(g.Assets) < 2 {
 		g.Grouping = assets.GroupByNone
 	}

@@ -14,9 +14,14 @@ const (
 	GroupByOther           // Group by other (same radical, not previous cases)
 )
 
+type removed struct {
+	Asset  *Asset
+	Reason string
+}
+
 type Group struct {
 	Assets     []*Asset
-	Removed    []*Asset
+	Removed    []removed
 	Albums     []Album
 	Grouping   GroupBy
 	CoverIndex int // index of the cover assert in the Assets slice
@@ -33,6 +38,17 @@ func NewGroup(grouping GroupBy, a ...*Asset) *Group {
 // AddAsset add an asset to the group
 func (g *Group) AddAsset(a *Asset) {
 	g.Assets = append(g.Assets, a)
+}
+
+// RemoveAsset remove an asset from the group
+func (g *Group) RemoveAsset(a *Asset, reason string) {
+	for i, asset := range g.Assets {
+		if asset == a {
+			g.Removed = append(g.Removed, removed{Asset: asset, Reason: reason})
+			g.Assets = append(g.Assets[:i], g.Assets[i+1:]...)
+			return
+		}
+	}
 }
 
 // AddAlbum adds an album to the group if there is no other album with the same title

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/metadata"
 )
 
 type BurstFlag int
@@ -48,15 +49,23 @@ func groupBurstKeepRaw(g *assets.Group) *assets.Group {
 		return g
 	}
 	// Keep only raw files
-	selectedAssets := []*assets.Asset{}
+	removedAssets := []*assets.Asset{}
+	keep := 0
 	for _, a := range g.Assets {
-		if a.NameInfo().Ext == ".jpg" || a.NameInfo().Ext == ".jpeg" {
-			g.Removed = append(g.Removed, a)
+		if metadata.IsRawFile(a.NameInfo().Ext) {
+			keep++
 		} else {
-			selectedAssets = append(selectedAssets, a)
+			removedAssets = append(removedAssets, a)
 		}
 	}
-	g.Assets = selectedAssets
+	if keep > 0 {
+		for _, a := range removedAssets {
+			g.RemoveAsset(a, "Keep only RAW files in burst")
+		}
+	}
+	if len(g.Assets) < 2 {
+		g.Grouping = assets.GroupByNone
+	}
 	return g
 }
 
@@ -65,15 +74,23 @@ func stackBurstKeepJPEG(g *assets.Group) *assets.Group {
 		return g
 	}
 	// Keep only jpe files
-	selectedAssets := []*assets.Asset{}
+	removedAssets := []*assets.Asset{}
+	keep := 0
 	for _, a := range g.Assets {
 		if a.NameInfo().Ext == ".jpg" || a.NameInfo().Ext == ".jpeg" {
-			selectedAssets = append(selectedAssets, a)
+			keep++
 		} else {
-			g.Removed = append(g.Removed, a)
+			removedAssets = append(removedAssets, a)
 		}
 	}
-	g.Assets = selectedAssets
+	if keep > 0 {
+		for _, a := range removedAssets {
+			g.RemoveAsset(a, "Keep only JPEG files in burst")
+		}
+	}
+	if len(g.Assets) < 2 {
+		g.Grouping = assets.GroupByNone
+	}
 	return g
 }
 

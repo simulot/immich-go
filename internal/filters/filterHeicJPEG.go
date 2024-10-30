@@ -47,15 +47,21 @@ func groupHeicJpgKeepHeic(g *assets.Group) *assets.Group {
 		return g
 	}
 	// Keep only heic files
-	KeptAssets := []*assets.Asset{}
+	removedAssets := []*assets.Asset{}
+	keep := 0
 	for _, a := range g.Assets {
-		if a.NameInfo().Ext == ".jpg" || a.NameInfo().Ext == ".jpeg" {
-			g.Removed = append(g.Removed, a)
+		if a.NameInfo().Ext == ".heic" {
+			keep++
 		} else {
-			KeptAssets = append(KeptAssets, a)
+			removedAssets = append(removedAssets, a)
 		}
 	}
-	g.Assets = KeptAssets
+
+	if keep > 0 {
+		for _, a := range removedAssets {
+			g.RemoveAsset(a, "Keep only HEIC files in HEIC/JPEG group")
+		}
+	}
 	if len(g.Assets) < 2 {
 		g.Grouping = assets.GroupByNone
 	}
@@ -67,15 +73,20 @@ func groupHeicJpgKeepJPG(g *assets.Group) *assets.Group {
 		return g
 	}
 	// Keep only heic files
-	KeptAssets := []*assets.Asset{}
+	removedAssets := []*assets.Asset{}
+	keep := 0
 	for _, a := range g.Assets {
 		if a.NameInfo().Ext == ".jpg" || a.NameInfo().Ext == ".jpeg" {
-			KeptAssets = append(KeptAssets, a)
+			keep++
 		} else {
-			g.Removed = append(g.Removed, a)
+			removedAssets = append(removedAssets, a)
 		}
 	}
-	g.Assets = KeptAssets
+	if keep > 0 {
+		for _, a := range removedAssets {
+			g.RemoveAsset(a, "Keep only HEIC files in HEIC/JPEG group")
+		}
+	}
 	if len(g.Assets) < 2 {
 		g.Grouping = assets.GroupByNone
 	}
