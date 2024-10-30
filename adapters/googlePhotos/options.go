@@ -5,6 +5,7 @@ package gp
 import (
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
 )
@@ -57,11 +58,11 @@ type ImportFlags struct {
 	InfoCollector *filenames.InfoCollector
 
 	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
-	ManageHEICJPG cliflags.HeicJpgFlag
+	ManageHEICJPG filters.HeicJpgFlag
 
 	// ManageRawJPG determines how to manage raw and JPEG files.
-	ManageRawJPG cliflags.RawJPGFlag
+	ManageRawJPG filters.RawJPGFlag
 
 	// BurstFlag determines how to manage burst photos.
-	ManageBurst cliflags.BurstFlag
+	ManageBurst filters.BurstFlag
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/simulot/immich-go/commands/application"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/spf13/cobra"
@@ -16,9 +17,9 @@ import (
 
 func NewFromGooglePhotosCommand(ctx context.Context, app *application.Application, upOptions *UploadOptions) *cobra.Command {
 	options := &gp.ImportFlags{
-		ManageHEICJPG: cliflags.HeicJpgKeepHeic,
-		ManageRawJPG:  cliflags.RawJPGKeepRaw,
-		ManageBurst:   cliflags.BurstkKeepRaw,
+		ManageHEICJPG: filters.HeicJpgKeepHeic,
+		ManageRawJPG:  filters.RawJPGKeepRaw,
+		ManageBurst:   filters.BurstkKeepRaw,
 	}
 
 	cmd := &cobra.Command{
@@ -60,6 +61,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 			log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
 			return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
 		}
+		upOptions.Filters = append(upOptions.Filters, options.ManageBurst.GroupFilter(), options.ManageRawJPG.GroupFilter(), options.ManageHEICJPG.GroupFilter())
 
 		options.SupportedMedia = client.Immich.SupportedMedia()
 		options.InfoCollector = filenames.NewInfoCollector(app.GetTZ(), options.SupportedMedia)

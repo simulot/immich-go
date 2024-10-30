@@ -300,12 +300,3 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAss
 	err := ic.newServerCall(ctx, "updateAsset").do(putRequest("/assets/"+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
-
-func (ic *ImmichClient) StackAssets(ctx context.Context, coverID string, ids []string) error {
-	cover, err := ic.GetAssetByID(ctx, coverID)
-	if err != nil {
-		return err
-	}
-
-	return ic.UpdateAssets(ctx, ids, cover.IsArchived, cover.IsFavorite, cover.ExifInfo.Latitude, cover.ExifInfo.Longitude, false, coverID)
-}

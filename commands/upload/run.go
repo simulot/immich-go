@@ -12,6 +12,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filters"
 )
 
 type UpCmd struct {
@@ -202,11 +203,43 @@ assetLoop:
 func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	var errGroup error
 
+	g = filters.ApplyFilters(g, upCmd.UploadOptions.Filters...)
+
+	// discard rejected assets
+	for _, a := range g.Removed {
+		a.Close()
+		upCmd.app.Jnl().Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", "groups options")
+	}
+
 	// Upload assets from the group
 	for _, a := range g.Assets {
 		err := upCmd.handleAsset(ctx, g, a)
 		errGroup = errors.Join(err)
 	}
+
+	// Manage albums
+	if len(g.Albums) > 0 {
+		upCmd.manageGroupAlbums(ctx, g)
+	}
+
+	// Manage groups
+	// after the filtering and the upload, we can stack the assets
+
+	if g.Grouping != assets.GroupByNone {
+		client := upCmd.app.Client().Immich.(immich.ImmichStackInterface)
+		ids := []string{g.Assets[g.CoverIndex].ID}
+		for i, a := range g.Assets {
+			upCmd.app.Jnl().Record(ctx, fileevent.Stacked, fileevent.AsFileAndName(g.Assets[i].FSys, g.Assets[i].FileName))
+			if i != g.CoverIndex {
+				ids = append(ids, a.ID)
+			}
+		}
+		_, err := client.CreateStack(ctx, ids)
+		if err != nil {
+			upCmd.app.Jnl().Log().Error("Can't create stack", "error", err)
+		}
+	}
+
 	if errGroup != nil {
 		return errGroup
 	}
@@ -215,10 +248,6 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	case assets.GroupByNone:
 	}
 
-	// Manage albums
-	if len(g.Albums) > 0 {
-		upCmd.manageGroupAlbums(ctx, g)
-	}
 	return nil
 }
 
@@ -277,6 +306,8 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 	return nil
 }
 
+// uploadAsset uploads the asset to the server.
+// set the server's asset ID to the asset.
 func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)

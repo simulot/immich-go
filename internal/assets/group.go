@@ -16,6 +16,7 @@ const (
 
 type Group struct {
 	Assets     []*Asset
+	Removed    []*Asset
 	Albums     []Album
 	Grouping   GroupBy
 	CoverIndex int // index of the cover assert in the Assets slice

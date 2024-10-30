@@ -38,10 +38,14 @@ type ImmichInterface interface {
 	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
 	DeleteAlbum(ctx context.Context, id string) error
 
-	StackAssets(ctx context.Context, cover string, IDs []string) error
-
 	SupportedMedia() metadata.SupportedMedia
 	GetJobs(ctx context.Context) (map[string]Job, error)
+}
+
+type ImmichStackInterface interface {
+	ImmichInterface
+	// CreateStack create a stack with the given assets, the 1st asset is the cover, return the stack ID
+	CreateStack(ctx context.Context, ids []string) (string, error)
 }
 
 type UnsupportedMedia struct {

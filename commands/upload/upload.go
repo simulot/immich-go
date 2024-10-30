@@ -6,6 +6,7 @@ import (
 
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filters"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +31,8 @@ func (m UpLoadMode) String() string {
 // UploadOptions represents a set of common flags used for filtering assets.
 type UploadOptions struct {
 	// TODO place this option at the top
-	NoUI bool // Disable UI
+	NoUI    bool // Disable UI
+	Filters []filters.Filter
 }
 
 // NewUploadCommand adds the Upload command
