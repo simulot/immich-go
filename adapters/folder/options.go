@@ -6,6 +6,7 @@ import (
 
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
 )
@@ -50,6 +51,15 @@ type ImportFolderOptions struct {
 
 	// InfoCollector is used to extract information from the file name.
 	InfoCollector *filenames.InfoCollector
+
+	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
+	ManageHEICJPG filters.HeicJpgFlag
+
+	// ManageRawJPG determines how to manage raw and JPEG files.
+	ManageRawJPG filters.RawJPGFlag
+
+	// BurstFlag determines how to manage burst photos.
+	ManageBurst filters.BurstFlag
 }
 
 // AlbumFolderMode represents the mode in which album folders are organized.

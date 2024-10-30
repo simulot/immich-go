@@ -225,7 +225,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	// Manage groups
 	// after the filtering and the upload, we can stack the assets
 
-	if g.Grouping != assets.GroupByNone {
+	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
 		client := upCmd.app.Client().Immich.(immich.ImmichStackInterface)
 		ids := []string{g.Assets[g.CoverIndex].ID}
 		for i, a := range g.Assets {

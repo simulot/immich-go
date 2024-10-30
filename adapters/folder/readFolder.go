@@ -203,7 +203,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 	}()
 
-	gs := groups.NewGrouperPipeline(ctx, series.Group, burst.Group).PipeGrouper(ctx, in)
+	gs := groups.NewGrouperPipeline(ctx, burst.Group, series.Group).PipeGrouper(ctx, in)
 	for g := range gs {
 		// Add album information
 		if la.flags.ImportIntoAlbum != "" {

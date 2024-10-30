@@ -410,7 +410,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 		}
 	}()
 
-	gs := groups.NewGrouperPipeline(ctx, series.Group, burst.Group).PipeGrouper(ctx, in)
+	gs := groups.NewGrouperPipeline(ctx, burst.Group, series.Group).PipeGrouper(ctx, in)
 	for g := range gs {
 		// Manage albums
 		for _, a := range g.Assets {
