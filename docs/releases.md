@@ -5,6 +5,28 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.23.0-alpha3 🏗️ Work in progress 🏗️ 
+
+### New features
+
+- `--manage-burst=BurstFlag`   Manage burst photos. Possible values are: 
+  - `StackKeepRaw` Discard JPEG files, and stack the RAW files (default)
+  - `StackKeepJPEG` Discard RAW files, and stack the JPEG files 
+  - `Stack` Stack all photos, RAW and JPEG photos are imported in the same stack
+      
+- `--manage-heic-jpeg=HeicJpgFlag` Manage coupled HEIC and JPEG files. Possible values: 
+  - `KeepHeic` Keep only the HEIC files (default)
+  - `KeepJPG` Keep only the JPEG files
+  - `StackCoverHeic` Stack boths, the HEIC file is the cover
+  - `StackCoverJPG` Stack boths, the JPEG file is the cover
+
+- `--manage-raw-jpeg=RawJPGFlag`   Manage coupled RAW and JPEG files. Possible values: 
+  - `KeepRaw` Keep only the RAW files (default)
+  - `KeepJPG` Keep only the JPEG files
+  - `StackCoverRaw` Stack boths, the RAW file is the cover
+  - `StackCoverJPG` Stack boths, the JPEG file is the cover
+
+
 ## Release 0.23.0-alpha2 🏗️ Work in progress 🏗️ 
 This an early version of immich-go version v0.23.0-alpha2 
 Yes, v0.23.0-alpha2, and not v1.0.0-alpha2. Let's stick to the semantic versioning.
@@ -13,7 +35,7 @@ Yes, v0.23.0-alpha2, and not v1.0.0-alpha2. Let's stick to the semantic versioni
   - log level are effectives
   - adoption of the structured log package
   - the level DEBUG give file details and metadata
-- [x] colored log on screen
+  - colored log on screen
 - [x] clear separation between folder import and google import
 - [x] adoption of the linux convention of double dashes flags
 - [x] priority of EXIF data over file name for date capture
