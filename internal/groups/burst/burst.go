@@ -8,7 +8,7 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-const frameInterval = 250 * time.Millisecond
+const frameInterval = 1 * time.Second
 
 // Group groups assets taken within a period of less than 1 second.
 // The in channel receives assets sorted by date taken.
@@ -35,12 +35,12 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 				continue
 			}
 
-			if len(currentGroup) == 0 || abs(a.DateTaken().Sub(lastTimestamp)) < frameInterval {
-				currentGroup = append(currentGroup, a)
-				lastTimestamp = a.DateTaken()
-			} else {
+			if len(currentGroup) == 0 && abs(a.DateTaken().Sub(lastTimestamp)) > frameInterval {
 				sendBurstGroup(ctx, out, gOut, currentGroup)
 				currentGroup = []*assets.Asset{a}
+				lastTimestamp = a.DateTaken()
+			} else {
+				currentGroup = append(currentGroup, a)
 				lastTimestamp = a.DateTaken()
 			}
 		}
@@ -56,6 +56,9 @@ func abs[T constraints.Integer](x T) T {
 }
 
 func sendBurstGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *assets.Group, as []*assets.Asset) {
+	if len(as) == 0 {
+		return
+	}
 	if len(as) < 2 {
 		select {
 		case out <- as[0]:
