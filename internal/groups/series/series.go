@@ -85,7 +85,7 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 		// check the delay between the two assets, if it's too long, we don't group them
 		if grouping == assets.GroupByRawJpg || grouping == assets.GroupByHeicJpg {
 			d := as[0].DateTaken()
-			if abs(d.Sub(as[1].DateTaken())) > 500*time.Millisecond {
+			if abs(d.Sub(as[1].DateTaken())) > 1*time.Second {
 				sendAsset(ctx, out, as)
 				return
 			}
