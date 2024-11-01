@@ -29,23 +29,23 @@ func TestGroup(t *testing.T) {
 	// Create assets with a DateTaken interval of 200 milliseconds
 	testAssets := []*assets.Asset{
 		mockAsset(ic, "IMG_001.jpg", baseTime),
-		mockAsset(ic, "IMG_002.jpg", baseTime.Add(200*time.Millisecond)),
-		mockAsset(ic, "IMG_003.jpg", baseTime.Add(400*time.Millisecond)),
-		mockAsset(ic, "IMG_004.jpg", baseTime.Add(600*time.Millisecond)),
-		mockAsset(ic, "IMG_005.jpg", baseTime.Add(800*time.Millisecond)),
-		mockAsset(ic, "IMG_006.jpg", baseTime.Add(1000*time.Millisecond)),
-		mockAsset(ic, "IMG_007.jpg", baseTime.Add(1200*time.Millisecond)),
-		mockAsset(ic, "IMG_008.jpg", baseTime.Add(1400*time.Millisecond)),
+		mockAsset(ic, "IMG_002.jpg", baseTime.Add(200*time.Millisecond)),  // group 1
+		mockAsset(ic, "IMG_003.jpg", baseTime.Add(400*time.Millisecond)),  // group 1
+		mockAsset(ic, "IMG_004.jpg", baseTime.Add(600*time.Millisecond)),  // group 1
+		mockAsset(ic, "IMG_005.jpg", baseTime.Add(800*time.Millisecond)),  // group 1
+		mockAsset(ic, "IMG_006.jpg", baseTime.Add(1000*time.Millisecond)), // group 1
+		mockAsset(ic, "IMG_007.jpg", baseTime.Add(1200*time.Millisecond)), // group 1
+		mockAsset(ic, "IMG_008.jpg", baseTime.Add(1400*time.Millisecond)), // group 1
 		mockAsset(ic, "IMG_009.jpg", baseTime.Add(1600*time.Millisecond)),
 		mockAsset(ic, "IMG_010.jpg", baseTime.Add(5*time.Second)),
 		mockAsset(ic, "IMG_011.jpg", baseTime.Add(10*time.Second)),
-		mockAsset(ic, "IMG_012.jpg", baseTime.Add(10*time.Second+200*time.Millisecond)),
-		mockAsset(ic, "IMG_013.jpg", baseTime.Add(10*time.Second+400*time.Millisecond)),
+		mockAsset(ic, "IMG_012.jpg", baseTime.Add(10*time.Second+200*time.Millisecond)), // group 2
+		mockAsset(ic, "IMG_013.jpg", baseTime.Add(10*time.Second+400*time.Millisecond)), // group 2
 		mockAsset(ic, "IMG_014.jpg", baseTime.Add(15*time.Second)),
 		mockAsset(ic, "IMG_015.jpg", baseTime.Add(20*time.Second)),
 		mockAsset(ic, "IMG_016.jpg", baseTime.Add(30*time.Second)),
-		mockAsset(ic, "IMG_017.jpg", baseTime.Add(30*time.Second+200*time.Millisecond)),
-		mockAsset(ic, "IMG_018.jpg", baseTime.Add(30*time.Second+400*time.Millisecond)),
+		mockAsset(ic, "IMG_017.jpg", baseTime.Add(30*time.Second+200*time.Millisecond)), // group 3
+		mockAsset(ic, "IMG_018.jpg", baseTime.Add(30*time.Second+400*time.Millisecond)), // group 3
 	}
 
 	expectedAssets := []*assets.Asset{

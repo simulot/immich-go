@@ -70,6 +70,9 @@ type Asset struct {
 
 func (l *Asset) SetNameInfo(ni filenames.NameInfo) {
 	l.nameInfo = ni
+	if l.CaptureDate.IsZero() {
+		l.CaptureDate = ni.Taken
+	}
 }
 
 func (l *Asset) NameInfo() filenames.NameInfo {
