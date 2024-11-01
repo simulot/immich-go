@@ -493,12 +493,11 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *metadata.Metadata) *assets.Asset {
 	file := filepath.Join(dir, f.base)
 	a := &assets.Asset{
-		FileName:    file, // File as named in the archive
-		FileSize:    f.length,
-		Title:       f.base,
-		FSys:        f.fsys,
-		FileDate:    f.date,
-		CaptureDate: f.date, // File date as the capture by default
+		FileName: file, // File as named in the archive
+		FileSize: f.length,
+		Title:    f.base,
+		FSys:     f.fsys,
+		FileDate: f.date,
 	}
 
 	// get the original file name from metadata
