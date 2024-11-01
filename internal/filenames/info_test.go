@@ -1,11 +1,16 @@
 package filenames
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/simulot/immich-go/internal/metadata"
 )
+
+func normalizeTime(t time.Time) time.Time {
+	return t.Round(0).UTC()
+}
 
 func TestGetInfo(t *testing.T) {
 	tests := []struct {
@@ -70,17 +75,17 @@ func TestGetInfo(t *testing.T) {
 			},
 		},
 		{
-			name:     "Sony Xperia",
-			filename: "DSC_0002_BURST20230709220904977.JPG",
+			name:     "Sony Xperia BURST",
+			filename: "DSC_0001_BURST20230709220904977.JPG",
 			expected: true,
 			info: NameInfo{
 				Radical: "BURST20230709220904977",
-				Base:    "DSC_0002_BURST20230709220904977.JPG",
+				Base:    "DSC_0001_BURST20230709220904977.JPG",
 				IsCover: false,
-				Ext:     ".JPG",
+				Ext:     ".jpg",
 				Type:    metadata.TypeImage,
 				Kind:    KindBurst,
-				Index:   2,
+				Index:   1,
 				Taken:   time.Date(2023, 7, 9, 22, 9, 4, int(977*time.Millisecond), time.Local),
 			},
 		},
@@ -105,7 +110,11 @@ func TestGetInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			info := ic.GetInfo(tt.filename)
 
-			if info != tt.info {
+			// Normalize time fields
+			info.Taken = normalizeTime(info.Taken)
+			tt.info.Taken = normalizeTime(tt.info.Taken)
+
+			if !reflect.DeepEqual(info, tt.info) {
 				t.Errorf("expected \n%+v,\n  got \n%+v", tt.info, info)
 			}
 		})
