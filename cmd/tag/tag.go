@@ -36,9 +36,8 @@ type TagCmd struct {
 	Tags           datatype.StringList // List of tags to apply to assets. Can use forwards slashes to create tag hierarchy (ex. "Holiday/Groundhog's Day")
 	TagWithSession bool                // Tag uploaded assets according to the format immich-go/YYYY-MM-DD/HH-MI-SS
 	TagWithPath    bool                // Hierarchically tag uploaded assets using path to assets
-	// TODO bnguyen removetags
-	RemoveTags datatype.StringList // List of tags to remove from assets. If list is empty all tags are removed.
-	TagCleanup bool                // Trigger job to delete unused tags.
+	RemoveTags     datatype.StringList // List of tags to remove from assets. If list is empty all tags are removed.
+	TagCleanup     bool                // Trigger job to delete unused tags.
 
 	BrowserConfig asset.Configuration
 
@@ -118,7 +117,7 @@ func newCommand(
 	cmd.Var(
 		&app.RemoveTags,
 		"remove-tags",
-		"Comma separated tags to remove from assets. If option is provided without tags, all tags are removed.",
+		"Comma separated tags to remove from assets before applying new tags. If option is provided without tags, all tags are removed.",
 	)
 	cmd.BoolFunc(
 		"tag-with-session",
@@ -400,7 +399,11 @@ func (app *TagCmd) handleAsset(ctx context.Context, a *browser.LocalAssetFile) e
 			)
 		}
 
+		fmt.Println(advice.ServerAsset.Tags...)
 		// TODO bnguyen if app.RemoveTags
+		// if app.RemoveTags != nil {
+		// 	advice.ServerAsset.Tags
+		// }
 
 		return nil
 	}
