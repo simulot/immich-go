@@ -1,4 +1,4 @@
-package upload
+package myimmich
 
 import (
 	"fmt"
@@ -65,24 +65,39 @@ func formatBytes(s int64) string {
 
 func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
-		Advice:      SameOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Advice: SameOnServer,
+		Message: fmt.Sprintf(
+			"An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.",
+			sa.OriginalFileName,
+			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
+			formatBytes(sa.ExifInfo.FileSizeInByte),
+		),
 		ServerAsset: sa,
 	}
 }
 
 func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
-		Advice:      SmallerOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Advice: SmallerOnServer,
+		Message: fmt.Sprintf(
+			"An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.",
+			sa.OriginalFileName,
+			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
+			formatBytes(sa.ExifInfo.FileSizeInByte),
+		),
 		ServerAsset: sa,
 	}
 }
 
 func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
 	return &Advice{
-		Advice:      BetterOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Advice: BetterOnServer,
+		Message: fmt.Sprintf(
+			"An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.",
+			sa.OriginalFileName,
+			sa.ExifInfo.DateTimeOriginal.Format(time.DateTime),
+			formatBytes(sa.ExifInfo.FileSizeInByte),
+		),
 		ServerAsset: sa,
 	}
 }
@@ -107,7 +122,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
 
 	ID := la.DeviceAssetID()
 
-	sa := ai.byID[ID]
+	sa := ai.ByID[ID]
 	if sa != nil {
 		// the same ID exist on the server
 		return ai.adviceSameOnServer(sa), nil
@@ -118,10 +133,10 @@ func (ai *AssetIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
 	// check all files with the same name
 
 	n := filepath.Base(filename)
-	l = ai.byName[n]
+	l = ai.ByName[n]
 	if len(l) == 0 {
 		// n = strings.TrimSuffix(n, filepath.Ext(n))
-		l = ai.byName[n]
+		l = ai.ByName[n]
 	}
 
 	if len(l) > 0 {
