@@ -28,7 +28,7 @@ type nameMatcher func(name string) (bool, NameInfo)
 
 // GetInfo analyze the name and return the information extracted from the name
 func (ic InfoCollector) GetInfo(name string) NameInfo {
-	for _, m := range []nameMatcher{ic.Pixel, ic.Samsung, ic.Nexus, ic.Huawei} {
+	for _, m := range []nameMatcher{ic.Pixel, ic.Samsung, ic.Nexus, ic.Huawei, ic.SonyXperia} {
 		if ok, i := m(name); ok {
 			return i
 		}

@@ -70,6 +70,21 @@ func TestGetInfo(t *testing.T) {
 			},
 		},
 		{
+			name:     "Sony Xperia",
+			filename: "DSC_0002_BURST20230709220904977.JPG",
+			expected: true,
+			info: NameInfo{
+				Radical: "BURST20230709220904977",
+				Base:    "DSC_0002_BURST20230709220904977.JPG",
+				IsCover: false,
+				Ext:     ".JPG",
+				Type:    metadata.TypeImage,
+				Kind:    KindBurst,
+				Index:   2,
+				Taken:   time.Date(2023, 7, 9, 22, 9, 4, int(977*time.Millisecond), time.Local),
+			},
+		},
+		{
 			name:     "InvalidFilename",
 			filename: "IMG_1123.jpg",
 			expected: false,
