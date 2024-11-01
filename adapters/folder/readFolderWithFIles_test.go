@@ -14,6 +14,7 @@ import (
 	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/tzone"
 )
@@ -37,6 +38,9 @@ func TestLocalAssets(t *testing.T) {
 						TZ: time.Local,
 					},
 				},
+				ManageBurst:   filters.BurstNothing,
+				ManageRawJPG:  filters.RawJPGNothing,
+				ManageHEICJPG: filters.HeicJpgNothing,
 			},
 			fsys: []fs.FS{
 				os.DirFS("DATA/date-range"),
@@ -52,6 +56,9 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "date on name",
 			flags: ImportFolderOptions{
+				ManageBurst:    filters.BurstNothing,
+				ManageRawJPG:   filters.RawJPGNothing,
+				ManageHEICJPG:  filters.HeicJpgNothing,
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodName,
@@ -88,6 +95,9 @@ func TestLocalAssets(t *testing.T) {
 					UseExifTool: true,
 					Timezone:    tzone.Timezone{TZ: time.Local},
 				},
+				ManageBurst:   filters.BurstNothing,
+				ManageRawJPG:  filters.RawJPGNothing,
+				ManageHEICJPG: filters.HeicJpgNothing,
 			},
 			fsys: []fs.FS{
 				os.DirFS("DATA/date-range"),
@@ -95,12 +105,19 @@ func TestLocalAssets(t *testing.T) {
 			expectedFiles: []string{
 				"photo1_w_exif.jpg",
 				"photo1_2024-10-06_w_exif.jpg",
+				"photo1_2023-10-06_wo_exif.jpg",
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 2).Set(fileevent.Uploaded, 2).Value(),
+			expectedCounts: fileevent.NewCounts().
+				Set(fileevent.DiscoveredImage, 4).
+				Set(fileevent.DiscoveredDiscarded, 1).
+				Set(fileevent.Uploaded, 3).Value(),
 		},
 		{
 			name: "select exif date using exiftool",
 			flags: ImportFolderOptions{
+				ManageBurst:    filters.BurstNothing,
+				ManageRawJPG:   filters.RawJPGNothing,
+				ManageHEICJPG:  filters.HeicJpgNothing,
 				SupportedMedia: metadata.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodEXIF,
@@ -122,8 +139,12 @@ func TestLocalAssets(t *testing.T) {
 			expectedFiles: []string{
 				"photo1_w_exif.jpg",
 				"photo1_2024-10-06_w_exif.jpg",
+				"photo1_2023-10-06_wo_exif.jpg",
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 2).Set(fileevent.Uploaded, 2).Value(),
+			expectedCounts: fileevent.NewCounts().
+				Set(fileevent.DiscoveredImage, 4).
+				Set(fileevent.DiscoveredDiscarded, 1).
+				Set(fileevent.Uploaded, 3).Value(),
 		},
 		{
 			name: "select exif date using exiftool then date",
@@ -215,7 +236,7 @@ func TestLocalAssets(t *testing.T) {
 
 			log := application.Log{
 				File:  logFile,
-				Level: "INFO",
+				Level: "DEBUG",
 			}
 			err := log.OpenLogFile()
 			if err != nil {

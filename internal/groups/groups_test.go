@@ -118,7 +118,7 @@ func TestGroup(t *testing.T) {
 	var gotAssets []*assets.Asset
 	ctx := context.Background()
 
-	gOut := groups.NewGrouperPipeline(ctx, series.Group, burst.Group).PipeGrouper(ctx, in)
+	gOut := groups.NewGrouperPipeline(ctx, burst.Group, series.Group).PipeGrouper(ctx, in)
 	for g := range gOut {
 		switch g.Grouping {
 		case assets.GroupByNone:
