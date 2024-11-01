@@ -27,19 +27,55 @@ type ImmichInterface interface {
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
 	GetAllAssets(ctx context.Context) ([]*Asset, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
-	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
+	UpdateAssets(
+		ctx context.Context,
+		IDs []string,
+		isArchived bool,
+		isFavorite bool,
+		latitude float64,
+		longitude float64,
+		removeParent bool,
+		stackParentID string,
+	) error
 	GetAllAssetsWithFilter(context.Context, func(*Asset) error) error
 	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
 	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
-	CreateAlbum(ctx context.Context, tilte string, description string, ids []string) (AlbumSimplified, error)
+	CreateAlbum(
+		ctx context.Context,
+		tilte string,
+		description string,
+		ids []string,
+	) (AlbumSimplified, error)
 	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
 	DeleteAlbum(ctx context.Context, id string) error
 
 	SupportedMedia() metadata.SupportedMedia
+
 	GetJobs(ctx context.Context) (map[string]Job, error)
+	SendJobCommand(
+		ctx context.Context,
+		jobID JobID,
+		command JobCommand,
+		force bool,
+	) (SendJobCommandResponse, error)
+	CreateJob(ctx context.Context, name JobName) error
+
+	UpsertTags(ctx context.Context, tags []string) ([]TagSimplified, error)
+	TagAssets(
+		ctx context.Context,
+		tagID string,
+		assetIDs []string,
+	) ([]TagAssetsResponse, error)
+	BulkTagAssets(
+		ctx context.Context,
+		tagIDs []string,
+		assetIDs []string,
+	) (struct {
+		Count int `json:"count"`
+	}, error)
 }
 
 type ImmichStackInterface interface {
