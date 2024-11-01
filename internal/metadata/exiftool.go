@@ -53,6 +53,26 @@ var dateKeys = []struct {
 
 // GetMetadata returns the metadata of the file. The date of capture is searched in the preferred tags first.
 // missing tags or tags  with incorrect dates are skipped
+//
+// TODO: make a better use of time offset taken on the exif fields
+// ```
+// Modify Date                     : 2023:10:06 08:30:00
+// Date/Time Original              : 2023:10:06 08:30:00
+// Create Date                     : 2023:10:06 08:30:00
+// Offset Time                     : +02:00
+// Offset Time Original            : +02:00
+// Offset Time Digitized           : +02:00
+// Sub Sec Time                    : 139
+// Sub Sec Time Original           : 139
+// Sub Sec Time Digitized          : 139
+// GPS Time Stamp                  : 06:29:56
+// GPS Date Stamp                  : 2023:10:06
+// Profile Date Time               : 2023:03:09 10:57:00
+// Create Date                     : 2023:10:06 08:30:00.139+02:00
+// Date/Time Original              : 2023:10:06 08:30:00.139+02:00
+// Modify Date                     : 2023:10:06 08:30:00.139+02:00
+// GPS Date/Time                   : 2023:10:06 06:29:56Z
+// ```
 
 func (et *ExifTool) ReadMetaData(fileName string) (*Metadata, error) {
 	ms := et.eTool.ExtractMetadata(fileName)
