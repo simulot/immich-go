@@ -1,4 +1,4 @@
-package espsonfastfoto
+package epsonfastfoto
 
 import (
 	"context"

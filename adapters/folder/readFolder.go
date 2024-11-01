@@ -12,8 +12,10 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/groups/burst"
+	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/worker"
@@ -26,6 +28,7 @@ type LocalAssetBrowser struct {
 	exiftool *metadata.ExifTool
 	pool     *worker.Pool
 	wg       sync.WaitGroup
+	groupers []groups.Grouper
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
@@ -50,6 +53,15 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 		}
 		la.exiftool = et
 	}
+
+	if flags.ManageEpsonFastFoto {
+		g := epsonfastfoto.Group{}
+		la.groupers = append(la.groupers, g.Group)
+	}
+	if flags.ManageBurst != filters.BurstNothing {
+		la.groupers = append(la.groupers, burst.Group)
+	}
+	la.groupers = append(la.groupers, series.Group)
 
 	return &la, nil
 }
@@ -203,7 +215,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 	}()
 
-	gs := groups.NewGrouperPipeline(ctx, burst.Group, series.Group).PipeGrouper(ctx, in)
+	gs := groups.NewGrouperPipeline(ctx, la.groupers...).PipeGrouper(ctx, in)
 	for g := range gs {
 		// Add album information
 		if la.flags.ImportIntoAlbum != "" {

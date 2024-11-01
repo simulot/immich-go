@@ -14,9 +14,11 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/groups/burst"
+	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/simulot/immich-go/internal/metadata"
 )
@@ -30,6 +32,7 @@ type Takeout struct {
 	log      *fileevent.Recorder
 	flags    *ImportFlags // command-line flags
 	exiftool *metadata.ExifTool
+	groupers []groups.Grouper
 }
 
 type fileKeyTracker struct {
@@ -96,6 +99,15 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 		}
 		to.exiftool = et
 	}
+
+	if flags.ManageEpsonFastFoto {
+		g := epsonfastfoto.Group{}
+		to.groupers = append(to.groupers, g.Group)
+	}
+	if flags.ManageBurst != filters.BurstNothing {
+		to.groupers = append(to.groupers, burst.Group)
+	}
+	to.groupers = append(to.groupers, series.Group)
 
 	return &to, nil
 }
@@ -410,7 +422,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 		}
 	}()
 
-	gs := groups.NewGrouperPipeline(ctx, burst.Group, series.Group).PipeGrouper(ctx, in)
+	gs := groups.NewGrouperPipeline(ctx, to.groupers...).PipeGrouper(ctx, in)
 	for g := range gs {
 		// Manage albums
 		for _, a := range g.Assets {

@@ -65,4 +65,7 @@ type ImportFlags struct {
 
 	// BurstFlag determines how to manage burst photos.
 	ManageBurst filters.BurstFlag
+
+	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
+	ManageEpsonFastFoto bool
 }

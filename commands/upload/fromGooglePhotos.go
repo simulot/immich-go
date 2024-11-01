@@ -42,6 +42,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 	cmd.Flags().Var(&options.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
 	cmd.Flags().Var(&options.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
 	cmd.Flags().Var(&options.ManageBurst, "manage-burst", "Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG")
+	cmd.Flags().BoolVar(&options.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
 
 	cliflags.AddInclusionFlags(cmd, &options.InclusionFlags)
 	cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
