@@ -5,6 +5,16 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.23.0-alpha4 🏗️ Work in progress 🏗️ 
+
+### New features
+
+- `--manage-epson-fastfoto`  Manage Epson FastFoto file (default: false)
+  <br>Group scanned photos in stacks 
+  - Scan_0001.jpg Original photo
+  - Scan_0001_a.jpg  Enhanced photo, the cover of the stack
+  - Scan_0001_b.jpg  Back of the photo
+
 ## Release 0.23.0-alpha3 🏗️ Work in progress 🏗️ 
 
 ### New features
