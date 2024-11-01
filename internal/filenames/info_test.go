@@ -90,6 +90,19 @@ func TestGetInfo(t *testing.T) {
 			},
 		},
 		{
+			name:     "Epson Scanner",
+			filename: "img0001_a.jpg",
+			expected: true,
+			info: NameInfo{
+				Radical: "img0001",
+				Base:    "img0001_a.jpg",
+				IsCover: false,
+				Ext:     ".jpg",
+				Type:    metadata.TypeImage,
+				Kind:    KindEdited,
+			},
+		},
+		{
 			name:     "InvalidFilename",
 			filename: "IMG_1123.jpg",
 			expected: false,
