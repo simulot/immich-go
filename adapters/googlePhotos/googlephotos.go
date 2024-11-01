@@ -484,11 +484,8 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 			}
 		case <-ctx.Done():
 			return ctx.Err()
-
 		}
-
 	}
-
 	return nil
 }
 

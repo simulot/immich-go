@@ -12,7 +12,6 @@ import (
 	"github.com/navidys/tvxwidgets"
 	"github.com/rivo/tview"
 	"github.com/simulot/immich-go/commands/application"
-	"github.com/simulot/immich-go/commands/version"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
@@ -264,7 +263,7 @@ func (upCmd *UpCmd) newUI(ctx context.Context, app *application.Application) *ui
 
 	ui.screen = tview.NewGrid()
 
-	ui.screen.AddItem(tview.NewTextView().SetText(version.Banner()), 0, 0, 1, 1, 0, 0, false)
+	ui.screen.AddItem(tview.NewTextView().SetText(application.Banner()), 0, 0, 1, 1, 0, 0, false)
 
 	ui.prepareCounts = tview.NewGrid()
 	ui.prepareCounts.SetBorder(true).SetTitle("Input analysis")
