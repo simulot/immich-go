@@ -275,6 +275,7 @@ func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name s
 	}
 	a.FileSize = int(i.Size())
 	a.FileDate = i.ModTime()
+	a.CaptureDate = a.FileDate // File date as the capture by default
 
 	if md != nil {
 		a.CaptureDate = md.DateTaken
