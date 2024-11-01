@@ -17,14 +17,14 @@
 - `--manage-heic-jpeg=HeicJpgFlag` Manage coupled HEIC and JPEG files. Possible values: 
   - `KeepHeic` Keep only the HEIC files (default)
   - `KeepJPG` Keep only the JPEG files
-  - `StackCoverHeic` Stack boths, the HEIC file is the cover
-  - `StackCoverJPG` Stack boths, the JPEG file is the cover
+  - `StackCoverHeic` Stack both, the HEIC file is the cover
+  - `StackCoverJPG` Stack both, the JPEG file is the cover
 
 - `--manage-raw-jpeg=RawJPGFlag`   Manage coupled RAW and JPEG files. Possible values: 
   - `KeepRaw` Keep only the RAW files (default)
   - `KeepJPG` Keep only the JPEG files
-  - `StackCoverRaw` Stack boths, the RAW file is the cover
-  - `StackCoverJPG` Stack boths, the JPEG file is the cover
+  - `StackCoverRaw` Stack both, the RAW file is the cover
+  - `StackCoverJPG` Stack both, the JPEG file is the cover
 
 
 ## Release 0.23.0-alpha2 🏗️ Work in progress 🏗️ 
