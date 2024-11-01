@@ -22,7 +22,7 @@ type inMemFS struct {
 	err  error
 }
 
-func newInMemFS(name string) *inMemFS {
+func newInMemFS(name string) *inMemFS { // nolint: unparam
 	return &inMemFS{
 		name: name,
 		FS:   memfs.New(),
@@ -47,7 +47,7 @@ func (mfs *inMemFS) addFile(name string, content []byte) *inMemFS {
 	return mfs
 }
 
-func (mfs *inMemFS) addFile2(name string) *inMemFS {
+func (mfs *inMemFS) addFile2(name string) *inMemFS { // nolint: unused
 	if mfs.err != nil {
 		return mfs
 	}
@@ -277,7 +277,7 @@ func issue390WrongCount2() []fs.FS {
 		addImage("Takeout/Google Photos/Photos from 2017/IMG_0170.jpg", 514963).FSs()
 }
 
-func checkLivePhoto() []fs.FS {
+func checkLivePhoto() []fs.FS { // nolint:unused
 	return newInMemFS("filesystem").
 		addJSONImage("Motion test/20231227_152817.jpg.json", "20231227_152817.jpg").
 		addImage("Motion test/20231227_152817.jpg", 7426453).
@@ -287,7 +287,7 @@ func checkLivePhoto() []fs.FS {
 		addImage("Motion Test/PXL_20231118_035751175.MP.jpg", 8025699).FSs()
 }
 
-func loadFromString(dateFormat string, s string) []fs.FS {
+func loadFromString(dateFormat string, s string) []fs.FS { // nolint:unused
 	fss, err := fakefs.ScanStringList(dateFormat, s)
 	if err != nil {
 		panic(err.Error())
@@ -295,7 +295,7 @@ func loadFromString(dateFormat string, s string) []fs.FS {
 	return fss
 }
 
-func checkLivePhotoPixil() []fs.FS {
+func checkLivePhotoPixil() []fs.FS { // nolint:unused
 	return loadFromString("01-02-2006 15:04", `Part: takeout-20230720T065335Z-001.zip
 Archive:  takeout-20230720T065335Z-001.zip
   Length      Date    Time    Name
@@ -314,7 +314,7 @@ Archive:  takeout-20230720T065335Z-001.zip
 `)
 }
 
-func checkMissingJSON() []fs.FS {
+func checkMissingJSON() []fs.FS { // nolint:unused
 	return loadFromString("01-02-2006 15:04", `Part:  takeout-20230720T065335Z-001.zip
 Archive:  takeout-20230720T065335Z-001.zip
   Length      Date    Time    Name
@@ -329,7 +329,7 @@ Archive:  takeout-20230720T065335Z-001.zip
 `)
 }
 
-func checkDuplicates() []fs.FS {
+func checkDuplicates() []fs.FS { // nolint:unused
 	return loadFromString("01-02-2006 15:04", `Part:  takeout-20230720T065335Z-001.tgz
 -rw-r--r-- 0/0          365022 2024-07-19 01:19 Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg
 -rw-r--r-- 0/0             708 2024-07-19 01:19 Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg.json
@@ -343,7 +343,7 @@ Part:  takeout-20230720T065335Z-002.tgz
 `)
 }
 
-func checkMPissue405() []fs.FS {
+func checkMPissue405() []fs.FS { // nolint:unused
 	return loadFromString("2006-01-02 15:04", `Part:  takeout-20230720T065335Z-001.zip
       895  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg.json
       893  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg.json

@@ -11,7 +11,6 @@ import (
 
 	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
-	"github.com/simulot/immich-go/commands/version"
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -71,13 +70,17 @@ func (log *Log) OpenLogFile() error {
 }
 
 func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) error {
-	fmt.Println(version.Banner())
+	if cmd.Name() == "version" {
+		// No log for version command
+		return nil
+	}
+	fmt.Println(Banner())
 	err := log.OpenLogFile()
 	if err != nil {
 		return err
 	}
 	// List flags
-	log.Info(version.GetVersion())
+	log.Info(GetVersion())
 
 	log.Info(fmt.Sprintf("Command: %s", cmd.Use))
 	log.Info("Flags:")
@@ -102,6 +105,7 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	return nil
 }
 
+/*
 func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 	if a.Key == slog.LevelKey {
 		level := a.Value.Any().(slog.Level)
@@ -109,6 +113,7 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 	}
 	return a
 }
+*/
 
 func (log *Log) setHandlers(file, con io.Writer) {
 	handlers := []slog.Handler{}
@@ -156,6 +161,10 @@ func (log *Log) Message(msg string, values ...any) {
 }
 
 func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	if cmd.Name() == "version" {
+		// No log for version command
+		return nil
+	}
 	if log.File != "" {
 		log.Message("Check the log file: %s", log.File)
 	}
