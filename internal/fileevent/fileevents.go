@@ -49,6 +49,9 @@ const (
 	LivePhoto // = "Live photo"
 	Metadata  // = "Metadata files"
 	INFO      // = "Info"
+
+	Written // = "Written"
+
 	Error
 	MaxCode
 )
@@ -78,7 +81,9 @@ var _code = map[Code]string{
 	LivePhoto: "Live photo",
 	Metadata:  "Metadata files",
 	INFO:      "Info",
-	Error:     "error",
+
+	Written: "Written",
+	Error:   "error",
 }
 
 func (e Code) String() string {
