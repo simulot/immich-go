@@ -1,4 +1,4 @@
-package upload
+package myimmich
 
 import (
 	"fmt"
@@ -11,28 +11,35 @@ import (
 
 type AssetIndex struct {
 	assets []*immich.Asset
-	byHash map[string][]*immich.Asset
-	byName map[string][]*immich.Asset
-	byID   map[string]*immich.Asset
-	// albums []immich.AlbumSimplified
+	ByHash map[string][]*immich.Asset
+	ByName map[string][]*immich.Asset
+	ByID   map[string]*immich.Asset
 }
 
-func (ai *AssetIndex) ReIndex() {
-	ai.byHash = map[string][]*immich.Asset{}
-	ai.byName = map[string][]*immich.Asset{}
-	ai.byID = map[string]*immich.Asset{}
+func NewAssetIndex(assets []*immich.Asset) *AssetIndex {
+	res := &AssetIndex{
+		assets: assets,
+	}
+	res.reIndex()
+	return res
+}
+
+func (ai *AssetIndex) reIndex() {
+	ai.ByHash = map[string][]*immich.Asset{}
+	ai.ByName = map[string][]*immich.Asset{}
+	ai.ByID = map[string]*immich.Asset{}
 
 	for _, a := range ai.assets {
 		ID := fmt.Sprintf("%s-%d", a.OriginalFileName, a.ExifInfo.FileSizeInByte)
-		l := ai.byHash[a.Checksum]
+		l := ai.ByHash[a.Checksum]
 		l = append(l, a)
-		ai.byHash[a.Checksum] = l
+		ai.ByHash[a.Checksum] = l
 
 		n := a.OriginalFileName
-		l = ai.byName[n]
+		l = ai.ByName[n]
 		l = append(l, a)
-		ai.byName[n] = l
-		ai.byID[ID] = a
+		ai.ByName[n] = l
+		ai.ByID[ID] = a
 	}
 }
 
@@ -54,8 +61,8 @@ func (ai *AssetIndex) AddLocalAsset(la *assets.Asset, immichID string) {
 		JustUploaded: true,
 	}
 	ai.assets = append(ai.assets, sa)
-	ai.byID[sa.DeviceAssetID] = sa
-	l := ai.byName[sa.OriginalFileName]
+	ai.ByID[sa.DeviceAssetID] = sa
+	l := ai.ByName[sa.OriginalFileName]
 	l = append(l, sa)
-	ai.byName[sa.OriginalFileName] = l
+	ai.ByName[sa.OriginalFileName] = l
 }

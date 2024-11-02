@@ -17,6 +17,8 @@ import (
 
 const (
 	EndPointGetJobs                = "GetJobs"
+	EndPointSendJobCommand         = "SendJobCommand"
+	EndPointCreateJob              = "CreateJob"
 	EndPointGetAllAlbums           = "GetAllAlbums"
 	EndPointGetAlbumInfo           = "GetAlbumInfo"
 	EndPointAddAsstToAlbum         = "AddAssetToAlbum"
@@ -29,6 +31,9 @@ const (
 	EndPointGetAssetStatistics     = "GetAssetStatistics"
 	EndPointGetSupportedMediaTypes = "GetSupportedMediaTypes"
 	EndPointGetAllAssets           = "GetAllAssets"
+	EndPointUpsertTags             = "UpsertTags"
+	EndPointTagAssets              = "TagAssets"
+	EndPointBulkTagAssets          = "BulkTagAssets"
 )
 
 type TooManyInternalError struct {
@@ -136,7 +141,11 @@ var callSequence atomic.Int64
 
 const ctxCallSequenceID = "api-call-sequence"
 
-func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
+func (sc *serverCall) request(
+	method string,
+	url string,
+	opts ...serverRequestOption,
+) *http.Request {
 	if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
 		seq := callSequence.Add(1)
 		sc.ctx = context.WithValue(sc.ctx, ctxCallSequenceID, seq)
@@ -168,7 +177,10 @@ func postRequest(url string, cType string, opts ...serverRequestOption) requestF
 		if sc.err != nil {
 			return nil
 		}
-		return sc.request(http.MethodPost, sc.ic.endPoint+url, append(opts, setContentType(cType))...)
+		return sc.request(
+			http.MethodPost,
+			sc.ic.endPoint+url,
+			append(opts, setContentType(cType))...)
 	}
 }
 
@@ -296,7 +308,15 @@ func responseJSON[T any](object *T) serverResponseOption {
 				err := json.NewDecoder(resp.Body).Decode(object)
 				if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
 					seq := sc.ctx.Value(ctxCallSequenceID)
-					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "RESPONSE", seq, sc.endPoint, resp.Request.Method, resp.Request.URL.String())
+					fmt.Fprintln(
+						sc.ic.apiTraceWriter,
+						time.Now().Format(time.RFC3339),
+						"RESPONSE",
+						seq,
+						sc.endPoint,
+						resp.Request.Method,
+						resp.Request.URL.String(),
+					)
 					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
