@@ -20,7 +20,8 @@ type closer interface {
 	Close() error
 }
 type LocalAssetWriter struct {
-	WriteToFS fs.FS
+	WriteToFS  fs.FS
+	createdDir map[string]struct{}
 }
 
 func NewLocalAssetWriter(fsys fs.FS, writeToPath string) (*LocalAssetWriter, error) {
@@ -52,9 +53,12 @@ func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) 
 func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
 	base := a.NameInfo().Base
 	dir := w.pathOfAsset(a)
-	err := fshelper.MkdirAll(w.WriteToFS, dir, 0o755)
-	if err != nil {
-		return err
+	if _, ok := w.createdDir[dir]; !ok {
+		err := fshelper.MkdirAll(w.WriteToFS, dir, 0o755)
+		if err != nil {
+			return err
+		}
+		w.createdDir[dir] = struct{}{}
 	}
 	select {
 	case <-ctx.Done():
