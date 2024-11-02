@@ -11,25 +11,25 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
-type minimalFSWriter interface {
-	fs.FS
-	fshelper.FSCanWrite
-}
+// type minimalFSWriter interface {
+// 	fs.FS
+// 	fshelper.FSCanWrite
+// }
 
 type closer interface {
 	Close() error
 }
 type LocalAssetWriter struct {
-	WriteToFS minimalFSWriter
+	WriteToFS fs.FS
 }
 
 func NewLocalAssetWriter(fsys fs.FS, writeToPath string) (*LocalAssetWriter, error) {
-	if fsys, ok := fsys.(minimalFSWriter); ok {
-		return &LocalAssetWriter{
-			WriteToFS: fsys,
-		}, nil
+	if _, ok := fsys.(fshelper.FSCanWrite); !ok {
+		return nil, errors.New("FS does not support writing")
 	}
-	return nil, errors.New("FS does not support writing")
+	return &LocalAssetWriter{
+		WriteToFS: fsys,
+	}, nil
 }
 
 func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) error {
@@ -52,7 +52,7 @@ func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) 
 func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
 	base := a.NameInfo().Base
 	dir := w.pathOfAsset(a)
-	err := w.WriteToFS.Mkdir(dir, 0o755)
+	err := fshelper.MkdirAll(w.WriteToFS, dir, 0o755)
 	if err != nil {
 		return err
 	}

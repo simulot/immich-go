@@ -3,11 +3,13 @@ package archive
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 
 	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/commands/application"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -28,8 +30,8 @@ func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra
 	}
 	options := &ArchiveOptions{}
 
-	cmd.PersistentFlags().StringVarP(&options.ArchivePath, "write-to", "w", "", "Path where to write the archive")
-	_ = cmd.MarkPersistentFlagRequired("write-to")
+	cmd.PersistentFlags().StringVarP(&options.ArchivePath, "write-to-folder", "w", "", "Path where to write the archive")
+	_ = cmd.MarkPersistentFlagRequired("write-to-folder")
 
 	cmd.AddCommand(NewImportFromFolderCommand(ctx, app))
 	return cmd
@@ -37,7 +39,7 @@ func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra
 
 func NewImportFromFolderCommand(ctx context.Context, app *application.Application) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "folder",
+		Use:   "from-folder",
 		Short: "Import photos from a folder",
 	}
 
@@ -68,11 +70,19 @@ func NewImportFromFolderCommand(ctx context.Context, app *application.Applicatio
 		// ready to run
 		ctx := cmd.Context()
 		log := app.Log()
-
-		p, err := cmd.Flags().GetString("write-to")
+		if app.Jnl() == nil {
+			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
+		}
+		p, err := cmd.Flags().GetString("write-to-folder")
 		if err != nil {
 			return err
 		}
+
+		err = os.MkdirAll(p, 0o755)
+		if err != nil {
+			return err
+		}
+
 		destFS := osfs.DirFS(p)
 
 		// parse arguments

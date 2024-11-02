@@ -23,7 +23,7 @@ func run(ctx context.Context, jnl *fileevent.Recorder, app *application.Applicat
 			for _, a := range g.Assets {
 				err := dest.WriteAsset(ctx, a)
 				if err != nil {
-					jnl.Log().Error(err.Error(), a)
+					jnl.Log().Error(err.Error())
 					errCount++
 					if errCount > 5 {
 						err := errors.New("too many errors, aborting")
