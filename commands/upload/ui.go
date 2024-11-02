@@ -205,12 +205,6 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) err
 		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
-		// TODO:
-		// if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 && !app.ForceUploadWhenNoJSON {
-		// 	messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
-		// 	messages.WriteString("- Verify if all takeout parts have been included in the processing.\n")
-		// 	messages.WriteString("- Request another takeout,  either for one year at a time or in smaller increments.\n")
-		// }
 
 		modal := newModal(messages.String())
 		pages.AddPage("modal", modal, true, false)
