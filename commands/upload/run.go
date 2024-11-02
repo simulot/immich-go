@@ -23,7 +23,7 @@ type UpCmd struct {
 	AssetIndex       *AssetIndex     // List of assets present on the server
 	deleteServerList []*immich.Asset // List of server assets to remove
 
-	adapter       adapters.Adapter
+	adapter       adapters.Importer
 	DebugCounters bool // Enable CSV action counters per file
 
 	Paths  []string                          // Path to explore
@@ -46,7 +46,7 @@ func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
 	return upCmd
 }
 
-func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Adapter, app *application.Application) error {
+func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Importer, app *application.Application) error {
 	upCmd.adapter = adapter
 
 	if upCmd.NoUI {
