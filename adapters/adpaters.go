@@ -9,3 +9,7 @@ import (
 type Reader interface {
 	Browse(cxt context.Context) chan *assets.Group
 }
+
+type AssetWriter interface {
+	WriteAsset(context.Context, *assets.Asset) error
+}

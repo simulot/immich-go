@@ -85,7 +85,7 @@ func (l *Asset) DateTaken() time.Time {
 
 // Remove the temporary file
 func (l *Asset) Remove() error {
-	if fsys, ok := l.FSys.(fshelper.Remover); ok {
+	if fsys, ok := l.FSys.(fshelper.FSCanRemove); ok {
 		return fsys.Remove(l.FileName)
 	}
 	return nil

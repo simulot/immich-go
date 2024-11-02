@@ -11,6 +11,7 @@ import (
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/fshelper/osfs"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/spf13/cobra"
@@ -20,7 +21,7 @@ type ArchiveOptions struct {
 	ArchivePath string
 }
 
-func NewArchiveCommand(ctx context.Context) *cobra.Command {
+func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "archive",
 		Short: "Archive various sources of photos to a file system",
@@ -30,6 +31,7 @@ func NewArchiveCommand(ctx context.Context) *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&options.ArchivePath, "write-to", "w", "", "Path where to write the archive")
 	_ = cmd.MarkPersistentFlagRequired("write-to")
 
+	cmd.AddCommand(NewImportFromFolderCommand(ctx, app))
 	return cmd
 }
 
@@ -67,6 +69,12 @@ func NewImportFromFolderCommand(ctx context.Context, app *application.Applicatio
 		ctx := cmd.Context()
 		log := app.Log()
 
+		p, err := cmd.Flags().GetString("write-to")
+		if err != nil {
+			return err
+		}
+		destFS := osfs.DirFS(p)
+
 		// parse arguments
 		fsyss, err := fshelper.ParsePath(args)
 		if err != nil {
@@ -77,11 +85,16 @@ func NewImportFromFolderCommand(ctx context.Context, app *application.Applicatio
 			return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
 		}
 		options.InfoCollector = filenames.NewInfoCollector(app.GetTZ(), options.SupportedMedia)
-		adapter, err := folder.NewLocalFiles(ctx, app.Jnl(), options, fsyss...)
+		source, err := folder.NewLocalFiles(ctx, app.Jnl(), options, fsyss...)
 		if err != nil {
 			return err
 		}
-		return run(ctx, app, adapter)
+
+		dest, err := folder.NewLocalAssetWriter(destFS, ".")
+		if err != nil {
+			return err
+		}
+		return run(ctx, app.Jnl(), app, source, dest)
 	}
 	return cmd
 }

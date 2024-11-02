@@ -42,7 +42,7 @@ func (dir dirFS) Lstat(name string) (fs.FileInfo, error) {
 }
 
 func (dir dirFS) MkSymlink(name, target string) error {
-	return os.Symlink(filepath.Join(string(dir), name))
+	return os.Symlink(filepath.Join(string(dir), name), filepath.Join(string(dir), target))
 }
 
 func (dir dirFS) Remove(name, target string) error {

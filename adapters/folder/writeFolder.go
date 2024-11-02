@@ -1,6 +1,7 @@
 package folder
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -31,33 +32,47 @@ func NewLocalAssetWriter(fsys fs.FS, writeToPath string) (*LocalAssetWriter, err
 	return nil, errors.New("FS does not support writing")
 }
 
-func (w *LocalAssetWriter) Write(group *assets.Group) error {
+func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) error {
 	var err error
 
 	if fsys, ok := w.WriteToFS.(closer); ok {
 		defer fsys.Close()
 	}
 	for _, a := range group.Assets {
-		err = errors.Join(err, w.WriteAsset(a))
+		select {
+		case <-ctx.Done():
+			return errors.Join(err, ctx.Err())
+		default:
+			err = errors.Join(err, w.WriteAsset(ctx, a))
+		}
 	}
 	return err
 }
 
-func (w *LocalAssetWriter) WriteAsset(a *assets.Asset) error {
+func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
 	base := a.NameInfo().Base
 	dir := w.pathOfAsset(a)
 	err := w.WriteToFS.Mkdir(dir, 0o755)
 	if err != nil {
 		return err
 	}
-	r, err := a.Open()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		r, err := a.Open()
+		if err != nil {
+			return err
+		}
+		defer r.Close()
 
-	err = fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
-	return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
+		}
+	}
 }
 
 func (w *LocalAssetWriter) pathOfAsset(a *assets.Asset) string {
