@@ -51,22 +51,6 @@ func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
 
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Adapter, app *application.Application) error {
 	upCmd.adapter = adapter
-	// if app.CommonFlags.StackBurstPhotos || app.CommonFlags.StackJpgWithRaw {
-	// 	app.stacks = stacking.NewStackBuilder(app.ImmichServerFlags.Immich.SupportedMedia())
-	// }
-
-	// todo counters
-	// defer func() {
-	// 	if app.DebugCounters {
-	// 		fn := strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".csv"
-	// 		f, err := os.Create(fn)
-	// 		if err == nil {
-	// 			_ = app.Jnl.WriteFileCounts(f)
-	// 			fmt.Println("\nCheck the counters file: ", f.Name())
-	// 			f.Close()
-	// 		}
-	// 	}
-	// }()
 
 	if upCmd.NoUI {
 		return upCmd.runNoUI(ctx, app)
