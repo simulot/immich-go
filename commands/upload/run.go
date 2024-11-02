@@ -152,36 +152,6 @@ assetLoop:
 		}
 	}
 
-	// if app.StackBurstPhotos || app.StackJpgWithRaw {
-	// 	stacks := app.stacks.Stacks()
-	// 	if len(stacks) > 0 {
-	// 		app.Root.Log.Info("Creating stacks")
-	// 	nextStack:
-	// 		for _, s := range stacks {
-	// 			switch {
-	// 			case !app.StackBurstPhotos && s.StackType == stacking.StackBurst:
-	// 				continue nextStack
-	// 			case !app.StackJpgWithRaw && s.StackType == stacking.StackRawJpg:
-	// 				continue nextStack
-	// 			}
-	// 			app.Root.Message(fmt.Sprintf("Stacking %s...", strings.Join(s.Names, ", ")))
-	// 			err = app.Server.Immich.StackAssets(ctx, s.CoverID, s.IDs)
-	// 			if err != nil {
-	// 				app.Root.Log.Error(fmt.Sprintf("Can't stack images: %s", err))
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	// if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
-	// 	app.Log.Info("Managing albums")
-	// 	err = app.ManageAlbums(ctx)
-	// 	if err != nil {
-	// 		app.Log.Error(err.Error())
-	// 		err = nil
-	// 	}
-	// }
-
 	if len(upCmd.deleteServerList) > 0 {
 		ids := []string{}
 		for _, da := range upCmd.deleteServerList {
@@ -192,10 +162,6 @@ assetLoop:
 			return fmt.Errorf("can't delete server's assets: %w", err)
 		}
 	}
-
-	// if len(app.deleteLocalList) > 0 {
-	// 	err = app.DeleteLocalAssets()
-	// }
 
 	return err
 }
