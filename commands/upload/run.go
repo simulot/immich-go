@@ -23,12 +23,9 @@ type UpCmd struct {
 	AssetIndex       *AssetIndex     // List of assets present on the server
 	deleteServerList []*immich.Asset // List of server assets to remove
 
-	// deleteLocalList  []*adapters.LocalAssetFile // List of local assets to remove
-	// stacks        *stacking.StackBuilder
 	adapter       adapters.Adapter
 	DebugCounters bool // Enable CSV action counters per file
 
-	// fsyss  []fs.FS                            // pseudo file system to browse
 	Paths  []string                          // Path to explore
 	albums map[string]immich.AlbumSimplified // Albums by title
 
