@@ -23,12 +23,9 @@ type UpCmd struct {
 	AssetIndex       *AssetIndex     // List of assets present on the server
 	deleteServerList []*immich.Asset // List of server assets to remove
 
-	// deleteLocalList  []*adapters.LocalAssetFile // List of local assets to remove
-	// stacks        *stacking.StackBuilder
 	adapter       adapters.Adapter
 	DebugCounters bool // Enable CSV action counters per file
 
-	// fsyss  []fs.FS                            // pseudo file system to browse
 	Paths  []string                          // Path to explore
 	albums map[string]immich.AlbumSimplified // Albums by title
 
@@ -51,22 +48,6 @@ func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
 
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Adapter, app *application.Application) error {
 	upCmd.adapter = adapter
-	// if app.CommonFlags.StackBurstPhotos || app.CommonFlags.StackJpgWithRaw {
-	// 	app.stacks = stacking.NewStackBuilder(app.ImmichServerFlags.Immich.SupportedMedia())
-	// }
-
-	// todo counters
-	// defer func() {
-	// 	if app.DebugCounters {
-	// 		fn := strings.TrimSuffix(app.LogFile, filepath.Ext(app.LogFile)) + ".csv"
-	// 		f, err := os.Create(fn)
-	// 		if err == nil {
-	// 			_ = app.Jnl.WriteFileCounts(f)
-	// 			fmt.Println("\nCheck the counters file: ", f.Name())
-	// 			f.Close()
-	// 		}
-	// 	}
-	// }()
 
 	if upCmd.NoUI {
 		return upCmd.runNoUI(ctx, app)
@@ -152,36 +133,6 @@ assetLoop:
 		}
 	}
 
-	// if app.StackBurstPhotos || app.StackJpgWithRaw {
-	// 	stacks := app.stacks.Stacks()
-	// 	if len(stacks) > 0 {
-	// 		app.Root.Log.Info("Creating stacks")
-	// 	nextStack:
-	// 		for _, s := range stacks {
-	// 			switch {
-	// 			case !app.StackBurstPhotos && s.StackType == stacking.StackBurst:
-	// 				continue nextStack
-	// 			case !app.StackJpgWithRaw && s.StackType == stacking.StackRawJpg:
-	// 				continue nextStack
-	// 			}
-	// 			app.Root.Message(fmt.Sprintf("Stacking %s...", strings.Join(s.Names, ", ")))
-	// 			err = app.Server.Immich.StackAssets(ctx, s.CoverID, s.IDs)
-	// 			if err != nil {
-	// 				app.Root.Log.Error(fmt.Sprintf("Can't stack images: %s", err))
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	// if app.CreateAlbums || app.CreateAlbumAfterFolder || (app.KeepPartner && app.PartnerAlbum != "") || app.ImportIntoAlbum != "" {
-	// 	app.Log.Info("Managing albums")
-	// 	err = app.ManageAlbums(ctx)
-	// 	if err != nil {
-	// 		app.Log.Error(err.Error())
-	// 		err = nil
-	// 	}
-	// }
-
 	if len(upCmd.deleteServerList) > 0 {
 		ids := []string{}
 		for _, da := range upCmd.deleteServerList {
@@ -192,10 +143,6 @@ assetLoop:
 			return fmt.Errorf("can't delete server's assets: %w", err)
 		}
 	}
-
-	// if len(app.deleteLocalList) > 0 {
-	// 	err = app.DeleteLocalAssets()
-	// }
 
 	return err
 }

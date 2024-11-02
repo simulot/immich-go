@@ -44,23 +44,6 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *application.Application) e
 			immichPct = 100
 		}
 
-		// TODO:
-		// if app.GooglePhotos {
-		// 	gpTotal := app.Jnl.TotalAssets()
-		// 	gpProcessed := app.Jnl.TotalProcessedGP()
-
-		// 	gpPercent := int(100 * gpProcessed / gpTotal)
-		// 	upProcessed := int64(0)
-		// 	if preparationDone.Load() {
-		// 		upProcessed = app.Jnl.TotalProcessed(app.ForceUploadWhenNoJSON)
-		// 	}
-		// 	upTotal := app.Jnl.TotalAssets()
-		// 	upPercent := 100 * upProcessed / upTotal
-
-		// 	return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Google Photos Analysis: %d%%, Upload errors: %d, Uploaded %d%% %s",
-		// 		immichPct, app.Jnl.TotalAssets(), gpPercent, counts[fileevent.UploadServerError], upPercent, string(spinner[spinIdx]))
-		// }
-
 		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl().TotalAssets(), counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
 	}
 	uiGrp := errgroup.Group{}
@@ -125,12 +108,7 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *application.Application) e
 		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
-		// TODO
-		// if app.GooglePhotos && counts[fileevent.AnalysisMissingAssociatedMetadata] > 0 && !app.ForceUploadWhenNoJSON {
-		// 	messages.WriteString(fmt.Sprintf("\n%d JSON files are missing.\n", counts[fileevent.AnalysisMissingAssociatedMetadata]))
-		// 	messages.WriteString("- Verify if all takeout parts have been included in the processing.\n")
-		// 	messages.WriteString("- Request another takeout, either for one year at a time or in smaller increments.\n")
-		// }
+
 		if messages.Len() > 0 {
 			cancel(errors.New(messages.String()))
 		}
