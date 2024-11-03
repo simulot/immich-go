@@ -10,7 +10,7 @@ import (
 )
 
 type FSCanWrite interface {
-	OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error)
+	OpenFile(name string, flag int, perm fs.FileMode) (WFile, error)
 	Mkdir(name string, perm fs.FileMode) error
 }
 
@@ -35,7 +35,12 @@ type FileCanWrite interface {
 	Write(b []byte) (ret int, err error)
 }
 
-func OpenFile(fsys fs.FS, name string, flag int, perm fs.FileMode) (fs.File, error) {
+type WFile interface {
+	fs.File
+	Write(b []byte) (ret int, err error)
+}
+
+func OpenFile(fsys fs.FS, name string, flag int, perm fs.FileMode) (WFile, error) {
 	if fsys, ok := fsys.(FSCanWrite); ok {
 		return fsys.OpenFile(name, flag, perm)
 	}

@@ -35,7 +35,7 @@ func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
 	return os.Stat(filepath.Join(string(dir), name))
 }
 
-func (dir dirFS) OpenFile(name string, flag int, perm fs.FileMode) (fs.File, error) {
+func (dir dirFS) OpenFile(name string, flag int, perm fs.FileMode) (fshelper.WFile, error) {
 	return os.OpenFile(filepath.Join(string(dir), name), flag, perm)
 }
 
