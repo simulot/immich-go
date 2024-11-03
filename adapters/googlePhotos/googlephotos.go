@@ -471,6 +471,10 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 			}
 		}
 
+		for _, a := range g.Assets {
+			a.Albums = g.Albums
+		}
+
 		select {
 		case gOut <- g:
 			for _, a := range g.Assets {
