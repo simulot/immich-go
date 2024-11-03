@@ -1,0 +1,38 @@
+<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:exif="http://ns.adobe.com/exif/1.0/"
+    xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:tiff="http://ns.adobe.com/tiff/1.0/"
+    xmlns:digikam="http://www.digikam.org/ns/1.0/" x:xmptk="immich-go v0.22">
+    <rdf:RDF>
+        <rdf:Description rdf:about="">
+            <dc:description>
+                <rdf:Alt>
+                    <rdf:li xml:lang="x-default">This a description</rdf:li>
+                </rdf:Alt>
+            </dc:description>
+        </rdf:Description>
+        <rdf:Description rdf:about="">
+            <tiff:ImageDescription>
+                <rdf:Alt>
+                    <rdf:li xml:lang="x-default">This a description</rdf:li>
+                </rdf:Alt>
+            </tiff:ImageDescription>
+        </rdf:Description>
+        <rdf:Description rdf:about="">
+            <digikam:TagsList>
+                <rdf:Seq>
+                    <rdf:li xml:lang="x-default">tag1</rdf:li>
+                    <rdf:li xml:lang="x-default">tag2/tag21</rdf:li>
+                    <rdf:li xml:lang="x-default">tag3</rdf:li>
+                </rdf:Seq>
+            </digikam:TagsList>
+        </rdf:Description>
+        <rdf:Description rdf:about="">
+            <exif:DateTimeOriginal>2023-10-10T01:11:00.000-04:00</exif:DateTimeOriginal>
+            <exif:GPSLatitude>16,33.10142023S</exif:GPSLatitude>
+            <exif:GPSLongitude>62,40.48970971W</exif:GPSLongitude>
+        </rdf:Description>
+        <rdf:Description rdf:about="">
+            <xmp:Rating>3</xmp:Rating>
+        </rdf:Description>
+    </rdf:RDF>
+</x:xmpmeta>
