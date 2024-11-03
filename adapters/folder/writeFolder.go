@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/xmp"
 )
 
 // type minimalFSWriter interface {
@@ -29,7 +31,8 @@ func NewLocalAssetWriter(fsys fs.FS, writeToPath string) (*LocalAssetWriter, err
 		return nil, errors.New("FS does not support writing")
 	}
 	return &LocalAssetWriter{
-		WriteToFS: fsys,
+		WriteToFS:  fsys,
+		createdDir: make(map[string]struct{}),
 	}, nil
 }
 
@@ -44,13 +47,13 @@ func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) 
 		case <-ctx.Done():
 			return errors.Join(err, ctx.Err())
 		default:
-			err = errors.Join(err, w.WriteAsset(ctx, a))
+			err = errors.Join(err, w.WriteAsset(ctx, a, group.Albums))
 		}
 	}
 	return err
 }
 
-func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
+func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset, al []assets.Album) error {
 	base := a.NameInfo().Base
 	dir := w.pathOfAsset(a)
 	if _, ok := w.createdDir[dir]; !ok {
@@ -74,7 +77,16 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			return fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
+			err := fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
+			if err == nil {
+				f, err := fshelper.OpenFile(w.WriteToFS, path.Join(dir, base)+".xmp", os.O_RDWR|os.O_CREATE, 0o644)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				return xmp.WriteXMP(a, f)
+			}
+			return err
 		}
 	}
 }

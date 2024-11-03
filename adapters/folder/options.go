@@ -9,6 +9,7 @@ import (
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
+	"github.com/spf13/cobra"
 )
 
 // ImportFolderOptions represents the flags used for importing assets from a file system.
@@ -63,6 +64,38 @@ type ImportFolderOptions struct {
 
 	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
 	ManageEpsonFastFoto bool
+}
+
+func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command) {
+	o.ManageHEICJPG = filters.HeicJpgNothing
+	o.ManageRawJPG = filters.RawJPGNothing
+	o.ManageBurst = filters.BurstNothing
+	o.Recursive = true
+	o.SupportedMedia = metadata.DefaultSupportedMedia
+	o.UsePathAsAlbumName = FolderModeNone
+	o.BannedFiles, _ = namematcher.New(
+		`@eaDir/`,
+		`@__thumb/`,          // QNAP
+		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
+		`Lightroom Catalog/`, // LR
+		`thumbnails/`,        // Android photo
+		`.DS_Store/`,         // Mac OS custom attributes
+		`._*.*`,              // MacOS resource files
+	)
+	cmd.Flags().StringVar(&o.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
+	cmd.Flags().Var(&o.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
+	cmd.Flags().StringVar(&o.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
+	cmd.Flags().BoolVar(&o.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
+	cmd.Flags().Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
+	cmd.Flags().BoolVar(&o.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
+	cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
+	cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
+	cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG")
+	cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
+
+	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
+	cliflags.AddDateHandlingFlags(cmd, &o.DateHandlingFlags)
+	metadata.AddExifToolFlags(cmd, &o.ExifToolFlags)
 }
 
 // AlbumFolderMode represents the mode in which album folders are organized.

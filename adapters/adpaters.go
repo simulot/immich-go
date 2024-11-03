@@ -12,4 +12,5 @@ type Reader interface {
 
 type AssetWriter interface {
 	WriteAsset(context.Context, *assets.Asset) error
+	// WriteGroup(ctx context.Context, group *assets.Group) error
 }

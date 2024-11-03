@@ -241,6 +241,9 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 			g.Albums = []assets.Album{{Title: Album}}
 		}
+		for _, a := range g.Assets {
+			a.Albums = g.Albums
+		}
 		select {
 		case gOut <- g:
 		case <-ctx.Done():
