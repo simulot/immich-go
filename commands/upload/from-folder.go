@@ -8,16 +8,11 @@ import (
 	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/spf13/cobra"
 )
 
 func NewFromFolderCommand(ctx context.Context, app *application.Application, upOptions *UploadOptions) *cobra.Command {
-	upOptions.ManageHEICJPG = filters.HeicJpgKeepHeic
-	upOptions.ManageRawJPG = filters.RawJPGKeepRaw
-	upOptions.ManageBurst = filters.BurstkKeepRaw
-
 	cmd := &cobra.Command{
 		Use:   "from-folder [flags] <path>...",
 		Short: "Upload photos from a folder",
@@ -45,7 +40,7 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 
 		// create the adapter for folders
 		options.SupportedMedia = client.Immich.SupportedMedia()
-		upOptions.Filters = append(upOptions.Filters, upOptions.ManageBurst.GroupFilter(), upOptions.ManageRawJPG.GroupFilter(), upOptions.ManageHEICJPG.GroupFilter())
+		upOptions.Filters = append(upOptions.Filters, options.ManageBurst.GroupFilter(), options.ManageRawJPG.GroupFilter(), options.ManageHEICJPG.GroupFilter())
 
 		options.InfoCollector = filenames.NewInfoCollector(app.GetTZ(), options.SupportedMedia)
 		adapter, err := folder.NewLocalFiles(ctx, app.Jnl(), options, fsyss...)

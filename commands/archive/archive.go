@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	gp "github.com/simulot/immich-go/adapters/googlePhotos"
+
 	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -30,6 +32,7 @@ func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra
 	_ = cmd.MarkPersistentFlagRequired("write-to-folder")
 
 	cmd.AddCommand(NewImportFromFolderCommand(ctx, app, options))
+	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, app, options))
 
 	return cmd
 }
@@ -37,7 +40,7 @@ func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra
 func NewImportFromFolderCommand(ctx context.Context, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-folder",
-		Short: "Import photos from a folder",
+		Short: "Archive photos from a folder",
 	}
 
 	options := &folder.ImportFolderOptions{}
@@ -49,6 +52,7 @@ func NewImportFromFolderCommand(ctx context.Context, app *application.Applicatio
 		log := app.Log()
 		if app.Jnl() == nil {
 			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
+			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
 		}
 		p, err := cmd.Flags().GetString("write-to-folder")
 		if err != nil {
@@ -83,5 +87,56 @@ func NewImportFromFolderCommand(ctx context.Context, app *application.Applicatio
 		}
 		return run(ctx, app.Jnl(), app, source, dest)
 	}
+	return cmd
+}
+
+func NewFromGooglePhotosCommand(ctx context.Context, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "from-google-photos [flags] <takeout-*.zip> | <takeout-folder>",
+		Short: "Archive photos either from a zipped Google Photos takeout or decompressed archive",
+		Args:  cobra.MinimumNArgs(1),
+	}
+	cmd.SetContext(ctx)
+	options := &gp.ImportFlags{}
+	options.AddFromGooglePhotosFlags(cmd)
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
+		ctx := cmd.Context()
+		log := app.Log()
+		if app.Jnl() == nil {
+			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
+			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
+		}
+		p, err := cmd.Flags().GetString("write-to-folder")
+		if err != nil {
+			return err
+		}
+
+		err = os.MkdirAll(p, 0o755)
+		if err != nil {
+			return err
+		}
+
+		destFS := osfs.DirFS(p)
+
+		fsyss, err := fshelper.ParsePath(args)
+		if err != nil {
+			return err
+		}
+		if len(fsyss) == 0 {
+			log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
+			return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
+		}
+		source, err := gp.NewTakeout(ctx, app.Jnl(), options, fsyss...)
+		if err != nil {
+			return err
+		}
+		dest, err := folder.NewLocalAssetWriter(destFS, ".")
+		if err != nil {
+			return err
+		}
+		return run(ctx, app.Jnl(), app, source, dest)
+	}
+
 	return cmd
 }

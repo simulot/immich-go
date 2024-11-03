@@ -47,13 +47,13 @@ func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) 
 		case <-ctx.Done():
 			return errors.Join(err, ctx.Err())
 		default:
-			err = errors.Join(err, w.WriteAsset(ctx, a, group.Albums))
+			err = errors.Join(err, w.WriteAsset(ctx, a))
 		}
 	}
 	return err
 }
 
-func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset, al []assets.Album) error {
+func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
 	base := a.NameInfo().Base
 	dir := w.pathOfAsset(a)
 	if _, ok := w.createdDir[dir]; !ok {

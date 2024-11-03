@@ -32,18 +32,8 @@ func (m UpLoadMode) String() string {
 type UploadOptions struct {
 	// TODO place this option at the top
 	NoUI bool // Disable UI
-	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
-	ManageHEICJPG filters.HeicJpgFlag
 
-	// ManageRawJPG determines how to manage raw and JPEG files.
-	ManageRawJPG filters.RawJPGFlag
-
-	// BurstFlag determines how to manage burst photos.
-	ManageBurst filters.BurstFlag
-
-	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
-	ManageEpsonFastFoto bool
-	Filters             []filters.Filter
+	Filters []filters.Filter
 }
 
 // NewUploadCommand adds the Upload command
