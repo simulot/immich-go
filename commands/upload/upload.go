@@ -31,8 +31,19 @@ func (m UpLoadMode) String() string {
 // UploadOptions represents a set of common flags used for filtering assets.
 type UploadOptions struct {
 	// TODO place this option at the top
-	NoUI    bool // Disable UI
-	Filters []filters.Filter
+	NoUI bool // Disable UI
+	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
+	ManageHEICJPG filters.HeicJpgFlag
+
+	// ManageRawJPG determines how to manage raw and JPEG files.
+	ManageRawJPG filters.RawJPGFlag
+
+	// BurstFlag determines how to manage burst photos.
+	ManageBurst filters.BurstFlag
+
+	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
+	ManageEpsonFastFoto bool
+	Filters             []filters.Filter
 }
 
 // NewUploadCommand adds the Upload command
