@@ -8,14 +8,10 @@ import (
 
 	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/commands/application"
-	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/fshelper/osfs"
-	"github.com/simulot/immich-go/internal/metadata"
-	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/spf13/cobra"
 )
 
@@ -33,38 +29,19 @@ func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra
 	cmd.PersistentFlags().StringVarP(&options.ArchivePath, "write-to-folder", "w", "", "Path where to write the archive")
 	_ = cmd.MarkPersistentFlagRequired("write-to-folder")
 
-	cmd.AddCommand(NewImportFromFolderCommand(ctx, app))
+	cmd.AddCommand(NewImportFromFolderCommand(ctx, app, options))
+
 	return cmd
 }
 
-func NewImportFromFolderCommand(ctx context.Context, app *application.Application) *cobra.Command {
+func NewImportFromFolderCommand(ctx context.Context, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-folder",
 		Short: "Import photos from a folder",
 	}
 
-	options := &folder.ImportFolderOptions{
-		ManageHEICJPG: filters.HeicJpgNothing,
-		ManageRawJPG:  filters.RawJPGNothing,
-		ManageBurst:   filters.BurstNothing,
-		Recursive:     true,
-	}
-
-	options.BannedFiles, _ = namematcher.New(
-		`@eaDir/`,
-		`@__thumb/`,          // QNAP
-		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
-		`Lightroom Catalog/`, // LR
-		`thumbnails/`,        // Android photo
-		`.DS_Store/`,         // Mac OS custom attributes
-		`._*.*`,              // MacOS resource files
-	)
-	options.SupportedMedia = metadata.DefaultSupportedMedia
-	options.UsePathAsAlbumName = folder.FolderModeNone
-
-	cliflags.AddInclusionFlags(cmd, &options.InclusionFlags)
-	cliflags.AddDateHandlingFlags(cmd, &options.DateHandlingFlags)
-	metadata.AddExifToolFlags(cmd, &options.ExifToolFlags)
+	options := &folder.ImportFolderOptions{}
+	options.AddFromFolderFlags(cmd)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
