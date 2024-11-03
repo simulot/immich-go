@@ -20,7 +20,11 @@ func TestRead(t *testing.T) {
 				Latitude:    -16.5516903372,
 				Longitude:   -62.6748284952,
 				CaptureDate: time.Time{},
-				Stars:       5,
+				Albums: []assets.Album{
+					{Title: "Vacation 2024"},
+					{Title: "Family Reunion"},
+				},
+				Stars: 5,
 			},
 		},
 		{
@@ -61,6 +65,15 @@ func TestRead(t *testing.T) {
 			}
 			if a.Stars != c.expect.Stars {
 				t.Errorf("Stars: got %d, expected %d", a.Stars, c.expect.Stars)
+			}
+			if len(a.Albums) != len(c.expect.Albums) {
+				t.Errorf("Albums: got %d, expected %d", len(a.Albums), len(c.expect.Albums))
+			} else {
+				for i, album := range a.Albums {
+					if album.Title != c.expect.Albums[i].Title {
+						t.Errorf("Album %d: got %s, expected %s", i, album.Title, c.expect.Albums[i].Title)
+					}
+				}
 			}
 		})
 	}

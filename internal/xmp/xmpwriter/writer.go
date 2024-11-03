@@ -41,15 +41,16 @@ type RDF struct {
 }
 
 type Description struct {
-	XMLName          xml.Name `xml:"rdf:Description"`
-	About            string   `xml:"rdf:about,attr"`
-	DescriptionA     *Alt     `xml:"dc:description>rdf:Alt,omitempty"`
-	DescriptionB     *Alt     `xml:"tiff:ImageDescription>rdf:Alt,omitempty"`
-	TagsList         *TagList `xml:"digikam:TagsList,omitempty"`
-	DateTimeOriginal string   `xml:"exif:DateTimeOriginal,omitempty"`
-	GPSLatitude      string   `xml:"exif:GPSLatitude,omitempty"`
-	GPSLongitude     string   `xml:"exif:GPSLongitude,omitempty"`
-	Rating           string   `xml:"xmp:Rating,omitempty"`
+	XMLName          xml.Name  `xml:"rdf:Description"`
+	About            string    `xml:"rdf:about,attr"`
+	DescriptionA     *Alt      `xml:"dc:description>rdf:Alt,omitempty"`
+	DescriptionB     *Alt      `xml:"tiff:ImageDescription>rdf:Alt,omitempty"`
+	TagsList         *TagList  `xml:"digikam:TagsList,omitempty"`
+	DateTimeOriginal string    `xml:"exif:DateTimeOriginal,omitempty"`
+	GPSLatitude      string    `xml:"exif:GPSLatitude,omitempty"`
+	GPSLongitude     string    `xml:"exif:GPSLongitude,omitempty"`
+	Rating           string    `xml:"xmp:Rating,omitempty"`
+	Albums           *Relation `xml:"dc:relation>rdf:Bag,omitempty"`
 }
 
 type Alt struct {
@@ -59,6 +60,11 @@ type Alt struct {
 type Seq struct {
 	XMLName xml.Name `xml:"rdf:Seq"`
 	Li      []Li
+}
+
+type Relation struct {
+	// XMLName xml.Name `xml:"dc:relation"`
+	Li []Li
 }
 
 type TagList struct {
@@ -134,6 +140,21 @@ func (xmp *XmpMeta) addExif(dateTimeOriginal string, gpsLatitude, gpsLongitude s
 	}
 }
 
+func (xmp *XmpMeta) addAlbums(albums []assets.Album) {
+	if len(albums) == 0 {
+		return
+	}
+	d := Description{
+		Albums: &Relation{
+			Li: []Li{},
+		},
+	}
+	for _, album := range albums {
+		d.Albums.Li = append(d.Albums.Li, Li{Value: album.Title})
+	}
+	xmp.RDF.Descriptions = append(xmp.RDF.Descriptions, d)
+}
+
 func (xmp *XmpMeta) encode(w io.Writer) error {
 	_, err := io.WriteString(w, "<?xpacket begin='\xEF\xBB\xBF' id='W5M0MpCehiHzreSzNTczkc9d'?>\n")
 	if err != nil {
@@ -157,6 +178,11 @@ func WriteXMP(a *assets.Asset, w io.Writer) error {
 	if a.Stars != 0 {
 		xmp.addRating(a.Stars)
 	}
+
+	if len(a.Albums) > 0 {
+		xmp.addAlbums(a.Albums)
+	}
+
 	// xmp.AddTag(a.Tags)
 
 	// gps data

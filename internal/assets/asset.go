@@ -40,8 +40,6 @@ type Asset struct {
 	FileSize int    // File size in bytes
 	ID       string // Immich ID after upload
 
-	// Err error // keep errors encountered
-
 	// Flags that are provided to Immich Upload API call
 	CaptureDate time.Time // Date of the capture
 	Trashed     bool      // The asset is trashed
@@ -56,6 +54,7 @@ type Asset struct {
 
 	// When a sidecar is found beside the asset
 	SideCar metadata.SideCarFile // sidecar file if found
+	Albums  []Album              // List of albums the asset is in
 
 	// Internal fields
 

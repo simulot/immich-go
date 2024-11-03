@@ -56,6 +56,10 @@ func filter(a *assets.Asset, path string, value string) {
 		a.CaptureDate, err = convert.TimeStringToTime(value, time.UTC)
 	case "/xmpmeta/RDF/Description/Rating":
 		a.Stars, err = strconv.Atoi(value)
+	case "/xmpmeta/RDF/Description/relation/Bag/li":
+		a.Albums = append(a.Albums, assets.Album{
+			Title: value,
+		})
 	}
 	_ = err
 }

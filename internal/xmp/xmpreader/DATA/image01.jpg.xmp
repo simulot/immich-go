@@ -40,6 +40,16 @@
   xmlns:xmp='http://ns.adobe.com/xap/1.0/'>
   <xmp:Rating>5</xmp:Rating>
  </rdf:Description>
+
+ <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <dc:relation>
+    <rdf:Bag>
+      <rdf:li>Vacation 2024</rdf:li>
+      <rdf:li>Family Reunion</rdf:li>
+    </rdf:Bag>
+  </dc:relation>
+ </rdf:Description>
+
 </rdf:RDF>
 </x:xmpmeta>
 <?xpacket end='w'?>
