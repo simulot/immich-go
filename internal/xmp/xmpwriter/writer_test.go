@@ -1,6 +1,9 @@
 package xmpwriter
 
 import (
+	"encoding/xml"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -8,6 +11,52 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/xmp/xmpreader"
 )
+
+func TestStructure(t *testing.T) {
+	s := &XmpMeta{
+		NS: []xml.Attr{
+			{Name: xml.Name{Local: "xmlns:x"}, Value: "adobe:ns:meta/"},
+			{Name: xml.Name{Local: "xmlns:rdf"}, Value: "http://www.w3.org/1999/02/22-rdf-syntax-ns#"},
+			{Name: xml.Name{Local: "xmlns:dc"}, Value: "http://purl.org/dc/elements/1.1/"},
+			{Name: xml.Name{Local: "xmlns:exif"}, Value: "http://ns.adobe.com/exif/1.0/"},
+			{Name: xml.Name{Local: "xmlns:xmp"}, Value: "http://ns.adobe.com/xap/1.0/"},
+			{Name: xml.Name{Local: "xmlns:tiff"}, Value: "http://ns.adobe.com/tiff/1.0/"},
+			{Name: xml.Name{Local: "xmlns:digikam"}, Value: "http://www.digikam.org/ns/1.0/"},
+			{Name: xml.Name{Local: "xmlns:immichgo"}, Value: "http://ns.immich-go.com/immich-go/1.0/"},
+		},
+		Xmptk: "immich-go",
+		RDF: RDF{
+			Descriptions: []Descriptioner{
+				ImmichGoProperties{
+					XMLName:          xml.Name{Local: "immichgo:ImmichGoProperties"},
+					DateTimeOriginal: "2023-10-10T01:11:00-04:00",
+					Trashed:          "False",
+					Archived:         "False",
+					FromPartner:      "True",
+					Favorite:         "True",
+					Rating:           "5",
+					Latitude:         "-16.5516903372",
+					Longitude:        "-62.6748284952",
+					Albums: &ImmichAlbums{
+						Albums: Bag{
+							Li: []lier{
+								ImmichAlbum{Title: "Vacation 2024", Description: "Vacation 2024 hawaii and more"},
+								ImmichAlbum{Title: "Family Reunion", Description: "Family Reunion with grand parents"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	buf, err := xml.MarshalIndent(s, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout.Write(buf)
+	fmt.Println()
+}
 
 func TestWrite(t *testing.T) {
 	tc := []struct {
@@ -17,11 +66,11 @@ func TestWrite(t *testing.T) {
 		{
 			path: "DATA/image01.jpg.xmp",
 			asset: assets.Asset{
-				Title:       "C'est une <grotte>",
+				Title:       "THIS IS A TITLE with special characters & < >",
 				Latitude:    -16.5516903372,
 				Longitude:   -62.6748284952,
 				CaptureDate: time.Time{},
-				Stars:       5,
+				Rating:      5,
 			},
 		},
 		{
@@ -31,10 +80,10 @@ func TestWrite(t *testing.T) {
 				Latitude:    0,
 				Longitude:   0,
 				CaptureDate: time.Date(2023, 10, 10, 1, 11, 0, 0, time.FixedZone("-0400", -4*60*60)),
-				Stars:       3,
+				Rating:      3,
 				Albums: []assets.Album{
-					{Title: "Vacation 2024"},
-					{Title: "Family Reunion"},
+					{Title: "Vacation 2024", Description: "Vacation 2024 hawaii and more", Latitude: 19.8206101, Longitude: -155.4732542},
+					{Title: "Family Reunion", Latitude: 48.8583701, Longitude: 2.291901},
 				},
 			},
 		},
@@ -47,7 +96,7 @@ func TestWrite(t *testing.T) {
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			// fmt.Println(buf.String())
+			// debug: fmt.Println(buf.String())
 			b := assets.Asset{}
 			err = xmpreader.ReadXMP(&b, strings.NewReader(buf.String()))
 			if b.Title != c.asset.Title {
@@ -62,8 +111,8 @@ func TestWrite(t *testing.T) {
 			if !b.CaptureDate.Equal(c.asset.CaptureDate) {
 				t.Errorf("CaptureDate: got %v, expected %v", b.CaptureDate, c.asset.CaptureDate)
 			}
-			if b.Stars != c.asset.Stars {
-				t.Errorf("Stars: got %d, expected %d", b.Stars, c.asset.Stars)
+			if b.Rating != c.asset.Rating {
+				t.Errorf("Stars: got %d, expected %d", b.Rating, c.asset.Rating)
 			}
 			if len(b.Albums) != len(c.asset.Albums) {
 				t.Errorf("Albums: got %d, expected %d", len(b.Albums), len(c.asset.Albums))

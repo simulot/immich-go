@@ -3,7 +3,6 @@ package xmpwriter
 import (
 	"encoding/xml"
 	"io"
-	"strconv"
 
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/internal/assets"
@@ -29,6 +28,7 @@ func NewXMP() *XmpMeta {
 			{Name: xml.Name{Local: "xmlns:xmp"}, Value: "http://ns.adobe.com/xap/1.0/"},
 			{Name: xml.Name{Local: "xmlns:tiff"}, Value: "http://ns.adobe.com/tiff/1.0/"},
 			{Name: xml.Name{Local: "xmlns:digikam"}, Value: "http://www.digikam.org/ns/1.0/"},
+			{Name: xml.Name{Local: "xmlns:immichgo"}, Value: "http://ns.immich-go.com/immich-go/1.0/"},
 		},
 		Xmptk: application.GetVersion(),
 	}
@@ -37,123 +37,92 @@ func NewXMP() *XmpMeta {
 // <rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
 type RDF struct {
 	XMLName      xml.Name `xml:"rdf:RDF"`
-	Descriptions []Description
+	Descriptions []Descriptioner
 }
 
-type Description struct {
-	XMLName          xml.Name  `xml:"rdf:Description"`
-	About            string    `xml:"rdf:about,attr"`
-	DescriptionA     *Alt      `xml:"dc:description>rdf:Alt,omitempty"`
-	DescriptionB     *Alt      `xml:"tiff:ImageDescription>rdf:Alt,omitempty"`
-	TagsList         *TagList  `xml:"digikam:TagsList,omitempty"`
-	DateTimeOriginal string    `xml:"exif:DateTimeOriginal,omitempty"`
-	GPSLatitude      string    `xml:"exif:GPSLatitude,omitempty"`
-	GPSLongitude     string    `xml:"exif:GPSLongitude,omitempty"`
-	Rating           string    `xml:"xmp:Rating,omitempty"`
-	Albums           *Relation `xml:"dc:relation>rdf:Bag,omitempty"`
+type RDFDescription struct {
+	XMLName  xml.Name        `xml:"rdf:Description"`
+	About    string          `xml:"rdf:about,attr"`
+	Sections []Descriptioner `xml:",any"`
 }
 
-type Alt struct {
-	Items []Li
+type Descriptioner interface {
+	isDescription() bool
+}
+
+type DCDescription struct {
+	XMLName     xml.Name `xml:"rdf:Description"`
+	Description string   `xml:"dc:description>rdf:Alt>rdf:Li"`
+}
+
+func (DCDescription) isDescription() bool { return true }
+
+type TIFFDescription struct {
+	XMLName     xml.Name `xml:"rdf:Description"`
+	Description string   `xml:"tiff:ImageDescription>rdf:Alt>rdf:Li"`
+}
+
+func (TIFFDescription) isDescription() bool { return true }
+
+type TagList struct {
+	XMLName xml.Name `xml:"rdf:Description"`
+	Seq     Seq      `xml:"digikam:TagsList>rdf:Seq"`
+}
+
+func (TagList) isDescription() bool { return true }
+
+type ImmichGoProperties struct {
+	XMLName          xml.Name      `xml:"rdf:Description"`
+	Title            string        `xml:"immichgo:ImmichGoProperties>immichgo:title,omitempty"`
+	DateTimeOriginal string        `xml:"immichgo:ImmichGoProperties>immichgo:DateTimeOriginal,omitempty"`
+	Trashed          string        `xml:"immichgo:ImmichGoProperties>immichgo:trashed,omitempty"`
+	Archived         string        `xml:"immichgo:ImmichGoProperties>immichgo:archived,omitempty"`
+	FromPartner      string        `xml:"immichgo:ImmichGoProperties>immichgo:fromPartner,omitempty"`
+	Favorite         string        `xml:"immichgo:ImmichGoProperties>immichgo:favorite,omitempty"`
+	Rating           string        `xml:"immichgo:ImmichGoProperties>immichgo:rating,omitempty"`
+	Latitude         string        `xml:"immichgo:ImmichGoProperties>immichgo:latitude,omitempty"`
+	Longitude        string        `xml:"immichgo:ImmichGoProperties>immichgo:longitude,omitempty"`
+	Albums           *ImmichAlbums `xml:"immichgo:ImmichGoProperties>immichgo:albums,omitempty"`
+	// Tags             *ImmichTags   `xml:"immichgo:ImmichGoProperties>immichgo:tags,omitempty"`
+}
+
+func (ImmichGoProperties) isDescription() bool { return true }
+
+type ImmichAlbums struct {
+	Albums Bag
+}
+
+type ImmichAlbum struct {
+	XMLName     xml.Name `xml:"rdf:Li"`
+	Title       string   `xml:"immichgo:album>immichgo:title,omitempty"`
+	Description string   `xml:"immichgo:album>immichgo:description,omitempty"`
+	Latitude    string   `xml:"immichgo:album>immichgo:latitude,omitempty"`
+	Longitude   string   `xml:"immichgo:album>immichgo:longitude,omitempty"`
+}
+
+func (ImmichAlbum) isLi() bool { return true }
+
+type Bag struct {
+	XMLName xml.Name `xml:"rdf:Bag,omitempty"`
+	Li      []lier
 }
 
 type Seq struct {
 	XMLName xml.Name `xml:"rdf:Seq"`
-	Li      []Li
+	Li      []lier
 }
 
-type Relation struct {
-	// XMLName xml.Name `xml:"dc:relation"`
-	Li []Li
-}
-
-type TagList struct {
-	Seq Seq
+type lier interface {
+	isLi() bool
 }
 
 type Li struct {
-	XMLName xml.Name `xml:"rdf:li"`
+	XMLName xml.Name `xml:"rdf:li,omitempty"`
 	Lang    string   `xml:"xml:lang,attr,omitempty"`
 	Value   string   `xml:",chardata"`
 }
 
-func (xmp *XmpMeta) addImageDescription(description string) {
-	xmp.RDF.Descriptions = append(xmp.RDF.Descriptions, Description{
-		DescriptionA: &Alt{
-			Items: []Li{
-				{Lang: "x-default", Value: description},
-			},
-		},
-		DescriptionB: &Alt{
-			Items: []Li{
-				{Lang: "x-default", Value: description},
-			},
-		},
-	})
-}
-
-func (xmp *XmpMeta) addRating(rating int) {
-	if rating < 0 || rating > 5 {
-		return
-	}
-
-	xmp.RDF.Descriptions = append(xmp.RDF.Descriptions, Description{
-		Rating: strconv.Itoa(rating),
-	})
-}
-
-func (xmp *XmpMeta) addTag(tags []string) {
-	if len(tags) == 0 {
-		return
-	}
-
-	seq := Seq{}
-
-	for _, tag := range tags {
-		seq.Li = append(seq.Li, Li{Value: tag})
-	}
-
-	xmp.RDF.Descriptions = append(xmp.RDF.Descriptions, Description{
-		TagsList: &TagList{
-			Seq: seq,
-		},
-	})
-}
-
-func (xmp *XmpMeta) addExif(dateTimeOriginal string, gpsLatitude, gpsLongitude string) {
-	emit := false
-
-	d := Description{}
-
-	if dateTimeOriginal != "" {
-		d.DateTimeOriginal = dateTimeOriginal
-		emit = true
-	}
-	if gpsLatitude != "" && gpsLongitude != "" {
-		d.GPSLatitude = gpsLatitude
-		d.GPSLongitude = gpsLongitude
-		emit = true
-	}
-
-	if emit {
-		xmp.RDF.Descriptions = append(xmp.RDF.Descriptions, d)
-	}
-}
-
-func (xmp *XmpMeta) addAlbums(albums []assets.Album) {
-	if len(albums) == 0 {
-		return
-	}
-	d := Description{
-		Albums: &Relation{
-			Li: []Li{},
-		},
-	}
-	for _, album := range albums {
-		d.Albums.Li = append(d.Albums.Li, Li{Value: album.Title})
-	}
-	xmp.RDF.Descriptions = append(xmp.RDF.Descriptions, d)
-}
+func (Li) isLi() bool { return true }
 
 func (xmp *XmpMeta) encode(w io.Writer) error {
 	_, err := io.WriteString(w, "<?xpacket begin='\xEF\xBB\xBF' id='W5M0MpCehiHzreSzNTczkc9d'?>\n")
@@ -171,32 +140,43 @@ func (xmp *XmpMeta) encode(w io.Writer) error {
 }
 
 func WriteXMP(a *assets.Asset, w io.Writer) error {
-	xmp := NewXMP()
-	if a.Title != "" {
-		xmp.addImageDescription(a.Title)
+	prop := ImmichGoProperties{
+		Title:       a.Title,
+		Trashed:     convert.BoolToString(a.Trashed),
+		Archived:    convert.BoolToString(a.Archived),
+		FromPartner: convert.BoolToString(a.FromPartner),
+		Favorite:    convert.BoolToString(a.Favorite),
+		Rating:      convert.IntToString(a.Rating),
 	}
-	if a.Stars != 0 {
-		xmp.addRating(a.Stars)
+	if !a.CaptureDate.IsZero() {
+		prop.DateTimeOriginal = convert.TimeToString(a.CaptureDate)
+	}
+	if a.Latitude != 0 || a.Longitude != 0 {
+		prop.Latitude = convert.GPSFloatToString(a.Latitude, true)
+		prop.Longitude = convert.GPSFloatToString(a.Longitude, false)
 	}
 
 	if len(a.Albums) > 0 {
-		xmp.addAlbums(a.Albums)
+		prop.Albums = &ImmichAlbums{
+			Albums: Bag{
+				Li: []lier{},
+			},
+		}
+		for _, album := range a.Albums {
+			al := ImmichAlbum{
+				Title:       album.Title,
+				Description: album.Description,
+			}
+			if album.Latitude != 0 || album.Longitude != 0 {
+				al.Latitude = convert.GPSFloatToString(album.Latitude, true)
+				al.Longitude = convert.GPSFloatToString(album.Longitude, false)
+			}
+			prop.Albums.Albums.Li = append(prop.Albums.Albums.Li, al)
+		}
 	}
+	// TODO: Add tags
 
-	// xmp.AddTag(a.Tags)
-
-	// gps data
-	captureDate := ""
-	if !a.CaptureDate.IsZero() {
-		captureDate = convert.TimeToString(a.CaptureDate)
-	}
-	latitude, longitude := "", ""
-	if a.Latitude != 0 || a.Longitude != 0 {
-		latitude = convert.GPSFloatToString(a.Latitude, true)
-		longitude = convert.GPSFloatToString(a.Longitude, false)
-	}
-	if latitude != "" || longitude != "" || captureDate != "" {
-		xmp.addExif(captureDate, latitude, longitude)
-	}
+	xmp := NewXMP()
+	xmp.RDF.Descriptions = append(xmp.RDF.Descriptions, prop)
 	return xmp.encode(w)
 }

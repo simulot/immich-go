@@ -1,8 +1,11 @@
 package xmpreader
 
 import (
+	"fmt"
 	"io"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/clbanning/mxj/v2"
@@ -27,11 +30,12 @@ func walk(m mxj.Map, a *assets.Asset, path string) {
 			walk(v, a, path+"/"+key)
 		case []interface{}:
 			path = path + "/" + key
-			for _, item := range v {
+			for i, item := range v {
+				p := fmt.Sprintf("%s[%d]", path, i)
 				if itemMap, ok := item.(map[string]interface{}); ok {
-					walk(itemMap, a, path)
+					walk(itemMap, a, p)
 				} else {
-					filter(a, path, item.(string))
+					filter(a, p, item.(string))
 				}
 			}
 		default:
@@ -40,26 +44,57 @@ func walk(m mxj.Map, a *assets.Asset, path string) {
 	}
 }
 
+var reAlbum = regexp.MustCompile(`/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li\[(\d+)\](.*)`)
+
 func filter(a *assets.Asset, path string, value string) {
-	// fmt.Printf("filter: %s, %s\n", path, value)
-	var err error
-	switch path {
-	case "/xmpmeta/RDF/Description/TagsList/Seq/Li":
-		// a.Tags = append(a.Tags, value)
-	case "/xmpmeta/RDF/Description/description/Alt/li/#text":
+	switch {
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/title":
 		a.Title = value
-	case "/xmpmeta/RDF/Description/GPSLatitude":
-		a.Latitude, err = convert.GPTStringToFloat(value)
-	case "/xmpmeta/RDF/Description/GPSLongitude":
-		a.Longitude, err = convert.GPTStringToFloat(value)
-	case "/xmpmeta/RDF/Description/DateTimeOriginal":
-		a.CaptureDate, err = convert.TimeStringToTime(value, time.UTC)
-	case "/xmpmeta/RDF/Description/Rating":
-		a.Stars, err = strconv.Atoi(value)
-	case "/xmpmeta/RDF/Description/relation/Bag/li":
-		a.Albums = append(a.Albums, assets.Album{
-			Title: value,
-		})
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/favorite":
+		a.Favorite = convert.StringToBool(value)
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/rating":
+		a.Rating = convert.StringToInt(value)
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/trashed":
+		a.Trashed = convert.StringToBool(value)
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/archived":
+		a.Archived = convert.StringToBool(value)
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/fromPartner":
+		a.FromPartner = convert.StringToBool(value)
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/latitude":
+		if f, err := convert.GPTStringToFloat(value); err == nil {
+			a.Latitude = f
+		}
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/longitude":
+		if f, err := convert.GPTStringToFloat(value); err == nil {
+			a.Longitude = f
+		}
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/DateTimeOriginal":
+		if d, err := convert.TimeStringToTime(value, time.UTC); err == nil {
+			a.CaptureDate = d
+		}
+	case strings.HasPrefix(path, "/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li["):
+		// Extract the index and the remaining pathHi,
+		matches := reAlbum.FindStringSubmatch(path)
+		if len(matches) == 3 {
+			index, _ := strconv.Atoi(matches[1])
+			remainingPath := matches[2]
+			if len(a.Albums) <= index {
+				a.Albums = append(a.Albums, make([]assets.Album, index-len(a.Albums)+1)...)
+			}
+			switch remainingPath {
+			case "/album/title":
+				a.Albums[index].Title = value
+			case "/album/description":
+				a.Albums[index].Description = value
+			case "/album/latitude":
+				if f, err := convert.GPTStringToFloat(value); err == nil {
+					a.Albums[index].Latitude = f
+				}
+			case "/album/longitude":
+				if f, err := convert.GPTStringToFloat(value); err == nil {
+					a.Albums[index].Longitude = f
+				}
+			}
+		}
 	}
-	_ = err
 }

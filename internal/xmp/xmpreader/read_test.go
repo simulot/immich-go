@@ -16,25 +16,25 @@ func TestRead(t *testing.T) {
 		{
 			path: "DATA/image01.jpg.xmp",
 			expect: assets.Asset{
-				Title:       "C'est une <grotte>",
-				Latitude:    -16.5516903372,
-				Longitude:   -62.6748284952,
-				CaptureDate: time.Time{},
+				Title:       "This is a title",
+				CaptureDate: time.Date(2023, 10, 10, 1, 11, 0, 0, time.FixedZone("-0400", -4*60*60)),
+				Favorite:    true,
+				Rating:      3,
 				Albums: []assets.Album{
-					{Title: "Vacation 2024"},
-					{Title: "Family Reunion"},
+					{
+						Title: "Vacation 2024", Description: "Vacation 2024 hawaii and more",
+						Latitude: 19.820610, Longitude: -155.473254,
+					},
+					{Title: "Family Reunion", Latitude: 48.858370, Longitude: 2.291901},
 				},
-				Stars: 5,
 			},
 		},
 		{
 			path: "DATA/image02.jpg.xmp",
 			expect: assets.Asset{
-				Title:       "This a description",
-				Latitude:    -16.5516903372,
-				Longitude:   -62.6748284952,
-				CaptureDate: time.Date(2023, 10, 10, 1, 11, 0, 0, time.FixedZone("-0400", -4*60*60)),
-				Stars:       3,
+				Latitude:  -16.5516903372,
+				Longitude: -62.6748284952,
+				Rating:    5,
 			},
 		},
 	}
@@ -63,8 +63,8 @@ func TestRead(t *testing.T) {
 			if !a.CaptureDate.Equal(c.expect.CaptureDate) {
 				t.Errorf("CaptureDate: got %v, expected %v", a.CaptureDate, c.expect.CaptureDate)
 			}
-			if a.Stars != c.expect.Stars {
-				t.Errorf("Stars: got %d, expected %d", a.Stars, c.expect.Stars)
+			if a.Rating != c.expect.Rating {
+				t.Errorf("Stars: got %d, expected %d", a.Rating, c.expect.Rating)
 			}
 			if len(a.Albums) != len(c.expect.Albums) {
 				t.Errorf("Albums: got %d, expected %d", len(a.Albums), len(c.expect.Albums))
@@ -72,6 +72,15 @@ func TestRead(t *testing.T) {
 				for i, album := range a.Albums {
 					if album.Title != c.expect.Albums[i].Title {
 						t.Errorf("Album %d: got %s, expected %s", i, album.Title, c.expect.Albums[i].Title)
+					}
+					if album.Description != c.expect.Albums[i].Description {
+						t.Errorf("Album %d: got %s, expected %s", i, album.Description, c.expect.Albums[i].Description)
+					}
+					if !floatIsEqual(album.Latitude, c.expect.Albums[i].Latitude) {
+						t.Errorf("Album %d: Latitude: got %f, expected %f", i, album.Latitude, c.expect.Albums[i].Latitude)
+					}
+					if !floatIsEqual(album.Longitude, c.expect.Albums[i].Longitude) {
+						t.Errorf("Album %d: Longitude: got %f, expected %f", i, album.Longitude, c.expect.Albums[i].Longitude)
 					}
 				}
 			}
