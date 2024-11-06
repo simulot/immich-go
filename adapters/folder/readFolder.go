@@ -13,6 +13,7 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filters"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
@@ -142,6 +143,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				continue
 			}
 			la.log.Record(ctx, fileevent.DiscoveredSidecar, fileevent.AsFileAndName(fsys, name))
+			continue
 		}
 
 		if !la.flags.InclusionFlags.IncludedExtensions.Include(ext) {
@@ -207,6 +209,14 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
 				continue
 			}
+
+			// check the presence of an XMP file
+			if b, xmp := detectXMP(fsys, a.FileName); b {
+				a.SideCar = metadata.SideCarFile{
+					FSys:     fsys,
+					FileName: xmp,
+				}
+			}
 			select {
 			case in <- a:
 			case <-ctx.Done():
@@ -251,6 +261,33 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 	}
 	return nil
+}
+
+func detectXMP(fsys fs.FS, name string) (bool, string) {
+	xmp := name + ".xmp"
+	_, err := fshelper.Stat(fsys, xmp)
+	if err == nil {
+		return true, xmp
+	}
+	xmp = name + ".XMP"
+	_, err = fshelper.Stat(fsys, xmp)
+	if err == nil {
+		return true, xmp
+	}
+
+	name = strings.TrimSuffix(name, filepath.Ext(name))
+	xmp = name + ".xmp"
+	_, err = fshelper.Stat(fsys, xmp)
+	if err == nil {
+		return true, xmp
+	}
+	xmp = name + ".XMP"
+	_, err = fshelper.Stat(fsys, xmp)
+	if err == nil {
+		return true, xmp
+	}
+
+	return false, ""
 }
 
 func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {

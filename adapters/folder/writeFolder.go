@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -77,14 +78,34 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			err := fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
-			if err == nil {
-				f, err := fshelper.OpenFile(w.WriteToFS, path.Join(dir, base)+".xmp", os.O_RDWR|os.O_CREATE, 0o644)
+			err = fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
+			if err == nil && !a.SideCar.IsSet() {
+				// No sidecar file, write XMP data
+				var f fshelper.WFile
+				f, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base)+".xmp", os.O_RDWR|os.O_CREATE, 0o644)
 				if err != nil {
 					return err
 				}
 				defer f.Close()
-				return xmp.WriteXMP(a, f)
+				err = xmp.WriteXMP(a, f)
+				if err != nil {
+					return err
+				}
+			} else if a.SideCar.IsSet() {
+				// Sidecar file is set, copy it
+				var scr fs.File
+				scr, err = a.FSys.Open(a.SideCar.FileName)
+				if err != nil {
+					return err
+				}
+				defer scr.Close()
+				var scw fshelper.WFile
+				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, path.Base(a.SideCar.FileName)), os.O_RDWR|os.O_CREATE, 0o644)
+				if err != nil {
+					return err
+				}
+				defer scw.Close()
+				_, err = io.Copy(scw, scr)
 			}
 			return err
 		}
