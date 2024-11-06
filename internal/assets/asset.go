@@ -46,7 +46,7 @@ type Asset struct {
 	Archived    bool      // The asset is archived
 	FromPartner bool      // the asset comes from a partner
 	Favorite    bool      // the asset is marked as favorite
-	Stars       int       // the asset is marked with stars
+	Rating      int       // the asset is marked with stars
 
 	// GPS location
 	Latitude  float64 // GPS latitude
@@ -209,7 +209,7 @@ func (l Asset) LogValue() slog.Value {
 		slog.Bool("Archived", l.Archived),
 		slog.Bool("FromPartner", l.FromPartner),
 		slog.Bool("Favorite", l.Favorite),
-		slog.Int("Stars", l.Stars),
+		slog.Int("Stars", l.Rating),
 		slog.Float64("Latitude", l.Latitude),
 		slog.Float64("Longitude", l.Longitude),
 	)
