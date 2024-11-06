@@ -9,6 +9,94 @@
 
 ### New features
 
+#### New command `archive`
+This command aims is to store photos and videos into a plain folder structure. The folder structure is YYYY/YYYY-MM/files, as following:
+
+```sh
+tree .
+.
+├── 2011
+│   └── 2011-04
+│       ├── 20110430.CR2
+│       ├── 20110430.CR2.xmp
+│       ├── 20110430.jpg
+│       ├── 20110430.jpg.xmp
+│       ├── IMG_2477.CR2
+│       ├── IMG_2477.CR2.xmp
+│       ├── IMG_2478.CR2
+│       ├── IMG_2478.CR2.xmp
+│       ├── IMG_2479.CR2
+│       └── IMG_2479.CR2.xmp
+└── 2023
+    ├── 2023-06
+    │   ├── PXL_20230607_063000139.jpg
+    │   └── PXL_20230607_063000139.jpg.xmp
+    └── 2023-10
+        ├── PXL_20231006_063029647.jpg
+        ├── PXL_20231006_063029647.jpg.xmp
+        ├── PXL_20231006_063851485.jpg
+        └── PXL_20231006_063851485.jpg.xmp
+```
+
+XMP files present in the source folder are copied in the destination folder.
+Google Photos takeout JSON files are translated into customized XMP files and copied in the destination folder.
+Those XMP files use a custom schema to store the Google Photos metadata:
+```xml
+<?xpacket begin='?' id='W5M0MpCehiHzreSzNTczkc9d'?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:exif="http://ns.adobe.com/exif/1.0/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" xmlns:digikam="http://www.digikam.org/ns/1.0/" xmlns:immichgo="http://ns.immich-go.com/immich-go/1.0/" x:xmptk="immich-go version:dev, commit:none, date:unknown">
+  <rdf:RDF>
+    <rdf:Description>
+      <immichgo:ImmichGoProperties>
+        <immichgo:title>This is a title</immichgo:title>
+        <immichgo:DateTimeOriginal>2023-10-10T01:11:00.000-04:00</immichgo:DateTimeOriginal>
+        <immichgo:trashed>False</immichgo:trashed>
+        <immichgo:archived>False</immichgo:archived>
+        <immichgo:fromPartner>False</immichgo:fromPartner>
+        <immichgo:favorite>True</immichgo:favorite>
+        <immichgo:rating>3</immichgo:rating>
+        <immichgo:albums>
+          <rdf:Bag>
+            <rdf:Li>
+              <immichgo:album>
+                <immichgo:title>Vacation 2024</immichgo:title>
+                <immichgo:description>Vacation 2024 hawaii and more</immichgo:description>
+                <immichgo:latitude>19,49.23661N</immichgo:latitude>
+                <immichgo:longitude>155,28.39525W</immichgo:longitude>
+              </immichgo:album>
+            </rdf:Li>
+          </rdf:Bag>
+        </immichgo:albums>
+      </immichgo:ImmichGoProperties>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end='w'?>
+``` 
+
+
+
+The general syntax is:
+```sh
+.\immich-go archive from-xxx [from-xxx flags...] --write-to-folder <destination> <source> 
+```
+
+##### The command `archive --from-google-photos` archives a Google Photos takeout into a folder structure
+
+This command create a folder structure in `/path/to/destination` with the result of the takeout analysis.
+The resulting folder structure can be re-imported into immich-go with the command `upload from-google-photo path/to/archived-folder`.
+
+##### The command `archive --from-` archives a Google Photos takeout into a folder structure
+
+Example:
+```sh
+.\immich-go archive from-google-photos  --include-partner  --write-to-folder /path/to/destination /path/to/takeout*.zip
+```
+
+Coming soon: 
+- archiving an immich server into a folder.
+
+
+#### Handling of scanned photos by Epson FastFoto
 - `--manage-epson-fastfoto`  Manage Epson FastFoto file (default: false)
   <br>Group scanned photos in stacks 
   - Scan_0001.jpg Original photo
