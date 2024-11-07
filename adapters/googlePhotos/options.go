@@ -71,7 +71,7 @@ type ImportFlags struct {
 	ManageEpsonFastFoto bool
 }
 
-func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command) {
+func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra.Command) {
 	o.BannedFiles, _ = namematcher.New(
 		`@eaDir/`,
 		`@__thumb/`,          // QNAP
@@ -90,13 +90,16 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(&o.KeepArchived, "include-archived", "a", true, "Import archived Google Photos")
 	cmd.Flags().BoolVarP(&o.KeepJSONLess, "include-unmatched", "u", false, "Import photos that do not have a matching JSON file in the takeout")
 	cmd.Flags().Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
-	cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
-	cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
-	cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG")
-	cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	cliflags.AddDateHandlingFlags(cmd, &o.DateHandlingFlags)
 	metadata.AddExifToolFlags(cmd, &o.ExifToolFlags)
 	o.SupportedMedia = metadata.DefaultSupportedMedia
+
+	if parent != nil && parent.Name() == "upload" {
+		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
+		cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
+		cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG")
+		cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
+	}
 }

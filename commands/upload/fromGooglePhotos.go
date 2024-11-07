@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewFromGooglePhotosCommand(ctx context.Context, app *application.Application, upOptions *UploadOptions) *cobra.Command {
+func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app *application.Application, upOptions *UploadOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-google-photos [flags] <takeout-*.zip> | <takeout-folder>",
 		Short: "Upload photos either from a zipped Google Photos takeout or decompressed archive",
@@ -20,7 +20,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 	}
 	cmd.SetContext(ctx)
 	options := &gp.ImportFlags{}
-	options.AddFromGooglePhotosFlags(cmd)
+	options.AddFromGooglePhotosFlags(cmd, parent)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		ctx := cmd.Context()

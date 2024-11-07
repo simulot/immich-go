@@ -66,7 +66,7 @@ type ImportFolderOptions struct {
 	ManageEpsonFastFoto bool
 }
 
-func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command) {
+func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cobra.Command) {
 	o.ManageHEICJPG = filters.HeicJpgNothing
 	o.ManageRawJPG = filters.RawJPGNothing
 	o.ManageBurst = filters.BurstNothing
@@ -88,14 +88,17 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
 	cmd.Flags().Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	cmd.Flags().BoolVar(&o.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
-	cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
-	cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
-	cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG")
-	cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	cliflags.AddDateHandlingFlags(cmd, &o.DateHandlingFlags)
 	metadata.AddExifToolFlags(cmd, &o.ExifToolFlags)
+
+	if parent != nil && parent.Name() == "upload" {
+		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
+		cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
+		cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG")
+		cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
+	}
 }
 
 // AlbumFolderMode represents the mode in which album folders are organized.

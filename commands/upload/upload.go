@@ -48,8 +48,8 @@ func NewUploadCommand(ctx context.Context, app *application.Application) *cobra.
 	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
 	cmd.PersistentPreRunE = application.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, app)
 
-	cmd.AddCommand(NewFromFolderCommand(ctx, app, options))
-	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, app, options))
+	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, app, options))
+	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, cmd, app, options))
 	return cmd
 }
 

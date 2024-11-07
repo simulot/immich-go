@@ -31,20 +31,20 @@ func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra
 	cmd.PersistentFlags().StringVarP(&options.ArchivePath, "write-to-folder", "w", "", "Path where to write the archive")
 	_ = cmd.MarkPersistentFlagRequired("write-to-folder")
 
-	cmd.AddCommand(NewImportFromFolderCommand(ctx, app, options))
-	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, app, options))
+	cmd.AddCommand(NewImportFromFolderCommand(ctx, cmd, app, options))
+	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, cmd, app, options))
 
 	return cmd
 }
 
-func NewImportFromFolderCommand(ctx context.Context, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
+func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-folder",
 		Short: "Archive photos from a folder",
 	}
 
 	options := &folder.ImportFolderOptions{}
-	options.AddFromFolderFlags(cmd)
+	options.AddFromFolderFlags(cmd, parent)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
@@ -90,7 +90,7 @@ func NewImportFromFolderCommand(ctx context.Context, app *application.Applicatio
 	return cmd
 }
 
-func NewFromGooglePhotosCommand(ctx context.Context, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
+func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-google-photos [flags] <takeout-*.zip> | <takeout-folder>",
 		Short: "Archive photos either from a zipped Google Photos takeout or decompressed archive",
@@ -98,7 +98,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, app *application.Applicatio
 	}
 	cmd.SetContext(ctx)
 	options := &gp.ImportFlags{}
-	options.AddFromGooglePhotosFlags(cmd)
+	options.AddFromGooglePhotosFlags(cmd, parent)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		ctx := cmd.Context()

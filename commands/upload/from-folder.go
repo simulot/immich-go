@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewFromFolderCommand(ctx context.Context, app *application.Application, upOptions *UploadOptions) *cobra.Command {
+func NewFromFolderCommand(ctx context.Context, parent *cobra.Command, app *application.Application, upOptions *UploadOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-folder [flags] <path>...",
 		Short: "Upload photos from a folder",
@@ -20,7 +20,7 @@ func NewFromFolderCommand(ctx context.Context, app *application.Application, upO
 	}
 	cmd.SetContext(ctx)
 	options := &folder.ImportFolderOptions{}
-	options.AddFromFolderFlags(cmd)
+	options.AddFromFolderFlags(cmd, parent)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
