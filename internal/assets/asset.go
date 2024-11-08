@@ -55,6 +55,7 @@ type Asset struct {
 	// When a sidecar is found beside the asset
 	SideCar metadata.SideCarFile // sidecar file if found
 	Albums  []Album              // List of albums the asset is in
+	Tags    []Tag                // List of tags the asset is tagged with
 
 	// Internal fields
 
