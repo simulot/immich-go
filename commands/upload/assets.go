@@ -51,7 +51,6 @@ func (ai *AssetIndex) AddLocalAsset(la *assets.Asset, immichID string) {
 			Latitude:         la.Latitude,
 			Longitude:        la.Longitude,
 		},
-		JustUploaded: true,
 	}
 	ai.assets = append(ai.assets, sa)
 	ai.byID[sa.DeviceAssetID] = sa

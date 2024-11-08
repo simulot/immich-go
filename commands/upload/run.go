@@ -88,7 +88,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 
 	var list []*immich.Asset
 
-	err = upCmd.app.Client().Immich.GetAllAssetsWithFilter(ctx, func(a *immich.Asset) error {
+	err = upCmd.app.Client().Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,32 +17,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type Client struct {
-	Server        string        // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	API           string        // Immich api endpoint (http://container_ip:3301)
-	APIKey        string        // API Key
-	APITrace      bool          // Enable API call traces
-	SkipSSL       bool          // Skip SSL Verification
-	ClientTimeout time.Duration // Set the client request timeout
-	DeviceUUID    string        // Set a device UUID
-	DryRun        bool          // Protect the server from changes
-	TimeZone      string        // Override default TZ
-
-	APITraceWriter     io.WriteCloser         // API tracer
-	APITraceWriterName string                 // API trace log name
-	Immich             immich.ImmichInterface // Immich client
-
-	// NoUI               bool           // Disable user interface
-	// DebugFileList      bool           // When true, the file argument is a file wile the list of Takeout files
-}
-
 // add server flags to the command cmd
 func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
 	client := app.Client()
 	client.DeviceUUID, _ = os.Hostname()
 
 	cmd.PersistentFlags().StringVarP(&client.Server, "server", "s", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
-	cmd.PersistentFlags().StringVar(&client.API, "api", "", "Immich api endpoint (example http://container_ip:3301)")
 	cmd.PersistentFlags().StringVarP(&client.APIKey, "api-key", "k", "", "API Key")
 	cmd.PersistentFlags().BoolVar(&client.APITrace, "api-trace", false, "Enable trace of api calls")
 	cmd.PersistentFlags().BoolVar(&client.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
@@ -58,13 +39,12 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 	client := app.Client()
 	log := app.Log()
 
-	var joinedErr error
 	if client.Server != "" {
 		client.Server = strings.TrimSuffix(client.Server, "/")
 	}
 	if client.TimeZone != "" {
 		_, err := tzone.SetLocal(client.TimeZone)
-		joinedErr = errors.Join(joinedErr, err)
+		return err
 	}
 
 	// Plug the journal on the Log
@@ -86,81 +66,111 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 		}
 	}
 
+	err := client.Initialize(ctx, log.Logger)
+	if err != nil {
+		return err
+	}
+
+	if client.APITrace {
+		if client.APITraceWriter == nil {
+			err := configuration.MakeDirForFile(log.File)
+			if err != nil {
+				return err
+			}
+			client.APITraceWriterName = strings.TrimSuffix(log.File, filepath.Ext(log.File)) + ".trace.log"
+			client.APITraceWriter, err = os.OpenFile(client.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
+			if err != nil {
+				return err
+			}
+			client.Immich.EnableAppTrace(client.APITraceWriter)
+		}
+	}
+	return client.Open(ctx)
+}
+
+func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	if app.Client() != nil {
+		return app.Client().Close()
+	}
+	return nil
+}
+
+type Client struct {
+	Server string // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
+	// API                string                 // Immich api endpoint (http://container_ip:3301)
+	APIKey             string                 // API Key
+	APITrace           bool                   // Enable API call traces
+	SkipSSL            bool                   // Skip SSL Verification
+	ClientTimeout      time.Duration          // Set the client request timeout
+	DeviceUUID         string                 // Set a device UUID
+	DryRun             bool                   // Protect the server from changes
+	TimeZone           string                 // Override default TZ
+	APITraceWriter     io.WriteCloser         // API tracer
+	APITraceWriterName string                 // API trace log name
+	Immich             immich.ImmichInterface // Immich client
+	ClientLog          *slog.Logger           // Logger
+}
+
+func (client *Client) Initialize(ctx context.Context, log *slog.Logger) error {
+	var joinedErr error
+
 	// If the client isn't yet initialized
 	if client.Immich == nil {
-		switch {
-		case client.Server == "" && client.API == "":
+		if client.Server == "" {
 			joinedErr = errors.Join(joinedErr, errors.New("missing --server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
-		case client.Server != "" && client.API != "":
-			joinedErr = errors.Join(joinedErr, errors.New("give either the --server or the --api option"))
-		}
-		if client.APIKey == "" {
-			joinedErr = errors.Join(joinedErr, errors.New("missing --API-key"))
+			if client.APIKey == "" {
+				joinedErr = errors.Join(joinedErr, errors.New("missing --API-key"))
+			}
 		}
 
 		if joinedErr != nil {
 			return joinedErr
 		}
-
-		log.Info("Connection to the server " + client.Server)
-
-		var err error
-		client.Immich, err = immich.NewImmichClient(
-			client.Server,
-			client.APIKey,
-			immich.OptionVerifySSL(client.SkipSSL),
-			immich.OptionConnectionTimeout(client.ClientTimeout),
-			immich.OptionDryRun(client.DryRun),
-		)
-		if err != nil {
-			return err
-		}
-		if client.API != "" {
-			client.Immich.SetEndPoint(client.API)
-		}
-		if client.DeviceUUID != "" {
-			client.Immich.SetDeviceUUID(client.DeviceUUID)
-		}
-
-		if client.APITrace {
-			if client.APITraceWriter == nil {
-				err := configuration.MakeDirForFile(log.File)
-				if err != nil {
-					return err
-				}
-				client.APITraceWriterName = strings.TrimSuffix(log.File, filepath.Ext(log.File)) + ".trace.log"
-				client.APITraceWriter, err = os.OpenFile(client.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
-				if err != nil {
-					return err
-				}
-				client.Immich.EnableAppTrace(client.APITraceWriter)
-			}
-		}
-
-		err = client.Immich.PingServer(ctx)
-		if err != nil {
-			return err
-		}
-		log.Info("Server status: OK")
-
-		user, err := client.Immich.ValidateConnection(ctx)
-		if err != nil {
-			return err
-		}
-		log.Info(fmt.Sprintf("Connected, user: %s", user.Email))
-		if client.DryRun {
-			log.Info("Dry-run mode enabled. No changes will be made to the server.")
-		}
 	}
 
+	client.ClientLog = log
 	return nil
 }
 
-func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
-	client := app.Client()
-	log := app.Log()
+func (client *Client) Open(ctx context.Context) error {
+	var err error
+
+	client.ClientLog.Info("Connection to the server " + client.Server)
+	client.Immich, err = immich.NewImmichClient(
+		client.Server,
+		client.APIKey,
+		immich.OptionVerifySSL(client.SkipSSL),
+		immich.OptionConnectionTimeout(client.ClientTimeout),
+		immich.OptionDryRun(client.DryRun),
+	)
+	if err != nil {
+		return err
+	}
+
+	if client.DeviceUUID != "" {
+		client.Immich.SetDeviceUUID(client.DeviceUUID)
+	}
+
+	err = client.Immich.PingServer(ctx)
+	if err != nil {
+		return err
+	}
+	client.ClientLog.Info("Server status: OK")
+
+	user, err := client.Immich.ValidateConnection(ctx)
+	if err != nil {
+		return err
+	}
+	client.ClientLog.Info(fmt.Sprintf("Connected, user: %s", user.Email))
 	if client.DryRun {
-		log.Info("Dry-run mode enabled. No changes were made to the server.")
+		client.ClientLog.Info("Dry-run mode enabled. No changes will be made to the server.")
+	}
+	return nil
+}
+
+func (client *Client) Close() error {
+	if client.DryRun {
+		client.ClientLog.Info("Dry-run mode enabled. No changes were made to the server.")
 	}
 	return nil
 }
