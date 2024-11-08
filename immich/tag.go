@@ -3,12 +3,22 @@ package immich
 import (
 	"context"
 	"fmt"
+
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 type TagSimplified struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Value string `json:"value"`
+}
+
+func (ts TagSimplified) AsTag() assets.Tag {
+	return assets.Tag{
+		ID:    ts.ID,
+		Name:  ts.Name,
+		Value: ts.Value,
+	}
 }
 
 type TagAssetsResponse struct {
@@ -42,7 +52,6 @@ func (ic *ImmichClient) TagAssets(
 	}{IDs: assetIDs}
 	err := ic.newServerCall(ctx, EndPointTagAssets).
 		do(putRequest(fmt.Sprintf("/tags/%s/assets", tagID), setJSONBody(body), setAcceptJSON()), responseJSON(&resp))
-
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +64,8 @@ func (ic *ImmichClient) BulkTagAssets(
 	assetIDs []string,
 ) (struct {
 	Count int `json:"count"`
-}, error) {
+}, error,
+) {
 	var resp struct {
 		Count int `json:"count"`
 	}

@@ -37,7 +37,7 @@ type ImmichInterface interface {
 		removeParent bool,
 		stackParentID string,
 	) error
-	GetAllAssetsWithFilter(context.Context, func(*Asset) error) error
+	GetAllAssetsWithFilter(context.Context, *SearchMetadataQuery, func(*Asset) error) error
 	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
@@ -179,13 +179,43 @@ type Asset struct {
 	IsArchived       bool              `json:"isArchived"`
 	IsTrashed        bool              `json:"isTrashed"`
 	Duration         string            `json:"duration"`
+	Rating           int               `json:"rating"`
 	ExifInfo         ExifInfo          `json:"exifInfo"`
 	LivePhotoVideoID string            `json:"livePhotoVideoId"`
-	Tags             []any             `json:"tags"`
 	Checksum         string            `json:"checksum"`
 	StackParentID    string            `json:"stackParentId"`
-	JustUploaded     bool              `json:"-"`
 	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
+	Tags             []TagSimplified   `json:"tags"`
+	// JustUploaded     bool              `json:"-"` // TO REMOVE
+}
+
+// NewAssetFromImmich creates an assets.Asset from an immich.Asset.
+func (ia Asset) AsAsset() *assets.Asset {
+	a := &assets.Asset{
+		FileName:    ia.OriginalFileName,
+		FileDate:    ia.FileModifiedAt.Time,
+		Title:       ia.ExifInfo.Description,
+		ID:          ia.ID,
+		CaptureDate: ia.ExifInfo.DateTimeOriginal.Time,
+		Trashed:     ia.IsTrashed,
+		Archived:    ia.IsArchived,
+		Favorite:    ia.IsFavorite,
+		Rating:      ia.Rating,
+		Latitude:    ia.ExifInfo.Latitude,
+		Longitude:   ia.ExifInfo.Longitude,
+	}
+	a.FileSize = int(ia.ExifInfo.FileSizeInByte)
+	for _, album := range ia.Albums {
+		a.Albums = append(a.Albums, assets.Album{
+			Title:       album.AlbumName,
+			Description: album.Description,
+		})
+	}
+
+	for _, tag := range ia.Tags {
+		a.Tags = append(a.Tags, tag.AsTag())
+	}
+	return a
 }
 
 type ExifInfo struct {
