@@ -75,7 +75,7 @@ func (TagList) isDescription() bool { return true }
 
 type ImmichGoProperties struct {
 	XMLName          xml.Name      `xml:"rdf:Description"`
-	Title            string        `xml:"immichgo:ImmichGoProperties>immichgo:title,omitempty"`
+	Description      string        `xml:"immichgo:ImmichGoProperties>immichgo:description,omitempty"`
 	DateTimeOriginal string        `xml:"immichgo:ImmichGoProperties>immichgo:DateTimeOriginal,omitempty"`
 	Trashed          string        `xml:"immichgo:ImmichGoProperties>immichgo:trashed,omitempty"`
 	Archived         string        `xml:"immichgo:ImmichGoProperties>immichgo:archived,omitempty"`
@@ -155,7 +155,7 @@ func (xmp *XmpMeta) encode(w io.Writer) error {
 
 func WriteXMP(a *assets.Asset, w io.Writer) error {
 	prop := ImmichGoProperties{
-		Title:       a.Title,
+		Description: a.Description,
 		Trashed:     convert.BoolToString(a.Trashed),
 		Archived:    convert.BoolToString(a.Archived),
 		FromPartner: convert.BoolToString(a.FromPartner),

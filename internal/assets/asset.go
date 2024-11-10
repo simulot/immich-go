@@ -36,9 +36,10 @@ type Asset struct {
 	FileDate time.Time // File creation date
 
 	// Common fields
-	Title    string // Google Photos may a have title longer than the filename
-	FileSize int    // File size in bytes
-	ID       string // Immich ID after upload
+	Title       string // Google Photos may a have title longer than the filename
+	Description string // Google Photos may a have description
+	FileSize    int    // File size in bytes
+	ID          string // Immich ID after upload
 
 	// Flags that are provided to Immich Upload API call
 	CaptureDate time.Time // Date of the capture

@@ -74,7 +74,7 @@ func TestWrite(t *testing.T) {
 		{
 			path: "DATA/image01.jpg.xmp",
 			asset: assets.Asset{
-				Title:       "THIS IS A TITLE with special characters & < >",
+				Description: "THIS IS A TITLE with special characters & < >",
 				Latitude:    -16.5516903372,
 				Longitude:   -62.6748284952,
 				CaptureDate: time.Time{},
@@ -84,7 +84,7 @@ func TestWrite(t *testing.T) {
 		{
 			path: "DATA/image02.jpg.xmp",
 			asset: assets.Asset{
-				Title:       "This a description",
+				Description: "This a description",
 				Latitude:    0,
 				Longitude:   0,
 				CaptureDate: time.Date(2023, 10, 10, 1, 11, 0, 0, time.FixedZone("-0400", -4*60*60)),
@@ -108,14 +108,14 @@ func TestWrite(t *testing.T) {
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			// debug: 			fmt.Println(buf.String())
+			// debug:			fmt.Println(buf.String())
 			b := assets.Asset{}
 			err = xmpreader.ReadXMP(&b, strings.NewReader(buf.String()))
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			if b.Title != c.asset.Title {
-				t.Errorf("Title: got %s, expected %s", b.Title, c.asset.Title)
+			if b.Description != c.asset.Description {
+				t.Errorf("Description: got %s, expected %s", b.Title, c.asset.Title)
 			}
 			if !floatIsEqual(b.Latitude, c.asset.Latitude) {
 				t.Errorf("Latitude: got %f, expected %f", b.Latitude, c.asset.Latitude)

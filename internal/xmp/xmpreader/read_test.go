@@ -16,7 +16,7 @@ func TestRead(t *testing.T) {
 		{
 			path: "DATA/image01.jpg.xmp",
 			expect: assets.Asset{
-				Title:       "This is a title",
+				Description: "This is a description",
 				CaptureDate: time.Date(2023, 10, 10, 1, 11, 0, 0, time.FixedZone("-0400", -4*60*60)),
 				Favorite:    true,
 				Rating:      3,
@@ -69,8 +69,8 @@ func TestRead(t *testing.T) {
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			if a.Title != c.expect.Title {
-				t.Errorf("Title: got %s, expected %s", a.Title, c.expect.Title)
+			if a.Title != c.expect.Description {
+				t.Errorf("Description: got %s, expected %s", a.Description, c.expect.Description)
 			}
 			if !floatIsEqual(a.Latitude, c.expect.Latitude) {
 				t.Errorf("Latitude: got %f, expected %f", a.Latitude, c.expect.Latitude)

@@ -52,8 +52,8 @@ var (
 func filter(a *assets.Asset, path string, value string) {
 	// debug	fmt.Printf("%s: %s\n", path, value)
 	switch {
-	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/title":
-		a.Title = value
+	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/description":
+		a.Description = value
 	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/favorite":
 		a.Favorite = convert.StringToBool(value)
 	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/rating":

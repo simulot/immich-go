@@ -3,7 +3,7 @@
   <rdf:RDF>
     <rdf:Description>
       <immichgo:ImmichGoProperties>
-        <immichgo:title>This is a title</immichgo:title>
+        <immichgo:description>This is a description</immichgo:description>
         <immichgo:DateTimeOriginal>2023-10-10T01:11:00.000-04:00</immichgo:DateTimeOriginal>
         <immichgo:trashed>False</immichgo:trashed>
         <immichgo:archived>False</immichgo:archived>
