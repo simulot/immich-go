@@ -239,14 +239,9 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 	return ic.newServerCall(ctx, "DeleteAsset").do(deleteRequest("/assets", setJSONBody(&req)))
 }
 
-func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
-	body := struct {
-		WithExif  bool   `json:"withExif,omitempty"`
-		IsVisible bool   `json:"isVisible,omitempty"`
-		ID        string `json:"id"`
-	}{WithExif: true, IsVisible: true, ID: id}
+func (ic *ImmichClient) GetAssetInfo(ctx context.Context, id string) (*Asset, error) {
 	r := Asset{}
-	err := ic.newServerCall(ctx, "GetAssetByID").do(postRequest("/search/metadata", "application/json", setAcceptJSON(), setJSONBody(body)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAssetInfo").do(getRequest("/assets/"+id, setAcceptJSON()), responseJSON(&r))
 	return &r, err
 }
 
@@ -299,4 +294,11 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAss
 	r := Asset{}
 	err := ic.newServerCall(ctx, "updateAsset").do(putRequest("/assets/"+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
+}
+
+func (ic *ImmichClient) DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error) {
+	var rc io.ReadCloser
+
+	err := ic.newServerCall(ctx, "DownloadAsset").do(getRequest(fmt.Sprintf("/assets/%s/original", id), setOctetStream()), responseOctetStream(&rc))
+	return rc, err
 }

@@ -36,6 +36,10 @@ func (ic *ImmichClient) SetEndPoint(endPoint string) {
 	ic.endPoint = endPoint
 }
 
+func (ic *ImmichClient) GetEndPoint() string {
+	return ic.endPoint
+}
+
 func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) {
 	ic.DeviceUUID = deviceUUID
 }

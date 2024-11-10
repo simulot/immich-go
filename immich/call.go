@@ -264,6 +264,13 @@ func setAcceptJSON() serverRequestOption {
 	}
 }
 
+func setOctetStream() serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Add("Accept", "application/octet-stream")
+		return nil
+	}
+}
+
 func setAPIKey() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Header.Set("x-api-key", sc.ic.key)
@@ -337,6 +344,18 @@ func responseCopy(buffer *bytes.Buffer) serverResponseOption {
 			if resp.Body != nil {
 				newBody := fshelper.TeeReadCloser(resp.Body, buffer)
 				resp.Body = newBody
+				return nil
+			}
+		}
+		return nil
+	}
+}
+
+func responseOctetStream(rc *io.ReadCloser) serverResponseOption {
+	return func(sc *serverCall, resp *http.Response) error {
+		if resp != nil {
+			if resp.Body != nil {
+				*rc = resp.Body
 				return nil
 			}
 		}

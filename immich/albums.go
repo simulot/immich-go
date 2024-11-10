@@ -25,7 +25,11 @@ type AlbumSimplified struct {
 
 func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error) {
 	var albums []AlbumSimplified
-	err := ic.newServerCall(ctx, EndPointGetAllAlbums).do(getRequest("/albums", setAcceptJSON()), responseJSON(&albums))
+	err := ic.newServerCall(ctx, EndPointGetAllAlbums).
+		do(
+			getRequest("/albums", setAcceptJSON()),
+			responseJSON(&albums),
+		)
 	if err != nil {
 		return nil, err
 	}
@@ -142,10 +146,10 @@ func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, descriptio
 	return r, nil
 }
 
-func (ic *ImmichClient) GetAssetAlbums(ctx context.Context, id string) ([]AlbumSimplified, error) {
+func (ic *ImmichClient) GetAssetAlbums(ctx context.Context, assetID string) ([]AlbumSimplified, error) {
 	var r []AlbumSimplified
 	err := ic.newServerCall(ctx, EndPointGetAssetAlbums).do(
-		getRequest("/albums?assetId="+id, setAcceptJSON()),
+		getRequest("/albums?assetId="+assetID, setAcceptJSON()),
 		responseJSON(&r))
 	return r, err
 }

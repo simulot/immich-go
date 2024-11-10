@@ -13,6 +13,8 @@ import (
 	"github.com/simulot/immich-go/internal/tzone"
 )
 
+var _ ImmichInterface = (*ImmichClient)(nil)
+
 // ImmichInterface is an interface that implements the minimal immich client set of features for uploading
 // interface used to mock up the client
 type ImmichInterface interface {
@@ -23,6 +25,8 @@ type ImmichInterface interface {
 	ValidateConnection(ctx context.Context) (User, error)
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
 	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
+	GetAssetInfo(ctx context.Context, id string) (*Asset, error)
+	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
 
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
 	GetAllAssets(ctx context.Context) ([]*Asset, error)
@@ -49,7 +53,9 @@ type ImmichInterface interface {
 		description string,
 		ids []string,
 	) (AlbumSimplified, error)
-	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
+
+	// GetAssetAlbums get all albums that an asset belongs to
+	GetAssetAlbums(ctx context.Context, assetID string) ([]AlbumSimplified, error)
 	DeleteAlbum(ctx context.Context, id string) error
 
 	SupportedMedia() metadata.SupportedMedia
