@@ -71,6 +71,11 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 		return err
 	}
 
+	err = client.Open(ctx)
+	if err != nil {
+		return err
+	}
+
 	if client.APITrace {
 		if client.APITraceWriter == nil {
 			err := configuration.MakeDirForFile(log.File)
@@ -85,11 +90,15 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 			client.Immich.EnableAppTrace(client.APITraceWriter)
 		}
 	}
-	return client.Open(ctx)
+	return nil
 }
 
 func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
 	if app.Client() != nil {
+		if app.Client().APITraceWriter != nil {
+			app.Client().APITraceWriter.Close()
+			app.log.Message("Check the API-TRACE file: %s", app.Client().APITraceWriterName)
+		}
 		return app.Client().Close()
 	}
 	return nil
