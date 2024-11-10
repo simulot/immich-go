@@ -285,6 +285,20 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
 	}
 	a.ID = ar.ID
+
+	if a.Description != "" || (a.Latitude != 0 && a.Longitude != 0) || a.Rating != 0 || !a.CaptureDate.IsZero() {
+		_, err := upCmd.app.Client().Immich.UpdateAsset(ctx, a.ID, immich.UpdAssetField{
+			Description:      a.Description,
+			Latitude:         a.Latitude,
+			Longitude:        a.Longitude,
+			Rating:           a.Rating,
+			DateTimeOriginal: a.CaptureDate,
+		})
+		if err != nil {
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+			return err
+		}
+	}
 	return nil
 }
 

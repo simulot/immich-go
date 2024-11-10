@@ -529,6 +529,11 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *me
 		a.Latitude = md.Latitude
 		a.Longitude = md.Longitude
 	}
+
+	if md != nil {
+		a.Description = md.Description
+	}
+
 	a.SetNameInfo(to.flags.InfoCollector.GetInfo(a.Title))
 	if a.CaptureDate.IsZero() {
 		a.CaptureDate = a.NameInfo().Taken
