@@ -45,12 +45,12 @@ func walk(m mxj.Map, a *assets.Asset, path string) {
 }
 
 var (
-	reAlbum = regexp.MustCompile(`/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li\[(\d+)\](.*)`)
-	reTag   = regexp.MustCompile(`/xmpmeta/RDF/Description/ImmichGoProperties/tags/Bag/Li\[(\d+)\](.*)`)
+	reAlbum = regexp.MustCompile(`/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li(\[(\d+)\])?(.*)`)
+	reTag   = regexp.MustCompile(`/xmpmeta/RDF/Description/ImmichGoProperties/tags/Bag/Li(\[(\d+)\])?(.*)`)
 )
 
 func filter(a *assets.Asset, path string, value string) {
-	// debug 	fmt.Printf("%s: %s\n", path, value)
+	// debug	fmt.Printf("%s: %s\n", path, value)
 	switch {
 	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/title":
 		a.Title = value
@@ -76,12 +76,12 @@ func filter(a *assets.Asset, path string, value string) {
 		if d, err := convert.TimeStringToTime(value, time.UTC); err == nil {
 			a.CaptureDate = d
 		}
-	case strings.HasPrefix(path, "/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li["):
+	case strings.HasPrefix(path, "/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li"):
 		// Extract the index and the remaining pat
 		matches := reAlbum.FindStringSubmatch(path)
-		if len(matches) == 3 {
-			index, _ := strconv.Atoi(matches[1])
-			remainingPath := matches[2]
+		if len(matches) == 4 {
+			index, _ := strconv.Atoi(matches[2])
+			remainingPath := matches[3]
 			if len(a.Albums) <= index {
 				a.Albums = append(a.Albums, make([]assets.Album, index-len(a.Albums)+1)...)
 			}
@@ -100,12 +100,12 @@ func filter(a *assets.Asset, path string, value string) {
 				}
 			}
 		}
-	case strings.HasPrefix(path, "/xmpmeta/RDF/Description/ImmichGoProperties/tags/Bag/Li["):
+	case strings.HasPrefix(path, "/xmpmeta/RDF/Description/ImmichGoProperties/tags/Bag/Li"):
 		// Extract the index and the remaining path
 		matches := reTag.FindStringSubmatch(path)
-		if len(matches) == 3 {
-			index, _ := strconv.Atoi(matches[1])
-			remainingPath := matches[2]
+		if len(matches) == 4 {
+			index, _ := strconv.Atoi(matches[2])
+			remainingPath := matches[3]
 			if len(a.Tags) <= index {
 				a.Tags = append(a.Tags, make([]assets.Tag, index-len(a.Tags)+1)...)
 			}

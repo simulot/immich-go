@@ -35,6 +35,24 @@ func TestRead(t *testing.T) {
 				Latitude:  -16.5516903372,
 				Longitude: -62.6748284952,
 				Rating:    5,
+				Tags: []assets.Tag{
+					{Name: "tag2", Value: "tag1/tag2"},
+				},
+			},
+		},
+		{
+			path: "DATA/image03.jpg.xmp",
+			expect: assets.Asset{
+				Latitude:  -16.5516903372,
+				Longitude: -62.6748284952,
+				Rating:    5,
+				Albums: []assets.Album{
+					{Title: "Vacation 2024"},
+				},
+				Tags: []assets.Tag{
+					{Name: "tag2", Value: "tag1/tag2"},
+					{Name: "tag3", Value: "tag1/tag3"},
+				},
 			},
 		},
 	}
@@ -81,6 +99,18 @@ func TestRead(t *testing.T) {
 					}
 					if !floatIsEqual(album.Longitude, c.expect.Albums[i].Longitude) {
 						t.Errorf("Album %d: Longitude: got %f, expected %f", i, album.Longitude, c.expect.Albums[i].Longitude)
+					}
+				}
+			}
+			if len(a.Tags) != len(c.expect.Tags) {
+				t.Errorf("Tags: got %d, expected %d", len(a.Tags), len(c.expect.Tags))
+			} else {
+				for i, tag := range a.Tags {
+					if tag.Name != c.expect.Tags[i].Name {
+						t.Errorf("Tag %d: Name: got %s, expected %s", i, tag.Name, c.expect.Tags[i].Name)
+					}
+					if tag.Value != c.expect.Tags[i].Value {
+						t.Errorf("Tag %d: Value: got %s, expected %s", i, tag.Value, c.expect.Tags[i].Value)
 					}
 				}
 			}

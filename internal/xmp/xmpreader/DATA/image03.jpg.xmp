@@ -19,8 +19,23 @@
                 <immichgo:value>tag1/tag2</immichgo:value>
               </immichgo:tag>
             </rdf:Li>
+            <rdf:Li>
+              <immichgo:tag>
+                <immichgo:name>tag3</immichgo:name>
+                <immichgo:value>tag1/tag3</immichgo:value>
+              </immichgo:tag>
+            </rdf:Li>            
           </rdf:Bag>
-        </immichgo:tags>
+        </immichgo:tags>        
+        <immichgo:albums>
+          <rdf:Bag>
+            <rdf:Li>
+              <immichgo:album>
+                <immichgo:title>Vacation 2024</immichgo:title>
+              </immichgo:album>
+            </rdf:Li>
+          </rdf:Bag>
+        </immichgo:albums>        
       </immichgo:ImmichGoProperties>
     </rdf:Description>
   </rdf:RDF>
