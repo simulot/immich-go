@@ -52,6 +52,8 @@ const (
 
 	Written // = "Written"
 
+	Tagged // = "Tagged"
+
 	Error
 	MaxCode
 )
@@ -83,7 +85,9 @@ var _code = map[Code]string{
 	INFO:      "Info",
 
 	Written: "Written",
-	Error:   "error",
+
+	Tagged: "Tagged",
+	Error:  "error",
 }
 
 func (e Code) String() string {
