@@ -59,7 +59,7 @@ type Asset struct {
 
 	// Internal fields
 
-	nameInfo filenames.NameInfo
+	nameInfo filenames.NameInfo // NameInfo extracted from the filename, with the original filename
 
 	// buffer management
 	sourceFile fs.File   // the opened source file
