@@ -1,6 +1,7 @@
 package folder
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/fs"
@@ -20,6 +21,7 @@ import (
 	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/worker"
+	"github.com/simulot/immich-go/internal/xmp"
 )
 
 type LocalAssetBrowser struct {
@@ -211,10 +213,23 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 
 			// check the presence of an XMP file
-			if b, xmp := detectXMP(fsys, a.FileName); b {
-				a.SideCar = metadata.SideCarFile{
-					FSys:     fsys,
-					FileName: xmp,
+			if b, xmpName := detectXMP(fsys, a.FileName); b {
+				buf, err := fs.ReadFile(fsys, xmpName)
+				if err != nil {
+					la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
+				} else {
+					if bytes.Contains(buf, []byte("<immichgo:ImmichGoProperties>")) {
+						// found immich-go specific
+						err = xmp.ReadXMP(a, bytes.NewReader(buf))
+						if err != nil {
+							la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
+						}
+					} else {
+						a.SideCar = metadata.SideCarFile{
+							FSys:     fsys,
+							FileName: xmpName,
+						}
+					}
 				}
 			}
 			select {
@@ -250,6 +265,12 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
 			}
 			g.Albums = []assets.Album{{Title: Album}}
+		} else {
+			for _, a := range g.Assets {
+				for _, al := range a.Albums {
+					g.AddAlbum(al)
+				}
+			}
 		}
 		for _, a := range g.Assets {
 			a.Albums = g.Albums

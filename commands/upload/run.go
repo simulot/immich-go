@@ -211,7 +211,10 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
 		err = upCmd.uploadAsset(ctx, a)
-		return err
+		if err != nil {
+			return err
+		}
+		return upCmd.manageAssetTags(ctx, a)
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a, "reason", advice.Message)
 
@@ -225,6 +228,10 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 
 		// Upload the superior asset
 		err = upCmd.uploadAsset(ctx, a)
+		if err != nil {
+			return err
+		}
+		err = upCmd.manageAssetTags(ctx, a)
 		if err != nil {
 			return err
 		}
@@ -245,9 +252,19 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 			})
 		}
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
+		err = upCmd.manageAssetTags(ctx, a)
+		if err != nil {
+			return err
+		}
 
 	case BetterOnServer: // and manage albums
+		a.ID = advice.ServerAsset.ID
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
+		err = upCmd.manageAssetTags(ctx, a)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil
@@ -303,6 +320,28 @@ func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *assets.Group) {
 			upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "Album", title)
 		}
 	}
+}
+
+func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) error { // nolint
+	if len(a.Tags) > 0 {
+		ss := []string{}
+		for _, t := range a.Tags {
+			tags, err := upCmd.app.Client().Immich.UpsertTags(ctx, []string{t.Value})
+			if err != nil {
+				upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+				continue
+			}
+			for _, t := range tags {
+				_, err = upCmd.app.Client().Immich.TagAssets(ctx, t.ID, []string{a.ID})
+				if err != nil {
+					upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+				}
+				ss = append(ss, t.Value)
+			}
+		}
+		upCmd.app.Jnl().Record(ctx, fileevent.Tagged, fileevent.AsFileAndName(a.FSys, a.FileName), "tags", ss)
+	}
+	return nil
 }
 
 func (upCmd *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
