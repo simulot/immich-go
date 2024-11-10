@@ -45,6 +45,14 @@ func TestStructure(t *testing.T) {
 							},
 						},
 					},
+					Tags: &ImmichTags{
+						Tags: Bag{
+							Li: []lier{
+								ImmichTag{Name: "tag1", Value: "value1"},
+								ImmichTag{Name: "tag2", Value: "value2"},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -85,6 +93,10 @@ func TestWrite(t *testing.T) {
 					{Title: "Vacation 2024", Description: "Vacation 2024 hawaii and more", Latitude: 19.8206101, Longitude: -155.4732542},
 					{Title: "Family Reunion", Latitude: 48.8583701, Longitude: 2.291901},
 				},
+				Tags: []assets.Tag{
+					{Name: "tag1", Value: "value1"},
+					{Name: "tag2", Value: "value2"},
+				},
 			},
 		},
 	}
@@ -96,9 +108,12 @@ func TestWrite(t *testing.T) {
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			// debug: fmt.Println(buf.String())
+			// debug: 			fmt.Println(buf.String())
 			b := assets.Asset{}
 			err = xmpreader.ReadXMP(&b, strings.NewReader(buf.String()))
+			if err != nil {
+				t.Fatal(err.Error())
+			}
 			if b.Title != c.asset.Title {
 				t.Errorf("Title: got %s, expected %s", b.Title, c.asset.Title)
 			}
@@ -120,6 +135,18 @@ func TestWrite(t *testing.T) {
 				for i := range b.Albums {
 					if b.Albums[i].Title != c.asset.Albums[i].Title {
 						t.Errorf("Album %d: got %s, expected %s", i, b.Albums[i].Title, c.asset.Albums[i].Title)
+					}
+				}
+			}
+			if len(b.Tags) != len(c.asset.Tags) {
+				t.Errorf("Tags: got %d, expected %d", len(b.Tags), len(c.asset.Tags))
+			} else {
+				for i := range b.Tags {
+					if b.Tags[i].Name != c.asset.Tags[i].Name {
+						t.Errorf("Tag %d Name: got %s, expected %s", i, b.Tags[i].Name, c.asset.Tags[i].Name)
+					}
+					if b.Tags[i].Value != c.asset.Tags[i].Value {
+						t.Errorf("Tag %d Value: got %s, expected %s", i, b.Tags[i].Value, c.asset.Tags[i].Value)
 					}
 				}
 			}

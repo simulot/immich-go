@@ -44,9 +44,13 @@ func walk(m mxj.Map, a *assets.Asset, path string) {
 	}
 }
 
-var reAlbum = regexp.MustCompile(`/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li\[(\d+)\](.*)`)
+var (
+	reAlbum = regexp.MustCompile(`/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li\[(\d+)\](.*)`)
+	reTag   = regexp.MustCompile(`/xmpmeta/RDF/Description/ImmichGoProperties/tags/Bag/Li\[(\d+)\](.*)`)
+)
 
 func filter(a *assets.Asset, path string, value string) {
+	// debug 	fmt.Printf("%s: %s\n", path, value)
 	switch {
 	case path == "/xmpmeta/RDF/Description/ImmichGoProperties/title":
 		a.Title = value
@@ -73,7 +77,7 @@ func filter(a *assets.Asset, path string, value string) {
 			a.CaptureDate = d
 		}
 	case strings.HasPrefix(path, "/xmpmeta/RDF/Description/ImmichGoProperties/albums/Bag/Li["):
-		// Extract the index and the remaining pathHi,
+		// Extract the index and the remaining pat
 		matches := reAlbum.FindStringSubmatch(path)
 		if len(matches) == 3 {
 			index, _ := strconv.Atoi(matches[1])
@@ -94,6 +98,22 @@ func filter(a *assets.Asset, path string, value string) {
 				if f, err := convert.GPTStringToFloat(value); err == nil {
 					a.Albums[index].Longitude = f
 				}
+			}
+		}
+	case strings.HasPrefix(path, "/xmpmeta/RDF/Description/ImmichGoProperties/tags/Bag/Li["):
+		// Extract the index and the remaining path
+		matches := reTag.FindStringSubmatch(path)
+		if len(matches) == 3 {
+			index, _ := strconv.Atoi(matches[1])
+			remainingPath := matches[2]
+			if len(a.Tags) <= index {
+				a.Tags = append(a.Tags, make([]assets.Tag, index-len(a.Tags)+1)...)
+			}
+			switch remainingPath {
+			case "/tag/name":
+				a.Tags[index].Name = value
+			case "/tag/value":
+				a.Tags[index].Value = value
 			}
 		}
 	}

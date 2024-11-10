@@ -50,6 +50,7 @@ type Descriptioner interface {
 	isDescription() bool
 }
 
+/*
 type DCDescription struct {
 	XMLName     xml.Name `xml:"rdf:Description"`
 	Description string   `xml:"dc:description>rdf:Alt>rdf:Li"`
@@ -70,6 +71,7 @@ type TagList struct {
 }
 
 func (TagList) isDescription() bool { return true }
+*/
 
 type ImmichGoProperties struct {
 	XMLName          xml.Name      `xml:"rdf:Description"`
@@ -83,10 +85,22 @@ type ImmichGoProperties struct {
 	Latitude         string        `xml:"immichgo:ImmichGoProperties>immichgo:latitude,omitempty"`
 	Longitude        string        `xml:"immichgo:ImmichGoProperties>immichgo:longitude,omitempty"`
 	Albums           *ImmichAlbums `xml:"immichgo:ImmichGoProperties>immichgo:albums,omitempty"`
-	// Tags             *ImmichTags   `xml:"immichgo:ImmichGoProperties>immichgo:tags,omitempty"`
+	Tags             *ImmichTags   `xml:"immichgo:ImmichGoProperties>immichgo:tags,omitempty"`
 }
 
 func (ImmichGoProperties) isDescription() bool { return true }
+
+type ImmichTags struct {
+	Tags Bag
+}
+
+type ImmichTag struct {
+	XMLName xml.Name `xml:"rdf:Li"`
+	Name    string   `xml:"immichgo:tag>immichgo:name,omitempty"`
+	Value   string   `xml:"immichgo:tag>immichgo:value,omitempty"`
+}
+
+func (ImmichTag) isLi() bool { return true }
 
 type ImmichAlbums struct {
 	Albums Bag
@@ -174,7 +188,16 @@ func WriteXMP(a *assets.Asset, w io.Writer) error {
 			prop.Albums.Albums.Li = append(prop.Albums.Albums.Li, al)
 		}
 	}
-	// TODO: Add tags
+	if len(a.Tags) > 0 {
+		prop.Tags = &ImmichTags{
+			Tags: Bag{
+				Li: []lier{},
+			},
+		}
+		for _, tag := range a.Tags {
+			prop.Tags.Tags.Li = append(prop.Tags.Tags.Li, ImmichTag{Name: tag.Name, Value: tag.Value})
+		}
+	}
 
 	xmp := NewXMP()
 	xmp.RDF.Descriptions = append(xmp.RDF.Descriptions, prop)
