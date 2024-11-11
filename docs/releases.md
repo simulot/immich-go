@@ -39,7 +39,7 @@ Comming soon:
 --from-trashed
 --from-archived
 
-##### The command `upload --from-immich` upload the user content from another Immich
+##### The command `upload --from-immich` uploads the user's content from another Immich
 This command accepts the same flags as the `archive --from-immich` command.
 It preserves albums and tags from the source Immich.
 
