@@ -44,7 +44,9 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 	}
 	if client.TimeZone != "" {
 		_, err := tzone.SetLocal(client.TimeZone)
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	// Plug the journal on the Log
