@@ -44,6 +44,10 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
+const (
+	TimeFormat = "2006-01-02T15:04:05Z"
+)
+
 func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (AssetResponse, error) {
 	if ic.dryRun {
 		return AssetResponse{
@@ -99,11 +103,11 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		if err != nil {
 			return
 		}
-		err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(time.RFC3339))
+		err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(TimeFormat))
 		if err != nil {
 			return
 		}
-		err = m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
+		err = m.WriteField("fileModifiedAt", s.ModTime().Format(TimeFormat))
 		if err != nil {
 			return
 		}
