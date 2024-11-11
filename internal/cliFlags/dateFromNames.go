@@ -19,7 +19,7 @@ const (
 )
 
 func (dm *DateMethod) Set(s string) error {
-	s = strings.TrimSpace(strings.ToLower(s))
+	s = strings.TrimSpace(strings.ToUpper(s))
 	if s == "" {
 		s = string(DateMethodNone)
 	}
