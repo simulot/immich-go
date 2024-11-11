@@ -49,7 +49,13 @@ func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
 	gOut := make(chan *assets.Group)
 	go func() {
 		defer close(gOut)
-		err := f.getAssets(ctx, gOut)
+		var err error
+		switch {
+		case len(f.flags.Albums) > 0:
+			err = f.getAssetsFromAlbums(ctx, gOut)
+		default:
+			err = f.getAssets(ctx, gOut)
+		}
 		if err != nil {
 			f.flags.client.ClientLog.Error(fmt.Sprintf("Error while getting Immich assets: %v", err))
 		}
@@ -84,6 +90,47 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 	})
 }
 
+func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *assets.Group) error {
+	f.mustFetchAlbums = false
+
+	assets := map[string]*immich.Asset{} // List of assets to get by ID
+
+	albums, err := f.client.Immich.GetAllAlbums(ctx)
+	if err != nil {
+		return f.logError(err)
+	}
+	for _, album := range albums {
+		for _, albumName := range f.flags.Albums {
+			if album.AlbumName == albumName {
+				al, err := f.client.Immich.GetAlbumInfo(ctx, album.ID, false)
+				if err != nil {
+					return f.logError(err)
+				}
+				for _, a := range al.Assets {
+					if _, ok := assets[a.ID]; !ok {
+						a.Albums = append(a.Albums, immich.AlbumSimplified{
+							AlbumName: album.AlbumName,
+						})
+						assets[a.ID] = a
+					} else {
+						assets[a.ID].Albums = append(assets[a.ID].Albums, immich.AlbumSimplified{
+							AlbumName: album.AlbumName,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	for _, a := range assets {
+		err = f.filterAsset(ctx, a, grpChan)
+		if err != nil {
+			return f.logError(err)
+		}
+	}
+	return nil
+}
+
 func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan chan *assets.Group) error {
 	var err error
 	if f.flags.Favorite && !a.IsFavorite {
@@ -104,14 +151,19 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	}
 	if len(f.flags.Albums) > 0 && len(simplifiedAlbums) > 0 {
 		keepMe := false
+		newAlbumList := []immich.AlbumSimplified{}
 		for _, album := range f.flags.Albums {
 			for _, aAlbum := range simplifiedAlbums {
-				keepMe = keepMe || album == aAlbum.AlbumName
+				if album == aAlbum.AlbumName {
+					keepMe = true
+					newAlbumList = append(newAlbumList, aAlbum)
+				}
 			}
 		}
 		if !keepMe {
 			return nil
 		}
+		simplifiedAlbums = newAlbumList
 	}
 
 	// Some information are missing in the metadata result,
