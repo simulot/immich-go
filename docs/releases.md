@@ -5,6 +5,46 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.23.0-alpha 🏗️ Work in progress 🏗️ 
+
+### New features
+
+##### The command `archive --from-immich` archives the user content from an Immich into a folder structure
+
+```sh
+Archive photos from Immich
+
+Usage:
+  immich-go archive from-immich [from-flags] [flags]
+
+Flags:
+      --from-album strings             Get assets only from those albums, can be used multiple times
+      --from-api-key string            API Key
+      --from-api-trace                 Enable trace of api calls
+      --from-client-timeout duration   Set server calls timeout (default 5m0s)
+      --from-date-range date-range     Get assets only within this date range (fromat: YYYY[-MM[-DD[,YYYY-MM-DD]]]) (default unset)
+      --from-server string             Immich server address (example http://your-ip:2283 or https://your-domain)
+      --from-skip-verify-ssl           Skip SSL verification
+  -h, --help                           help for from-immich
+
+Global Flags:
+  -l, --log-file string          Write log messages into the file
+      --log-level string         Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string          Log formatted  as text of JSON file (default "text")
+  -w, --write-to-folder string   Path where to write the archive
+```
+Comming soon:
+--minimal-rating 
+--from-favorite
+--from-trashed
+--from-archived
+
+##### The command `upload --from-immich` upload the user content from another Immich
+This command accepts the same flags as the `archive --from-immich` command.
+It preserves albums and tags from the source Immich.
+
+
+
 ## Release 0.23.0-alpha4 🏗️ Work in progress 🏗️ 
 
 ### New features
