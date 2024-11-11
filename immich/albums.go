@@ -39,11 +39,11 @@ func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, er
 type AlbumContent struct {
 	ID string `json:"id,omitempty"`
 	// OwnerID                    string    `json:"ownerId"`
-	AlbumName   string            `json:"albumName"`
-	Description string            `json:"description"`
-	Shared      bool              `json:"shared"`
-	Assets      []AssetSimplified `json:"assets,omitempty"`
-	AssetIDs    []string          `json:"assetIds,omitempty"`
+	AlbumName   string   `json:"albumName"`
+	Description string   `json:"description"`
+	Shared      bool     `json:"shared"`
+	Assets      []*Asset `json:"assets,omitempty"`
+	AssetIDs    []string `json:"assetIds,omitempty"`
 	// CreatedAt                  time.Time `json:"createdAt"`
 	// UpdatedAt                  time.Time `json:"updatedAt"`
 	// AlbumThumbnailAssetID      string    `json:"albumThumbnailAssetId"`
@@ -82,6 +82,8 @@ func (ic *ImmichClient) GetAlbumInfo(ctx context.Context, id string, withoutAsse
 	query := id
 	if withoutAssets {
 		query += "?withoutAssets=true"
+	} else {
+		query += "?withoutAssets=false"
 	}
 	err := ic.newServerCall(ctx, EndPointGetAlbumInfo).do(getRequest("/albums/"+query, setAcceptJSON()), responseJSON(&album))
 	return album, err
