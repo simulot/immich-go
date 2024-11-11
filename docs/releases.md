@@ -5,6 +5,15 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release v0.23.0-alpha6 🏗️ Work in progress 🏗️ 
+
+### Fixes
+* [#533](https://github.com/simulot/immich-go/issues/533) RAW file metadata
+The efforts for determining the capture date from the file name are useless.
+Now the file date is provided to Immich as if the file was dropped on the immich's page.
+The `--capture-date-method` is now set to `NONE` by default.
+
+
 ## Release 0.23.0-alpha5 🏗️ Work in progress 🏗️ 
 
 ### New features

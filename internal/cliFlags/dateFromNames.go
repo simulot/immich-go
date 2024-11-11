@@ -50,7 +50,7 @@ type DateHandlingFlags struct {
 }
 
 func AddDateHandlingFlags(cmd *cobra.Command, flags *DateHandlingFlags) {
-	flags.Method = DateMethodExifThenName
+	flags.Method = DateMethodNone // DateMethodExifThenName
 	_ = flags.FilenameTimeZone.Set("Local")
 
 	cmd.Flags().Var(&flags.Method, "capture-date-method", "Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename)")
