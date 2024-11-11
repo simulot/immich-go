@@ -7,7 +7,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -17,9 +16,9 @@ import (
 )
 
 type FromImmich struct {
-	flags  *FromImmichFlags
-	client *application.Client
-	ifs    *immichfs.ImmichFS
+	flags *FromImmichFlags
+	// client *application.Client
+	ifs *immichfs.ImmichFS
 
 	mustFetchAlbums bool // True if we need to fetch the asset's albums in 2nd step
 	errCount        int  // Count the number of errors, to stop after 5
@@ -38,9 +37,8 @@ func NewFromImmich(ctx context.Context, jnl *fileevent.Recorder, flags *FromImmi
 
 	ifs := immichfs.NewImmichFS(ctx, flags.client.Server, client.Immich)
 	f := FromImmich{
-		flags:  flags,
-		client: &client,
-		ifs:    ifs,
+		flags: flags,
+		ifs:   ifs,
 	}
 	return &f, nil
 }
@@ -79,7 +77,7 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 		query.TakenBefore = f.flags.DateRange.Before.Format(timeFormat)
 	}
 
-	return f.client.Immich.GetAllAssetsWithFilter(ctx, &query, func(a *immich.Asset) error {
+	return f.flags.client.Immich.GetAllAssetsWithFilter(ctx, &query, func(a *immich.Asset) error {
 		if f.flags.Favorite && !a.IsFavorite {
 			return nil
 		}
@@ -95,14 +93,14 @@ func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *asse
 
 	assets := map[string]*immich.Asset{} // List of assets to get by ID
 
-	albums, err := f.client.Immich.GetAllAlbums(ctx)
+	albums, err := f.flags.client.Immich.GetAllAlbums(ctx)
 	if err != nil {
 		return f.logError(err)
 	}
 	for _, album := range albums {
 		for _, albumName := range f.flags.Albums {
 			if album.AlbumName == albumName {
-				al, err := f.client.Immich.GetAlbumInfo(ctx, album.ID, false)
+				al, err := f.flags.client.Immich.GetAlbumInfo(ctx, album.ID, false)
 				if err != nil {
 					return f.logError(err)
 				}
@@ -144,7 +142,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	simplifiedAlbums := a.Albums
 
 	if f.mustFetchAlbums && len(simplifiedAlbums) == 0 {
-		simplifiedAlbums, err = f.client.Immich.GetAssetAlbums(ctx, a.ID)
+		simplifiedAlbums, err = f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
 		if err != nil {
 			return f.logError(err)
 		}
@@ -169,7 +167,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	// Some information are missing in the metadata result,
 	// so we need to get the asset details
 
-	a, err = f.client.Immich.GetAssetInfo(ctx, a.ID)
+	a, err = f.flags.client.Immich.GetAssetInfo(ctx, a.ID)
 	if err != nil {
 		return f.logError(err)
 	}
