@@ -50,6 +50,7 @@ func NewUploadCommand(ctx context.Context, app *application.Application) *cobra.
 
 	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, app, options))
 	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, cmd, app, options))
+	cmd.AddCommand(NewFromImmichCommand(ctx, cmd, app, options))
 	return cmd
 }
 

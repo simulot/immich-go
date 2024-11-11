@@ -145,7 +145,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 
 func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "from-immich [flags]",
+		Use:   "from-immich [from-flags]",
 		Short: "Archive photos from Immich",
 	}
 	cmd.SetContext(ctx)

@@ -52,20 +52,20 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		}, nil
 	}
 	var ar AssetResponse
-	ext := path.Ext(la.FileName)
-	if strings.TrimSuffix(la.Title, ext) == "" {
-		la.Title = "No Name" + ext // fix #88, #128
+	ext := path.Ext(la.OriginalFileName)
+	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
+		la.OriginalFileName = "No Name" + ext // fix #88, #128
 	}
 
 	if strings.ToUpper(ext) == ".MP" {
 		ext = ".MP4" // #405
-		la.Title = la.Title + ".MP4"
+		la.OriginalFileName = la.OriginalFileName + ".MP4"
 	}
 	mtype := ic.TypeFromExt(ext)
 	switch mtype {
 	case "video", "image":
 	default:
-		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.FileName))
+		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.OriginalFileName))
 	}
 
 	f, err := la.Open()
@@ -87,7 +87,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 			return
 		}
 
-		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
+		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.OriginalFileName), s.Size()))
 		if err != nil {
 			return
 		}
@@ -131,7 +131,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		h := textproto.MIMEHeader{}
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-				escapeQuotes("assetData"), escapeQuotes(path.Base(la.Title))))
+				escapeQuotes("assetData"), escapeQuotes(path.Base(la.OriginalFileName))))
 		h.Set("Content-Type", mtype)
 
 		var part io.Writer
@@ -145,7 +145,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		}
 
 		if la.SideCar.IsSet() {
-			scName := path.Base(la.FileName) + ".xmp"
+			scName := path.Base(la.OriginalFileName) + ".xmp"
 			h.Set("Content-Disposition",
 				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 					escapeQuotes("sidecarData"), escapeQuotes(scName)))

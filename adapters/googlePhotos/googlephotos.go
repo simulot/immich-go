@@ -497,11 +497,11 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *metadata.Metadata) *assets.Asset {
 	file := filepath.Join(dir, f.base)
 	a := &assets.Asset{
-		FileName: file, // File as named in the archive
-		FileSize: f.length,
-		Title:    f.base,
-		FSys:     f.fsys,
-		FileDate: f.date,
+		FileName:         file, // File as named in the archive
+		FileSize:         f.length,
+		OriginalFileName: f.base,
+		FSys:             f.fsys,
+		FileDate:         f.date,
 	}
 
 	// get the original file name from metadata
@@ -520,7 +520,7 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *me
 			}
 		}
 		// md.FileName = title
-		a.Title = title
+		a.OriginalFileName = title
 		a.CaptureDate = md.DateTaken
 		a.Archived = md.Archived
 		a.Favorite = md.Favorited
@@ -534,7 +534,7 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *me
 		a.Description = md.Description
 	}
 
-	a.SetNameInfo(to.flags.InfoCollector.GetInfo(a.Title))
+	a.SetNameInfo(to.flags.InfoCollector.GetInfo(a.OriginalFileName))
 	if a.CaptureDate.IsZero() {
 		a.CaptureDate = a.NameInfo().Taken
 	}

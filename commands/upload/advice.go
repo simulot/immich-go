@@ -100,7 +100,7 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 // The server may have the asset, but in lower resolution. Compare the taken date and resolution
 
 func (ai *AssetIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
-	filename := la.Title
+	filename := la.OriginalFileName
 	if path.Ext(filename) == "" {
 		filename += path.Ext(la.FileName)
 	}

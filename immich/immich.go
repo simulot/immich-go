@@ -198,17 +198,18 @@ type Asset struct {
 // NewAssetFromImmich creates an assets.Asset from an immich.Asset.
 func (ia Asset) AsAsset() *assets.Asset {
 	a := &assets.Asset{
-		FileName:    ia.OriginalFileName,
-		FileDate:    ia.FileModifiedAt.Time,
-		Title:       ia.ExifInfo.Description,
-		ID:          ia.ID,
-		CaptureDate: ia.ExifInfo.DateTimeOriginal.Time,
-		Trashed:     ia.IsTrashed,
-		Archived:    ia.IsArchived,
-		Favorite:    ia.IsFavorite,
-		Rating:      ia.Rating,
-		Latitude:    ia.ExifInfo.Latitude,
-		Longitude:   ia.ExifInfo.Longitude,
+		FileName:         ia.OriginalFileName,
+		FileDate:         ia.FileModifiedAt.Time,
+		Description:      ia.ExifInfo.Description,
+		OriginalFileName: ia.OriginalFileName,
+		ID:               ia.ID,
+		CaptureDate:      ia.ExifInfo.DateTimeOriginal.Time,
+		Trashed:          ia.IsTrashed,
+		Archived:         ia.IsArchived,
+		Favorite:         ia.IsFavorite,
+		Rating:           ia.Rating,
+		Latitude:         ia.ExifInfo.Latitude,
+		Longitude:        ia.ExifInfo.Longitude,
 	}
 	a.FileSize = int(ia.ExifInfo.FileSizeInByte)
 	for _, album := range ia.Albums {

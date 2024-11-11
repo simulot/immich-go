@@ -69,7 +69,7 @@ func TestRead(t *testing.T) {
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			if a.Title != c.expect.Description {
+			if a.OriginalFileName != c.expect.Description {
 				t.Errorf("Description: got %s, expected %s", a.Description, c.expect.Description)
 			}
 			if !floatIsEqual(a.Latitude, c.expect.Latitude) {

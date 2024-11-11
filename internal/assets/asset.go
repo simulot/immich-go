@@ -36,10 +36,10 @@ type Asset struct {
 	FileDate time.Time // File creation date
 
 	// Common fields
-	Title       string // Google Photos may a have title longer than the filename
-	Description string // Google Photos may a have description
-	FileSize    int    // File size in bytes
-	ID          string // Immich ID after upload
+	OriginalFileName string // Google Photos may a have title longer than the filename
+	Description      string // Google Photos may a have description
+	FileSize         int    // File size in bytes
+	ID               string // Immich ID after upload
 
 	// Flags that are provided to Immich Upload API call
 	CaptureDate time.Time // Date of the capture
@@ -93,7 +93,7 @@ func (l *Asset) Remove() error {
 }
 
 func (l *Asset) DeviceAssetID() string {
-	return fmt.Sprintf("%s-%d", l.Title, l.FileSize)
+	return fmt.Sprintf("%s-%d", l.OriginalFileName, l.FileSize)
 }
 
 // PartialSourceReader open a reader on the current asset.
@@ -203,7 +203,8 @@ func (l Asset) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("FileName", fileevent.AsFileAndName(l.FSys, l.FileName).Name()),
 		slog.Time("FileDate", l.FileDate),
-		slog.String("Title", l.Title),
+		slog.String("Description", l.Description),
+		slog.String("Title", l.OriginalFileName),
 		slog.Int("FileSize", l.FileSize),
 		slog.String("ID", l.ID),
 		slog.Time("CaptureDate", l.CaptureDate),

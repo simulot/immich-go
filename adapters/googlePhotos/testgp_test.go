@@ -166,7 +166,7 @@ func TestBrowse(t *testing.T) {
 					return
 				}
 				for _, a := range g.Assets {
-					results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
+					results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.OriginalFileName})
 				}
 			}
 			results = sortFileResult(results)
@@ -261,7 +261,7 @@ func TestAlbums(t *testing.T) {
 					if len(g.Albums) > 0 {
 						for _, al := range g.Albums {
 							l := albums[al.Title]
-							l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.Title})
+							l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.OriginalFileName})
 							albums[al.Title] = l
 						}
 					}

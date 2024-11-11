@@ -313,11 +313,11 @@ func detectXMP(fsys fs.FS, name string) (bool, string) {
 
 func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {
 	a := &assets.Asset{
-		FileName: name,
-		Title:    filepath.Base(name),
-		FSys:     fsys,
+		FileName:         name,
+		OriginalFileName: filepath.Base(name),
+		FSys:             fsys,
 	}
-	a.SetNameInfo(la.flags.InfoCollector.GetInfo(a.Title))
+	a.SetNameInfo(la.flags.InfoCollector.GetInfo(a.OriginalFileName))
 
 	md, err := a.ReadMetadata(la.flags.DateHandlingFlags.Method, assets.ReadMetadataOptions{
 		ExifTool:         la.exiftool,

@@ -115,7 +115,7 @@ func TestWrite(t *testing.T) {
 				t.Fatal(err.Error())
 			}
 			if b.Description != c.asset.Description {
-				t.Errorf("Description: got %s, expected %s", b.Title, c.asset.Title)
+				t.Errorf("Description: got %s, expected %s", b.OriginalFileName, c.asset.OriginalFileName)
 			}
 			if !floatIsEqual(b.Latitude, c.asset.Latitude) {
 				t.Errorf("Latitude: got %f, expected %f", b.Latitude, c.asset.Latitude)
