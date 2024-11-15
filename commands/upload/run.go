@@ -317,14 +317,14 @@ func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *assets.Group) {
 		if !exist {
 			newAl, err := upCmd.app.Client().Immich.CreateAlbum(ctx, title, album.Description, assetIDs)
 			if err != nil {
-				upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.FileAndName{}, err)
+				upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err)
 			}
 			upCmd.albums[title] = newAl
 			l = newAl
 		} else {
 			_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, l.ID, assetIDs)
 			if err != nil {
-				upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.FileAndName{}, err)
+				upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err)
 				return
 			}
 		}
