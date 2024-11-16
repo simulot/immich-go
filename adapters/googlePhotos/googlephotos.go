@@ -12,15 +12,17 @@ import (
 
 	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/internal/assets"
+
+	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
-	"github.com/simulot/immich-go/internal/metadata"
 )
 
 type Takeout struct {
@@ -31,7 +33,7 @@ type Takeout struct {
 	// debugLinkedFiles []linkedFiles
 	log      *fileevent.Recorder
 	flags    *ImportFlags // command-line flags
-	exiftool *metadata.ExifTool
+	exiftool *exif.ExifTool
 	groupers []groups.Grouper
 }
 
@@ -43,7 +45,7 @@ type fileKeyTracker struct {
 type trackingInfo struct {
 	paths    []string
 	count    int
-	metadata *metadata.Metadata
+	metadata *assets.Metadata
 	status   fileevent.Code
 }
 
@@ -57,18 +59,18 @@ func trackerKeySortFunc(a, b fileKeyTracker) int {
 
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
-	jsons          map[string]*metadata.Metadata // metadata in the catalog by base name
-	unMatchedFiles map[string]*assetFile         // files to be matched map  by base name
-	matchedFiles   map[string]*assets.Asset      // files matched by base name
+	jsons          map[string]*assets.Metadata // metadata in the catalog by base name
+	unMatchedFiles map[string]*assetFile       // files to be matched map  by base name
+	matchedFiles   map[string]*assets.Asset    // files matched by base name
 }
 
 // assetFile keep information collected during pass one
 type assetFile struct {
-	fsys   fs.FS              // Remember in which part of the archive the file is located
-	base   string             // Remember the original file name
-	length int                // file length in bytes
-	date   time.Time          // file modification date
-	md     *metadata.Metadata // will point to the associated metadata
+	fsys   fs.FS            // Remember in which part of the archive the file is located
+	base   string           // Remember the original file name
+	length int              // file length in bytes
+	date   time.Time        // file modification date
+	md     *assets.Metadata // will point to the associated metadata
 }
 
 // Implement slog.LogValuer for assetFile
@@ -93,7 +95,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 		flags.InfoCollector = filenames.NewInfoCollector(flags.DateHandlingFlags.FilenameTimeZone.Location(), flags.SupportedMedia)
 	}
 	if flags.ExifToolFlags.UseExifTool {
-		et, err := metadata.NewExifTool(&flags.ExifToolFlags)
+		et, err := exif.NewExifTool(&flags.ExifToolFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -161,13 +163,13 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 
 			dirCatalog, ok := to.catalogs[dir]
 			if !ok {
-				dirCatalog.jsons = map[string]*metadata.Metadata{}
+				dirCatalog.jsons = map[string]*assets.Metadata{}
 				dirCatalog.unMatchedFiles = map[string]*assetFile{}
 				dirCatalog.matchedFiles = map[string]*assets.Asset{}
 			}
 			finfo, err := d.Info()
 			if err != nil {
-				to.log.Record(ctx, fileevent.Error, fileevent.AsFileAndName(w, name), "error", err.Error())
+				to.log.Record(ctx, fileevent.Error, fshelper.FSName(w, name), "error", err.Error())
 				return err
 			}
 			switch ext {
@@ -176,13 +178,13 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				if err == nil {
 					switch {
 					case md.isAsset():
-						dirCatalog.jsons[base] = md.AsMetadata() // Keep metadata
+						dirCatalog.jsons[base] = md.AsMetadata(fshelper.FSName(w, name)) // Keep metadata
 						to.log.Log().Debug("Asset JSON", "metadata", md)
-						to.log.Record(ctx, fileevent.DiscoveredSidecar, fileevent.AsFileAndName(w, name), "type", "asset metadata", "title", md.Title)
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.Title)
 					case md.isAlbum():
 						to.log.Log().Debug("Album JSON", "metadata", md)
 						if !to.flags.KeepUntitled && md.Title == "" {
-							to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "discard untitled album")
+							to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "discard untitled album")
 							return nil
 						}
 						a := to.albums[dir]
@@ -196,43 +198,43 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 							a.Longitude = e.Longitude
 						}
 						to.albums[dir] = a
-						to.log.Record(ctx, fileevent.DiscoveredSidecar, fileevent.AsFileAndName(w, name), "type", "album metadata", "title", md.Title)
+						to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "album metadata", "title", md.Title)
 					default:
-						to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "unknown JSONfile")
+						to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
 						return nil
 					}
 				} else {
-					to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "unknown JSONfile")
+					to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
 					return nil
 				}
 			default:
 
 				if to.flags.BannedFiles.Match(name) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(w, name), "reason", "banned file")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "banned file")
 					return nil
 				}
 
 				if !to.flags.InclusionFlags.IncludedExtensions.Include(ext) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(w, name), "reason", "file extension not selected")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not selected")
 					return nil
 				}
 				if to.flags.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(w, name), "reason", "file extension not allowed")
+					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not allowed")
 					return nil
 				}
 				t := to.flags.SupportedMedia.TypeFromExt(ext)
 				switch t {
-				case metadata.TypeUnknown:
-					to.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(w, name), "reason", "unsupported file type")
+				case filetypes.TypeUnknown:
+					to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unsupported file type")
 					return nil
-				case metadata.TypeVideo:
-					to.log.Record(ctx, fileevent.DiscoveredVideo, fileevent.AsFileAndName(w, name))
+				case filetypes.TypeVideo:
+					to.log.Record(ctx, fileevent.DiscoveredVideo, fshelper.FSName(w, name))
 					if strings.Contains(name, "Failed Videos") {
-						to.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(w, name), "reason", "can't upload failed videos")
+						to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "can't upload failed videos")
 						return nil
 					}
-				case metadata.TypeImage:
-					to.log.Record(ctx, fileevent.DiscoveredImage, fileevent.AsFileAndName(w, name))
+				case filetypes.TypeImage:
+					to.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(w, name))
 				}
 
 				key := fileKeyTracker{
@@ -292,7 +294,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 //
 // To solve the puzzle, each directory is checked with all matchers in the order of the most common to the least.
 
-type matcherFn func(jsonName string, fileName string, sm metadata.SupportedMedia) bool
+type matcherFn func(jsonName string, fileName string, sm filetypes.SupportedMedia) bool
 
 // matchers is a list of matcherFn from the most likely to be used to the least one
 var matchers = []struct {
@@ -326,7 +328,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 							i.md = md
 							a := to.makeAsset(ctx, dir, i, md)
 							cat.matchedFiles[f] = a
-							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fileevent.AsFileAndName(i.fsys, path.Join(dir, i.base)), "json", json, "matcher", matcher.name)
+							to.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fshelper.FSName(i.fsys, path.Join(dir, i.base)), "json", json, "matcher", matcher.name)
 							delete(cat.unMatchedFiles, f)
 						}
 					}
@@ -339,7 +341,7 @@ func (to *Takeout) solvePuzzle(ctx context.Context) error {
 			sort.Strings(files)
 			for _, f := range files {
 				i := cat.unMatchedFiles[f]
-				to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, fileevent.AsFileAndName(i.fsys, path.Join(dir, i.base)))
+				to.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, fshelper.FSName(i.fsys, path.Join(dir, i.base)))
 				if to.flags.KeepJSONLess {
 					a := to.makeAsset(ctx, dir, i, nil)
 					cat.matchedFiles[f] = a
@@ -386,7 +388,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 		track := to.fileTracker[key]
 		if track.status == fileevent.Uploaded {
 			a.Close()
-			to.logMessage(ctx, fileevent.AnalysisLocalDuplicate, fileevent.AsFileAndName(a.FSys, path.Join(dir, a.FileName)), "local duplicate")
+			to.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a.File, "local duplicate")
 			continue
 		}
 
@@ -404,8 +406,8 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 
 		sort.Slice(dirEntries, func(i, j int) bool {
 			// Sort by radical first
-			radicalI := dirEntries[i].NameInfo().Radical
-			radicalJ := dirEntries[j].NameInfo().Radical
+			radicalI := dirEntries[i].Radical
+			radicalJ := dirEntries[j].Radical
 			if radicalI != radicalJ {
 				return radicalI < radicalJ
 			}
@@ -432,7 +434,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 					g.Albums = []assets.Album{{Title: to.flags.ImportIntoAlbum}}
 				} else {
 					// check if its duplicates are in some albums, and push them all at once
-					key := fileKeyTracker{baseName: filepath.Base(a.FileName), size: int64(a.FileSize)}
+					key := fileKeyTracker{baseName: filepath.Base(a.File.Name()), size: int64(a.FileSize)}
 					track := to.fileTracker[key]
 					for _, p := range track.paths {
 						if album, ok := to.albums[p]; ok {
@@ -479,7 +481,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 		case gOut <- g:
 			for _, a := range g.Assets {
 				key := fileKeyTracker{
-					baseName: path.Base(a.FileName),
+					baseName: path.Base(a.File.Name()),
 					size:     int64(a.FileSize),
 				}
 				track := to.fileTracker[key]
@@ -494,20 +496,20 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 }
 
 // makeAsset makes a localAssetFile based on the google metadata
-func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *metadata.Metadata) *assets.Asset {
+func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *assets.Metadata) *assets.Asset {
 	file := filepath.Join(dir, f.base)
 	a := &assets.Asset{
-		FileName:         file, // File as named in the archive
+		File:             fshelper.FSName(f.fsys, file), // File as named in the archive
 		FileSize:         f.length,
 		OriginalFileName: f.base,
-		FSys:             f.fsys,
 		FileDate:         f.date,
 	}
 
 	// get the original file name from metadata
-	if md != nil && md.FileName != "" {
-		title := md.FileName
+	if md != nil && md.File.Name() != "" {
+		a.OriginalFileName = md.FileName
 
+		title := md.FileName
 		// trim superfluous extensions
 		titleExt := path.Ext(title)
 		fileExt := path.Ext(file)
@@ -519,25 +521,10 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *me
 				title = strings.TrimSuffix(title, titleExt) + fileExt
 			}
 		}
-		// md.FileName = title
+		a.FromSideCar = a.UseMetadata(md)
 		a.OriginalFileName = title
-		a.CaptureDate = md.DateTaken
-		a.Archived = md.Archived
-		a.Favorite = md.Favorited
-		a.Trashed = md.Trashed
-		a.FromPartner = md.FromPartner
-		a.Latitude = md.Latitude
-		a.Longitude = md.Longitude
 	}
-
-	if md != nil {
-		a.Description = md.Description
-	}
-
 	a.SetNameInfo(to.flags.InfoCollector.GetInfo(a.OriginalFileName))
-	if a.CaptureDate.IsZero() {
-		a.CaptureDate = a.NameInfo().Taken
-	}
 	return a
 }
 
@@ -557,12 +544,17 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileev
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
-	if a.DateTaken().IsZero() {
+	if a.CaptureDate.IsZero() {
 		// wasn't associated
-		md, err := a.ReadMetadata(to.flags.DateHandlingFlags.Method, assets.ReadMetadataOptions{
-			ExifTool:         to.exiftool,
-			ExiftoolTimezone: to.flags.ExifToolFlags.Timezone.Location(),
-			FilenameTimeZone: to.flags.DateHandlingFlags.FilenameTimeZone.Location(),
+		f, err := a.File.Open()
+		if err != nil {
+			to.logMessage(ctx, fileevent.Error, a, err.Error())
+			return fileevent.Error
+		}
+		defer f.Close()
+		md, err := exif.GetMetaData(f, exif.ReadMetadataOptions{
+			ExifTool:     to.exiftool,
+			ExifTimezone: to.flags.ExifToolFlags.Timezone.Location(),
 		})
 		if err != nil {
 			to.logMessage(ctx, fileevent.Error, a, err.Error())
@@ -580,7 +572,7 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileev
 	}
 	if to.flags.ImportFromAlbum != "" {
 		keep := false
-		dir := path.Dir(a.FileName)
+		dir := path.Dir(a.File.Name())
 		if album, ok := to.albums[dir]; ok {
 			keep = keep || album.Title == to.flags.ImportFromAlbum
 		}

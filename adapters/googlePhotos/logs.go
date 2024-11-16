@@ -43,8 +43,12 @@ func (to *Takeout) DebugFileTracker(w io.Writer) {
 		}
 		line[5] = track.status.String()
 		if track.metadata != nil {
+			albums := make([]string, 0, len(track.metadata.Albums))
+			for _, a := range track.metadata.Albums {
+				albums = append(albums, a.Title)
+			}
 			line[6] = track.metadata.DateTaken.Format("2006-01-02 15:04:05 -0700") // Date
-			line[7] = strings.Join(track.metadata.Collections, ",")                // Albums
+			line[7] = strings.Join(albums, ",")                                    // Albums
 		} else {
 			line[6] = ""
 			line[7] = ""

@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 /*
@@ -44,13 +46,13 @@ PXL_20211012_171937656.NIGHT.jpg
 */
 var pixelRE = regexp.MustCompile(`^(PXL_\d{8}_\d{9})((.*)?(\d{2}))?(.*)?(\..*)$`)
 
-func (ic InfoCollector) Pixel(name string) (bool, NameInfo) {
+func (ic InfoCollector) Pixel(name string) (bool, assets.NameInfo) {
 	parts := pixelRE.FindStringSubmatch(name)
 	if len(parts) == 0 {
-		return false, NameInfo{}
+		return false, assets.NameInfo{}
 	}
 	ext := parts[6]
-	info := NameInfo{
+	info := assets.NameInfo{
 		Radical: parts[1],
 		Base:    name,
 		IsCover: strings.HasSuffix(parts[5], "COVER"),
@@ -62,13 +64,13 @@ func (ic InfoCollector) Pixel(name string) (bool, NameInfo) {
 	}
 	switch {
 	case strings.Contains(parts[3], "PORTRAIT"):
-		info.Kind = KindPortrait
+		info.Kind = assets.KindPortrait
 	case strings.Contains(parts[3], "NIGHT"):
-		info.Kind = KindNight
+		info.Kind = assets.KindNight
 	case strings.Contains(parts[3], "LONG_EXPOSURE"):
-		info.Kind = KindLongExposure
+		info.Kind = assets.KindLongExposure
 	case strings.Contains(parts[3], "MOTION"):
-		info.Kind = KindMotion
+		info.Kind = assets.KindMotion
 	}
 	info.Taken, _ = time.ParseInLocation("20060102_150405", parts[1][4:19], time.UTC)
 	return true, info

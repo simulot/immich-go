@@ -11,7 +11,6 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fshelper"
-	"github.com/simulot/immich-go/internal/xmp"
 )
 
 // type minimalFSWriter interface {
@@ -55,7 +54,7 @@ func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) 
 }
 
 func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
-	base := a.NameInfo().Base
+	base := a.Base
 	dir := w.pathOfAsset(a)
 	if _, ok := w.createdDir[dir]; !ok {
 		err := fshelper.MkdirAll(w.WriteToFS, dir, 0o755)
@@ -78,29 +77,20 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			// write the asset
 			err = fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
-			if err == nil && !a.SideCar.IsSet() {
-				// No sidecar file, write XMP data
-				var f fshelper.WFile
-				f, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base)+".xmp", os.O_RDWR|os.O_CREATE, 0o644)
-				if err != nil {
-					return err
-				}
-				defer f.Close()
-				err = xmp.WriteXMP(a, f)
-				if err != nil {
-					return err
-				}
-			} else if a.SideCar.IsSet() {
+
+			// XMP?
+			if err == nil && a.FromSideCar != nil {
 				// Sidecar file is set, copy it
 				var scr fs.File
-				scr, err = a.FSys.Open(a.SideCar.FileName)
+				scr, err = a.FromSideCar.File.Open()
 				if err != nil {
 					return err
 				}
 				defer scr.Close()
 				var scw fshelper.WFile
-				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, path.Base(a.SideCar.FileName)), os.O_RDWR|os.O_CREATE, 0o644)
+				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, path.Base(a.FromSideCar.File.Name())), os.O_RDWR|os.O_CREATE, 0o644)
 				if err != nil {
 					return err
 				}
@@ -115,10 +105,7 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 func (w *LocalAssetWriter) pathOfAsset(a *assets.Asset) string {
 	d := a.CaptureDate
 	if d.IsZero() {
-		d = a.NameInfo().Taken
-		if d.IsZero() {
-			d = a.ModTime()
-		}
+		return "no-date"
 	}
 	p := path.Join(fmt.Sprintf("%04d", d.Year()), fmt.Sprintf("%04d-%02d", d.Year(), d.Month()))
 	return p

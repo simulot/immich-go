@@ -1,18 +1,13 @@
 package assets
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"log/slog"
 	"os"
 	"time"
 
-	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
-	"github.com/simulot/immich-go/internal/metadata"
 )
 
 /*
@@ -31,36 +26,35 @@ import (
 
 type Asset struct {
 	// File system and file name
-	FSys     fs.FS     // Asset's file system
-	FileName string    // The asset's path in the fsys
+	File     fshelper.FSAndName
 	FileDate time.Time // File creation date
+	ID       string    // Immich ID after upload
 
 	// Common fields
-	OriginalFileName string // Google Photos may a have title longer than the filename
+	OriginalFileName string // File name as delivered to Immich/Google
 	Description      string // Google Photos may a have description
 	FileSize         int    // File size in bytes
-	ID               string // Immich ID after upload
 
-	// Flags that are provided to Immich Upload API call
+	// Metadata for the process and the upload to Immich
 	CaptureDate time.Time // Date of the capture
 	Trashed     bool      // The asset is trashed
 	Archived    bool      // The asset is archived
 	FromPartner bool      // the asset comes from a partner
 	Favorite    bool      // the asset is marked as favorite
 	Rating      int       // the asset is marked with stars
+	Albums      []Album   // List of albums the asset is in
+	Tags        []Tag     // List of tags the asset is tagged with
+
+	// Information inferred from the original file name
+	NameInfo
+
+	FromSideCar     *Metadata // Metadata extracted from a sidecar file (XMP or JSON)
+	FromSourceFile  *Metadata // Metadata extracted from the file content (embedded metadata)
+	FromApplication *Metadata // Metadata extracted from the application that created the file
 
 	// GPS location
 	Latitude  float64 // GPS latitude
 	Longitude float64 // GPS longitude
-
-	// When a sidecar is found beside the asset
-	SideCar metadata.SideCarFile // sidecar file if found
-	Albums  []Album              // List of albums the asset is in
-	Tags    []Tag                // List of tags the asset is tagged with
-
-	// Internal fields
-
-	nameInfo filenames.NameInfo // NameInfo extracted from the filename, with the original filename
 
 	// buffer management
 	sourceFile fs.File   // the opened source file
@@ -69,151 +63,72 @@ type Asset struct {
 	reader     io.Reader // the reader that combines the partial read and original file for full file reading
 }
 
-func (l *Asset) SetNameInfo(ni filenames.NameInfo) {
-	l.nameInfo = ni
-	if l.CaptureDate.IsZero() {
-		l.CaptureDate = ni.Taken
+// Kind is the probable type of the image
+type Kind int
+
+const (
+	KindNone Kind = iota
+	KindBurst
+	KindEdited
+	KindPortrait
+	KindNight
+	KindMotion
+	KindLongExposure
+)
+
+type NameInfo struct {
+	Base       string    // base name (with extension)
+	Ext        string    // extension
+	Radical    string    // base name usable for grouping photos
+	Type       string    // type of the asset  video, image
+	Kind       Kind      // type of the series
+	Index      int       // index of the asset in the series
+	Taken      time.Time // date taken
+	IsCover    bool      // is this is the cover if the series
+	IsModified bool      // is this is a modified version of the original
+}
+
+func (a *Asset) SetNameInfo(ni NameInfo) {
+	a.NameInfo = ni
+	if a.CaptureDate.IsZero() {
+		a.CaptureDate = ni.Taken
 	}
 }
 
-func (l *Asset) NameInfo() filenames.NameInfo {
-	return l.nameInfo
-}
-
-func (l *Asset) DateTaken() time.Time {
-	return l.CaptureDate
-}
-
-// Remove the temporary file
-func (l *Asset) Remove() error {
-	if fsys, ok := l.FSys.(fshelper.FSCanRemove); ok {
-		return fsys.Remove(l.FileName)
+func (a *Asset) UseMetadata(md *Metadata) *Metadata {
+	if md == nil {
+		return nil
 	}
-	return nil
+	a.Description = md.Description
+	a.Latitude = md.Latitude
+	a.Longitude = md.Longitude
+	a.CaptureDate = md.DateTaken
+	a.FromPartner = md.FromPartner
+	a.Trashed = md.Trashed
+	a.Archived = md.Archived
+	a.Favorite = md.Favorited
+	a.Rating = int(md.Rating)
+	a.Albums = md.Albums
+	a.Tags = md.Tags
+	return md
 }
-
-func (l *Asset) DeviceAssetID() string {
-	return fmt.Sprintf("%s-%d", l.OriginalFileName, l.FileSize)
-}
-
-// PartialSourceReader open a reader on the current asset.
-// each byte read from it is saved into a temporary file.
-//
-// It returns a TeeReader that writes each read byte from the source into the temporary file.
-// The temporary file is discarded when the LocalAssetFile is closed
-// TODO: possible optimization: when the file is a plain file, do not copy it into a temporary file
-// TODO: use user temp folder
-
-func (l *Asset) PartialSourceReader() (reader io.Reader, err error) {
-	if l.sourceFile == nil {
-		l.sourceFile, err = l.FSys.Open(l.FileName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if l.tempFile == nil {
-		l.tempFile, err = os.CreateTemp("", "immich-go_*.tmp")
-		if err != nil {
-			return nil, err
-		}
-		if l.teeReader == nil {
-			l.teeReader = io.TeeReader(l.sourceFile, l.tempFile)
-		}
-	}
-	_, err = l.tempFile.Seek(0, 0)
-	if err != nil {
-		return nil, err
-	}
-	return io.MultiReader(l.tempFile, l.teeReader), nil
-}
-
-// Open return fs.File that reads previously read bytes followed by the actual file content.
-func (l *Asset) Open() (fs.File, error) {
-	var err error
-	if l.sourceFile == nil {
-		l.sourceFile, err = l.FSys.Open(l.FileName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if l.tempFile != nil {
-		_, err = l.tempFile.Seek(0, 0)
-		if err != nil {
-			return nil, err
-		}
-		l.reader = io.MultiReader(l.tempFile, l.sourceFile)
-	} else {
-		l.reader = l.sourceFile
-	}
-	return l, nil
-}
-
-// Read
-func (l *Asset) Read(b []byte) (int, error) {
-	return l.reader.Read(b)
-}
-
-// Close close the temporary file  and close the source
-func (l *Asset) Close() error {
-	var err error
-	if l.sourceFile != nil {
-		err = errors.Join(err, l.sourceFile.Close())
-		l.sourceFile = nil
-	}
-	if l.tempFile != nil {
-		f := l.tempFile.Name()
-		err = errors.Join(err, l.tempFile.Close())
-		err = errors.Join(err, os.Remove(f))
-		l.tempFile = nil
-	}
-	return err
-}
-
-// Stat implements the fs.FILE interface
-func (l *Asset) Stat() (fs.FileInfo, error) {
-	return l, nil
-}
-func (l *Asset) IsDir() bool { return false }
-
-func (l *Asset) Name() string {
-	return l.FileName
-}
-
-func (l *Asset) Size() int64 {
-	return int64(l.FileSize)
-}
-
-// Mode Implements the fs.FILE interface
-func (l *Asset) Mode() fs.FileMode { return 0 }
-
-// ModTime implements the fs.FILE interface
-func (l *Asset) ModTime() time.Time {
-	s, err := fs.Stat(l.FSys, l.FileName)
-	if err != nil {
-		return time.Time{}
-	}
-	return s.ModTime()
-}
-
-// Sys implements the fs.FILE interface
-func (l *Asset) Sys() any { return nil }
 
 // LogValue returns a slog.Value representing the LocalAssetFile's properties.
-func (l Asset) LogValue() slog.Value {
+func (a Asset) LogValue() slog.Value {
 	return slog.GroupValue(
-		slog.String("FileName", fileevent.AsFileAndName(l.FSys, l.FileName).Name()),
-		slog.Time("FileDate", l.FileDate),
-		slog.String("Description", l.Description),
-		slog.String("Title", l.OriginalFileName),
-		slog.Int("FileSize", l.FileSize),
-		slog.String("ID", l.ID),
-		slog.Time("CaptureDate", l.CaptureDate),
-		slog.Bool("Trashed", l.Trashed),
-		slog.Bool("Archived", l.Archived),
-		slog.Bool("FromPartner", l.FromPartner),
-		slog.Bool("Favorite", l.Favorite),
-		slog.Int("Stars", l.Rating),
-		slog.Float64("Latitude", l.Latitude),
-		slog.Float64("Longitude", l.Longitude),
+		slog.Any("FileName", a.File),
+		slog.Time("FileDate", a.FileDate),
+		slog.String("Description", a.Description),
+		slog.String("Title", a.OriginalFileName),
+		slog.Int("FileSize", a.FileSize),
+		slog.String("ID", a.ID),
+		slog.Time("CaptureDate", a.CaptureDate),
+		slog.Bool("Trashed", a.Trashed),
+		slog.Bool("Archived", a.Archived),
+		slog.Bool("FromPartner", a.FromPartner),
+		slog.Bool("Favorite", a.Favorite),
+		slog.Int("Stars", a.Rating),
+		slog.Float64("Latitude", a.Latitude),
+		slog.Float64("Longitude", a.Longitude),
 	)
 }

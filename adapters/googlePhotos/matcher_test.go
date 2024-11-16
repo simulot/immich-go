@@ -3,7 +3,7 @@ package gp
 import (
 	"testing"
 
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 func Test_matchVeryLongNameWithNumber(t *testing.T) {
@@ -25,7 +25,7 @@ func Test_matchVeryLongNameWithNumber(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
-			if got := matchVeryLongNameWithNumber(tt.jsonName, tt.fileName, metadata.DefaultSupportedMedia); got != tt.want {
+			if got := matchVeryLongNameWithNumber(tt.jsonName, tt.fileName, filetypes.DefaultSupportedMedia); got != tt.want {
 				t.Errorf("matchVeryLongNameWithNumber() = %v, want %v", got, tt.want)
 			}
 		})
@@ -54,7 +54,7 @@ func Test_matchDuplicateInYear(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := matchDuplicateInYear(tt.jsonName, tt.fileName, metadata.DefaultSupportedMedia); got != tt.want {
+			if got := matchDuplicateInYear(tt.jsonName, tt.fileName, filetypes.DefaultSupportedMedia); got != tt.want {
 				t.Errorf("matchDuplicateInYear() = %v, want %v", got, tt.want)
 			}
 		})
@@ -83,7 +83,7 @@ func Test_matchForgottenDuplicates(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := matchForgottenDuplicates(tt.jsonName, tt.fileName, metadata.DefaultSupportedMedia); got != tt.want {
+			if got := matchForgottenDuplicates(tt.jsonName, tt.fileName, filetypes.DefaultSupportedMedia); got != tt.want {
 				t.Errorf("matchDuplicateInYear() = %v, want %v", got, tt.want)
 			}
 		})
@@ -210,7 +210,7 @@ func Test_matchers(t *testing.T) {
 		t.Run(tt.fileName, func(t *testing.T) {
 			matcher := ""
 			for _, m := range matchers {
-				if m.fn(tt.jsonName, tt.fileName, metadata.DefaultSupportedMedia) {
+				if m.fn(tt.jsonName, tt.fileName, filetypes.DefaultSupportedMedia) {
 					matcher = m.name
 					break
 				}

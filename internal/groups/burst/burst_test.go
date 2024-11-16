@@ -8,12 +8,13 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *assets.Asset {
 	a := assets.Asset{
-		FileName:    name,
+		File:        fshelper.FSName(nil, name),
 		FileDate:    dateTaken,
 		CaptureDate: dateTaken,
 	}
@@ -23,7 +24,7 @@ func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *a
 
 func TestGroup(t *testing.T) {
 	ctx := context.Background()
-	ic := filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
 
 	baseTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 	// Create assets with a DateTaken interval of 200 milliseconds

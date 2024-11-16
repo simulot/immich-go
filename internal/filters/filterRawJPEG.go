@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 type RawJPGFlag int
@@ -51,7 +51,7 @@ func groupRawJPGKeepRaw(g *assets.Group) *assets.Group {
 	removedAssets := []*assets.Asset{}
 	keep := 0
 	for _, a := range g.Assets {
-		if metadata.IsRawFile(a.NameInfo().Ext) {
+		if filetypes.IsRawFile(a.Ext) {
 			keep++
 		} else {
 			removedAssets = append(removedAssets, a)
@@ -76,7 +76,7 @@ func groupRawJPGKeepJPG(g *assets.Group) *assets.Group {
 	removedAssets := []*assets.Asset{}
 	keep := 0
 	for _, a := range g.Assets {
-		if a.NameInfo().Ext == ".jpg" || a.NameInfo().Ext == ".jpeg" {
+		if a.Ext == ".jpg" || a.Ext == ".jpeg" {
 			keep++
 		} else {
 			removedAssets = append(removedAssets, a)
@@ -99,7 +99,7 @@ func groupRawJPGStackRaw(g *assets.Group) *assets.Group {
 	}
 	// Set the cover index to the first RAW file
 	for i, a := range g.Assets {
-		if metadata.IsRawFile(a.NameInfo().Ext) {
+		if filetypes.IsRawFile(a.Ext) {
 			g.CoverIndex = i
 			break
 		}
@@ -113,7 +113,7 @@ func groupRawJPGStackJPG(g *assets.Group) *assets.Group {
 	}
 	// Set the cover index to the first JPEG file
 	for i, a := range g.Assets {
-		if a.NameInfo().Ext == ".jpg" || a.NameInfo().Ext == ".jpeg" {
+		if a.Ext == ".jpg" || a.Ext == ".jpeg" {
 			g.CoverIndex = i
 			break
 		}

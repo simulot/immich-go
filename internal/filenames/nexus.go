@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 /*
@@ -31,19 +33,19 @@ IMG_20171111_030128.jpg
 
 var nexusRE = regexp.MustCompile(`^(\d+)\D+_\d+_(BURST\d+)(\D+)?(\..+)$`)
 
-func (ic InfoCollector) Nexus(name string) (bool, NameInfo) {
+func (ic InfoCollector) Nexus(name string) (bool, assets.NameInfo) {
 	parts := nexusRE.FindStringSubmatch(name)
 	if len(parts) == 0 {
-		return false, NameInfo{}
+		return false, assets.NameInfo{}
 	}
 	ext := parts[4]
-	info := NameInfo{
+	info := assets.NameInfo{
 		Radical: parts[2],
 		Base:    name,
 		IsCover: strings.Contains(parts[3], "COVER"),
 		Ext:     strings.ToLower(ext),
 		Type:    ic.SM.TypeFromExt(ext),
-		Kind:    KindBurst,
+		Kind:    assets.KindBurst,
 	}
 	info.Index, _ = strconv.Atoi(parts[1])
 	info.Taken, _ = time.ParseInLocation("20060102150405", parts[2][5:19], ic.TZ)

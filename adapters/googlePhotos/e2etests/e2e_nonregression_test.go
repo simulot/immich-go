@@ -15,7 +15,7 @@ import (
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 var myEnv map[string]string
@@ -39,7 +39,7 @@ type expectedCounts map[fileevent.Code]int64
 
 func simulateAndCheck(t *testing.T, fileList string, flags *gp.ImportFlags, expected expectedCounts, fsyss []fs.FS) {
 	if flags.SupportedMedia == nil {
-		flags.SupportedMedia = metadata.DefaultSupportedMedia
+		flags.SupportedMedia = filetypes.DefaultSupportedMedia
 	}
 	flags.InfoCollector = filenames.NewInfoCollector(time.Local, flags.SupportedMedia)
 	jnl, err := simulate_upload(fileList, flags, fsyss)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 type MockedCLient struct{}
@@ -77,8 +77,8 @@ func (c *MockedCLient) DeleteAlbum(ctx context.Context, id string) error {
 	return nil
 }
 
-func (c *MockedCLient) SupportedMedia() metadata.SupportedMedia {
-	return metadata.DefaultSupportedMedia
+func (c *MockedCLient) SupportedMedia() filetypes.SupportedMedia {
+	return filetypes.DefaultSupportedMedia
 }
 
 func (c *MockedCLient) GetAssetStatistics(ctx context.Context) (immich.UserStatistics, error) {

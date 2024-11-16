@@ -1,7 +1,6 @@
 package folder
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io/fs"
@@ -11,24 +10,24 @@ import (
 	"sync"
 
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
-	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/worker"
-	"github.com/simulot/immich-go/internal/xmp"
 )
 
 type LocalAssetBrowser struct {
 	fsyss    []fs.FS
 	log      *fileevent.Recorder
 	flags    *ImportFolderOptions
-	exiftool *metadata.ExifTool
+	exiftool *exif.ExifTool
 	pool     *worker.Pool
 	wg       sync.WaitGroup
 	groupers []groups.Grouper
@@ -50,7 +49,7 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	}
 
 	if flags.ExifToolFlags.UseExifTool {
-		et, err := metadata.NewExifTool(&flags.ExifToolFlags)
+		et, err := exif.NewExifTool(&flags.ExifToolFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -122,39 +121,39 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 
 		if la.flags.BannedFiles.Match(name) {
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, entry.Name()), "reason", "banned file")
+			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, entry.Name()), "reason", "banned file")
 			continue
 		}
 
 		ext := filepath.Ext(base)
 		mediaType := la.flags.SupportedMedia.TypeFromExt(ext)
 
-		if mediaType == metadata.TypeUnknown {
-			la.log.Record(ctx, fileevent.DiscoveredUnsupported, fileevent.AsFileAndName(fsys, name), "reason", "unsupported file type")
+		if mediaType == filetypes.TypeUnknown {
+			la.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(fsys, name), "reason", "unsupported file type")
 			continue
 		}
 
 		switch mediaType {
-		case metadata.TypeImage:
-			la.log.Record(ctx, fileevent.DiscoveredImage, fileevent.AsFileAndName(fsys, name))
-		case metadata.TypeVideo:
-			la.log.Record(ctx, fileevent.DiscoveredVideo, fileevent.AsFileAndName(fsys, name))
-		case metadata.TypeSidecar:
+		case filetypes.TypeImage:
+			la.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(fsys, name))
+		case filetypes.TypeVideo:
+			la.log.Record(ctx, fileevent.DiscoveredVideo, fshelper.FSName(fsys, name))
+		case filetypes.TypeSidecar:
 			if la.flags.IgnoreSideCarFiles {
-				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "sidecar file ignored")
+				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "sidecar file ignored")
 				continue
 			}
-			la.log.Record(ctx, fileevent.DiscoveredSidecar, fileevent.AsFileAndName(fsys, name))
+			la.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(fsys, name))
 			continue
 		}
 
 		if !la.flags.InclusionFlags.IncludedExtensions.Include(ext) {
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "extension not included")
+			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "extension not included")
 			continue
 		}
 
 		if la.flags.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "extension excluded")
+			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "extension excluded")
 			continue
 		}
 
@@ -165,7 +164,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			// we have a file to process
 			a, err := la.assetFromFile(ctx, fsys, name)
 			if err != nil {
-				la.log.Record(ctx, fileevent.Error, fileevent.AsFileAndName(fsys, name), "error", err.Error())
+				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 				return err
 			}
 			if a != nil {
@@ -180,7 +179,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		name := filepath.Join(dir, base)
 		if entry.IsDir() {
 			if la.flags.BannedFiles.Match(name) {
-				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(fsys, name), "reason", "banned folder")
+				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "banned folder")
 				continue // Skip this folder, no error
 			}
 			if la.flags.Recursive && entry.Name() != "." {
@@ -196,8 +195,8 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 		sort.Slice(as, func(i, j int) bool {
 			// Sort by radical first
-			radicalI := as[i].NameInfo().Radical
-			radicalJ := as[j].NameInfo().Radical
+			radicalI := as[i].Radical
+			radicalJ := as[j].Radical
 			if radicalI != radicalJ {
 				return radicalI < radicalJ
 			}
@@ -213,24 +212,26 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 
 			// check the presence of an XMP file
-			if b, xmpName := detectXMP(fsys, a.FileName); b {
-				buf, err := fs.ReadFile(fsys, xmpName)
-				if err != nil {
-					la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
-				} else {
-					if bytes.Contains(buf, []byte("<immichgo:ImmichGoProperties>")) {
-						// found immich-go specific
-						err = xmp.ReadXMP(a, bytes.NewReader(buf))
-						if err != nil {
-							la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
-						}
-					} else {
-						a.SideCar = metadata.SideCarFile{
-							FSys:     fsys,
-							FileName: xmpName,
-						}
-					}
-				}
+			if b, xmpName := detectXMP(fsys, a.File.Name()); b {
+				_ = xmpName
+				panic("implement me")
+				// buf, err := fs.ReadFile(fsys, xmpName)
+				// if err != nil {
+				// 	la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
+				// } else {
+				// if bytes.Contains(buf, []byte("<immichgo:ImmichGoProperties>")) {
+				// 	// found immich-go specific
+				// 	err = xmp.ReadXMP(a, bytes.NewReader(buf))
+				// 	if err != nil {
+				// 		la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
+				// 	}
+				// } else {
+				// 	a.SideCar = metadata.SideCarFile{
+				// 		FSys:     fsys,
+				// 		FileName: xmpName,
+				// 	}
+				// }
+				// }
 			}
 			select {
 			case in <- a:
@@ -313,22 +314,26 @@ func detectXMP(fsys fs.FS, name string) (bool, string) {
 
 func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {
 	a := &assets.Asset{
-		FileName:         name,
+		File:             fshelper.FSName(fsys, name),
 		OriginalFileName: filepath.Base(name),
-		FSys:             fsys,
 	}
 	a.SetNameInfo(la.flags.InfoCollector.GetInfo(a.OriginalFileName))
+	f, err := a.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
 
-	md, err := a.ReadMetadata(la.flags.DateHandlingFlags.Method, assets.ReadMetadataOptions{
-		ExifTool:         la.exiftool,
-		ExiftoolTimezone: la.flags.ExifToolFlags.Timezone.Location(),
-		FilenameTimeZone: la.flags.DateHandlingFlags.FilenameTimeZone.Location(),
+	md, err := exif.GetMetaData(f, exif.ReadMetadataOptions{
+		ExifTool:     la.exiftool,
+		ExifTimezone: la.flags.ExifToolFlags.Timezone.Location(),
 	})
 	if err != nil {
 		a.Close()
 		return nil, err
 	}
 
+	a.FromSourceFile = a.UseMetadata(md)
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
 		a.Close()
@@ -336,13 +341,6 @@ func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name s
 	}
 	a.FileSize = int(i.Size())
 	a.FileDate = i.ModTime()
-	// if a.CaptureDate.IsZero() {
-	// 	a.CaptureDate = a.FileDate
-	// }
-
-	if md != nil {
-		a.CaptureDate = md.DateTaken
-	}
 
 	return a, nil
 }

@@ -4,9 +4,10 @@ package gp
 
 import (
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
-	"github.com/simulot/immich-go/internal/metadata"
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/spf13/cobra"
 )
@@ -47,13 +48,13 @@ type ImportFlags struct {
 	DateHandlingFlags cliflags.DateHandlingFlags
 
 	// ExifToolFlags specifies options for the exif.
-	ExifToolFlags metadata.ExifToolFlags
+	ExifToolFlags exif.ExifToolFlags
 
 	// List of banned files
 	BannedFiles namematcher.List // List of banned file name patterns
 
 	// SupportedMedia represents the server's actual list of supported media. This is not a flag.
-	SupportedMedia metadata.SupportedMedia
+	SupportedMedia filetypes.SupportedMedia
 
 	// InfoCollector collects information about filenames.
 	InfoCollector *filenames.InfoCollector
@@ -93,8 +94,8 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	cliflags.AddDateHandlingFlags(cmd, &o.DateHandlingFlags)
-	metadata.AddExifToolFlags(cmd, &o.ExifToolFlags)
-	o.SupportedMedia = metadata.DefaultSupportedMedia
+	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
+	o.SupportedMedia = filetypes.DefaultSupportedMedia
 
 	if parent != nil && parent.Name() == "upload" {
 		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")

@@ -5,23 +5,25 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 var sonyXperiaRE = regexp.MustCompile(`^DSC_(\d+)_BURST(\d+)(\D+)?(\..+)$`)
 
-func (ic InfoCollector) SonyXperia(name string) (bool, NameInfo) {
+func (ic InfoCollector) SonyXperia(name string) (bool, assets.NameInfo) {
 	parts := sonyXperiaRE.FindStringSubmatch(name)
 	if len(parts) == 0 {
-		return false, NameInfo{}
+		return false, assets.NameInfo{}
 	}
 	ext := parts[4]
-	info := NameInfo{
+	info := assets.NameInfo{
 		Radical: "BURST" + parts[2],
 		Base:    name,
 		IsCover: strings.Contains(parts[3], "COVER"),
 		Ext:     strings.ToLower(ext),
 		Type:    ic.SM.TypeFromExt(ext),
-		Kind:    KindBurst,
+		Kind:    assets.KindBurst,
 	}
 	info.Index, _ = strconv.Atoi(parts[1])
 

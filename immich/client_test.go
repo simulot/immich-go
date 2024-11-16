@@ -1,4 +1,4 @@
-package immich
+package immich_test
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 /*
@@ -30,26 +31,10 @@ PASS
 ok  	github.com/simulot/immich-go/immich	1.283s
 */
 func Benchmark_IsExtensionPrefix(b *testing.B) {
-	sm := metadata.DefaultSupportedMedia
+	sm := filetypes.DefaultSupportedMedia
 	sm.IsExtensionPrefix(".JP")
 	for i := 0; i < b.N; i++ {
 		sm.IsExtensionPrefix(".JP")
-	}
-}
-
-func TestNewImmichClient(t *testing.T) {
-	client, err := NewImmichClient("http://localhost", "test-key")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if client == nil {
-		t.Fatalf("expected client to be non-nil")
-	}
-	if client.endPoint != "http://localhost/api" {
-		t.Errorf("expected endpoint to be 'http://localhost/api', got %v", client.endPoint)
-	}
-	if client.key != "test-key" {
-		t.Errorf("expected key to be 'test-key', got %v", client.key)
 	}
 }
 
@@ -60,7 +45,7 @@ func TestPingServer(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewImmichClient(server.URL, "test-key")
+	client, _ := immich.NewImmichClient(server.URL, "test-key")
 	err := client.PingServer(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -79,7 +64,7 @@ func TestValidateConnection(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewImmichClient(server.URL, "test-key")
+	client, _ := immich.NewImmichClient(server.URL, "test-key")
 	user, err := client.ValidateConnection(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -99,7 +84,7 @@ func TestGetServerStatistics(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewImmichClient(server.URL, "test-key")
+	client, _ := immich.NewImmichClient(server.URL, "test-key")
 	stats, err := client.GetServerStatistics(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -122,7 +107,7 @@ func TestGetAssetStatistics(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewImmichClient(server.URL, "test-key")
+	client, _ := immich.NewImmichClient(server.URL, "test-key")
 	stats, err := client.GetAssetStatistics(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -145,19 +130,19 @@ func TestGetSupportedMediaTypes(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewImmichClient(server.URL, "test-key")
+	client, _ := immich.NewImmichClient(server.URL, "test-key")
 	mediaTypes, err := client.GetSupportedMediaTypes(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if mediaTypes[".jpg"] != metadata.TypeImage {
-		t.Errorf("expected .jpg to be %v, got %v", metadata.TypeImage, mediaTypes[".jpg"])
+	if mediaTypes[".jpg"] != filetypes.TypeImage {
+		t.Errorf("expected .jpg to be %v, got %v", filetypes.TypeImage, mediaTypes[".jpg"])
 	}
-	if mediaTypes[".png"] != metadata.TypeImage {
-		t.Errorf("expected .png to be %v, got %v", metadata.TypeImage, mediaTypes[".png"])
+	if mediaTypes[".png"] != filetypes.TypeImage {
+		t.Errorf("expected .png to be %v, got %v", filetypes.TypeImage, mediaTypes[".png"])
 	}
-	if mediaTypes[".mp4"] != metadata.TypeVideo {
-		t.Errorf("expected .mp4 to be %v, got %v", metadata.TypeVideo, mediaTypes[".mp4"])
+	if mediaTypes[".mp4"] != filetypes.TypeVideo {
+		t.Errorf("expected .mp4 to be %v, got %v", filetypes.TypeVideo, mediaTypes[".mp4"])
 	}
 }
 
@@ -169,7 +154,7 @@ func TestDownloadAsset(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, _ := NewImmichClient(server.URL, "test-key")
+	client, _ := immich.NewImmichClient(server.URL, "test-key")
 	rc, err := client.DownloadAsset(context.Background(), "test-asset-id")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

@@ -204,7 +204,7 @@ func Test_Stack(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			sb := NewStackBuilder(metadata.DefaultSupportedMedia)
+			sb := NewStackBuilder(filetypes.DefaultSupportedMedia)
 			for _, a := range tt.input {
 				sb.ProcessAsset(a.ID, a.FileName, a.DateTaken)
 			}

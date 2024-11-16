@@ -10,7 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
+	filetype "github.com/simulot/immich-go/internal/filetypes"
 )
 
 /*
@@ -28,7 +29,7 @@ type ImmichClient struct {
 	Retries             int           // Number of attempts on 500 errors
 	RetriesDelay        time.Duration // Duration between retries
 	apiTraceWriter      io.Writer
-	supportedMediaTypes metadata.SupportedMedia // Server's list of supported medias
+	supportedMediaTypes filetype.SupportedMedia // Server's list of supported medias
 	dryRun              bool                    //  If true, do not send any data to the server
 }
 
@@ -48,7 +49,7 @@ func (ic *ImmichClient) EnableAppTrace(w io.Writer) {
 	ic.apiTraceWriter = w
 }
 
-func (ic *ImmichClient) SupportedMedia() metadata.SupportedMedia {
+func (ic *ImmichClient) SupportedMedia() filetypes.SupportedMedia {
 	return ic.supportedMediaTypes
 }
 
@@ -192,20 +193,20 @@ func (ic *ImmichClient) GetAssetStatistics(ctx context.Context) (UserStatistics,
 	return s, err
 }
 
-func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (metadata.SupportedMedia, error) {
+func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (filetypes.SupportedMedia, error) {
 	var s map[string][]string
 
 	err := ic.newServerCall(ctx, EndPointGetSupportedMediaTypes).do(getRequest("/server/media-types", setAcceptJSON()), responseJSON(&s))
 	if err != nil {
 		return nil, err
 	}
-	sm := make(metadata.SupportedMedia)
+	sm := make(filetypes.SupportedMedia)
 	for t, l := range s {
 		for _, e := range l {
 			sm[e] = t
 		}
 	}
-	sm[".mp"] = metadata.TypeVideo
+	sm[".mp"] = filetypes.TypeVideo
 	return sm, err
 }
 

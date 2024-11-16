@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"golang.org/x/exp/constraints"
 )
 
@@ -35,7 +34,8 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 				}
 				return
 			}
-			if a.DateTaken().IsZero() {
+			if a.CaptureDate.IsZero() {
+				// No date taken, no change to group them
 				select {
 				case out <- a:
 				case <-ctx.Done():
@@ -46,22 +46,22 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 			// exclude movies, edited or burst images
 			// exclude images without a date taken
 			// exclude images taken more than 500ms apart
-			ni := a.NameInfo()
-			dontGroupMe := ni.Type != metadata.TypeImage ||
+			ni := a.NameInfo
+			dontGroupMe := ni.Type != filetypes.TypeImage ||
 				a.CaptureDate.IsZero() ||
-				ni.Kind == filenames.KindBurst ||
-				ni.Kind == filenames.KindEdited ||
-				abs(a.DateTaken().Sub(lastTaken)) > frameInterval
+				ni.Kind == assets.KindBurst ||
+				ni.Kind == assets.KindEdited ||
+				abs(a.CaptureDate.Sub(lastTaken)) > frameInterval
 
 			if dontGroupMe {
 				if len(currentGroup) > 0 {
 					sendBurstGroup(ctx, out, gOut, currentGroup)
 				}
 				currentGroup = []*assets.Asset{a}
-				lastTaken = a.DateTaken()
+				lastTaken = a.CaptureDate
 			} else {
 				currentGroup = append(currentGroup, a)
-				lastTaken = a.DateTaken()
+				lastTaken = a.CaptureDate
 			}
 		}
 	}

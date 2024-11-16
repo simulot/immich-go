@@ -36,10 +36,10 @@ const (
 type StackBuilder struct {
 	dateRange      cliflags.DateRange // Set capture date range
 	stacks         map[Key]Stack
-	supportedMedia metadata.SupportedMedia
+	supportedMedia filetypes.SupportedMedia
 }
 
-func NewStackBuilder(supportedMedia metadata.SupportedMedia) *StackBuilder {
+func NewStackBuilder(supportedMedia filetypes.SupportedMedia) *StackBuilder {
 	sb := StackBuilder{
 		supportedMedia: supportedMedia,
 		stacks:         map[Key]Stack{},

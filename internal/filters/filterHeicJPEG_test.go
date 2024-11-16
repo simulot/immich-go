@@ -58,8 +58,8 @@ func Test_unGroupHeicJpeg(t *testing.T) {
 				t.Errorf("expected %v assets, got %v", len(tt.expected.Assets), len(result.Assets))
 			}
 			for i, asset := range result.Assets {
-				if asset.FileName != tt.expected.Assets[i].FileName {
-					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].FileName, asset.FileName)
+				if asset.File.Name() != tt.expected.Assets[i].File.Name() {
+					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].File.Name(), asset.File.Name())
 				}
 			}
 		})
@@ -116,8 +116,8 @@ func Test_groupHeicJpgKeepHeic(t *testing.T) {
 				t.Errorf("expected %v assets, got %v", len(tt.expected.Assets), len(result.Assets))
 			}
 			for i, asset := range result.Assets {
-				if asset.FileName != tt.expected.Assets[i].FileName {
-					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].FileName, asset.FileName)
+				if asset.File.Name() != tt.expected.Assets[i].File.Name() {
+					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].File.Name(), asset.File.Name())
 				}
 			}
 		})
@@ -178,8 +178,8 @@ func Test_groupHeicJpgStackHeic(t *testing.T) {
 				t.Errorf("expected %v assets, got %v", len(tt.expected.Assets), len(result.Assets))
 			}
 			for i, asset := range result.Assets {
-				if asset.FileName != tt.expected.Assets[i].FileName {
-					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].FileName, asset.FileName)
+				if asset.File.Name() != tt.expected.Assets[i].File.Name() {
+					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].File.Name(), asset.File.Name())
 				}
 			}
 			if result.CoverIndex != tt.expected.CoverIndex {
@@ -243,8 +243,8 @@ func Test_groupHeicJpgStackJPG(t *testing.T) {
 				t.Errorf("expected %v assets, got %v", len(tt.expected.Assets), len(result.Assets))
 			}
 			for i, asset := range result.Assets {
-				if asset.FileName != tt.expected.Assets[i].FileName {
-					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].FileName, asset.FileName)
+				if asset.File.Name() != tt.expected.Assets[i].File.Name() {
+					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].File.Name(), asset.File.Name())
 				}
 			}
 			if result.CoverIndex != tt.expected.CoverIndex {

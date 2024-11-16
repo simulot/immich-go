@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/tzone"
 )
 
@@ -45,20 +45,20 @@ type ImmichInterface interface {
 	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
-	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
+	GetAllAlbums(ctx context.Context) ([]assets.Album, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
 	CreateAlbum(
 		ctx context.Context,
 		tilte string,
 		description string,
 		ids []string,
-	) (AlbumSimplified, error)
+	) (assets.Album, error)
 
 	// GetAssetAlbums get all albums that an asset belongs to
-	GetAssetAlbums(ctx context.Context, assetID string) ([]AlbumSimplified, error)
+	GetAssetAlbums(ctx context.Context, assetID string) ([]assets.Album, error)
 	DeleteAlbum(ctx context.Context, id string) error
 
-	SupportedMedia() metadata.SupportedMedia
+	SupportedMedia() filetypes.SupportedMedia
 
 	GetJobs(ctx context.Context) (map[string]Job, error)
 	SendJobCommand(
@@ -198,7 +198,6 @@ type Asset struct {
 // NewAssetFromImmich creates an assets.Asset from an immich.Asset.
 func (ia Asset) AsAsset() *assets.Asset {
 	a := &assets.Asset{
-		FileName:         ia.OriginalFileName,
 		FileDate:         ia.FileModifiedAt.Time,
 		Description:      ia.ExifInfo.Description,
 		OriginalFileName: ia.OriginalFileName,

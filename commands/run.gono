@@ -48,7 +48,7 @@ func Run(ctx context.Context, version string, commit string, date string) error 
 		case "duplicate":
 			err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
 		case "metadata":
-			err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
+			err = assets.MetadataCommand(ctx, &app, fs.Args()[1:])
 		case "stack":
 			err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
 		case "tool":

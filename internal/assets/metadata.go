@@ -1,84 +1,45 @@
 package assets
 
 import (
-	"io"
-	"path/filepath"
-	"strings"
+	"log/slog"
 	"time"
 
-	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/fshelper"
 )
 
-type ReadMetadataOptions struct {
-	ExifTool         *metadata.ExifTool
-	ExiftoolTimezone *time.Location
-	FilenameTimeZone *time.Location
+type Metadata struct {
+	File        fshelper.FSAndName // File name and file system that holds the metadata. Could be empty
+	FileName    string             // File name as presented to users
+	Latitude    float64            // GPS
+	Longitude   float64            // GPS
+	DateTaken   time.Time          // Date of exposure
+	Description string             // Long description
+	Albums      []Album            // Used to list albums that contain the file
+	Tags        []Tag              // Used to list tags
+	Rating      byte               // 0 to 5
+	Trashed     bool               // Flag to indicate if the image has been trashed
+	Archived    bool               // Flag to indicate if the image has been archived
+	Favorited   bool               // Flag to indicate if the image has been favorited
+	FromPartner bool               // Flag to indicate if the image is from a partner
 }
 
-func (la *Asset) ReadMetadata(method cliflags.DateMethod, options ReadMetadataOptions) (*metadata.Metadata, error) {
-	ms := strings.Split(string(method), "-")
-	for _, m := range ms {
-		switch cliflags.DateMethod(m) {
-		case cliflags.DateMethodNone:
-			return nil, nil
-		case cliflags.DateMethodEXIF:
-			if options.ExifTool != nil {
-				md, err := la.metadataFromExiftool(options)
-				if err != nil {
-					continue
-				}
-				if !md.DateTaken.IsZero() {
-					return md, nil
-				}
-			} else {
-				md, err := la.metadataFromDirectRead(options.ExiftoolTimezone)
-				if err != nil {
-					continue
-				}
-				if !md.DateTaken.IsZero() {
-					return md, nil
-				}
-			}
-		case cliflags.DateMethodName:
-			t := filenames.TakeTimeFromPath(la.FileName, options.FilenameTimeZone)
-			if !t.IsZero() {
-				return &metadata.Metadata{
-					DateTaken: t,
-				}, nil
-			}
-		}
-	}
-	return nil, nil
+func (m Metadata) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Float64("latitude", m.Latitude),
+		slog.Float64("longitude", m.Longitude),
+		slog.Any("fileName", m.File),
+		slog.Time("dateTaken", m.DateTaken),
+		slog.String("description", m.Description),
+		slog.Int("rating", int(m.Rating)),
+		slog.Bool("trashed", m.Trashed),
+		slog.Bool("archived", m.Archived),
+		slog.Bool("favorited", m.Favorited),
+		slog.Bool("fromPartner", m.FromPartner),
+		slog.Any("albums", m.Albums),
+		slog.Any("tags", m.Tags),
+	)
 }
 
-// metadataFromExiftool call exiftool
-func (la *Asset) metadataFromExiftool(options ReadMetadataOptions) (*metadata.Metadata, error) {
-	// Get a handler on a temporary file
-	r, err := la.PartialSourceReader()
-	if err != nil {
-		return nil, err
-	}
-
-	// be sure the file is completely extracted in the temp file
-	_, err = io.Copy(io.Discard, r)
-	if err != nil {
-		return nil, err
-	}
-
-	md, err := options.ExifTool.ReadMetaData(la.tempFile.Name())
-	return md, err
-}
-
-func (la *Asset) metadataFromDirectRead(localTZ *time.Location) (*metadata.Metadata, error) {
-	// Get a handler on a temporary file
-	r, err := la.PartialSourceReader()
-	if err != nil {
-		return nil, err
-	}
-
-	ext := filepath.Ext(la.FileName)
-	md, err := metadata.GetFromReader(r, ext, localTZ)
-	return md, err
+func (m Metadata) IsSet() bool {
+	return m.Description != "" || !m.DateTaken.IsZero() || m.Latitude != 0 || m.Longitude != 0
 }

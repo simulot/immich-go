@@ -4,7 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 func TestSonyXperia(t *testing.T) {
@@ -12,19 +13,19 @@ func TestSonyXperia(t *testing.T) {
 		name     string
 		filename string
 		expected bool
-		info     NameInfo
+		info     assets.NameInfo
 	}{
 		{
 			name:     "Sony Xperia BURST",
 			filename: "DSC_0001_BURST20230709220904977.JPG",
 			expected: true,
-			info: NameInfo{
+			info: assets.NameInfo{
 				Radical: "BURST20230709220904977",
 				Base:    "DSC_0001_BURST20230709220904977.JPG",
 				IsCover: false,
 				Ext:     ".jpg",
-				Type:    metadata.TypeImage,
-				Kind:    KindBurst,
+				Type:    filetypes.TypeImage,
+				Kind:    assets.KindBurst,
 				Index:   1,
 				Taken:   time.Date(2023, 7, 9, 22, 9, 4, int(977*time.Millisecond), time.Local),
 			},
@@ -33,13 +34,13 @@ func TestSonyXperia(t *testing.T) {
 			name:     "Sony Xperia BURST cover",
 			filename: "DSC_0052_BURST20230709220904977_COVER.JPG",
 			expected: true,
-			info: NameInfo{
+			info: assets.NameInfo{
 				Radical: "BURST20230709220904977",
 				Base:    "DSC_0052_BURST20230709220904977_COVER.JPG",
 				IsCover: true,
 				Ext:     ".jpg",
-				Type:    metadata.TypeImage,
-				Kind:    KindBurst,
+				Type:    filetypes.TypeImage,
+				Kind:    assets.KindBurst,
 				Index:   52,
 				Taken:   time.Date(2023, 7, 9, 22, 9, 4, int(977*time.Millisecond), time.Local),
 			},
@@ -48,13 +49,13 @@ func TestSonyXperia(t *testing.T) {
 			name:     "InvalidFilename",
 			filename: "IMG_1123.jpg",
 			expected: false,
-			info:     NameInfo{},
+			info:     assets.NameInfo{},
 		},
 	}
 
 	ic := InfoCollector{
 		TZ: time.Local,
-		SM: metadata.DefaultSupportedMedia,
+		SM: filetypes.DefaultSupportedMedia,
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

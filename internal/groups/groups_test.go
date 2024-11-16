@@ -9,15 +9,16 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/series"
-	"github.com/simulot/immich-go/internal/metadata"
 )
 
 func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *assets.Asset {
 	a := assets.Asset{
-		FileName:    name,
+		File:        fshelper.FSName(nil, name),
 		FileDate:    dateTaken,
 		CaptureDate: dateTaken,
 	}
@@ -26,7 +27,7 @@ func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *a
 }
 
 func TestGroup(t *testing.T) {
-	ic := filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
 	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 
 	testAssets := []*assets.Asset{
@@ -130,10 +131,10 @@ func TestGroup(t *testing.T) {
 
 	sortGroupFn := func(s []*assets.Group) func(i, j int) bool {
 		return func(i, j int) bool {
-			if s[i].Assets[0].NameInfo().Radical == s[j].Assets[0].NameInfo().Radical {
-				return s[i].Assets[0].DateTaken().Before(s[j].Assets[0].DateTaken())
+			if s[i].Assets[0].Radical == s[j].Assets[0].Radical {
+				return s[i].Assets[0].CaptureDate.Before(s[j].Assets[0].CaptureDate)
 			}
-			return s[i].Assets[0].NameInfo().Radical < s[j].Assets[0].NameInfo().Radical
+			return s[i].Assets[0].Radical < s[j].Assets[0].Radical
 		}
 	}
 
@@ -155,13 +156,13 @@ func TestGroup(t *testing.T) {
 
 	sortAssetFn := func(s []*assets.Asset) func(i, j int) bool {
 		return func(i, j int) bool {
-			if s[i].NameInfo().Radical == s[j].NameInfo().Radical {
-				if s[i].NameInfo().Index == s[j].NameInfo().Index {
-					return s[i].DateTaken().Before(s[j].DateTaken())
+			if s[i].Radical == s[j].Radical {
+				if s[i].Index == s[j].Index {
+					return s[i].CaptureDate.Before(s[j].CaptureDate)
 				}
-				return s[i].NameInfo().Index < s[j].NameInfo().Index
+				return s[i].Index < s[j].Index
 			}
-			return s[i].NameInfo().Radical < s[j].NameInfo().Radical
+			return s[i].Radical < s[j].Radical
 		}
 	}
 

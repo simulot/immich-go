@@ -18,7 +18,7 @@ import (
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/simulot/immich-go/internal/tzone"
 )
@@ -56,7 +56,7 @@ func (mfs *inMemFS) addFile(name string, _ time.Time) *inMemFS {
 
 func TestInMemLocalAssets(t *testing.T) {
 	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
-	ic := filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
 	tc := []struct {
 		name           string
 		fsys           []fs.FS
@@ -68,7 +68,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		{
 			name: "easy",
 			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				InfoCollector:  ic,
 			},
 			fsys: []fs.FS{
@@ -82,7 +82,7 @@ func TestInMemLocalAssets(t *testing.T) {
 			name: "recursive",
 			flags: ImportFolderOptions{
 				InfoCollector:  ic,
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				Recursive:      true,
 			},
 			fsys: []fs.FS{
@@ -96,7 +96,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		{
 			name: "non-recursive",
 			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				InfoCollector:  ic,
 				Recursive:      false,
 			},
@@ -113,7 +113,7 @@ func TestInMemLocalAssets(t *testing.T) {
 			name: "banned files",
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "Database/", `._*.*`, `._*.*`),
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
 				},
@@ -159,7 +159,7 @@ func TestInMemLocalAssets(t *testing.T) {
 			name: "excluded extensions",
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
 				},
@@ -196,7 +196,7 @@ func TestInMemLocalAssets(t *testing.T) {
 			name: "included extensions",
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
 				},
@@ -231,7 +231,7 @@ func TestInMemLocalAssets(t *testing.T) {
 			name: "motion picture",
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
 				},
@@ -262,7 +262,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		{
 			name: "date in range",
 			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodName,
 					FilenameTimeZone: tzone.Timezone{
@@ -296,7 +296,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		{
 			name: "path as album name",
 			flags: ImportFolderOptions{
-				SupportedMedia:         metadata.DefaultSupportedMedia,
+				SupportedMedia:         filetypes.DefaultSupportedMedia,
 				UsePathAsAlbumName:     FolderModePath,
 				AlbumNamePathSeparator: " ¤ ",
 				InclusionFlags:         cliflags.InclusionFlags{},
@@ -336,7 +336,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		{
 			name: "folder as album name",
 			flags: ImportFolderOptions{
-				SupportedMedia:         metadata.DefaultSupportedMedia,
+				SupportedMedia:         filetypes.DefaultSupportedMedia,
 				UsePathAsAlbumName:     FolderModeFolder,
 				AlbumNamePathSeparator: " ¤ ",
 				InclusionFlags:         cliflags.InclusionFlags{},
@@ -406,10 +406,10 @@ func TestInMemLocalAssets(t *testing.T) {
 					return
 				}
 				for _, a := range g.Assets {
-					results = append(results, a.FileName)
+					results = append(results, a.File.Name())
 					if len(c.expectedAlbums) > 0 {
 						for _, album := range g.Albums {
-							albums[album.Title] = append(albums[album.Title], a.FileName)
+							albums[album.Title] = append(albums[album.Title], a.File.Name())
 						}
 					}
 				}

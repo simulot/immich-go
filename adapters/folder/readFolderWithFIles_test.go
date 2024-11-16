@@ -13,9 +13,11 @@ import (
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
-	"github.com/simulot/immich-go/internal/metadata"
+
 	"github.com/simulot/immich-go/internal/tzone"
 )
 
@@ -31,7 +33,7 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "easy",
 			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodNone,
 					FilenameTimeZone: tzone.Timezone{
@@ -59,7 +61,7 @@ func TestLocalAssets(t *testing.T) {
 				ManageBurst:    filters.BurstNothing,
 				ManageRawJPG:   filters.RawJPGNothing,
 				ManageHEICJPG:  filters.HeicJpgNothing,
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodName,
 					FilenameTimeZone: tzone.Timezone{
@@ -81,7 +83,7 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "select exif date not using exiftool",
 			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodEXIF,
 					FilenameTimeZone: tzone.Timezone{
@@ -91,7 +93,7 @@ func TestLocalAssets(t *testing.T) {
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange("2023-10-06"),
 				},
-				ExifToolFlags: metadata.ExifToolFlags{
+				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: true,
 					Timezone:    tzone.Timezone{TZ: time.Local},
 				},
@@ -118,7 +120,7 @@ func TestLocalAssets(t *testing.T) {
 				ManageBurst:    filters.BurstNothing,
 				ManageRawJPG:   filters.RawJPGNothing,
 				ManageHEICJPG:  filters.HeicJpgNothing,
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodEXIF,
 					FilenameTimeZone: tzone.Timezone{
@@ -128,7 +130,7 @@ func TestLocalAssets(t *testing.T) {
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange("2023-10-06"),
 				},
-				ExifToolFlags: metadata.ExifToolFlags{
+				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: true,
 					Timezone:    tzone.Timezone{TZ: time.Local},
 				},
@@ -149,7 +151,7 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "select exif date using exiftool then date",
 			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodExifThenName,
 					FilenameTimeZone: tzone.Timezone{
@@ -159,7 +161,7 @@ func TestLocalAssets(t *testing.T) {
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange("2023-10-06"),
 				},
-				ExifToolFlags: metadata.ExifToolFlags{
+				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: true,
 					Timezone:    tzone.Timezone{TZ: time.Local},
 				},
@@ -177,7 +179,7 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "select on date in the name",
 			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodName,
 					FilenameTimeZone: tzone.Timezone{
@@ -187,7 +189,7 @@ func TestLocalAssets(t *testing.T) {
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange("2023-10-06"),
 				},
-				ExifToolFlags: metadata.ExifToolFlags{
+				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: true,
 					Timezone:    tzone.Timezone{TZ: time.Local},
 				},
@@ -203,7 +205,7 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "same name, but not live photo, select exif date using exiftool then date",
 			flags: ImportFolderOptions{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				DateHandlingFlags: cliflags.DateHandlingFlags{
 					Method: cliflags.DateMethodExifThenName,
 					FilenameTimeZone: tzone.Timezone{
@@ -213,7 +215,7 @@ func TestLocalAssets(t *testing.T) {
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange("2023-10-06"),
 				},
-				ExifToolFlags: metadata.ExifToolFlags{
+				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: true,
 					Timezone:    tzone.Timezone{TZ: time.Local},
 				},
@@ -261,13 +263,13 @@ func TestLocalAssets(t *testing.T) {
 				}
 
 				for _, a := range g.Assets {
-					results = append(results, a.FileName)
+					results = append(results, a.File.Name())
 					if len(c.expectedAlbums) > 0 {
 						for _, album := range g.Albums {
-							albums[album.Title] = append(albums[album.Title], a.FileName)
+							albums[album.Title] = append(albums[album.Title], a.File.Name())
 						}
 					}
-					recorder.Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.Name()))
+					recorder.Record(ctx, fileevent.Uploaded, a.File)
 				}
 			}
 			sort.Strings(c.expectedFiles)

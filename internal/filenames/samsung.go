@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 // Samsung burst file name pattern
@@ -15,17 +17,17 @@ import (
 
 var samsungRE = regexp.MustCompile(`^(\d{8}_\d{6})_(\d{3})(\..+)$`)
 
-func (ic InfoCollector) Samsung(name string) (bool, NameInfo) {
+func (ic InfoCollector) Samsung(name string) (bool, assets.NameInfo) {
 	parts := samsungRE.FindStringSubmatch(name)
 	if len(parts) == 0 {
-		return false, NameInfo{}
+		return false, assets.NameInfo{}
 	}
-	info := NameInfo{
+	info := assets.NameInfo{
 		Radical: parts[1],
 		Base:    name,
 		Ext:     strings.ToLower(parts[3]),
 		Type:    ic.SM.TypeFromExt(parts[3]),
-		Kind:    KindBurst,
+		Kind:    assets.KindBurst,
 	}
 	info.Index, _ = strconv.Atoi(parts[2])
 	info.IsCover = info.Index == 1

@@ -5,8 +5,7 @@ import (
 	"regexp"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 var epsonFastFotoRegex = regexp.MustCompile(`^(.*_\d+)(_[ab])?(\.[a-z]+)$`)
@@ -27,8 +26,8 @@ func (g *Group) Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *
 				g.sendGroup(ctx, out, gOut)
 				return
 			}
-			ni := a.NameInfo()
-			matches := epsonFastFotoRegex.FindStringSubmatch(a.FileName)
+			ni := a.NameInfo
+			matches := epsonFastFotoRegex.FindStringSubmatch(a.File.Name())
 			if matches == nil {
 				g.sendGroup(ctx, out, gOut)
 				select {
@@ -40,8 +39,8 @@ func (g *Group) Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *
 
 			radical := matches[1]
 			// exclude movies,  burst images
-			dontGroupMe := ni.Type != metadata.TypeImage ||
-				ni.Kind == filenames.KindBurst
+			dontGroupMe := ni.Type != filetypes.TypeImage ||
+				ni.Kind == assets.KindBurst
 
 			if dontGroupMe {
 				g.sendGroup(ctx, out, gOut)

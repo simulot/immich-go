@@ -13,7 +13,7 @@ import (
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 func TestBrowse(t *testing.T) {
@@ -145,9 +145,9 @@ func TestBrowse(t *testing.T) {
 				return
 			}
 			flags := &ImportFlags{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				CreateAlbums:   true,
-				InfoCollector:  filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia),
+				InfoCollector:  filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia),
 			}
 			log.Logger.Info("\n\n\ntest case: " + c.name)
 			recorder := fileevent.NewRecorder(log.Logger)
@@ -166,7 +166,7 @@ func TestBrowse(t *testing.T) {
 					return
 				}
 				for _, a := range g.Assets {
-					results = append(results, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.OriginalFileName})
+					results = append(results, fileResult{name: path.Base(a.File.Name()), size: a.FileSize, title: a.OriginalFileName})
 				}
 			}
 			results = sortFileResult(results)
@@ -243,9 +243,9 @@ func TestAlbums(t *testing.T) {
 
 			fsys := c.gen()
 			flags := &ImportFlags{
-				SupportedMedia: metadata.DefaultSupportedMedia,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
 				CreateAlbums:   true,
-				InfoCollector:  filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia),
+				InfoCollector:  filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia),
 			}
 			log.Logger.Info("\n\n\ntest case: " + c.name)
 			b, err := NewTakeout(ctx, recorder, flags, fsys...)
@@ -261,7 +261,7 @@ func TestAlbums(t *testing.T) {
 					if len(g.Albums) > 0 {
 						for _, al := range g.Albums {
 							l := albums[al.Title]
-							l = append(l, fileResult{name: path.Base(a.FileName), size: a.FileSize, title: a.OriginalFileName})
+							l = append(l, fileResult{name: path.Base(a.File.Name()), size: a.FileSize, title: a.OriginalFileName})
 							albums[al.Title] = l
 						}
 					}
@@ -367,7 +367,7 @@ func TestArchives(t *testing.T) {
 				ctx := context.Background()
 				fsys := c.gen()
 				flags := &ImportFlags{
-					SupportedMedia: metadata.DefaultSupportedMedia,
+					SupportedMedia: filetypes.DefaultSupportedMedia,
 					KeepJSONLess:   c.acceptMissingJSON,
 					CreateAlbums:   true,
 				}
@@ -389,7 +389,7 @@ func TestArchives(t *testing.T) {
 					for _, a := range g.Assets {
 						ext := path.Ext(a.FileName)
 						switch b.flags.SupportedMedia.TypeFromExt(ext) {
-						case metadata.TypeImage:
+						case filetypes.TypeImage:
 							photo = a
 						case metadata.TypeVideo:
 							video = a

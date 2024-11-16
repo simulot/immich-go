@@ -9,15 +9,16 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 type mockedAsset struct {
-	nameInfo  filenames.NameInfo
+	nameInfo  assets.NameInfo
 	dateTaken time.Time
 }
 
-func (m mockedAsset) NameInfo() filenames.NameInfo {
+func (m mockedAsset) NameInfo() assets.NameInfo {
 	return m.nameInfo
 }
 
@@ -27,7 +28,7 @@ func (m mockedAsset) DateTaken() time.Time {
 
 func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *assets.Asset {
 	a := assets.Asset{
-		FileName:    name,
+		File:        fshelper.FSName(nil, name),
 		FileDate:    dateTaken,
 		CaptureDate: dateTaken,
 	}
@@ -37,28 +38,28 @@ func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *a
 
 func sortAssetFn(s []*assets.Asset) func(i, j int) bool {
 	return func(i, j int) bool {
-		if s[i].NameInfo().Radical == s[j].NameInfo().Radical {
-			if s[i].NameInfo().Index == s[j].NameInfo().Index {
-				return s[i].DateTaken().Before(s[j].DateTaken())
+		if s[i].Radical == s[j].Radical {
+			if s[i].Index == s[j].Index {
+				return s[i].CaptureDate.Before(s[j].CaptureDate)
 			}
-			return s[i].NameInfo().Index < s[j].NameInfo().Index
+			return s[i].Index < s[j].Index
 		}
-		return s[i].NameInfo().Radical < s[j].NameInfo().Radical
+		return s[i].Radical < s[j].Radical
 	}
 }
 
 func sortGroupFn(s []*assets.Group) func(i, j int) bool {
 	return func(i, j int) bool {
-		if s[i].Assets[0].NameInfo().Radical == s[j].Assets[0].NameInfo().Radical {
-			return s[i].Assets[0].DateTaken().Before(s[j].Assets[0].DateTaken())
+		if s[i].Assets[0].Radical == s[j].Assets[0].Radical {
+			return s[i].Assets[0].CaptureDate.Before(s[j].Assets[0].CaptureDate)
 		}
-		return s[i].Assets[0].NameInfo().Radical < s[j].Assets[0].NameInfo().Radical
+		return s[i].Assets[0].Radical < s[j].Assets[0].Radical
 	}
 }
 
 func TestGroup(t *testing.T) {
 	ctx := context.Background()
-	ic := filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
 	baseTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 
 	as := []*assets.Asset{

@@ -102,7 +102,7 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 func (ai *AssetIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
 	filename := la.OriginalFileName
 	if path.Ext(filename) == "" {
-		filename += path.Ext(la.FileName)
+		filename += path.Ext(la.File.Name())
 	}
 
 	ID := la.DeviceAssetID()

@@ -5,9 +5,11 @@ import (
 	"strings"
 
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
-	"github.com/simulot/immich-go/internal/metadata"
+
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +38,7 @@ type ImportFolderOptions struct {
 	DateHandlingFlags cliflags.DateHandlingFlags
 
 	// ExifToolFlags specifies options for the exif.
-	ExifToolFlags metadata.ExifToolFlags
+	ExifToolFlags exif.ExifToolFlags
 
 	// IgnoreSideCarFiles indicates whether to ignore XMP files during the import process.
 	IgnoreSideCarFiles bool
@@ -48,7 +50,7 @@ type ImportFolderOptions struct {
 	StackBurstPhotos bool
 
 	// SupportedMedia is the server's actual list of supported media types.
-	SupportedMedia metadata.SupportedMedia
+	SupportedMedia filetypes.SupportedMedia
 
 	// InfoCollector is used to extract information from the file name.
 	InfoCollector *filenames.InfoCollector
@@ -71,7 +73,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 	o.ManageRawJPG = filters.RawJPGNothing
 	o.ManageBurst = filters.BurstNothing
 	o.Recursive = true
-	o.SupportedMedia = metadata.DefaultSupportedMedia
+	o.SupportedMedia = filetypes.DefaultSupportedMedia
 	o.UsePathAsAlbumName = FolderModeNone
 	o.BannedFiles, _ = namematcher.New(
 		`@eaDir/`,
@@ -91,7 +93,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	cliflags.AddDateHandlingFlags(cmd, &o.DateHandlingFlags)
-	metadata.AddExifToolFlags(cmd, &o.ExifToolFlags)
+	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
 
 	if parent != nil && parent.Name() == "upload" {
 		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")

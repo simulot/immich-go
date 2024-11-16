@@ -6,14 +6,15 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/fshelper"
 )
 
-var ic = filenames.NewInfoCollector(time.Local, metadata.DefaultSupportedMedia)
+var ic = filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
 
 func mockAsset(name string) *assets.Asset {
 	a := &assets.Asset{
-		FileName: name,
+		File: fshelper.FSName(nil, name),
 	}
 	a.SetNameInfo(ic.GetInfo(name))
 	return a
@@ -109,8 +110,8 @@ func Test_stackBurstKeepJPEG(t *testing.T) {
 				t.Errorf("expected %v assets, got %v", len(tt.expected.Assets), len(result.Assets))
 			}
 			for i, asset := range result.Assets {
-				if asset.FileName != tt.expected.Assets[i].FileName {
-					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].FileName, asset.FileName)
+				if asset.File.Name() != tt.expected.Assets[i].File.Name() {
+					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].File.Name(), asset.File.Name())
 				}
 			}
 		})
@@ -172,8 +173,8 @@ func Test_groupBurstKeepRaw(t *testing.T) {
 				t.Errorf("expected %v assets, got %v", len(tt.expected.Assets), len(result.Assets))
 			}
 			for i, asset := range result.Assets {
-				if asset.FileName != tt.expected.Assets[i].FileName {
-					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].FileName, asset.FileName)
+				if asset.File.Name() != tt.expected.Assets[i].File.Name() {
+					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].File.Name(), asset.File.Name())
 				}
 			}
 		})

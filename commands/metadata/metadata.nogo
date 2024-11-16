@@ -56,7 +56,7 @@ func MetadataCommand(ctx context.Context, common *cmd.RootImmichFlags, args []st
 
 	type broken struct {
 		a *immich.Asset
-		metadata.Metadata
+		assets.Metadata
 		fixable bool
 		reason  []string
 	}

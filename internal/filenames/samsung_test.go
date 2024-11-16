@@ -4,7 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 func TestSamsung(t *testing.T) {
@@ -12,19 +13,19 @@ func TestSamsung(t *testing.T) {
 		name     string
 		filename string
 		expected bool
-		info     NameInfo
+		info     assets.NameInfo
 	}{
 		{
 			name:     "BURST COVER",
 			filename: "20231207_101605_001.jpg",
 			expected: true,
-			info: NameInfo{
+			info: assets.NameInfo{
 				Radical: "20231207_101605",
 				Base:    "20231207_101605_001.jpg",
 				IsCover: true,
 				Ext:     ".jpg",
-				Type:    metadata.TypeImage,
-				Kind:    KindBurst,
+				Type:    filetypes.TypeImage,
+				Kind:    assets.KindBurst,
 				Index:   1,
 				Taken:   time.Date(2023, 12, 7, 10, 16, 5, 0, time.Local),
 			},
@@ -33,13 +34,13 @@ func TestSamsung(t *testing.T) {
 			name:     "BURST",
 			filename: "20231207_101605_031.jpg",
 			expected: true,
-			info: NameInfo{
+			info: assets.NameInfo{
 				Radical: "20231207_101605",
 				Base:    "20231207_101605_031.jpg",
 				IsCover: false,
 				Ext:     ".jpg",
-				Type:    metadata.TypeImage,
-				Kind:    KindBurst,
+				Type:    filetypes.TypeImage,
+				Kind:    assets.KindBurst,
 				Index:   31,
 				Taken:   time.Date(2023, 12, 7, 10, 16, 5, 0, time.Local),
 			},
@@ -49,13 +50,13 @@ func TestSamsung(t *testing.T) {
 			name:     "InvalidFilename",
 			filename: "IMG_1123.jpg",
 			expected: false,
-			info:     NameInfo{},
+			info:     assets.NameInfo{},
 		},
 	}
 
 	ic := InfoCollector{
 		TZ: time.Local,
-		SM: metadata.DefaultSupportedMedia,
+		SM: filetypes.DefaultSupportedMedia,
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

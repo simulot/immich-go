@@ -33,7 +33,7 @@ func TestReadBigTakeout(t *testing.T) {
 	cnt := 0
 	fsyss, err := fshelper.ParsePath(m)
 	flags := &ImportFlags{
-		SupportedMedia: metadata.DefaultSupportedMedia,
+		SupportedMedia: filetypes.DefaultSupportedMedia,
 	}
 
 	to, err := NewTakeout(context.Background(), j, flags, fsyss...)

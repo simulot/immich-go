@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"golang.org/x/exp/constraints"
 )
 
@@ -32,7 +31,7 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 				return
 			}
 
-			if r := a.NameInfo().Radical; r != currentRadical {
+			if r := a.Radical; r != currentRadical {
 				if len(currentGroup) > 0 {
 					sendGroup(ctx, out, gOut, currentGroup)
 					currentGroup = []*assets.Asset{}
@@ -59,16 +58,16 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 	cover := 0
 	// determine if the group is a burst
 	for i, a := range as {
-		gotJPG = gotJPG || a.NameInfo().Ext == ".jpg"
-		gotRAW = gotRAW || metadata.IsRawFile(a.NameInfo().Ext)
-		gotHEIC = gotHEIC || a.NameInfo().Ext == ".heic" || a.NameInfo().Ext == ".heif"
+		gotJPG = gotJPG || a.Ext == ".jpg"
+		gotRAW = gotRAW || filetypes.IsRawFile(a.Ext)
+		gotHEIC = gotHEIC || a.Ext == ".heic" || a.Ext == ".heif"
 		if grouping == assets.GroupByOther {
-			switch a.NameInfo().Kind {
-			case filenames.KindBurst:
+			switch a.Kind {
+			case assets.KindBurst:
 				grouping = assets.GroupByBurst
 			}
 		}
-		if a.NameInfo().IsCover {
+		if a.IsCover {
 			cover = i
 		}
 	}
@@ -84,8 +83,8 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 		}
 		// check the delay between the two assets, if it's too long, we don't group them
 		if grouping == assets.GroupByRawJpg || grouping == assets.GroupByHeicJpg {
-			d := as[0].DateTaken()
-			if abs(d.Sub(as[1].DateTaken())) > 1*time.Second {
+			d := as[0].CaptureDate
+			if abs(d.Sub(as[1].CaptureDate)) > 1*time.Second {
 				sendAsset(ctx, out, as)
 				return
 			}

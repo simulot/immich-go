@@ -74,8 +74,8 @@ func TestGroupRawJPGKeepRaw(t *testing.T) {
 				t.Errorf("expected %d assets, got %d", len(tt.expected.Assets), len(result.Assets))
 			}
 			for i, asset := range result.Assets {
-				if asset.FileName != tt.expected.Assets[i].FileName {
-					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].FileName, asset.FileName)
+				if asset.File.Name() != tt.expected.Assets[i].File.Name() {
+					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].File.Name(), asset.File.Name())
 				}
 			}
 		})
@@ -110,8 +110,8 @@ func TestGroupRawJPGKeepJPG(t *testing.T) {
 				t.Errorf("expected %d assets, got %d", len(tt.expected.Assets), len(result.Assets))
 			}
 			for i, asset := range result.Assets {
-				if asset.FileName != tt.expected.Assets[i].FileName {
-					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].FileName, asset.FileName)
+				if asset.File.Name() != tt.expected.Assets[i].File.Name() {
+					t.Errorf("expected asset %v, got %v", tt.expected.Assets[i].File.Name(), asset.File.Name())
 				}
 			}
 		})

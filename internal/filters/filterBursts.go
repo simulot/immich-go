@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 type BurstFlag int
@@ -52,7 +52,7 @@ func groupBurstKeepRaw(g *assets.Group) *assets.Group {
 	removedAssets := []*assets.Asset{}
 	keep := 0
 	for _, a := range g.Assets {
-		if metadata.IsRawFile(a.NameInfo().Ext) {
+		if filetypes.IsRawFile(a.Ext) {
 			keep++
 		} else {
 			removedAssets = append(removedAssets, a)
@@ -77,7 +77,7 @@ func stackBurstKeepJPEG(g *assets.Group) *assets.Group {
 	removedAssets := []*assets.Asset{}
 	keep := 0
 	for _, a := range g.Assets {
-		if a.NameInfo().Ext == ".jpg" || a.NameInfo().Ext == ".jpeg" {
+		if a.Ext == ".jpg" || a.Ext == ".jpeg" {
 			keep++
 		} else {
 			removedAssets = append(removedAssets, a)

@@ -26,8 +26,8 @@ type UpCmd struct {
 	adapter       adapters.Reader
 	DebugCounters bool // Enable CSV action counters per file
 
-	Paths  []string                          // Path to explore
-	albums map[string]immich.AlbumSimplified // Albums by title
+	Paths  []string                // Path to explore
+	albums map[string]assets.Album // Albums by title
 
 	takeoutOptions *gp.ImportFlags
 }
@@ -63,7 +63,7 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *appli
 
 func (upCmd *UpCmd) getImmichAlbums(ctx context.Context) error {
 	serverAlbums, err := upCmd.app.Client().Immich.GetAllAlbums(ctx)
-	upCmd.albums = map[string]immich.AlbumSimplified{}
+	upCmd.albums = map[string]assets.Album{}
 	if err != nil {
 		return fmt.Errorf("can't get the album list from the server: %w", err)
 	}
@@ -72,7 +72,7 @@ func (upCmd *UpCmd) getImmichAlbums(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			upCmd.albums[a.AlbumName] = a
+			upCmd.albums[a.Title] = a
 		}
 	}
 	return nil
@@ -155,7 +155,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	// discard rejected assets
 	for _, a := range g.Removed {
 		a.Asset.Close()
-		upCmd.app.Jnl().Record(ctx, fileevent.DiscoveredDiscarded, fileevent.AsFileAndName(a.Asset.FSys, a.Asset.FileName), "reason", a.Reason)
+		upCmd.app.Jnl().Record(ctx, fileevent.DiscoveredDiscarded, a.Asset.File, "reason", a.Reason)
 	}
 
 	// Upload assets from the group
@@ -176,7 +176,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		client := upCmd.app.Client().Immich.(immich.ImmichStackInterface)
 		ids := []string{g.Assets[g.CoverIndex].ID}
 		for i, a := range g.Assets {
-			upCmd.app.Jnl().Record(ctx, fileevent.Stacked, fileevent.AsFileAndName(g.Assets[i].FSys, g.Assets[i].FileName))
+			upCmd.app.Jnl().Record(ctx, fileevent.Stacked, g.Assets[i].File)
 			if i != g.CoverIndex {
 				ids = append(ids, a.ID)
 			}
@@ -239,7 +239,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 		// delete the existing lower quality asset
 		err = upCmd.app.Client().Immich.DeleteAssets(ctx, []string{advice.ServerAsset.ID}, true)
 		if err != nil {
-			upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err.Error())
+			upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err.Error())
 		}
 		return err
 
@@ -251,7 +251,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 				Description: al.Description,
 			})
 		}
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message)
 		err = upCmd.manageAssetTags(ctx, a)
 		if err != nil {
 			return err
@@ -259,7 +259,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", advice.Message)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message)
 		err = upCmd.manageAssetTags(ctx, a)
 		if err != nil {
 			return err
@@ -276,13 +276,13 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 		return err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, fileevent.AsFileAndName(a.FSys, a.FileName), "reason", "the server has this file")
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
 	} else {
-		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, fileevent.AsFileAndName(a.FSys, a.FileName))
+		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a.File)
 	}
 	a.ID = ar.ID
 
@@ -295,7 +295,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 			DateTimeOriginal: a.CaptureDate,
 		})
 		if err != nil {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 			return err
 		}
 	}
@@ -317,21 +317,21 @@ func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *assets.Group) {
 		if !exist {
 			newAl, err := upCmd.app.Client().Immich.CreateAlbum(ctx, title, album.Description, assetIDs)
 			if err != nil {
-				upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err)
+				upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err)
 			}
 			upCmd.albums[title] = newAl
 			l = newAl
 		} else {
 			_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, l.ID, assetIDs)
 			if err != nil {
-				upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.FileAndName{}, "error", err)
+				upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err)
 				return
 			}
 		}
 
 		// Log the action
 		for _, a := range g.Assets {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, fileevent.AsFileAndName(a.FSys, a.FileName), "Album", title)
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, a.File, "Album", title)
 		}
 	}
 }
@@ -342,18 +342,18 @@ func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) error 
 		for _, t := range a.Tags {
 			tags, err := upCmd.app.Client().Immich.UpsertTags(ctx, []string{t.Value})
 			if err != nil {
-				upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+				upCmd.app.Jnl().Record(ctx, fileevent.Error, a.File, "error", err.Error())
 				continue
 			}
 			for _, t := range tags {
 				_, err = upCmd.app.Client().Immich.TagAssets(ctx, t.ID, []string{a.ID})
 				if err != nil {
-					upCmd.app.Jnl().Record(ctx, fileevent.Error, fileevent.AsFileAndName(a.FSys, a.FileName), "error", err.Error())
+					upCmd.app.Jnl().Record(ctx, fileevent.Error, a.File, "error", err.Error())
 				}
 				ss = append(ss, t.Value)
 			}
 		}
-		upCmd.app.Jnl().Record(ctx, fileevent.Tagged, fileevent.AsFileAndName(a.FSys, a.FileName), "tags", ss)
+		upCmd.app.Jnl().Record(ctx, fileevent.Tagged, a.File, "tags", ss)
 	}
 	return nil
 }

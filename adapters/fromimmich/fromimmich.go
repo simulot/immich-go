@@ -4,21 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
-	"strings"
+	"time"
 
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/immichfs"
-	"github.com/simulot/immich-go/internal/metadata"
 )
 
 type FromImmich struct {
 	flags *FromImmichFlags
 	// client *application.Client
 	ifs *immichfs.ImmichFS
+	ic  *filenames.InfoCollector
 
 	mustFetchAlbums bool // True if we need to fetch the asset's albums in 2nd step
 	errCount        int  // Count the number of errors, to stop after 5
@@ -39,6 +39,7 @@ func NewFromImmich(ctx context.Context, jnl *fileevent.Recorder, flags *FromImmi
 	f := FromImmich{
 		flags: flags,
 		ifs:   ifs,
+		ic:    filenames.NewInfoCollector(time.Local, client.Immich.SupportedMedia()),
 	}
 	return &f, nil
 }
@@ -99,7 +100,7 @@ func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *asse
 	}
 	for _, album := range albums {
 		for _, albumName := range f.flags.Albums {
-			if album.AlbumName == albumName {
+			if album.Title == albumName {
 				al, err := f.flags.client.Immich.GetAlbumInfo(ctx, album.ID, false)
 				if err != nil {
 					return f.logError(err)
@@ -107,12 +108,12 @@ func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *asse
 				for _, a := range al.Assets {
 					if _, ok := assets[a.ID]; !ok {
 						a.Albums = append(a.Albums, immich.AlbumSimplified{
-							AlbumName: album.AlbumName,
+							AlbumName: album.Title,
 						})
 						assets[a.ID] = a
 					} else {
 						assets[a.ID].Albums = append(assets[a.ID].Albums, immich.AlbumSimplified{
-							AlbumName: album.AlbumName,
+							AlbumName: album.Title,
 						})
 					}
 				}
@@ -139,7 +140,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		return nil
 	}
 
-	simplifiedAlbums := a.Albums
+	simplifiedAlbums := immich.AlbumsFromAlbumSimplified(a.Albums)
 
 	if f.mustFetchAlbums && len(simplifiedAlbums) == 0 {
 		simplifiedAlbums, err = f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
@@ -149,10 +150,10 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	}
 	if len(f.flags.Albums) > 0 && len(simplifiedAlbums) > 0 {
 		keepMe := false
-		newAlbumList := []immich.AlbumSimplified{}
+		newAlbumList := []assets.Album{}
 		for _, album := range f.flags.Albums {
 			for _, aAlbum := range simplifiedAlbums {
-				if album == aAlbum.AlbumName {
+				if album == aAlbum.Title {
 					keepMe = true
 					newAlbumList = append(newAlbumList, aAlbum)
 				}
@@ -171,18 +172,23 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	if err != nil {
 		return f.logError(err)
 	}
-	a.Albums = simplifiedAlbums
 	asset := a.AsAsset()
-	ext := path.Ext(asset.FileName)
-	asset.SetNameInfo(filenames.NameInfo{
-		Base:    a.OriginalFileName,
-		Ext:     ext,
-		Radical: strings.TrimSuffix(asset.FileName, ext),
-		Type:    metadata.DefaultSupportedMedia.TypeFromExt(ext),
-		Taken:   asset.CaptureDate,
-	})
-	asset.FSys = f.ifs
-	asset.FileName = a.ID
+	asset.SetNameInfo(f.ic.GetInfo(asset.OriginalFileName))
+	asset.File = fshelper.FSName(f.ifs, a.ID)
+
+	asset.FromApplication = &assets.Metadata{
+		File:        fshelper.FSName(f.ifs, a.OriginalFileName),
+		Latitude:    a.ExifInfo.Latitude,
+		Longitude:   a.ExifInfo.Longitude,
+		Description: a.ExifInfo.Description,
+		DateTaken:   a.ExifInfo.DateTimeOriginal.Time,
+		Trashed:     a.IsTrashed,
+		Archived:    a.IsArchived,
+		Favorited:   a.IsFavorite,
+		Rating:      byte(a.Rating),
+		Albums:      simplifiedAlbums,
+		Tags:        asset.Tags,
+	}
 
 	if f.flags.MinimalRating > 0 && a.Rating < f.flags.MinimalRating {
 		return nil

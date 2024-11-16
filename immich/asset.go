@@ -148,7 +148,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 			return
 		}
 
-		if la.SideCar.IsSet() {
+		if la.FromSideCar != nil && strings.ToLower(la.FromSideCar.File.Name()) == ".xmp" {
 			scName := path.Base(la.OriginalFileName) + ".xmp"
 			h.Set("Content-Disposition",
 				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
@@ -160,7 +160,9 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 			if err != nil {
 				return
 			}
-			err = la.SideCar.Write(part)
+			defer f.Close()
+			f, err = la.FromSideCar.File.Open()
+			_, err = io.Copy(part, f)
 			if err != nil {
 				return
 			}
@@ -170,10 +172,10 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 	var callValues map[string]string
 	if ic.apiTraceWriter != nil {
 		callValues = map[string]string{
-			ctxAssetName: la.FileName,
+			ctxAssetName: la.File.Name(),
 		}
-		if la.SideCar.IsSet() {
-			callValues[ctxSideCarName] = la.SideCar.FileName
+		if la.FromSideCar != nil {
+			callValues[ctxSideCarName] = la.FromSideCar.File.Name()
 		}
 	}
 

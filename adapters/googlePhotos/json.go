@@ -7,7 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/tzone"
 )
 
@@ -71,8 +72,8 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 	)
 }
 
-func (gmd GoogleMetaData) AsMetadata() *metadata.Metadata {
-	md := metadata.Metadata{
+func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName) *assets.Metadata {
+	md := assets.Metadata{
 		FileName:    gmd.Title,
 		Description: gmd.Description,
 		Trashed:     gmd.Trashed,

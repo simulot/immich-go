@@ -5,14 +5,14 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/simulot/immich-go/internal/metadata"
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 // normalMatch
 //
 //	PXL_20230922_144936660.jpg.json
 //	PXL_20230922_144936660.jpg
-func normalMatch(jsonName string, fileName string, sm metadata.SupportedMedia) bool {
+func normalMatch(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	return base == fileName
 }
@@ -24,7 +24,7 @@ func normalMatch(jsonName string, fileName string, sm metadata.SupportedMedia) b
 // PXL_20231118_035751175.MP.jpg.json
 // PXL_20231118_035751175.MP.jpg
 // PXL_20231118_035751175.MP
-func livePhotoMatch(jsonName string, fileName string, sm metadata.SupportedMedia) bool {
+func livePhotoMatch(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
 	fileExt := path.Ext(fileName)
 	fileName = strings.TrimSuffix(fileName, fileExt)
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
@@ -47,7 +47,7 @@ func livePhotoMatch(jsonName string, fileName string, sm metadata.SupportedMedia
 //  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json
 //  😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg
 
-func matchWithOneCharOmitted(jsonName string, fileName string, sm metadata.SupportedMedia) bool {
+func matchWithOneCharOmitted(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
 	baseJSON := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	ext := path.Ext(baseJSON)
 	if sm.IsExtensionPrefix(ext) {
@@ -70,7 +70,7 @@ func matchWithOneCharOmitted(jsonName string, fileName string, sm metadata.Suppo
 //
 //	Backyard_ceremony_wedding_photography_xxxxxxx_(494).json
 //	Backyard_ceremony_wedding_photography_xxxxxxx_m(494).jpg
-func matchVeryLongNameWithNumber(jsonName string, fileName string, sm metadata.SupportedMedia) bool {
+func matchVeryLongNameWithNumber(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 
 	p1JSON := strings.Index(jsonName, "(")
@@ -99,7 +99,7 @@ func matchVeryLongNameWithNumber(jsonName string, fileName string, sm metadata.S
 //
 
 // Fast implementation, but does't work with live photos
-func matchDuplicateInYear(jsonName string, fileName string, sm metadata.SupportedMedia) bool {
+func matchDuplicateInYear(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	p1JSON := strings.Index(jsonName, "(")
 	if p1JSON < 1 {
@@ -168,7 +168,7 @@ func matchDuplicateInYear(jsonName string, fileName string, sm immich.SupportedM
 //   PXL_20220405_090123740.PORTRAIT.jpg
 //   PXL_20220405_090123740.PORTRAIT-modifié.jpg
 
-func matchEditedName(jsonName string, fileName string, sm metadata.SupportedMedia) bool {
+func matchEditedName(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	ext := path.Ext(base)
 	if ext != "" && sm.IsMedia(ext) {
@@ -186,7 +186,7 @@ func matchEditedName(jsonName string, fileName string, sm metadata.SupportedMedi
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P.jpg
 // original_1d4caa6f-16c6-4c3d-901b-9387de10e528_P(1).jpg
 
-func matchForgottenDuplicates(jsonName string, fileName string, sm metadata.SupportedMedia) bool {
+func matchForgottenDuplicates(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
 	if strings.HasPrefix(fileName, jsonName) {
