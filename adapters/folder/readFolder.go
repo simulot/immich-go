@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -88,6 +89,7 @@ func (la *LocalAssetBrowser) concurrentParseDir(ctx context.Context, fsys fs.FS,
 		defer la.wg.Done()
 		err := la.parseDir(ctx, fsys, dir, gOut)
 		if err != nil {
+			la.log.Log().Error(err.Error())
 			cancel(err)
 		}
 	})
@@ -115,7 +117,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 	for _, entry := range entries {
 		base := entry.Name()
-		name := filepath.Join(dir, base)
+		name := path.Join(dir, base)
 		if entry.IsDir() {
 			continue
 		}
@@ -176,7 +178,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 	// process the left over dirs
 	for _, entry := range entries {
 		base := entry.Name()
-		name := filepath.Join(dir, base)
+		name := path.Join(dir, base)
 		if entry.IsDir() {
 			if la.flags.BannedFiles.Match(name) {
 				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "banned folder")
