@@ -55,14 +55,17 @@ func TestExifTool_ReadMetaData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			et, err := NewExifTool(&ExifToolFlags{
-				Timezone: tzone.Timezone{TZ: time.Local},
-			})
+			flag := &ExifToolFlags{
+				UseExifTool: true,
+				Timezone:    tzone.Timezone{TZ: time.Local},
+			}
+			err := NewExifTool(flag)
 			if err != nil {
 				t.Error(err)
 				return
 			}
-			got, err := et.ReadMetaData(tt.fileName)
+			got := assets.Metadata{}
+			err = flag.et.ReadMetaData(tt.fileName, &got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExifTool.ReadMetaData() error = %v, wantErr %v", err, tt.wantErr)
 				return

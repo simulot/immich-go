@@ -18,5 +18,7 @@ func Write(md *assets.Metadata, w io.Writer) error {
 		Software: application.GetVersion(),
 		Metadata: *md,
 	}
-	return json.NewEncoder(w).Encode(v)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
 }
