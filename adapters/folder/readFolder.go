@@ -1,6 +1,7 @@
 package folder
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/fs"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif"
+	"github.com/simulot/immich-go/internal/exif/sidecars/xmpsidecar"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -214,36 +216,32 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "can't get the capture date")
 					continue
 				}
-				if !la.flags.InclusionFlags.DateRange.InRange(md.DateTaken) {
-					a.Close()
-					la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
-					continue
-				}
 				a.FromSourceFile = a.UseMetadata(md)
 			}
 
-			// check the presence of an XMP file
+			// check the presence of a XMP file
 			if b, xmpName := detectXMP(fsys, a.File.Name()); b {
-				_ = xmpName
-				panic("implement me")
-				// buf, err := fs.ReadFile(fsys, xmpName)
-				// if err != nil {
-				// 	la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
-				// } else {
-				// if bytes.Contains(buf, []byte("<immichgo:ImmichGoProperties>")) {
-				// 	// found immich-go specific
-				// 	err = xmp.ReadXMP(a, bytes.NewReader(buf))
-				// 	if err != nil {
-				// 		la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
-				// 	}
-				// } else {
-				// 	a.SideCar = metadata.SideCarFile{
-				// 		FSys:     fsys,
-				// 		FileName: xmpName,
-				// 	}
-				// }
-				// }
+				buf, err := fs.ReadFile(fsys, xmpName)
+				if err != nil {
+					la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
+				} else {
+					md := &assets.Metadata{}
+					err = xmpsidecar.ReadXMP(bytes.NewReader(buf), md)
+					if err != nil {
+						la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
+					} else {
+						a.FromSideCar = a.UseMetadata(md)
+						a.FromSideCar.File = fshelper.FSName(fsys, xmpName)
+					}
+				}
 			}
+
+			if !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
+				a.Close()
+				la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
+				continue
+			}
+
 			select {
 			case in <- a:
 			case <-ctx.Done():

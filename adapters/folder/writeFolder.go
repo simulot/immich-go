@@ -10,6 +10,7 @@ import (
 	"path"
 
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
@@ -79,9 +80,11 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		default:
 			// write the asset
 			err = fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
-
+			if err != nil {
+				return err
+			}
 			// XMP?
-			if err == nil && a.FromSideCar != nil {
+			if a.FromSideCar != nil {
 				// Sidecar file is set, copy it
 				var scr fs.File
 				scr, err = a.FromSideCar.File.Open()
@@ -90,13 +93,25 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 				}
 				defer scr.Close()
 				var scw fshelper.WFile
-				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, path.Base(a.FromSideCar.File.Name())), os.O_RDWR|os.O_CREATE, 0o644)
+				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".XMP"), os.O_RDWR|os.O_CREATE, 0o644)
 				if err != nil {
 					return err
 				}
-				defer scw.Close()
 				_, err = io.Copy(scw, scr)
+				scw.Close()
 			}
+
+			// For a Application or immich-go JSON?
+			if a.FromApplication != nil {
+				var scw fshelper.WFile
+				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".JSON"), os.O_RDWR|os.O_CREATE, 0o644)
+				if err != nil {
+					return err
+				}
+				err = jsonsidecar.Write(a.FromApplication, scw)
+				scw.Close()
+			}
+
 			return err
 		}
 	}
