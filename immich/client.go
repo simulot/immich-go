@@ -207,6 +207,7 @@ func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (filetypes.S
 		}
 	}
 	sm[".mp"] = filetypes.TypeVideo
+	sm[".json"] = filetypes.TypeSidecar
 	return sm, err
 }
 

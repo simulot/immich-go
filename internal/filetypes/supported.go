@@ -22,8 +22,9 @@ var DefaultSupportedMedia = SupportedMedia{
 	".fff": TypeImage, ".gif": TypeImage, ".heic": TypeImage, ".heif": TypeImage, ".hif": TypeImage, ".iiq": TypeImage, ".insp": TypeImage, ".jpe": TypeImage, ".jpeg": TypeImage, ".jpg": TypeImage,
 	".jxl": TypeImage, ".k25": TypeImage, ".kdc": TypeImage, ".mrw": TypeImage, ".nef": TypeImage, ".orf": TypeImage, ".ori": TypeImage, ".pef": TypeImage, ".png": TypeImage, ".psd": TypeImage, ".raf": TypeImage, ".raw": TypeImage, ".rw2": TypeImage,
 	".rwl": TypeImage, ".sr2": TypeImage, ".srf": TypeImage, ".srw": TypeImage, ".tif": TypeImage, ".tiff": TypeImage, ".webp": TypeImage, ".x3f": TypeImage,
-	".xmp": TypeSidecar,
-	".mp":  TypeVideo,
+	".xmp":  TypeSidecar,
+	".json": TypeSidecar,
+	".mp":   TypeVideo,
 }
 
 func (sm SupportedMedia) TypeFromName(name string) string {

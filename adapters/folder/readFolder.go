@@ -13,6 +13,7 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif"
+	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
 	"github.com/simulot/immich-go/internal/exif/sidecars/xmpsidecar"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
@@ -220,18 +221,37 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 
 			// check the presence of a XMP file
-			if b, xmpName := detectXMP(fsys, a.File.Name()); b {
+			xmpName, err := checkExistSideCar(fsys, a.File.Name(), ".xmp")
+			if err == nil && xmpName != "" {
 				buf, err := fs.ReadFile(fsys, xmpName)
 				if err != nil {
-					la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
+					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 				} else {
 					md := &assets.Metadata{}
 					err = xmpsidecar.ReadXMP(bytes.NewReader(buf), md)
 					if err != nil {
-						la.log.Record(ctx, fileevent.Error, a, "error", err.Error())
+						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 					} else {
+						md.File = fshelper.FSName(fsys, xmpName)
 						a.FromSideCar = a.UseMetadata(md)
-						a.FromSideCar.File = fshelper.FSName(fsys, xmpName)
+					}
+				}
+			}
+
+			// check the presence of a JSON file
+			jsonName, err := checkExistSideCar(fsys, a.File.Name(), ".json")
+			if err == nil && jsonName != "" {
+				buf, err := fs.ReadFile(fsys, jsonName)
+				if err != nil {
+					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+				} else {
+					md := &assets.Metadata{}
+					err = jsonsidecar.Read(bytes.NewReader(buf), md)
+					if err != nil {
+						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+					} else {
+						md.File = fshelper.FSName(fsys, jsonName)
+						a.FromApplication = a.UseMetadata(md)
 					}
 				}
 			}
@@ -294,31 +314,39 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 	return nil
 }
 
-func detectXMP(fsys fs.FS, name string) (bool, string) {
-	xmp := name + ".xmp"
-	_, err := fshelper.Stat(fsys, xmp)
-	if err == nil {
-		return true, xmp
-	}
-	xmp = name + ".XMP"
-	_, err = fshelper.Stat(fsys, xmp)
-	if err == nil {
-		return true, xmp
+func checkExistSideCar(fsys fs.FS, name string, ext string) (string, error) {
+	ext2 := ""
+	for _, r := range ext {
+		if r == '.' {
+			ext2 += "."
+			continue
+		}
+		ext2 += "[" + strings.ToLower(string(r)) + strings.ToUpper(string(r)) + "]"
 	}
 
-	name = strings.TrimSuffix(name, filepath.Ext(name))
-	xmp = name + ".xmp"
-	_, err = fshelper.Stat(fsys, xmp)
-	if err == nil {
-		return true, xmp
+	base := name
+	l, err := fs.Glob(fsys, base+ext2)
+	if err != nil {
+		return "", err
 	}
-	xmp = name + ".XMP"
-	_, err = fshelper.Stat(fsys, xmp)
-	if err == nil {
-		return true, xmp
+	if len(l) > 0 {
+		return l[0], nil
 	}
 
-	return false, ""
+	ext = path.Ext(base)
+	if !filetypes.DefaultSupportedMedia.IsMedia(ext) {
+		return "", nil
+	}
+	base = strings.TrimSuffix(base, ext)
+
+	l, err = fs.Glob(fsys, base+ext2)
+	if err != nil {
+		return "", err
+	}
+	if len(l) > 0 {
+		return l[0], nil
+	}
+	return "", nil
 }
 
 func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {
