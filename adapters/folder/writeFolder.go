@@ -93,7 +93,7 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 				}
 				defer scr.Close()
 				var scw fshelper.WFile
-				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".XMP"), os.O_RDWR|os.O_CREATE, 0o644)
+				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".XMP"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 				if err != nil {
 					return err
 				}
@@ -104,7 +104,7 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 			// For a Application or immich-go JSON?
 			if a.FromApplication != nil {
 				var scw fshelper.WFile
-				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".JSON"), os.O_RDWR|os.O_CREATE, 0o644)
+				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".JSON"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 				if err != nil {
 					return err
 				}

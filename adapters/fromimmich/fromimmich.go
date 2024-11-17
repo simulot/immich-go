@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -24,9 +25,9 @@ type FromImmich struct {
 	errCount        int  // Count the number of errors, to stop after 5
 }
 
-func NewFromImmich(ctx context.Context, jnl *fileevent.Recorder, flags *FromImmichFlags) (*FromImmich, error) {
-	client := flags.client
-	err := client.Initialize(ctx, jnl.Log())
+func NewFromImmich(ctx context.Context, app *application.Application, jnl *fileevent.Recorder, flags *FromImmichFlags) (*FromImmich, error) {
+	client := &flags.client
+	err := client.Initialize(ctx, app)
 	if err != nil {
 		return nil, err
 	}
