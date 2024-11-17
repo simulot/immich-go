@@ -31,17 +31,17 @@ func (l *Asset) DeviceAssetID() string {
 // TODO: possible optimization: when the file is a plain file, do not copy it into a temporary file
 // TODO: use user temp folder
 
-func (l *Asset) PartialSourceReader() (reader io.Reader, err error) {
+func (l *Asset) PartialSourceReader() (reader io.Reader, tmpName string, err error) {
 	if l.sourceFile == nil {
 		l.sourceFile, err = l.File.Open()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 	if l.tempFile == nil {
 		l.tempFile, err = os.CreateTemp("", "immich-go_*.tmp")
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if l.teeReader == nil {
 			l.teeReader = io.TeeReader(l.sourceFile, l.tempFile)
@@ -49,9 +49,9 @@ func (l *Asset) PartialSourceReader() (reader io.Reader, err error) {
 	}
 	_, err = l.tempFile.Seek(0, 0)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return io.MultiReader(l.tempFile, l.teeReader), nil
+	return io.MultiReader(l.tempFile, l.teeReader), l.tempFile.Name(), nil
 }
 
 // Open return fs.File that reads previously read bytes followed by the actual file content.

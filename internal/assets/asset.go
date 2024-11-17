@@ -90,9 +90,6 @@ type NameInfo struct {
 
 func (a *Asset) SetNameInfo(ni NameInfo) {
 	a.NameInfo = ni
-	if a.CaptureDate.IsZero() {
-		a.CaptureDate = ni.Taken
-	}
 }
 
 func (a *Asset) UseMetadata(md *Metadata) *Metadata {
