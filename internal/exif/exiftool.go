@@ -13,7 +13,7 @@ type ExifTool struct {
 	eTool *etool.Exiftool
 }
 
-func NewExifTool(flags *ExifToolFlags) (*ExifTool, error) {
+func NewExifTool(flags *ExifToolFlags) error {
 	opts := []func(*etool.Exiftool) error{
 		etool.Charset("filename=utf8"),
 		etool.CoordFormant("%+.7f"),
@@ -27,13 +27,13 @@ func NewExifTool(flags *ExifToolFlags) (*ExifTool, error) {
 
 	tool, err := etool.NewExiftool(opts...)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	et := ExifTool{
+	flags.et = &ExifTool{
 		eTool: tool,
 		flags: flags,
 	}
-	return &et, nil
+	return nil
 }
 
 func (et *ExifTool) Close() error {
@@ -76,19 +76,22 @@ var dateKeys = []struct {
 // GPS Date/Time                   : 2023:10:06 06:29:56Z
 // ```
 
-func (et *ExifTool) ReadMetaData(fileName string) (*assets.Metadata, error) {
+// ReadMetaData reads the metadata of the file and fills the metadata structure
+func (et *ExifTool) ReadMetaData(fileName string, md *assets.Metadata) error {
 	ms := et.eTool.ExtractMetadata(fileName)
 	if len(ms) != 1 {
-		return nil, fmt.Errorf("cant extract metadata from file '%s': unexpected exif-tool result", fileName)
+		return fmt.Errorf("cant extract metadata from file '%s': unexpected exif-tool result", fileName)
 	}
 	m := ms[0]
 	if m.Err != nil {
-		return nil, fmt.Errorf("cant extract metadata from file '%s': %w", fileName, m.Err)
+		return fmt.Errorf("cant extract metadata from file '%s': %w", fileName, m.Err)
 	}
-	md := assets.Metadata{}
-
-	md.Latitude, _ = m.GetFloat("GPSLatitude")
-	md.Longitude, _ = m.GetFloat("GPSLongitude")
+	if v, err := m.GetFloat("GPSLatitude"); err == nil {
+		md.Latitude = v
+	}
+	if v, err := m.GetFloat("GPSLongitude"); err == nil {
+		md.Longitude = v
+	}
 
 	// get the date of capture using preferred exif tag
 	for _, dk := range dateKeys {
@@ -107,5 +110,5 @@ func (et *ExifTool) ReadMetaData(fileName string) (*assets.Metadata, error) {
 			}
 		}
 	}
-	return &md, nil
+	return nil
 }
