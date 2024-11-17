@@ -1,15 +1,15 @@
 package exif
 
 import (
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/tzone"
 )
 
-func TestExifTool_ReadMetaData(t *testing.T) {
+func Test_MetadataFromDirectRead(t *testing.T) {
 	tests := []struct {
 		name     string
 		fileName string
@@ -55,14 +55,13 @@ func TestExifTool_ReadMetaData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			et, err := NewExifTool(&ExifToolFlags{
-				Timezone: tzone.Timezone{TZ: time.Local},
-			})
+			f, err := os.Open(tt.fileName)
 			if err != nil {
-				t.Error(err)
+				t.Errorf("Can't open file %s: %v", tt.fileName, err)
 				return
 			}
-			got, err := et.ReadMetaData(tt.fileName)
+			defer f.Close()
+			got, err := MetadataFromDirectRead(f, time.Local)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExifTool.ReadMetaData() error = %v, wantErr %v", err, tt.wantErr)
 				return
