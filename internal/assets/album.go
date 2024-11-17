@@ -5,7 +5,7 @@ import (
 )
 
 type Album struct {
-	ID          string  `json:"id,omitempty"`          // The album ID
+	ID          string  `json:"-"`                     // The album ID
 	Title       string  `json:"title,omitempty"`       // either the directory base name, or metadata
 	Description string  `json:"description,omitempty"` // As found in the metadata
 	Latitude    float64 `json:"latitude,omitempty"`    // As found in the metadata
