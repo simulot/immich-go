@@ -8,19 +8,19 @@ import (
 )
 
 type Metadata struct {
-	File        fshelper.FSAndName // File name and file system that holds the metadata. Could be empty
-	FileName    string             // File name as presented to users
-	Latitude    float64            // GPS
-	Longitude   float64            // GPS
-	DateTaken   time.Time          // Date of exposure
-	Description string             // Long description
-	Albums      []Album            // Used to list albums that contain the file
-	Tags        []Tag              // Used to list tags
-	Rating      byte               // 0 to 5
-	Trashed     bool               // Flag to indicate if the image has been trashed
-	Archived    bool               // Flag to indicate if the image has been archived
-	Favorited   bool               // Flag to indicate if the image has been favorited
-	FromPartner bool               // Flag to indicate if the image is from a partner
+	File        fshelper.FSAndName `json:"file"`        // File name and file system that holds the metadata. Could be empty
+	FileName    string             `json:"fileName"`    // File name as presented to users
+	Latitude    float64            `json:"latitude"`    // GPS
+	Longitude   float64            `json:"longitude"`   // GPS
+	DateTaken   time.Time          `json:"dateTaken"`   // Date of exposure
+	Description string             `json:"description"` // Long description
+	Albums      []Album            `json:"albums"`      // Used to list albums that contain the file
+	Tags        []Tag              `json:"tags"`        // Used to list tags
+	Rating      byte               `json:"rating"`      // 0 to 5
+	Trashed     bool               `json:"trashed"`     // Flag to indicate if the image has been trashed
+	Archived    bool               `json:"archived"`    // Flag to indicate if the image has been archived
+	Favorited   bool               `json:"favorited"`   // Flag to indicate if the image has been favorited
+	FromPartner bool               `json:"fromPartner"` // Flag to indicate if the image is from a partner
 }
 
 func (m Metadata) LogValue() slog.Value {
