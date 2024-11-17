@@ -140,19 +140,19 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		return nil
 	}
 
-	simplifiedAlbums := immich.AlbumsFromAlbumSimplified(a.Albums)
+	albums := immich.AlbumsFromAlbumSimplified(a.Albums)
 
-	if f.mustFetchAlbums && len(simplifiedAlbums) == 0 {
-		simplifiedAlbums, err = f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
+	if f.mustFetchAlbums && len(albums) == 0 {
+		albums, err = f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
 		if err != nil {
 			return f.logError(err)
 		}
 	}
-	if len(f.flags.Albums) > 0 && len(simplifiedAlbums) > 0 {
+	if len(f.flags.Albums) > 0 && len(albums) > 0 {
 		keepMe := false
 		newAlbumList := []assets.Album{}
 		for _, album := range f.flags.Albums {
-			for _, aAlbum := range simplifiedAlbums {
+			for _, aAlbum := range albums {
 				if album == aAlbum.Title {
 					keepMe = true
 					newAlbumList = append(newAlbumList, aAlbum)
@@ -162,7 +162,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		if !keepMe {
 			return nil
 		}
-		simplifiedAlbums = newAlbumList
+		albums = newAlbumList
 	}
 
 	// Some information are missing in the metadata result,
@@ -177,7 +177,6 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	asset.File = fshelper.FSName(f.ifs, a.ID)
 
 	asset.FromApplication = &assets.Metadata{
-		File:        fshelper.FSName(f.ifs, a.OriginalFileName),
 		Latitude:    a.ExifInfo.Latitude,
 		Longitude:   a.ExifInfo.Longitude,
 		Description: a.ExifInfo.Description,
@@ -186,7 +185,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		Archived:    a.IsArchived,
 		Favorited:   a.IsFavorite,
 		Rating:      byte(a.Rating),
-		Albums:      simplifiedAlbums,
+		Albums:      albums,
 		Tags:        asset.Tags,
 	}
 
