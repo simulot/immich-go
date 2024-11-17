@@ -16,6 +16,7 @@ import (
 	"github.com/simulot/immich-go/commands/application"
 	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -114,8 +115,9 @@ func TestInMemLocalAssets(t *testing.T) {
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "Database/", `._*.*`, `._*.*`),
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				DateHandlingFlags: cliflags.DateHandlingFlags{
-					Method: cliflags.DateMethodNone,
+				ExifToolFlags: exif.ExifToolFlags{
+					UseExifTool: false,
+					DateMethod:  cliflags.DateMethodNone,
 				},
 				InclusionFlags: cliflags.InclusionFlags{},
 				InfoCollector:  ic,
@@ -160,9 +162,11 @@ func TestInMemLocalAssets(t *testing.T) {
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				DateHandlingFlags: cliflags.DateHandlingFlags{
-					Method: cliflags.DateMethodNone,
+				ExifToolFlags: exif.ExifToolFlags{
+					UseExifTool: false,
+					DateMethod:  cliflags.DateMethodNone,
 				},
+
 				InclusionFlags: cliflags.InclusionFlags{
 					ExcludedExtensions: cliflags.ExtensionList{".cr3"},
 				},
@@ -197,9 +201,11 @@ func TestInMemLocalAssets(t *testing.T) {
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				DateHandlingFlags: cliflags.DateHandlingFlags{
-					Method: cliflags.DateMethodNone,
+				ExifToolFlags: exif.ExifToolFlags{
+					UseExifTool: false,
+					DateMethod:  cliflags.DateMethodNone,
 				},
+
 				InclusionFlags: cliflags.InclusionFlags{
 					IncludedExtensions: cliflags.ExtensionList{".cr3"},
 				},
@@ -232,9 +238,11 @@ func TestInMemLocalAssets(t *testing.T) {
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				DateHandlingFlags: cliflags.DateHandlingFlags{
-					Method: cliflags.DateMethodNone,
+				ExifToolFlags: exif.ExifToolFlags{
+					UseExifTool: false,
+					DateMethod:  cliflags.DateMethodNone,
 				},
+
 				InclusionFlags: cliflags.InclusionFlags{},
 				Recursive:      true,
 				InfoCollector:  ic,
@@ -263,12 +271,12 @@ func TestInMemLocalAssets(t *testing.T) {
 			name: "date in range",
 			flags: ImportFolderOptions{
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				DateHandlingFlags: cliflags.DateHandlingFlags{
-					Method: cliflags.DateMethodName,
-					FilenameTimeZone: tzone.Timezone{
-						TZ: time.Local,
-					},
+				ExifToolFlags: exif.ExifToolFlags{
+					UseExifTool: false,
+					DateMethod:  cliflags.DateMethodName,
+					Timezone:    tzone.Timezone{TZ: time.Local},
 				},
+
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange("2023-08"),
 				},
@@ -300,8 +308,9 @@ func TestInMemLocalAssets(t *testing.T) {
 				UsePathAsAlbumName:     FolderModePath,
 				AlbumNamePathSeparator: " ¤ ",
 				InclusionFlags:         cliflags.InclusionFlags{},
-				DateHandlingFlags: cliflags.DateHandlingFlags{
-					Method: cliflags.DateMethodNone,
+				ExifToolFlags: exif.ExifToolFlags{
+					UseExifTool: false,
+					DateMethod:  cliflags.DateMethodNone,
 				},
 				Recursive:     true,
 				InfoCollector: ic,
@@ -340,8 +349,9 @@ func TestInMemLocalAssets(t *testing.T) {
 				UsePathAsAlbumName:     FolderModeFolder,
 				AlbumNamePathSeparator: " ¤ ",
 				InclusionFlags:         cliflags.InclusionFlags{},
-				DateHandlingFlags: cliflags.DateHandlingFlags{
-					Method: cliflags.DateMethodNone,
+				ExifToolFlags: exif.ExifToolFlags{
+					UseExifTool: false,
+					DateMethod:  cliflags.DateMethodNone,
 				},
 				Recursive:     true,
 				InfoCollector: ic,

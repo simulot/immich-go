@@ -28,7 +28,6 @@ type LocalAssetBrowser struct {
 	fsyss    []fs.FS
 	log      *fileevent.Recorder
 	flags    *ImportFolderOptions
-	exiftool *exif.ExifTool
 	pool     *worker.Pool
 	wg       sync.WaitGroup
 	groupers []groups.Grouper
@@ -46,15 +45,15 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 		pool:  worker.NewPool(3), // TODO: Make this configurable
 	}
 	if flags.InfoCollector == nil {
-		flags.InfoCollector = filenames.NewInfoCollector(flags.DateHandlingFlags.FilenameTimeZone.Location(), flags.SupportedMedia)
+		flags.InfoCollector = filenames.NewInfoCollector(flags.ExifToolFlags.Timezone.TZ, flags.SupportedMedia)
 	}
 
 	if flags.ExifToolFlags.UseExifTool {
-		et, err := exif.NewExifTool(&flags.ExifToolFlags)
+		err := exif.NewExifTool(&flags.ExifToolFlags)
 		if err != nil {
 			return nil, err
 		}
-		la.exiftool = et
+
 	}
 
 	if flags.ManageEpsonFastFoto {
@@ -207,10 +206,20 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		})
 
 		for _, a := range as {
-			if la.flags.InclusionFlags.DateRange.IsSet() && !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
-				a.Close()
-				la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
-				continue
+			if la.flags.InclusionFlags.DateRange.IsSet() {
+				md := &assets.Metadata{}
+				err := exif.GetMetaData(a, md, la.flags.ExifToolFlags)
+				if err != nil {
+					a.Close()
+					la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "can't get the capture date")
+					continue
+				}
+				if !la.flags.InclusionFlags.DateRange.InRange(md.DateTaken) {
+					a.Close()
+					la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
+					continue
+				}
+				a.FromSourceFile = a.UseMetadata(md)
 			}
 
 			// check the presence of an XMP file
@@ -319,23 +328,6 @@ func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name s
 		File:             fshelper.FSName(fsys, name),
 		OriginalFileName: filepath.Base(name),
 	}
-	a.SetNameInfo(la.flags.InfoCollector.GetInfo(a.OriginalFileName))
-	f, err := a.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	md, err := exif.GetMetaData(f, exif.ReadMetadataOptions{
-		ExifTool:     la.exiftool,
-		ExifTimezone: la.flags.ExifToolFlags.Timezone.Location(),
-	})
-	if err != nil {
-		a.Close()
-		return nil, err
-	}
-
-	a.FromSourceFile = a.UseMetadata(md)
 	i, err := fs.Stat(fsys, name)
 	if err != nil {
 		a.Close()
@@ -343,6 +335,6 @@ func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name s
 	}
 	a.FileSize = int(i.Size())
 	a.FileDate = i.ModTime()
-
+	a.SetNameInfo(la.flags.InfoCollector.GetInfo(a.OriginalFileName))
 	return a, nil
 }

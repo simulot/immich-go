@@ -34,9 +34,6 @@ type ImportFolderOptions struct {
 	// InclusionFlags controls the file extensions to be included in the import process.
 	InclusionFlags cliflags.InclusionFlags
 
-	// DateHandlingFlags provides options for handling the capture date of the assets.
-	DateHandlingFlags cliflags.DateHandlingFlags
-
 	// ExifToolFlags specifies options for the exif.
 	ExifToolFlags exif.ExifToolFlags
 
@@ -92,7 +89,6 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 	cmd.Flags().BoolVar(&o.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
-	cliflags.AddDateHandlingFlags(cmd, &o.DateHandlingFlags)
 	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
 
 	if parent != nil && parent.Name() == "upload" {

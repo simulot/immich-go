@@ -545,17 +545,7 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileev
 		return fileevent.DiscoveredDiscarded
 	}
 	if a.CaptureDate.IsZero() {
-		// wasn't associated
-		f, err := a.File.Open()
-		if err != nil {
-			to.logMessage(ctx, fileevent.Error, a, err.Error())
-			return fileevent.Error
-		}
-		defer f.Close()
-		md, err := exif.GetMetaData(f, exif.ReadMetadataOptions{
-			ExifTool:     to.exiftool,
-			ExifTimezone: to.flags.ExifToolFlags.Timezone.Location(),
-		})
+		md, err := exif.GetMetaData(a)
 		if err != nil {
 			to.logMessage(ctx, fileevent.Error, a, err.Error())
 			a.Close()
