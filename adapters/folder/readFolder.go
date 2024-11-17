@@ -248,7 +248,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		// Add album information
 		if la.flags.ImportIntoAlbum != "" {
 			g.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
-		} else if la.flags.UsePathAsAlbumName != FolderModeNone {
+		} else if la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
 			Album := ""
 			switch la.flags.UsePathAsAlbumName {
 			case FolderModeFolder:
