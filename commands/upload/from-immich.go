@@ -22,7 +22,7 @@ func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *appli
 		// ready to run
 		ctx := cmd.Context()
 
-		source, err := fromimmich.NewFromImmich(ctx, app.Jnl(), options)
+		source, err := fromimmich.NewFromImmich(ctx, app, app.Jnl(), options)
 		if err != nil {
 			return err
 		}

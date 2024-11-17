@@ -65,10 +65,12 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 				return err
 			}
 			log.setHandlers(f, nil)
+			// prepare the trace file name
+			client.APITraceWriterName = strings.TrimSuffix(log.File, filepath.Ext(log.File)) + ".trace.log"
 		}
 	}
 
-	err := client.Initialize(ctx, log.Logger)
+	err := client.Initialize(ctx, app)
 	if err != nil {
 		return err
 	}
@@ -80,11 +82,6 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 
 	if client.APITrace {
 		if client.APITraceWriter == nil {
-			err := configuration.MakeDirForFile(log.File)
-			if err != nil {
-				return err
-			}
-			client.APITraceWriterName = strings.TrimSuffix(log.File, filepath.Ext(log.File)) + ".trace.log"
 			client.APITraceWriter, err = os.OpenFile(client.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
 			if err != nil {
 				return err
@@ -122,7 +119,7 @@ type Client struct {
 	ClientLog          *slog.Logger           // Logger
 }
 
-func (client *Client) Initialize(ctx context.Context, log *slog.Logger) error {
+func (client *Client) Initialize(ctx context.Context, app *Application) error {
 	var joinedErr error
 
 	// If the client isn't yet initialized
@@ -134,12 +131,14 @@ func (client *Client) Initialize(ctx context.Context, log *slog.Logger) error {
 			}
 		}
 
+		if client.APITrace {
+			client.APITraceWriterName = strings.TrimSuffix(app.Log().File, filepath.Ext(app.Log().File)) + ".trace.log"
+		}
 		if joinedErr != nil {
 			return joinedErr
 		}
 	}
-
-	client.ClientLog = log
+	client.ClientLog = app.log.Logger
 	return nil
 }
 
@@ -160,6 +159,16 @@ func (client *Client) Open(ctx context.Context) error {
 
 	if client.DeviceUUID != "" {
 		client.Immich.SetDeviceUUID(client.DeviceUUID)
+	}
+
+	if client.APITrace {
+		if client.APITraceWriter == nil {
+			client.APITraceWriter, err = os.OpenFile(client.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
+			if err != nil {
+				return err
+			}
+			client.Immich.EnableAppTrace(client.APITraceWriter)
+		}
 	}
 
 	err = client.Immich.PingServer(ctx)
