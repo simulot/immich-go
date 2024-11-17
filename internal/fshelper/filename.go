@@ -15,7 +15,7 @@ func FSName(fsys fs.FS, name string) FSAndName {
 }
 
 func (fn FSAndName) LogValue() slog.Value {
-	return slog.StringValue(fn.Name())
+	return slog.StringValue(fn.FullName())
 }
 
 func (fn FSAndName) FS() fs.FS {
@@ -23,6 +23,10 @@ func (fn FSAndName) FS() fs.FS {
 }
 
 func (fn FSAndName) Name() string {
+	return fn.name
+}
+
+func (fn FSAndName) FullName() string {
 	fsys := fn.fsys
 	if fsys, ok := fsys.(NameFS); ok {
 		return fsys.Name() + ":" + fn.name
