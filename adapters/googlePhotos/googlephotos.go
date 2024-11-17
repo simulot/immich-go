@@ -495,7 +495,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 
 // makeAsset makes a localAssetFile based on the google metadata
 func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *metadata.Metadata) *assets.Asset {
-	file := filepath.Join(dir, f.base)
+	file := path.Join(dir, f.base)
 	a := &assets.Asset{
 		FileName:         file, // File as named in the archive
 		FileSize:         f.length,
