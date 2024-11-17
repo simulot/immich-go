@@ -44,9 +44,6 @@ type ImportFlags struct {
 	// Flags  for controlling the extensions of the files to be uploaded
 	InclusionFlags cliflags.InclusionFlags
 
-	// DateHandlingFlags provides options for handling the capture date of the assets.
-	DateHandlingFlags cliflags.DateHandlingFlags
-
 	// ExifToolFlags specifies options for the exif.
 	ExifToolFlags exif.ExifToolFlags
 
@@ -93,7 +90,6 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 	cmd.Flags().Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
-	cliflags.AddDateHandlingFlags(cmd, &o.DateHandlingFlags)
 	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
 	o.SupportedMedia = filetypes.DefaultSupportedMedia
 

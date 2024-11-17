@@ -92,14 +92,13 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 		flags:       flags,
 	}
 	if flags.InfoCollector == nil {
-		flags.InfoCollector = filenames.NewInfoCollector(flags.DateHandlingFlags.FilenameTimeZone.Location(), flags.SupportedMedia)
+		flags.InfoCollector = filenames.NewInfoCollector(flags.ExifToolFlags.Timezone.TZ, flags.SupportedMedia)
 	}
 	if flags.ExifToolFlags.UseExifTool {
-		et, err := exif.NewExifTool(&flags.ExifToolFlags)
+		err := exif.NewExifTool(&flags.ExifToolFlags)
 		if err != nil {
 			return nil, err
 		}
-		to.exiftool = et
 	}
 
 	if flags.ManageEpsonFastFoto {
@@ -524,6 +523,7 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *as
 		a.FromSideCar = a.UseMetadata(md)
 		a.OriginalFileName = title
 	}
+	a.FromApplication = a.UseMetadata(md)
 	a.SetNameInfo(to.flags.InfoCollector.GetInfo(a.OriginalFileName))
 	return a
 }
@@ -544,17 +544,7 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileev
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
-	if a.CaptureDate.IsZero() {
-		md, err := exif.GetMetaData(a)
-		if err != nil {
-			to.logMessage(ctx, fileevent.Error, a, err.Error())
-			a.Close()
-			return fileevent.Error
-		}
-		if md != nil {
-			a.CaptureDate = md.DateTaken
-		}
-	}
+
 	if to.flags.InclusionFlags.DateRange.IsSet() && !to.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
 		to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files out of date range")
 		a.Close()
