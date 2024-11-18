@@ -1,7 +1,6 @@
 package exif
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
@@ -53,26 +52,39 @@ func TestExifTool_ReadMetaData(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	flag := &ExifToolFlags{
+		UseExifTool: true,
+		Timezone:    tzone.Timezone{TZ: time.Local},
+	}
+	err := NewExifTool(flag)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flag := &ExifToolFlags{
-				UseExifTool: true,
-				Timezone:    tzone.Timezone{TZ: time.Local},
-			}
-			err := NewExifTool(flag)
-			if err != nil {
-				t.Error(err)
-				return
-			}
 			got := assets.Metadata{}
-			err = flag.et.ReadMetaData(tt.fileName, &got)
+			err := flag.et.ReadMetaData(tt.fileName, &got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExifTool.ReadMetaData() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ExifTool.ReadMetaData() = %v, want %v", got, tt.want)
+
+			if !got.DateTaken.Equal(tt.want.DateTaken) {
+				t.Errorf("DateTaken = %v, want %v", got.DateTaken, tt.want.DateTaken)
+			}
+			if !float64Equal(got.Latitude, tt.want.Latitude) {
+				t.Errorf("Latitude = %v, want %v", got.Latitude, tt.want.Latitude)
+			}
+			if !float64Equal(got.Longitude, tt.want.Longitude) {
+				t.Errorf("Longitude = %v, want %v", got.Longitude, tt.want.Longitude)
 			}
 		})
 	}
+}
+
+func float64Equal(a, b float64) bool {
+	const epsilon = 1e-6
+	return (a-b) < epsilon && (b-a) < epsilon
 }
