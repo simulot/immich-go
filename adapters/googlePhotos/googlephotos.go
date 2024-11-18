@@ -505,7 +505,7 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *as
 	}
 
 	// get the original file name from metadata
-	if md != nil && md.File.Name() != "" {
+	if md != nil && md.FileName != "" {
 		a.OriginalFileName = md.FileName
 
 		title := md.FileName
