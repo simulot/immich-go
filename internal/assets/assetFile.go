@@ -12,15 +12,15 @@ import (
 )
 
 // Remove the temporary file
-func (l *Asset) Remove() error {
-	if fsys, ok := l.File.FS().(fshelper.FSCanRemove); ok {
-		return fsys.Remove(l.File.Name())
+func (a *Asset) Remove() error {
+	if fsys, ok := a.File.FS().(fshelper.FSCanRemove); ok {
+		return fsys.Remove(a.File.Name())
 	}
 	return nil
 }
 
-func (l *Asset) DeviceAssetID() string {
-	return fmt.Sprintf("%s-%d", l.OriginalFileName, l.FileSize)
+func (a *Asset) DeviceAssetID() string {
+	return fmt.Sprintf("%s-%d", a.OriginalFileName, a.FileSize)
 }
 
 // PartialSourceReader open a reader on the current asset.
@@ -31,91 +31,91 @@ func (l *Asset) DeviceAssetID() string {
 // TODO: possible optimization: when the file is a plain file, do not copy it into a temporary file
 // TODO: use user temp folder
 
-func (l *Asset) PartialSourceReader() (reader io.Reader, tmpName string, err error) {
-	if l.sourceFile == nil {
-		l.sourceFile, err = l.File.Open()
+func (a *Asset) PartialSourceReader() (reader io.Reader, tmpName string, err error) {
+	if a.sourceFile == nil {
+		a.sourceFile, err = a.File.Open()
 		if err != nil {
 			return nil, "", err
 		}
 	}
-	if l.tempFile == nil {
-		l.tempFile, err = os.CreateTemp("", "immich-go_*.tmp")
+	if a.tempFile == nil {
+		a.tempFile, err = os.CreateTemp("", "immich-go_*.tmp")
 		if err != nil {
 			return nil, "", err
 		}
-		if l.teeReader == nil {
-			l.teeReader = io.TeeReader(l.sourceFile, l.tempFile)
+		if a.teeReader == nil {
+			a.teeReader = io.TeeReader(a.sourceFile, a.tempFile)
 		}
 	}
-	_, err = l.tempFile.Seek(0, 0)
+	_, err = a.tempFile.Seek(0, 0)
 	if err != nil {
 		return nil, "", err
 	}
-	return io.MultiReader(l.tempFile, l.teeReader), l.tempFile.Name(), nil
+	return io.MultiReader(a.tempFile, a.teeReader), a.tempFile.Name(), nil
 }
 
 // Open return fs.File that reads previously read bytes followed by the actual file content.
-func (l *Asset) Open() (fs.File, error) {
+func (a *Asset) Open() (fs.File, error) {
 	var err error
-	if l.sourceFile == nil {
-		l.sourceFile, err = l.File.Open()
+	if a.sourceFile == nil {
+		a.sourceFile, err = a.File.Open()
 		if err != nil {
 			return nil, err
 		}
 	}
-	if l.tempFile != nil {
-		_, err = l.tempFile.Seek(0, 0)
+	if a.tempFile != nil {
+		_, err = a.tempFile.Seek(0, 0)
 		if err != nil {
 			return nil, err
 		}
-		l.reader = io.MultiReader(l.tempFile, l.sourceFile)
+		a.reader = io.MultiReader(a.tempFile, a.sourceFile)
 	} else {
-		l.reader = l.sourceFile
+		a.reader = a.sourceFile
 	}
-	return l, nil
+	return a, nil
 }
 
 // Read
-func (l *Asset) Read(b []byte) (int, error) {
-	return l.reader.Read(b)
+func (a *Asset) Read(b []byte) (int, error) {
+	return a.reader.Read(b)
 }
 
 // Close close the temporary file  and close the source
-func (l *Asset) Close() error {
+func (a *Asset) Close() error {
 	var err error
-	if l.sourceFile != nil {
-		err = errors.Join(err, l.sourceFile.Close())
-		l.sourceFile = nil
+	if a.sourceFile != nil {
+		err = errors.Join(err, a.sourceFile.Close())
+		a.sourceFile = nil
 	}
-	if l.tempFile != nil {
-		f := l.tempFile.Name()
-		err = errors.Join(err, l.tempFile.Close())
+	if a.tempFile != nil {
+		f := a.tempFile.Name()
+		err = errors.Join(err, a.tempFile.Close())
 		err = errors.Join(err, os.Remove(f))
-		l.tempFile = nil
+		a.tempFile = nil
 	}
 	return err
 }
 
 // Stat implements the fs.FILE interface
-func (l *Asset) Stat() (fs.FileInfo, error) {
-	return l, nil
+func (a *Asset) Stat() (fs.FileInfo, error) {
+	return a, nil
 }
-func (l *Asset) IsDir() bool { return false }
+func (a *Asset) IsDir() bool { return false }
 
-func (l *Asset) Name() string {
-	return l.File.Name()
+func (a *Asset) Name() string {
+	return a.File.Name()
 }
 
-func (l *Asset) Size() int64 {
-	return int64(l.FileSize)
+func (a *Asset) Size() int64 {
+	return int64(a.FileSize)
 }
 
 // Mode Implements the fs.FILE interface
-func (l *Asset) Mode() fs.FileMode { return 0 }
+func (a *Asset) Mode() fs.FileMode { return 0 }
 
 // ModTime implements the fs.FILE interface
-func (l *Asset) ModTime() time.Time {
-	s, err := l.File.Stat()
+func (a *Asset) ModTime() time.Time {
+	s, err := a.File.Stat()
 	if err != nil {
 		return time.Time{}
 	}
@@ -123,4 +123,4 @@ func (l *Asset) ModTime() time.Time {
 }
 
 // Sys implements the fs.FILE interface
-func (l *Asset) Sys() any { return nil }
+func (a *Asset) Sys() any { return nil }
