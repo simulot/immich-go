@@ -63,6 +63,12 @@ type ImportFolderOptions struct {
 
 	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
 	ManageEpsonFastFoto bool
+
+	// Tags is a list of tags to be added to the imported assets.
+	Tags []string
+
+	// Folder as tags
+	FolderAsTags bool
 }
 
 func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -87,6 +93,9 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 	cmd.Flags().BoolVar(&o.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
 	cmd.Flags().Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	cmd.Flags().BoolVar(&o.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
+
+	cmd.Flags().StringSliceVar(&o.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
+	cmd.Flags().BoolVar(&o.FolderAsTags, "folder-as-tags", false, "Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)

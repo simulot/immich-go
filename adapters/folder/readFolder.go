@@ -209,6 +209,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		})
 
 		for _, a := range as {
+			// Check dates
 			if la.flags.InclusionFlags.DateRange.IsSet() {
 				md := &assets.Metadata{}
 				err := exif.GetMetaData(a, md, la.flags.ExifToolFlags)
@@ -218,6 +219,24 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					continue
 				}
 				a.FromSourceFile = a.UseMetadata(md)
+			}
+
+			// Add tags
+			if len(la.flags.Tags) > 0 {
+				for _, t := range la.flags.Tags {
+					a.AddTag(t)
+				}
+			}
+
+			// Add folder as tags
+			if la.flags.FolderAsTags {
+				t := fsName
+				if dir != "." {
+					t = path.Join(t, dir)
+				}
+				if t != "" {
+					a.AddTag(t)
+				}
 			}
 
 			// check the presence of a XMP file

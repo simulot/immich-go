@@ -443,6 +443,123 @@ func TestInMemLocalAssets(t *testing.T) {
 	}
 }
 
+func TestInMemLocalAssetsWithTags(t *testing.T) {
+	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	tc := []struct {
+		name  string
+		fsys  []fs.FS
+		flags ImportFolderOptions
+		want  map[string][]string
+	}{
+		{
+			name: "tags",
+			flags: ImportFolderOptions{
+				SupportedMedia: filetypes.DefaultSupportedMedia,
+				InfoCollector:  ic,
+				Recursive:      true,
+				Tags:           []string{"tag1", "tag2/subtag2"},
+			},
+			fsys: []fs.FS{
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0),
+			},
+			want: map[string][]string{
+				"root_01.jpg":         {"tag1", "tag2/subtag2"},
+				"photos/photo_01.jpg": {"tag1", "tag2/subtag2"},
+			},
+		},
+		{
+			name: "folder as tags",
+			flags: ImportFolderOptions{
+				SupportedMedia: filetypes.DefaultSupportedMedia,
+				InfoCollector:  ic,
+				Recursive:      true,
+				FolderAsTags:   true,
+			},
+			fsys: []fs.FS{
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0).
+					addFile("photos/summer/photo_02.jpg", t0),
+			},
+			want: map[string][]string{
+				"root_01.jpg":                {"MemFS"},
+				"photos/photo_01.jpg":        {"MemFS/photos"},
+				"photos/summer/photo_02.jpg": {"MemFS/photos/summer"},
+			},
+		},
+		{
+			name: "folder as tags and a tag",
+			flags: ImportFolderOptions{
+				SupportedMedia: filetypes.DefaultSupportedMedia,
+				InfoCollector:  ic,
+				Recursive:      true,
+				FolderAsTags:   true,
+				Tags:           []string{"tag1"},
+			},
+			fsys: []fs.FS{
+				newInMemFS("MemFS", ic).
+					addFile("root_01.jpg", t0).
+					addFile("photos/photo_01.jpg", t0).
+					addFile("photos/summer/photo_02.jpg", t0),
+			},
+			want: map[string][]string{
+				"root_01.jpg":                {"MemFS"},
+				"photos/photo_01.jpg":        {"MemFS/photos"},
+				"photos/summer/photo_02.jpg": {"MemFS/photos/summer"},
+			},
+		},
+	}
+
+	logFile := configuration.DefaultLogFile()
+	for _, c := range tc {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			log := application.Log{
+				File:  logFile,
+				Level: "INFO",
+			}
+			err := log.OpenLogFile()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			log.Logger.Info("\n\n\ntest case: " + c.name)
+			recorder := fileevent.NewRecorder(log.Logger)
+			b, err := NewLocalFiles(ctx, recorder, &c.flags, c.fsys...)
+			if err != nil {
+				t.Error(err)
+			}
+
+			groupChan := b.Browse(ctx)
+
+			got := map[string][]string{}
+
+			for g := range groupChan {
+				if err = g.Validate(); err != nil {
+					t.Error(err)
+					return
+				}
+				for _, a := range g.Assets {
+					tags := []string{}
+					for _, tag := range a.Tags {
+						tags = append(tags, tag.Value)
+					}
+
+					got[a.File.Name()] = tags
+				}
+			}
+			if !reflect.DeepEqual(got, c.want) {
+				t.Errorf("tags difference\n")
+				pretty.Ldiff(t, c.want, got)
+			}
+		})
+	}
+}
+
 func compareAlbums(t *testing.T, a, b map[string][]string) {
 	a = sortAlbum(a)
 	b = sortAlbum(b)
