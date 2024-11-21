@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif"
@@ -49,6 +51,10 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	}
 	if flags.InfoCollector == nil {
 		flags.InfoCollector = filenames.NewInfoCollector(flags.ExifToolFlags.Timezone.TZ, flags.SupportedMedia)
+	}
+
+	if flags.SessionTag {
+		flags.session = fmt.Sprintf("immich-go/%s", time.Now().Format("2006-01-02T15:04:05"))
 	}
 
 	if flags.ExifToolFlags.UseExifTool {
@@ -221,24 +227,6 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				a.FromSourceFile = a.UseMetadata(md)
 			}
 
-			// Add tags
-			if len(la.flags.Tags) > 0 {
-				for _, t := range la.flags.Tags {
-					a.AddTag(t)
-				}
-			}
-
-			// Add folder as tags
-			if la.flags.FolderAsTags {
-				t := fsName
-				if dir != "." {
-					t = path.Join(t, dir)
-				}
-				if t != "" {
-					a.AddTag(t)
-				}
-			}
-
 			// check the presence of a XMP file
 			xmpName, err := checkExistSideCar(fsys, a.File.Name(), ".xmp")
 			if err == nil && xmpName != "" {
@@ -281,6 +269,27 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				continue
 			}
 
+			// Add tags
+			if len(la.flags.Tags) > 0 {
+				for _, t := range la.flags.Tags {
+					a.AddTag(t)
+				}
+			}
+
+			// Add folder as tags
+			if la.flags.FolderAsTags {
+				t := fsName
+				if dir != "." {
+					t = path.Join(t, dir)
+				}
+				if t != "" {
+					a.AddTag(t)
+				}
+			}
+
+			if la.flags.SessionTag {
+				a.AddTag(la.flags.session)
+			}
 			select {
 			case in <- a:
 			case <-ctx.Done():
