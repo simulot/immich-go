@@ -1,7 +1,9 @@
 package gp
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"path"
@@ -100,6 +102,9 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 			return nil, err
 		}
 	}
+	if flags.SessionTag {
+		flags.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
+	}
 
 	if flags.ManageEpsonFastFoto {
 		g := epsonfastfoto.Group{}
@@ -173,38 +178,56 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			}
 			switch ext {
 			case ".json":
-				md, err := fshelper.ReadJSON[GoogleMetaData](w, name)
-				if err == nil {
-					switch {
-					case md.isAsset():
-						dirCatalog.jsons[base] = md.AsMetadata(fshelper.FSName(w, name)) // Keep metadata
-						to.log.Log().Debug("Asset JSON", "metadata", md)
-						to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.Title)
-					case md.isAlbum():
-						to.log.Log().Debug("Album JSON", "metadata", md)
-						if !to.flags.KeepUntitled && md.Title == "" {
-							to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "discard untitled album")
+				var md *assets.Metadata
+				b, err := fs.ReadFile(w, name)
+				if err != nil {
+					to.log.Record(ctx, fileevent.Error, fshelper.FSName(w, name), "error", err.Error())
+					return nil
+				}
+				if bytes.Contains(b, []byte("immich-go version:")) {
+					md, err = assets.UnMarshalMetadata(b)
+					if err != nil {
+						to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
+					}
+					md.FileName = base
+					to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "immich-go metadata", "title", md.FileName)
+					md.File = fshelper.FSName(w, name)
+				} else {
+					md, err := fshelper.UnmarshalJSON[GoogleMetaData](b)
+					if err == nil {
+						switch {
+						case md.isAsset():
+							md := md.AsMetadata(fshelper.FSName(w, name)) // Keep metadata
+							md.File = fshelper.FSName(w, name)
+							dirCatalog.jsons[base] = md
+							to.log.Log().Debug("Asset JSON", "metadata", md)
+							to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.FileName)
+						case md.isAlbum():
+							to.log.Log().Debug("Album JSON", "metadata", md)
+							if !to.flags.KeepUntitled && md.Title == "" {
+								to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "discard untitled album")
+								return nil
+							}
+							a := to.albums[dir]
+							a.Title = md.Title
+							if a.Title == "" {
+								a.Title = filepath.Base(dir)
+							}
+							if e := md.Enrichments; e != nil {
+								a.Description = e.Text
+								a.Latitude = e.Latitude
+								a.Longitude = e.Longitude
+							}
+							to.albums[dir] = a
+							to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "album metadata", "title", md.Title)
+						default:
+							to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
 							return nil
 						}
-						a := to.albums[dir]
-						a.Title = md.Title
-						if a.Title == "" {
-							a.Title = filepath.Base(dir)
-						}
-						if e := md.Enrichments; e != nil {
-							a.Description = e.Text
-							a.Latitude = e.Latitude
-							a.Longitude = e.Longitude
-						}
-						to.albums[dir] = a
-						to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "album metadata", "title", md.Title)
-					default:
+					} else {
 						to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
 						return nil
 					}
-				} else {
-					to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
-					return nil
 				}
 			default:
 
@@ -474,6 +497,14 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 
 		for _, a := range g.Assets {
 			a.Albums = g.Albums
+			if to.flags.SessionTag {
+				a.AddTag(to.flags.session)
+			}
+			if to.flags.Tags != nil {
+				for _, tag := range to.flags.Tags {
+					a.AddTag(tag)
+				}
+			}
 		}
 
 		select {
