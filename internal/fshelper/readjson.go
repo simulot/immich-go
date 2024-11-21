@@ -22,3 +22,13 @@ func ReadJSON[T any](fsys fs.FS, name string) (*T, error) {
 
 	return &object, nil
 }
+
+func UnmarshalJSON[T any](b []byte) (*T, error) {
+	var object T
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return nil, err
+	}
+
+	return &object, nil
+}
