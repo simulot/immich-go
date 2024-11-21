@@ -12,10 +12,12 @@
 #### Tags management folder import
 Its now possible to assign tags to photos and videos:
 ```sh
-      --folder-as-tags                     Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)
+      --folder-as-tags                     Use the folder structure as tags, (ex: the file "holidays/summer 2024/file.jpg" get the tag holidays/summer 2024)
       --session-tag                        Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"
       --tag strings                        Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')
 ```
+
+The session tag is useful to identify all photos imported at the same time. It's easy to remove them from the tag screen
 
 #### Breaking change since v0.23.0-alpha5
 A metadata file is created withe same name as the main file, but with the extension `.json`. The XMP file is left untouched.
