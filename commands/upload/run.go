@@ -252,18 +252,18 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 			})
 		}
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message)
-		err = upCmd.manageAssetTags(ctx, a)
-		if err != nil {
-			return err
-		}
+		// err = upCmd.manageAssetTags(ctx, a)
+		// if err != nil {
+		// 	return err
+		// }
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message)
-		err = upCmd.manageAssetTags(ctx, a)
-		if err != nil {
-			return err
-		}
+		// err = upCmd.manageAssetTags(ctx, a)
+		// if err != nil {
+		// 	return err
+		// }
 
 	}
 
