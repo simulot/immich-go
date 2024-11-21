@@ -54,7 +54,7 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	}
 
 	if flags.SessionTag {
-		flags.session = fmt.Sprintf("immich-go/%s", time.Now().Format("2006-01-02T15:04:05"))
+		flags.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
 	}
 
 	if flags.ExifToolFlags.UseExifTool {
