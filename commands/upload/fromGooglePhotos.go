@@ -3,6 +3,7 @@ package upload
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
@@ -35,6 +36,25 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 			log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
 			return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
 		}
+
+		if options.TakeoutTag {
+			gotIt := false
+			for _, a := range args {
+				if filepath.Ext(a) == ".zip" {
+					options.TakeoutName = filepath.Base(a)
+					if len(options.TakeoutName) > 4+4 {
+						options.TakeoutName = "{takeout}/" + options.TakeoutName[:len(options.TakeoutName)-4-4]
+						gotIt = true
+						break
+					}
+				}
+			}
+			if !gotIt {
+				log.Message("Can't set the takeout tag: no .zip file in the arguments")
+				options.TakeoutTag = false
+			}
+		}
+
 		upOptions.Filters = append(upOptions.Filters, options.ManageBurst.GroupFilter(), options.ManageRawJPG.GroupFilter(), options.ManageHEICJPG.GroupFilter())
 
 		options.SupportedMedia = client.Immich.SupportedMedia()

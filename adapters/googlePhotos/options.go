@@ -74,6 +74,10 @@ type ImportFlags struct {
 	// SessionTag indicates whether to add a session tag to the imported assets.
 	SessionTag bool
 	session    string // Session tag value
+
+	// Add the takeout file name as tag
+	TakeoutTag  bool
+	TakeoutName string
 }
 
 func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -97,6 +101,7 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 	cmd.Flags().Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	cmd.Flags().StringSliceVar(&o.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	cmd.Flags().BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
+	cmd.Flags().BoolVar(&o.TakeoutTag, "takeout-tag", true, "Tag uploaded photos with a tag \"{takeout}/takeout-YYYYMMDDTHHMMSSZ\"")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)

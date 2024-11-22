@@ -505,6 +505,9 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 					a.AddTag(tag)
 				}
 			}
+			if to.flags.TakeoutTag {
+				a.AddTag(to.flags.TakeoutName)
+			}
 		}
 
 		select {
@@ -551,7 +554,7 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *as
 				title = strings.TrimSuffix(title, titleExt) + fileExt
 			}
 		}
-		a.FromSideCar = a.UseMetadata(md)
+		a.FromApplication = a.UseMetadata(md)
 		a.OriginalFileName = title
 	}
 	a.FromApplication = a.UseMetadata(md)
