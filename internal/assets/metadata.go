@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -42,4 +43,10 @@ func (m Metadata) LogValue() slog.Value {
 
 func (m Metadata) IsSet() bool {
 	return m.Description != "" || !m.DateTaken.IsZero() || m.Latitude != 0 || m.Longitude != 0
+}
+
+func UnMarshalMetadata(data []byte) (*Metadata, error) {
+	var m Metadata
+	err := json.Unmarshal(data, &m)
+	return &m, err
 }

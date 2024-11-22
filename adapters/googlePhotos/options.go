@@ -67,6 +67,13 @@ type ImportFlags struct {
 
 	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
 	ManageEpsonFastFoto bool
+
+	// Tags is a list of tags to be added to the imported assets.
+	Tags []string
+
+	// SessionTag indicates whether to add a session tag to the imported assets.
+	SessionTag bool
+	session    string // Session tag value
 }
 
 func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -88,6 +95,8 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 	cmd.Flags().BoolVarP(&o.KeepArchived, "include-archived", "a", true, "Import archived Google Photos")
 	cmd.Flags().BoolVarP(&o.KeepJSONLess, "include-unmatched", "u", false, "Import photos that do not have a matching JSON file in the takeout")
 	cmd.Flags().Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
+	cmd.Flags().StringSliceVar(&o.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
+	cmd.Flags().BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
