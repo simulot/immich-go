@@ -37,6 +37,7 @@ A metadata file is created withe same name as the main file, but with the extens
 The efforts for determining the capture date from the file name are useless.
 Now the file date is provided to Immich as if the file was dropped on the immich's page.
 The `--capture-date-method` is now set to `NONE` by default.
+* [[#534](https://github.com/simulot/immich-go/issues/534)] Errors on windows
 
 
 ## Release 0.23.0-alpha5 🏗️ Work in progress 🏗️ 
