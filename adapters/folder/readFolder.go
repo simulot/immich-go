@@ -309,7 +309,8 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					parts = append(parts, fsName)
 				}
 				if dir != "." {
-					parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
+					parts = append(parts, strings.Split(dir, "/")...)
+					// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
 				}
 				Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
 			}
