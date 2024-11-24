@@ -162,6 +162,10 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 			}
 			defer f.Close()
 			f, err = la.FromSideCar.File.Open()
+			if err != nil {
+				return
+			}
+
 			_, err = io.Copy(part, f)
 			if err != nil {
 				return

@@ -11,7 +11,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 )
 
-func newTestImmichServer(t *testing.T) *immich.ImmichClient { //nolint
+func newTestImmichServer(_ *testing.T) *immich.ImmichClient { //nolint
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/users/me":

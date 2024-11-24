@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/internal/filetypes"
-	filetype "github.com/simulot/immich-go/internal/filetypes"
 )
 
 /*
@@ -29,8 +28,8 @@ type ImmichClient struct {
 	Retries             int           // Number of attempts on 500 errors
 	RetriesDelay        time.Duration // Duration between retries
 	apiTraceWriter      io.Writer
-	supportedMediaTypes filetype.SupportedMedia // Server's list of supported medias
-	dryRun              bool                    //  If true, do not send any data to the server
+	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
+	dryRun              bool                     //  If true, do not send any data to the server
 }
 
 func (ic *ImmichClient) SetEndPoint(endPoint string) {
