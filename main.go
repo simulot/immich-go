@@ -8,7 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/simulot/immich-go/application"
-	"github.com/simulot/immich-go/application/commands"
+	"github.com/simulot/immich-go/application/cmd"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -52,21 +52,21 @@ func runImmichGo(ctx context.Context) error {
 	// Create the application context
 
 	// Add the root command
-	cmd := &cobra.Command{
+	c := &cobra.Command{
 		Use:     "immich-go",
 		Short:   "Immich-go is a command line application to interact with the Immich application using its API",
 		Long:    `An alternative to the immich-CLI command that doesn't depend on nodejs installation. It tries its best for importing google photos takeout archives.`,
 		Version: application.Version,
 	}
 	cobra.EnableTraverseRunHooks = true // doc: cobra/site/content/user_guide.md
-	app := application.New(ctx, cmd)
+	app := application.New(ctx, c)
 
 	// add immich-go commands
-	cmd.AddCommand(application.NewVersionCommand(ctx, app))
-	commands.AddCommands(cmd, ctx, app)
+	c.AddCommand(application.NewVersionCommand(ctx, app))
+	cmd.AddCommands(c, ctx, app)
 
 	// let's start
-	err := cmd.ExecuteContext(ctx)
+	err := c.ExecuteContext(ctx)
 	if err != nil && app.Log().GetSLog() != nil {
 		app.Log().Error(err.Error())
 	}
