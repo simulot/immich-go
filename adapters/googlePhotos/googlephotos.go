@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/gen"
 
 	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -35,7 +35,6 @@ type Takeout struct {
 	// debugLinkedFiles []linkedFiles
 	log      *fileevent.Recorder
 	flags    *ImportFlags // command-line flags
-	exiftool *exif.ExifTool
 	groupers []groups.Grouper
 }
 

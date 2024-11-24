@@ -10,7 +10,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/app"
-	"github.com/simulot/immich-go/helpers/configuration"
+	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"

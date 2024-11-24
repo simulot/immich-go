@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/simulot/immich-go/helpers/gen"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/gen"
 )
 
 // logMessage for the photo and the movie attached to the photo

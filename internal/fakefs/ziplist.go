@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/internal/gen"
 )
 
 // `  2104348  07-20-2023 00:00   Takeout/Google Photos/2020 - Costa Rica/IMG_3235.MP4`

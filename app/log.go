@@ -11,7 +11,7 @@ import (
 
 	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
-	"github.com/simulot/immich-go/helpers/configuration"
+	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"

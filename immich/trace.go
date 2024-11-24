@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/internal/gen"
 )
 
 /*

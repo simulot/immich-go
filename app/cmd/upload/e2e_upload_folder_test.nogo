@@ -14,7 +14,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/helpers/configuration"
+	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/immich"
 )
 

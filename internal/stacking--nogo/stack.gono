@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/internal/gen"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/metadata"
 )

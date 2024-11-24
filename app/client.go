@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/internal/tzone"
 	"github.com/spf13/cobra"
 )
