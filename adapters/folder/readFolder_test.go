@@ -506,9 +506,9 @@ func TestInMemLocalAssetsWithTags(t *testing.T) {
 					addFile("photos/summer/photo_02.jpg", t0),
 			},
 			want: map[string][]string{
-				"root_01.jpg":                {"MemFS"},
-				"photos/photo_01.jpg":        {"MemFS/photos"},
-				"photos/summer/photo_02.jpg": {"MemFS/photos/summer"},
+				"root_01.jpg":                {"tag1", "MemFS"},
+				"photos/photo_01.jpg":        {"tag1", "MemFS/photos"},
+				"photos/summer/photo_02.jpg": {"tag1", "MemFS/photos/summer"},
 			},
 		},
 	}
