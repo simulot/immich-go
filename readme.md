@@ -2,7 +2,7 @@
 
 **Immich-Go** is an open-source tool designed to streamline uploading large photo collections to your self-hosted Immich server.
 
-> ⚠️ This an early version, not yet extensively tested<br>
+> ⚠️ This is an early version, not yet extensively tested<br>
 > ⚠️ Keep a backup copy of your files for safety<br>
 
 
@@ -10,48 +10,48 @@
 ## Support the project `Immich-go`
 
 - [Github Sponsor](https://github.com/sponsors/simulot)
-- [Paypal Donation](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
+- [PayPal Donation](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
 
 ## What Makes Immich-Go Special?
 
 ### Simple Installation: 
   * Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments. 
-  * Immich-go can run as well from either your workstation or a NAS.
+  * Immich-go can run on either your workstation or a NAS.
 
 ### Handles Large Photo Collections:
-  * **Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, capture date, and album information. Read the [best practices](#google-photos-best-practices) below for more information.
-  * **Upload collection:** You can upload photos directly from your computer folders, folders tree and compressed ZIP archives.
-  * **Is Duplicate aware:** Immich-Go identify and discard duplicate photos, keeping only the highest-quality version on the server.
-  * **Archive your immich server:**  Write the content of your immich server to a folder tree, ready for been archived or migrated to another server.
+  * **Upload Large Google Photos Takeouts:**  Immich-Go excels at handling massive archives downloaded from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, capture date, and album information. Read the [best practices](#google-photos-best-practices) below for more information.
+  * **Upload collections:** You can upload photos directly from your computer folders, folders trees and compressed ZIP archives.
+  * **Is Duplicate-aware:** Immich-Go identifies and discards duplicate photos, keeping only the highest-quality version on the server.
+  * **Archive your Immich server:**  Write the content of your Immich server to a folder tree, ready to be archived or migrated to another server.
 
-### Has a lot of options:
-* Stack burst
-* Manage coupled RAW and JPEG files
+### Has Many Options:
+* Stack burst photos
+* Manage coupled RAW and JPEG files, HEIC and JPEG files.
 * Use tags
 * ... and much more
 
-### Run on any platform:
-  * Immich-Go is available for Windows, MacOS, Linux, and FreeBSD. It can run on any platform where the language Go is ported.
+### Run on Any platform:
+  * Immich-Go is available for Windows, MacOS, Linux, and FreeBSD. It can run on any platform where the Go language Go ported.
 
 ## Requirements
 
 * **Immich Server:** You need a running Immich server to use Immich-Go.
   * Prepare the server's URL (http://your-ip:2283 or https://your-domain.tld)
-  * Collect an API key for each immich user.
+  * Collect an API key for each Immich user.
 * **Basic knowledge of command line:** Immich-Go is a command-line tool, so you should be comfortable using a terminal.
 * Optional: install `exiftool` to get the date of capture from the photo's metadata.  
 
-## Upgrading from the original `immich-go`
+## Upgrading from Original `immich-go`
 
 This version is a complete rewrite of the original `immich-go` project. It is designed to be more efficient, more reliable, and easier to use. It is also more flexible, with more options and features.
-As consequence, the command line options have changed. Please refer to the documentation for the new options.
+As a consequence, the command line options have changed. Please refer to the documentation for the new options.
 
 The visible changes are:
-- Adoption of the linux convention for the command line options: use 2 dashes for long options.
-- Complete restructuration of the CLI logic:
-  - The `upload` command accepts 3 sub-commands: `from-google-photos`, `from-folder`, `from-immich`. This remove all ambiguity on the options.
-  - The new `archive` command takes advantage of this sub-command logic. It's possible to archive from a google photos takeout, a folder tree or an immich server.
+- **Adoption of the linux convention** for the command line options: use 2 dashes for long options.
+- Complete restructuring of the CLI logic:
+  - The `upload` command accepts 3 sub-commands: `from-google-photos`, `from-folder`, `from-immich`. This removes all ambiguity from the options.
+  - The new `archive` command takes advantage of this sub-command logic. It is possible to archive from a Google Photos takeout, a folder tree or an Immich server.
 
 The upgrade process consists of installing the new version over the previous one. 
 You can check the version of the installed `immich-go` by running `immich-go --version`.
@@ -65,7 +65,7 @@ You can check the version of the installed `immich-go` by running `immich-go --v
 - For building from source: 
   - Go 1.23 or higher
   - Git
-- Optional dependency:
+- Optional dependencies:
   - ExifTool: Enhanced metadata extraction capabilities
     - On Linux: `sudo apt-get install exiftool`
     - On MacOS: `brew install exiftool`
@@ -73,7 +73,7 @@ You can check the version of the installed `immich-go` by running `immich-go --v
 
 ### Pre-built Binaries
 
-The easiest way to install immich-go is to download the pre-built binary for your system from the [GitHub releases page](https://github.com/simulot/immich-go/releases).
+The easiest way to install Immich-Go is to download the pre-built binary for your system from the [GitHub releases page](https://github.com/simulot/immich-go/releases).
 
 #### **Supported Platforms:**
 - **Operating Systems**
@@ -115,7 +115,7 @@ The easiest way to install immich-go is to download the pre-built binary for you
    ```
 
 ### Building from Source
-In the case of missing a pre-built binaries, you can build immich-go from source.
+If pre-built binaries are not available, you can build Immich-Go from source.
 
 #### Prerequisites
 - Go 1.23 or higher
@@ -208,9 +208,8 @@ graph LR
 ```
 
 
-Beside the classic uses, we can use the **upload** for those edge cases:
+Beside the classic usages, you can use the **upload** for those edge cases:
 - Transfer photos from a live server to another one, using the **from-immich** sub-command.
-- Restore a cold archive, using the **from-folder** sub-command.
 - Transfer photos from an immich account to another one, using the **from-immich** sub-command.
 
 
@@ -228,18 +227,6 @@ Beside the classic uses, we can use the **upload** for those edge cases:
 | --time-zone          |                   | Override the system time zone (example: Europe/Paris)                                      |
 
 Details on the available options for each sub-command are provided below.
-
-## **XMP** files process
-
-**XMP** files found in source folder are passed to Immich server without any modification. Immich uses them to collect photo's date of capture and GPS location.
-
-## Google photos **JSON** files process
-
-Google photos **JSON** files found in source folders are opened to get tha album belonging, the date of capture and the GPS location, the favorite status, the partner status, the archive status and the trashed status. This information is used to trigger Immich features.
-
-## Folder archive **JSON** files process
-
-Those files are generated with Immich features for the photos. Their content is used to restore immich features like album, date of capture, GPS location, rating, tags and archive status.
 
 # The **archive** command:
 
@@ -404,11 +391,51 @@ The sub-command **from-immich** processes an Immich server to upload photos to a
 
 For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
 
+
+## **XMP** files process
+
+**XMP** files found in source folder are passed to Immich server without any modification. Immich uses them to collect photo's date of capture and GPS location.
+
+## Google photos **JSON** files process
+
+Google photos **JSON** files found in source folders are opened to get the album belonging, the date of capture and the GPS location, the favorite status, the partner status, the archive status and the trashed status. This information is used to trigger Immich features.
+
+## Folder archive **JSON** files process
+
+Those files are generated by the **archive** command. Their are used to restore immich features like album, date of capture, GPS location, rating, tags and archive status.
+
+```json
+{
+  "fileName": "example.jpg",
+  "latitude": 37.7749,
+  "longitude": -122.4194,
+  "dateTaken": "2023-10-01T12:34:56Z",
+  "description": "A beautiful view of the Golden Gate Bridge.",
+  "albums": [
+    {
+      "title": "San Francisco Trip",
+      "description": "Photos from my trip to San Francisco",
+    }
+  ],
+  "tags": [
+    {
+      "value": "USA/California/San Francisco"
+    },
+  
+  ],
+  "rating": 5,
+  "trashed": false,
+  "archived": false,
+  "favorited": true,
+  "fromPartner": false
+}
+```
+
 ## Session tags
 Immich-go can tag all imported photos with a session tag. The tag is formatted as `{immich-go}/YYYY-MM-DD HH-MM-SS`. This tag can be used to identify all photos imported during a session. This it easy to remove them if needed.
 
 ## Takeout tag
-Immich-go can tag all imported photos with a takeout tag. The tag is formatted as `{takeout}/YYYY-MM-DD HH-MM-SS`. This tag can be used to identify all photos imported from a Google Photos takeout. This it easy to remove them if needed.
+Immich-go can tag all imported photos with a takeout tag. The tag is formatted as `{takeout}/takeout-YYYYMMDDTHHMMSSZ`. This tag can be used to identify all photos imported from a Google Photos takeout. This it easy to remove them if needed.
 
 ## Banned file list
 The following files are excluded automatically:
@@ -439,7 +466,7 @@ The system detects burst photos in following cases:
 | Case                | Description                                                                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Series of photos    | When the time difference between 2 photo is less than 500 ms                                                                                                          |
-| Huawei smartphones  | Base on file names: <br>- IMG_20231014_183246_BURST001_COVER.jpg<br>- IMG_20231014_183246_BURST002.jpg<br>- IMG_20231014_183246_BURST003.jpg                          |
+| Huawei smartphones  | Based on file names: <br>- IMG_20231014_183246_BURST001_COVER.jpg<br>- IMG_20231014_183246_BURST002.jpg<br>- IMG_20231014_183246_BURST003.jpg                          |
 | Nexus smartphones   | Based on files names:<br>- 00001IMG_00001_BURST20171111030039.jpg<br>-...<br>-00014IMG_00014_BURST20171111030039.jpg<br>-00015IMG_00015_BURST20171111030039_COVER.jpg |
 | Pixel smartphones   | Based on files names:<br>- PXL_20230330_184138390.MOTION-01.COVER.jpg<br>- PXL_20230330_184138390.MOTION-02.ORIGINAL.jpg                                              |
 | Samsung smartphones | Based on files names:<br>- 20231207_101605_001.jpg<br>- 20231207_101605_002.jpg<br>- 20231207_101605_xxx.jpg                                                          |
@@ -535,5 +562,5 @@ A big thank you to the project contributors:
 - [sigmahour](https://github.com/sigmahour) SSL management
 - [mrwulf](https://github.com/mrwulf) Partner sharing album
 - [erkexzcx](https://github.com/erkexzcx) Date determination based on file path and file name
-- [benjamonnguyen](https://github.com/benjamonnguyen) Tag API Calls
+- [benjamonnguyen](https://github.com/benjamonnguyen) Tag API calls
 
