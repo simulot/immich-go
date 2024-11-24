@@ -48,6 +48,7 @@ func (ifs *ImmichFS) Open(name string) (fs.File, error) {
 
 	fi, err := ifs.Stat(name)
 	if err != nil {
+		cancel(err)
 		return nil, err
 	}
 
