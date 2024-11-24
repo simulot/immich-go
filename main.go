@@ -8,7 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/simulot/immich-go/application"
-	"github.com/simulot/immich-go/commands"
+	"github.com/simulot/immich-go/application/commands"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
