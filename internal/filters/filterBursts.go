@@ -17,8 +17,8 @@ const (
 	BurstKeepJPEG           // Stack burst, keep JPEG photos when when have JPEG and raw
 )
 
-func (flg BurstFlag) GroupFilter() Filter {
-	switch flg {
+func (b BurstFlag) GroupFilter() Filter {
+	switch b {
 	case BurstNothing:
 		return unGroupBurst
 	case BurstStack:
