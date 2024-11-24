@@ -18,8 +18,8 @@ const (
 	RawJPGStackJPG            // Stack raw and JPEG files, with the JPEG file as the cover
 )
 
-func (g RawJPGFlag) GroupFilter() Filter {
-	switch g {
+func (r RawJPGFlag) GroupFilter() Filter {
+	switch r {
 	case RawJPGNothing:
 		return unGroupRawJPGNothing
 	case RawJPGKeepRaw:
