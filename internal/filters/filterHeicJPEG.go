@@ -17,8 +17,8 @@ const (
 	HeicJpgStackJPG              // Stack HEIC and JPEG files, with the JPEG file as the cover
 )
 
-func (flg HeicJpgFlag) GroupFilter() Filter {
-	switch flg {
+func (h HeicJpgFlag) GroupFilter() Filter {
+	switch h {
 	case HeicJpgNothing:
 		return unGroupHeicJpeg
 	case HeicJpgKeepHeic:
