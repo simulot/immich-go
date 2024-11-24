@@ -6,11 +6,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/adapters/fromimmich"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/app"
-
-	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
