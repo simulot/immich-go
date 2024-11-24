@@ -18,4 +18,5 @@ archive.tar
 *.test
 .env
 *.env
-*.yml
+test-config.yaml
+__debug_*

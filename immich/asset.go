@@ -14,7 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/browser"
+	"github.com/google/uuid"
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 type AssetResponse struct {
@@ -43,13 +44,32 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
-func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetFile) (AssetResponse, error) {
+const (
+	TimeFormat = "2006-01-02T15:04:05Z"
+)
+
+func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (AssetResponse, error) {
+	if ic.dryRun {
+		return AssetResponse{
+			ID:     uuid.NewString(),
+			Status: UploadCreated,
+		}, nil
+	}
 	var ar AssetResponse
-	mtype := ic.TypeFromExt(path.Ext(la.FileName))
+	ext := path.Ext(la.OriginalFileName)
+	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
+		la.OriginalFileName = "No Name" + ext // fix #88, #128
+	}
+
+	if strings.ToUpper(ext) == ".MP" {
+		ext = ".MP4" // #405
+		la.OriginalFileName = la.OriginalFileName + ".MP4"
+	}
+	mtype := ic.TypeFromExt(ext)
 	switch mtype {
 	case "video", "image":
 	default:
-		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.FileName))
+		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.OriginalFileName))
 	}
 
 	f, err := la.Open()
@@ -70,19 +90,8 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-		assetType := strings.ToUpper(mtype)
-		ext := path.Ext(la.Title)
-		if strings.TrimSuffix(la.Title, ext) == "" {
-			la.Title = "No Name" + ext // fix #88, #128
-		}
 
-		// disguise MP files as MP4
-		if strings.ToLower(ext) == ".mp" {
-			la.Title = strings.TrimSuffix(la.Title, ext) + ".MP4"
-			ext = ".MP4"
-		}
-
-		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.Title), s.Size()))
+		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.OriginalFileName), s.Size()))
 		if err != nil {
 			return
 		}
@@ -90,15 +99,15 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-		err = m.WriteField("assetType", assetType)
+		err = m.WriteField("assetType", mtype)
 		if err != nil {
 			return
 		}
-		err = m.WriteField("fileCreatedAt", la.Metadata.DateTaken.Format(time.RFC3339))
+		err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(TimeFormat))
 		if err != nil {
 			return
 		}
-		err = m.WriteField("fileModifiedAt", s.ModTime().Format(time.RFC3339))
+		err = m.WriteField("fileModifiedAt", s.ModTime().Format(TimeFormat))
 		if err != nil {
 			return
 		}
@@ -118,18 +127,15 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 		if err != nil {
 			return
 		}
-		if la.LivePhotoID != "" {
-			err = m.WriteField("livePhotoVideoId", la.LivePhotoID)
-			if err != nil {
-				return
-			}
+		err := m.WriteField("isArchived", myBool(la.Archived).String())
+		if err != nil {
+			return
 		}
 
-		// m.WriteField("isArchived", myBool(la.Archived).String()) // Not supported by the api
 		h := textproto.MIMEHeader{}
 		h.Set("Content-Disposition",
 			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-				escapeQuotes("assetData"), escapeQuotes(path.Base(la.Title))))
+				escapeQuotes("assetData"), escapeQuotes(path.Base(la.OriginalFileName))))
 		h.Set("Content-Type", mtype)
 
 		var part io.Writer
@@ -142,8 +148,8 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 			return
 		}
 
-		if la.SideCar.IsSet() {
-			scName := path.Base(la.FileName) + ".xmp"
+		if la.FromSideCar != nil && strings.ToLower(la.FromSideCar.File.Name()) == ".xmp" {
+			scName := path.Base(la.OriginalFileName) + ".xmp"
 			h.Set("Content-Disposition",
 				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 					escapeQuotes("sidecarData"), escapeQuotes(scName)))
@@ -154,23 +160,13 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 			if err != nil {
 				return
 			}
-			err = la.SideCar.Write(part)
+			defer f.Close()
+			f, err = la.FromSideCar.File.Open()
 			if err != nil {
 				return
 			}
-		} else if la.Metadata.IsSet() {
-			scName := path.Base(la.FileName) + ".xmp"
-			h.Set("Content-Disposition",
-				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-					escapeQuotes("sidecarData"), escapeQuotes(scName)))
-			h.Set("Content-Type", "application/xml")
 
-			var part io.Writer
-			part, err = m.CreatePart(h)
-			if err != nil {
-				return
-			}
-			err = la.Metadata.Write(part)
+			_, err = io.Copy(part, f)
 			if err != nil {
 				return
 			}
@@ -180,13 +176,10 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *browser.LocalAssetF
 	var callValues map[string]string
 	if ic.apiTraceWriter != nil {
 		callValues = map[string]string{
-			ctxAssetName: la.FileName,
+			ctxAssetName: la.File.Name(),
 		}
-		if la.SideCar.IsSet() {
-			callValues[ctxSideCarName] = la.SideCar.FileName
-		}
-		if la.LivePhoto != nil {
-			callValues[ctxLiveVideoName] = la.LivePhoto.FileName
+		if la.FromSideCar != nil {
+			callValues[ctxSideCarName] = la.FromSideCar.File.Name()
 		}
 	}
 
@@ -242,6 +235,9 @@ func (o *GetAssetOptions) Values() url.Values {
 }
 
 func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDelete bool) error {
+	if ic.dryRun {
+		return nil
+	}
 	req := struct {
 		Force bool     `json:"force"`
 		IDs   []string `json:"ids"`
@@ -253,14 +249,9 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 	return ic.newServerCall(ctx, "DeleteAsset").do(deleteRequest("/assets", setJSONBody(&req)))
 }
 
-func (ic *ImmichClient) GetAssetByID(ctx context.Context, id string) (*Asset, error) {
-	body := struct {
-		WithExif  bool   `json:"withExif,omitempty"`
-		IsVisible bool   `json:"isVisible,omitempty"`
-		ID        string `json:"id"`
-	}{WithExif: true, IsVisible: true, ID: id}
+func (ic *ImmichClient) GetAssetInfo(ctx context.Context, id string) (*Asset, error) {
 	r := Asset{}
-	err := ic.newServerCall(ctx, "GetAssetByID").do(postRequest("/search/metadata", "application/json", setAcceptJSON(), setJSONBody(body)), responseJSON(&r))
+	err := ic.newServerCall(ctx, "GetAssetInfo").do(getRequest("/assets/"+id, setAcceptJSON()), responseJSON(&r))
 	return &r, err
 }
 
@@ -269,6 +260,9 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 	latitude float64, longitude float64,
 	removeParent bool, stackParentID string,
 ) error {
+	if ic.dryRun {
+		return nil
+	}
 	type updAssets struct {
 		IDs           []string `json:"ids"`
 		IsArchived    bool     `json:"isArchived"`
@@ -291,31 +285,30 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 	return ic.newServerCall(ctx, "updateAssets").do(putRequest("/assets", setJSONBody(param)))
 }
 
-func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, a *browser.LocalAssetFile) (*Asset, error) {
-	type updAsset struct {
-		IsArchived  bool    `json:"isArchived"`
-		IsFavorite  bool    `json:"isFavorite"`
-		Latitude    float64 `json:"latitude,omitempty"`
-		Longitude   float64 `json:"longitude,omitempty"`
-		Description string  `json:"description,omitempty"`
-	}
-	param := updAsset{
-		IsArchived:  a.Archived,
-		IsFavorite:  a.Favorite,
-		Description: a.Metadata.Description,
-		Latitude:    a.Metadata.Latitude,
-		Longitude:   a.Metadata.Longitude,
+// UpdAssetField is used to update asset with fields given in the struct fields
+type UpdAssetField struct {
+	IsArchived       bool      `json:"isArchived"`
+	IsFavorite       bool      `json:"isFavorite"`
+	Latitude         float64   `json:"latitude,omitempty"`
+	Longitude        float64   `json:"longitude,omitempty"`
+	Description      string    `json:"description,omitempty"`
+	Rating           int       `json:"rating,omitempty"`
+	LivePhotoVideoID string    `json:"livePhotoVideoId,omitempty"`
+	DateTimeOriginal time.Time `json:"dateTimeOriginal,omitempty"`
+}
+
+func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error) {
+	if ic.dryRun {
+		return nil, nil
 	}
 	r := Asset{}
 	err := ic.newServerCall(ctx, "updateAsset").do(putRequest("/assets/"+id, setJSONBody(param)), responseJSON(&r))
 	return &r, err
 }
 
-func (ic *ImmichClient) StackAssets(ctx context.Context, coverID string, ids []string) error {
-	cover, err := ic.GetAssetByID(ctx, coverID)
-	if err != nil {
-		return err
-	}
+func (ic *ImmichClient) DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error) {
+	var rc io.ReadCloser
 
-	return ic.UpdateAssets(ctx, ids, cover.IsArchived, cover.IsFavorite, cover.ExifInfo.Latitude, cover.ExifInfo.Longitude, false, coverID)
+	err := ic.newServerCall(ctx, "DownloadAsset").do(getRequest(fmt.Sprintf("/assets/%s/original", id), setOctetStream()), responseOctetStream(&rc))
+	return rc, err
 }

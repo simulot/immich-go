@@ -8,9 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/simulot/immich-go/browser"
-	"github.com/simulot/immich-go/helpers/tzone"
+	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/tzone"
 )
+
+var _ ImmichInterface = (*ImmichClient)(nil)
 
 // ImmichInterface is an interface that implements the minimal immich client set of features for uploading
 // interface used to mock up the client
@@ -22,25 +25,69 @@ type ImmichInterface interface {
 	ValidateConnection(ctx context.Context) (User, error)
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
 	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
+	GetAssetInfo(ctx context.Context, id string) (*Asset, error)
+	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
 
-	UpdateAsset(ctx context.Context, ID string, a *browser.LocalAssetFile) (*Asset, error)
+	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
 	GetAllAssets(ctx context.Context) ([]*Asset, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
-	UpdateAssets(ctx context.Context, IDs []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error
-	GetAllAssetsWithFilter(context.Context, func(*Asset) error) error
-	AssetUpload(context.Context, *browser.LocalAssetFile) (AssetResponse, error)
+	UpdateAssets(
+		ctx context.Context,
+		IDs []string,
+		isArchived bool,
+		isFavorite bool,
+		latitude float64,
+		longitude float64,
+		removeParent bool,
+		stackParentID string,
+	) error
+	GetAllAssetsWithFilter(context.Context, *SearchMetadataQuery, func(*Asset) error) error
+	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
-	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
+	GetAllAlbums(ctx context.Context) ([]assets.Album, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
-	CreateAlbum(ctx context.Context, tilte string, description string, ids []string) (AlbumSimplified, error)
-	GetAssetAlbums(ctx context.Context, ID string) ([]AlbumSimplified, error)
+	CreateAlbum(
+		ctx context.Context,
+		tilte string,
+		description string,
+		ids []string,
+	) (assets.Album, error)
+
+	// GetAssetAlbums get all albums that an asset belongs to
+	GetAssetAlbums(ctx context.Context, assetID string) ([]assets.Album, error)
 	DeleteAlbum(ctx context.Context, id string) error
 
-	StackAssets(ctx context.Context, cover string, IDs []string) error
+	SupportedMedia() filetypes.SupportedMedia
 
-	SupportedMedia() SupportedMedia
 	GetJobs(ctx context.Context) (map[string]Job, error)
+	SendJobCommand(
+		ctx context.Context,
+		jobID JobID,
+		command JobCommand,
+		force bool,
+	) (SendJobCommandResponse, error)
+	CreateJob(ctx context.Context, name JobName) error
+
+	UpsertTags(ctx context.Context, tags []string) ([]TagSimplified, error)
+	TagAssets(
+		ctx context.Context,
+		tagID string,
+		assetIDs []string,
+	) ([]TagAssetsResponse, error)
+	BulkTagAssets(
+		ctx context.Context,
+		tagIDs []string,
+		assetIDs []string,
+	) (struct {
+		Count int `json:"count"`
+	}, error)
+}
+
+type ImmichStackInterface interface {
+	ImmichInterface
+	// CreateStack create a stack with the given assets, the 1st asset is the cover, return the stack ID
+	CreateStack(ctx context.Context, ids []string) (string, error)
 }
 
 type UnsupportedMedia struct {
@@ -138,13 +185,43 @@ type Asset struct {
 	IsArchived       bool              `json:"isArchived"`
 	IsTrashed        bool              `json:"isTrashed"`
 	Duration         string            `json:"duration"`
+	Rating           int               `json:"rating"`
 	ExifInfo         ExifInfo          `json:"exifInfo"`
 	LivePhotoVideoID string            `json:"livePhotoVideoId"`
-	Tags             []any             `json:"tags"`
 	Checksum         string            `json:"checksum"`
 	StackParentID    string            `json:"stackParentId"`
-	JustUploaded     bool              `json:"-"`
 	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
+	Tags             []TagSimplified   `json:"tags"`
+	// JustUploaded     bool              `json:"-"` // TO REMOVE
+}
+
+// NewAssetFromImmich creates an assets.Asset from an immich.Asset.
+func (ia Asset) AsAsset() *assets.Asset {
+	a := &assets.Asset{
+		FileDate:         ia.FileModifiedAt.Time,
+		Description:      ia.ExifInfo.Description,
+		OriginalFileName: ia.OriginalFileName,
+		ID:               ia.ID,
+		CaptureDate:      ia.ExifInfo.DateTimeOriginal.Time,
+		Trashed:          ia.IsTrashed,
+		Archived:         ia.IsArchived,
+		Favorite:         ia.IsFavorite,
+		Rating:           ia.Rating,
+		Latitude:         ia.ExifInfo.Latitude,
+		Longitude:        ia.ExifInfo.Longitude,
+	}
+	a.FileSize = int(ia.ExifInfo.FileSizeInByte)
+	for _, album := range ia.Albums {
+		a.Albums = append(a.Albums, assets.Album{
+			Title:       album.AlbumName,
+			Description: album.Description,
+		})
+	}
+
+	for _, tag := range ia.Tags {
+		a.Tags = append(a.Tags, tag.AsTag())
+	}
+	return a
 }
 
 type ExifInfo struct {
@@ -152,7 +229,7 @@ type ExifInfo struct {
 	Model            string     `json:"model"`
 	ExifImageWidth   int        `json:"exifImageWidth"`
 	ExifImageHeight  int        `json:"exifImageHeight"`
-	FileSizeInByte   int        `json:"fileSizeInByte"`
+	FileSizeInByte   int64      `json:"fileSizeInByte"`
 	Orientation      string     `json:"orientation"`
 	DateTimeOriginal ImmichTime `json:"dateTimeOriginal,omitempty"`
 	// 	ModifyDate       time.Time `json:"modifyDate"`

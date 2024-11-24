@@ -11,6 +11,29 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/simulot/immich-go/internal/fshelper"
+)
+
+const (
+	EndPointGetJobs                = "GetJobs"
+	EndPointSendJobCommand         = "SendJobCommand"
+	EndPointCreateJob              = "CreateJob"
+	EndPointGetAllAlbums           = "GetAllAlbums"
+	EndPointGetAlbumInfo           = "GetAlbumInfo"
+	EndPointAddAsstToAlbum         = "AddAssetToAlbum"
+	EndPointCreateAlbum            = "CreateAlbum"
+	EndPointGetAssetAlbums         = "GetAssetAlbums"
+	EndPointDeleteAlbum            = "DeleteAlbum"
+	EndPointPingServer             = "PingServer"
+	EndPointValidateConnection     = "ValidateConnection"
+	EndPointGetServerStatistics    = "GetServerStatistics"
+	EndPointGetAssetStatistics     = "GetAssetStatistics"
+	EndPointGetSupportedMediaTypes = "GetSupportedMediaTypes"
+	EndPointGetAllAssets           = "GetAllAssets"
+	EndPointUpsertTags             = "UpsertTags"
+	EndPointTagAssets              = "TagAssets"
+	EndPointBulkTagAssets          = "BulkTagAssets"
 )
 
 type TooManyInternalError struct {
@@ -118,8 +141,12 @@ var callSequence atomic.Int64
 
 const ctxCallSequenceID = "api-call-sequence"
 
-func (sc *serverCall) request(method string, url string, opts ...serverRequestOption) *http.Request {
-	if sc.ic.apiTraceWriter != nil {
+func (sc *serverCall) request(
+	method string,
+	url string,
+	opts ...serverRequestOption,
+) *http.Request {
+	if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
 		seq := callSequence.Add(1)
 		sc.ctx = context.WithValue(sc.ctx, ctxCallSequenceID, seq)
 	}
@@ -150,7 +177,10 @@ func postRequest(url string, cType string, opts ...serverRequestOption) requestF
 		if sc.err != nil {
 			return nil
 		}
-		return sc.request(http.MethodPost, sc.ic.endPoint+url, append(opts, setContentType(cType))...)
+		return sc.request(
+			http.MethodPost,
+			sc.ic.endPoint+url,
+			append(opts, setContentType(cType))...)
 	}
 }
 
@@ -183,7 +213,7 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		return sc.Err(req, nil, nil)
 	}
 
-	if sc.ic.apiTraceWriter != nil /* && req.Header.Get("Content-Type") == "application/json"*/ {
+	if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
 		_ = sc.joinError(setTraceRequest()(sc, req))
 	}
 
@@ -234,6 +264,13 @@ func setAcceptJSON() serverRequestOption {
 	}
 }
 
+func setOctetStream() serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Add("Accept", "application/octet-stream")
+		return nil
+	}
+}
+
 func setAPIKey() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Header.Set("x-api-key", sc.ic.key)
@@ -245,7 +282,7 @@ func setJSONBody(object any) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		b := bytes.NewBuffer(nil)
 		enc := json.NewEncoder(b)
-		if sc.ic.apiTraceWriter != nil {
+		if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
 			enc.SetIndent("", " ")
 		}
 		err := enc.Encode(object)
@@ -276,9 +313,18 @@ func responseJSON[T any](object *T) serverResponseOption {
 					return nil
 				}
 				err := json.NewDecoder(resp.Body).Decode(object)
-				if sc.ic.apiTraceWriter != nil {
+				if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
 					seq := sc.ctx.Value(ctxCallSequenceID)
-					fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "RESPONSE", seq, sc.endPoint, resp.Request.Method, resp.Request.URL.String())
+					fmt.Fprintln(
+						sc.ic.apiTraceWriter,
+						time.Now().Format(time.RFC3339),
+						"RESPONSE",
+						seq,
+						sc.endPoint,
+						resp.Request.Method,
+						resp.Request.URL.String(),
+					)
+					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
 					dec.SetIndent("", " ")
@@ -292,74 +338,27 @@ func responseJSON[T any](object *T) serverResponseOption {
 	}
 }
 
-/*
-func responseAccumulateJSON[T any](acc *[]T) serverResponseOption {
+func responseCopy(buffer *bytes.Buffer) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
-		eof := true
 		if resp != nil {
 			if resp.Body != nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == http.StatusNoContent {
-					return nil
-				}
-				arr := []T{}
-				err := json.NewDecoder(resp.Body).Decode(&arr)
-				if err != nil {
-					return err
-				}
-				if len(arr) > 0 && sc.p != nil {
-					eof = false
-				}
-				(*acc) = append((*acc), arr...)
-				if eof {
-					sc.p.setEOF()
-				}
+				newBody := fshelper.TeeReadCloser(resp.Body, buffer)
+				resp.Body = newBody
 				return nil
 			}
 		}
-		return errors.New("can't decode nil response")
+		return nil
 	}
 }
-*/
-/*
-func responseJSONWithFilter[T any](filter func(*T)) serverResponseOption {
+
+func responseOctetStream(rc *io.ReadCloser) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
-		eof := true
 		if resp != nil {
 			if resp.Body != nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == http.StatusNoContent {
-					return nil
-				}
-				dec := json.NewDecoder(resp.Body)
-				// read open bracket "["
-				_, err := dec.Token()
-				if err != nil {
-					return nil
-				}
-
-				// while the array contains values
-				for dec.More() {
-					var o T
-					// decode an array value (Message)
-					err = dec.Decode(&o)
-					if err != nil {
-						return err
-					}
-					if sc.p != nil {
-						eof = false
-					}
-					filter(&o)
-				}
-				// read closing bracket "]"
-				_, err = dec.Token()
-				if eof {
-					sc.p.setEOF()
-				}
-				return err
+				*rc = resp.Body
+				return nil
 			}
 		}
-		return errors.New("can't decode nil response")
+		return nil
 	}
 }
-*/

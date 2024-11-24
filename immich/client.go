@@ -1,14 +1,16 @@
 package immich
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"time"
+
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 /*
@@ -26,11 +28,16 @@ type ImmichClient struct {
 	Retries             int           // Number of attempts on 500 errors
 	RetriesDelay        time.Duration // Duration between retries
 	apiTraceWriter      io.Writer
-	supportedMediaTypes SupportedMedia // Server's list of supported medias
+	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
+	dryRun              bool                     //  If true, do not send any data to the server
 }
 
 func (ic *ImmichClient) SetEndPoint(endPoint string) {
 	ic.endPoint = endPoint
+}
+
+func (ic *ImmichClient) GetEndPoint() string {
+	return ic.endPoint
 }
 
 func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) {
@@ -41,7 +48,7 @@ func (ic *ImmichClient) EnableAppTrace(w io.Writer) {
 	ic.apiTraceWriter = w
 }
 
-func (ic *ImmichClient) SupportedMedia() SupportedMedia {
+func (ic *ImmichClient) SupportedMedia() filetypes.SupportedMedia {
 	return ic.supportedMediaTypes
 }
 
@@ -57,6 +64,13 @@ func OptionVerifySSL(verify bool) clientOption {
 func OptionConnectionTimeout(d time.Duration) clientOption {
 	return func(ic *ImmichClient) error {
 		ic.client.Timeout = d
+		return nil
+	}
+}
+
+func OptionDryRun(dryRun bool) clientOption {
+	return func(ic *ImmichClient) error {
+		ic.dryRun = dryRun
 		return nil
 	}
 }
@@ -108,9 +122,10 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 // Ping server
 func (ic *ImmichClient) PingServer(ctx context.Context) error {
 	r := PingResponse{}
-	err := ic.newServerCall(ctx, "PingServer").do(getRequest("/server-info/ping", setAcceptJSON()), responseJSON(&r))
+	b := bytes.NewBuffer(nil)
+	err := ic.newServerCall(ctx, EndPointPingServer).do(getRequest("/server/ping", setAcceptJSON()), responseCopy(b), responseJSON(&r))
 	if err != nil {
-		return fmt.Errorf("the ping API end point doesn't respond at this address: %s", ic.endPoint+"/server-info/ping")
+		return fmt.Errorf("unexpected response to the immich's ping API at this address: %s:\n%s", ic.endPoint+"/server/ping", b.String())
 	}
 	if r.Res != "pong" {
 		return fmt.Errorf("incorrect ping response: %s", r.Res)
@@ -124,7 +139,7 @@ func (ic *ImmichClient) PingServer(ctx context.Context) error {
 func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
 	var user User
 
-	err := ic.newServerCall(ctx, "ValidateConnection").
+	err := ic.newServerCall(ctx, EndPointValidateConnection).
 		do(getRequest("/users/me", setAcceptJSON()), responseJSON(&user))
 	if err != nil {
 		return user, err
@@ -158,7 +173,7 @@ type ServerStatistics struct {
 func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatistics, error) {
 	var s ServerStatistics
 
-	err := ic.newServerCall(ctx, "GetServerStatistics").do(getRequest("/server-info/statistics", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, EndPointGetServerStatistics).do(getRequest("/server/statistics", setAcceptJSON()), responseJSON(&s))
 	return s, err
 }
 
@@ -173,71 +188,26 @@ type UserStatistics struct {
 
 func (ic *ImmichClient) GetAssetStatistics(ctx context.Context) (UserStatistics, error) {
 	var s UserStatistics
-	err := ic.newServerCall(ctx, "GetAssetStatistics").do(getRequest("/assets/statistics", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, EndPointGetAssetStatistics).do(getRequest("/assets/statistics", setAcceptJSON()), responseJSON(&s))
 	return s, err
 }
 
-type SupportedMedia map[string]string
-
-const (
-	TypeVideo   = "video"
-	TypeImage   = "image"
-	TypeSidecar = "sidecar"
-	TypeUnknown = ""
-)
-
-var DefaultSupportedMedia = SupportedMedia{
-	".3gp": TypeVideo, ".avi": TypeVideo, ".flv": TypeVideo, ".insv": TypeVideo, ".m2ts": TypeVideo, ".m4v": TypeVideo, ".mkv": TypeVideo, ".mov": TypeVideo, ".mp4": TypeVideo, ".mpg": TypeVideo, ".mts": TypeVideo, ".webm": TypeVideo, ".wmv": TypeVideo,
-	".3fr": TypeImage, ".ari": TypeImage, ".arw": TypeImage, ".avif": TypeImage, ".bmp": TypeImage, ".cap": TypeImage, ".cin": TypeImage, ".cr2": TypeImage, ".cr3": TypeImage, ".crw": TypeImage, ".dcr": TypeImage, ".dng": TypeImage, ".erf": TypeImage,
-	".fff": TypeImage, ".gif": TypeImage, ".heic": TypeImage, ".heif": TypeImage, ".hif": TypeImage, ".iiq": TypeImage, ".insp": TypeImage, ".jpe": TypeImage, ".jpeg": TypeImage, ".jpg": TypeImage,
-	".jxl": TypeImage, ".k25": TypeImage, ".kdc": TypeImage, ".mrw": TypeImage, ".nef": TypeImage, ".orf": TypeImage, ".ori": TypeImage, ".pef": TypeImage, ".png": TypeImage, ".psd": TypeImage, ".raf": TypeImage, ".raw": TypeImage, ".rw2": TypeImage,
-	".rwl": TypeImage, ".sr2": TypeImage, ".srf": TypeImage, ".srw": TypeImage, ".tif": TypeImage, ".tiff": TypeImage, ".webp": TypeImage, ".x3f": TypeImage,
-	".xmp": TypeSidecar,
-	".mp":  TypeVideo,
-}
-
-func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMedia, error) {
+func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (filetypes.SupportedMedia, error) {
 	var s map[string][]string
 
-	err := ic.newServerCall(ctx, "GetSupportedMediaTypes").do(getRequest("/server-info/media-types", setAcceptJSON()), responseJSON(&s))
+	err := ic.newServerCall(ctx, EndPointGetSupportedMediaTypes).do(getRequest("/server/media-types", setAcceptJSON()), responseJSON(&s))
 	if err != nil {
 		return nil, err
 	}
-	sm := make(SupportedMedia)
+	sm := make(filetypes.SupportedMedia)
 	for t, l := range s {
 		for _, e := range l {
 			sm[e] = t
 		}
 	}
-	sm[".mp"] = TypeVideo
+	sm[".mp"] = filetypes.TypeVideo
+	sm[".json"] = filetypes.TypeSidecar
 	return sm, err
-}
-
-func (sm SupportedMedia) TypeFromExt(ext string) string {
-	ext = strings.ToLower(ext)
-	return sm[ext]
-}
-
-func (sm SupportedMedia) IsMedia(ext string) bool {
-	t := sm.TypeFromExt(ext)
-	return t == TypeVideo || t == TypeImage
-}
-
-func (sm SupportedMedia) IsExtensionPrefix(ext string) bool {
-	ext = strings.ToLower(ext)
-	for e, t := range sm {
-		if t == TypeVideo || t == TypeImage {
-			if ext == e[:len(e)-1] {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (sm SupportedMedia) IsIgnoredExt(ext string) bool {
-	t := sm.TypeFromExt(ext)
-	return t == ""
 }
 
 func (ic *ImmichClient) TypeFromExt(ext string) string {
