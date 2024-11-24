@@ -3,7 +3,7 @@ package commands
 import (
 	"context"
 
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	"github.com/simulot/immich-go/commands/archive"
 	"github.com/simulot/immich-go/commands/upload"
 	"github.com/spf13/cobra"

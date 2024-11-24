@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"

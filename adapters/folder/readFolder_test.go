@@ -13,7 +13,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/exif"

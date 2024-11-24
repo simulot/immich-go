@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"

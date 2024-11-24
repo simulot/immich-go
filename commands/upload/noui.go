@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"

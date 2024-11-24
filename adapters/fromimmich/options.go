@@ -3,7 +3,7 @@ package fromimmich
 import (
 	"time"
 
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/spf13/cobra"
 )

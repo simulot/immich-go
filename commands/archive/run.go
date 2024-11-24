@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/simulot/immich-go/adapters"
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	"github.com/simulot/immich-go/internal/fileevent"
 )
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/simulot/immich-go/adapters/folder"
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/spf13/cobra"

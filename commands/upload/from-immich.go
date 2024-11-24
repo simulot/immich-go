@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/simulot/immich-go/adapters/fromimmich"
-	"github.com/simulot/immich-go/commands/application"
+	"github.com/simulot/immich-go/application"
 	"github.com/spf13/cobra"
 )
 
