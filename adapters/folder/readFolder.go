@@ -62,7 +62,6 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 		if err != nil {
 			return nil, err
 		}
-
 	}
 
 	if flags.ManageEpsonFastFoto {

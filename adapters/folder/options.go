@@ -9,7 +9,6 @@ import (
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
-
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/spf13/cobra"
 )
