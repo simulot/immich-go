@@ -8,7 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -18,7 +18,7 @@ import (
 type UpCmd struct {
 	Mode UpLoadMode
 	*UploadOptions
-	app *application.Application
+	app *app.Application
 
 	AssetIndex       *AssetIndex     // List of assets present on the server
 	deleteServerList []*immich.Asset // List of server assets to remove
@@ -32,7 +32,7 @@ type UpCmd struct {
 	takeoutOptions *gp.ImportFlags
 }
 
-func newUpload(mode UpLoadMode, app *application.Application, options *UploadOptions) *UpCmd {
+func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *UpCmd {
 	upCmd := &UpCmd{
 		UploadOptions: options,
 		app:           app,
@@ -46,7 +46,7 @@ func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
 	return upCmd
 }
 
-func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *application.Application) error {
+func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application) error {
 	upCmd.adapter = adapter
 
 	if upCmd.NoUI {

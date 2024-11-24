@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/spf13/cobra"
 )
 
-func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app *application.Application, upOptions *UploadOptions) *cobra.Command {
+func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app *app.Application, upOptions *UploadOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-google-photos [flags] <takeout-*.zip> | <takeout-folder>",
 		Short: "Upload photos either from a zipped Google Photos takeout or decompressed archive",

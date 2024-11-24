@@ -8,9 +8,9 @@ import (
 
 	"github.com/simulot/immich-go/adapters/fromimmich"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
+	"github.com/simulot/immich-go/app"
 
 	"github.com/simulot/immich-go/adapters/folder"
-	"github.com/simulot/immich-go/application"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -22,7 +22,7 @@ type ArchiveOptions struct {
 	ArchivePath string
 }
 
-func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra.Command {
+func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "archive",
 		Short: "Archive various sources of photos to a file system",
@@ -39,7 +39,7 @@ func NewArchiveCommand(ctx context.Context, app *application.Application) *cobra
 	return cmd
 }
 
-func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
+func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app *app.Application, archOptions *ArchiveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-folder",
 		Short: "Archive photos from a folder",
@@ -92,7 +92,7 @@ func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app 
 	return cmd
 }
 
-func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
+func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app *app.Application, archOptions *ArchiveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-google-photos [flags] <takeout-*.zip> | <takeout-folder>",
 		Short: "Archive photos either from a zipped Google Photos takeout or decompressed archive",
@@ -143,7 +143,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 	return cmd
 }
 
-func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *application.Application, archOptions *ArchiveOptions) *cobra.Command {
+func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.Application, archOptions *ArchiveOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-immich [from-flags]",
 		Short: "Archive photos from Immich",

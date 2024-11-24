@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/helpers/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
@@ -135,7 +135,7 @@ func TestBrowse(t *testing.T) {
 			fsys := c.gen()
 
 			ctx := context.Background()
-			log := application.Log{
+			log := app.Log{
 				File:  logFile,
 				Level: "INFO",
 			}
@@ -229,7 +229,7 @@ func TestAlbums(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			log := application.Log{
+			log := app.Log{
 				File:  logFile,
 				Level: "INFO",
 			}

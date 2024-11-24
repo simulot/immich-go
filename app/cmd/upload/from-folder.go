@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	"github.com/simulot/immich-go/adapters/folder"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/spf13/cobra"
 )
 
-func NewFromFolderCommand(ctx context.Context, parent *cobra.Command, app *application.Application, upOptions *UploadOptions) *cobra.Command {
+func NewFromFolderCommand(ctx context.Context, parent *cobra.Command, app *app.Application, upOptions *UploadOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-folder [flags] <path>...",
 		Short: "Upload photos from a folder",

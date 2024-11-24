@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/spf13/cobra"
@@ -37,24 +37,24 @@ type UploadOptions struct {
 }
 
 // NewUploadCommand adds the Upload command
-func NewUploadCommand(ctx context.Context, app *application.Application) *cobra.Command {
+func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	options := &UploadOptions{}
 	cmd := &cobra.Command{
 		Use:   "upload",
 		Short: "Upload photos to an Immich server from various sources",
 	}
-	application.AddClientFlags(ctx, cmd, app)
+	app.AddClientFlags(ctx, cmd, a)
 	cmd.TraverseChildren = true
 	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
-	cmd.PersistentPreRunE = application.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, app)
+	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)
 
-	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, app, options))
-	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, cmd, app, options))
-	cmd.AddCommand(NewFromImmichCommand(ctx, cmd, app, options))
+	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, a, options))
+	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, cmd, a, options))
+	cmd.AddCommand(NewFromImmichCommand(ctx, cmd, a, options))
 	return cmd
 }
 
-func (options *UploadOptions) Open(ctx context.Context, cmd *cobra.Command, app *application.Application) error {
+func (options *UploadOptions) Open(ctx context.Context, cmd *cobra.Command, app *app.Application) error {
 	// Initialize the Journal
 	if app.Jnl() == nil {
 		app.SetJnl(fileevent.NewRecorder(app.Log().Logger))

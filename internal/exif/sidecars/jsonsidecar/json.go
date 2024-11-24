@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assets"
 )
 
@@ -15,7 +15,7 @@ type meta struct {
 
 func Write(md *assets.Metadata, w io.Writer) error {
 	v := meta{
-		Software: application.GetVersion(),
+		Software: app.GetVersion(),
 		Metadata: *md,
 	}
 	enc := json.NewEncoder(w)

@@ -11,7 +11,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/navidys/tvxwidgets"
 	"github.com/rivo/tview"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
@@ -40,16 +40,16 @@ type uiPage struct {
 	watchJobs bool
 }
 
-func (ui *uiPage) highJackLogger(app *application.Application) {
+func (ui *uiPage) highJackLogger(app *app.Application) {
 	ui.logView.SetDynamicColors(true)
 	app.Jnl().SetLogger(app.Log().SetLogWriter(tview.ANSIWriter(ui.logView)))
 }
 
-func (ui *uiPage) restoreLogger(app *application.Application) {
+func (ui *uiPage) restoreLogger(app *app.Application) {
 	app.Jnl().SetLogger(app.Log().SetLogWriter(nil))
 }
 
-func (upCmd *UpCmd) runUI(ctx context.Context, app *application.Application) error {
+func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	uiApp := tview.NewApplication()
@@ -250,14 +250,14 @@ func newModal(message string) tview.Primitive {
 	return modal(text, 80, 2+lines)
 }
 
-func (upCmd *UpCmd) newUI(ctx context.Context, app *application.Application) *uiPage {
+func (upCmd *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui := &uiPage{
 		counts: map[fileevent.Code]*tview.TextView{},
 	}
 
 	ui.screen = tview.NewGrid()
 
-	ui.screen.AddItem(tview.NewTextView().SetText(application.Banner()), 0, 0, 1, 1, 0, 0, false)
+	ui.screen.AddItem(tview.NewTextView().SetText(app.Banner()), 0, 0, 1, 1, 0, 0, false)
 
 	ui.prepareCounts = tview.NewGrid()
 	ui.prepareCounts.SetBorder(true).SetTitle("Input analysis")
@@ -284,7 +284,7 @@ func (upCmd *UpCmd) newUI(ctx context.Context, app *application.Application) *ui
 	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 
-	if _, err := app.Client().Immich.GetJobs(ctx); err == nil {
+	if _, err := a.Client().Immich.GetJobs(ctx); err == nil {
 		ui.watchJobs = true
 
 		ui.serverJobs = tvxwidgets.NewSparkline()
@@ -308,7 +308,7 @@ func (upCmd *UpCmd) newUI(ctx context.Context, app *application.Application) *ui
 
 	// Hijack the log
 	ui.logView = tview.NewTextView().SetMaxLines(100).ScrollToEnd()
-	ui.highJackLogger(app)
+	ui.highJackLogger(a)
 
 	ui.logView.SetBorder(true).SetTitle("Log")
 	ui.screen.AddItem(ui.logView, 2, 0, 1, 1, 0, 0, false)

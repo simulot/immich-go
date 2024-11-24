@@ -3,7 +3,7 @@ package fromimmich
 import (
 	"time"
 
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/spf13/cobra"
 )
@@ -18,7 +18,7 @@ type FromImmichFlags struct {
 	MinimalRating int                // get only assets with a rating greater or equal to this value
 	Make          string             // get only assets with this make
 	Model         string             // get only assets with this model
-	client        application.Client // client to use for the import
+	client        app.Client         // client to use for the import
 }
 
 func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.Command) {

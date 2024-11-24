@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/simulot/immich-go/adapters/fromimmich"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/spf13/cobra"
 )
 
-func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *application.Application, upOptions *UploadOptions) *cobra.Command {
+func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.Application, upOptions *UploadOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-immich [flags]",
 		Short: "Upload photos from another Immich server",

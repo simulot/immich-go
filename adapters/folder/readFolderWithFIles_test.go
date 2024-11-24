@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/exif"
@@ -213,7 +213,7 @@ func TestLocalAssets(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			log := application.Log{
+			log := app.Log{
 				File:  logFile,
 				Level: "DEBUG",
 			}

@@ -13,7 +13,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/helpers/configuration"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/exif"
@@ -389,7 +389,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			log := application.Log{
+			log := app.Log{
 				File:  logFile,
 				Level: "INFO",
 			}
@@ -518,7 +518,7 @@ func TestInMemLocalAssetsWithTags(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			log := application.Log{
+			log := app.Log{
 				File:  logFile,
 				Level: "INFO",
 			}

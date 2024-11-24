@@ -5,11 +5,11 @@ import (
 	"errors"
 
 	"github.com/simulot/immich-go/adapters"
-	"github.com/simulot/immich-go/application"
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/fileevent"
 )
 
-func run(ctx context.Context, jnl *fileevent.Recorder, app *application.Application, source adapters.Reader, dest adapters.AssetWriter) error { // nolint:unparam
+func run(ctx context.Context, jnl *fileevent.Recorder, _ *app.Application, source adapters.Reader, dest adapters.AssetWriter) error { // nolint:unparam
 	gChan := source.Browse(ctx)
 	errCount := 0
 	for {
