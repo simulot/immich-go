@@ -41,7 +41,7 @@ func Benchmark_IsExtensionPrefix(b *testing.B) {
 func TestPingServer(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"res":"pong"}`))
+		_, _ = w.Write([]byte(`{"res":"pong"}`))
 	}))
 	defer server.Close()
 
@@ -56,10 +56,10 @@ func TestValidateConnection(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/users/me" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"id":"1","email":"test@example.com"}`))
+			_, _ = w.Write([]byte(`{"id":"1","email":"test@example.com"}`))
 		} else if r.URL.Path == "/api/server/media-types" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"image":[".jpg",".png"],"video":[".mp4"]}`))
+			_, _ = w.Write([]byte(`{"image":[".jpg",".png"],"video":[".mp4"]}`))
 		}
 	}))
 	defer server.Close()
@@ -80,7 +80,7 @@ func TestValidateConnection(t *testing.T) {
 func TestGetServerStatistics(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"photos":100,"videos":50,"usage":1024}`))
+		_, _ = w.Write([]byte(`{"photos":100,"videos":50,"usage":1024}`))
 	}))
 	defer server.Close()
 
@@ -103,7 +103,7 @@ func TestGetServerStatistics(t *testing.T) {
 func TestGetAssetStatistics(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"images":200,"videos":100,"total":300}`))
+		_, _ = w.Write([]byte(`{"images":200,"videos":100,"total":300}`))
 	}))
 	defer server.Close()
 
@@ -126,7 +126,7 @@ func TestGetAssetStatistics(t *testing.T) {
 func TestGetSupportedMediaTypes(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"image":[".jpg",".png"],"video":[".mp4"]}`))
+		_, _ = w.Write([]byte(`{"image":[".jpg",".png"],"video":[".mp4"]}`))
 	}))
 	defer server.Close()
 
@@ -150,7 +150,7 @@ func TestDownloadAsset(t *testing.T) {
 	expectedContent := "dummy content"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(expectedContent))
+		_, _ = w.Write([]byte(expectedContent))
 	}))
 	defer server.Close()
 
