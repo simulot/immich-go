@@ -5,21 +5,34 @@
 > ⚠️ This an early version, not yet extensively tested<br>
 > ⚠️ Keep a backup copy of your files for safety<br>
 
-## You can support my work on `Immich-go`:
+
+
+## Support the project `Immich-go`
 
 - [Github Sponsor](https://github.com/sponsors/simulot)
 - [Paypal Donation](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
 
-## Key Features:
+## What Makes Immich-Go Special?
 
-* **Simple Installation:** Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments. Immich-go can run as well from either your workstation or a NAS.
-* **Upload Large collection of photos:**  
+### Simple Installation: 
+  * Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments. 
+  * Immich-go can run as well from either your workstation or a NAS.
+
+### Handles Large Photo Collections:
   * **Upload Large Google Photos Takeouts:**  Immich-Go excels at handling the massive archives you download from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, capture date, and album information. Read the [best practices](#google-photos-best-practices) below for more information.
-  * **Upload Large photo collection:** You can upload photos directly from your computer folders, folders tree and compressed ZIP archives.
+  * **Upload collection:** You can upload photos directly from your computer folders, folders tree and compressed ZIP archives.
   * **Is Duplicate aware:** Immich-Go identify and discard duplicate photos, keeping only the highest-quality version on the server.
-* **Archive your immich server:**
-  * Write the content of your immich server to a folder tree, ready for been archived or migrated to another server.
+  * **Archive your immich server:**  Write the content of your immich server to a folder tree, ready for been archived or migrated to another server.
+
+### Has a lot of options:
+* Stack burst
+* Manage coupled RAW and JPEG files
+* Use tags
+* ... and much more
+
+### Run on any platform:
+  * Immich-Go is available for Windows, MacOS, Linux, and FreeBSD. It can run on any platform where the language Go is ported.
 
 ## Requirements
 
@@ -28,6 +41,20 @@
   * Collect an API key for each immich user.
 * **Basic knowledge of command line:** Immich-Go is a command-line tool, so you should be comfortable using a terminal.
 * Optional: install `exiftool` to get the date of capture from the photo's metadata.  
+
+## Upgrading from the original `immich-go`
+
+This version is a complete rewrite of the original `immich-go` project. It is designed to be more efficient, more reliable, and easier to use. It is also more flexible, with more options and features.
+As consequence, the command line options have changed. Please refer to the documentation for the new options.
+
+The visible changes are:
+- Adoption of the linux convention for the command line options: use 2 dashes for long options.
+- Complete restructuration of the CLI logic:
+  - The `upload` command accepts 3 sub-commands: `from-google-photos`, `from-folder`, `from-immich`. This remove all ambiguity on the options.
+  - The new `archive` command takes advantage of this sub-command logic. It's possible to archive from a google photos takeout, a folder tree or an immich server.
+
+The upgrade process consists of installing the new version over the previous one. 
+You can check the version of the installed `immich-go` by running `immich-go --version`.
 
 
 ## Installation
@@ -108,7 +135,7 @@ go build
 # (Optional) Install to GOPATH/bin
 go install
 ```
-## Installation with Nix
+### Installation with Nix
 
 `immich-go` is packaged with [nix](https://nixos.org/) and distributed via [nixpkgs](https://search.nixos.org/packages?channel=unstable&type=packages&query=immich-go).
 You can try `immich-go` without installing it with:
@@ -492,7 +519,6 @@ To import photos taken within a specific date range from a local folder, use the
 ```bash
 immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key --exiftool-enabled --date-range=2022-01-01,2022-12-31 /path/to/your/photos
 ```
-
 
 
 # Acknowledgments
