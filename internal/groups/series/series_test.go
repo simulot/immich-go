@@ -13,19 +13,6 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
-type mockedAsset struct {
-	nameInfo  assets.NameInfo
-	dateTaken time.Time
-}
-
-func (m mockedAsset) NameInfo() assets.NameInfo {
-	return m.nameInfo
-}
-
-func (m mockedAsset) DateTaken() time.Time {
-	return m.dateTaken
-}
-
 func mockAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time) *assets.Asset {
 	a := assets.Asset{
 		File:        fshelper.FSName(nil, name),
