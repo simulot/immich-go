@@ -264,9 +264,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 		// if err != nil {
 		// 	return err
 		// }
-
 	}
-
 	return nil
 }
 
