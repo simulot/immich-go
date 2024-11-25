@@ -32,7 +32,7 @@
 * ... and much more
 
 ### Run on Any platform:
-  * Immich-Go is available for Windows, MacOS, Linux, and FreeBSD. It can run on any platform where the Go language Go ported.
+  * Immich-Go is available for Windows, MacOS, Linux, and FreeBSD. It can run on any platform where the Go language is ported.
 
 ## Requirements
 
@@ -42,7 +42,7 @@
 * **Basic knowledge of command line:** Immich-Go is a command-line tool, so you should be comfortable using a terminal.
 * Optional: install `exiftool` to get the date of capture from the photo's metadata.  
 
-## Upgrading from Original `immich-go`
+## Upgrading from the original `immich-go`, version 0.22 and earlier
 
 This version is a complete rewrite of the original `immich-go` project. It is designed to be more efficient, more reliable, and easier to use. It is also more flexible, with more options and features.
 As a consequence, the command line options have changed. Please refer to the documentation for the new options.
@@ -57,9 +57,9 @@ The upgrade process consists of installing the new version over the previous one
 You can check the version of the installed `immich-go` by running `immich-go --version`.
 
 
-## Installation
+# Installation
 
-### Prerequisites
+## Prerequisites
 
 - For pre-built binaries: No prerequisites needed
 - For building from source: 
@@ -71,11 +71,11 @@ You can check the version of the installed `immich-go` by running `immich-go --v
     - On MacOS: `brew install exiftool`
     - On Windows: Download from [ExifTool website](https://exiftool.org/)
 
-### Pre-built Binaries
+## Pre-built Binaries
 
 The easiest way to install Immich-Go is to download the pre-built binary for your system from the [GitHub releases page](https://github.com/simulot/immich-go/releases).
 
-#### **Supported Platforms:**
+### **Supported Platforms:**
 - **Operating Systems**
   - MacOS
   - Windows
@@ -86,7 +86,7 @@ The easiest way to install Immich-Go is to download the pre-built binary for you
   - AMD64 (x86_64)
   - ARM
 
-#### Installation Steps
+### Installation Steps
 
 1. Visit the [GitHub latest release page](https://github.com/simulot/immich-go/releases/latest)
 2. Download the archive for your operating system and architecture:
@@ -114,14 +114,14 @@ The easiest way to install Immich-Go is to download the pre-built binary for you
    # Move immich-go.exe to a directory in your PATH
    ```
 
-### Building from Source
+## Building from Source
 If pre-built binaries are not available, you can build Immich-Go from source.
 
-#### Prerequisites
+### Prerequisites
 - Go 1.23 or higher
 - Git
 
-#### Build Steps
+### Build Steps
 ```bash
 # Clone the repository
 git clone https://github.com/simulot/immich-go.git
@@ -135,7 +135,7 @@ go build
 # (Optional) Install to GOPATH/bin
 go install
 ```
-### Installation with Nix
+## Installation with Nix
 
 `immich-go` is packaged with [nix](https://nixos.org/) and distributed via [nixpkgs](https://search.nixos.org/packages?channel=unstable&type=packages&query=immich-go).
 You can try `immich-go` without installing it with:
@@ -160,10 +160,11 @@ immich-go --version
 This should display the version number of immich-go.
 
 
-
 # Running Immich-Go
 
-Each command has its own set of options and sub-commands. The following sections detail the available commands and their options.
+Immich-Go is a command-line tool. You need to run it from a terminal or command prompt.
+
+## Commands and Sub-Commands logic
 
 The general syntax for running immich-go is:
 
@@ -171,68 +172,99 @@ The general syntax for running immich-go is:
 immich-go command sub-command options path/to/files
 ```
 
-The list of options can be obtained by running `immich-go -help` or `immich-go command sub-command -help`.
+Commands must be combined with sub-commands and options to obtain the required action.
+* immich-go
+  * [upload](#the-upload-command)
+    * from-folder 
+    * from-google-photos
+    * from-immich
+  * [archive](#the-archive-command)
+    * from-folder
+    * from-google-photos
+    * from-immich
+  * version
 
-All commands accept the following options:
 
-| **Parameter**  | **Description**                                                     |
-| -------------- | ------------------------------------------------------------------- |
-| -h, --help     | help for immich-go                                                  |
-| -l, --log-file | Write log messages into the file                                    |
-| --log-level    | Log level (DEBUG\|INFO\|WARN\|ERROR), default INFO (default "INFO") |
-| --log-type     | Log format (TEXT\|JSON) (default "TEXT")                            |
-| -v, --version  | version for immich-go                                               |
+
+Examples:
+```bash
+## Upload photos from a local folder to your Immich server
+immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key /path/to/your/photos
+
+## Archive photos from your Immich server to a local folder
+immich-go archive from-immich --from-server=http://your-ip:2283 --from-api-key=your-api-key --write-to-folder=/path/to/archive
+
+## Upload a google photos takeout to your Immich server
+immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-api-key /path/to/your/takeout-*.zip
+```
+
+> **Note:** Depending on your OS, you may need to invoke the program differently when immich-go is in the current directory:
+> - linux, MacOS, FreeBSD: `./immich-go`
+> - Windows: `.\immich-go`
+
+
+### Global options
+Following options are shared by all commands:
+
+| **Parameter**  | **Description**                                      |
+| -------------- | ---------------------------------------------------- |
+| -h, --help     | help for immich-go                                   |
+| -l, --log-file | Write log messages into the file                     |
+| --log-level    | Log level (DEBUG\|INFO\|WARN\|ERROR) default "INFO") |
+| --log-type     | Log format (TEXT\|JSON) (default "TEXT")             |
+| -v, --version  | version for immich-go                                |
+
+
 
 # The **upload** command:
-The **upload** command loads photos and videos from the given source determined by a sub-command to the Immich server. 
-The general syntax is:
+The **upload** command loads photos and videos from the source designated by the sub-command to the Immich server. 
+**Upload** accepts three sub-commands:
+  * [from-folder](#from-folder-sub-command) to upload photos from a local folder or a zipped archive
+  * [from-google-photos](#from-google-photos-sub-command) to upload photos from a Google Photos takeout archive
+  * [from-immich](#from-immich-sub-command) to upload photos from an Immich server to another Immich server
 
+Examples:
 ```bash
-immich-go upload from-sub-command options path/to/files
+immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key /path/to/your/photos
+immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-api-key /path/to/your/takeout-*.zip
 ```
 
 
-## The **upload** sub-commands:
-
-```mermaid
-graph LR
-  GP>GP takeout]
-  FT>Folder tree]
-  FI>Immich server]
-  OF>archive folder tree]
-  I((Immich))
-  GP --form-google-photos--> I
-  FT --from-folder-->I
-  OF --from-folder-->I
-  FI --from-immich-->I
-```
+The **upload** command need the following options to manage the connection with the Immich server:
 
 
-Beside the classic usages, you can use the **upload** for those edge cases:
-- Transfer photos from a live server to another one, using the **from-immich** sub-command.
-- Transfer photos from an immich account to another one, using the **from-immich** sub-command.
+| **Parameter**        | **Default value** | **Description**                                                                                                                    |
+| -------------------- | :---------------: | ---------------------------------------------------------------------------------------------------------------------------------- |
+| -s, --server         |                   | Immich server address (example http://your-ip:2283 or https://your-domain) (**MANDATORY**)                                         |
+| -k, --api-key        |                   | API Key (**MANDATORY**)                                                                                                            |
+| --api-trace          |      `FALSE`      | Enable trace of api calls                                                                                                          |
+| --client-timeout     |      `5m0s`       | Set server calls timeout                                                                                                           |
+| --device-uuid string |   `$LOCALHOST`    | Set a device UUID                                                                                                                  |
+| --dry-run            |                   | Simulate all server actions                                                                                                        |
+| --skip-verify-ssl    |      `FALSE`      | Skip SSL verification                                                                                                              |
+| --time-zone          |                   | Override the system time zone (example: Europe/Paris)                                                                              |
+| --session-tag        |      `FALSE`      | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                   |
+| --tag strings        |                   | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1') |
 
 
-## Shared options by all **upload** sub-command:
+## **--client-timeout** 
+Increase the **--client-timeout** when you have some timeout issues with the server, specialy when uploading large files.
 
-| **Parameter**        | **Default value** | **Description**                                                                            |
-| -------------------- | :---------------: | ------------------------------------------------------------------------------------------ |
-| -s, --server         |                   | Immich server address (example http://your-ip:2283 or https://your-domain) (**MANDATORY**) |
-| -k, --api-key        |                   | API Key (**MANDATORY**)                                                                    |
-| --api-trace          |      `FALSE`      | Enable trace of api calls                                                                  |
-| --client-timeout     |      `5m0s`       | Set server calls timeout                                                                   |
-| --device-uuid string |   `$LOCALHOST`    | Set a device UUID                                                                          |
-| --dry-run            |                   | Simulate all server actions                                                                |
-| --skip-verify-ssl    |      `FALSE`      | Skip SSL verification                                                                      |
-| --time-zone          |                   | Override the system time zone (example: Europe/Paris)                                      |
+## **--session-tag** 
+Thanks to the **--session-tag** option, it's eas 
 
-Details on the available options for each sub-command are provided below.
+
 
 # The **archive** command:
 
 The **archive** command writes the content taken from the source given by the sub-command to a folder tree. 
-All photos and videos are sorted by date of capture, following this schema: `Folder/YYYY/YYYY-MM/photo.jpg`.
 
+The command accepts three sub-commands:
+  * [from-folder](#from-folder-sub-command) to create a folder archive from a local folder or a zipped archive
+  * [from-google-photos](#from-google-photos-sub-command) to create a folder archive from a Google Photos takeout archive
+  * [from-immich](#from-immich-sub-command) to create a folder archive from an Immich server
+
+All photos and videos are sorted by date of capture, following this schema: `Folder/YYYY/YYYY-MM/photo.jpg`.
 
 Here is an example of how your folder structure might look:
 
@@ -273,32 +305,12 @@ The general syntax is:
 immich-go archive from-sub-command --write-to-folder=folder options 
 ```
 
-
-### **archive** sub-commands:
-
-```mermaid
-graph LR
-  GP>GP takeout]
-  FT>Folder tree]
-  FI>Immich server]
-  A((archive))
-  GP --form-google-photos--> A
-  FT --from-folder--> A
-  FI --from-immich--> A
-  A --> OF
-  OF>archive folder tree]
-```
-
-Beside the classic usages, we can use the **archive** for those edge cases:
-- Process a google photos takeout to remove duplicates, using the **from-google-photos** sub-command.
-- Process a folder tree to sort photos in folders by date, using the **from-folder** sub-command.
-
-## Options for **from-folder** sub command:
+# **from-folder** sub command:
 
 The **from-folder** sub-command processes a folder tree to upload photos to the Immich server.
 
 | **Parameter**           | **Default value**                     | **Description**                                                                                                                                                                                                                                                                                      |
-| ----------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ----------------------- | ------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | --album-path-joiner     | `" / "`                               | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')                                                                                                                                                                                                  |
 | --ban-file              | [See banned files](#banned-file-list) | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.                                                                                                                                                                                                               |
 | --capture-date-method   | `NONE`                                | Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename) |
@@ -321,53 +333,37 @@ The **from-folder** sub-command processes a folder tree to upload photos to the 
 | --tag                   |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                                                                                                                                                   |
 
 
-### Options for **from-google-photos**:
+# **From-google-photos** sub command:
+
 
 The **from-google-photos** sub-command processes a Google Photos takeout archive to upload photos to the Immich server.
 
-| **Parameter**                | **Default value**                     | **Description**                                                                                                                                                                                                                                                                                      |
-| ---------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Parameter**                |           **Default value**           | **Description**                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | :-----------------------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | --ban-file FileList          | [See banned files](#banned-file-list) | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.                                                                                                                                                                                                               |
-| --capture-date-method        | `NONE`                                | Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename) |
+| --capture-date-method        |                `NONE`                 | Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename) |
 | --date-range                 |                                       | Only import photos taken within the specified date range [See date range possibilities](#date-range)                                                                                                                                                                                                 |
 | --exclude-extensions         |                                       | Comma-separated list of extension to exclude. (e.g. .gif,.PM)                                                                                                                                                                                                                                        |
 | --exiftool-enabled           |                                       | Enable the use of the external 'exiftool' program (if installed and available in the system path) to extract EXIF metadata                                                                                                                                                                           |
 | --exiftool-path string       |                                       | Path to the ExifTool executable (default: search in system's PATH)                                                                                                                                                                                                                                   |
 | --exiftool-timezone timezone |                                       | Timezone to use when parsing exif timestamps without timezone Options: LOCAL (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York) (default Local)                                                                                             |
 | --from-album-name string     |                                       | Only import photos from the specified Google Photos album                                                                                                                                                                                                                                            |
-| -a, --include-archived       | `TRUE`                                | Import archived Google Photos                                                                                                                                                                                                                                                                        |
-| --include-extensions         | `all`                                 | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                                                                                                                                                      |
-| -p, --include-partner        | `TRUE`                                | Import photos from your partner's Google Photos account                                                                                                                                                                                                                                              |
-| -t, --include-trashed        | `FALSE`                               | Import photos that are marked as trashed in Google Photos                                                                                                                                                                                                                                            |
-| -u, --include-unmatched      | `FALSE`                               | Import photos that do not have a matching JSON file in the takeout                                                                                                                                                                                                                                   |
-| --include-untitled-albums    | `FALSE`                               | Include photos from albums without a title in the import process                                                                                                                                                                                                                                     |
+| -a, --include-archived       |                `TRUE`                 | Import archived Google Photos                                                                                                                                                                                                                                                                        |
+| --include-extensions         |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                                                                                                                                                      |
+| -p, --include-partner        |                `TRUE`                 | Import photos from your partner's Google Photos account                                                                                                                                                                                                                                              |
+| -t, --include-trashed        |                `FALSE`                | Import photos that are marked as trashed in Google Photos                                                                                                                                                                                                                                            |
+| -u, --include-unmatched      |                `FALSE`                | Import photos that do not have a matching JSON file in the takeout                                                                                                                                                                                                                                   |
+| --include-untitled-albums    |                `FALSE`                | Include photos from albums without a title in the import process                                                                                                                                                                                                                                     |
 | --manage-burst               |                                       | Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG. [See option's details](#burst-detection-and-management)                                                                                                                                                                    |
-| --manage-epson-fastfoto      | `FALSE`                               | Manage Epson FastFoto file (default: false)                                                                                                                                                                                                                                                          |
+| --manage-epson-fastfoto      |                `FALSE`                | Manage Epson FastFoto file (default: false)                                                                                                                                                                                                                                                          |
 | --manage-heic-jpeg           |                                       | Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG   [See option's details](#management-of-coupled-heic-and-jpeg-files)                                                                                                                           |
 | --manage-raw-jpeg            |                                       | Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG. [See options's details](#management-of-coupled-raw-and-jpeg-files)                                                                                                                               |
 | --partner-shared-album       |                                       | Add partner's photo to the specified album name                                                                                                                                                                                                                                                      |
-| --session-tag                | `FALSE`                               | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                                                                                                                                                                                     |
-| --sync-albums                | `TRUE`                                | Automatically create albums in Immich that match the albums in your Google Photos takeout (default true)                                                                                                                                                                                             |
+| --session-tag                |                `FALSE`                | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                                                                                                                                                                                     |
+| --sync-albums                |                `TRUE`                 | Automatically create albums in Immich that match the albums in your Google Photos takeout (default true)                                                                                                                                                                                             |
 | --tag strings                |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                                                                                                                                                   |
-| --takeout-tag                | `FALSE`                               | Tag uploaded photos with a tag "{takeout}/takeout-YYYYMMDDTHHMMSSZ" (default true)                                                                                                                                                                                                                   |
+| --takeout-tag                |                `FALSE`                | Tag uploaded photos with a tag "{takeout}/takeout-YYYYMMDDTHHMMSSZ" (default true)                                                                                                                                                                                                                   |
 
-
-### Options for **from-immich**:
-
-The sub-command **from-immich** processes an Immich server to upload photos to another Immich server.
-
-| **Parameter**                  | **Default value** | **Description**                                                                      |
-| ------------------------------ | ----------------- | ------------------------------------------------------------------------------------ |
-| --from-server                  |                   | Immich server address (example http://your-ip:2283 or https://your-domain)           |
-| --from-api-key string          |                   | API Key                                                                              |
-| --from-album                   |                   | Get assets only from those albums, can be used multiple times                        |
-| --from-api-trace               | `FALSE`           | Enable trace of api calls                                                            |
-| --from-client-timeout duration | `5m0s`            | Set server calls timeout (default 5m0s)                                              |
-| --from-date-range              |                   | Get assets only within this date range.  [See date range possibilities](#date-range) |
-| --from-skip-verify-ssl         | `FALSE`           | Skip SSL verification                                                                |
-
-
-# Additional information and best practices
 
 ## Google Photos Best Practices:
 
@@ -389,16 +385,86 @@ The sub-command **from-immich** processes an Immich server to upload photos to a
   * Sometime, the takeout results is crippled. Request another takeout, either for an entire year or in smaller increments.
   * Force the import of files despite the missing JSON. Use the option `-upload-when-missing-JSON`
 
-For insights into the reasoning behind this alternative to `immich-cli`, please read the motivation [here](docs/motivation.md).
+## Takeout tag
+Immich-go can tag all imported photos with a takeout tag. The tag is formatted as `{takeout}/takeout-YYYYMMDDTHHMMSSZ`. This tag can be used to identify all photos imported from a Google Photos takeout. This it easy to remove them if needed.
 
+## Burst detection and management
+
+The system detects burst photos in following cases:
+
+| Case                | Description                                                                                                                                                           |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Series of photos    | When the time difference between 2 photo is less than 500 ms                                                                                                          |
+| Huawei smartphones  | Based on file names: <br>- IMG_20231014_183246_BURST001_COVER.jpg<br>- IMG_20231014_183246_BURST002.jpg<br>- IMG_20231014_183246_BURST003.jpg                         |
+| Nexus smartphones   | Based on files names:<br>- 00001IMG_00001_BURST20171111030039.jpg<br>-...<br>-00014IMG_00014_BURST20171111030039.jpg<br>-00015IMG_00015_BURST20171111030039_COVER.jpg |
+| Pixel smartphones   | Based on files names:<br>- PXL_20230330_184138390.MOTION-01.COVER.jpg<br>- PXL_20230330_184138390.MOTION-02.ORIGINAL.jpg                                              |
+| Samsung smartphones | Based on files names:<br>- 20231207_101605_001.jpg<br>- 20231207_101605_002.jpg<br>- 20231207_101605_xxx.jpg                                                          |
+| Sony Xperia         | Based on files names:<br>- DSC_0001_BURST20230709220904977.JPG<br>- ...<br>- DSC_0035_BURST20230709220904977_COVER.JPG                                                |
+
+The option  `--manage-burst` instructs Immich-go how to manage burst photos. The following options are available:
+
+| Option          | Description                                                                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stack`         | Stack all burst photos together. When the cover photo can't be identified with the file name, the first photo of the burst is used as cover. |
+| `stackKeepRaw`  | Stack all burst photos together. Keep only the RAW photos.                                                                                   |
+| `stackKeepJPEG` | Stack all burst photos together. Keep only the JPEG photos.                                                                                  |
+
+## Management of coupled HEIC and JPEG files
+
+The option `--manage-heic-jpeg` instructs Immich-go how to manage HEIC and JPEG files. The following options are available:
+
+| Option           | Description                                                         |
+| ---------------- | ------------------------------------------------------------------- |
+| `KeepHeic`       | Keep only the HEIC file.                                            |
+| `KeepJPG`        | Keep only the JPEG file.                                            |
+| `StackCoverHeic` | Stack the HEIC and JPEG files together. The HEIC file is the cover. |
+| `StackCoverJPG`  | Stack the HEIC and JPEG files together. The JPEG file is the cover. |
+
+## Management of coupled RAW and JPEG files
+
+The option `--manage-raw-jpeg` instructs Immich-go how to manage RAW and JPEG files. The following options are available:
+
+| Option          | Description                                                        |
+| --------------- | ------------------------------------------------------------------ |
+| `KeepRaw`       | Keep only the RAW file.                                            |
+| `KeepJPG`       | Keep only the JPEG file.                                           |
+| `StackCoverRaw` | Stack the RAW and JPEG files together. The RAW file is the cover.  |
+| `StackCoverJPG` | Stack the RAW and JPEG files together. The JPEG file is the cover. |
+
+## Management of Epson FastFoto scanned photos
+
+This device outputs 3 files for each scanned photo: the original scan, a "corrected" scan, and the backside of the photo if it has writing on it. The structure looks like this: 
+- specified-image-name.jpg Original
+- specified-image-name_a.jpg Corrected
+- specified-image-name_b.jpg Back of Photo
+
+The option `--manage-epson-fastfoto=TRUE` instructs Immich-go to stack related photos, with the corrected scan as the cover.
+
+
+# **from-immich** sub-command:
+
+The sub-command **from-immich** processes an Immich server to upload photos to another Immich server.
+
+| **Parameter**                  | **Default value** | **Description**                                                                      |
+| ------------------------------ | :---------------: | ------------------------------------------------------------------------------------ |
+| --from-server                  |                   | Immich server address (example http://your-ip:2283 or https://your-domain)           |
+| --from-api-key string          |                   | API Key                                                                              |
+| --from-album                   |                   | Get assets only from those albums, can be used multiple times                        |
+| --from-api-trace               |      `FALSE`      | Enable trace of api calls                                                            |
+| --from-client-timeout duration |      `5m0s`       | Set server calls timeout (default 5m0s)                                              |
+| --from-date-range              |                   | Get assets only within this date range.  [See date range possibilities](#date-range) |
+| --from-skip-verify-ssl         |      `FALSE`      | Skip SSL verification                                                                |
+
+
+# Additional information and best practices
 
 ## **XMP** files process
 
-**XMP** files found in source folder are passed to Immich server without any modification. Immich uses them to collect photo's date of capture and GPS location.
+**XMP** files found in source folder are passed to Immich server without any modification. Immich uses them to collect photo's date of capture, tags, description and GPS location.
 
 ## Google photos **JSON** files process
 
-Google photos **JSON** files found in source folders are opened to get the album belonging, the date of capture and the GPS location, the favorite status, the partner status, the archive status and the trashed status. This information is used to trigger Immich features.
+Google photos **JSON** files found in source folders are opened by Immich-go to get the album belonging, the date of capture, the GPS location, the favorite status, the partner status, the archive status and the trashed status. This information is used to trigger Immich features.
 
 ## Folder archive **JSON** files process
 
@@ -434,8 +500,6 @@ Those files are generated by the **archive** command. Their are used to restore 
 ## Session tags
 Immich-go can tag all imported photos with a session tag. The tag is formatted as `{immich-go}/YYYY-MM-DD HH-MM-SS`. This tag can be used to identify all photos imported during a session. This it easy to remove them if needed.
 
-## Takeout tag
-Immich-go can tag all imported photos with a takeout tag. The tag is formatted as `{takeout}/takeout-YYYYMMDDTHHMMSSZ`. This tag can be used to identify all photos imported from a Google Photos takeout. This it easy to remove them if needed.
 
 ## Banned file list
 The following files are excluded automatically:
@@ -459,55 +523,10 @@ The `--date-range` option allows you to process photos taken within a specific d
 | `-date-range=YYYY-MM-DD,YYYY-MM-DD` | select photos taken between two dates.         |
 
 
-## Burst detection and management
-
-The system detects burst photos in following cases:
-
-| Case                | Description                                                                                                                                                           |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Series of photos    | When the time difference between 2 photo is less than 500 ms                                                                                                          |
-| Huawei smartphones  | Based on file names: <br>- IMG_20231014_183246_BURST001_COVER.jpg<br>- IMG_20231014_183246_BURST002.jpg<br>- IMG_20231014_183246_BURST003.jpg                          |
-| Nexus smartphones   | Based on files names:<br>- 00001IMG_00001_BURST20171111030039.jpg<br>-...<br>-00014IMG_00014_BURST20171111030039.jpg<br>-00015IMG_00015_BURST20171111030039_COVER.jpg |
-| Pixel smartphones   | Based on files names:<br>- PXL_20230330_184138390.MOTION-01.COVER.jpg<br>- PXL_20230330_184138390.MOTION-02.ORIGINAL.jpg                                              |
-| Samsung smartphones | Based on files names:<br>- 20231207_101605_001.jpg<br>- 20231207_101605_002.jpg<br>- 20231207_101605_xxx.jpg                                                          |
-| Sony Xperia         | Based on files names:<br>- DSC_0001_BURST20230709220904977.JPG<br>- ...<br>- DSC_0035_BURST20230709220904977_COVER.JPG                                                |
-
-The option  `--manage-burst` instructs Immich-go how to manage burst photos. The following options are available:
-
-| Option          | Description                                                                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stack`         | Stack all burst photos together. When the cover photo can't be identified with the file name, the first photo of the burst is used as cover. |
-| `stackKeepRaw`  | Stack all burst photos together. Keep only the RAW photos.                                                                                   |
-| `stackKeepJPEG` | Stack all burst photos together. Keep only the JPEG photos.                                                                                  |
-
-
-## Management of coupled HEIC and JPEG files
-
-The option `--manage-heic-jpeg` instructs Immich-go how to manage HEIC and JPEG files. The following options are available:
-
-| Option           | Description                                                         |
-| ---------------- | ------------------------------------------------------------------- |
-| `KeepHeic`       | Keep only the HEIC file.                                            |
-| `KeepJPG`        | Keep only the JPEG file.                                            |
-| `StackCoverHeic` | Stack the HEIC and JPEG files together. The HEIC file is the cover. |
-| `StackCoverJPG`  | Stack the HEIC and JPEG files together. The JPEG file is the cover. |
-
-## Management of coupled RAW and JPEG files
-
-The option `--manage-raw-jpeg` instructs Immich-go how to manage RAW and JPEG files. The following options are available:
-
-| Option          | Description                                                        |
-| --------------- | ------------------------------------------------------------------ |
-| `KeepRaw`       | Keep only the RAW file.                                            |
-| `KeepJPG`       | Keep only the JPEG file.                                           |
-| `StackCoverRaw` | Stack the RAW and JPEG files together. The RAW file is the cover.  |
-| `StackCoverJPG` | Stack the RAW and JPEG files together. The JPEG file is the cover. |
-
-
 
 # Examples
 
-## Example: Importing a Google Takeout with Stacking JPEG and RAW
+#### Importing a Google Takeout with Stacking JPEG and RAW
 
 To import a Google Photos takeout and stack JPEG and RAW files together, with the RAW file as the cover, use the following command:
 
@@ -515,7 +534,7 @@ To import a Google Photos takeout and stack JPEG and RAW files together, with th
 immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-api-key --manage-raw-jpeg=StackCoverRaw /path/to/your/takeout-*.zip
 ```
 
-## Example: Uploading Photos from a Local Folder
+#### Uploading Photos from a Local Folder
 
 To upload photos from a local folder to your Immich server, use the following command:
 
@@ -523,7 +542,7 @@ To upload photos from a local folder to your Immich server, use the following co
 immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key /path/to/your/photos
 ```
 
-## Example: Archiving Photos from Immich Server
+#### Archiving Photos from Immich Server
 
 To archive photos from your Immich server to a local folder, use the following command:
 
@@ -531,7 +550,7 @@ To archive photos from your Immich server to a local folder, use the following c
 immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-key --write-to-folder=/path/to/archive
 ```
 
-## Example: Transferring Photos Between Immich Servers
+#### Transferring Photos Between Immich Servers
 
 To transfer photos from one Immich server to another, use the following command:
 
@@ -539,7 +558,7 @@ To transfer photos from one Immich server to another, use the following command:
 immich-go upload from-immich --from-server=http://source-ip:2283 --from-api-key=source-api-key --server=http://destination-ip:2283 --api-key=destination-api-key
 ```
 
-## Example: Importing Photos with Specific Date Range
+#### Importing Photos with Specific Date Range
 
 To import photos taken within a specific date range from a local folder, use the following command:
 
