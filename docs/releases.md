@@ -5,6 +5,12 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release 0.22.1
+
+### Fixes:
+- [#509](https://github.com/simulot/immich-go/issues/509)      
+
+
 ## Release 0.22.0
 Many thanks to @maybeanerd for their meticulous proofreading of the documentation files.
 
