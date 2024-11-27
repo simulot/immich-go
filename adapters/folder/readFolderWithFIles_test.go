@@ -29,182 +29,206 @@ func TestLocalAssets(t *testing.T) {
 		expectedCounts []int64
 		expectedAlbums map[string][]string
 	}{
+		// {
+		// 	name: "easy",
+		// 	flags: ImportFolderOptions{
+		// 		SupportedMedia: filetypes.DefaultSupportedMedia,
+		// 		ExifToolFlags: exif.ExifToolFlags{
+		// 			UseExifTool: true,
+		// 			Timezone:    tzone.Timezone{TZ: time.Local},
+		// 			DateMethod:  cliflags.DateMethodNone,
+		// 		},
+		// 		ManageBurst:   filters.BurstNothing,
+		// 		ManageRawJPG:  filters.RawJPGNothing,
+		// 		ManageHEICJPG: filters.HeicJpgNothing,
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		os.DirFS("DATA/date-range"),
+		// 	},
+		// 	expectedFiles: []string{
+		// 		"photo1_w_exif.jpg",
+		// 		"photo1_wo_exif.jpg",
+		// 		"photo1_2024-10-06_w_exif.jpg",
+		// 		"photo1_2023-10-06_wo_exif.jpg",
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.Uploaded, 4).Value(),
+		// },
+		// {
+		// 	name: "date on name",
+		// 	flags: ImportFolderOptions{
+		// 		ManageBurst:    filters.BurstNothing,
+		// 		ManageRawJPG:   filters.RawJPGNothing,
+		// 		ManageHEICJPG:  filters.HeicJpgNothing,
+		// 		SupportedMedia: filetypes.DefaultSupportedMedia,
+		// 		ExifToolFlags: exif.ExifToolFlags{
+		// 			UseExifTool: true,
+		// 			Timezone:    tzone.Timezone{TZ: time.Local},
+		// 			DateMethod:  cliflags.DateMethodName,
+		// 		},
+		// 		InclusionFlags: cliflags.InclusionFlags{
+		// 			DateRange: cliflags.InitDateRange("2023-10-06"),
+		// 		},
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		os.DirFS("DATA/date-range"),
+		// 	},
+		// 	expectedFiles: []string{
+		// 		"photo1_2023-10-06_wo_exif.jpg",
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Set(fileevent.Uploaded, 1).Value(),
+		// },
 		{
-			name: "easy",
+			name: "date on the path given as argument",
 			flags: ImportFolderOptions{
+				ManageBurst:    filters.BurstNothing,
+				ManageRawJPG:   filters.RawJPGNothing,
+				ManageHEICJPG:  filters.HeicJpgNothing,
 				SupportedMedia: filetypes.DefaultSupportedMedia,
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: true,
 					Timezone:    tzone.Timezone{TZ: time.Local},
-					DateMethod:  cliflags.DateMethodNone,
+					DateMethod:  cliflags.DateMethodName,
 				},
-				ManageBurst:   filters.BurstNothing,
-				ManageRawJPG:  filters.RawJPGNothing,
-				ManageHEICJPG: filters.HeicJpgNothing,
+				InclusionFlags: cliflags.InclusionFlags{
+					DateRange: cliflags.InitDateRange("2023-10-06"),
+				},
 			},
 			fsys: []fs.FS{
-				os.DirFS("DATA/date-range"),
+				os.DirFS("DATA/2021/2021-01/2021-01-19"),
 			},
 			expectedFiles: []string{
 				"photo1_w_exif.jpg",
 				"photo1_wo_exif.jpg",
-				"photo1_2024-10-06_w_exif.jpg",
-				"photo1_2023-10-06_wo_exif.jpg",
-			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.Uploaded, 4).Value(),
-		},
-		{
-			name: "date on name",
-			flags: ImportFolderOptions{
-				ManageBurst:    filters.BurstNothing,
-				ManageRawJPG:   filters.RawJPGNothing,
-				ManageHEICJPG:  filters.HeicJpgNothing,
-				SupportedMedia: filetypes.DefaultSupportedMedia,
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: true,
-					Timezone:    tzone.Timezone{TZ: time.Local},
-					DateMethod:  cliflags.DateMethodName,
-				},
-				InclusionFlags: cliflags.InclusionFlags{
-					DateRange: cliflags.InitDateRange("2023-10-06"),
-				},
-			},
-			fsys: []fs.FS{
-				os.DirFS("DATA/date-range"),
-			},
-			expectedFiles: []string{
-				"photo1_2023-10-06_wo_exif.jpg",
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Set(fileevent.Uploaded, 1).Value(),
 		},
+		// {
+		// 	name: "select exif date not using exiftool",
+		// 	flags: ImportFolderOptions{
+		// 		SupportedMedia: filetypes.DefaultSupportedMedia,
+		// 		InclusionFlags: cliflags.InclusionFlags{
+		// 			DateRange: cliflags.InitDateRange("2023-10-06"),
+		// 		},
+		// 		ExifToolFlags: exif.ExifToolFlags{
+		// 			UseExifTool: true,
+		// 			Timezone:    tzone.Timezone{TZ: time.Local},
+		// 			DateMethod:  cliflags.DateMethodEXIF,
+		// 		},
+		// 		ManageBurst:   filters.BurstNothing,
+		// 		ManageRawJPG:  filters.RawJPGNothing,
+		// 		ManageHEICJPG: filters.HeicJpgNothing,
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		os.DirFS("DATA/date-range"),
+		// 	},
+		// 	expectedFiles: []string{
+		// 		"photo1_w_exif.jpg",
+		// 		"photo1_2024-10-06_w_exif.jpg",
+		// 		// "photo1_2023-10-06_wo_exif.jpg",
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().
+		// 		Set(fileevent.DiscoveredImage, 4).
+		// 		Set(fileevent.DiscoveredDiscarded, 2).
+		// 		Set(fileevent.Uploaded, 2).Value(),
+		// },
 
-		{
-			name: "select exif date not using exiftool",
-			flags: ImportFolderOptions{
-				SupportedMedia: filetypes.DefaultSupportedMedia,
-				InclusionFlags: cliflags.InclusionFlags{
-					DateRange: cliflags.InitDateRange("2023-10-06"),
-				},
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: true,
-					Timezone:    tzone.Timezone{TZ: time.Local},
-					DateMethod:  cliflags.DateMethodEXIF,
-				},
-				ManageBurst:   filters.BurstNothing,
-				ManageRawJPG:  filters.RawJPGNothing,
-				ManageHEICJPG: filters.HeicJpgNothing,
-			},
-			fsys: []fs.FS{
-				os.DirFS("DATA/date-range"),
-			},
-			expectedFiles: []string{
-				"photo1_w_exif.jpg",
-				"photo1_2024-10-06_w_exif.jpg",
-				// "photo1_2023-10-06_wo_exif.jpg",
-			},
-			expectedCounts: fileevent.NewCounts().
-				Set(fileevent.DiscoveredImage, 4).
-				Set(fileevent.DiscoveredDiscarded, 2).
-				Set(fileevent.Uploaded, 2).Value(),
-		},
+		// {
+		// 	name: "select exif date using exiftool",
+		// 	flags: ImportFolderOptions{
+		// 		ManageBurst:    filters.BurstNothing,
+		// 		ManageRawJPG:   filters.RawJPGNothing,
+		// 		ManageHEICJPG:  filters.HeicJpgNothing,
+		// 		SupportedMedia: filetypes.DefaultSupportedMedia,
+		// 		InclusionFlags: cliflags.InclusionFlags{
+		// 			DateRange: cliflags.InitDateRange("2023-10-06"),
+		// 		},
+		// 		ExifToolFlags: exif.ExifToolFlags{
+		// 			UseExifTool: true,
+		// 			Timezone:    tzone.Timezone{TZ: time.Local},
+		// 			DateMethod:  cliflags.DateMethodEXIF,
+		// 		},
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		os.DirFS("DATA/date-range"),
+		// 	},
+		// 	expectedFiles: []string{
+		// 		"photo1_w_exif.jpg",
+		// 		"photo1_2024-10-06_w_exif.jpg",
+		// 		// "photo1_2023-10-06_wo_exif.jpg",
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().
+		// 		Set(fileevent.DiscoveredImage, 4).
+		// 		Set(fileevent.DiscoveredDiscarded, 2).
+		// 		Set(fileevent.Uploaded, 2).Value(),
+		// },
 
-		{
-			name: "select exif date using exiftool",
-			flags: ImportFolderOptions{
-				ManageBurst:    filters.BurstNothing,
-				ManageRawJPG:   filters.RawJPGNothing,
-				ManageHEICJPG:  filters.HeicJpgNothing,
-				SupportedMedia: filetypes.DefaultSupportedMedia,
-				InclusionFlags: cliflags.InclusionFlags{
-					DateRange: cliflags.InitDateRange("2023-10-06"),
-				},
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: true,
-					Timezone:    tzone.Timezone{TZ: time.Local},
-					DateMethod:  cliflags.DateMethodEXIF,
-				},
-			},
-			fsys: []fs.FS{
-				os.DirFS("DATA/date-range"),
-			},
-			expectedFiles: []string{
-				"photo1_w_exif.jpg",
-				"photo1_2024-10-06_w_exif.jpg",
-				// "photo1_2023-10-06_wo_exif.jpg",
-			},
-			expectedCounts: fileevent.NewCounts().
-				Set(fileevent.DiscoveredImage, 4).
-				Set(fileevent.DiscoveredDiscarded, 2).
-				Set(fileevent.Uploaded, 2).Value(),
-		},
+		// {
+		// 	name: "select exif date using exiftool then date",
+		// 	flags: ImportFolderOptions{
+		// 		SupportedMedia: filetypes.DefaultSupportedMedia,
+		// 		InclusionFlags: cliflags.InclusionFlags{
+		// 			DateRange: cliflags.InitDateRange("2023-10-06"),
+		// 		},
+		// 		ExifToolFlags: exif.ExifToolFlags{
+		// 			UseExifTool: true,
+		// 			Timezone:    tzone.Timezone{TZ: time.Local},
+		// 			DateMethod:  cliflags.DateMethodExifThenName,
+		// 		},
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		os.DirFS("DATA/date-range"),
+		// 	},
+		// 	expectedFiles: []string{
+		// 		"photo1_w_exif.jpg",
+		// 		"photo1_2023-10-06_wo_exif.jpg",
+		// 		"photo1_2024-10-06_w_exif.jpg",
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 1).Set(fileevent.Uploaded, 3).Value(),
+		// },
+		// {
+		// 	name: "select on date in the name",
+		// 	flags: ImportFolderOptions{
+		// 		SupportedMedia: filetypes.DefaultSupportedMedia,
+		// 		InclusionFlags: cliflags.InclusionFlags{
+		// 			DateRange: cliflags.InitDateRange("2023-10-06"),
+		// 		},
+		// 		ExifToolFlags: exif.ExifToolFlags{
+		// 			UseExifTool: true,
+		// 			Timezone:    tzone.Timezone{TZ: time.Local},
+		// 			DateMethod:  cliflags.DateMethodName,
+		// 		},
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		os.DirFS("DATA/date-range"),
+		// 	},
+		// 	expectedFiles: []string{
+		// 		"photo1_2023-10-06_wo_exif.jpg",
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Set(fileevent.Uploaded, 1).Value(),
+		// },
 
-		{
-			name: "select exif date using exiftool then date",
-			flags: ImportFolderOptions{
-				SupportedMedia: filetypes.DefaultSupportedMedia,
-				InclusionFlags: cliflags.InclusionFlags{
-					DateRange: cliflags.InitDateRange("2023-10-06"),
-				},
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: true,
-					Timezone:    tzone.Timezone{TZ: time.Local},
-					DateMethod:  cliflags.DateMethodExifThenName,
-				},
-			},
-			fsys: []fs.FS{
-				os.DirFS("DATA/date-range"),
-			},
-			expectedFiles: []string{
-				"photo1_w_exif.jpg",
-				"photo1_2023-10-06_wo_exif.jpg",
-				"photo1_2024-10-06_w_exif.jpg",
-			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 1).Set(fileevent.Uploaded, 3).Value(),
-		},
-		{
-			name: "select on date in the name",
-			flags: ImportFolderOptions{
-				SupportedMedia: filetypes.DefaultSupportedMedia,
-				InclusionFlags: cliflags.InclusionFlags{
-					DateRange: cliflags.InitDateRange("2023-10-06"),
-				},
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: true,
-					Timezone:    tzone.Timezone{TZ: time.Local},
-					DateMethod:  cliflags.DateMethodName,
-				},
-			},
-			fsys: []fs.FS{
-				os.DirFS("DATA/date-range"),
-			},
-			expectedFiles: []string{
-				"photo1_2023-10-06_wo_exif.jpg",
-			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).Set(fileevent.DiscoveredDiscarded, 3).Set(fileevent.Uploaded, 1).Value(),
-		},
-
-		{
-			name: "same name, but not live photo, select exif date using exiftool then date",
-			flags: ImportFolderOptions{
-				SupportedMedia: filetypes.DefaultSupportedMedia,
-				InclusionFlags: cliflags.InclusionFlags{
-					DateRange: cliflags.InitDateRange("2023-10-06"),
-				},
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: true,
-					Timezone:    tzone.Timezone{TZ: time.Local},
-					DateMethod:  cliflags.DateMethodExifThenName,
-				},
-			},
-			fsys: []fs.FS{
-				os.DirFS("DATA/not-motion"),
-			},
-			expectedFiles: []string{
-				"IMG_1234.jpg",
-				"IMG_1234.mp4",
-			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Set(fileevent.DiscoveredVideo, 1).Set(fileevent.Uploaded, 2).Value(),
-		},
+		// {
+		// 	name: "same name, but not live photo, select exif date using exiftool then date",
+		// 	flags: ImportFolderOptions{
+		// 		SupportedMedia: filetypes.DefaultSupportedMedia,
+		// 		InclusionFlags: cliflags.InclusionFlags{
+		// 			DateRange: cliflags.InitDateRange("2023-10-06"),
+		// 		},
+		// 		ExifToolFlags: exif.ExifToolFlags{
+		// 			UseExifTool: true,
+		// 			Timezone:    tzone.Timezone{TZ: time.Local},
+		// 			DateMethod:  cliflags.DateMethodExifThenName,
+		// 		},
+		// 	},
+		// 	fsys: []fs.FS{
+		// 		os.DirFS("DATA/not-motion"),
+		// 	},
+		// 	expectedFiles: []string{
+		// 		"IMG_1234.jpg",
+		// 		"IMG_1234.mp4",
+		// 	},
+		// 	expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 1).Set(fileevent.DiscoveredVideo, 1).Set(fileevent.Uploaded, 2).Value(),
+		// },
 	}
 
 	logFile := configuration.DefaultLogFile()

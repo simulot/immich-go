@@ -11,7 +11,7 @@ import (
 	"github.com/simulot/immich-go/internal/tzone"
 )
 
-// MetadataFromDirectRead read the file using GO pakcage
+// MetadataFromDirectRead read the file using GO package
 func MetadataFromDirectRead(f fs.File, localTZ *time.Location) (*assets.Metadata, error) {
 	var md assets.Metadata
 
