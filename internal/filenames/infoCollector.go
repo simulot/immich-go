@@ -36,7 +36,7 @@ func (ic InfoCollector) GetInfo(name string) assets.NameInfo {
 	}
 
 	// no matcher found, return a basic info
-	t := TakeTimeFromName(name, ic.TZ)
+	t := TakeTimeFromPath(name, ic.TZ)
 	ext := path.Ext(name)
 
 	return assets.NameInfo{
