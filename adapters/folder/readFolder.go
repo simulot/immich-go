@@ -257,7 +257,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					if err == nil {
 						md, err := exif.GetMetaData(f, name, la.flags.ExifToolFlags)
 						if err != nil {
-							la.log.Record(ctx, fileevent.INFO, fshelper.FSName(fsys, name), "error", err.Error())
+							la.log.Record(ctx, fileevent.INFO, a.File, "error", err.Error())
 							if la.flags.TakeDateFromFilename {
 								a.CaptureDate = a.NameInfo.Taken
 							}
@@ -270,7 +270,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 			if !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
 				a.Close()
-				la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "asset outside date range")
+				la.log.Record(ctx, fileevent.DiscoveredDiscarded, a.File, "reason", "asset outside date range")
 				continue
 			}
 
