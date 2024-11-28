@@ -117,7 +117,6 @@ func TestInMemLocalAssets(t *testing.T) {
 				SupportedMedia: filetypes.DefaultSupportedMedia,
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: false,
-					DateMethod:  cliflags.DateMethodNone,
 				},
 				InclusionFlags: cliflags.InclusionFlags{},
 				InfoCollector:  ic,
@@ -164,7 +163,6 @@ func TestInMemLocalAssets(t *testing.T) {
 				SupportedMedia: filetypes.DefaultSupportedMedia,
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: false,
-					DateMethod:  cliflags.DateMethodNone,
 				},
 
 				InclusionFlags: cliflags.InclusionFlags{
@@ -203,7 +201,6 @@ func TestInMemLocalAssets(t *testing.T) {
 				SupportedMedia: filetypes.DefaultSupportedMedia,
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: false,
-					DateMethod:  cliflags.DateMethodNone,
 				},
 
 				InclusionFlags: cliflags.InclusionFlags{
@@ -240,7 +237,6 @@ func TestInMemLocalAssets(t *testing.T) {
 				SupportedMedia: filetypes.DefaultSupportedMedia,
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: false,
-					DateMethod:  cliflags.DateMethodNone,
 				},
 
 				InclusionFlags: cliflags.InclusionFlags{},
@@ -273,7 +269,6 @@ func TestInMemLocalAssets(t *testing.T) {
 				SupportedMedia: filetypes.DefaultSupportedMedia,
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: false,
-					DateMethod:  cliflags.DateMethodName,
 					Timezone:    tzone.Timezone{TZ: time.Local},
 				},
 
@@ -310,7 +305,6 @@ func TestInMemLocalAssets(t *testing.T) {
 				InclusionFlags:         cliflags.InclusionFlags{},
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: false,
-					DateMethod:  cliflags.DateMethodNone,
 				},
 				Recursive:     true,
 				InfoCollector: ic,
@@ -351,7 +345,6 @@ func TestInMemLocalAssets(t *testing.T) {
 				InclusionFlags:         cliflags.InclusionFlags{},
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: false,
-					DateMethod:  cliflags.DateMethodNone,
 				},
 				Recursive:     true,
 				InfoCollector: ic,

@@ -214,18 +214,23 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		})
 
 		for _, a := range as {
-			// Check dates
-			if la.flags.InclusionFlags.DateRange.IsSet() {
-				md := &assets.Metadata{}
-				err := exif.GetMetaData(a, md, la.flags.ExifToolFlags)
+			// check the presence of a JSON file
+			jsonName, err := checkExistSideCar(fsys, a.File.Name(), ".json")
+			if err == nil && jsonName != "" {
+				buf, err := fs.ReadFile(fsys, jsonName)
 				if err != nil {
-					a.Close()
-					la.log.Record(ctx, fileevent.DiscoveredDiscarded, a, "reason", "can't get the capture date")
-					continue
+					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+				} else {
+					md := &assets.Metadata{}
+					err = jsonsidecar.Read(bytes.NewReader(buf), md)
+					if err != nil {
+						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+					} else {
+						md.File = fshelper.FSName(fsys, jsonName)
+						a.FromApplication = a.UseMetadata(md)
+					}
 				}
-				a.FromSourceFile = a.UseMetadata(md)
 			}
-
 			// check the presence of a XMP file
 			xmpName, err := checkExistSideCar(fsys, a.File.Name(), ".xmp")
 			if err == nil && xmpName != "" {
@@ -244,20 +249,21 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				}
 			}
 
-			// check the presence of a JSON file
-			jsonName, err := checkExistSideCar(fsys, a.File.Name(), ".json")
-			if err == nil && jsonName != "" {
-				buf, err := fs.ReadFile(fsys, jsonName)
-				if err != nil {
-					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
-				} else {
-					md := &assets.Metadata{}
-					err = jsonsidecar.Read(bytes.NewReader(buf), md)
-					if err != nil {
-						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
-					} else {
-						md.File = fshelper.FSName(fsys, jsonName)
-						a.FromApplication = a.UseMetadata(md)
+			// Read metadata from the file only id needed (date range or take date from filename)
+			if la.flags.InclusionFlags.DateRange.IsSet() || la.flags.TakeDateFromFilename {
+				if a.CaptureDate.IsZero() {
+					// no date in XMp, JSON, try reading the metadata
+					f, name, err := a.PartialSourceReader()
+					if err == nil {
+						md, err := exif.GetMetaData(f, name, la.flags.ExifToolFlags)
+						if err != nil {
+							la.log.Record(ctx, fileevent.INFO, fshelper.FSName(fsys, name), "error", err.Error())
+							if la.flags.TakeDateFromFilename {
+								a.CaptureDate = a.NameInfo.Taken
+							}
+						} else {
+							a.FromSourceFile = a.UseMetadata(md)
+						}
 					}
 				}
 			}
@@ -389,6 +395,12 @@ func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name s
 	}
 	a.FileSize = int(i.Size())
 	a.FileDate = i.ModTime()
-	a.SetNameInfo(la.flags.InfoCollector.GetInfo(a.OriginalFileName))
+
+	n := path.Dir(name) + "/" + a.OriginalFileName
+	if fsys, ok := fsys.(interface{ Name() string }); ok {
+		n = fsys.Name() + "/" + n
+	}
+
+	a.SetNameInfo(la.flags.InfoCollector.GetInfo(n))
 	return a, nil
 }

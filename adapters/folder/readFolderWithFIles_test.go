@@ -87,7 +87,6 @@ func TestLocalAssets(t *testing.T) {
 				ExifToolFlags: exif.ExifToolFlags{
 					UseExifTool: true,
 					Timezone:    tzone.Timezone{TZ: time.Local},
-					DateMethod:  cliflags.DateMethodName,
 				},
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange("2023-10-06"),
