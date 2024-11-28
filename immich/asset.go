@@ -103,7 +103,12 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		if err != nil {
 			return
 		}
-		err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(TimeFormat))
+
+		if !la.CaptureDate.IsZero() {
+			err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(TimeFormat))
+		} else {
+			err = m.WriteField("fileCreatedAt", s.ModTime().Format(TimeFormat))
+		}
 		if err != nil {
 			return
 		}
