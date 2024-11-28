@@ -7,24 +7,20 @@ import (
 )
 
 // GetMetaData read metadata from the asset file to  enrich the metadata structure
-func GetMetaData(a *assets.Asset, md *assets.Metadata, options ExifToolFlags) (*assets.Metadata, error) {
+func GetMetaData(r io.Reader, name string, options ExifToolFlags) (*assets.Metadata, error) {
 	if options.UseExifTool && options.et != nil {
-		return MetadataFromExiftool(a, options)
+		return MetadataFromExiftool(r, name, options)
 	}
-	return MetadataFromDirectRead(a, options.Timezone.TZ)
+	return MetadataFromDirectRead(r, name, options.Timezone.TZ)
 }
 
 // MetadataFromExiftool call exiftool to get exif data
-func MetadataFromExiftool(a *assets.Asset, options ExifToolFlags) (*assets.Metadata, error) {
-	f, tmp, err := a.PartialSourceReader()
-	if err != nil {
-		return nil, err
-	}
+func MetadataFromExiftool(f io.Reader, name string, options ExifToolFlags) (*assets.Metadata, error) {
 	// be sure the file is completely extracted in the temp file
-	_, err = io.Copy(io.Discard, f)
+	_, err := io.Copy(io.Discard, f)
 	if err != nil {
 		return nil, err
 	}
 
-	return options.et.ReadMetaData(tmp)
+	return options.et.ReadMetaData(name)
 }

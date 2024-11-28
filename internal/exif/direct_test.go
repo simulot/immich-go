@@ -60,7 +60,7 @@ func Test_MetadataFromDirectRead(t *testing.T) {
 				return
 			}
 			defer f.Close()
-			got, err := MetadataFromDirectRead(f, time.Local)
+			got, err := MetadataFromDirectRead(f, tt.fileName, time.Local)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExifTool.ReadMetaData() error = %v, wantErr %v", err, tt.wantErr)
 				return

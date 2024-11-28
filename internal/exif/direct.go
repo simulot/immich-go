@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/fs"
 	"path"
 	"strings"
 	"time"
@@ -20,34 +19,28 @@ import (
 )
 
 // MetadataFromDirectRead read the file using GO package
-func MetadataFromDirectRead(f fs.File, localTZ *time.Location) (*assets.Metadata, error) {
-	var md assets.Metadata
+func MetadataFromDirectRead(f io.Reader, name string, localTZ *time.Location) (*assets.Metadata, error) {
+	var md *assets.Metadata
+	var err error
+	ext := strings.ToLower(path.Ext(name))
 
-	s, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	ext := strings.ToLower(path.Ext(s.Name()))
-
-	var dateTaken time.Time
 	switch strings.ToLower(ext) {
 	case ".heic", ".heif":
-		return readHEIFMetadata(f, localTZ)
+		md, err = readHEIFMetadata(f, localTZ)
 	case ".jpg", ".jpeg", ".dng", ".cr2":
-		return readExifMetadata(f, localTZ)
+		md, err = readExifMetadata(f, localTZ)
 	case ".mp4", ".mov":
-		return readMP4Metadata(f)
+		md, err = readMP4Metadata(f)
 	case ".cr3":
-		return readCR3Metadata(f, localTZ)
+		md, err = readCR3Metadata(f, localTZ)
 	default:
-		err = fmt.Errorf("can't determine the taken date from metadata (%s)", ext)
+		return nil, fmt.Errorf("can't read metadata without the exiftool (%s)", ext)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("can't read metadata: %w", err)
 	}
 
-	md.DateTaken = dateTaken
-	return &md, nil
+	return md, nil
 }
 
 // readExifMetadata locate the Exif part and return the date of capture
