@@ -64,8 +64,7 @@ func TestExifTool_ReadMetaData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := assets.Metadata{}
-			err := flag.et.ReadMetaData(tt.fileName, &got)
+			got, err := flag.et.ReadMetaData(tt.fileName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExifTool.ReadMetaData() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -77,15 +77,18 @@ var dateKeys = []struct {
 // ```
 
 // ReadMetaData reads the metadata of the file and fills the metadata structure
-func (et *ExifTool) ReadMetaData(fileName string, md *assets.Metadata) error {
+func (et *ExifTool) ReadMetaData(fileName string) (*assets.Metadata, error) {
 	ms := et.eTool.ExtractMetadata(fileName)
 	if len(ms) != 1 {
-		return fmt.Errorf("cant extract metadata from file '%s': unexpected exif-tool result", fileName)
+		return nil, fmt.Errorf("cant extract metadata from file '%s': unexpected exif-tool result", fileName)
 	}
 	m := ms[0]
 	if m.Err != nil {
-		return fmt.Errorf("cant extract metadata from file '%s': %w", fileName, m.Err)
+		return nil, fmt.Errorf("cant extract metadata from file '%s': %w", fileName, m.Err)
 	}
+
+	md := &assets.Metadata{}
+
 	if v, err := m.GetFloat("GPSLatitude"); err == nil {
 		md.Latitude = v
 	}
@@ -110,5 +113,5 @@ func (et *ExifTool) ReadMetaData(fileName string, md *assets.Metadata) error {
 			}
 		}
 	}
-	return nil
+	return md, nil
 }

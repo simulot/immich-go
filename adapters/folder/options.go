@@ -72,6 +72,9 @@ type ImportFolderOptions struct {
 	// SessionTag indicates whether to add a session tag to the imported assets.
 	SessionTag bool
 	session    string // Session tag value
+
+	// TakeDateFromFilename indicates whether to take the date from the filename if the date isn't available in the image.
+	TakeDateFromFilename bool
 }
 
 func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -100,6 +103,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 	cmd.Flags().StringSliceVar(&o.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	cmd.Flags().BoolVar(&o.FolderAsTags, "folder-as-tags", false, "Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)")
 	cmd.Flags().BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
+	cmd.Flags().BoolVar(&o.TakeDateFromFilename, "date-from-name", false, "Use the date from the filename if the date isn't available in the image")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)

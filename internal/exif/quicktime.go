@@ -1,7 +1,8 @@
-package metadata
+package exif
 
 import (
 	"encoding/binary"
+	"io"
 	"time"
 )
 
@@ -47,7 +48,8 @@ type MvhdAtom struct {
 	// NextTrackID      uint32
 }
 
-func decodeMvhdAtom(r *sliceReader) (*MvhdAtom, error) {
+func decodeMvhdAtom(rf io.Reader) (*MvhdAtom, error) {
+	r := newSliceReader(rf)
 	a := &MvhdAtom{}
 	var err error
 	// Read the mvhd marker (4 bytes)
