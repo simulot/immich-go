@@ -249,14 +249,16 @@ func TestInMemLocalAssets(t *testing.T) {
 		},
 
 		{
-			name: "date in range",
+			name: "date in range, use name",
 			flags: ImportFolderOptions{
 				SupportedMedia: filetypes.DefaultSupportedMedia,
 
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange(time.Local, "2023-08"),
 				},
-				Recursive: true,
+				Recursive:            true,
+				TZ:                   time.Local,
+				TakeDateFromFilename: true,
 			},
 			fsys: []fs.FS{
 				newInMemFS("MemFS", ic).
@@ -274,7 +276,8 @@ func TestInMemLocalAssets(t *testing.T) {
 				"photos/summer 2023/20230801-003.cr3",
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).
-				Set(fileevent.DiscoveredDiscarded, 4).Value(),
+				Set(fileevent.DiscoveredDiscarded, 4).
+				Set(fileevent.INFO, 7).Value(),
 		},
 
 		{
