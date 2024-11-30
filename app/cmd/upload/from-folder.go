@@ -27,6 +27,7 @@ func NewFromFolderCommand(ctx context.Context, parent *cobra.Command, app *app.A
 		ctx := cmd.Context()
 		log := app.Log()
 		client := app.Client()
+		options.TZ = app.GetTZ()
 
 		// parse arguments
 		fsyss, err := fshelper.ParsePath(args)
