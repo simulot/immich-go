@@ -3,7 +3,6 @@ module github.com/simulot/immich-go
 go 1.23
 
 require (
-	github.com/barasher/go-exiftool v1.10.0
 	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
