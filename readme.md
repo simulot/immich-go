@@ -5,33 +5,30 @@
 > ⚠️ This is an early version, not yet extensively tested<br>
 > ⚠️ Keep a backup copy of your files for safety<br>
 
-
-
 ## Support the project `Immich-go`
 
-- [Github Sponsor](https://github.com/sponsors/simulot)
+- [GitHub Sponsor](https://github.com/sponsors/simulot)
 - [PayPal Donation](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
-
 
 ## What Makes Immich-Go Special?
 
-### Simple Installation: 
-  * Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments. 
-  * Immich-go can run on either your workstation or a NAS.
+### Simple Installation:
+  * Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
+  * Immich-Go can run on either your workstation or a NAS.
 
 ### Handles Large Photo Collections:
-  * **Upload Large Google Photos Takeouts:**  Immich-Go excels at handling massive archives downloaded from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, capture date, and album information. Read the [best practices](#google-photos-best-practices) below for more information.
-  * **Upload collections:** You can upload photos directly from your computer folders, folders trees and compressed ZIP archives.
+  * **Upload Large Google Photos Takeouts:** Immich-Go excels at handling massive archives downloaded from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, capture date, and album information. Read the [best practices](#google-photos-best-practices) below for more information.
+  * **Upload Collections:** You can upload photos directly from your computer folders, folder trees, and compressed ZIP archives.
   * **Is Duplicate-aware:** Immich-Go identifies and discards duplicate photos, keeping only the highest-quality version on the server.
-  * **Archive your Immich server:**  Write the content of your Immich server to a folder tree, ready to be archived or migrated to another server.
+  * **Archive Your Immich Server:** Write the content of your Immich server to a folder tree, ready to be archived or migrated to another server.
 
 ### Has Many Options:
 * Stack burst photos
-* Manage coupled RAW and JPEG files, HEIC and JPEG files.
+* Manage coupled RAW and JPEG files, HEIC and JPEG files
 * Use tags
 * ... and much more
 
-### Run on Any platform:
+### Runs on Any Platform:
   * Immich-Go is available for Windows, MacOS, Linux, and FreeBSD. It can run on any platform where the Go language is ported.
 
 ## Requirements
@@ -39,30 +36,26 @@
 * **Immich Server:** You need a running Immich server to use Immich-Go.
   * Prepare the server's URL (http://your-ip:2283 or https://your-domain.tld)
   * Collect an API key for each Immich user.
-* **Basic knowledge of command line:** Immich-Go is a command-line tool, so you should be comfortable using a terminal.
-* Optional: install `exiftool` to get the date of capture from the photo's metadata.  
+* **Basic Knowledge of Command Line:** Immich-Go is a command-line tool, so you should be comfortable using a terminal.
 
-## Upgrading from the original `immich-go`, version 0.22 and earlier
+## Upgrading from the Original `immich-go`, Version 0.22 and Earlier
 
-This version is a complete rewrite of the original `immich-go` project. It is designed to be more efficient, more reliable, and easier to use. It is also more flexible, with more options and features.
-As a consequence, the command line options have changed. Please refer to the documentation for the new options.
+This version is a complete rewrite of the original `immich-go` project. It is designed to be more efficient, more reliable, and easier to use. It is also more flexible, with more options and features. As a consequence, the command line options have changed. Please refer to the documentation for the new options.
 
 The visible changes are:
-- **Adoption of the linux convention** for the command line options: use 2 dashes for long options.
+- **Adoption of the Linux Convention** for the command line options: use 2 dashes for long options.
 - Complete restructuring of the CLI logic:
   - The `upload` command accepts 3 sub-commands: `from-google-photos`, `from-folder`, `from-immich`. This removes all ambiguity from the options.
-  - The new `archive` command takes advantage of this sub-command logic. It is possible to archive from a Google Photos takeout, a folder tree or an Immich server.
+  - The new `archive` command takes advantage of this sub-command logic. It is possible to archive from a Google Photos takeout, a folder tree, or an Immich server.
 
-The upgrade process consists of installing the new version over the previous one. 
-You can check the version of the installed `immich-go` by running `immich-go --version`.
-
+The upgrade process consists of installing the new version over the previous one. You can check the version of the installed `immich-go` by running `immich-go --version`.
 
 # Installation
 
 ## Prerequisites
 
 - For pre-built binaries: No prerequisites needed
-- For building from source: 
+- For building from source:
   - Go 1.23 or higher
   - Git
 - Optional dependencies:
@@ -75,7 +68,7 @@ You can check the version of the installed `immich-go` by running `immich-go --v
 
 The easiest way to install Immich-Go is to download the pre-built binary for your system from the [GitHub releases page](https://github.com/simulot/immich-go/releases).
 
-### **Supported Platforms:**
+### Supported Platforms:
 - **Operating Systems**
   - MacOS
   - Windows
@@ -94,7 +87,7 @@ The easiest way to install Immich-Go is to download the pre-built binary for you
    - MacOS: `immich-go_Darwin_amd64.tar.gz`
    - Linux: `immich-go_Linux_amd64.tar.gz`
    - FreeBSD: `immich-go_Freebsd_amd64.tar.gz`
-   - and much more...
+   - and more...
    
 3. Extract the archive:
    ```bash
@@ -135,6 +128,7 @@ go build
 # (Optional) Install to GOPATH/bin
 go install
 ```
+
 ## Installation with Nix
 
 `immich-go` is packaged with [nix](https://nixos.org/) and distributed via [nixpkgs](https://search.nixos.org/packages?channel=unstable&type=packages&query=immich-go).
@@ -148,7 +142,6 @@ nix run "github:nixos/nixpkgs?ref=nixos-unstable-small#immich-go" -- -help
 
 Or you can add `immich-go` to your `configuration.nix` in the `environment.systemPackages` section.
 
-
 ## Verifying the Installation
 
 After installation, verify that immich-go is working correctly:
@@ -158,21 +151,19 @@ immich-go --version
 ```
 
 This should display the version number of immich-go.
-
-
 # Running Immich-Go
 
 Immich-Go is a command-line tool. You need to run it from a terminal or command prompt.
 
-## Commands and Sub-Commands logic
+## Commands and Sub-Commands Logic
 
-The general syntax for running immich-go is:
+The general syntax for running Immich-Go is:
 
 ```bash
 immich-go command sub-command options path/to/files
 ```
 
-Commands must be combined with sub-commands and options to obtain the required action.
+Commands must be combined with sub-commands and options to perform the required action.
 * immich-go
   * [upload](#the-upload-command)
     * from-folder 
@@ -184,8 +175,6 @@ Commands must be combined with sub-commands and options to obtain the required a
     * from-immich
   * version
 
-
-
 Examples:
 ```bash
 ## Upload photos from a local folder to your Immich server
@@ -194,26 +183,24 @@ immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key
 ## Archive photos from your Immich server to a local folder
 immich-go archive from-immich --from-server=http://your-ip:2283 --from-api-key=your-api-key --write-to-folder=/path/to/archive
 
-## Upload a google photos takeout to your Immich server
+## Upload a Google Photos takeout to your Immich server
 immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-api-key /path/to/your/takeout-*.zip
 ```
 
-> **Note:** Depending on your OS, you may need to invoke the program differently when immich-go is in the current directory:
-> - linux, MacOS, FreeBSD: `./immich-go`
+> **Note:** Depending on your OS, you may need to invoke the program differently when Immich-Go is in the current directory:
+> - Linux, MacOS, FreeBSD: `./immich-go`
 > - Windows: `.\immich-go`
 
-
-### Global options
-Following options are shared by all commands:
+### Global Options
+The following options are shared by all commands:
 
 | **Parameter**  | **Description**                                      |
 | -------------- | ---------------------------------------------------- |
-| -h, --help     | help for immich-go                                   |
-| -l, --log-file | Write log messages into the file                     |
-| --log-level    | Log level (DEBUG\|INFO\|WARN\|ERROR) default "INFO") |
+| -h, --help     | Help for Immich-Go                                   |
+| -l, --log-file | Write log messages to a file                         |
+| --log-level    | Log level (DEBUG\|INFO\|WARN\|ERROR) (default "INFO") |
 | --log-type     | Log format (TEXT\|JSON) (default "TEXT")             |
-| -v, --version  | version for immich-go                                |
-
+| -v, --version  | Version for Immich-Go                                |
 
 
 # The **upload** command:
@@ -242,7 +229,7 @@ The **upload** command need the following options to manage the connection with 
 | --device-uuid string |   `$LOCALHOST`    | Set a device UUID                                                                                                                  |
 | --dry-run            |                   | Simulate all server actions                                                                                                        |
 | --skip-verify-ssl    |      `FALSE`      | Skip SSL verification                                                                                                              |
-| --time-zone          |                   | Use this time zone (example: Europe/Paris)                                                                              |
+| --time-zone          |                   | Override the system time zone (example: Europe/Paris)                                                                              |
 | --session-tag        |      `FALSE`      | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                   |
 | --tag strings        |                   | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1') |
 
@@ -314,7 +301,7 @@ The **from-folder** sub-command processes a folder tree to upload photos to the 
 | --album-path-joiner     |                `" / "`                | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')                                                                           |
 | --ban-file              | [See banned files](#banned-file-list) | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.                                                                                        |
 | --date-from-name        |                `TRUE`                 | Use the date from the filename if the date isn't available in the metadata (Only for .jpg,mp4,.heic,.dng,cr2,.cr3,).                                                          |
-| --date-range            |                                       | Only import photos taken within the specified date range. Require the use of `exiftool`. [See date range possibilities](#date-range)                                          |
+| --date-range            |                                       | Only import photos taken within the specified date range. [See date range possibilities](#date-range)                                          |
 | --exclude-extensions    |                                       | Comma-separated list of extension to exclude. (e.g. .gif,.PM)                                                                                                                 |
 | --folder-as-album       |                `NONE`                 | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
 | --folder-as-tags        |                `FALSE`                | Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)                                                          |
@@ -328,8 +315,6 @@ The **from-folder** sub-command processes a folder tree to upload photos to the 
 | --recursive             |                `TRUE`                 | Explore the folder and all its sub-folders                                                                                                                                    |
 | --session-tag           |                                       | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                                                              |
 | --tag                   |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                            |
-
-
 
 
 ## Date of capture
@@ -353,12 +338,8 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 | **Parameter**                |           **Default value**           | **Description**                                                                                                                                                                                                                                                                                      |
 | ---------------------------- | :-----------------------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | --ban-file FileList          | [See banned files](#banned-file-list) | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.                                                                                                                                                                                                               |
-| --capture-date-method        |                `NONE`                 | Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename) |
 | --date-range                 |                                       | Only import photos taken within the specified date range [See date range possibilities](#date-range)                                                                                                                                                                                                 |
 | --exclude-extensions         |                                       | Comma-separated list of extension to exclude. (e.g. .gif,.PM)                                                                                                                                                                                                                                        |
-| --exiftool-enabled           |                                       | Enable the use of the external 'exiftool' program (if installed and available in the system path) to extract EXIF metadata                                                                                                                                                                           |
-| --exiftool-path string       |                                       | Path to the ExifTool executable (default: search in system's PATH)                                                                                                                                                                                                                                   |
-| --exiftool-timezone timezone |                                       | Timezone to use when parsing exif timestamps without timezone Options: LOCAL (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York) (default Local)                                                                                             |
 | --from-album-name string     |                                       | Only import photos from the specified Google Photos album                                                                                                                                                                                                                                            |
 | -a, --include-archived       |                `TRUE`                 | Import archived Google Photos                                                                                                                                                                                                                                                                        |
 | --include-extensions         |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                                                                                                                                                      |
@@ -386,44 +367,44 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 
 * **Importing Your Photos:**
   * If your takeout is in ZIP format, you can import it directly without needing to unzip the files first.
-  * It's important to import all the parts of the takeout together, since some data might be spread across multiple files. 
-    <br>Use `/path/to/your/files/takeout-*.zip` as file name.
-  * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. 
-  * You can remove any unwanted files or folders from your takeout before importing. 
-  * Restarting an interrupted import won't cause any problems and it will resume the work where it was left.
+  * It's important to import all parts of the takeout together, as some data might be spread across multiple files. Use `/path/to/your/files/takeout-*.zip` as the file name.
+  * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing.
+  * You can remove any unwanted files or folders from your takeout before importing.
+  * Restarting an interrupted import won't cause any problems and will resume where it left off.
 
-* **Lot of files are not imported**: What are the options?
+* **If Many Files Are Not Imported:**
   * Verify if all takeout parts have been included in the processing. Have you used the `takeout-*.zip` file name pattern?
-  * Sometime, the takeout results is crippled. Request another takeout, either for an entire year or in smaller increments.
-  * Force the import of files despite the missing JSON. Use the option `-upload-when-missing-JSON`
+  * Sometimes, the takeout result is incomplete. Request another takeout, either for an entire year or in smaller increments.
+  * Force the import of files despite missing JSON files using the option `--upload-when-missing-JSON`.
 
-## Takeout tag
-Immich-go can tag all imported photos with a takeout tag. The tag is formatted as `{takeout}/takeout-YYYYMMDDTHHMMSSZ`. This tag can be used to identify all photos imported from a Google Photos takeout. This it easy to remove them if needed.
+## Takeout Tag
 
-## Burst detection and management
+Immich-Go can tag all imported photos with a takeout tag. The tag is formatted as `{takeout}/takeout-YYYYMMDDTHHMMSSZ`. This tag can be used to identify all photos imported from a Google Photos takeout, making it easy to remove them if needed.
 
-The system detects burst photos in following cases:
+## Burst Detection and Management
+
+The system detects burst photos in the following cases:
 
 | Case                | Description                                                                                                                                                           |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Series of photos    | When the time difference between 2 photo is less than 500 ms                                                                                                          |
+| Series of photos    | When the time difference between two photos is less than 500 ms                                                                                                        |
 | Huawei smartphones  | Based on file names: <br>- IMG_20231014_183246_BURST001_COVER.jpg<br>- IMG_20231014_183246_BURST002.jpg<br>- IMG_20231014_183246_BURST003.jpg                         |
-| Nexus smartphones   | Based on files names:<br>- 00001IMG_00001_BURST20171111030039.jpg<br>-...<br>-00014IMG_00014_BURST20171111030039.jpg<br>-00015IMG_00015_BURST20171111030039_COVER.jpg |
-| Pixel smartphones   | Based on files names:<br>- PXL_20230330_184138390.MOTION-01.COVER.jpg<br>- PXL_20230330_184138390.MOTION-02.ORIGINAL.jpg                                              |
-| Samsung smartphones | Based on files names:<br>- 20231207_101605_001.jpg<br>- 20231207_101605_002.jpg<br>- 20231207_101605_xxx.jpg                                                          |
-| Sony Xperia         | Based on files names:<br>- DSC_0001_BURST20230709220904977.JPG<br>- ...<br>- DSC_0035_BURST20230709220904977_COVER.JPG                                                |
+| Nexus smartphones   | Based on file names:<br>- 00001IMG_00001_BURST20171111030039.jpg<br>-...<br>-00014IMG_00014_BURST20171111030039.jpg<br>-00015IMG_00015_BURST20171111030039_COVER.jpg |
+| Pixel smartphones   | Based on file names:<br>- PXL_20230330_184138390.MOTION-01.COVER.jpg<br>- PXL_20230330_184138390.MOTION-02.ORIGINAL.jpg                                              |
+| Samsung smartphones | Based on file names:<br>- 20231207_101605_001.jpg<br>- 20231207_101605_002.jpg<br>- 20231207_101605_xxx.jpg                                                          |
+| Sony Xperia         | Based on file names:<br>- DSC_0001_BURST20230709220904977.JPG<br>- ...<br>- DSC_0035_BURST20230709220904977_COVER.JPG                                                |
 
-The option  `--manage-burst` instructs Immich-go how to manage burst photos. The following options are available:
+The option `--manage-burst` instructs Immich-Go on how to manage burst photos. The following options are available:
 
 | Option          | Description                                                                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stack`         | Stack all burst photos together. When the cover photo can't be identified with the file name, the first photo of the burst is used as cover. |
+| `stack`         | Stack all burst photos together. When the cover photo can't be identified with the file name, the first photo of the burst is used as the cover. |
 | `stackKeepRaw`  | Stack all burst photos together. Keep only the RAW photos.                                                                                   |
 | `stackKeepJPEG` | Stack all burst photos together. Keep only the JPEG photos.                                                                                  |
 
-## Management of coupled HEIC and JPEG files
+## Management of Coupled HEIC and JPEG Files
 
-The option `--manage-heic-jpeg` instructs Immich-go how to manage HEIC and JPEG files. The following options are available:
+The option `--manage-heic-jpeg` instructs Immich-Go on how to manage coupled HEIC and JPEG files. The following options are available:
 
 | Option           | Description                                                         |
 | ---------------- | ------------------------------------------------------------------- |
@@ -432,9 +413,9 @@ The option `--manage-heic-jpeg` instructs Immich-go how to manage HEIC and JPEG 
 | `StackCoverHeic` | Stack the HEIC and JPEG files together. The HEIC file is the cover. |
 | `StackCoverJPG`  | Stack the HEIC and JPEG files together. The JPEG file is the cover. |
 
-## Management of coupled RAW and JPEG files
+## Management of Coupled RAW and JPEG Files
 
-The option `--manage-raw-jpeg` instructs Immich-go how to manage RAW and JPEG files. The following options are available:
+The option `--manage-raw-jpeg` instructs Immich-Go on how to manage coupled RAW and JPEG files. The following options are available:
 
 | Option          | Description                                                        |
 | --------------- | ------------------------------------------------------------------ |
@@ -443,14 +424,14 @@ The option `--manage-raw-jpeg` instructs Immich-go how to manage RAW and JPEG fi
 | `StackCoverRaw` | Stack the RAW and JPEG files together. The RAW file is the cover.  |
 | `StackCoverJPG` | Stack the RAW and JPEG files together. The JPEG file is the cover. |
 
-## Management of Epson FastFoto scanned photos
+## Management of Epson FastFoto Scanned Photos
 
-This device outputs 3 files for each scanned photo: the original scan, a "corrected" scan, and the backside of the photo if it has writing on it. The structure looks like this: 
+This device outputs three files for each scanned photo: the original scan, a "corrected" scan, and the backside of the photo if it has writing on it. The structure looks like this:
 - specified-image-name.jpg Original
 - specified-image-name_a.jpg Corrected
 - specified-image-name_b.jpg Back of Photo
 
-The option `--manage-epson-fastfoto=TRUE` instructs Immich-go to stack related photos, with the corrected scan as the cover.
+The option `--manage-epson-fastfoto=TRUE` instructs Immich-Go to stack related photos, with the corrected scan as the cover.
 
 
 # **from-immich** sub-command:
@@ -585,8 +566,6 @@ Kudos to the Immich team for their stunning project! 🤩
 
 This program use following 3rd party libraries:
 - [https://github.com/rivo/tview](https://github.com/rivo/tview) the terminal user interface
-- [github.com/rwcarlsen/goexif](github.com/rwcarlsen/goexif) to get date of capture from JPEG files
--	[github.com/thlib/go-timezone-local](github.com/thlib/go-timezone-local) for its windows timezone management
 
 A big thank you to the project contributors:
 - [rodneyosodo](https://github.com/rodneyosodo) gitub CI, go linter, and advice 
