@@ -34,7 +34,7 @@ func MetadataFromDirectRead(f io.Reader, name string, localTZ *time.Location) (*
 	case ".cr3":
 		md, err = readCR3Metadata(f, localTZ)
 	default:
-		return nil, fmt.Errorf("can't read metadata without the exiftool (%s)", ext)
+		return nil, fmt.Errorf("can't read metadata for this format '%s'", ext)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("can't read metadata: %w", err)

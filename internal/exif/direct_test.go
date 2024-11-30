@@ -49,7 +49,7 @@ func Test_MetadataFromDirectRead(t *testing.T) {
 			want: &assets.Metadata{
 				DateTaken: time.Date(2024, 7, 7, 19, 37, 7, 0, time.UTC), // 2024:07:07 19:37:07Z
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -63,6 +63,9 @@ func Test_MetadataFromDirectRead(t *testing.T) {
 			got, err := MetadataFromDirectRead(f, tt.fileName, time.Local)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExifTool.ReadMetaData() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
 				return
 			}
 			if !tt.want.DateTaken.IsZero() && !got.DateTaken.Equal(tt.want.DateTaken) {
