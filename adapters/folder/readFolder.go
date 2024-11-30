@@ -50,19 +50,23 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 		pool:  worker.NewPool(3), // TODO: Make this configurable
 	}
 	if flags.InfoCollector == nil {
-		flags.InfoCollector = filenames.NewInfoCollector(flags.ExifToolFlags.Timezone.TZ, flags.SupportedMedia)
+		flags.InfoCollector = filenames.NewInfoCollector(flags.TZ, flags.SupportedMedia)
+	}
+
+	if flags.InclusionFlags.DateRange.IsSet() {
+		flags.InclusionFlags.DateRange.SetTZ(flags.TZ)
 	}
 
 	if flags.SessionTag {
 		flags.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
 	}
 
-	if flags.ExifToolFlags.UseExifTool {
-		err := exif.NewExifTool(&flags.ExifToolFlags)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// if flags.ExifToolFlags.UseExifTool {
+	// 	err := exif.NewExifTool(&flags.ExifToolFlags)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
 	if flags.ManageEpsonFastFoto {
 		g := epsonfastfoto.Group{}
@@ -255,7 +259,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					// no date in XMp, JSON, try reading the metadata
 					f, name, err := a.PartialSourceReader()
 					if err == nil {
-						md, err := exif.GetMetaData(f, name, la.flags.ExifToolFlags)
+						md, err := exif.GetMetaData(f, name, la.flags.TZ)
 						if err != nil {
 							la.log.Record(ctx, fileevent.INFO, a.File, "error", err.Error())
 							if la.flags.TakeDateFromFilename {
@@ -398,7 +402,7 @@ func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name s
 
 	n := path.Dir(name) + "/" + a.OriginalFileName
 	if fsys, ok := fsys.(interface{ Name() string }); ok {
-		n = fsys.Name() + "/" + n
+		n = path.Join(fsys.Name(), n)
 	}
 
 	a.SetNameInfo(la.flags.InfoCollector.GetInfo(n))

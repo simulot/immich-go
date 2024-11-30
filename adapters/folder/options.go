@@ -3,9 +3,9 @@ package folder
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
@@ -33,8 +33,8 @@ type ImportFolderOptions struct {
 	// InclusionFlags controls the file extensions to be included in the import process.
 	InclusionFlags cliflags.InclusionFlags
 
-	// ExifToolFlags specifies options for the exif.
-	ExifToolFlags exif.ExifToolFlags
+	// // ExifToolFlags specifies options for the exif.
+	// ExifToolFlags exif.ExifToolFlags
 
 	// IgnoreSideCarFiles indicates whether to ignore XMP files during the import process.
 	IgnoreSideCarFiles bool
@@ -75,6 +75,9 @@ type ImportFolderOptions struct {
 
 	// TakeDateFromFilename indicates whether to take the date from the filename if the date isn't available in the image.
 	TakeDateFromFilename bool
+
+	// local time zone
+	TZ *time.Location
 }
 
 func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -103,10 +106,11 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 	cmd.Flags().StringSliceVar(&o.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	cmd.Flags().BoolVar(&o.FolderAsTags, "folder-as-tags", false, "Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)")
 	cmd.Flags().BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
-	cmd.Flags().BoolVar(&o.TakeDateFromFilename, "date-from-name", false, "Use the date from the filename if the date isn't available in the image")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
-	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
+	cmd.Flags().BoolVar(&o.TakeDateFromFilename, "date-from-name", true, "Use the date from the filename if the date isn't available in the metadata (Only for .jpg,mp4,.heic,.dng,cr2,.cr3,).")
+
+	// exif.AddExifToolFlags(cmd, &o.ExifToolFlags) // disabled for now
 
 	if parent != nil && parent.Name() == "upload" {
 		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")

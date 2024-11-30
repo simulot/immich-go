@@ -16,12 +16,10 @@ import (
 	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/configuration"
-	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/namematcher"
-	"github.com/simulot/immich-go/internal/tzone"
 )
 
 type inMemFS struct {
@@ -115,9 +113,6 @@ func TestInMemLocalAssets(t *testing.T) {
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir`, `.@__thumb`, `SYNOFILE_THUMB_*.*`, "BLOG/", "Database/", `._*.*`, `._*.*`),
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: false,
-				},
 				InclusionFlags: cliflags.InclusionFlags{},
 				InfoCollector:  ic,
 				Recursive:      true,
@@ -161,9 +156,6 @@ func TestInMemLocalAssets(t *testing.T) {
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: false,
-				},
 
 				InclusionFlags: cliflags.InclusionFlags{
 					ExcludedExtensions: cliflags.ExtensionList{".cr3"},
@@ -199,9 +191,6 @@ func TestInMemLocalAssets(t *testing.T) {
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: false,
-				},
 
 				InclusionFlags: cliflags.InclusionFlags{
 					IncludedExtensions: cliflags.ExtensionList{".cr3"},
@@ -235,10 +224,6 @@ func TestInMemLocalAssets(t *testing.T) {
 			flags: ImportFolderOptions{
 				BannedFiles:    namematcher.MustList(`@eaDir/`, `.@__thumb`, `SYNOFILE_THUMB_*.*`),
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: false,
-				},
-
 				InclusionFlags: cliflags.InclusionFlags{},
 				Recursive:      true,
 				InfoCollector:  ic,
@@ -267,13 +252,9 @@ func TestInMemLocalAssets(t *testing.T) {
 			name: "date in range",
 			flags: ImportFolderOptions{
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: false,
-					Timezone:    tzone.Timezone{TZ: time.Local},
-				},
 
 				InclusionFlags: cliflags.InclusionFlags{
-					DateRange: cliflags.InitDateRange("2023-08"),
+					DateRange: cliflags.InitDateRange(time.Local, "2023-08"),
 				},
 				Recursive: true,
 			},
@@ -303,11 +284,8 @@ func TestInMemLocalAssets(t *testing.T) {
 				UsePathAsAlbumName:     FolderModePath,
 				AlbumNamePathSeparator: " ¤ ",
 				InclusionFlags:         cliflags.InclusionFlags{},
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: false,
-				},
-				Recursive:     true,
-				InfoCollector: ic,
+				Recursive:              true,
+				InfoCollector:          ic,
 			},
 			fsys: []fs.FS{
 				newInMemFS("MemFS", ic).
@@ -343,11 +321,8 @@ func TestInMemLocalAssets(t *testing.T) {
 				UsePathAsAlbumName:     FolderModeFolder,
 				AlbumNamePathSeparator: " ¤ ",
 				InclusionFlags:         cliflags.InclusionFlags{},
-				ExifToolFlags: exif.ExifToolFlags{
-					UseExifTool: false,
-				},
-				Recursive:     true,
-				InfoCollector: ic,
+				Recursive:              true,
+				InfoCollector:          ic,
 			},
 			fsys: []fs.FS{
 				newInMemFS("MemFS", ic).
