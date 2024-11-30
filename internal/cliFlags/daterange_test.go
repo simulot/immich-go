@@ -145,7 +145,9 @@ func TestDateRange_InRange(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tz := time.Local
 			var dr DateRange
+			dr.SetTZ(tz)
 			err := dr.Set(tt.name)
 			if err != nil {
 				t.Errorf("set DateRange %q fails: %s", tt.name, err)
@@ -154,7 +156,7 @@ func TestDateRange_InRange(t *testing.T) {
 				t.Errorf("the String() gives %q, want %q", dr.String(), tt.name)
 			}
 			for _, check := range tt.check {
-				d, err := time.ParseInLocation(time.DateTime, check.date, time.Local)
+				d, err := time.ParseInLocation(time.DateTime, check.date, tz)
 				if err != nil {
 					t.Errorf("can't parse check date %q fails: %s", check.date, err)
 				}

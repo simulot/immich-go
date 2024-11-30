@@ -3,7 +3,6 @@ module github.com/simulot/immich-go
 go 1.23
 
 require (
-	github.com/barasher/go-exiftool v1.10.0
 	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
@@ -13,6 +12,7 @@ require (
 	github.com/phsym/console-slog v0.3.1
 	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
 	github.com/rivo/tview v0.0.0-20241103174730-c76f7879f592
+	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/samber/slog-multi v1.2.4
 	github.com/spf13/cobra v1.8.1
 	github.com/thlib/go-timezone-local v0.0.3

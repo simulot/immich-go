@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -92,14 +91,14 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 		flags:       flags,
 	}
 	if flags.InfoCollector == nil {
-		flags.InfoCollector = filenames.NewInfoCollector(flags.ExifToolFlags.Timezone.TZ, flags.SupportedMedia)
+		flags.InfoCollector = filenames.NewInfoCollector(flags.TZ, flags.SupportedMedia)
 	}
-	if flags.ExifToolFlags.UseExifTool {
-		err := exif.NewExifTool(&flags.ExifToolFlags)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// if flags.ExifToolFlags.UseExifTool {
+	// 	err := exif.NewExifTool(&flags.ExifToolFlags)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 	if flags.SessionTag {
 		flags.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
 	}

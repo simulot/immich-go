@@ -1,15 +1,14 @@
 package exif
 
 import (
-	"os"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/tzone"
 )
 
-func Test_MetadataFromDirectRead(t *testing.T) {
+func TestExifTool_ReadMetaData(t *testing.T) {
 	tests := []struct {
 		name     string
 		fileName string
@@ -53,22 +52,38 @@ func Test_MetadataFromDirectRead(t *testing.T) {
 			wantErr: false,
 		},
 	}
+	flag := &ExifToolFlags{
+		UseExifTool: true,
+		Timezone:    tzone.Timezone{TZ: time.Local},
+	}
+	err := NewExifTool(flag)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f, err := os.Open(tt.fileName)
-			if err != nil {
-				t.Errorf("Can't open file %s: %v", tt.fileName, err)
-				return
-			}
-			defer f.Close()
-			got, err := MetadataFromDirectRead(f, time.Local)
+			got, err := flag.et.ReadMetaData(tt.fileName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExifTool.ReadMetaData() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ExifTool.ReadMetaData() = %v, want %v", got, tt.want)
+
+			if !got.DateTaken.Equal(tt.want.DateTaken) {
+				t.Errorf("DateTaken = %v, want %v", got.DateTaken, tt.want.DateTaken)
+			}
+			if !float64Equal(got.Latitude, tt.want.Latitude) {
+				t.Errorf("Latitude = %v, want %v", got.Latitude, tt.want.Latitude)
+			}
+			if !float64Equal(got.Longitude, tt.want.Longitude) {
+				t.Errorf("Longitude = %v, want %v", got.Longitude, tt.want.Longitude)
 			}
 		})
 	}
+}
+
+func float64Equal(a, b float64) bool {
+	const epsilon = 1e-6
+	return (a-b) < epsilon && (b-a) < epsilon
 }

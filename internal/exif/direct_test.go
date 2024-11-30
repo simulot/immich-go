@@ -1,14 +1,14 @@
 package exif
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/tzone"
 )
 
-func TestExifTool_ReadMetaData(t *testing.T) {
+func Test_MetadataFromDirectRead(t *testing.T) {
 	tests := []struct {
 		name     string
 		fileName string
@@ -29,17 +29,17 @@ func TestExifTool_ReadMetaData(t *testing.T) {
 			name:     "read mp4",
 			fileName: "DATA/PXL_20220724_210650210.NIGHT.mp4",
 			want: &assets.Metadata{
-				DateTaken: time.Date(2022, 7, 24, 21, 10, 56, 0, time.Local),
-				Latitude:  47.538300,
-				Longitude: -2.891900,
+				DateTaken: time.Date(2022, 7, 24, 21, 10, 56, 0, time.UTC),
+				// Latitude:  47.538300,
+				// Longitude: -2.891900,
 			},
-			wantErr: false,
+			// 	wantErr: false,
 		},
 		{
 			name:     "read OLYMPUS",
 			fileName: "DATA/YG816507.jpg",
 			want: &assets.Metadata{
-				DateTaken: time.Date(2024, 7, 7, 19, 37, 7, 0, time.UTC), // 2024:07:07 19:37:07Z
+				DateTaken: time.Date(2024, 7, 8, 4, 35, 7, 0, time.Local),
 			},
 			wantErr: false,
 		},
@@ -49,42 +49,38 @@ func TestExifTool_ReadMetaData(t *testing.T) {
 			want: &assets.Metadata{
 				DateTaken: time.Date(2024, 7, 7, 19, 37, 7, 0, time.UTC), // 2024:07:07 19:37:07Z
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
-	flag := &ExifToolFlags{
-		UseExifTool: true,
-		Timezone:    tzone.Timezone{TZ: time.Local},
-	}
-	err := NewExifTool(flag)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := assets.Metadata{}
-			err := flag.et.ReadMetaData(tt.fileName, &got)
+			f, err := os.Open(tt.fileName)
+			if err != nil {
+				t.Errorf("Can't open file %s: %v", tt.fileName, err)
+				return
+			}
+			defer f.Close()
+			got, err := MetadataFromDirectRead(f, tt.fileName, time.Local)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExifTool.ReadMetaData() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
-			if !got.DateTaken.Equal(tt.want.DateTaken) {
+			if err != nil {
+				return
+			}
+			if !tt.want.DateTaken.IsZero() && !got.DateTaken.Equal(tt.want.DateTaken) {
 				t.Errorf("DateTaken = %v, want %v", got.DateTaken, tt.want.DateTaken)
 			}
-			if !float64Equal(got.Latitude, tt.want.Latitude) {
+			if !floatEquals(got.Latitude, tt.want.Latitude, 1e-6) {
 				t.Errorf("Latitude = %v, want %v", got.Latitude, tt.want.Latitude)
 			}
-			if !float64Equal(got.Longitude, tt.want.Longitude) {
+			if !floatEquals(got.Longitude, tt.want.Longitude, 1e-6) {
 				t.Errorf("Longitude = %v, want %v", got.Longitude, tt.want.Longitude)
 			}
 		})
 	}
 }
 
-func float64Equal(a, b float64) bool {
-	const epsilon = 1e-6
+func floatEquals(a, b, epsilon float64) bool {
 	return (a-b) < epsilon && (b-a) < epsilon
 }

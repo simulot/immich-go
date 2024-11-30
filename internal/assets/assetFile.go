@@ -39,7 +39,7 @@ func (a *Asset) PartialSourceReader() (reader io.Reader, tmpName string, err err
 		}
 	}
 	if a.tempFile == nil {
-		a.tempFile, err = os.CreateTemp("", "immich-go_*.tmp")
+		a.tempFile, err = os.CreateTemp("", "immich-go_*"+a.NameInfo.Ext)
 		if err != nil {
 			return nil, "", err
 		}

@@ -3,8 +3,9 @@
 package gp
 
 import (
+	"time"
+
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
@@ -44,9 +45,6 @@ type ImportFlags struct {
 	// Flags  for controlling the extensions of the files to be uploaded
 	InclusionFlags cliflags.InclusionFlags
 
-	// ExifToolFlags specifies options for the exif.
-	ExifToolFlags exif.ExifToolFlags
-
 	// List of banned files
 	BannedFiles namematcher.List // List of banned file name patterns
 
@@ -78,6 +76,9 @@ type ImportFlags struct {
 	// Add the takeout file name as tag
 	TakeoutTag  bool
 	TakeoutName string
+
+	// Timezone
+	TZ *time.Location
 }
 
 func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -104,7 +105,7 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 	cmd.Flags().BoolVar(&o.TakeoutTag, "takeout-tag", true, "Tag uploaded photos with a tag \"{takeout}/takeout-YYYYMMDDTHHMMSSZ\"")
 
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
-	exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
+	// exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
 	o.SupportedMedia = filetypes.DefaultSupportedMedia
 
 	if parent != nil && parent.Name() == "upload" {

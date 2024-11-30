@@ -42,8 +42,14 @@ func NewGlobWalkFS(pattern string) (fs.FS, error) {
 				parts:  []string{magic},
 			}, nil
 		} else {
+			name := filepath.Base(dir)
+			if name == "." {
+				name, _ = os.Getwd()
+				name = filepath.Base(name)
+			}
+
 			return &GlobWalkFS{
-				rootFS: NewFSWithName(os.DirFS(dir), filepath.Base(dir)),
+				rootFS: NewFSWithName(os.DirFS(dir), name),
 				dir:    dir,
 			}, nil
 		}

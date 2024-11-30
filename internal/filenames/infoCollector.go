@@ -29,19 +29,20 @@ type nameMatcher func(name string) (bool, assets.NameInfo)
 
 // GetInfo analyze the name and return the information extracted from the name
 func (ic InfoCollector) GetInfo(name string) assets.NameInfo {
+	base := path.Base(name)
 	for _, m := range []nameMatcher{ic.Pixel, ic.Samsung, ic.Nexus, ic.Huawei, ic.SonyXperia} {
-		if ok, i := m(name); ok {
+		if ok, i := m(base); ok {
 			return i
 		}
 	}
 
 	// no matcher found, return a basic info
-	t := TakeTimeFromName(name, ic.TZ)
-	ext := path.Ext(name)
+	t := TakeTimeFromPath(name, ic.TZ)
+	ext := path.Ext(base)
 
 	return assets.NameInfo{
-		Base:    name,
-		Radical: strings.TrimSuffix(name, ext),
+		Base:    base,
+		Radical: strings.TrimSuffix(base, ext),
 		Ext:     strings.ToLower(ext),
 		Taken:   t,
 		Type:    ic.SM.TypeFromExt(ext),
