@@ -64,14 +64,14 @@ func (dr *DateRange) Set(s string) (err error) {
 		if err != nil {
 			return fmt.Errorf("invalid date range:%w", err)
 		}
-		dr.Before = dr.After.AddDate(1, 0, 0)
+		dr.Before = dr.After.AddDate(1, 0, 1)
 	case 7:
 		dr.month = true
 		dr.After, err = time.ParseInLocation("2006-01", s, dr.tz)
 		if err != nil {
 			return fmt.Errorf("invalid date range:%w", err)
 		}
-		dr.Before = dr.After.AddDate(0, 1, 0)
+		dr.Before = dr.After.AddDate(0, 1, 1)
 	case 10:
 		dr.day = true
 		dr.After, err = time.ParseInLocation("2006-01-02", s, dr.tz)
@@ -93,8 +93,6 @@ func (dr *DateRange) Set(s string) (err error) {
 		dr.set = false
 		return fmt.Errorf("invalid date range:%s", s)
 	}
-	dr.Before = dr.Before.Truncate(1 * time.Second)
-	dr.After = dr.After.Truncate(1 * time.Second)
 	dr.set = true
 	dr.s = s
 	return nil
