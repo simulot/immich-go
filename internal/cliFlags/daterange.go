@@ -45,7 +45,9 @@ func (dr DateRange) String() string {
 
 func (dr *DateRange) SetTZ(tz *time.Location) {
 	dr.tz = tz
-	_ = dr.Set(dr.s)
+	if dr.set {
+		_ = dr.Set(dr.s)
+	}
 }
 
 // Implements the flags interface
@@ -64,14 +66,14 @@ func (dr *DateRange) Set(s string) (err error) {
 		if err != nil {
 			return fmt.Errorf("invalid date range:%w", err)
 		}
-		dr.Before = dr.After.AddDate(1, 0, 1)
+		dr.Before = dr.After.AddDate(1, 0, 0)
 	case 7:
 		dr.month = true
 		dr.After, err = time.ParseInLocation("2006-01", s, dr.tz)
 		if err != nil {
 			return fmt.Errorf("invalid date range:%w", err)
 		}
-		dr.Before = dr.After.AddDate(0, 1, 1)
+		dr.Before = dr.After.AddDate(0, 1, 0)
 	case 10:
 		dr.day = true
 		dr.After, err = time.ParseInLocation("2006-01-02", s, dr.tz)
