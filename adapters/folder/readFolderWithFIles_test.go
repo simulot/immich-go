@@ -73,6 +73,30 @@ func TestLocalAssets(t *testing.T) {
 				Set(fileevent.INFO, 1).Value(),
 		},
 		{
+			name: "date on the path given as argument, use names, in a TZ",
+			flags: ImportFolderOptions{
+				ManageBurst:          filters.BurstNothing,
+				ManageRawJPG:         filters.RawJPGNothing,
+				ManageHEICJPG:        filters.HeicJpgNothing,
+				SupportedMedia:       filetypes.DefaultSupportedMedia,
+				TakeDateFromFilename: true,
+				TZ:                   time.FixedZone("UTC-4", -4*60*60),
+				InclusionFlags: cliflags.InclusionFlags{
+					DateRange: cliflags.InitDateRange(time.FixedZone("UTC-4", -4*60*60), "2023-10-06"),
+				},
+			},
+			fsys: []fs.FS{
+				fshelper.NewFSWithName(os.DirFS("DATA/2023/2023-10/2023-10-06"), "2023-10-06"),
+			},
+			expectedFiles: []string{
+				"photo1_w_exif.jpg",
+				"photo1_wo_exif.jpg",
+			},
+			expectedCounts: fileevent.NewCounts().
+				Set(fileevent.DiscoveredImage, 2).Set(fileevent.DiscoveredDiscarded, 0).Set(fileevent.Uploaded, 2).
+				Set(fileevent.INFO, 1).Value(),
+		},
+		{
 			name: "date on the path given as argument, don't use names",
 			flags: ImportFolderOptions{
 				ManageBurst:          filters.BurstNothing,
