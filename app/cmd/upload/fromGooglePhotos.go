@@ -28,6 +28,8 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 		log := app.Log()
 		client := app.Client()
 
+		options.TZ = app.GetTZ()
+
 		fsyss, err := fshelper.ParsePath(args)
 		if err != nil {
 			return err
