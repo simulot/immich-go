@@ -10,11 +10,15 @@ import (
 type DateRange struct {
 	After, Before         time.Time // todo: make After and Before private
 	day, month, year, set bool
+	tz                    *time.Location
+	s                     string
 }
 
 // InitDateRange initialize a DateRange with a string (for tests)
 func InitDateRange(s string) DateRange {
-	dr := DateRange{}
+	dr := DateRange{
+		tz: time.Local,
+	}
 	_ = dr.Set(s)
 	return dr
 }
@@ -39,6 +43,11 @@ func (dr DateRange) String() string {
 	}
 }
 
+func (dr *DateRange) SetTZ(tz *time.Location) {
+	dr.tz = tz
+	_ = dr.Set(dr.s)
+}
+
 // Implements the flags interface
 // A day:    2022-01-01
 // A month:  2022-01
@@ -46,34 +55,35 @@ func (dr DateRange) String() string {
 // A range:  2022-01-01,2022-12-31
 func (dr *DateRange) Set(s string) (err error) {
 	dr.set = true
+	dr.s = s
 	switch len(s) {
 	case 0:
-		dr.Before = time.Date(1990, 12, 31, 0, 0, 0, 0, time.Local)
+		dr.Before = time.Date(1990, 12, 31, 0, 0, 0, 0, dr.tz)
 	case 4:
 		dr.year = true
-		dr.After, err = time.ParseInLocation("2006", s, time.Local)
+		dr.After, err = time.ParseInLocation("2006", s, dr.tz)
 		if err == nil {
 			dr.Before = dr.After.AddDate(1, 0, 0)
 			return nil
 		}
 	case 7:
 		dr.month = true
-		dr.After, err = time.ParseInLocation("2006-01", s, time.Local)
+		dr.After, err = time.ParseInLocation("2006-01", s, dr.tz)
 		if err == nil {
 			dr.Before = dr.After.AddDate(0, 1, 0)
 			return nil
 		}
 	case 10:
 		dr.day = true
-		dr.After, err = time.ParseInLocation("2006-01-02", s, time.Local)
+		dr.After, err = time.ParseInLocation("2006-01-02", s, dr.tz)
 		if err == nil {
 			dr.Before = dr.After.AddDate(0, 0, 1)
 			return nil
 		}
 	case 21:
-		dr.After, err = time.ParseInLocation("2006-01-02", s[:10], time.Local)
+		dr.After, err = time.ParseInLocation("2006-01-02", s[:10], dr.tz)
 		if err == nil {
-			dr.Before, err = time.ParseInLocation("2006-01-02", s[11:], time.Local)
+			dr.Before, err = time.ParseInLocation("2006-01-02", s[11:], dr.tz)
 			if err == nil {
 				dr.Before = dr.Before.AddDate(0, 0, 1)
 				return nil
@@ -91,6 +101,7 @@ func (dr DateRange) InRange(d time.Time) bool {
 	}
 	//	--------------After----------d------------Before
 	return (d.Compare(dr.After) >= 0 && dr.Before.Compare(d) > 0)
+	// return d.After(dr.After) && d.Before(dr.Before)
 }
 
 func (dr DateRange) Type() string {
