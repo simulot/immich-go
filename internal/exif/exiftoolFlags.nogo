@@ -1,0 +1,24 @@
+package exif
+
+import (
+	"github.com/simulot/immich-go/internal/tzone"
+	"github.com/spf13/cobra"
+)
+
+type ExifToolFlags struct {
+	UseExifTool bool
+	ExifPath    string
+	Timezone    tzone.Timezone
+
+	// TakeDateFromFilename indicates whether to take the date from the filename if the date isn't available in the image.
+	TakeDateFromFilename bool
+	et                   *ExifTool
+}
+
+func AddExifToolFlags(cmd *cobra.Command, flags *ExifToolFlags) {
+	_ = flags.Timezone.Set("Local")
+	// cmd.Flags().BoolVar(&flags.UseExifTool, "exiftool-enabled", false, "Enable the use of the external 'exiftool' program (if installed and available in the system path) to extract EXIF metadata")
+	// cmd.Flags().StringVar(&flags.ExifPath, "exiftool-path", "", "Path to the ExifTool executable (default: search in system's PATH)")
+	cmd.Flags().Var(&flags.Timezone, "exif-timezone", "Timezone to use when parsing exif timestamps without timezone Options: LOCAL (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York)")
+	cmd.Flags().BoolVar(&flags.TakeDateFromFilename, "date-from-name", false, "Use the date from the filename if the date isn't available in the metadata (.jpg,mp4,.heic,.dng,cr2,.cr3,). Use --exiftool-enabled to support more image formats")
+}
