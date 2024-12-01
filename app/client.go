@@ -88,6 +88,7 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 			}
 			client.Immich.EnableAppTrace(client.APITraceWriter)
 		}
+		app.log.Message("Check the API-TRACE file: %s", client.APITraceWriterName)
 	}
 	return nil
 }
