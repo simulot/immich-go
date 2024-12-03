@@ -54,10 +54,14 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 	gotJPG := false
 	gotRAW := false
 	gotHEIC := false
+	gotMP4 := false
+	gotMOV := false
 
 	cover := 0
 	// determine if the group is a burst
 	for i, a := range as {
+		gotMP4 = gotMP4 || a.Ext == ".mp4"
+		gotMOV = gotMOV || a.Ext == ".mov"
 		gotJPG = gotJPG || a.Ext == ".jpg"
 		gotRAW = gotRAW || filetypes.IsRawFile(a.Ext)
 		gotHEIC = gotHEIC || a.Ext == ".heic" || a.Ext == ".heif"
@@ -79,6 +83,17 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 				grouping = assets.GroupByRawJpg
 			} else if gotJPG && !gotRAW && gotHEIC {
 				grouping = assets.GroupByHeicJpg
+			} else if (gotMP4 || gotMOV) && (gotJPG || gotHEIC) {
+				grouping = assets.GroupByNone
+			}
+		}
+		if grouping == assets.GroupByNone {
+			for _, a := range as {
+				select {
+				case out <- a:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 		// check the delay between the two assets, if it's too long, we don't group them
