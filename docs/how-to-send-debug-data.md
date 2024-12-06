@@ -12,7 +12,7 @@ If you agree, you can share it with me via a DM on discord @simulot.
 
 
 
-## Get the file list from a zip takeout
+## Get the file list from a zip takeout  under linux / macos / wsl
 
 ```sh
 for f in *.zip; do echo "Part: $f"; unzip -l $f; done >list.lst
@@ -50,6 +50,33 @@ Archive:  takeout-20240523T170453Z-001.zip
 ...
 ```
 
+## Get the file list from a zip takeout under windows
+
+Replace `C:\path\to\search` with the path to the folder containing the ZIP files.
+
+```powershell
+powershell -Command "& {param($Path) Add-Type -AssemblyName System.IO.Compression.FileSystem; Get-ChildItem -Path $Path -Filter *.zip -Recurse | ForEach-Object { Write-Host \"ZIP File: $($_.FullName)\" -ForegroundColor Cyan; Write-Host ('-' * 40); try { $zip = [System.IO.Compression.ZipFile]::OpenRead($_.FullName); $zip.Entries | ForEach-Object { Write-Host ('{0,-15} {1,-25} {2}' -f $_.Length, $_.LastWriteTime.ToLocalTime(), $_.Name) }; $zip.Dispose() } catch { Write-Host \"Error processing $($_.Name): $_\" -ForegroundColor Red }; Write-Host '' }} 'C:\path\to\search'"
+```
+
+This produces a file like this:
+ZIP File: \\192.168.10.247\tmp\demo-takeout\zip1.zip
+----------------------------------------
+2138959         23/09/2023 09:13:48 +02:00 PXL_20230818_161304257.jpg
+812             23/09/2023 09:13:48 +02:00 PXL_20230818_161304257.jpg.json
+371             21/08/2023 09:24:54 +02:00 métadonnées.json
+139865          23/09/2023 09:11:52 +02:00 ✈️ DSC04119.jpg
+736             23/09/2023 09:11:52 +02:00 ✈️ DSC04119.jpg.json
+954             23/09/2023 09:11:52 +02:00 😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json
+145804          23/09/2023 09:11:52 +02:00 😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋😛.jpg
+118517          23/09/2023 09:59:00 +02:00 IMG_20181216_170230.jpg
+841             23/09/2023 09:59:00 +02:00 IMG_20181216_170230.jpg.json
+382715          23/09/2023 09:29:32 +02:00 IMG_20181216_170403.jpg
+839             23/09/2023 09:59:00 +02:00 IMG_20181216_170403.jpg.json
+187991          23/09/2023 09:29:32 +02:00 IMG_20181216_171644.jpg
+839             23/09/2023 09:59:02 +02:00 IMG_20181216_171644.jpg.json
+683089          23/09/2023 09:29:32 +02:00 IMG_20181216_172046.jpg
+855             23/09/2023 09:59:02 +02:00 IMG_20181216_172046.jpg.json
+```
 
 
 ## Get the file list from a tgz takeout
@@ -85,3 +112,5 @@ Part: takeout-20231209T153001Z-001.tgz:
 -rw-r--r-- 0/0             867 2023-12-09 16:30 Takeout/Google Photos/Photos from 2023/PXL_20231207_192125032.PORTRAIT.jpg.json
 ...
 ```
+
+
