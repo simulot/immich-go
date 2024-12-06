@@ -7,7 +7,6 @@ A series is a group of images with the same radical part in their name.
 import (
 	"context"
 	"time"
-	"fmt"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -67,9 +66,6 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 		gotRAW = gotRAW || filetypes.IsRawFile(a.Ext)
 		gotHEIC = gotHEIC || a.Ext == ".heic" || a.Ext == ".heif"
 
-        fmt.Println(a.NameInfo.Base)
-        fmt.Println(gotMP4, gotMOV, gotJPG, gotRAW, gotHEIC)
-
         // Check if the group is a burst
 		if grouping == assets.GroupByOther {
 			switch a.Kind {
@@ -106,17 +102,16 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 
     // Process time-based grouping for any asset count
     threshold := 1 * time.Second
-    var currentGroup []*assets.Asset // Temporary group buffer
+    var currentGroup []*assets.Asset 
     for _, a := range as {
         if len(currentGroup) == 0 {
-            currentGroup = append(currentGroup, a) // Start a new group
+            currentGroup = append(currentGroup, a) 
             continue
         }
 
-        // Compare timestamps with the last asset in the current group
         lastAsset := currentGroup[len(currentGroup)-1]
         timeDifference := abs(lastAsset.CaptureDate.Sub(a.CaptureDate))
-        if timeDifference > threshold { // Too far apart, start a new group
+        if timeDifference > threshold { 
             if len(currentGroup) > 0 {
 				if len(currentGroup) == 1 {
 					sendAsset(ctx, out, currentGroup)
@@ -130,9 +125,9 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 					}
 				}
 			}
-            currentGroup = []*assets.Asset{a} // Reset group
+            currentGroup = []*assets.Asset{a} 
         } else {
-            currentGroup = append(currentGroup, a) // Add to current group
+            currentGroup = append(currentGroup, a) 
         }
     }
 
