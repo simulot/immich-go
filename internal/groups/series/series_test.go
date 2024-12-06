@@ -147,7 +147,7 @@ func TestGroup(t *testing.T) {
 				got := gotGroups[i].Assets[j]
 				expected := expectedGroup[i].Assets[j]
 				if !reflect.DeepEqual(got, expected) {
-					// t.Errorf("Expected group %d asset %d \n%#v got\n%#v", i, j, expected, got)
+					t.Errorf("Expected group %d asset %d \n%#v got\n%#v", i, j, expected, got)
 					;
 				}
 			}
