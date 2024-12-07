@@ -43,6 +43,16 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 	}
 }
 
+func getCoverGroup(group []*assets.Asset) int{
+	cover := 0
+	for i, a := range group {
+		if a.IsCover {
+			cover = i
+		}
+	}
+	return cover
+}
+
 func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *assets.Group, as []*assets.Asset) {
 	if len(as) < 2 {
 		// Not a series
@@ -57,9 +67,9 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 	gotMP4 := false
 	gotMOV := false
 
-	cover := 0
+	
 	// determine if the group is a burst
-	for i, a := range as {
+	for _, a := range as {
 		gotMP4 = gotMP4 || a.Ext == ".mp4"
 		gotMOV = gotMOV || a.Ext == ".mov"
 		gotJPG = gotJPG || a.Ext == ".jpg"
@@ -72,9 +82,6 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 			case assets.KindBurst:
 				grouping = assets.GroupByBurst
 			}
-		}
-		if a.IsCover {
-			cover = i
 		}
 	}
 
@@ -117,7 +124,7 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 					sendAsset(ctx, out, currentGroup)
 				} else {
 					g := assets.NewGroup(grouping, currentGroup...)
-					g.CoverIndex = cover
+					g.CoverIndex = getCoverGroup(currentGroup)
 					select {
 					case <-ctx.Done():
 						return
@@ -138,7 +145,7 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 			sendAsset(ctx, out, currentGroup)
 		} else {
 			g := assets.NewGroup(grouping, currentGroup...)
-        	g.CoverIndex = cover
+        	g.CoverIndex = getCoverGroup(currentGroup)
 			select {
 			case <-ctx.Done():
 				return

@@ -87,12 +87,12 @@ func TestGroup(t *testing.T) {
 			mockAsset(ic, "IMG_20231014_183246_BURST003.jpg", baseTime.Add(1*time.Hour)),       // group 1
 		),
 		assets.NewGroup(assets.GroupByRawJpg,
-			mockAsset(ic, "IMG_0003.jpg", baseTime.Add(2*time.Hour)),
 			mockAsset(ic, "IMG_0003.raw", baseTime.Add(2*time.Hour)),
+			mockAsset(ic, "IMG_0003.jpg", baseTime.Add(2*time.Hour)),
 		),
 		assets.NewGroup(assets.GroupByHeicJpg,
-			mockAsset(ic, "IMG_0004.heic", baseTime.Add(3*time.Hour)),
 			mockAsset(ic, "IMG_0004.jpg", baseTime.Add(3*time.Hour)),
+			mockAsset(ic, "IMG_0004.heic", baseTime.Add(3*time.Hour)),
 		),
 	}
 
