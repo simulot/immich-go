@@ -10,6 +10,7 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
+	"golang.org/x/exp/constraints"
 )
 
 // Group groups assets by series, based on the radical part of the name.
@@ -33,7 +34,7 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 			}
 			r := a.Radical
 			cd := a.CaptureDate
-			if cd.IsZero() || cd.Sub(currentCaptureDate) > threshold || r != currentRadical {
+			if cd.IsZero() || abs(cd.Sub(currentCaptureDate)) > threshold || r != currentRadical {
 				if len(currentGroup) > 0 {
 					sendGroup(ctx, out, gOut, currentGroup)
 					currentGroup = []*assets.Asset{}
@@ -124,3 +125,10 @@ func sendAsset(ctx context.Context, out chan<- *assets.Asset, assets []*assets.A
 }
 
 
+func abs[T constraints.Integer](x T) T {
+
+	if x < 0 {
+		return -x
+	}
+	return x
+}
