@@ -13,12 +13,15 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+const (
+	threshold = 1 * time.Second
+)
+
 // Group groups assets by series, based on the radical part of the name.
 // the in channel receives assets sorted by radical, then by date taken.
 func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asset, gOut chan<- *assets.Group) {
 	currentRadical := ""
 	currentCaptureDate := time.Time{}
-	threshold := 1 * time.Second
 	currentGroup := []*assets.Asset{}
 
 	for {
@@ -124,9 +127,7 @@ func sendAsset(ctx context.Context, out chan<- *assets.Asset, assets []*assets.A
 	}
 }
 
-
 func abs[T constraints.Integer](x T) T {
-
 	if x < 0 {
 		return -x
 	}
