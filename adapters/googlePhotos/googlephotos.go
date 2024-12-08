@@ -198,7 +198,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 							md.File = fshelper.FSName(w, name)
 							dirCatalog.jsons[base] = md
 							to.log.Log().Debug("Asset JSON", "metadata", md)
-							to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.FileName)
+							to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)
 						case md.isAlbum():
 							to.log.Log().Debug("Album JSON", "metadata", md)
 							if !to.flags.KeepUntitled && md.Title == "" {

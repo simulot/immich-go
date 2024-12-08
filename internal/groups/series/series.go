@@ -13,10 +13,15 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+const (
+	threshold = 1 * time.Second
+)
+
 // Group groups assets by series, based on the radical part of the name.
 // the in channel receives assets sorted by radical, then by date taken.
 func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asset, gOut chan<- *assets.Group) {
 	currentRadical := ""
+	currentCaptureDate := time.Time{}
 	currentGroup := []*assets.Asset{}
 
 	for {
@@ -30,13 +35,15 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 				}
 				return
 			}
-
-			if r := a.Radical; r != currentRadical {
+			r := a.Radical
+			cd := a.CaptureDate
+			if cd.IsZero() || abs(cd.Sub(currentCaptureDate)) > threshold || r != currentRadical {
 				if len(currentGroup) > 0 {
 					sendGroup(ctx, out, gOut, currentGroup)
 					currentGroup = []*assets.Asset{}
 				}
 				currentRadical = r
+				currentCaptureDate = cd
 			}
 			currentGroup = append(currentGroup, a)
 		}
@@ -94,14 +101,6 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 				case <-ctx.Done():
 					return
 				}
-			}
-		}
-		// check the delay between the two assets, if it's too long, we don't group them
-		if grouping == assets.GroupByRawJpg || grouping == assets.GroupByHeicJpg {
-			d := as[0].CaptureDate
-			if abs(d.Sub(as[1].CaptureDate)) > 1*time.Second {
-				sendAsset(ctx, out, as)
-				return
 			}
 		}
 	}
