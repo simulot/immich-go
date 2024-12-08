@@ -10,13 +10,14 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
-	"golang.org/x/exp/constraints"
 )
 
 // Group groups assets by series, based on the radical part of the name.
 // the in channel receives assets sorted by radical, then by date taken.
 func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asset, gOut chan<- *assets.Group) {
 	currentRadical := ""
+	currentCaptureDate := time.Time{}
+	threshold := 1 * time.Second
 	currentGroup := []*assets.Asset{}
 
 	for {
@@ -30,27 +31,19 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 				}
 				return
 			}
-
-			if r := a.Radical; r != currentRadical {
+			r := a.Radical
+			cd := a.CaptureDate
+			if cd.IsZero() || cd.Sub(currentCaptureDate) > threshold || r != currentRadical {
 				if len(currentGroup) > 0 {
 					sendGroup(ctx, out, gOut, currentGroup)
 					currentGroup = []*assets.Asset{}
 				}
 				currentRadical = r
+				currentCaptureDate = cd
 			}
 			currentGroup = append(currentGroup, a)
 		}
 	}
-}
-
-func getCoverGroup(group []*assets.Asset) int{
-	cover := 0
-	for i, a := range group {
-		if a.IsCover {
-			cover = i
-		}
-	}
-	return cover
 }
 
 func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *assets.Group, as []*assets.Asset) {
@@ -67,21 +60,22 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 	gotMP4 := false
 	gotMOV := false
 
-	
+	cover := 0
 	// determine if the group is a burst
-	for _, a := range as {
+	for i, a := range as {
 		gotMP4 = gotMP4 || a.Ext == ".mp4"
 		gotMOV = gotMOV || a.Ext == ".mov"
 		gotJPG = gotJPG || a.Ext == ".jpg"
 		gotRAW = gotRAW || filetypes.IsRawFile(a.Ext)
 		gotHEIC = gotHEIC || a.Ext == ".heic" || a.Ext == ".heif"
-
-        // Check if the group is a burst
 		if grouping == assets.GroupByOther {
 			switch a.Kind {
 			case assets.KindBurst:
 				grouping = assets.GroupByBurst
 			}
+		}
+		if a.IsCover {
+			cover = i
 		}
 	}
 
@@ -104,55 +98,18 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 					return
 				}
 			}
-        }
+		}
 	}
 
-    // Process time-based grouping for any asset count
-    threshold := 1 * time.Second
-    var currentGroup []*assets.Asset 
-    for _, a := range as {
-        if len(currentGroup) == 0 {
-            currentGroup = append(currentGroup, a) 
-            continue
-        }
+	// good to go
+	g := assets.NewGroup(grouping, as...)
+	g.CoverIndex = cover
 
-        lastAsset := currentGroup[len(currentGroup)-1]
-        timeDifference := abs(lastAsset.CaptureDate.Sub(a.CaptureDate))
-        if timeDifference > threshold { 
-            if len(currentGroup) > 0 {
-				if len(currentGroup) == 1 {
-					sendAsset(ctx, out, currentGroup)
-				} else {
-					g := assets.NewGroup(grouping, currentGroup...)
-					g.CoverIndex = getCoverGroup(currentGroup)
-					select {
-					case <-ctx.Done():
-						return
-					case outg <- g:
-					}
-				}
-			}
-            currentGroup = []*assets.Asset{a} 
-        } else {
-            currentGroup = append(currentGroup, a) 
-        }
-    }
-
-    // Handle the final group
-    if len(currentGroup) > 0 {
-        
-		if len(currentGroup) == 1 {
-			sendAsset(ctx, out, currentGroup)
-		} else {
-			g := assets.NewGroup(grouping, currentGroup...)
-        	g.CoverIndex = getCoverGroup(currentGroup)
-			select {
-			case <-ctx.Done():
-				return
-			case outg <- g:
-			}
-		}
-    }
+	select {
+	case <-ctx.Done():
+		return
+	case outg <- g:
+	}
 }
 
 // sendAsset sends assets of the group as individual assets to the output channel
@@ -166,9 +123,4 @@ func sendAsset(ctx context.Context, out chan<- *assets.Asset, assets []*assets.A
 	}
 }
 
-func abs[T constraints.Integer](x T) T {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
+

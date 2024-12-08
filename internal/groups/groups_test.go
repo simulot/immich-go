@@ -59,6 +59,10 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "IMG_006.heic", t0.Add(110*time.Hour)),
 		mockAsset(ic, "photo5.jpg", t0.Add(120*time.Hour)),
 		mockAsset(ic, "photo6.jpg", t0.Add(130*time.Hour)),
+		mockAsset(ic, "IMG_030.mp4", t0.Add(140*time.Hour)),
+		mockAsset(ic, "IMG_030.mov", t0.Add(150*time.Hour)),
+		mockAsset(ic, "IMG_030.jpg", t0.Add(160*time.Hour)),
+		mockAsset(ic, "IMG_030.heic", t0.Add(170*time.Hour)),
 	}
 
 	expectedGroup := []*assets.Group{
@@ -103,6 +107,10 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "IMG_006.heic", t0.Add(110*time.Hour)),
 		mockAsset(ic, "photo5.jpg", t0.Add(120*time.Hour)),
 		mockAsset(ic, "photo6.jpg", t0.Add(130*time.Hour)),
+		mockAsset(ic, "IMG_030.mp4", t0.Add(140*time.Hour)),
+		mockAsset(ic, "IMG_030.mov", t0.Add(150*time.Hour)),
+		mockAsset(ic, "IMG_030.jpg", t0.Add(160*time.Hour)),
+		mockAsset(ic, "IMG_030.heic", t0.Add(170*time.Hour)),
 	}
 
 	// inject assets in the input channel
