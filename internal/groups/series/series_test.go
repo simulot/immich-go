@@ -62,6 +62,10 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "IMG_0006.heic", baseTime.Add(4*time.Hour)),
 		mockAsset(ic, "IMG_0007.raw", baseTime.Add(5*time.Hour)),
 		mockAsset(ic, "IMG_0007.jpg", baseTime.Add(6*time.Hour)),
+		mockAsset(ic, "IMG_030.mp4", baseTime.Add(140*time.Hour)),
+		mockAsset(ic, "IMG_030.mov", baseTime.Add(150*time.Hour)),
+		mockAsset(ic, "IMG_030.jpg", baseTime.Add(160*time.Hour)),
+		mockAsset(ic, "IMG_030.heic", baseTime.Add(170*time.Hour)),
 	}
 
 	expectedAssets := []*assets.Asset{
@@ -70,6 +74,10 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "IMG_0006.heic", baseTime.Add(4*time.Hour)),
 		mockAsset(ic, "IMG_0007.raw", baseTime.Add(5*time.Hour)),
 		mockAsset(ic, "IMG_0007.jpg", baseTime.Add(6*time.Hour)),
+		mockAsset(ic, "IMG_030.mp4", baseTime.Add(140*time.Hour)),
+		mockAsset(ic, "IMG_030.mov", baseTime.Add(150*time.Hour)),
+		mockAsset(ic, "IMG_030.jpg", baseTime.Add(160*time.Hour)),
+		mockAsset(ic, "IMG_030.heic", baseTime.Add(170*time.Hour)),
 	}
 
 	expectedGroup := []*assets.Group{
@@ -79,12 +87,12 @@ func TestGroup(t *testing.T) {
 			mockAsset(ic, "IMG_20231014_183246_BURST003.jpg", baseTime.Add(1*time.Hour)),       // group 1
 		),
 		assets.NewGroup(assets.GroupByRawJpg,
-			mockAsset(ic, "IMG_0003.jpg", baseTime.Add(2*time.Hour)),
 			mockAsset(ic, "IMG_0003.raw", baseTime.Add(2*time.Hour)),
+			mockAsset(ic, "IMG_0003.jpg", baseTime.Add(2*time.Hour)),
 		),
 		assets.NewGroup(assets.GroupByHeicJpg,
-			mockAsset(ic, "IMG_0004.heic", baseTime.Add(3*time.Hour)),
 			mockAsset(ic, "IMG_0004.jpg", baseTime.Add(3*time.Hour)),
+			mockAsset(ic, "IMG_0004.heic", baseTime.Add(3*time.Hour)),
 		),
 	}
 
@@ -140,6 +148,7 @@ func TestGroup(t *testing.T) {
 				expected := expectedGroup[i].Assets[j]
 				if !reflect.DeepEqual(got, expected) {
 					t.Errorf("Expected group %d asset %d \n%#v got\n%#v", i, j, expected, got)
+					;
 				}
 			}
 		}
