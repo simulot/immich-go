@@ -17,7 +17,7 @@ require (
 	github.com/telemachus/humane v0.6.0
 	github.com/thlib/go-timezone-local v0.0.3
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
-	golang.org/x/sync v0.8.0
+	golang.org/x/sync v0.10.0
 )
 
 require (
