@@ -60,7 +60,7 @@ func (options *UploadOptions) Open(ctx context.Context, cmd *cobra.Command, app 
 		app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
 	}
 	app.SetTZ(time.Local)
-	if tz, err := cmd.Flags().GetString("time-zone"); err == nil {
+	if tz, err := cmd.Flags().GetString("time-zone"); err == nil && tz != "" {
 		if loc, err := time.LoadLocation(tz); err == nil {
 			app.SetTZ(loc)
 		}

@@ -28,6 +28,7 @@ func New(ctx context.Context, cmd *cobra.Command) *Application {
 	// application's context
 	app := &Application{
 		log: &Log{},
+		tz:  time.Local,
 	}
 	// app.PersistentFlags().StringVar(&app.ConfigurationFile, "use-configuration", app.ConfigurationFile, "Specifies the configuration to use")
 	AddLogFlags(ctx, cmd, app)

@@ -231,7 +231,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 					} else {
 						md.File = fshelper.FSName(fsys, jsonName)
-						a.FromApplication = a.UseMetadata(md)
+						a.FromApplication = a.UseMetadata(md) // Force the use of the metadata coming from immich export
 					}
 				}
 			}
@@ -248,7 +248,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 					} else {
 						md.File = fshelper.FSName(fsys, xmpName)
-						a.FromSideCar = a.UseMetadata(md)
+						a.FromSideCar = md
 					}
 				}
 			}
@@ -262,11 +262,15 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						md, err := exif.GetMetaData(f, name, la.flags.TZ)
 						if err != nil {
 							la.log.Record(ctx, fileevent.INFO, a.File, "error", err.Error())
-							if la.flags.TakeDateFromFilename {
-								a.CaptureDate = a.NameInfo.Taken
+							if la.flags.TakeDateFromFilename && !a.NameInfo.Taken.IsZero() {
+								// no exif, but we have a date in the filename and the TakeDateFromFilename is set
+								a.FromApplication = &assets.Metadata{
+									DateTaken: a.NameInfo.Taken,
+								}
+								a.CaptureDate = a.FromApplication.DateTaken
 							}
 						} else {
-							a.FromSourceFile = a.UseMetadata(md)
+							a.FromSourceFile = md
 						}
 					}
 				}

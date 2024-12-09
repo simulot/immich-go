@@ -284,7 +284,10 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 	}
 	a.ID = ar.ID
 
-	if a.Description != "" || (a.Latitude != 0 && a.Longitude != 0) || a.Rating != 0 || !a.CaptureDate.IsZero() {
+	if a.FromApplication != nil {
+		// metadata from application (immich or google photos) are forced.
+		// if a.Description != "" || (a.Latitude != 0 && a.Longitude != 0) || a.Rating != 0 || !a.CaptureDate.IsZero() {
+		a.UseMetadata(a.FromApplication)
 		_, err := upCmd.app.Client().Immich.UpdateAsset(ctx, a.ID, immich.UpdAssetField{
 			Description:      a.Description,
 			Latitude:         a.Latitude,
