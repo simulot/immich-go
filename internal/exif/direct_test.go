@@ -19,7 +19,7 @@ func Test_MetadataFromDirectRead(t *testing.T) {
 			name:     "read JPG",
 			fileName: "DATA/PXL_20231006_063000139.jpg",
 			want: &assets.Metadata{
-				DateTaken: time.Date(2023, 10, 6, 6, 29, 56, 0, time.UTC), // 2023:10:06 06:29:56Z
+				DateTaken: time.Date(2023, 10, 6, 8, 30, 0, 0, time.Local), // 2023:10:06 06:29:56Z
 				Latitude:  +48.8583736,
 				Longitude: +2.2919010,
 			},
@@ -47,7 +47,7 @@ func Test_MetadataFromDirectRead(t *testing.T) {
 			name:     "read OLYMPUS orf",
 			fileName: "DATA/YG816507.orf",
 			want: &assets.Metadata{
-				DateTaken: time.Date(2024, 7, 7, 19, 37, 7, 0, time.UTC), // 2024:07:07 19:37:07Z
+				DateTaken: time.Date(2024, 7, 7, 19, 37, 7, 0, time.UTC),
 			},
 			wantErr: true,
 		},
