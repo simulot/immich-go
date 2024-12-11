@@ -34,14 +34,6 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 				}
 				return
 			}
-			if a.CaptureDate.IsZero() {
-				// No date taken, no change to group them
-				select {
-				case out <- a:
-				case <-ctx.Done():
-				}
-				continue
-			}
 
 			// exclude movies, edited or burst images
 			// exclude images without a date taken
