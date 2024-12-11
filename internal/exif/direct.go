@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/rwcarlsen/goexif/exif"
-	"github.com/rwcarlsen/goexif/tiff"
 	"github.com/simulot/immich-go/internal/assets"
 )
 
@@ -127,22 +126,33 @@ func readCR3Metadata(r io.Reader, localTZ *time.Location) (*assets.Metadata, err
 	return nil, err
 }
 
+// type exifDumper struct{}
+
+// func (exifDumper) Walk(name exif.FieldName, tag *tiff.Tag) error {
+// 	fmt.Printf("%s: %s\n", name, tag)
+// 	return nil
+// }
+
 // getExifMetadata extract the date and location from the Exif data
+
 func getExifMetadata(x *exif.Exif, local *time.Location) (*assets.Metadata, error) {
 	var err error
+
+	// _ = x.Walk(exifDumper{})
+
 	md := &assets.Metadata{}
-	md.DateTaken, err = readGPSTimeStamp(x, local)
-	if err != nil || md.DateTaken.IsZero() {
-		var tag string
-		tag, err = getTagSting(x, exif.DateTimeOriginal)
+	// md.DateTaken, err = readGPSTimeStamp(x, local)
+	// if err != nil || md.DateTaken.IsZero() {
+	// GPS Time Stamp is not reliable
+	var tag string
+	tag, err = getTagSting(x, exif.DateTimeOriginal)
+	if err == nil {
+		md.DateTaken, err = time.ParseInLocation("2006:01:02 15:04:05", tag, local)
+	}
+	if err != nil {
+		tag, err = getTagSting(x, exif.DateTime)
 		if err == nil {
-			md.DateTaken, err = time.ParseInLocation("2006:01:02 15:04:05", tag, local)
-		}
-		if err != nil {
-			tag, err = getTagSting(x, exif.DateTime)
-			if err == nil {
-				md.DateTaken, _ = time.ParseInLocation("2006:01:02 15:04:05", tag, local) // last chance
-			}
+			md.DateTaken, _ = time.ParseInLocation("2006:01:02 15:04:05", tag, local) // last chance
 		}
 	}
 
@@ -156,33 +166,36 @@ func getExifMetadata(x *exif.Exif, local *time.Location) (*assets.Metadata, erro
 	return md, err
 }
 
+/*
 // readGPSTimeStamp extract the date from the GPS data
-func readGPSTimeStamp(x *exif.Exif, _ *time.Location) (time.Time, error) {
-	tag, err := getTagSting(x, exif.GPSDateStamp)
-	if err == nil {
-		var tags *tiff.Tag
-		tags, err = x.Get(exif.GPSTimeStamp)
+
+	func readGPSTimeStamp(x *exif.Exif, _ *time.Location) (time.Time, error) {
+		tag, err := getTagSting(x, exif.GPSDateStamp)
 		if err == nil {
-			tag = tag + " " + fmt.Sprintf("%02d:%02d:%02dZ", ratToInt(tags, 0), ratToInt(tags, 1), ratToInt(tags, 2))
-			t, err := time.ParseInLocation("2006:01:02 15:04:05Z", tag, time.UTC)
+			var tags *tiff.Tag
+			tags, err = x.Get(exif.GPSTimeStamp)
 			if err == nil {
-				return t, nil
+				tag = tag + " " + fmt.Sprintf("%02d:%02d:%02dZ", ratToInt(tags, 0), ratToInt(tags, 1), ratToInt(tags, 2))
+				t, err := time.ParseInLocation("2006:01:02 15:04:05Z", tag, time.UTC)
+				if err == nil {
+					return t, nil
+				}
 			}
 		}
+		return time.Time{}, err
 	}
-	return time.Time{}, err
-}
 
-func ratToInt(t *tiff.Tag, i int) int {
-	n, d, err := t.Rat2(i)
-	if err != nil {
-		return 0
+	func ratToInt(t *tiff.Tag, i int) int {
+		n, d, err := t.Rat2(i)
+		if err != nil {
+			return 0
+		}
+		if d == 1 {
+			return int(n)
+		}
+		return int(float64(n) / float64(d))
 	}
-	if d == 1 {
-		return int(n)
-	}
-	return int(float64(n) / float64(d))
-}
+*/
 
 func getTagSting(x *exif.Exif, tagName exif.FieldName) (string, error) {
 	t, err := x.Get(tagName)
