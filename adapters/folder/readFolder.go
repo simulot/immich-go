@@ -30,12 +30,13 @@ import (
 )
 
 type LocalAssetBrowser struct {
-	fsyss    []fs.FS
-	log      *fileevent.Recorder
-	flags    *ImportFolderOptions
-	pool     *worker.Pool
-	wg       sync.WaitGroup
-	groupers []groups.Grouper
+	fsyss                   []fs.FS
+	log                     *fileevent.Recorder
+	flags                   *ImportFolderOptions
+	pool                    *worker.Pool
+	wg                      sync.WaitGroup
+	groupers                []groups.Grouper
+	requiresDateInformation bool // true if we need to read the date from the file for the options
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
@@ -44,10 +45,11 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	}
 
 	la := LocalAssetBrowser{
-		fsyss: fsyss,
-		flags: flags,
-		log:   l,
-		pool:  worker.NewPool(3), // TODO: Make this configurable
+		fsyss:                   fsyss,
+		flags:                   flags,
+		log:                     l,
+		pool:                    worker.NewPool(3), // TODO: Make this configurable
+		requiresDateInformation: flags.InclusionFlags.DateRange.IsSet() || flags.TakeDateFromFilename || flags.StackBurstPhotos,
 	}
 	if flags.InfoCollector == nil {
 		flags.InfoCollector = filenames.NewInfoCollector(flags.TZ, flags.SupportedMedia)
@@ -254,7 +256,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 
 			// Read metadata from the file only id needed (date range or take date from filename)
-			if la.flags.InclusionFlags.DateRange.IsSet() || la.flags.TakeDateFromFilename {
+			if la.requiresDateInformation {
 				if a.CaptureDate.IsZero() {
 					// no date in XMp, JSON, try reading the metadata
 					f, name, err := a.PartialSourceReader()
@@ -265,7 +267,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						} else {
 							a.FromSourceFile = a.UseMetadata(md)
 						}
-						if md == nil && la.flags.TakeDateFromFilename && !a.NameInfo.Taken.IsZero() {
+						if md == nil && !a.NameInfo.Taken.IsZero() {
 							// no exif, but we have a date in the filename and the TakeDateFromFilename is set
 							a.FromApplication = &assets.Metadata{
 								DateTaken: a.NameInfo.Taken,
