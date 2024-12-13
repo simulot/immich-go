@@ -308,8 +308,14 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 // Errors are logged.
 func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *assets.Group) {
 	assetIDs := []string{}
+
 	for _, a := range g.Assets {
-		assetIDs = append(assetIDs, a.ID)
+		if a.ID != "" { // temporary fix for #555
+			assetIDs = append(assetIDs, a.ID)
+		}
+	}
+	if len(assetIDs) == 0 { // temporary fix for #555
+		return
 	}
 
 	for _, album := range g.Albums {
