@@ -55,6 +55,9 @@ func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app 
 			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
 			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
 		}
+
+		options.TZ = app.GetTZ()
+
 		p, err := cmd.Flags().GetString("write-to-folder")
 		if err != nil {
 			return err
@@ -76,7 +79,7 @@ func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app 
 			log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
 			return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
 		}
-		options.InfoCollector = filenames.NewInfoCollector(app.GetTZ(), options.SupportedMedia)
+		options.InfoCollector = filenames.NewInfoCollector(options.TZ, options.SupportedMedia)
 		source, err := folder.NewLocalFiles(ctx, app.Jnl(), options, fsyss...)
 		if err != nil {
 			return err
