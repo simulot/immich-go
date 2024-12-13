@@ -127,6 +127,11 @@ func (r *Recorder) Record(ctx context.Context, code Code, file slog.LogValuer, a
 		for _, a := range args {
 			if a == "error" {
 				level = slog.LevelError
+				break
+			}
+			if a == "warning" {
+				level = slog.LevelWarn
+				break
 			}
 		}
 		r.log.Log(ctx, level, code.String(), args...)
