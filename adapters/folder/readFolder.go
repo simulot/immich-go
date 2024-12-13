@@ -234,6 +234,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					} else {
 						md.File = fshelper.FSName(fsys, jsonName)
 						a.FromApplication = a.UseMetadata(md) // Force the use of the metadata coming from immich export
+						a.OriginalFileName = md.FileName      // Force the name of the file to be the one from the JSON file
 					}
 				}
 			}
@@ -263,7 +264,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					if err == nil {
 						md, err := exif.GetMetaData(f, name, la.flags.TZ)
 						if err != nil {
-							la.log.Record(ctx, fileevent.INFO, a.File, "error", err.Error())
+							la.log.Record(ctx, fileevent.INFO, a.File, "warning", err.Error())
 						} else {
 							a.FromSourceFile = a.UseMetadata(md)
 						}
