@@ -19,6 +19,11 @@ import (
 	"golang.org/x/exp/rand"
 )
 
+func TestResetImmich(t *testing.T) {
+	initMyEnv(t)
+	reset_immich(t)
+}
+
 func TestUploadFromGooglePhotos(t *testing.T) {
 	initMyEnv(t)
 

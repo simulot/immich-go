@@ -182,10 +182,10 @@ func (r *Recorder) Report() {
 }
 
 func (r *Recorder) GetCounts() []int64 {
-	r.lock.Lock()
-	defer r.lock.Unlock()
 	counts := make([]int64, MaxCode)
-	copy(counts, r.counts)
+	for i := range counts {
+		counts[i] = atomic.LoadInt64(&r.counts[i])
+	}
 	return counts
 }
 
