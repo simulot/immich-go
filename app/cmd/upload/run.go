@@ -177,13 +177,15 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		ids := []string{g.Assets[g.CoverIndex].ID}
 		for i, a := range g.Assets {
 			upCmd.app.Jnl().Record(ctx, fileevent.Stacked, g.Assets[i].File)
-			if i != g.CoverIndex {
+			if i != g.CoverIndex && a.ID != "" {
 				ids = append(ids, a.ID)
 			}
 		}
-		_, err := client.CreateStack(ctx, ids)
-		if err != nil {
-			upCmd.app.Jnl().Log().Error("Can't create stack", "error", err)
+		if len(ids) > 1 {
+			_, err := client.CreateStack(ctx, ids)
+			if err != nil {
+				upCmd.app.Jnl().Log().Error("Can't create stack", "error", err)
+			}
 		}
 	}
 
