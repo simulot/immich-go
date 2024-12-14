@@ -389,7 +389,7 @@ func TestInMemLocalAssets(t *testing.T) {
 				for _, a := range g.Assets {
 					results = append(results, a.File.Name())
 					if len(c.expectedAlbums) > 0 {
-						for _, album := range g.Albums {
+						for _, album := range a.Albums {
 							albums[album.Title] = append(albums[album.Title], a.File.Name())
 						}
 					}

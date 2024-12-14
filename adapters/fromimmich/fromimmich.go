@@ -178,6 +178,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	asset.File = fshelper.FSName(f.ifs, a.ID)
 
 	asset.FromApplication = &assets.Metadata{
+		FileName:    a.OriginalFileName,
 		Latitude:    a.ExifInfo.Latitude,
 		Longitude:   a.ExifInfo.Longitude,
 		Description: a.ExifInfo.Description,
@@ -201,7 +202,6 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	}
 
 	g := assets.NewGroup(assets.GroupByNone, asset)
-	g.Albums = asset.Albums
 	select {
 	case grpChan <- g:
 	case <-ctx.Done():

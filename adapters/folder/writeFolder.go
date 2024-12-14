@@ -78,6 +78,32 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+			// Add an index to the file name if it already exists, or the XMP or JSON
+			index := 0
+			ext := path.Ext(base)
+			radical := base[:len(base)-len(ext)]
+			for {
+				if index > 0 {
+					base = fmt.Sprintf("%s~%d%s", radical, index, path.Ext(base))
+				}
+				_, err := fs.Stat(w.WriteToFS, path.Join(dir, base))
+				if err == nil {
+					index++
+					continue
+				}
+				_, err = fs.Stat(w.WriteToFS, path.Join(dir, base+".XMP"))
+				if err == nil {
+					index++
+					continue
+				}
+				_, err = fs.Stat(w.WriteToFS, path.Join(dir, base+".JSON"))
+				if err == nil {
+					index++
+					continue
+				}
+				break
+			}
+
 			// write the asset
 			err = fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
 			if err != nil {
@@ -101,7 +127,7 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 				scw.Close()
 			}
 
-			// For a Application or immich-go JSON?
+			// Having metadata from an Application or immich-go JSON?
 			if a.FromApplication != nil {
 				var scw fshelper.WFile
 				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".JSON"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)

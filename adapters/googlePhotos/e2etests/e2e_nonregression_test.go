@@ -93,7 +93,7 @@ func simulate_upload(testname string, flags *gp.ImportFlags, fsys []fs.FS) (*fil
 		for i, a := range g.Assets {
 			jnl.Record(ctx, fileevent.Uploaded, a)
 			if i >= 0 {
-				for _, album := range g.Albums {
+				for _, album := range a.Albums {
 					jnl.Record(ctx, fileevent.UploadAddToAlbum, a, "album", album.Title)
 				}
 			}

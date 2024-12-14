@@ -234,6 +234,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					} else {
 						md.File = fshelper.FSName(fsys, jsonName)
 						a.FromApplication = a.UseMetadata(md) // Force the use of the metadata coming from immich export
+						a.OriginalFileName = md.FileName      // Force the name of the file to be the one from the JSON file
 					}
 				}
 			}
@@ -263,11 +264,11 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					if err == nil {
 						md, err := exif.GetMetaData(f, name, la.flags.TZ)
 						if err != nil {
-							la.log.Record(ctx, fileevent.INFO, a.File, "error", err.Error())
+							la.log.Record(ctx, fileevent.INFO, a.File, "warning", err.Error())
 						} else {
 							a.FromSourceFile = a.UseMetadata(md)
 						}
-						if md == nil && !a.NameInfo.Taken.IsZero() {
+						if (md == nil || md.DateTaken.IsZero()) && !a.NameInfo.Taken.IsZero() && la.flags.TakeDateFromFilename {
 							// no exif, but we have a date in the filename and the TakeDateFromFilename is set
 							a.FromApplication = &assets.Metadata{
 								DateTaken: a.NameInfo.Taken,
@@ -302,6 +303,32 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				}
 			}
 
+			// Manage albums
+			if la.flags.ImportIntoAlbum != "" {
+				a.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
+			} else if la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
+				Album := ""
+				switch la.flags.UsePathAsAlbumName {
+				case FolderModeFolder:
+					if dir == "." {
+						Album = fsName
+					} else {
+						Album = filepath.Base(dir)
+					}
+				case FolderModePath:
+					parts := []string{}
+					if fsName != "" {
+						parts = append(parts, fsName)
+					}
+					if dir != "." {
+						parts = append(parts, strings.Split(dir, "/")...)
+						// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
+					}
+					Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
+				}
+				a.Albums = []assets.Album{{Title: Album}}
+			}
+
 			if la.flags.SessionTag {
 				a.AddTag(la.flags.session)
 			}
@@ -315,40 +342,6 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 	gs := groups.NewGrouperPipeline(ctx, la.groupers...).PipeGrouper(ctx, in)
 	for g := range gs {
-		// Add album information
-		if la.flags.ImportIntoAlbum != "" {
-			g.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
-		} else if la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
-			Album := ""
-			switch la.flags.UsePathAsAlbumName {
-			case FolderModeFolder:
-				if dir == "." {
-					Album = fsName
-				} else {
-					Album = filepath.Base(dir)
-				}
-			case FolderModePath:
-				parts := []string{}
-				if fsName != "" {
-					parts = append(parts, fsName)
-				}
-				if dir != "." {
-					parts = append(parts, strings.Split(dir, "/")...)
-					// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
-				}
-				Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
-			}
-			g.Albums = []assets.Album{{Title: Album}}
-		} else {
-			for _, a := range g.Assets {
-				for _, al := range a.Albums {
-					g.AddAlbum(al)
-				}
-			}
-		}
-		for _, a := range g.Assets {
-			a.Albums = g.Albums
-		}
 		select {
 		case gOut <- g:
 		case <-ctx.Done():

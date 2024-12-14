@@ -160,13 +160,8 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	// Upload assets from the group
 	for _, a := range g.Assets {
-		err := upCmd.handleAsset(ctx, g, a)
+		err := upCmd.handleAsset(ctx, a)
 		errGroup = errors.Join(err)
-	}
-
-	// Manage albums
-	if len(g.Albums) > 0 {
-		upCmd.manageGroupAlbums(ctx, g)
 	}
 
 	// Manage groups
@@ -177,13 +172,15 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		ids := []string{g.Assets[g.CoverIndex].ID}
 		for i, a := range g.Assets {
 			upCmd.app.Jnl().Record(ctx, fileevent.Stacked, g.Assets[i].File)
-			if i != g.CoverIndex {
+			if i != g.CoverIndex && a.ID != "" {
 				ids = append(ids, a.ID)
 			}
 		}
-		_, err := client.CreateStack(ctx, ids)
-		if err != nil {
-			upCmd.app.Jnl().Log().Error("Can't create stack", "error", err)
+		if len(ids) > 1 {
+			_, err := client.CreateStack(ctx, ids)
+			if err != nil {
+				upCmd.app.Jnl().Log().Error("Can't create stack", "error", err)
+			}
 		}
 	}
 
@@ -198,7 +195,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	return nil
 }
 
-func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.Asset) error {
+func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
@@ -214,13 +211,18 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 		if err != nil {
 			return err
 		}
+
+		// Manage albums
+		if len(a.Albums) > 0 {
+			upCmd.manageAssetAlbums(ctx, a)
+		}
 		return upCmd.manageAssetTags(ctx, a)
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a, "reason", advice.Message)
 
 		// Remember existing asset's albums, if any
 		for _, al := range advice.ServerAsset.Albums {
-			g.AddAlbum(assets.Album{
+			a.Albums = append(a.Albums, assets.Album{
 				Title:       al.AlbumName,
 				Description: al.Description,
 			})
@@ -231,6 +233,12 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 		if err != nil {
 			return err
 		}
+
+		// Manage albums
+		if len(a.Albums) > 0 {
+			upCmd.manageAssetAlbums(ctx, a)
+		}
+
 		err = upCmd.manageAssetTags(ctx, a)
 		if err != nil {
 			return err
@@ -246,20 +254,32 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, g *assets.Group, a *assets.
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
 		for _, al := range advice.ServerAsset.Albums {
-			g.AddAlbum(assets.Album{
+			a.Albums = append(a.Albums, assets.Album{
 				Title:       al.AlbumName,
 				Description: al.Description,
 			})
 		}
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message)
-		// err = upCmd.manageAssetTags(ctx, a)
-		// if err != nil {
-		// 	return err
-		// }
+
+		err = upCmd.manageAssetTags(ctx, a)
+		if err != nil {
+			return err
+		}
+
+		// Manage albums
+		if len(a.Albums) > 0 {
+			upCmd.manageAssetAlbums(ctx, a)
+		}
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message)
+
+		err = upCmd.manageAssetTags(ctx, a)
+		if err != nil {
+			return err
+		}
+
 		// err = upCmd.manageAssetTags(ctx, a)
 		// if err != nil {
 		// 	return err
@@ -303,27 +323,22 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 	return nil
 }
 
-// manageGroupAlbums add the assets to the albums listed in the group.
+// manageAssetAlbums add the assets to the albums listed.
 // If an album does not exist, it is created.
 // Errors are logged.
-func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *assets.Group) {
-	assetIDs := []string{}
-	for _, a := range g.Assets {
-		assetIDs = append(assetIDs, a.ID)
-	}
-
-	for _, album := range g.Albums {
+func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, a *assets.Asset) {
+	for _, album := range a.Albums {
 		title := album.Title
 		l, exist := upCmd.albums[title]
 		if !exist {
-			newAl, err := upCmd.app.Client().Immich.CreateAlbum(ctx, title, album.Description, assetIDs)
+			newAl, err := upCmd.app.Client().Immich.CreateAlbum(ctx, title, album.Description, []string{a.ID})
 			if err != nil {
 				upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err)
 			}
 			upCmd.albums[title] = newAl
 			l = newAl
 		} else {
-			_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, l.ID, assetIDs)
+			_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, l.ID, []string{a.ID})
 			if err != nil {
 				upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err)
 				return
@@ -331,9 +346,7 @@ func (upCmd *UpCmd) manageGroupAlbums(ctx context.Context, g *assets.Group) {
 		}
 
 		// Log the action
-		for _, a := range g.Assets {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, a.File, "Album", title)
-		}
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, a.File, "Album", title)
 	}
 }
 

@@ -22,7 +22,6 @@ type removed struct {
 type Group struct {
 	Assets     []*Asset
 	Removed    []removed
-	Albums     []Album
 	Grouping   GroupBy
 	CoverIndex int // index of the cover assert in the Assets slice
 }
@@ -49,16 +48,6 @@ func (g *Group) RemoveAsset(a *Asset, reason string) {
 			return
 		}
 	}
-}
-
-// AddAlbum adds an album to the group if there is no other album with the same title
-func (g *Group) AddAlbum(album Album) {
-	for _, a := range g.Albums {
-		if a.Title == album.Title {
-			return
-		}
-	}
-	g.Albums = append(g.Albums, album)
 }
 
 // SetCover set the cover asset of the group

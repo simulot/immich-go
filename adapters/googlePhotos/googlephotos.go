@@ -435,22 +435,11 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 		})
 
 		for _, a := range dirEntries {
-			select {
-			case in <- a:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 
-	gs := groups.NewGrouperPipeline(ctx, to.groupers...).PipeGrouper(ctx, in)
-	for g := range gs {
-		// Manage albums
-		for _, a := range g.Assets {
 			if to.flags.CreateAlbums {
 				if to.flags.ImportIntoAlbum != "" {
 					// Force this album
-					g.Albums = []assets.Album{{Title: to.flags.ImportIntoAlbum}}
+					a.Albums = []assets.Album{{Title: to.flags.ImportIntoAlbum}}
 				} else {
 					// check if its duplicates are in some albums, and push them all at once
 					key := fileKeyTracker{baseName: filepath.Base(a.File.Name()), size: int64(a.FileSize)}
@@ -464,7 +453,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 								}
 								title = filepath.Base(p)
 							}
-							g.AddAlbum(assets.Album{
+							a.Albums = append(a.Albums, assets.Album{
 								Title:       title,
 								Description: album.Description,
 								Latitude:    album.Latitude,
@@ -476,12 +465,13 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 
 				// Force this album for partners photos
 				if to.flags.PartnerSharedAlbum != "" && a.FromPartner {
-					g.Albums = append(g.Albums, assets.Album{Title: to.flags.PartnerSharedAlbum})
+					a.Albums = append(a.Albums, assets.Album{Title: to.flags.PartnerSharedAlbum})
 				}
+				a.FromApplication.Albums = a.Albums
 			}
 			// If the asset has no GPS information, but the album has, use the album's location
 			if a.Latitude == 0 && a.Longitude == 0 {
-				for _, album := range g.Albums {
+				for _, album := range a.Albums {
 					if album.Latitude != 0 || album.Longitude != 0 {
 						// when there isn't GPS information on the photo, but the album has a location,  use that location
 						a.Latitude = album.Latitude
@@ -490,10 +480,6 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 					}
 				}
 			}
-		}
-
-		for _, a := range g.Assets {
-			a.Albums = g.Albums
 			if to.flags.SessionTag {
 				a.AddTag(to.flags.session)
 			}
@@ -505,8 +491,17 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 			if to.flags.TakeoutTag {
 				a.AddTag(to.flags.TakeoutName)
 			}
-		}
 
+			select {
+			case in <- a:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	gs := groups.NewGrouperPipeline(ctx, to.groupers...).PipeGrouper(ctx, in)
+	for g := range gs {
 		select {
 		case gOut <- g:
 			for _, a := range g.Assets {
