@@ -36,7 +36,7 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 		"--server=" + myEnv["IMMICHGO_SERVER"],
 		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
 		"--no-ui",
-		"../../../../test-data/demo takeout/Takeout",
+		"/home/jfcassan/Dev/test-data/demo takeout/Takeout",
 	})
 
 	// let's start
@@ -95,6 +95,35 @@ func TestUploadArchive(t *testing.T) {
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
 	}
+}
+
+func TestUploadFromFastFotoFolder(t *testing.T) {
+	initMyEnv(t)
+
+	reset_immich(t)
+	tmp, list, cleanup := create_test_epsonfoto_folder(t, 10, 5)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-folder",
+		"--server=" + myEnv["IMMICHGO_SERVER"],
+		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
+		"--no-ui",
+		"--manage-epson-fastfoto",
+		tmp,
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+
+	_ = tmp
+	_ = list
 }
 
 var forenames = []string{
@@ -159,9 +188,48 @@ func create_test_folder(t *testing.T, folders, filesPerFolder int) (string, map[
 	}
 }
 
+// Create a test folder and return the cleanup function
+func create_test_epsonfoto_folder(t *testing.T, folders, filesPerFolder int) (string, map[string][]string, func()) {
+	rand.Seed(uint64(time.Now().UnixNano()))
+
+	dirList := map[string][]string{}
+	tmpDir := os.TempDir()
+	tmpDir, err := os.MkdirTemp(tmpDir, "test_epsonfoto_folder")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for f := 0; f < folders; f++ {
+		list := []string{}
+		city := cityNames[rand.Intn(len(cityNames))]
+		for {
+			if _, ok := dirList[city]; !ok {
+				break
+			}
+			city = cityNames[rand.Intn(len(cityNames))]
+		}
+		for i := 0; i < filesPerFolder; i++ {
+			base := fmt.Sprintf("%s_%04d", city, i+1)
+
+			for _, suffix := range []string{".jpg", "_a.jpg", "_b.jpg"} {
+				name := tmpDir + "/" + base + suffix
+				err = generateRandomImage(name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				list = append(list, name)
+			}
+		}
+		dirList[city] = list
+	}
+	return tmpDir, dirList, func() {
+		os.RemoveAll(tmpDir)
+	}
+}
+
 func generateRandomImage(path string) error {
-	width := 100
-	height := 100
+	width := 32
+	height := 32
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
