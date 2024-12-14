@@ -260,8 +260,8 @@ func TestAlbums(t *testing.T) {
 			albums := album{}
 			for g := range gChan {
 				for _, a := range g.Assets {
-					if len(g.Albums) > 0 {
-						for _, al := range g.Albums {
+					if len(a.Albums) > 0 {
+						for _, al := range a.Albums {
 							l := albums[al.Title]
 							l = append(l, fileResult{name: path.Base(a.File.Name()), size: a.FileSize, title: a.OriginalFileName})
 							albums[al.Title] = l

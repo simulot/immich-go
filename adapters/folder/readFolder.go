@@ -303,6 +303,32 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				}
 			}
 
+			// Manage albums
+			if la.flags.ImportIntoAlbum != "" {
+				a.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
+			} else if la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
+				Album := ""
+				switch la.flags.UsePathAsAlbumName {
+				case FolderModeFolder:
+					if dir == "." {
+						Album = fsName
+					} else {
+						Album = filepath.Base(dir)
+					}
+				case FolderModePath:
+					parts := []string{}
+					if fsName != "" {
+						parts = append(parts, fsName)
+					}
+					if dir != "." {
+						parts = append(parts, strings.Split(dir, "/")...)
+						// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
+					}
+					Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
+				}
+				a.Albums = []assets.Album{{Title: Album}}
+			}
+
 			if la.flags.SessionTag {
 				a.AddTag(la.flags.session)
 			}
@@ -316,40 +342,6 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 	gs := groups.NewGrouperPipeline(ctx, la.groupers...).PipeGrouper(ctx, in)
 	for g := range gs {
-		// Add album information
-		if la.flags.ImportIntoAlbum != "" {
-			g.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
-		} else if la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
-			Album := ""
-			switch la.flags.UsePathAsAlbumName {
-			case FolderModeFolder:
-				if dir == "." {
-					Album = fsName
-				} else {
-					Album = filepath.Base(dir)
-				}
-			case FolderModePath:
-				parts := []string{}
-				if fsName != "" {
-					parts = append(parts, fsName)
-				}
-				if dir != "." {
-					parts = append(parts, strings.Split(dir, "/")...)
-					// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
-				}
-				Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
-			}
-			g.Albums = []assets.Album{{Title: Album}}
-		} else {
-			for _, a := range g.Assets {
-				for _, al := range a.Albums {
-					g.AddAlbum(al)
-				}
-			}
-		}
-		for _, a := range g.Assets {
-			a.Albums = g.Albums
-		}
 		select {
 		case gOut <- g:
 		case <-ctx.Done():

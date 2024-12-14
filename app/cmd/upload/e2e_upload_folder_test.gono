@@ -13,9 +13,8 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/configuration"
 )
 
 var myEnv map[string]string
@@ -175,7 +174,7 @@ func TestE2eUpload(t *testing.T) {
 		{
 			name: "upload google photos",
 			args: []string{
-				"-google-photos",
+				"--google-photos",
 				myEnv["IMMICHGO_TESTFILES"] + "/low_high/Takeout",
 			},
 			// resetImmich: true,

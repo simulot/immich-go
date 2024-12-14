@@ -202,7 +202,6 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	}
 
 	g := assets.NewGroup(assets.GroupByNone, asset)
-	g.Albums = asset.Albums
 	select {
 	case grpChan <- g:
 	case <-ctx.Done():
