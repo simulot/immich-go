@@ -16,7 +16,7 @@ type Group struct {
 	group       []*assets.Asset
 }
 
-func (g *Group) Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asset, gOut chan<- *assets.Group) {
+func (g Group) Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asset, gOut chan<- *assets.Group) {
 	for {
 		select {
 		case <-ctx.Done():
