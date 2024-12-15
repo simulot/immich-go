@@ -27,9 +27,9 @@ import (
 
 type Takeout struct {
 	fsyss       []fs.FS
-	catalogs    map[string]directoryCatalog     // file catalogs by directory in the set of the all takeout parts
-	albums      map[string]assets.Album         // track album names by folder
-	fileTracker map[fileKeyTracker]trackingInfo // key is base name + file size,  value is list of file paths
+	catalogs    map[string]directoryCatalog                // file catalogs by directory in the set of the all takeout parts
+	albums      map[string]assets.Album                    // track album names by folder
+	fileTracker *gen.SyncMap[fileKeyTracker, trackingInfo] // map[fileKeyTracker]trackingInfo // key is base name + file size,  value is list of file paths
 	// debugLinkedFiles []linkedFiles
 	log      *fileevent.Recorder
 	flags    *ImportFlags // command-line flags
@@ -86,7 +86,7 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 		fsyss:       fsyss,
 		catalogs:    map[string]directoryCatalog{},
 		albums:      map[string]assets.Album{},
-		fileTracker: map[fileKeyTracker]trackingInfo{},
+		fileTracker: gen.NewSyncMap[fileKeyTracker, trackingInfo](), // map[fileKeyTracker]trackingInfo{},
 		log:         l,
 		flags:       flags,
 	}
@@ -260,11 +260,10 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					baseName: base,
 					size:     finfo.Size(),
 				}
-
-				tracking := to.fileTracker[key]
+				tracking, _ := to.fileTracker.Load(key) // tracking := to.fileTracker[key]
 				tracking.paths = append(tracking.paths, dir)
 				tracking.count++
-				to.fileTracker[key] = tracking
+				to.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
 
 				if a, ok := dirCatalog.unMatchedFiles[base]; ok {
 					to.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a, "duplicated in the directory")
@@ -404,7 +403,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 	for name := range catalog.matchedFiles {
 		a := catalog.matchedFiles[name]
 		key := fileKeyTracker{baseName: name, size: int64(a.FileSize)}
-		track := to.fileTracker[key]
+		track, _ := to.fileTracker.Load(key) // track := to.fileTracker[key]
 		if track.status == fileevent.Uploaded {
 			a.Close()
 			to.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a.File, "local duplicate")
@@ -435,7 +434,6 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 		})
 
 		for _, a := range dirEntries {
-
 			if to.flags.CreateAlbums {
 				if to.flags.ImportIntoAlbum != "" {
 					// Force this album
@@ -443,7 +441,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 				} else {
 					// check if its duplicates are in some albums, and push them all at once
 					key := fileKeyTracker{baseName: filepath.Base(a.File.Name()), size: int64(a.FileSize)}
-					track := to.fileTracker[key]
+					track, _ := to.fileTracker.Load(key) // track := to.fileTracker[key]
 					for _, p := range track.paths {
 						if album, ok := to.albums[p]; ok {
 							title := album.Title
@@ -509,9 +507,9 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 					baseName: path.Base(a.File.Name()),
 					size:     int64(a.FileSize),
 				}
-				track := to.fileTracker[key]
+				track, _ := to.fileTracker.Load(key) // track := to.fileTracker[key]
 				track.status = fileevent.Uploaded
-				to.fileTracker[key] = track
+				to.fileTracker.Store(key, track) // to.fileTracker[key] = track
 			}
 		case <-ctx.Done():
 			return ctx.Err()

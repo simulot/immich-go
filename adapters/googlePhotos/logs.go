@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/gen"
 )
 
 // logMessage for the photo and the movie attached to the photo
@@ -26,12 +25,12 @@ func (to *Takeout) DebugFileTracker(w io.Writer) {
 	csv := csv.NewWriter(w)
 	_ = csv.Write([]string{"File", "Size", "Count", "Duplicated", "Uploaded", "Status", "Date", "Albums", "Paths"})
 
-	keys := gen.MapKeys(to.fileTracker)
+	keys := to.fileTracker.Keys()
 
 	slices.SortFunc(keys, trackerKeySortFunc)
 	line := make([]string, 9)
 	for _, k := range keys {
-		track := to.fileTracker[k]
+		track, _ := to.fileTracker.Load(k)
 		line[0] = k.baseName
 		line[1] = strconv.Itoa(int(k.size))     // Size
 		line[2] = strconv.Itoa(track.count)     // Count
