@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
+	lock := sync.RWMutex{}
 	defer cancel(nil)
 
 	var preparationDone atomic.Bool
@@ -26,7 +28,9 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	spinIdx := 0
 
 	immichUpdate := func(value, total int) {
+		lock.Lock()
 		currImmich, maxImmich = value, total
+		lock.Unlock()
 	}
 
 	progressString := func() string {
@@ -37,12 +41,14 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 				spinIdx = 0
 			}
 		}()
+		lock.Lock()
 		immichPct := 0
 		if maxImmich > 0 {
 			immichPct = 100 * currImmich / maxImmich
 		} else {
 			immichPct = 100
 		}
+		lock.Unlock()
 
 		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl().TotalAssets(), counts[fileevent.UploadServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
 	}
