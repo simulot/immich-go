@@ -62,6 +62,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 	}
 
 	if strings.ToUpper(ext) == ".MP" {
+		// Should be discarded before calling AssetUpload as MP are useless
 		ext = ".MP4" // #405
 		la.OriginalFileName = la.OriginalFileName + ".MP4"
 	}

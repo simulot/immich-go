@@ -36,7 +36,7 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 		"--server=" + myEnv["IMMICHGO_SERVER"],
 		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
 		"--no-ui",
-		"/home/jfcassan/Dev/test-data/demo takeout/Takeout",
+		myEnv["IMMICHGO_TESTFILES"] + "/demo takeout/Takeout",
 	})
 
 	// let's start
@@ -87,7 +87,7 @@ func TestUploadArchive(t *testing.T) {
 		"--server=" + myEnv["IMMICHGO_SERVER"],
 		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
 		"--no-ui",
-		"/home/jfcassan/tmp/testA",
+		myEnv["IMMICHGO_TESTFILES"] + "/testArchive",
 	})
 
 	// let's start

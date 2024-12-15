@@ -243,6 +243,9 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				}
 				t := to.flags.SupportedMedia.TypeFromExt(ext)
 				switch t {
+				case filetypes.TypeUseless:
+					to.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(w, name), "reason", "useless file")
+					return nil
 				case filetypes.TypeUnknown:
 					to.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unsupported file type")
 					return nil

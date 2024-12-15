@@ -13,6 +13,7 @@ const (
 	TypeVideo   = "video"
 	TypeImage   = "image"
 	TypeSidecar = "sidecar"
+	TypeUseless = "useless"
 	TypeUnknown = ""
 )
 
@@ -24,7 +25,7 @@ var DefaultSupportedMedia = SupportedMedia{
 	".rwl": TypeImage, ".sr2": TypeImage, ".srf": TypeImage, ".srw": TypeImage, ".tif": TypeImage, ".tiff": TypeImage, ".webp": TypeImage, ".x3f": TypeImage,
 	".xmp":  TypeSidecar,
 	".json": TypeSidecar,
-	".mp":   TypeVideo,
+	".mp":   TypeUseless,
 }
 
 func (sm SupportedMedia) TypeFromName(name string) string {
@@ -36,7 +37,7 @@ func (sm SupportedMedia) TypeFromExt(ext string) string {
 	ext = strings.ToLower(ext)
 	if strings.HasPrefix(ext, ".mp~") {
 		// #405
-		ext = ".mp4"
+		ext = ".mp"
 	}
 	return sm[ext]
 }

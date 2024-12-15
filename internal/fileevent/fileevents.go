@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
 	"sync/atomic"
 )
 
@@ -30,6 +29,7 @@ const (
 	DiscoveredSidecar          // = "Scanned side car file"
 	DiscoveredDiscarded        // = "Discarded"
 	DiscoveredUnsupported      // = "File type not supported"
+	DiscoveredUseless          // = "Useless file"
 
 	AnalysisAssociatedMetadata
 	AnalysisMissingAssociatedMetadata
@@ -65,6 +65,7 @@ var _code = map[Code]string{
 	DiscoveredSidecar:     "scanned sidecar file",
 	DiscoveredDiscarded:   "discarded file",
 	DiscoveredUnsupported: "unsupported file",
+	DiscoveredUseless:     "useless file",
 
 	AnalysisAssociatedMetadata:        "associated metadata file",
 	AnalysisMissingAssociatedMetadata: "missing associated metadata file",
@@ -98,7 +99,6 @@ func (e Code) String() string {
 }
 
 type Recorder struct {
-	lock   sync.RWMutex
 	counts counts
 	log    *slog.Logger
 }
