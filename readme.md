@@ -173,6 +173,7 @@ Commands must be combined with sub-commands and options to perform the required 
     * from-folder
     * from-google-photos
     * from-immich
+  * [stack](#the-stack-command)
   * version
 
 Examples:
@@ -447,6 +448,24 @@ The sub-command **from-immich** processes an Immich server to upload photos to a
 | --from-client-timeout duration |      `5m0s`       | Set server calls timeout (default 5m0s)                                              |
 | --from-date-range              |                   | Get assets only within this date range.  [See date range possibilities](#date-range) |
 | --from-skip-verify-ssl         |      `FALSE`      | Skip SSL verification                                                                |
+
+
+# The **stack** command:
+The stack command open the immich server, for the user associated with the the API-KEY, and stacks related photos together. The command accepts the following options:
+
+| **Parameter**           | **Default value** | **Description**                                                                                           |
+| ----------------------- | :---------------: | --------------------------------------------------------------------------------------------------------- |
+| -s, --server         |                   | Immich server address (example http://your-ip:2283 or https://your-domain) (**MANDATORY**)                                         |
+| -k, --api-key        |                   | API Key (**MANDATORY**)                                                                                                            |
+| --api-trace          |      `FALSE`      | Enable trace of api calls                                                                                                          |
+| --client-timeout     |      `5m0s`       | Set server calls timeout                                                                                                           |
+| --dry-run            |                    | Simulate all server actions...                                                                                                         |
+| --skip-verify-ssl    |      `FALSE`      | Skip SSL verification                                                                                                              |
+| --time-zone          |                   | Override the system time zone (example: Europe/Paris)                                                                              |
+| --manage-burst               |                                       | Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG. [See option's details](#burst-detection-and-management)                                                                                                                                                                    |
+| --manage-epson-fastfoto      |                `FALSE`                | Manage Epson FastFoto file (default: false)                                                                                                                                                                                                                                                          |
+| --manage-heic-jpeg           |                                       | Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG   [See option's details](#management-of-coupled-heic-and-jpeg-files)                                                                                                                           |
+| --manage-raw-jpeg            |                                       | Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG. [See options's details](#management-of-coupled-raw-and-jpeg-files)                                                                                                                               |
 
 
 # Additional information and best practices
