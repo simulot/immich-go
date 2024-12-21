@@ -144,18 +144,11 @@ func getExifMetadata(x *exif.Exif, local *time.Location) (*assets.Metadata, erro
 	// md.DateTaken, err = readGPSTimeStamp(x, local)
 	// if err != nil || md.DateTaken.IsZero() {
 	// GPS Time Stamp is not reliable
-	var tag string
-	tag, err = getTagSting(x, exif.DateTimeOriginal)
-	if err == nil {
-		md.DateTaken, err = time.ParseInLocation("2006:01:02 15:04:05", tag, local)
-	}
-	if err != nil {
-		tag, err = getTagSting(x, exif.DateTime)
-		if err == nil {
-			md.DateTaken, _ = time.ParseInLocation("2006:01:02 15:04:05", tag, local) // last chance
-		}
-	}
 
+	md.DateTaken, err = readDateTime(x, exif.DateTimeOriginal, exif.SubSecTimeOriginal, local)
+	if err != nil {
+		md.DateTaken, err = readDateTime(x, exif.DateTime, exif.SubSecTime, local)
+	}
 	if err == nil {
 		lat, lon, err := x.LatLong()
 		if err == nil {
@@ -164,6 +157,21 @@ func getExifMetadata(x *exif.Exif, local *time.Location) (*assets.Metadata, erro
 		}
 	}
 	return md, err
+}
+
+// readDateTime with subsecond when possible
+func readDateTime(x *exif.Exif, dateTag exif.FieldName, subSecTag exif.FieldName, local *time.Location) (time.Time, error) {
+	date, err := getTagSting(x, dateTag)
+	if err != nil {
+		return time.Time{}, err
+	}
+	subSec, err := getTagSting(x, subSecTag)
+	if err == nil {
+		subSec += "000"
+		date = date + "." + subSec[:3]
+		return time.ParseInLocation("2006:01:02 15:04:05.000", date, local)
+	}
+	return time.ParseInLocation("2006:01:02 15:04:05", date, local)
 }
 
 /*
