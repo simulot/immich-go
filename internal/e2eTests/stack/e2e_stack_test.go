@@ -31,9 +31,14 @@ func TestStackBurst(t *testing.T) {
 		"--no-ui",
 		"--dry-run=false",
 		// "--manage-burst=Stack",
-		"--api-trace",
-		"--log-level=debug",
-		myEnv["IMMICHGO_TESTFILES"] + "/burst/storm",
+		// "--api-trace",
+		// "--log-level=debug",
+		myEnv["IMMICHGO_TESTFILES"] + "/EpsonfastFoto/EpsonFastFoto.zip",
+		// myEnv["IMMICHGO_TESTFILES"] + "/burst/storm",
+		// myEnv["IMMICHGO_TESTFILES"] + "/burst/Reflex",
+		// myEnv["IMMICHGO_TESTFILES"] + "/burst/PXL6",
+		// myEnv["IMMICHGO_TESTFILES"] + "/burst/Tel",
+
 		// myEnv["IMMICHGO_TESTFILES"] + "/burst/storm full",
 	})
 
@@ -72,9 +77,13 @@ check:
 		"stack",
 		"--server=" + myEnv["IMMICHGO_SERVER"],
 		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
+		"--api-trace",
+		"--log-level=debug",
 		// "--dry-run=false",
 		"--manage-burst=Stack",
-		"--api-trace",
+		"--manage-heic-jpeg=StackCoverHeic",
+		"--manage-raw-jpeg=StackCoverRaw",
+		"--manage-epson-fastfoto=TRUE",
 	})
 	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {

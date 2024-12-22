@@ -70,7 +70,7 @@ func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	}
 
 	o := &StackCmd{}
-	app.AddClientFlags(ctx, cmd, a, true)
+	app.AddClientFlags(ctx, cmd, a, false)
 	cmd.TraverseChildren = true
 	cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
 	cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
@@ -181,7 +181,7 @@ func (s *StackCmd) ProcessAssets(ctx context.Context, app *app.Application) erro
 			}
 		}
 
-		if len(g.Assets) > 1 && g.Grouping != assets.GroupByOther {
+		if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
 			client := app.Client().Immich.(immich.ImmichStackInterface)
 			ids := []string{g.Assets[g.CoverIndex].ID}
 			for _, a := range g.Assets {
