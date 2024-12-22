@@ -30,15 +30,18 @@ func TestStackBurst(t *testing.T) {
 		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
 		"--no-ui",
 		"--dry-run=false",
-		// "--manage-burst=Stack",
+		"--manage-burst=Stack",
+		"--manage-heic-jpeg=StackCoverHeic",
+		"--manage-raw-jpeg=StackCoverRaw",
+		"--manage-epson-fastfoto=TRUE",
 		// "--api-trace",
 		// "--log-level=debug",
 		myEnv["IMMICHGO_TESTFILES"] + "/EpsonfastFoto/EpsonFastFoto.zip",
-		// myEnv["IMMICHGO_TESTFILES"] + "/burst/storm",
-		// myEnv["IMMICHGO_TESTFILES"] + "/burst/Reflex",
-		// myEnv["IMMICHGO_TESTFILES"] + "/burst/PXL6",
-		// myEnv["IMMICHGO_TESTFILES"] + "/burst/Tel",
+		myEnv["IMMICHGO_TESTFILES"] + "/burst/Reflex",
+		myEnv["IMMICHGO_TESTFILES"] + "/burst/PXL6",
+		myEnv["IMMICHGO_TESTFILES"] + "/burst/Tel",
 
+		myEnv["IMMICHGO_TESTFILES"] + "/burst/storm",
 		// myEnv["IMMICHGO_TESTFILES"] + "/burst/storm full",
 	})
 

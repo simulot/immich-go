@@ -45,11 +45,13 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	}
 
 	la := LocalAssetBrowser{
-		fsyss:                   fsyss,
-		flags:                   flags,
-		log:                     l,
-		pool:                    worker.NewPool(3), // TODO: Make this configurable
-		requiresDateInformation: flags.InclusionFlags.DateRange.IsSet() || flags.TakeDateFromFilename || flags.StackBurstPhotos,
+		fsyss: fsyss,
+		flags: flags,
+		log:   l,
+		pool:  worker.NewPool(3), // TODO: Make this configurable
+		requiresDateInformation: flags.InclusionFlags.DateRange.IsSet() ||
+			flags.TakeDateFromFilename || flags.StackBurstPhotos ||
+			flags.ManageHEICJPG != filters.HeicJpgNothing || flags.ManageRawJPG != filters.RawJPGNothing,
 	}
 	if flags.InfoCollector == nil {
 		flags.InfoCollector = filenames.NewInfoCollector(flags.TZ, flags.SupportedMedia)
