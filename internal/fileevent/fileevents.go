@@ -91,6 +91,30 @@ var _code = map[Code]string{
 	Error:  "error",
 }
 
+var _logLevels = map[Code]slog.Level{
+	DiscoveredImage:                   slog.LevelInfo,
+	DiscoveredVideo:                   slog.LevelInfo,
+	DiscoveredDiscarded:               slog.LevelWarn,
+	DiscoveredUnsupported:             slog.LevelWarn,
+	DiscoveredUseless:                 slog.LevelWarn,
+	AnalysisAssociatedMetadata:        slog.LevelInfo,
+	AnalysisMissingAssociatedMetadata: slog.LevelWarn,
+	AnalysisLocalDuplicate:            slog.LevelWarn,
+	UploadNotSelected:                 slog.LevelWarn,
+	UploadUpgraded:                    slog.LevelInfo,
+	UploadServerBetter:                slog.LevelInfo,
+	UploadAlbumCreated:                slog.LevelInfo,
+	UploadServerError:                 slog.LevelError,
+	Uploaded:                          slog.LevelInfo,
+	Stacked:                           slog.LevelInfo,
+	LivePhoto:                         slog.LevelInfo,
+	Metadata:                          slog.LevelInfo,
+	INFO:                              slog.LevelInfo,
+	Written:                           slog.LevelInfo,
+	Tagged:                            slog.LevelInfo,
+	Error:                             slog.LevelError,
+}
+
 func (e Code) String() string {
 	if s, ok := _code[e]; ok {
 		return s
@@ -120,10 +144,11 @@ func (r *Recorder) Log() *slog.Logger {
 func (r *Recorder) Record(ctx context.Context, code Code, file slog.LogValuer, args ...any) {
 	atomic.AddInt64(&r.counts[code], 1)
 	if r.log != nil {
-		level := slog.LevelInfo
+		level := _logLevels[code]
 		if file != nil {
 			args = append([]any{"file", file.LogValue()}, args...)
 		}
+
 		for _, a := range args {
 			if a == "error" {
 				level = slog.LevelError

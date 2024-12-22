@@ -35,7 +35,7 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 		"upload", "from-google-photos",
 		"--server=" + myEnv["IMMICHGO_SERVER"],
 		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
-		"--no-ui",
+		// "--no-ui",
 		myEnv["IMMICHGO_TESTFILES"] + "/demo takeout/Takeout",
 	})
 
