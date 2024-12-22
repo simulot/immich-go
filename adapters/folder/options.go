@@ -95,6 +95,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 		`thumbnails/`,        // Android photo
 		`.DS_Store/`,         // Mac OS custom attributes
 		`._*.*`,              // MacOS resource files
+		`.photostructure/`,   // PhotoStructure
 	)
 	cmd.Flags().StringVar(&o.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
 	cmd.Flags().Var(&o.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")

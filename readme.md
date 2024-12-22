@@ -522,6 +522,7 @@ The following files are excluded automatically:
 - `thumbnails/`
 - `.DS_Store/`
 - `._*.*`
+- `.photostructure/`
 
 ## Date range
 
