@@ -43,7 +43,7 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 		Use:   "upload",
 		Short: "Upload photos to an Immich server from various sources",
 	}
-	app.AddClientFlags(ctx, cmd, a)
+	app.AddClientFlags(ctx, cmd, a, false)
 	cmd.TraverseChildren = true
 	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
 	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/app/cmd/archive"
+	"github.com/simulot/immich-go/app/cmd/stack"
 	"github.com/simulot/immich-go/app/cmd/upload"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -27,10 +28,11 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 	a := app.New(ctx, c)
 
 	// add immich-go commands
-	c.AddCommand(app.NewVersionCommand(ctx, a))
 	c.AddCommand(
+		app.NewVersionCommand(ctx, a),
 		upload.NewUploadCommand(ctx, a),
 		archive.NewArchiveCommand(ctx, a),
+		stack.NewStackCommand(ctx, a),
 	)
 
 	return c, a

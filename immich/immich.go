@@ -10,6 +10,7 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/tzone"
 )
 
@@ -209,6 +210,7 @@ func (ia Asset) AsAsset() *assets.Asset {
 		Rating:           ia.Rating,
 		Latitude:         ia.ExifInfo.Latitude,
 		Longitude:        ia.ExifInfo.Longitude,
+		File:             fshelper.FSName(nil, ia.OriginalFileName),
 	}
 	a.FileSize = int(ia.ExifInfo.FileSizeInByte)
 	for _, album := range ia.Albums {

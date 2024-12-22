@@ -18,7 +18,7 @@ import (
 )
 
 // add server flags to the command cmd
-func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
+func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, dryRun bool) {
 	client := app.Client()
 	client.DeviceUUID, _ = os.Hostname()
 
@@ -28,7 +28,7 @@ func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
 	cmd.PersistentFlags().BoolVar(&client.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
 	cmd.PersistentFlags().DurationVar(&client.ClientTimeout, "client-timeout", 5*time.Minute, "Set server calls timeout")
 	cmd.PersistentFlags().StringVar(&client.DeviceUUID, "device-uuid", client.DeviceUUID, "Set a device UUID")
-	cmd.PersistentFlags().BoolVar(&client.DryRun, "dry-run", false, "Simulate all actions")
+	cmd.PersistentFlags().BoolVar(&client.DryRun, "dry-run", dryRun, "Simulate all actions")
 	cmd.PersistentFlags().StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
 
 	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, OpenClient, ctx, cmd, app)
