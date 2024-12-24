@@ -19,7 +19,7 @@ func Test_MetadataFromDirectRead(t *testing.T) {
 			name:     "read JPG",
 			fileName: "DATA/PXL_20231006_063000139.jpg",
 			want: &assets.Metadata{
-				DateTaken: time.Date(2023, 10, 6, 8, 30, 0, 0, time.Local), // 2023:10:06 06:29:56Z
+				DateTaken: time.Date(2023, 10, 6, 8, 30, 0, int(139*time.Millisecond), time.Local), // 2023:10:06 06:29:56Z
 				Latitude:  +48.8583736,
 				Longitude: +2.2919010,
 			},

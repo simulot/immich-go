@@ -151,6 +151,9 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 
 		switch mediaType {
+		case filetypes.TypeUseless:
+			la.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, name))
+			continue
 		case filetypes.TypeImage:
 			la.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(fsys, name))
 		case filetypes.TypeVideo:

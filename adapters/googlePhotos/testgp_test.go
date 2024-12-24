@@ -90,7 +90,6 @@ func TestBrowse(t *testing.T) {
 		{
 			"issue68MPFiles", issue68MPFiles,
 			sortFileResult([]fileResult{
-				{name: "PXL_20221228_185930354.MP", size: 1, title: "PXL_20221228_185930354.MP"},
 				{name: "PXL_20221228_185930354.MP.jpg", size: 2, title: "PXL_20221228_185930354.MP.jpg"},
 			}),
 		},

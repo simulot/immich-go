@@ -218,7 +218,6 @@ func TestInMemLocalAssets(t *testing.T) {
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 7).
 				Set(fileevent.DiscoveredDiscarded, 8).Value(),
 		},
-
 		{
 			name: "motion picture",
 			flags: ImportFolderOptions{
@@ -239,13 +238,14 @@ func TestInMemLocalAssets(t *testing.T) {
 					addFile("motion/20231227_152817.MP4", t0),
 			},
 			expectedFiles: []string{
-				"motion/PXL_20210102_221126856.MP.jpg", "motion/PXL_20210102_221126856.MP",
-				"motion/PXL_20210102_221126856.MP~2.jpg", "motion/PXL_20210102_221126856.MP~2",
+				"motion/PXL_20210102_221126856.MP.jpg",
+				"motion/PXL_20210102_221126856.MP~2.jpg",
 				"motion/20231227_152817.jpg", "motion/20231227_152817.MP4",
 				"motion/nomotion.MP4",
 			},
 			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 3).
-				Set(fileevent.DiscoveredVideo, 4).Value(),
+				Set(fileevent.DiscoveredVideo, 2).
+				Set(fileevent.DiscoveredUseless, 2).Value(),
 		},
 
 		{
