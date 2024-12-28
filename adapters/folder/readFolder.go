@@ -37,6 +37,7 @@ type LocalAssetBrowser struct {
 	wg                      sync.WaitGroup
 	groupers                []groups.Grouper
 	requiresDateInformation bool // true if we need to read the date from the file for the options
+	picasaAlbums            map[string]PicasaAlbum
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
@@ -48,11 +49,16 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 		fsyss: fsyss,
 		flags: flags,
 		log:   l,
-		pool:  worker.NewPool(3), // TODO: Make this configurable
+		pool:  worker.NewPool(10), // TODO: Make this configurable
 		requiresDateInformation: flags.InclusionFlags.DateRange.IsSet() ||
 			flags.TakeDateFromFilename || flags.StackBurstPhotos ||
 			flags.ManageHEICJPG != filters.HeicJpgNothing || flags.ManageRawJPG != filters.RawJPGNothing,
 	}
+
+	if flags.PicasaAlbum {
+		la.picasaAlbums = make(map[string]PicasaAlbum)
+	}
+
 	if flags.InfoCollector == nil {
 		flags.InfoCollector = filenames.NewInfoCollector(flags.TZ, flags.SupportedMedia)
 	}
@@ -139,6 +145,17 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 		if la.flags.BannedFiles.Match(name) {
 			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, entry.Name()), "reason", "banned file")
+			continue
+		}
+
+		if la.flags.PicasaAlbum && (strings.ToLower(base) == ".picasa.ini" || strings.ToLower(base) == "picasa.ini") {
+			a, err := ReadPicasaIni(fsys, name)
+			if err != nil {
+				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+			} else {
+				la.picasaAlbums[dir] = a
+				la.log.Log().Info("Picasa album detected", "file", fshelper.FSName(fsys, path.Join(dir, name)), "album", a.Name)
+			}
 			continue
 		}
 
@@ -311,27 +328,36 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			// Manage albums
 			if la.flags.ImportIntoAlbum != "" {
 				a.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
-			} else if la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
-				Album := ""
-				switch la.flags.UsePathAsAlbumName {
-				case FolderModeFolder:
-					if dir == "." {
-						Album = fsName
-					} else {
-						Album = filepath.Base(dir)
+			} else {
+				done := false
+				if la.flags.PicasaAlbum {
+					if album, ok := la.picasaAlbums[dir]; ok {
+						a.Albums = []assets.Album{{Title: album.Name, Description: album.Description}}
+						done = true
 					}
-				case FolderModePath:
-					parts := []string{}
-					if fsName != "" {
-						parts = append(parts, fsName)
-					}
-					if dir != "." {
-						parts = append(parts, strings.Split(dir, "/")...)
-						// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
-					}
-					Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
 				}
-				a.Albums = []assets.Album{{Title: Album}}
+				if !done && la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
+					Album := ""
+					switch la.flags.UsePathAsAlbumName {
+					case FolderModeFolder:
+						if dir == "." {
+							Album = fsName
+						} else {
+							Album = filepath.Base(dir)
+						}
+					case FolderModePath:
+						parts := []string{}
+						if fsName != "" {
+							parts = append(parts, fsName)
+						}
+						if dir != "." {
+							parts = append(parts, strings.Split(dir, "/")...)
+							// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
+						}
+						Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
+					}
+					a.Albums = []assets.Album{{Title: Album}}
+				}
 			}
 
 			if la.flags.SessionTag {

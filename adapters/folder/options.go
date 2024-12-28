@@ -76,6 +76,9 @@ type ImportFolderOptions struct {
 	// TakeDateFromFilename indicates whether to take the date from the filename if the date isn't available in the image.
 	TakeDateFromFilename bool
 
+	// Use picasa albums
+	PicasaAlbum bool
+
 	// local time zone
 	TZ *time.Location
 }
@@ -113,11 +116,13 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 
 	// exif.AddExifToolFlags(cmd, &o.ExifToolFlags) // disabled for now
 
+	// upload specific flags, not for archive to folder
 	if parent != nil && parent.Name() == "upload" {
 		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
 		cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
 		cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG")
 		cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
+		cmd.Flags().BoolVar(&o.PicasaAlbum, "album-picasa", false, "Use Picasa album name found in .picasa.ini file (default: false)")
 	}
 }
 
