@@ -22,6 +22,7 @@ import (
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
@@ -36,8 +37,8 @@ type LocalAssetBrowser struct {
 	pool                    *worker.Pool
 	wg                      sync.WaitGroup
 	groupers                []groups.Grouper
-	requiresDateInformation bool // true if we need to read the date from the file for the options
-	picasaAlbums            map[string]PicasaAlbum
+	requiresDateInformation bool                              // true if we need to read the date from the file for the options
+	picasaAlbums            *gen.SyncMap[string, PicasaAlbum] // ap[string]PicasaAlbum
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
@@ -56,7 +57,7 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	}
 
 	if flags.PicasaAlbum {
-		la.picasaAlbums = make(map[string]PicasaAlbum)
+		la.picasaAlbums = gen.NewSyncMap[string, PicasaAlbum]() // make(map[string]PicasaAlbum)
 	}
 
 	if flags.InfoCollector == nil {
@@ -153,7 +154,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			if err != nil {
 				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 			} else {
-				la.picasaAlbums[dir] = a
+				la.picasaAlbums.Store(dir, a) // la.picasaAlbums[dir] = a
 				la.log.Log().Info("Picasa album detected", "file", fshelper.FSName(fsys, path.Join(dir, name)), "album", a.Name)
 			}
 			continue
@@ -331,7 +332,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			} else {
 				done := false
 				if la.flags.PicasaAlbum {
-					if album, ok := la.picasaAlbums[dir]; ok {
+					if album, ok := la.picasaAlbums.Load(dir); ok {
 						a.Albums = []assets.Album{{Title: album.Name, Description: album.Description}}
 						done = true
 					}
