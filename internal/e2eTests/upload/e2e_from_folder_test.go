@@ -10,33 +10,32 @@ import (
 	"image/color"
 	"image/jpeg"
 	"os"
-	"os/exec"
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/simulot/immich-go/app/cmd"
+	"github.com/simulot/immich-go/internal/e2eTests/e2e"
 	"golang.org/x/exp/rand"
 )
 
 func TestResetImmich(t *testing.T) {
-	initMyEnv(t)
-	reset_immich(t)
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
 }
 
 func TestUploadFromGooglePhotos(t *testing.T) {
-	initMyEnv(t)
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
 
-	reset_immich(t)
 	ctx := context.Background()
 
 	c, a := cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"upload", "from-google-photos",
-		"--server=" + myEnv["IMMICHGO_SERVER"],
-		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		// "--no-ui",
-		myEnv["IMMICHGO_TESTFILES"] + "/demo takeout/Takeout",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout",
 	})
 
 	// let's start
@@ -47,9 +46,8 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 }
 
 func TestUploadFromFolder(t *testing.T) {
-	initMyEnv(t)
-
-	reset_immich(t)
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
 	tmp, list, cleanup := create_test_folder(t, 10, 50)
 	defer cleanup()
 
@@ -58,8 +56,8 @@ func TestUploadFromFolder(t *testing.T) {
 	c, a := cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"upload", "from-folder",
-		"--server=" + myEnv["IMMICHGO_SERVER"],
-		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
 		"--folder-as-album=FOLDER",
 		tmp,
@@ -76,18 +74,17 @@ func TestUploadFromFolder(t *testing.T) {
 }
 
 func TestUploadArchive(t *testing.T) {
-	initMyEnv(t)
-
-	reset_immich(t)
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
 	ctx := context.Background()
 
 	c, a := cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"upload", "from-folder",
-		"--server=" + myEnv["IMMICHGO_SERVER"],
-		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
-		myEnv["IMMICHGO_TESTFILES"] + "/testArchive",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/testArchive",
 	})
 
 	// let's start
@@ -98,9 +95,8 @@ func TestUploadArchive(t *testing.T) {
 }
 
 func TestUploadFromFastFotoFolder(t *testing.T) {
-	initMyEnv(t)
-
-	reset_immich(t)
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
 	tmp, list, cleanup := create_test_epsonfoto_folder(t, 10, 5)
 	defer cleanup()
 
@@ -109,8 +105,8 @@ func TestUploadFromFastFotoFolder(t *testing.T) {
 	c, a := cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"upload", "from-folder",
-		"--server=" + myEnv["IMMICHGO_SERVER"],
-		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
 		"--manage-epson-fastfoto",
 		tmp,
@@ -256,49 +252,4 @@ func generateRandomImage(path string) error {
 	}
 
 	return nil
-}
-
-var myEnv map[string]string
-
-func initMyEnv(t *testing.T) {
-	if len(myEnv) > 0 {
-		return
-	}
-	var err error
-	e, err := godotenv.Read("../../../e2e.env")
-	if err != nil {
-		t.Fatalf("cant initialize environment variables: %s", err)
-	}
-	myEnv = e
-	if myEnv["IMMICHGO_TESTFILES"] == "" {
-		t.Fatal("missing IMMICHGO_TESTFILES in .env file")
-	}
-}
-
-func reset_immich(t *testing.T) {
-	// Reset immich's database
-	// https://github.com/immich-app/immich/blob/main/e2e/src/utils.ts
-	//
-	c := exec.Command("docker", "exec", "-i", "immich_postgres", "psql", "--dbname=immich", "--username=postgres", "-c",
-		`
-		DELETE FROM asset_stack CASCADE;
-		DELETE FROM libraries CASCADE;
-		DELETE FROM shared_links CASCADE;
-		DELETE FROM person CASCADE;
-		DELETE FROM albums CASCADE;
-		DELETE FROM assets CASCADE;
-		DELETE FROM asset_faces CASCADE;
-		DELETE FROM activity CASCADE;
-		--DELETE FROM api_keys CASCADE;
-		--DELETE FROM sessions CASCADE;
-		--DELETE FROM users CASCADE;
-		DELETE FROM "system_metadata" where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
-		DELETE FROM tags CASCADE;
-		`,
-	)
-	b, err := c.CombinedOutput()
-	if err != nil {
-		t.Log(string(b))
-		t.Fatal(err)
-	}
 }
