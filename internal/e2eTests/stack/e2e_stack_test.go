@@ -3,31 +3,30 @@ package stack_test
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/simulot/immich-go/app/cmd"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/e2eTests/e2e"
 )
 
 func TestResetImmich(t *testing.T) {
-	initMyEnv(t)
-	reset_immich(t)
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
 }
 
 func TestStackBurst(t *testing.T) {
 	ctx := context.Background()
 
-	initMyEnv(t)
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
 
-	reset_immich(t)
 	c, a := cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"upload", "from-folder",
-		"--server=" + myEnv["IMMICHGO_SERVER"],
-		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
 		"--dry-run=false",
 		"--manage-burst=Stack",
@@ -36,13 +35,12 @@ func TestStackBurst(t *testing.T) {
 		"--manage-epson-fastfoto=TRUE",
 		// "--api-trace",
 		// "--log-level=debug",
-		myEnv["IMMICHGO_TESTFILES"] + "/EpsonfastFoto/EpsonFastFoto.zip",
-		myEnv["IMMICHGO_TESTFILES"] + "/burst/Reflex",
-		myEnv["IMMICHGO_TESTFILES"] + "/burst/PXL6",
-		myEnv["IMMICHGO_TESTFILES"] + "/burst/Tel",
-
-		myEnv["IMMICHGO_TESTFILES"] + "/burst/storm",
-		// myEnv["IMMICHGO_TESTFILES"] + "/burst/storm full",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/EpsonfastFoto/EpsonFastFoto.zip",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/Reflex",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/PXL6",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/Tel",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/storm",
+		// e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/storm full",
 	})
 
 	err := c.ExecuteContext(ctx)
@@ -52,8 +50,8 @@ func TestStackBurst(t *testing.T) {
 	}
 
 	client, err := immich.NewImmichClient(
-		myEnv["IMMICHGO_SERVER"],
-		myEnv["IMMICHGO_APIKEY"],
+		e2e.MyEnv("IMMICHGO_SERVER"),
+		e2e.MyEnv("IMMICHGO_APIKEY"),
 	)
 	ctx2, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
 check:
@@ -78,8 +76,8 @@ check:
 	c, a = cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"stack",
-		"--server=" + myEnv["IMMICHGO_SERVER"],
-		"--api-key=" + myEnv["IMMICHGO_APIKEY"],
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--api-trace",
 		"--log-level=debug",
 		// "--dry-run=false",
@@ -91,51 +89,6 @@ check:
 	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
-		t.Fatal(err)
-	}
-}
-
-var myEnv map[string]string
-
-func initMyEnv(t *testing.T) {
-	if len(myEnv) > 0 {
-		return
-	}
-	var err error
-	e, err := godotenv.Read("../../../e2e.env")
-	if err != nil {
-		t.Fatalf("cant initialize environment variables: %s", err)
-	}
-	myEnv = e
-	if myEnv["IMMICHGO_TESTFILES"] == "" {
-		t.Fatal("missing IMMICHGO_TESTFILES in .env file")
-	}
-}
-
-func reset_immich(t *testing.T) {
-	// Reset immich's database
-	// https://github.com/immich-app/immich/blob/main/e2e/src/utils.ts
-	//
-	c := exec.Command("docker", "exec", "-i", "immich_postgres", "psql", "--dbname=immich", "--username=postgres", "-c",
-		`
-		DELETE FROM asset_stack CASCADE;
-		DELETE FROM libraries CASCADE;
-		DELETE FROM shared_links CASCADE;
-		DELETE FROM person CASCADE;
-		DELETE FROM albums CASCADE;
-		DELETE FROM assets CASCADE;
-		DELETE FROM asset_faces CASCADE;
-		DELETE FROM activity CASCADE;
-		--DELETE FROM api_keys CASCADE;
-		--DELETE FROM sessions CASCADE;
-		--DELETE FROM users CASCADE;
-		DELETE FROM "system_metadata" where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
-		DELETE FROM tags CASCADE;
-		`,
-	)
-	b, err := c.CombinedOutput()
-	if err != nil {
-		t.Log(string(b))
 		t.Fatal(err)
 	}
 }
