@@ -26,7 +26,7 @@ func MetadataFromDirectRead(f io.Reader, name string, localTZ *time.Location) (*
 	switch strings.ToLower(ext) {
 	case ".heic", ".heif":
 		md, err = readHEIFMetadata(f, localTZ)
-	case ".jpg", ".jpeg", ".dng", ".cr2", ".arw":
+	case ".jpg", ".jpeg", ".dng", ".cr2", ".arw", ".raf", ".nef":
 		md, err = readExifMetadata(f, localTZ)
 	case ".mp4", ".mov":
 		md, err = readMP4Metadata(f)
