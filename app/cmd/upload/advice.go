@@ -126,7 +126,7 @@ func (ai *AssetIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
 
 	if len(l) > 0 {
 		dateTaken := la.CaptureDate
-		size := la.Size()
+		size := int64(la.FileSize)
 
 		for _, sa = range l {
 			compareDate := compareDate(dateTaken, sa.ExifInfo.DateTimeOriginal.Time)

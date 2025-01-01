@@ -282,10 +282,10 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			// Read metadata from the file only id needed (date range or take date from filename)
 			if la.requiresDateInformation {
 				if a.CaptureDate.IsZero() {
-					// no date in XMp, JSON, try reading the metadata
-					f, name, err := a.PartialSourceReader()
+					// no date in XMP, JSON, try reading the metadata
+					f, err := a.OpenFile()
 					if err == nil {
-						md, err := exif.GetMetaData(f, name, la.flags.TZ)
+						md, err := exif.GetMetaData(f, a.Ext, la.flags.TZ)
 						if err != nil {
 							la.log.Record(ctx, fileevent.INFO, a.File, "warning", err.Error())
 						} else {
@@ -298,6 +298,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 							}
 							a.CaptureDate = a.FromApplication.DateTaken
 						}
+						f.Close()
 					}
 				}
 			}

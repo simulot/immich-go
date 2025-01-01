@@ -1,58 +1,45 @@
 package assets
 
 import (
-	"errors"
 	"fmt"
-	"io"
-	"io/fs"
 	"os"
-	"time"
 
-	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/fshelper/cachereader"
 )
-
-// Remove the temporary file
-func (a *Asset) Remove() error {
-	if fsys, ok := a.File.FS().(fshelper.FSCanRemove); ok {
-		return fsys.Remove(a.File.Name())
-	}
-	return nil
-}
 
 func (a *Asset) DeviceAssetID() string {
 	return fmt.Sprintf("%s-%d", a.OriginalFileName, a.FileSize)
 }
 
-// PartialSourceReader open a reader on the current asset.
-// each byte read from it is saved into a temporary file.
-//
-// It returns a TeeReader that writes each read byte from the sou²rce into the temporary file.
-// The temporary file is discarded when the LocalAssetFile is closed
-// TODO: possible optimization: when the file is a plain file, do not copy it into a temporary file
-// TODO: use user temp folder
+// OpenFile return an os.File whatever the type of source reader is.
+// It can be called several times for the same asset.
 
-func (a *Asset) PartialSourceReader() (reader io.Reader, tmpName string, err error) {
-	if a.sourceFile == nil {
-		a.sourceFile, err = a.File.Open()
+func (a *Asset) OpenFile() (*os.File, error) {
+	if a.cacheReader == nil {
+		// get a FS.File from of the asset
+		f, err := a.File.Open()
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
-	}
-	if a.tempFile == nil {
-		a.tempFile, err = os.CreateTemp("", "immich-go_*"+a.NameInfo.Ext)
+		// Create a cache reader from the FS.File
+		cr, err := cachereader.NewCacheReader(f)
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
-		if a.teeReader == nil {
-			a.teeReader = io.TeeReader(a.sourceFile, a.tempFile)
-		}
+		a.cacheReader = cr
 	}
-	_, err = a.tempFile.Seek(0, 0)
-	if err != nil {
-		return nil, "", err
-	}
-	return io.MultiReader(a.tempFile, a.teeReader), a.tempFile.Name(), nil
+	return a.cacheReader.OpenFile()
 }
+
+// Close close the temporary file  and close the source
+func (a *Asset) Close() error {
+	if a.cacheReader == nil {
+		return nil
+	}
+	return a.cacheReader.Close()
+}
+
+/*
 
 // Open return fs.File that reads previously read bytes followed by the actual file content.
 func (a *Asset) Open() (fs.File, error) {
@@ -124,3 +111,4 @@ func (a *Asset) ModTime() time.Time {
 
 // Sys implements the fs.FILE interface
 func (a *Asset) Sys() any { return nil }
+*/

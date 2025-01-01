@@ -73,7 +73,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.OriginalFileName))
 	}
 
-	f, err := la.Open()
+	f, err := la.OpenFile()
 	if err != nil {
 		return ar, (err)
 	}
@@ -85,6 +85,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		defer func() {
 			m.Close()
 			pw.Close()
+			f.Close()
 		}()
 		var s fs.FileInfo
 		s, err = f.Stat()
@@ -166,13 +167,12 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 			if err != nil {
 				return
 			}
-			defer f.Close()
-			f, err = la.FromSideCar.File.Open()
+			scf, err := la.FromSideCar.File.Open()
 			if err != nil {
 				return
 			}
-
-			_, err = io.Copy(part, f)
+			defer scf.Close()
+			_, err = io.Copy(part, scf)
 			if err != nil {
 				return
 			}

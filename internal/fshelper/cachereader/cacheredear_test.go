@@ -3,6 +3,7 @@ package cachereader
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"testing"
@@ -24,7 +25,7 @@ func Test_NewReaderAtOnBuffer(t *testing.T) {
 	}
 
 	b := makeBuffer(0, 4096)
-	cr, err := NewCacheReader(bytes.NewReader(b))
+	cr, err := NewCacheReader(io.NopCloser(bytes.NewReader(b)))
 	if err != nil {
 		t.Fatalf("NewCacheReader() error = %v", err)
 	}
@@ -52,7 +53,7 @@ func Test_NewReaderAtOnBuffer(t *testing.T) {
 	})
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("offset=%d, length=%d", tt.offset, tt.length), func(t *testing.T) {
-			r, err := cr.NewReaderAt()
+			r, err := cr.OpenFile()
 			if err != nil {
 				t.Errorf("NewReaderAt() error = %v", err)
 				return
@@ -118,7 +119,7 @@ func Test_NewReaderAtOnFile(t *testing.T) {
 	})
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("offset=%d, length=%d", tt.offset, tt.length), func(t *testing.T) {
-			r, err := cr.NewReaderAt()
+			r, err := cr.OpenFile()
 			if err != nil {
 				t.Errorf("NewReaderAt() error = %v", err)
 				return

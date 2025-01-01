@@ -6,16 +6,18 @@ import (
 )
 
 // CacheReader is a reader that caches the data in a temporary file to allow multiple reads
-// If the reader passed to NewCacheReader is an osFile, it will be used directly
 type CacheReader struct {
-	tmpFile *os.File // tmpFile is the temporary file or the original file
+	tmpFile      *os.File // tmpFile is the temporary file or the original file
+	shouldRemove bool
 }
 
-// NewCacheReader creates a new CacheReader from an io.Reader
-func NewCacheReader(r io.Reader) (*CacheReader, error) {
+// NewCacheReader creates a new CacheReader from an io.ReadCloser
+// When the reader is an os.File, it will be used directly
+// Otherwise, the content will be copied into a temporary file, and the original reader will be closed
+func NewCacheReader(rc io.ReadCloser) (*CacheReader, error) {
 	var err error
 	c := &CacheReader{}
-	if f, ok := r.(*os.File); ok {
+	if f, ok := rc.(*os.File); ok {
 		c.tmpFile = f
 	} else {
 		c.tmpFile, err = os.CreateTemp("", "immich-go_*")
@@ -23,13 +25,15 @@ func NewCacheReader(r io.Reader) (*CacheReader, error) {
 			return nil, err
 		}
 		// be sure to copy the reader content into the temporary file
-		_, err = io.Copy(c.tmpFile, r)
+		_, err = io.Copy(c.tmpFile, rc)
+		rc.Close()
+		c.shouldRemove = true
 	}
 	return c, err
 }
 
-// NewReaderAt creates a new readerAt from the temporary file
-func (cr *CacheReader) NewReaderAt() (*os.File, error) {
+// OpenFile creates a new file based on the temporary file
+func (cr *CacheReader) OpenFile() (*os.File, error) {
 	f, err := os.Open(cr.tmpFile.Name())
 	if err != nil {
 		return nil, err
@@ -37,8 +41,12 @@ func (cr *CacheReader) NewReaderAt() (*os.File, error) {
 	return f, nil
 }
 
-// Close closes the temporary file
+// Close closes the temporary file only if it was created by NewCacheReader
 func (cr *CacheReader) Close() error {
-	os.Remove(cr.tmpFile.Name())
-	return cr.tmpFile.Close()
+	if cr.shouldRemove {
+		// the source is already closed
+		return os.Remove(cr.tmpFile.Name())
+	} else {
+		return cr.tmpFile.Close()
+	}
 }
