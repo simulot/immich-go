@@ -95,6 +95,32 @@ func TestUploadFromFolder(t *testing.T) {
 	_ = list
 }
 
+// TestUploadBurstInAlbums show the immich problem when a stack is included into an album
+// immich version v1.123.0
+func TestUploadBurstInAlbums(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-folder",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--no-ui",
+		"--into-album=ALBUM",
+		"--manage-raw-jpeg=KeepRaw",
+		"--manage-burst=stack",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/storm",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
+
 func TestUploadArchive(t *testing.T) {
 	e2e.InitMyEnv()
 	e2e.ResetImmich(t)
