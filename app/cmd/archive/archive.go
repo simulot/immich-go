@@ -111,6 +111,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
 			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
 		}
+		options.TZ = app.GetTZ()
 		p, err := cmd.Flags().GetString("write-to-folder")
 		if err != nil {
 			return err
