@@ -45,6 +45,28 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 	}
 }
 
+func TestUploadFromGooglePhotosZipped(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-google-photos",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		// "--no-ui",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout.zip",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
+
 func TestUploadFromFolder(t *testing.T) {
 	e2e.InitMyEnv()
 	e2e.ResetImmich(t)

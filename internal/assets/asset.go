@@ -1,13 +1,11 @@
 package assets
 
 import (
-	"io"
-	"io/fs"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/fshelper/cachereader"
 )
 
 /*
@@ -57,10 +55,7 @@ type Asset struct {
 	Longitude float64 // GPS longitude
 
 	// buffer management
-	sourceFile fs.File   // the opened source file
-	tempFile   *os.File  // buffer that keep partial reads available for the full file reading
-	teeReader  io.Reader // write each read from it into the tempWriter
-	reader     io.Reader // the reader that combines the partial read and original file for full file reading
+	cacheReader *cachereader.CacheReader
 }
 
 // Kind is the probable type of the image
