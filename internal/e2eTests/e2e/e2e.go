@@ -1,11 +1,14 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/simulot/immich-go/immich"
 )
 
 var myEnv map[string]string
@@ -59,5 +62,36 @@ func ResetImmich(t *testing.T) {
 	if err != nil {
 		t.Log(string(b))
 		t.Fatal(err)
+	}
+}
+
+func WaitingForJobsEnding(ctx context.Context, t *testing.T) {
+	// Waiting for jobs to complete
+
+	client, err := immich.NewImmichClient(
+		MyEnv("IMMICHGO_SERVER"),
+		MyEnv("IMMICHGO_APIKEY"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx2, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
+check:
+	for {
+		select {
+		case <-ctx2.Done():
+			t.Fatal("Timeout waiting for metadata job to terminate")
+		default:
+			jobs, err := client.GetJobs(ctx2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if jobs["metadataExtraction"].JobCounts.Active == 0 {
+				cancel()
+				break check
+			}
+			fmt.Println("Waiting for metadata extraction to finish")
+			time.Sleep(1 * time.Second)
+		}
 	}
 }
