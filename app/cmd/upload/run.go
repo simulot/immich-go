@@ -229,7 +229,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		}
 
 		// Upload the superior asset
-		err = upCmd.uploadAsset(ctx, a)
+		err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a)
 		if err != nil {
 			return err
 		}
@@ -244,11 +244,6 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			return err
 		}
 
-		// delete the existing lower quality asset
-		err = upCmd.app.Client().Immich.DeleteAssets(ctx, []string{advice.ServerAsset.ID}, true)
-		if err != nil {
-			upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err.Error())
-		}
 		return err
 
 	case SameOnServer:
@@ -319,6 +314,21 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 			return err
 		}
+	}
+	return nil
+}
+
+func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset) error {
+	defer upCmd.app.Log().Debug("", "file", a)
+	ar, err := upCmd.app.Client().Immich.ReplaceAsset(ctx, ID, a)
+	if err != nil {
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
+		return err // Must signal the error to the caller
+	}
+	if ar.Status == immich.UploadDuplicate {
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
+	} else {
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File)
 	}
 	return nil
 }
