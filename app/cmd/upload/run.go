@@ -329,6 +329,7 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
 	} else {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File)
+		a.ID = ar.ID
 	}
 	return nil
 }
