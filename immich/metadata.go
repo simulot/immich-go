@@ -19,15 +19,16 @@ type SearchMetadataQuery struct {
 	Size int `json:"size,omitempty"`
 
 	// filters
-	WithExif     bool   `json:"withExif,omitempty"`
-	IsVisible    bool   `json:"isVisible,omitempty"` // For motion stuff you need to pass isVisible=true to hide the motion ones (dijrasm91 — https://discord.com/channels/979116623879368755/1178366369423700080/1201206313699508295)
-	WithDeleted  bool   `json:"withDeleted,omitempty"`
-	WithArchived bool   `json:"withArchived,omitempty"`
-	TakenBefore  string `json:"takenBefore,omitempty"`
-	TakenAfter   string `json:"takenAfter,omitempty"`
-	Model        string `json:"model,omitempty"`
-	Make         string `json:"make,omitempty"`
-	Checksum     string `json:"checksum,omitempty"`
+	WithExif         bool   `json:"withExif,omitempty"`
+	IsVisible        bool   `json:"isVisible,omitempty"` // For motion stuff you need to pass isVisible=true to hide the motion ones (dijrasm91 — https://discord.com/channels/979116623879368755/1178366369423700080/1201206313699508295)
+	WithDeleted      bool   `json:"withDeleted,omitempty"`
+	WithArchived     bool   `json:"withArchived,omitempty"`
+	TakenBefore      string `json:"takenBefore,omitempty"`
+	TakenAfter       string `json:"takenAfter,omitempty"`
+	Model            string `json:"model,omitempty"`
+	Make             string `json:"make,omitempty"`
+	Checksum         string `json:"checksum,omitempty"`
+	OriginalFileName string `json:"originalFileName,omitempty"`
 }
 
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {
@@ -89,6 +90,25 @@ func (ic *ImmichClient) GetAssetsByHash(ctx context.Context, hash string) ([]*As
 	list := []*Asset{}
 	filter := func(asset *Asset) error {
 		if asset.Checksum == hash {
+			list = append(list, asset)
+		}
+		return nil
+	}
+	err := ic.callSearchMetadata(ctx, &query, filter)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// GetAssetByHash returns the asset with the given hash
+// The hash is the base64 encoded sha1 of the file
+func (ic *ImmichClient) GetAssetsByImageName(ctx context.Context, name string) ([]*Asset, error) {
+	query := SearchMetadataQuery{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true, OriginalFileName: name}
+	query.Page = 1
+	list := []*Asset{}
+	filter := func(asset *Asset) error {
+		if asset.OriginalFileName == name {
 			list = append(list, asset)
 		}
 		return nil

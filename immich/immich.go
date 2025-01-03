@@ -44,6 +44,9 @@ type ImmichInterface interface {
 		stackParentID string,
 	) error
 	GetAllAssetsWithFilter(context.Context, *SearchMetadataQuery, func(*Asset) error) error
+	GetAssetsByHash(ctx context.Context, hash string) ([]*Asset, error)
+	GetAssetsByImageName(ctx context.Context, name string) ([]*Asset, error)
+
 	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 
