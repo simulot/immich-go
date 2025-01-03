@@ -65,24 +65,16 @@ func ResetImmich(t *testing.T) {
 	}
 }
 
-func WaitingForJobsEnding(ctx context.Context, t *testing.T) {
+func WaitingForJobsEnding(ctx context.Context, client *immich.ImmichClient, t *testing.T) {
 	// Waiting for jobs to complete
-
-	client, err := immich.NewImmichClient(
-		MyEnv("IMMICHGO_SERVER"),
-		MyEnv("IMMICHGO_APIKEY"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx2, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(30*time.Second))
 check:
 	for {
 		select {
-		case <-ctx2.Done():
+		case <-ctx.Done():
 			t.Fatal("Timeout waiting for metadata job to terminate")
 		default:
-			jobs, err := client.GetJobs(ctx2)
+			jobs, err := client.GetJobs(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -94,4 +86,11 @@ check:
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+func GetImmichClient() (*immich.ImmichClient, error) {
+	return immich.NewImmichClient(
+		MyEnv("IMMICHGO_SERVER"),
+		MyEnv("IMMICHGO_APIKEY"),
+	)
 }

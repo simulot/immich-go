@@ -13,6 +13,7 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
+	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 type UpCmd struct {
@@ -214,11 +215,10 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 
 		// Manage albums
 		if len(a.Albums) > 0 {
-			upCmd.manageAssetAlbums(ctx, a)
+			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		}
 		return upCmd.manageAssetTags(ctx, a)
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a, "reason", advice.Message)
 
 		// Remember existing asset's albums, if any
 		for _, al := range advice.ServerAsset.Albums {
@@ -233,10 +233,11 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		if err != nil {
 			return err
 		}
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a, "reason", advice.Message)
 
 		// Manage albums
 		if len(a.Albums) > 0 {
-			upCmd.manageAssetAlbums(ctx, a)
+			upCmd.manageAssetAlbums(ctx, a.File, advice.ServerAsset.ID, a.Albums)
 		}
 
 		err = upCmd.manageAssetTags(ctx, a)
@@ -263,7 +264,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 
 		// Manage albums
 		if len(a.Albums) > 0 {
-			upCmd.manageAssetAlbums(ctx, a)
+			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		}
 
 	case BetterOnServer: // and manage albums
@@ -337,19 +338,19 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset
 // manageAssetAlbums add the assets to the albums listed.
 // If an album does not exist, it is created.
 // Errors are logged.
-func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, a *assets.Asset) {
-	for _, album := range a.Albums {
+func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName, ID string, albums []assets.Album) {
+	for _, album := range albums {
 		title := album.Title
 		l, exist := upCmd.albums[title]
 		if !exist {
-			newAl, err := upCmd.app.Client().Immich.CreateAlbum(ctx, title, album.Description, []string{a.ID})
+			newAl, err := upCmd.app.Client().Immich.CreateAlbum(ctx, title, album.Description, []string{ID})
 			if err != nil {
 				upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err)
 			}
 			upCmd.albums[title] = newAl
 			l = newAl
 		} else {
-			_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, l.ID, []string{a.ID})
+			_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, l.ID, []string{ID})
 			if err != nil {
 				upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err)
 				return
@@ -357,7 +358,7 @@ func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, a *assets.Asset) {
 		}
 
 		// Log the action
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, a.File, "Album", title)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, f, "Album", title)
 	}
 }
 
