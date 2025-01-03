@@ -27,6 +27,7 @@ type SearchMetadataQuery struct {
 	TakenAfter   string `json:"takenAfter,omitempty"`
 	Model        string `json:"model,omitempty"`
 	Make         string `json:"make,omitempty"`
+	Checksum     string `json:"checksum,omitempty"`
 }
 
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {
@@ -78,4 +79,23 @@ func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, query *Searc
 	}
 	query.Page = 1
 	return ic.callSearchMetadata(ctx, query, filter)
+}
+
+// GetAssetByHash returns the asset with the given hash
+// The hash is the base64 encoded sha1 of the file
+func (ic *ImmichClient) GetAssetsByHash(ctx context.Context, hash string) ([]*Asset, error) {
+	query := SearchMetadataQuery{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true, Checksum: hash}
+	query.Page = 1
+	list := []*Asset{}
+	filter := func(asset *Asset) error {
+		if asset.Checksum == hash {
+			list = append(list, asset)
+		}
+		return nil
+	}
+	err := ic.callSearchMetadata(ctx, &query, filter)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }
