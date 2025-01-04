@@ -136,6 +136,11 @@ func Test_matchers(t *testing.T) {
 			want:     "normalMatch",
 		},
 		{
+			jsonName: "PXL_20211013_220651983.jpg.json",
+			fileName: "PXL_20211013_220651958.jpg",
+			want:     "",
+		},
+		{
 			jsonName: "PXL_20220405_090123740.PORTRAIT.jpg.json",
 			fileName: "PXL_20220405_090123740.PORTRAIT-modifié.jpg",
 			want:     "matchEditedName",
@@ -156,6 +161,11 @@ func Test_matchers(t *testing.T) {
 			want:     "matchDuplicateInYear",
 		},
 		{
+			jsonName: "DSC_0238.JPG(1).json",
+			fileName: "DSC_0238.JPG",
+			want:     "",
+		},
+		{
 			jsonName: "IMG_2710.HEIC(1).json",
 			fileName: "IMG_2710(1).HEIC",
 			want:     "matchDuplicateInYear",
@@ -165,11 +175,11 @@ func Test_matchers(t *testing.T) {
 			fileName: "PXL_20231118_035751175.MP.jpg",
 			want:     "normalMatch",
 		},
-		{
-			jsonName: "PXL_20231118_035751175.MP.jpg.json",
-			fileName: "PXL_20231118_035751175.MP",
-			want:     "livePhotoMatch",
-		},
+		// { // MP are now ignored
+		// 	jsonName: "PXL_20231118_035751175.MP.jpg.json",
+		// 	fileName: "PXL_20231118_035751175.MP",
+		// 	want:     "livePhotoMatch",
+		// },
 		{
 			jsonName: "PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGIN.json",
 			fileName: "PXL_20230809_203449253.LONG_EXPOSURE-02.ORIGINA.jpg",
@@ -178,7 +188,7 @@ func Test_matchers(t *testing.T) {
 		{
 			jsonName: "05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jp.json",
 			fileName: "05yqt21kruxwwlhhgrwrdyb6chhwszi9bqmzu16w0 2.jpg",
-			want:     "livePhotoMatch",
+			want:     "matchWithOneCharOmitted",
 		},
 		{
 			jsonName: "😀😃😄😁😆😅😂🤣🥲☺️😊😇🙂🙃😉😌😍🥰😘😗😙😚😋.json",
@@ -202,9 +212,14 @@ func Test_matchers(t *testing.T) {
 		},
 		{ // #405
 			jsonName: "PXL_20210102_221126856.MP~2.jpg.json",
-			fileName: "PXL_20210102_221126856.MP~2",
-			want:     "livePhotoMatch",
+			fileName: "PXL_20210102_221126856.MP~2.jpg",
+			want:     "normalMatch",
 		},
+		// { // #405
+		// 	jsonName: "PXL_20210102_221126856.MP~2.jpg.json",
+		// 	fileName: "PXL_20210102_221126856.MP~2",
+		// 	want:     "livePhotoMatch",
+		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {

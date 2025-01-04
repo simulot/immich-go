@@ -30,6 +30,7 @@ type ImmichInterface interface {
 	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
 
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
+	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error)
 	GetAllAssets(ctx context.Context) ([]*Asset, error)
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(
@@ -43,6 +44,9 @@ type ImmichInterface interface {
 		stackParentID string,
 	) error
 	GetAllAssetsWithFilter(context.Context, *SearchMetadataQuery, func(*Asset) error) error
+	GetAssetsByHash(ctx context.Context, hash string) ([]*Asset, error)
+	GetAssetsByImageName(ctx context.Context, name string) ([]*Asset, error)
+
 	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
 

@@ -64,9 +64,10 @@ type callError struct {
 }
 
 type ServerMessage struct {
-	Error      string   `json:"error"`
-	StatusCode string   `json:"statusCode"`
-	Message    []string `json:"message"`
+	Error         string   `json:"error"`
+	StatusCode    int      `json:"statusCode"`
+	Message       []string `json:"message"`
+	CorrelationID string   `json:"correlationId"`
 }
 
 func (ce callError) Is(target error) bool {
@@ -228,12 +229,28 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 	if resp.StatusCode >= 300 {
 		msg := ServerMessage{}
 		if resp.Body != nil {
+			defer resp.Body.Close()
 			if json.NewDecoder(resp.Body).Decode(&msg) == nil {
+				if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
+					seq := sc.ctx.Value(ctxCallSequenceID)
+					fmt.Fprintln(
+						sc.ic.apiTraceWriter,
+						time.Now().Format(time.RFC3339),
+						"RESPONSE",
+						seq,
+						sc.endPoint,
+						resp.Request.Method,
+						resp.Request.URL.String(),
+					)
+					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
+					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
+					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
+					dec.SetIndent("", " ")
+					_ = dec.Encode(msg) // nolint: errcheck
+					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
+				}
 				return sc.Err(req, resp, &msg)
 			}
-		}
-		if resp.Body != nil {
-			resp.Body.Close()
 		}
 		return sc.Err(req, resp, &msg)
 	}

@@ -196,6 +196,107 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 	return ar, err
 }
 
+func (ic *ImmichClient) ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) {
+	if ic.dryRun {
+		return AssetResponse{
+			ID:     uuid.NewString(),
+			Status: UploadReplaced,
+		}, nil
+	}
+	var ar AssetResponse
+	ext := path.Ext(la.OriginalFileName)
+	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
+		la.OriginalFileName = "No Name" + ext // fix #88, #128
+	}
+
+	if strings.ToUpper(ext) == ".MP" {
+		// Should be discarded before calling AssetUpload as MP are useless
+		ext = ".MP4" // #405
+		la.OriginalFileName = la.OriginalFileName + ".MP4"
+	}
+	mtype := ic.TypeFromExt(ext)
+	switch mtype {
+	case "video", "image":
+	default:
+		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.OriginalFileName))
+	}
+
+	f, err := la.OpenFile()
+	if err != nil {
+		return ar, (err)
+	}
+
+	body, pw := io.Pipe()
+	m := multipart.NewWriter(pw)
+
+	go func() {
+		defer func() {
+			m.Close()
+			pw.Close()
+			f.Close()
+		}()
+		var s fs.FileInfo
+		s, err = f.Stat()
+		if err != nil {
+			return
+		}
+
+		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.OriginalFileName), s.Size()))
+		if err != nil {
+			return
+		}
+		err = m.WriteField("deviceId", ic.DeviceUUID)
+		if err != nil {
+			return
+		}
+
+		if !la.CaptureDate.IsZero() {
+			err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(TimeFormat))
+		} else {
+			err = m.WriteField("fileCreatedAt", s.ModTime().Format(TimeFormat))
+		}
+		if err != nil {
+			return
+		}
+		err = m.WriteField("fileModifiedAt", s.ModTime().Format(TimeFormat))
+		if err != nil {
+			return
+		}
+
+		h := textproto.MIMEHeader{}
+		h.Set("Content-Disposition",
+			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+				escapeQuotes("assetData"), escapeQuotes(path.Base(la.OriginalFileName))))
+		h.Set("Content-Type", mtype)
+
+		var part io.Writer
+		part, err = m.CreatePart(h)
+		if err != nil {
+			return
+		}
+		_, err = io.Copy(part, f)
+		if err != nil {
+			return
+		}
+	}()
+
+	var callValues map[string]string
+	if ic.apiTraceWriter != nil {
+		callValues = map[string]string{
+			ctxAssetName: la.File.Name(),
+		}
+		// if la.FromSideCar != nil {
+		// 	callValues[ctxSideCarName] = la.FromSideCar.File.Name()
+		// }
+	}
+
+	errCall := ic.newServerCall(ctx, "ReplaceAsset").
+		do(putRequest("/assets/"+ID+"/original", setContextValue(callValues), setAcceptJSON(), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
+
+	err = errors.Join(err, errCall)
+	return ar, err
+}
+
 const (
 	ctxCallValues    = "call-values"
 	ctxAssetName     = "asset file name"
