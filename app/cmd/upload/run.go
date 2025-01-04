@@ -111,6 +111,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	upCmd.AssetIndex = &AssetIndex{
 		assets: list,
 	}
+	upCmd.app.Log().Info(fmt.Sprintf("Assets on the server: %d", len(list)))
 	upCmd.AssetIndex.ReIndex()
 	return nil
 }
