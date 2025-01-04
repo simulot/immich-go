@@ -84,4 +84,37 @@ func Test_BadRequest(t *testing.T) {
 		a.Log().Error(err.Error())
 		t.Fatal(err)
 	}
+
+	e2e.WaitingForJobsEnding(ctx, client, t)
+
+	c, a = cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-folder",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_ALTERNATE_APIKEY"),
+		"--no-ui",
+		"--api-trace",
+		"TEST_DATA/fixtures",
+	})
+
+	err = c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+		t.Fatal(err)
+	}
+
+	c, a = cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-google-photos",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_ALTERNATE_APIKEY"),
+		"--no-ui",
+		"--api-trace",
+		"TEST_DATA/takeout",
+	})
+	err = c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+		t.Fatal(err)
+	}
 }
