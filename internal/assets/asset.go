@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -120,7 +121,7 @@ func (a Asset) LogValue() slog.Value {
 		slog.Bool("FromPartner", a.FromPartner),
 		slog.Bool("Favorite", a.Favorite),
 		slog.Int("Stars", a.Rating),
-		slog.Float64("Latitude", a.Latitude),
-		slog.Float64("Longitude", a.Longitude),
+		slog.String("Latitude", fmt.Sprintf("%.0f.xxxxx", a.Latitude)),
+		slog.String("Longitude", fmt.Sprintf("%.0f.xxxxx", a.Longitude)),
 	)
 }
