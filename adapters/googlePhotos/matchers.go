@@ -24,17 +24,17 @@ func normalMatch(jsonName string, fileName string, sm filetypes.SupportedMedia) 
 // PXL_20231118_035751175.MP.jpg.json
 // PXL_20231118_035751175.MP.jpg
 // PXL_20231118_035751175.MP
-func livePhotoMatch(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
-	fileExt := path.Ext(fileName)
-	fileName = strings.TrimSuffix(fileName, fileExt)
-	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	base = strings.TrimSuffix(base, path.Ext(base))
-	if base == fileName {
-		return true
-	}
-	base = strings.TrimSuffix(base, path.Ext(base))
-	return base == fileName
-}
+// func livePhotoMatch(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
+// 	fileExt := path.Ext(fileName)
+// 	fileName = strings.TrimSuffix(fileName, fileExt)
+// 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+// 	base = strings.TrimSuffix(base, path.Ext(base))
+// 	if base == fileName {
+// 		return true
+// 	}
+// 	base = strings.TrimSuffix(base, path.Ext(base))
+// 	return base == fileName
+// }
 
 // matchWithOneCharOmitted
 //

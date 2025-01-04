@@ -323,7 +323,7 @@ var matchers = []struct {
 	fn   matcherFn
 }{
 	{name: "normalMatch", fn: normalMatch},
-	{name: "livePhotoMatch", fn: livePhotoMatch},
+	// {name: "livePhotoMatch", fn: livePhotoMatch},
 	{name: "matchWithOneCharOmitted", fn: matchWithOneCharOmitted},
 	{name: "matchVeryLongNameWithNumber", fn: matchVeryLongNameWithNumber},
 	{name: "matchDuplicateInYear", fn: matchDuplicateInYear},
