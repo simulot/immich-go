@@ -170,9 +170,7 @@ func (r *Recorder) SetLogger(l *slog.Logger) {
 func (r *Recorder) Report() {
 	sb := strings.Builder{}
 
-	sb.WriteString("\n")
-	sb.WriteString("Input analysis:\n")
-	sb.WriteString("---------------\n")
+	countAnalysis := 0
 	for _, c := range []Code{
 		DiscoveredImage,
 		DiscoveredVideo,
@@ -183,12 +181,29 @@ func (r *Recorder) Report() {
 		AnalysisAssociatedMetadata,
 		AnalysisMissingAssociatedMetadata,
 	} {
-		sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
+		countAnalysis += int(r.counts[c])
 	}
 
-	sb.WriteString("\n")
-	sb.WriteString("Uploading:\n")
-	sb.WriteString("----------\n")
+	if countAnalysis > 0 {
+		sb.WriteString("\n")
+		sb.WriteString("Input analysis:\n")
+		sb.WriteString("---------------\n")
+		for _, c := range []Code{
+			DiscoveredImage,
+			DiscoveredVideo,
+			DiscoveredSidecar,
+			DiscoveredDiscarded,
+			DiscoveredUnsupported,
+			AnalysisLocalDuplicate,
+			AnalysisAssociatedMetadata,
+			AnalysisMissingAssociatedMetadata,
+		} {
+			sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
+		}
+		sb.WriteString("\n")
+	}
+
+	countsUpload := 0
 	for _, c := range []Code{
 		Uploaded,
 		UploadServerError,
@@ -197,12 +212,29 @@ func (r *Recorder) Report() {
 		UploadServerDuplicate,
 		UploadServerBetter,
 	} {
-		sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
+		countsUpload += int(r.counts[c])
 	}
-	fmt.Println(sb.String())
-	lines := strings.Split(sb.String(), "\n")
-	for _, s := range lines {
-		r.log.Info(s)
+	if countsUpload > 0 {
+		sb.WriteString("Uploading:\n")
+		sb.WriteString("----------\n")
+		for _, c := range []Code{
+			Uploaded,
+			UploadServerError,
+			UploadNotSelected,
+			UploadUpgraded,
+			UploadServerDuplicate,
+			UploadServerBetter,
+		} {
+			sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
+		}
+		fmt.Println(sb.String())
+	}
+
+	if countsUpload > 0 || countAnalysis > 0 {
+		lines := strings.Split(sb.String(), "\n")
+		for _, s := range lines {
+			r.log.Info(s)
+		}
 	}
 }
 
