@@ -35,6 +35,9 @@ func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command
 	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, cmd, app, options))
 	cmd.AddCommand(NewFromImmichCommand(ctx, cmd, app, options))
 
+	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
+		return errors.New("you must specify a subcommand to the archive command")
+	}
 	return cmd
 }
 
