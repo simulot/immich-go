@@ -11,7 +11,6 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/fshelper"
-	"github.com/simulot/immich-go/internal/tzone"
 )
 
 var _ ImmichInterface = (*ImmichClient)(nil)
@@ -265,22 +264,18 @@ type ImmichTime struct {
 // capture the error
 
 func (t *ImmichTime) UnmarshalJSON(b []byte) error {
-	local, err := tzone.Local()
-	if err != nil {
-		return err
-	}
 	var ts time.Time
 	if len(b) < 3 {
 		t.Time = time.Time{}
 		return nil
 	}
 	b = b[1 : len(b)-1]
-	ts, err = time.ParseInLocation("2006-01-02T15:04:05.000Z", string(b), time.UTC)
+	ts, err := time.ParseInLocation("2006-01-02T15:04:05.000Z", string(b), time.UTC)
 	if err != nil {
 		t.Time = time.Time{}
 		return nil
 	}
-	t.Time = ts.In(local)
+	t.Time = ts.In(time.Local)
 	return nil
 }
 
