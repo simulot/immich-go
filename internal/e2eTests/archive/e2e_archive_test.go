@@ -36,6 +36,7 @@ func TestArchiveFromGooglePhotos(t *testing.T) {
 	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
+		t.Error(err)
 	}
 }
 
@@ -71,12 +72,15 @@ func TestArchiveFromFolder(t *testing.T) {
 	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
+		t.Error(err)
 		return
 	}
 
 	c, a = cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
-		"archive", "from-imich",
+		"archive", "from-immich",
+		"--from-server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--from-api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--write-to-folder=" + tmpDir,
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/Reflex",
 	})
@@ -85,6 +89,7 @@ func TestArchiveFromFolder(t *testing.T) {
 	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
+		t.Error(err)
 	}
 }
 
@@ -120,6 +125,7 @@ func TestArchiveFromImmich(t *testing.T) {
 	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
+		t.Error(err)
 	}
 	c, a = cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
@@ -133,5 +139,6 @@ func TestArchiveFromImmich(t *testing.T) {
 	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
+		t.Error(err)
 	}
 }
