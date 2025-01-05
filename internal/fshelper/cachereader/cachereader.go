@@ -3,6 +3,7 @@ package cachereader
 import (
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // CacheReader is a reader that caches the data in a temporary file to allow multiple reads
@@ -20,12 +21,26 @@ func NewCacheReader(rc io.ReadCloser) (*CacheReader, error) {
 	if f, ok := rc.(*os.File); ok {
 		c.tmpFile = f
 	} else {
-		c.tmpFile, err = os.CreateTemp("", "immich-go_*")
+		d, err := os.UserCacheDir()
+		if err != nil {
+			d = os.TempDir()
+		}
+		d = filepath.Join(d, "immich-go", "temp")
+
+		err = os.MkdirAll(d, 0o700)
+		if err != nil {
+			d = os.TempDir()
+		}
+
+		c.tmpFile, err = os.CreateTemp(d, "immich-go_*")
 		if err != nil {
 			return nil, err
 		}
 		// be sure to copy the reader content into the temporary file
 		_, err = io.Copy(c.tmpFile, rc)
+		if err != nil {
+			return nil, err
+		}
 		rc.Close()
 		c.shouldRemove = true
 	}
