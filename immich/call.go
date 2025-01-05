@@ -246,7 +246,9 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
 					dec.SetIndent("", " ")
-					_ = dec.Encode(msg) // nolint: errcheck
+					if err := dec.Encode(msg); err != nil {
+						// return sc.Err(req, resp, &msg)
+					}
 					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
 				}
 				return sc.Err(req, resp, &msg)

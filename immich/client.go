@@ -22,12 +22,12 @@ Immich API documentation https://documentation.immich.app/docs/api/introduction
 type ImmichClient struct {
 	client              *http.Client
 	roundTripper        *http.Transport
-	endPoint            string        // Server API url
-	key                 string        // User KEY
-	DeviceUUID          string        // Device
-	Retries             int           // Number of attempts on 500 errors
-	RetriesDelay        time.Duration // Duration between retries
-	apiTraceWriter      io.Writer
+	endPoint            string                   // Server API url
+	key                 string                   // User KEY
+	DeviceUUID          string                   // Device
+	Retries             int                      // Number of attempts on 500 errors
+	RetriesDelay        time.Duration            // Duration between retries
+	apiTraceWriter      io.Writer                // If not nil, logs API calls to this writer
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
 	dryRun              bool                     //  If true, do not send any data to the server
 }

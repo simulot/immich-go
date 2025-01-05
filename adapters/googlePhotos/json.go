@@ -9,7 +9,6 @@ import (
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fshelper"
-	"github.com/simulot/immich-go/internal/tzone"
 )
 
 type GoogleMetaData struct {
@@ -179,9 +178,7 @@ func (gt googTimeObject) Time() time.Time {
 		return time.Time{}
 	}
 	t := time.Unix(ts, 0)
-	local, _ := tzone.Local()
-	//	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
-	return t.In(local)
+	return t.In(time.Local)
 }
 
 type googleEnrichments struct {

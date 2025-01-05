@@ -15,7 +15,6 @@ require (
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/samber/slog-multi v1.2.4
 	github.com/spf13/cobra v1.8.1
-	github.com/thlib/go-timezone-local v0.0.4
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
 	golang.org/x/sync v0.10.0

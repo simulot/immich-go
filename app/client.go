@@ -13,7 +13,6 @@ import (
 
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/configuration"
-	"github.com/simulot/immich-go/internal/tzone"
 	"github.com/spf13/cobra"
 )
 
@@ -36,6 +35,7 @@ func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, d
 }
 
 func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	var err error
 	client := app.Client()
 	log := app.Log()
 
@@ -43,7 +43,8 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 		client.Server = strings.TrimSuffix(client.Server, "/")
 	}
 	if client.TimeZone != "" {
-		_, err := tzone.SetLocal(client.TimeZone)
+		// Load the specified timezone
+		client.TZ, err = time.LoadLocation(client.TimeZone)
 		if err != nil {
 			return err
 		}
@@ -70,7 +71,7 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 		}
 	}
 
-	err := client.Initialize(ctx, app)
+	err = client.Initialize(ctx, app)
 	if err != nil {
 		return err
 	}
@@ -114,6 +115,7 @@ type Client struct {
 	DeviceUUID         string                 // Set a device UUID
 	DryRun             bool                   // Protect the server from changes
 	TimeZone           string                 // Override default TZ
+	TZ                 *time.Location         // Time zone to use
 	APITraceWriter     io.WriteCloser         // API tracer
 	APITraceWriterName string                 // API trace log name
 	Immich             immich.ImmichInterface // Immich client
