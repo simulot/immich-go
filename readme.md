@@ -246,6 +246,7 @@ This tag is formatted as `{immich-go}/YYYY-MM-DD HH-MM-SS`. The tag can be delet
 # The **archive** command:
 
 The **archive** command writes the content taken from the source given by the sub-command to a folder tree. 
+The destination folder isn't wiped out before the operation, so it's possible to add new photos to an existing archive.
 
 The command accepts three sub-commands:
   * [from-folder](#from-folder-sub-command) to create a folder archive from a local folder or a zipped archive
@@ -452,7 +453,9 @@ The sub-command **from-immich** processes an Immich server to upload photos to a
 
 
 # The **stack** command:
-The stack command open the immich server, for the user associated with the the API-KEY, and stacks related photos together. The command accepts the following options:
+The stack command open the immich server, for the user associated with the the API-KEY, and stacks related photos together. 
+
+The command accepts the following options:
 
 | **Parameter**           | **Default value** | **Description**                                                                                                                                                            |
 | ----------------------- | :---------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -531,11 +534,10 @@ The `--date-range` option allows you to process photos taken within a specific d
 
 | **Parameter**                       | **Description**                                |
 | ----------------------------------- | ---------------------------------------------- |
-| `-date-range=YYYY-MM-DD`            | import photos taken on a particular day.       |
-| `-date-range=YYYY-MM`               | select photos taken during a particular month. |
-| `-date-range=YYYY`                  | select photos taken during a particular year.  |
-| `-date-range=YYYY-MM-DD,YYYY-MM-DD` | select photos taken between two dates.         |
-
+| `--date-range=YYYY-MM-DD`            | import photos taken on a particular day.       |
+| `--date-range=YYYY-MM`               | select photos taken during a particular month. |
+| `--date-range=YYYY`                  | select photos taken during a particular year.  |
+| `--date-range=YYYY-MM-DD,YYYY-MM-DD` | select photos taken between two dates.         |
 
 
 # Examples
