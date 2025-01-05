@@ -33,6 +33,7 @@ func run(ctx context.Context, jnl *fileevent.Recorder, _ *app.Application, sourc
 				} else {
 					jnl.Record(ctx, fileevent.Written, a)
 				}
+				a.Close()
 			}
 		}
 	}
