@@ -155,7 +155,6 @@ func (client *Client) Open(ctx context.Context) error {
 		immich.OptionVerifySSL(client.SkipSSL),
 		immich.OptionConnectionTimeout(client.ClientTimeout),
 		immich.OptionDryRun(client.DryRun),
-		immich.OptionTimeZone(client.TZ),
 	)
 	if err != nil {
 		return err

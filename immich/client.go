@@ -30,7 +30,6 @@ type ImmichClient struct {
 	apiTraceWriter      io.Writer                // If not nil, logs API calls to this writer
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
 	dryRun              bool                     //  If true, do not send any data to the server
-	LocalTZ             *time.Location           // local time as requested by the user
 }
 
 func (ic *ImmichClient) SetEndPoint(endPoint string) {
@@ -51,13 +50,6 @@ func (ic *ImmichClient) EnableAppTrace(w io.Writer) {
 
 func (ic *ImmichClient) SupportedMedia() filetypes.SupportedMedia {
 	return ic.supportedMediaTypes
-}
-
-func OptionTimeZone(loc *time.Location) clientOption {
-	return func(ic *ImmichClient) error {
-		ic.LocalTZ = loc
-		return nil
-	}
 }
 
 type clientOption func(ic *ImmichClient) error
@@ -110,7 +102,6 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 		DeviceUUID:   deviceUUID,
 		Retries:      1,
 		RetriesDelay: time.Second * 1,
-		LocalTZ:      time.Local,
 	}
 
 	ic.client = &http.Client{
