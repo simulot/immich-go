@@ -531,11 +531,10 @@ The `--date-range` option allows you to process photos taken within a specific d
 
 | **Parameter**                       | **Description**                                |
 | ----------------------------------- | ---------------------------------------------- |
-| `-date-range=YYYY-MM-DD`            | import photos taken on a particular day.       |
-| `-date-range=YYYY-MM`               | select photos taken during a particular month. |
-| `-date-range=YYYY`                  | select photos taken during a particular year.  |
-| `-date-range=YYYY-MM-DD,YYYY-MM-DD` | select photos taken between two dates.         |
-
+| `--date-range=YYYY-MM-DD`            | import photos taken on a particular day.       |
+| `--date-range=YYYY-MM`               | select photos taken during a particular month. |
+| `--date-range=YYYY`                  | select photos taken during a particular year.  |
+| `--date-range=YYYY-MM-DD,YYYY-MM-DD` | select photos taken between two dates.         |
 
 
 # Examples
