@@ -67,32 +67,43 @@ func TestUploadFromGooglePhotosZipped(t *testing.T) {
 	}
 }
 
-func TestUploadFromFolder(t *testing.T) {
+func TestUploadFromGPInCurrent(t *testing.T) {
+	curDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	t.Cleanup(func() {
+		_ = os.Chdir(curDir)
+	})
+
 	e2e.InitMyEnv()
 	e2e.ResetImmich(t)
-	tmp, list, cleanup := create_test_folder(t, 10, 50)
-	defer cleanup()
 
 	ctx := context.Background()
+	d := e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout"
+	err = os.Chdir(d)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
 
 	c, a := cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
-		"upload", "from-folder",
+		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
-		"--no-ui",
-		"--folder-as-album=FOLDER",
-		tmp,
+		"--from-album-name=Duplicated album",
+		// "--no-ui",
+		".",
 	})
 
 	// let's start
-	err := c.ExecuteContext(ctx)
+	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
 	}
-
-	_ = tmp
-	_ = list
 }
 
 // TestUploadBurstInAlbums show the immich problem when a stack is included into an album
