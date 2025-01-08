@@ -580,6 +580,9 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileev
 	if to.flags.ImportFromAlbum != "" {
 		keep := false
 		dir := path.Dir(a.File.Name())
+		if dir == "." {
+			dir = ""
+		}
 		if album, ok := to.albums[dir]; ok {
 			keep = keep || album.Title == to.flags.ImportFromAlbum
 		}
