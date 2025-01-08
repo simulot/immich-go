@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -81,6 +82,8 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	}
 	// List flags
 	log.Info(GetVersion())
+	log.Info("Operating system: " + runtime.GOOS)
+	log.Info("Architecture " + runtime.GOARCH)
 
 	log.Info(fmt.Sprintf("Command: %s", cmd.Use))
 	log.Info("Flags:")
