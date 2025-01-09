@@ -57,7 +57,7 @@ func TestUploadFromGooglePhotosZipped(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		// "--no-ui",
-		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout.zip",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout*.zip",
 	})
 
 	// let's start
