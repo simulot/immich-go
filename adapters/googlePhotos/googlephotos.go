@@ -468,7 +468,9 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 				if to.flags.PartnerSharedAlbum != "" && a.FromPartner {
 					a.Albums = append(a.Albums, assets.Album{Title: to.flags.PartnerSharedAlbum})
 				}
-				a.FromApplication.Albums = a.Albums
+				if a.FromApplication != nil {
+					a.FromApplication.Albums = a.Albums
+				}
 			}
 			// If the asset has no GPS information, but the album has, use the album's location
 			if a.Latitude == 0 && a.Longitude == 0 {
