@@ -101,8 +101,8 @@ func (a *Asset) UseMetadata(md *Metadata) *Metadata {
 	a.Archived = md.Archived
 	a.Favorite = md.Favorited
 	a.Rating = int(md.Rating)
-	a.Albums = md.Albums
-	a.Tags = md.Tags
+	a.MergeAlbums(md.Albums)
+	a.MergeTags(md.Tags)
 	return md
 }
 
@@ -124,4 +124,34 @@ func (a Asset) LogValue() slog.Value {
 		slog.String("Latitude", fmt.Sprintf("%.0f.xxxxx", a.Latitude)),
 		slog.String("Longitude", fmt.Sprintf("%.0f.xxxxx", a.Longitude)),
 	)
+}
+
+func (a *Asset) MergeAlbums(a2 []Album) {
+	for _, album := range a2 {
+		found := false
+		for _, existingAlbum := range a.Albums {
+			if existingAlbum.Title == album.Title {
+				found = true
+				break
+			}
+		}
+		if !found {
+			a.Albums = append(a.Albums, album)
+		}
+	}
+}
+
+func (a *Asset) MergeTags(t2 []Tag) {
+	for _, tag := range t2 {
+		found := false
+		for _, existingTag := range a.Tags {
+			if existingTag.Name == tag.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			a.Tags = append(a.Tags, tag)
+		}
+	}
 }

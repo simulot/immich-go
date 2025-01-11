@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
@@ -12,6 +13,8 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/spf13/cobra"
 )
+
+var _re3digits = regexp.MustCompile(`-\d{3}$`)
 
 func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app *app.Application, upOptions *UploadOptions) *cobra.Command {
 	cmd := &cobra.Command{
@@ -40,21 +43,20 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 		}
 
 		if options.TakeoutTag {
-			gotIt := false
-			for _, a := range args {
-				if filepath.Ext(a) == ".zip" {
-					options.TakeoutName = filepath.Base(a)
-					if len(options.TakeoutName) > 4+4 {
-						options.TakeoutName = "{takeout}/" + options.TakeoutName[:len(options.TakeoutName)-4-4]
-						gotIt = true
-						break
-					}
+			for _, fsys := range fsyss {
+				if fsys, ok := fsys.(fshelper.NameFS); ok {
+					options.TakeoutName = fsys.Name()
+					break
 				}
 			}
-			if !gotIt {
-				log.Message("Can't set the takeout tag: no .zip file in the arguments")
+
+			if filepath.Ext(options.TakeoutName) == ".zip" {
+				options.TakeoutName = strings.TrimSuffix(options.TakeoutName, filepath.Base(options.TakeoutName))
+			}
+			if options.TakeoutName == "" {
 				options.TakeoutTag = false
 			}
+			options.TakeoutName = _re3digits.ReplaceAllString(options.TakeoutName, "")
 		}
 
 		upOptions.Filters = append(upOptions.Filters, options.ManageBurst.GroupFilter(), options.ManageRawJPG.GroupFilter(), options.ManageHEICJPG.GroupFilter())
