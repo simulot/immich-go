@@ -29,7 +29,7 @@ func TestArchiveFromGooglePhotos(t *testing.T) {
 	c.SetArgs([]string{
 		"archive", "from-google-photos",
 		"--write-to-folder=" + tmpDir,
-		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout.zip",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout",
 	})
 
 	// let's start
