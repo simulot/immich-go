@@ -51,7 +51,7 @@ func TestUploadFromGooglePhotosZipped(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		// "--no-ui",
-		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout.zip",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout-*.zip",
 	})
 
 	// let's start
@@ -111,6 +111,8 @@ func TestUploadFromGP_issue613(t *testing.T) {
 		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"-u",
+		"--from-album-name", "Family & friends",
 		// "--no-ui",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#613 Segfault on Album/Family & friends",
 	})
