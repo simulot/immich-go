@@ -157,10 +157,24 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			if d.IsDir() {
 				return nil
 			}
-
 			dir, base := path.Split(name)
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
+
+			// Exclude files to be ignored before processing
+			if to.flags.BannedFiles.Match(name) {
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "banned file")
+				return nil
+			}
+
+			if !to.flags.InclusionFlags.IncludedExtensions.Include(ext) {
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not selected")
+				return nil
+			}
+			if to.flags.InclusionFlags.ExcludedExtensions.Exclude(ext) {
+				to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not allowed")
+				return nil
+			}
 
 			dirCatalog, ok := to.catalogs[dir]
 			if !ok {
@@ -228,19 +242,6 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				}
 			default:
 
-				if to.flags.BannedFiles.Match(name) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "banned file")
-					return nil
-				}
-
-				if !to.flags.InclusionFlags.IncludedExtensions.Include(ext) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not selected")
-					return nil
-				}
-				if to.flags.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-					to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not allowed")
-					return nil
-				}
 				t := to.flags.SupportedMedia.TypeFromExt(ext)
 				switch t {
 				case filetypes.TypeUseless:
