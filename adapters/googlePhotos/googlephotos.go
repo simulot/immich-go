@@ -322,13 +322,10 @@ var matchers = []struct {
 	name string
 	fn   matcherFn
 }{
-	{name: "normalMatch", fn: normalMatch},
-	// {name: "livePhotoMatch", fn: livePhotoMatch},
-	{name: "matchWithOneCharOmitted", fn: matchWithOneCharOmitted},
-	{name: "matchVeryLongNameWithNumber", fn: matchVeryLongNameWithNumber},
-	{name: "matchDuplicateInYear", fn: matchDuplicateInYear},
-	{name: "matchEditedName", fn: matchEditedName},
+	{name: "matchFastTrack", fn: matchFastTrack},
+	{name: "matchNormal", fn: matchNormal},
 	{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
+	{name: "matchEditedName", fn: matchEditedName},
 }
 
 func (to *Takeout) solvePuzzle(ctx context.Context) error {
