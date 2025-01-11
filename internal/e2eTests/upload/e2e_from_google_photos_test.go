@@ -50,6 +50,8 @@ func TestUploadFromGooglePhotosZipped(t *testing.T) {
 		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--manage-burst=Stack",
+		"--manage-raw-jpeg=StackCoverJPG",
 		// "--no-ui",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout-*.zip",
 	})
