@@ -21,9 +21,12 @@ func NewCacheReader(rc io.ReadCloser) (*CacheReader, error) {
 	if f, ok := rc.(*os.File); ok {
 		c.tmpFile = f
 	} else {
-		d, err := os.UserCacheDir()
-		if err != nil {
-			d = os.TempDir()
+		d := os.Getenv("IMMICHGO_TEMPDIR")
+		if d == "" {
+			d, err = os.UserCacheDir()
+			if err != nil {
+				d = os.TempDir()
+			}
 		}
 		d = filepath.Join(d, "immich-go", "temp")
 
@@ -31,7 +34,6 @@ func NewCacheReader(rc io.ReadCloser) (*CacheReader, error) {
 		if err != nil {
 			d = os.TempDir()
 		}
-
 		c.tmpFile, err = os.CreateTemp(d, "immich-go_*")
 		if err != nil {
 			return nil, err
@@ -39,6 +41,9 @@ func NewCacheReader(rc io.ReadCloser) (*CacheReader, error) {
 		// be sure to copy the reader content into the temporary file
 		_, err = io.Copy(c.tmpFile, rc)
 		if err != nil {
+			name := c.tmpFile.Name()
+			c.tmpFile.Close()
+			_ = os.Remove(name)
 			return nil, err
 		}
 		rc.Close()
@@ -47,7 +52,7 @@ func NewCacheReader(rc io.ReadCloser) (*CacheReader, error) {
 	return c, err
 }
 
-// OpenFile creates a new file based on the temporary file
+// OpenFile creates a new file handler based on the temporary file
 func (cr *CacheReader) OpenFile() (*os.File, error) {
 	f, err := os.Open(cr.tmpFile.Name())
 	if err != nil {
