@@ -322,13 +322,10 @@ var matchers = []struct {
 	name string
 	fn   matcherFn
 }{
-	{name: "normalMatch", fn: normalMatch},
-	// {name: "livePhotoMatch", fn: livePhotoMatch},
-	{name: "matchWithOneCharOmitted", fn: matchWithOneCharOmitted},
-	{name: "matchVeryLongNameWithNumber", fn: matchVeryLongNameWithNumber},
-	{name: "matchDuplicateInYear", fn: matchDuplicateInYear},
-	{name: "matchEditedName", fn: matchEditedName},
+	{name: "matchFastTrack", fn: matchFastTrack},
+	{name: "matchNormal", fn: matchNormal},
 	{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
+	{name: "matchEditedName", fn: matchEditedName},
 }
 
 func (to *Takeout) solvePuzzle(ctx context.Context) error {
@@ -468,7 +465,9 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 				if to.flags.PartnerSharedAlbum != "" && a.FromPartner {
 					a.Albums = append(a.Albums, assets.Album{Title: to.flags.PartnerSharedAlbum})
 				}
-				a.FromApplication.Albums = a.Albums
+				if a.FromApplication != nil {
+					a.FromApplication.Albums = a.Albums
+				}
 			}
 			// If the asset has no GPS information, but the album has, use the album's location
 			if a.Latitude == 0 && a.Longitude == 0 {
@@ -580,6 +579,9 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileev
 	if to.flags.ImportFromAlbum != "" {
 		keep := false
 		dir := path.Dir(a.File.Name())
+		if dir == "." {
+			dir = ""
+		}
 		if album, ok := to.albums[dir]; ok {
 			keep = keep || album.Title == to.flags.ImportFromAlbum
 		}
