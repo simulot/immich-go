@@ -378,7 +378,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 * **If Many Files Are Not Imported:**
   * Verify if all takeout parts have been included in the processing. Have you used the `takeout-*.zip` file name pattern?
   * Sometimes, the takeout result is incomplete. Request another takeout, either for an entire year or in smaller increments.
-  * Force the import of files despite missing JSON files using the option `--upload-when-missing-JSON`.
+  * Force the import of files despite missing JSON files using the option `--include-unmatched`.
 
 ## Takeout Tag
 
