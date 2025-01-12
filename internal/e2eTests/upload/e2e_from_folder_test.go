@@ -58,6 +58,7 @@ func TestUploadBurstFromZip(t *testing.T) {
 		"--into-album=ALBUM",
 		"--manage-raw-jpeg=KeepRaw",
 		"--manage-burst=stack",
+		"--log-level=DEBUG",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/storm.zip",
 	})
 
