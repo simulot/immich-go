@@ -37,7 +37,7 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 			}
 			r := a.Radical
 			cd := a.CaptureDate
-			if cd.IsZero() || abs(cd.Sub(currentCaptureDate)) > threshold || r != currentRadical {
+			if r != currentRadical || a.Type != filetypes.TypeImage || cd.IsZero() || abs(cd.Sub(currentCaptureDate)) > threshold {
 				if len(currentGroup) > 0 {
 					sendGroup(ctx, out, gOut, currentGroup)
 					currentGroup = []*assets.Asset{}
@@ -102,6 +102,7 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 					return
 				}
 			}
+			return
 		}
 	}
 
