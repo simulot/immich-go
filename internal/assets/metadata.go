@@ -2,6 +2,7 @@ package assets
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -25,9 +26,16 @@ type Metadata struct {
 }
 
 func (m Metadata) LogValue() slog.Value {
+	var gpsGroup slog.Value
+	if m.Latitude != 0 || m.Longitude != 0 {
+		gpsGroup = slog.GroupValue(
+			slog.String("latitude", fmt.Sprintf("%0.f.xxxx", m.Latitude)),
+			slog.String("longitude", fmt.Sprintf("%0.f.xxxx", m.Longitude)),
+		)
+	}
+
 	return slog.GroupValue(
-		slog.Float64("latitude", m.Latitude),
-		slog.Float64("longitude", m.Longitude),
+		slog.Any("GPS coordinates", gpsGroup),
 		slog.Any("fileName", m.File),
 		slog.Time("dateTaken", m.DateTaken),
 		slog.String("description", m.Description),

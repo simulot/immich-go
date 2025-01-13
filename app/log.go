@@ -13,6 +13,7 @@ import (
 	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
 	"github.com/simulot/immich-go/internal/configuration"
+	"github.com/simulot/immich-go/internal/loghelper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -67,6 +68,7 @@ func (log *Log) OpenLogFile() error {
 		w = os.Stdout
 	}
 	log.setHandlers(w, nil)
+	loghelper.SetGlobalLogger(log.Logger)
 	return nil
 }
 

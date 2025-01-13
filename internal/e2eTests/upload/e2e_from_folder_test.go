@@ -44,6 +44,31 @@ func TestUploadBurstInAlbums(t *testing.T) {
 	}
 }
 
+func TestUploadBurstFromZip(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-folder",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--no-ui",
+		"--into-album=ALBUM",
+		"--manage-raw-jpeg=KeepRaw",
+		"--manage-burst=stack",
+		"--log-level=DEBUG",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/storm.zip",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
+
 func TestUploadArchive(t *testing.T) {
 	e2e.InitMyEnv()
 	e2e.ResetImmich(t)

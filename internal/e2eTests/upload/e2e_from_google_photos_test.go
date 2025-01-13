@@ -28,6 +28,7 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--log-level=DEBUG",
 		// "--no-ui",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout",
 	})
@@ -50,8 +51,37 @@ func TestUploadFromGooglePhotosZipped(t *testing.T) {
 		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--log-level=DEBUG",
+		"--manage-burst=Stack",
+		"--manage-raw-jpeg=StackCoverJPG",
 		// "--no-ui",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout-*.zip",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
+
+func TestUploadFromGooglePhotosZippedIssue608(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-google-photos",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--log-level=DEBUG",
+		"--manage-burst=Stack",
+		"--manage-raw-jpeg=StackCoverJPG",
+		"--include-unmatched",
+		// "--no-ui",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/takeout-reflex.zip",
 	})
 
 	// let's start
@@ -115,6 +145,28 @@ func TestUploadFromGP_issue613(t *testing.T) {
 		"--from-album-name", "Family & friends",
 		// "--no-ui",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#613 Segfault on Album/Family & friends",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
+
+func TestUploadFromGP_issue608(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-google-photos",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		// "--no-ui",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#608 missing temp files/takeout",
 	})
 
 	// let's start

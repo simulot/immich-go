@@ -58,3 +58,13 @@ func (dir dirFS) MkSymlink(name, target string) error {
 func (dir dirFS) Remove(name string) error {
 	return os.Remove(filepath.Join(string(dir), name))
 }
+
+type OSFS interface {
+	fs.File
+	Name() string
+	ReadAt(b []byte, off int64) (n int, err error)
+	Seek(offset int64, whence int) (ret int64, err error)
+	Stat() (fs.FileInfo, error)
+	Write(b []byte) (n int, err error)
+	WriteAt(b []byte, off int64) (n int, err error)
+}

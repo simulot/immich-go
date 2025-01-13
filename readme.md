@@ -532,12 +532,19 @@ The following files are excluded automatically:
 
 The `--date-range` option allows you to process photos taken within a specific date range. The following date range formats are supported:
 
-| **Parameter**                       | **Description**                                |
-| ----------------------------------- | ---------------------------------------------- |
+| **Parameter**                        | **Description**                                |
+| ------------------------------------ | ---------------------------------------------- |
 | `--date-range=YYYY-MM-DD`            | import photos taken on a particular day.       |
 | `--date-range=YYYY-MM`               | select photos taken during a particular month. |
 | `--date-range=YYYY`                  | select photos taken during a particular year.  |
 | `--date-range=YYYY-MM-DD,YYYY-MM-DD` | select photos taken between two dates.         |
+
+
+## Environment variables
+
+| **Variable**     | **Description**                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| IMMICHGO_TEMPDIR | Temporary directory used by Immich-go. Default: User's cache folder, or OS temporary directory. |
 
 
 # Examples

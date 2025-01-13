@@ -2,9 +2,9 @@ package assets
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/simulot/immich-go/internal/fshelper/cachereader"
+	"github.com/simulot/immich-go/internal/fshelper/osfs"
 )
 
 func (a *Asset) DeviceAssetID() string {
@@ -14,7 +14,7 @@ func (a *Asset) DeviceAssetID() string {
 // OpenFile return an os.File whatever the type of source reader is.
 // It can be called several times for the same asset.
 
-func (a *Asset) OpenFile() (*os.File, error) {
+func (a *Asset) OpenFile() (osfs.OSFS, error) {
 	if a.cacheReader == nil {
 		// get a FS.File from of the asset
 		f, err := a.File.Open()
@@ -22,7 +22,7 @@ func (a *Asset) OpenFile() (*os.File, error) {
 			return nil, err
 		}
 		// Create a cache reader from the FS.File
-		cr, err := cachereader.NewCacheReader(f)
+		cr, err := cachereader.NewCacheReader(a.File.FullName(), f)
 		if err != nil {
 			return nil, err
 		}
