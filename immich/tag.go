@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/simulot/immich-go/internal/assets"
 )
 
@@ -28,6 +29,17 @@ type TagAssetsResponse struct {
 }
 
 func (ic *ImmichClient) UpsertTags(ctx context.Context, tags []string) ([]TagSimplified, error) {
+	if ic.dryRun {
+		resp := make([]TagSimplified, len(tags))
+		for i, t := range tags {
+			resp[i] = TagSimplified{
+				ID:    uuid.NewString(),
+				Name:  t,
+				Value: t,
+			}
+		}
+		return resp, nil
+	}
 	var resp []TagSimplified
 	body := struct {
 		Tags []string `json:"tags"`
@@ -45,6 +57,17 @@ func (ic *ImmichClient) TagAssets(
 	tagID string,
 	assetIDs []string,
 ) ([]TagAssetsResponse, error) {
+	if ic.dryRun {
+		resp := make([]TagAssetsResponse, len(assetIDs))
+		for i, a := range assetIDs {
+			resp[i] = TagAssetsResponse{
+				ID:      a,
+				Success: true,
+			}
+		}
+		return resp, nil
+	}
+
 	var resp []TagAssetsResponse
 
 	body := struct {
@@ -66,6 +89,12 @@ func (ic *ImmichClient) BulkTagAssets(
 	Count int `json:"count"`
 }, error,
 ) {
+	if ic.dryRun {
+		return struct {
+			Count int `json:"count"`
+		}{Count: len(assetIDs)}, nil
+	}
+
 	var resp struct {
 		Count int `json:"count"`
 	}
