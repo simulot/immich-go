@@ -1,6 +1,7 @@
 package filetypes
 
 import (
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -90,4 +91,17 @@ var rawExtensions = map[string]bool{
 func IsRawFile(ext string) bool {
 	ext = strings.ToLower(ext)
 	return rawExtensions[ext]
+}
+
+func (sm SupportedMedia) IsUseLess(name string) bool {
+	ext := strings.ToLower(path.Ext(name))
+	if sm.IsIgnoredExt(ext) {
+		return true
+	}
+
+	// MVIMG* is a Google Motion Photo movie part, not useful
+	if ext == "" && strings.HasPrefix(strings.ToUpper(name), "MVIMG") {
+		return true
+	}
+	return false
 }
