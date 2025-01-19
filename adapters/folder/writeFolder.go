@@ -106,7 +106,6 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 
 			// write the asset
 			err = fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
-			r.Close()
 			if err != nil {
 				return err
 			}

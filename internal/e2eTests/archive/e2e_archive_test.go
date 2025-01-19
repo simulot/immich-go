@@ -28,6 +28,7 @@ func TestArchiveFromGooglePhotos(t *testing.T) {
 	c, a := cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"archive", "from-google-photos",
+		"--log-level=debug",
 		"--write-to-folder=" + tmpDir,
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout",
 	})
