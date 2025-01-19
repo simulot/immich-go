@@ -91,7 +91,7 @@ type tempFile struct {
 
 func (t *tempFile) Close() error {
 	refs := atomic.AddInt64(&t.cr.references, -1)
-	loghelper.Debug("tempFile:", "close file", t.File.Name(), "references", refs+1)
+	loghelper.Debug("tempFile:", "assetName", t.cr.name, "close file", t.File.Name(), "references", refs+1)
 	if refs < 0 {
 		panic("tempFile: Close() called on a closed file")
 	}
