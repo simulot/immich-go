@@ -284,7 +284,10 @@ func checkLivePhoto() []fs.FS { // nolint:unused
 		addImage("Motion test/20231227_152817.MP4", 5192477).
 		addJSONImage("Motion Test/PXL_20231118_035751175.MP.jpg.json", "PXL_20231118_035751175.MP.jpg").
 		addImage("Motion Test/PXL_20231118_035751175.MP", 3478685).
-		addImage("Motion Test/PXL_20231118_035751175.MP.jpg", 8025699).FSs()
+		addImage("Motion Test/PXL_20231118_035751175.MP.jpg", 8025699).
+		addJSONImage("Motion Test/MVIMG_20180418_113218.jpg.json", "MVIMG_20180418_113218.jpg").
+		addImage("Motion Test/MVIMG_20180418_113218.jpg", 12345).
+		addImage("Motion Test/MVIMG_20180418_113218", 5656).FSs()
 }
 
 func loadFromString(dateFormat string, s string) []fs.FS { // nolint:unused
