@@ -59,14 +59,21 @@ func patternToRe(pattern string) (*regexp.Regexp, error) {
 	buf := []byte(pattern)
 
 	r.WriteString("(?i)") // make the pattern case insensitive
+	isFirtRune := true
 
 	for len(buf) > 0 {
 		buf, b = fetchRune(buf)
 		switch b {
+		case '/':
+			if isFirtRune {
+				r.WriteString(`(^|/)`)
+			} else {
+				r.WriteRune('/')
+			}
 		case '*':
-			r.WriteString(`[^./]*`)
+			r.WriteString(`[^/]*`)
 		case '?':
-			r.WriteString(`[^./]`)
+			r.WriteString(`[^/]`)
 		case '.', '^', '$', '(', ')', '|':
 			r.WriteRune('\\')
 			r.WriteRune(b)
@@ -96,6 +103,7 @@ func patternToRe(pattern string) (*regexp.Regexp, error) {
 		default:
 			r.WriteRune(b)
 		}
+		isFirtRune = false
 	}
 	if inBrackets {
 		return nil, fmt.Errorf("invalid file name pattern: %s", pattern)

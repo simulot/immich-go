@@ -1,6 +1,8 @@
 package namematcher
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestList_Match(t *testing.T) {
 	type args struct {
@@ -112,14 +114,17 @@ func TestList_Match(t *testing.T) {
 				{"@eaDir/SYNOFILE_THUMB_M_000213.jpg", true},
 			},
 		},
+
 		{
-			name: "._*",
+			name: "/._*",
 			want: []args{
 				{"hello.world", false},
 				{"._hello.world", true},
 				{"/path/to/file.exe", false},
 				{"/path/to/._file.exe", true},
 				{"/path/to/file", false},
+				{"/path/to/PXL_20210825_041449609._exported_699_1629864935.jpg", false},
+				{"PXL_20210825_041449609._exported_699_1629864935.jpg", false},
 			},
 		},
 	}
