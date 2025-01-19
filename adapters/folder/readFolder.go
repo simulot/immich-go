@@ -149,6 +149,11 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			continue
 		}
 
+		if la.flags.SupportedMedia.IsUseLess(name) {
+			la.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, entry.Name()))
+			continue
+		}
+
 		if la.flags.PicasaAlbum && (strings.ToLower(base) == ".picasa.ini" || strings.ToLower(base) == "picasa.ini") {
 			a, err := ReadPicasaIni(fsys, name)
 			if err != nil {

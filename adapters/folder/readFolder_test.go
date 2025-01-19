@@ -235,17 +235,20 @@ func TestInMemLocalAssets(t *testing.T) {
 					addFile("motion/PXL_20210102_221126856.MP.jpg", t0).
 					addFile("motion/PXL_20210102_221126856.MP", t0).
 					addFile("motion/20231227_152817.jpg", t0).
-					addFile("motion/20231227_152817.MP4", t0),
+					addFile("motion/20231227_152817.MP4", t0).
+					addFile("motion/MVIMG_20180418_113218", t0).
+					addFile("motion/MVIMG_20180418_113218.jpg", t0),
 			},
 			expectedFiles: []string{
 				"motion/PXL_20210102_221126856.MP.jpg",
 				"motion/PXL_20210102_221126856.MP~2.jpg",
 				"motion/20231227_152817.jpg", "motion/20231227_152817.MP4",
 				"motion/nomotion.MP4",
+				"motion/MVIMG_20180418_113218.jpg",
 			},
-			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 3).
+			expectedCounts: fileevent.NewCounts().Set(fileevent.DiscoveredImage, 4).
 				Set(fileevent.DiscoveredVideo, 2).
-				Set(fileevent.DiscoveredUseless, 2).Value(),
+				Set(fileevent.DiscoveredUseless, 3).Value(),
 		},
 
 		{

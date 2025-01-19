@@ -321,7 +321,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 }
 
 func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset) error {
-	defer upCmd.app.Log().Debug("", "file", a)
+	defer upCmd.app.Log().Debug("replaced by", "file", a)
 	ar, err := upCmd.app.Client().Immich.ReplaceAsset(ctx, ID, a)
 	if err != nil {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
@@ -331,7 +331,6 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
 	} else {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File)
-		a.ID = ar.ID
 	}
 	return nil
 }

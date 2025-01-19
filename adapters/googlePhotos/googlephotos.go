@@ -167,6 +167,11 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				return nil
 			}
 
+			if to.flags.SupportedMedia.IsUseLess(name) {
+				to.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(w, name))
+				return nil
+			}
+
 			if !to.flags.InclusionFlags.IncludedExtensions.Include(ext) {
 				to.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not selected")
 				return nil
