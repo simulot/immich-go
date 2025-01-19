@@ -1,39 +1,42 @@
 package loghelper
 
-import "log/slog"
+import (
+	"log/slog"
+	"sync/atomic"
+)
 
-var globalLogger *slog.Logger
+var globalLogger atomic.Pointer[slog.Logger]
 
 func SetGlobalLogger(l *slog.Logger) {
-	globalLogger = l
+	globalLogger.Store(l)
 }
 
 func Log(message string, values ...interface{}) {
-	if globalLogger != nil {
-		globalLogger.Info(message, values...)
+	if l := globalLogger.Load(); l != nil {
+		l.Info(message, values...)
 	}
 }
 
 func Info(message string, values ...interface{}) {
-	if globalLogger != nil {
-		globalLogger.Info(message, values...)
+	if l := globalLogger.Load(); l != nil {
+		l.Info(message, values...)
 	}
 }
 
 func Error(message string, values ...interface{}) {
-	if globalLogger != nil {
-		globalLogger.Error(message, values...)
+	if l := globalLogger.Load(); l != nil {
+		l.Error(message, values...)
 	}
 }
 
 func Warn(message string, values ...interface{}) {
-	if globalLogger != nil {
-		globalLogger.Warn(message, values...)
+	if l := globalLogger.Load(); l != nil {
+		l.Warn(message, values...)
 	}
 }
 
 func Debug(message string, values ...interface{}) {
-	if globalLogger != nil {
-		globalLogger.Debug(message, values...)
+	if l := globalLogger.Load(); l != nil {
+		l.Debug(message, values...)
 	}
 }
