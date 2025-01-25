@@ -3,14 +3,11 @@ package immich
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
-	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
-	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 var _ ImmichInterface = (*ImmichClient)(nil)
@@ -72,7 +69,11 @@ type ImmichInterface interface {
 		force bool,
 	) (SendJobCommandResponse, error)
 	CreateJob(ctx context.Context, name JobName) error
+}
 
+type ImmichTagInterface interface {
+	ImmichInterface
+	GetAllTags(ctx context.Context) ([]TagSimplified, error)
 	UpsertTags(ctx context.Context, tags []string) ([]TagSimplified, error)
 	TagAssets(
 		ctx context.Context,
@@ -94,74 +95,6 @@ type ImmichStackInterface interface {
 	CreateStack(ctx context.Context, ids []string) (string, error)
 }
 
-type UnsupportedMedia struct {
-	msg string
-}
-
-func (u UnsupportedMedia) Error() string {
-	return u.msg
-}
-
-func (u UnsupportedMedia) Is(target error) bool {
-	_, ok := target.(*UnsupportedMedia)
-	return ok
-}
-
-type PingResponse struct {
-	Res string `json:"res"`
-}
-
-type User struct {
-	ID                   string    `json:"id"`
-	Email                string    `json:"email"`
-	FirstName            string    `json:"firstName"`
-	LastName             string    `json:"lastName"`
-	StorageLabel         string    `json:"storageLabel"`
-	ExternalPath         string    `json:"externalPath"`
-	ProfileImagePath     string    `json:"profileImagePath"`
-	ShouldChangePassword bool      `json:"shouldChangePassword"`
-	IsAdmin              bool      `json:"isAdmin"`
-	CreatedAt            time.Time `json:"createdAt"`
-	DeletedAt            time.Time `json:"deletedAt"`
-	UpdatedAt            time.Time `json:"updatedAt"`
-	OauthID              string    `json:"oauthId"`
-}
-
-type List[T comparable] struct {
-	list []T
-	lock sync.RWMutex
-}
-
-func (l *List[T]) Includes(v T) bool {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
-	for i := range l.list {
-		if l.list[i] == v {
-			return true
-		}
-	}
-	return false
-}
-
-func (l *List[T]) Push(v T) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	l.list = append(l.list, v)
-}
-
-func (l *List[T]) MarshalJSON() ([]byte, error) {
-	return nil, errors.New("MarshalJSON not implemented for List[T]")
-}
-
-func (l *List[T]) UnmarshalJSON(data []byte) error {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	if l.list == nil {
-		l.list = []T{}
-	}
-	return json.Unmarshal(data, &l.list)
-}
-
 type myBool bool
 
 func (b myBool) String() string {
@@ -169,87 +102,6 @@ func (b myBool) String() string {
 		return "true"
 	}
 	return "false"
-}
-
-// immich Asset simplified
-type Asset struct {
-	ID               string            `json:"id"`
-	DeviceAssetID    string            `json:"deviceAssetId"`
-	OwnerID          string            `json:"ownerId"`
-	DeviceID         string            `json:"deviceId"`
-	Type             string            `json:"type"`
-	OriginalPath     string            `json:"originalPath"`
-	OriginalFileName string            `json:"originalFileName"`
-	Resized          bool              `json:"resized"`
-	Thumbhash        string            `json:"thumbhash"`
-	FileCreatedAt    ImmichTime        `json:"fileCreatedAt"`
-	FileModifiedAt   ImmichTime        `json:"fileModifiedAt"`
-	UpdatedAt        ImmichTime        `json:"updatedAt"`
-	IsFavorite       bool              `json:"isFavorite"`
-	IsArchived       bool              `json:"isArchived"`
-	IsTrashed        bool              `json:"isTrashed"`
-	Duration         string            `json:"duration"`
-	Rating           int               `json:"rating"`
-	ExifInfo         ExifInfo          `json:"exifInfo"`
-	LivePhotoVideoID string            `json:"livePhotoVideoId"`
-	Checksum         string            `json:"checksum"`
-	StackParentID    string            `json:"stackParentId"`
-	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
-	Tags             []TagSimplified   `json:"tags"`
-	// JustUploaded     bool              `json:"-"` // TO REMOVE
-}
-
-// NewAssetFromImmich creates an assets.Asset from an immich.Asset.
-func (ia Asset) AsAsset() *assets.Asset {
-	a := &assets.Asset{
-		FileDate:         ia.FileModifiedAt.Time,
-		Description:      ia.ExifInfo.Description,
-		OriginalFileName: ia.OriginalFileName,
-		ID:               ia.ID,
-		CaptureDate:      ia.ExifInfo.DateTimeOriginal.Time,
-		Trashed:          ia.IsTrashed,
-		Archived:         ia.IsArchived,
-		Favorite:         ia.IsFavorite,
-		Rating:           ia.Rating,
-		Latitude:         ia.ExifInfo.Latitude,
-		Longitude:        ia.ExifInfo.Longitude,
-		File:             fshelper.FSName(nil, ia.OriginalFileName),
-	}
-	a.FileSize = int(ia.ExifInfo.FileSizeInByte)
-	for _, album := range ia.Albums {
-		a.Albums = append(a.Albums, assets.Album{
-			Title:       album.AlbumName,
-			Description: album.Description,
-		})
-	}
-
-	for _, tag := range ia.Tags {
-		a.Tags = append(a.Tags, tag.AsTag())
-	}
-	return a
-}
-
-type ExifInfo struct {
-	Make             string     `json:"make"`
-	Model            string     `json:"model"`
-	ExifImageWidth   int        `json:"exifImageWidth"`
-	ExifImageHeight  int        `json:"exifImageHeight"`
-	FileSizeInByte   int64      `json:"fileSizeInByte"`
-	Orientation      string     `json:"orientation"`
-	DateTimeOriginal ImmichTime `json:"dateTimeOriginal,omitempty"`
-	// 	ModifyDate       time.Time `json:"modifyDate"`
-	TimeZone string `json:"timeZone"`
-	// LensModel        string    `json:"lensModel"`
-	// 	FNumber          float64   `json:"fNumber"`
-	// 	FocalLength      float64   `json:"focalLength"`
-	// 	Iso              int       `json:"iso"`
-	// 	ExposureTime     string    `json:"exposureTime"`
-	Latitude  float64 `json:"latitude,omitempty"`
-	Longitude float64 `json:"longitude,omitempty"`
-	// 	City             string    `json:"city"`
-	// 	State            string    `json:"state"`
-	// 	Country          string    `json:"country"`
-	Description string `json:"description"`
 }
 
 type ImmichTime struct {
