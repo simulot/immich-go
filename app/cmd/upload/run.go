@@ -11,6 +11,7 @@ import (
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/bulktags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -29,6 +30,8 @@ type UpCmd struct {
 
 	Paths  []string                // Path to explore
 	albums map[string]assets.Album // Albums by title
+
+	tm *bulktags.BulkTagManager // Bulk tag manager
 
 	takeoutOptions *gp.ImportFlags
 }
@@ -49,6 +52,8 @@ func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
 
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application) error {
 	upCmd.adapter = adapter
+	upCmd.tm = bulktags.NewBulkTagManager(ctx, app.Client().Immich, app.Log().Logger)
+	defer upCmd.tm.Close()
 
 	if upCmd.NoUI {
 		return upCmd.runNoUI(ctx, app)
@@ -207,6 +212,27 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		return err
 	}
 
+	// If the asset exists on the server, at full size, or smaller, we should get its tags and not tag it again.
+	if advice.ServerAsset != nil {
+		serverAsset, err := upCmd.app.Client().Immich.GetAssetInfo(ctx, advice.ServerAsset.ID)
+		if err == nil {
+			newList := []assets.Tag{}
+			for _, t := range a.Tags {
+				keepMe := true
+				for _, st := range serverAsset.Tags {
+					if t.Name == st.Name {
+						keepMe = false
+						break
+					}
+				}
+				if keepMe {
+					newList = append(newList, t)
+				}
+			}
+			a.Tags = newList
+		}
+	}
+
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
 		err = upCmd.uploadAsset(ctx, a)
@@ -277,10 +303,10 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			return err
 		}
 
-		// err = upCmd.manageAssetTags(ctx, a)
-		// if err != nil {
-		// 	return err
-		// }
+		err = upCmd.manageAssetTags(ctx, a)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -362,24 +388,13 @@ func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName,
 	}
 }
 
-func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) error { // nolint
+func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) error {
 	if len(a.Tags) > 0 {
-		ss := []string{}
+		// Get asset's tags
 		for _, t := range a.Tags {
-			tags, err := upCmd.app.Client().Immich.UpsertTags(ctx, []string{t.Value})
-			if err != nil {
-				upCmd.app.Jnl().Record(ctx, fileevent.Error, a.File, "error", err.Error())
-				continue
-			}
-			for _, t := range tags {
-				_, err = upCmd.app.Client().Immich.TagAssets(ctx, t.ID, []string{a.ID})
-				if err != nil {
-					upCmd.app.Jnl().Record(ctx, fileevent.Error, a.File, "error", err.Error())
-				}
-				ss = append(ss, t.Value)
-			}
+			upCmd.tm.AddTag(t.Name, a.ID)
+			upCmd.app.Jnl().Record(ctx, fileevent.Tagged, a.File, "tags", t.Name)
 		}
-		upCmd.app.Jnl().Record(ctx, fileevent.Tagged, a.File, "tags", ss)
 	}
 	return nil
 }

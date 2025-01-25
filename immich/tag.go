@@ -111,3 +111,13 @@ func (ic *ImmichClient) BulkTagAssets(
 
 	return resp, err
 }
+
+func (ic *ImmichClient) GetAllTags(ctx context.Context) ([]TagSimplified, error) {
+	var resp []TagSimplified
+	err := ic.newServerCall(ctx, EndPointGetAllTags).
+		do(getRequest("/tags"), responseJSON(&resp))
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
