@@ -61,14 +61,14 @@ type callError struct {
 	url      string
 	status   int
 	err      error
-	message  *ServerMessage
+	message  *ServerErrorMessage
 }
 
-type ServerMessage struct {
-	Error         string   `json:"error"`
-	StatusCode    int      `json:"statusCode"`
-	Message       []string `json:"message"`
-	CorrelationID string   `json:"correlationId"`
+type ServerErrorMessage struct {
+	Error         string `json:"error"`
+	StatusCode    int    `json:"statusCode"`
+	Message       string `json:"message"`
+	CorrelationID string `json:"correlationId"`
 }
 
 func (ce callError) Is(target error) bool {
@@ -92,18 +92,22 @@ func (ce callError) Error() string {
 		b.WriteString(ce.err.Error())
 		b.WriteRune('\n')
 	}
-	if ce.message != nil {
-		if ce.message.Error != "" {
-			b.WriteString(ce.message.Error)
-			b.WriteRune('\n')
-		}
-		if len(ce.message.Message) > 0 {
-			for _, m := range ce.message.Message {
-				b.WriteString(m)
-				b.WriteRune('\n')
-			}
-		}
-	}
+	// if ce.message != nil {
+	// 	if ce.message.Error != "" {
+	// 		b.WriteString(ce.message.Error)
+	// 		b.WriteRune('\n')
+	// 	}
+
+	// if len(ce.message.Message) > 0 {
+	// 	for _, m := range ce.message.Message {
+	// 		b.WriteString(m)
+	// 		b.WriteRune('\n')
+	// 	}
+	// }
+	// }
+	b.WriteString(ce.message.Message)
+	b.WriteRune('\n')
+
 	return b.String()
 }
 
@@ -116,7 +120,7 @@ func (ic *ImmichClient) newServerCall(ctx context.Context, api string) *serverCa
 	return sc
 }
 
-func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerMessage) error {
+func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerErrorMessage) error {
 	ce := callError{
 		endPoint: sc.endPoint,
 		err:      sc.err,
@@ -228,10 +232,12 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 
 	// Any StatusCode above 300 denotes a problem
 	if resp.StatusCode >= 300 {
-		msg := ServerMessage{}
+		msg := ServerErrorMessage{}
 		if resp.Body != nil {
 			defer resp.Body.Close()
-			if json.NewDecoder(resp.Body).Decode(&msg) == nil {
+			b := bytes.NewBuffer(nil)
+			_, _ = io.Copy(b, resp.Body)
+			if json.NewDecoder(b).Decode(&msg) == nil {
 				if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
 					seq := sc.ctx.Value(ctxCallSequenceID)
 					fmt.Fprintln(
@@ -253,6 +259,23 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
 				}
 				return sc.Err(req, resp, &msg)
+			} else {
+				if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
+					seq := sc.ctx.Value(ctxCallSequenceID)
+					fmt.Fprintln(
+						sc.ic.apiTraceWriter,
+						time.Now().Format(time.RFC3339),
+						"RESPONSE",
+						seq,
+						sc.endPoint,
+						resp.Request.Method,
+						resp.Request.URL.String(),
+					)
+					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
+					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
+					fmt.Fprintln(sc.ic.apiTraceWriter, b.String())
+					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
+				}
 			}
 		}
 		return sc.Err(req, resp, &msg)
