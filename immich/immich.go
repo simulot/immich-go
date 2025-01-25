@@ -15,16 +15,17 @@ var _ ImmichInterface = (*ImmichClient)(nil)
 // ImmichInterface is an interface that implements the minimal immich client set of features for uploading
 // interface used to mock up the client
 type ImmichInterface interface {
-	SetEndPoint(string)
-	EnableAppTrace(w io.Writer)
-	SetDeviceUUID(string)
-	PingServer(ctx context.Context) error
-	ValidateConnection(ctx context.Context) (User, error)
-	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
-	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
+	ImmichAssetInterface
+	ImmichClientInterface
+	ImmichAlbumInterface
+	ImmichTagInterface
+	ImmichStackInterface
+	ImmichJobInterface
+}
+
+type ImmichAssetInterface interface {
 	GetAssetInfo(ctx context.Context, id string) (*Asset, error)
 	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
-
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
 	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error)
 	GetAllAssets(ctx context.Context) ([]*Asset, error)
@@ -45,7 +46,20 @@ type ImmichInterface interface {
 
 	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
 	DeleteAssets(context.Context, []string, bool) error
+}
 
+type ImmichClientInterface interface {
+	SetEndPoint(string)
+	EnableAppTrace(w io.Writer)
+	SetDeviceUUID(string)
+	PingServer(ctx context.Context) error
+	ValidateConnection(ctx context.Context) (User, error)
+	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
+	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
+	SupportedMedia() filetypes.SupportedMedia
+}
+
+type ImmichAlbumInterface interface {
 	GetAllAlbums(ctx context.Context) ([]assets.Album, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
 	CreateAlbum(
@@ -58,21 +72,8 @@ type ImmichInterface interface {
 	// GetAssetAlbums get all albums that an asset belongs to
 	GetAssetAlbums(ctx context.Context, assetID string) ([]assets.Album, error)
 	DeleteAlbum(ctx context.Context, id string) error
-
-	SupportedMedia() filetypes.SupportedMedia
-
-	GetJobs(ctx context.Context) (map[string]Job, error)
-	SendJobCommand(
-		ctx context.Context,
-		jobID JobID,
-		command JobCommand,
-		force bool,
-	) (SendJobCommandResponse, error)
-	CreateJob(ctx context.Context, name JobName) error
 }
-
 type ImmichTagInterface interface {
-	ImmichInterface
 	GetAllTags(ctx context.Context) ([]TagSimplified, error)
 	UpsertTags(ctx context.Context, tags []string) ([]TagSimplified, error)
 	TagAssets(
@@ -90,9 +91,19 @@ type ImmichTagInterface interface {
 }
 
 type ImmichStackInterface interface {
-	ImmichInterface
 	// CreateStack create a stack with the given assets, the 1st asset is the cover, return the stack ID
 	CreateStack(ctx context.Context, ids []string) (string, error)
+}
+
+type ImmichJobInterface interface {
+	GetJobs(ctx context.Context) (map[string]Job, error)
+	SendJobCommand(
+		ctx context.Context,
+		jobID JobID,
+		command JobCommand,
+		force bool,
+	) (SendJobCommandResponse, error)
+	CreateJob(ctx context.Context, name JobName) error
 }
 
 type myBool bool
