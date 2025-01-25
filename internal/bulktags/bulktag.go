@@ -66,7 +66,8 @@ func (m *BulkTagManager) tagWorker() {
 				return
 			}
 			ids, _ := m.tags.Load(t.tag)
-			m.tags.Store(t.tag, append(ids, t.assetID))
+			ids = append(ids, t.assetID)
+			m.tags.Store(t.tag, ids)
 			if len(ids) >= blukBatchSize {
 				m.flushTag(t.tag)
 			}
