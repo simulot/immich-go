@@ -134,3 +134,27 @@ func TestBulkTagManager_Tag1000AssetsWith5Tags(t *testing.T) {
 	assert.Equal(t, int(n/4), len(mockClient.assets["tag4ID"]))
 	assert.Equal(t, int(n/5), len(mockClient.assets["tag5ID"]))
 }
+
+func TestBulkTagManager_NoTagsSubmitted(t *testing.T) {
+	ctx := context.Background()
+	mockClient := &MockImmichTagInterface{
+		UpsertTagsFunc: func(ctx context.Context, tags []string) ([]immich.TagSimplified, error) {
+			return []immich.TagSimplified{}, nil
+		},
+		BulkTagAssetsFunc: func(ctx context.Context, tagIDs []string, assetIDs []string) (struct {
+			Count int `json:"count"`
+		}, error,
+		) {
+			return struct {
+				Count int `json:"count"`
+			}{Count: 0}, nil
+		},
+		assets: make(map[string][]string),
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	bm := NewBulkTagManager(ctx, mockClient, logger)
+
+	bm.Close()
+
+	assert.Empty(t, mockClient.assets)
+}
