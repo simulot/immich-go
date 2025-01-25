@@ -108,3 +108,13 @@ func (m *SyncMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
 	}
 	return v.(V), true
 }
+
+// Keys returns all the keys in the map.
+func (m *SyncMap[K, V]) Keys() []K {
+	all := make([]K, 0)
+	m.Range(func(key K, value V) bool {
+		all = append(all, key)
+		return true
+	})
+	return all
+}
