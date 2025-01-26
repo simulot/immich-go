@@ -26,6 +26,11 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 		return false
 	}
 
+	// When the file name is the same as the JSON name
+	if strings.HasPrefix(jsonName, fileName) {
+		return true
+	}
+
 	// Check if the file name is the same as the JSON name
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	if jsonName == fileName {

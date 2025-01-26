@@ -94,21 +94,11 @@ func (ce callError) Error() string {
 		b.WriteString(ce.err.Error())
 		b.WriteRune('\n')
 	}
-	// if ce.message != nil {
-	// 	if ce.message.Error != "" {
-	// 		b.WriteString(ce.message.Error)
-	// 		b.WriteRune('\n')
-	// 	}
 
-	// if len(ce.message.Message) > 0 {
-	// 	for _, m := range ce.message.Message {
-	// 		b.WriteString(m)
-	// 		b.WriteRune('\n')
-	// 	}
-	// }
-	// }
-	b.WriteString(ce.message.Message)
-	b.WriteRune('\n')
+	if ce.message != nil {
+		b.WriteString(ce.message.Message)
+		b.WriteRune('\n')
+	}
 
 	return b.String()
 }
