@@ -89,7 +89,7 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 		`Lightroom Catalog/`, // LR
 		`thumbnails/`,        // Android photo
 		`.DS_Store/`,         // Mac OS custom attributes
-		`._*.*`,              // MacOS resource files
+		`/._*`,               // MacOS resource files
 		`.photostructure/`,   // PhotoStructure
 	)
 	cmd.Flags().BoolVar(&o.CreateAlbums, "sync-albums", true, "Automatically create albums in Immich that match the albums in your Google Photos takeout")
