@@ -9,7 +9,7 @@ import (
 	"github.com/simulot/immich-go/internal/gen/syncmap"
 )
 
-const blukBatchSize = 100
+const bulkBatchSize = 100
 
 type BulkTagManager struct {
 	ctx     context.Context
@@ -68,7 +68,7 @@ func (m *BulkTagManager) tagWorker() {
 			ids, _ := m.tags.Load(t.tag)
 			ids = append(ids, t.assetID)
 			m.tags.Store(t.tag, ids)
-			if len(ids) >= blukBatchSize {
+			if len(ids) >= bulkBatchSize {
 				m.flushTag(t.tag)
 			}
 		}
