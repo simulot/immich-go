@@ -9,13 +9,14 @@ import (
 	"github.com/simulot/immich-go/internal/gen/syncmap"
 )
 
-const blukBatchSize = 100
+const bulkBatchSize = 100
 
 type BulkTagManager struct {
 	ctx     context.Context
 	client  immich.ImmichTagInterface
 	logger  *slog.Logger
 	tags    *syncmap.SyncMap[string, []string] // map of tag value to assets
+	tagsID  *syncmap.SyncMap[string, string]   // map of tag value to ID
 	tagChan chan struct {
 		tag     string
 		assetID string
@@ -30,6 +31,7 @@ func NewBulkTagManager(ctx context.Context, client immich.ImmichTagInterface, lo
 		client: client,
 		logger: logger,
 		tags:   syncmap.New[string, []string](),
+		tagsID: syncmap.New[string, string](),
 		tagChan: make(chan struct {
 			tag     string
 			assetID string
@@ -68,7 +70,7 @@ func (m *BulkTagManager) tagWorker() {
 			ids, _ := m.tags.Load(t.tag)
 			ids = append(ids, t.assetID)
 			m.tags.Store(t.tag, ids)
-			if len(ids) >= blukBatchSize {
+			if len(ids) >= bulkBatchSize {
 				m.flushTag(t.tag)
 			}
 		}
@@ -80,19 +82,25 @@ func (m *BulkTagManager) flushTag(tag string) {
 	if !ok {
 		return
 	}
-	tags, err := m.client.UpsertTags(m.ctx, []string{tag})
-	if err != nil {
-		m.logger.Error("Error upserting tag", "Tag", tag, "error", err)
-		return
-	}
-	if len(tags) == 0 || tags[0].ID == "" {
-		m.logger.Error("Error upserting tag", "Tag", tag, "error", "no tag ID returned")
-		return
+
+	ID, ok := m.tagsID.Load(tag)
+	if !ok {
+		tags, err := m.client.UpsertTags(m.ctx, []string{tag})
+		if err != nil {
+			m.logger.Error("Error upserting tag", "Tag", tag, "error", err)
+			return
+		}
+		if len(tags) == 0 || tags[0].ID == "" {
+			m.logger.Error("Error upserting tag", "Tag", tag, "error", "no tag ID returned")
+			return
+		}
+		ID = tags[0].ID
+		m.tagsID.Store(tag, ID)
 	}
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
-		_, err := m.client.BulkTagAssets(m.ctx, []string{tags[0].ID}, ids)
+		_, err := m.client.BulkTagAssets(m.ctx, []string{ID}, ids)
 		if err != nil {
 			m.logger.Error("Error tagging assets with tag", "Tag", tag, "error", err)
 		}

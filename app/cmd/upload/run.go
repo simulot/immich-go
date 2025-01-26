@@ -244,7 +244,8 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		if len(a.Albums) > 0 {
 			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		}
-		return upCmd.manageAssetTags(ctx, a)
+		upCmd.manageAssetTags(ctx, a)
+		return nil
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 
 		// Remember existing asset's albums, if any
@@ -267,11 +268,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			upCmd.manageAssetAlbums(ctx, a.File, advice.ServerAsset.ID, a.Albums)
 		}
 
-		err = upCmd.manageAssetTags(ctx, a)
-		if err != nil {
-			return err
-		}
-
+		upCmd.manageAssetTags(ctx, a)
 		return err
 
 	case SameOnServer:
@@ -283,30 +280,14 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			})
 		}
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message)
-
-		err = upCmd.manageAssetTags(ctx, a)
-		if err != nil {
-			return err
-		}
-
-		// Manage albums
-		if len(a.Albums) > 0 {
-			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-		}
+		upCmd.manageAssetTags(ctx, a)
+		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message)
-
-		err = upCmd.manageAssetTags(ctx, a)
-		if err != nil {
-			return err
-		}
-
-		err = upCmd.manageAssetTags(ctx, a)
-		if err != nil {
-			return err
-		}
+		upCmd.manageAssetTags(ctx, a)
+		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 	}
 	return nil
 }
@@ -388,15 +369,14 @@ func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName,
 	}
 }
 
-func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) error {
+func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 	if len(a.Tags) > 0 {
 		// Get asset's tags
 		for _, t := range a.Tags {
-			upCmd.tm.AddTag(t.Name, a.ID)
+			upCmd.tm.AddTag(t.Value, a.ID)
 			upCmd.app.Jnl().Record(ctx, fileevent.Tagged, a.File, "tags", t.Name)
 		}
 	}
-	return nil
 }
 
 func (upCmd *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {

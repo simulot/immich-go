@@ -3,9 +3,9 @@ package assets
 import "path"
 
 type Tag struct {
-	ID    string `json:"-"`
-	Name  string `json:"-"`
-	Value string `json:"value,omitempty"`
+	ID    string `json:"-"`               // Tag ID in immich
+	Name  string `json:"-"`               // the full tag name rootTag/subtag
+	Value string `json:"value,omitempty"` // the leaf name of the tag: subtag
 }
 
 func (t Tag) LogValuer() string {

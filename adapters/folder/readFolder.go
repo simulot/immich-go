@@ -255,14 +255,18 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				if err != nil {
 					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 				} else {
-					md := &assets.Metadata{}
-					err = jsonsidecar.Read(bytes.NewReader(buf), md)
-					if err != nil {
-						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+					if bytes.Contains(buf, []byte("immich-go version")) {
+						md := &assets.Metadata{}
+						err = jsonsidecar.Read(bytes.NewReader(buf), md)
+						if err != nil {
+							la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+						} else {
+							md.File = fshelper.FSName(fsys, jsonName)
+							a.FromApplication = a.UseMetadata(md) // Force the use of the metadata coming from immich export
+							a.OriginalFileName = md.FileName      // Force the name of the file to be the one from the JSON file
+						}
 					} else {
-						md.File = fshelper.FSName(fsys, jsonName)
-						a.FromApplication = a.UseMetadata(md) // Force the use of the metadata coming from immich export
-						a.OriginalFileName = md.FileName      // Force the name of the file to be the one from the JSON file
+						la.log.Log().Warn("JSON file detected but not from immich-go", "file", fshelper.FSName(fsys, jsonName))
 					}
 				}
 			}

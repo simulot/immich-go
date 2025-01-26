@@ -148,6 +148,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		ext = ".MP4" // #405
 		la.OriginalFileName = la.OriginalFileName + ".MP4"
 	}
+
 	mtype := ic.TypeFromExt(ext)
 	switch mtype {
 	case "video", "image":
@@ -160,6 +161,28 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		return ar, (err)
 	}
 
+	var s fs.FileInfo
+	s, err = f.Stat()
+	if err != nil {
+		return ar, err
+	}
+
+	callValues := map[string]string{}
+	callValues["deviceAssetId"] = fmt.Sprintf("%s-%d", path.Base(la.OriginalFileName), s.Size())
+	callValues["deviceId"] = ic.DeviceUUID
+	callValues["assetType"] = mtype
+	if !la.CaptureDate.IsZero() {
+		callValues["fileCreatedAt"] = la.CaptureDate.Format(TimeFormat)
+	} else {
+		callValues["fileCreatedAt"] = s.ModTime().Format(TimeFormat)
+	}
+	callValues["fileModifiedAt"] = s.ModTime().Format(TimeFormat)
+	callValues["isFavorite"] = myBool(la.Favorite).String()
+	callValues["fileExtension"] = ext
+	callValues["duration"] = formatDuration(0)
+	callValues["isReadOnly"] = "false"
+	callValues["isArchived"] = myBool(la.Archived).String()
+
 	body, pw := io.Pipe()
 	m := multipart.NewWriter(pw)
 
@@ -169,13 +192,8 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 			pw.Close()
 			f.Close()
 		}()
-		var s fs.FileInfo
-		s, err = f.Stat()
-		if err != nil {
-			return
-		}
 
-		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.OriginalFileName), s.Size()))
+		err = m.WriteField("deviceAssetId", callValues["deviceAssetId"])
 		if err != nil {
 			return
 		}
@@ -187,20 +205,15 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		if err != nil {
 			return
 		}
-
-		if !la.CaptureDate.IsZero() {
-			err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(TimeFormat))
-		} else {
-			err = m.WriteField("fileCreatedAt", s.ModTime().Format(TimeFormat))
-		}
+		err = m.WriteField("fileCreatedAt", callValues["fileCreatedAt"])
 		if err != nil {
 			return
 		}
-		err = m.WriteField("fileModifiedAt", s.ModTime().Format(TimeFormat))
+		err = m.WriteField("fileModifiedAt", callValues["fileModifiedAt"])
 		if err != nil {
 			return
 		}
-		err = m.WriteField("isFavorite", myBool(la.Favorite).String())
+		err = m.WriteField("isFavorite", callValues["isFavorite"])
 		if err != nil {
 			return
 		}
@@ -208,7 +221,7 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		if err != nil {
 			return
 		}
-		err = m.WriteField("duration", formatDuration(0))
+		err = m.WriteField("duration", callValues["duration"])
 		if err != nil {
 			return
 		}
@@ -216,7 +229,157 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		if err != nil {
 			return
 		}
-		err := m.WriteField("isArchived", myBool(la.Archived).String())
+		err = m.WriteField("isArchived", callValues["isArchived"])
+		if err != nil {
+			return
+		}
+		h := textproto.MIMEHeader{}
+		h.Set("Content-Disposition",
+			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+				escapeQuotes("assetData"), escapeQuotes(path.Base(la.OriginalFileName))))
+		h.Set("Content-Type", mtype)
+
+		var part io.Writer
+		part, err = m.CreatePart(h)
+		if err != nil {
+			return
+		}
+		_, err = io.Copy(part, f)
+		if err != nil {
+			return
+		}
+
+		if la.FromSideCar != nil && strings.ToLower(la.FromSideCar.File.Name()) == ".xmp" {
+			scName := path.Base(la.OriginalFileName) + ".xmp"
+			h.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+					escapeQuotes("sidecarData"), escapeQuotes(scName)))
+			h.Set("Content-Type", "application/xml")
+
+			var part io.Writer
+			part, err = m.CreatePart(h)
+			if err != nil {
+				return
+			}
+			scf, err := la.FromSideCar.File.Open()
+			if err != nil {
+				return
+			}
+			defer scf.Close()
+			_, err = io.Copy(part, scf)
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	errCall := ic.newServerCall(ctx, "AssetUpload").
+		do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+
+	err = errors.Join(err, errCall)
+	return ar, err
+}
+
+func (ic *ImmichClient) ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) {
+	if ic.dryRun {
+		return AssetResponse{
+			ID:     uuid.NewString(),
+			Status: UploadReplaced,
+		}, nil
+	}
+	var ar AssetResponse
+
+	ext := path.Ext(la.OriginalFileName)
+	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
+		la.OriginalFileName = "No Name" + ext // fix #88, #128
+	}
+
+	if strings.ToUpper(ext) == ".MP" {
+		// Should be discarded before calling AssetUpload as MP are useless
+		ext = ".MP4" // #405
+		la.OriginalFileName = la.OriginalFileName + ".MP4"
+	}
+
+	mtype := ic.TypeFromExt(ext)
+	switch mtype {
+	case "video", "image":
+	default:
+		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.OriginalFileName))
+	}
+
+	f, err := la.OpenFile()
+	if err != nil {
+		return ar, err
+	}
+
+	var s fs.FileInfo
+	s, err = f.Stat()
+	if err != nil {
+		return ar, err
+	}
+
+	callValues := map[string]string{}
+	callValues["deviceAssetId"] = fmt.Sprintf("%s-%d", path.Base(la.OriginalFileName), s.Size())
+	callValues["deviceId"] = ic.DeviceUUID
+	callValues["assetType"] = mtype
+	if !la.CaptureDate.IsZero() {
+		callValues["fileCreatedAt"] = la.CaptureDate.Format(TimeFormat)
+	} else {
+		callValues["fileCreatedAt"] = s.ModTime().Format(TimeFormat)
+	}
+	callValues["fileModifiedAt"] = s.ModTime().Format(TimeFormat)
+	callValues["isFavorite"] = myBool(la.Favorite).String()
+	callValues["fileExtension"] = ext
+	callValues["duration"] = formatDuration(0)
+	callValues["isReadOnly"] = "false"
+	callValues["isArchived"] = myBool(la.Archived).String()
+
+	body, pw := io.Pipe()
+	m := multipart.NewWriter(pw)
+
+	go func() {
+		defer func() {
+			m.Close()
+			pw.Close()
+			f.Close()
+		}()
+		err = m.WriteField("deviceAssetId", callValues["deviceAssetId"])
+		if err != nil {
+			return
+		}
+		err = m.WriteField("deviceId", ic.DeviceUUID)
+		if err != nil {
+			return
+		}
+		err = m.WriteField("assetType", mtype)
+		if err != nil {
+			return
+		}
+		err = m.WriteField("fileCreatedAt", callValues["fileCreatedAt"])
+		if err != nil {
+			return
+		}
+		err = m.WriteField("fileModifiedAt", callValues["fileModifiedAt"])
+		if err != nil {
+			return
+		}
+		err = m.WriteField("isFavorite", callValues["isFavorite"])
+		if err != nil {
+			return
+		}
+		err = m.WriteField("fileExtension", ext)
+		if err != nil {
+			return
+		}
+		err = m.WriteField("duration", callValues["duration"])
+		if err != nil {
+			return
+		}
+		err = m.WriteField("isReadOnly", "false")
+		if err != nil {
+			return
+		}
+		err = m.WriteField("isArchived", callValues["isArchived"])
 		if err != nil {
 			return
 		}
@@ -261,117 +424,6 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 		}
 	}()
 
-	var callValues map[string]string
-	if ic.apiTraceWriter != nil {
-		callValues = map[string]string{
-			ctxAssetName: la.File.Name(),
-		}
-		if la.FromSideCar != nil {
-			callValues[ctxSideCarName] = la.FromSideCar.File.Name()
-		}
-	}
-
-	errCall := ic.newServerCall(ctx, "AssetUpload").
-		do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setBody(body)), responseJSON(&ar))
-
-	err = errors.Join(err, errCall)
-	return ar, err
-}
-
-func (ic *ImmichClient) ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) {
-	if ic.dryRun {
-		return AssetResponse{
-			ID:     uuid.NewString(),
-			Status: UploadReplaced,
-		}, nil
-	}
-	var ar AssetResponse
-	ext := path.Ext(la.OriginalFileName)
-	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
-		la.OriginalFileName = "No Name" + ext // fix #88, #128
-	}
-
-	if strings.ToUpper(ext) == ".MP" {
-		// Should be discarded before calling AssetUpload as MP are useless
-		ext = ".MP4" // #405
-		la.OriginalFileName = la.OriginalFileName + ".MP4"
-	}
-	mtype := ic.TypeFromExt(ext)
-	switch mtype {
-	case "video", "image":
-	default:
-		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.OriginalFileName))
-	}
-
-	f, err := la.OpenFile()
-	if err != nil {
-		return ar, (err)
-	}
-
-	body, pw := io.Pipe()
-	m := multipart.NewWriter(pw)
-
-	go func() {
-		defer func() {
-			m.Close()
-			pw.Close()
-			f.Close()
-		}()
-		var s fs.FileInfo
-		s, err = f.Stat()
-		if err != nil {
-			return
-		}
-
-		err = m.WriteField("deviceAssetId", fmt.Sprintf("%s-%d", path.Base(la.OriginalFileName), s.Size()))
-		if err != nil {
-			return
-		}
-		err = m.WriteField("deviceId", ic.DeviceUUID)
-		if err != nil {
-			return
-		}
-
-		if !la.CaptureDate.IsZero() {
-			err = m.WriteField("fileCreatedAt", la.CaptureDate.Format(TimeFormat))
-		} else {
-			err = m.WriteField("fileCreatedAt", s.ModTime().Format(TimeFormat))
-		}
-		if err != nil {
-			return
-		}
-		err = m.WriteField("fileModifiedAt", s.ModTime().Format(TimeFormat))
-		if err != nil {
-			return
-		}
-
-		h := textproto.MIMEHeader{}
-		h.Set("Content-Disposition",
-			fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-				escapeQuotes("assetData"), escapeQuotes(path.Base(la.OriginalFileName))))
-		h.Set("Content-Type", mtype)
-
-		var part io.Writer
-		part, err = m.CreatePart(h)
-		if err != nil {
-			return
-		}
-		_, err = io.Copy(part, f)
-		if err != nil {
-			return
-		}
-	}()
-
-	var callValues map[string]string
-	if ic.apiTraceWriter != nil {
-		callValues = map[string]string{
-			ctxAssetName: la.File.Name(),
-		}
-		// if la.FromSideCar != nil {
-		// 	callValues[ctxSideCarName] = la.FromSideCar.File.Name()
-		// }
-	}
-
 	errCall := ic.newServerCall(ctx, "ReplaceAsset").
 		do(putRequest("/assets/"+ID+"/original", setContextValue(callValues), setAcceptJSON(), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
 
@@ -380,10 +432,10 @@ func (ic *ImmichClient) ReplaceAsset(ctx context.Context, ID string, la *assets.
 }
 
 const (
-	ctxCallValues    = "call-values"
-	ctxAssetName     = "asset file name"
-	ctxSideCarName   = "side car file name"
-	ctxLiveVideoName = "live video name"
+	ctxCallValues = "call-values"
+	// ctxAssetName     = "asset file name"
+	// ctxSideCarName   = "side car file name"
+	// ctxLiveVideoName = "live video name"
 )
 
 func setContextValue(kv map[string]string) serverRequestOption {

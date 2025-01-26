@@ -21,7 +21,8 @@ type MockImmichTagInterface struct {
 	BulkTagAssetsFunc func(ctx context.Context, tagIDs []string, assetIDs []string) (struct {
 		Count int `json:"count"`
 	}, error)
-	assets map[string][]string
+	assets         map[string][]string
+	idsUpsertCount map[string]int
 }
 
 func (m *MockImmichTagInterface) GetAllTags(ctx context.Context) ([]immich.TagSimplified, error) {
@@ -83,15 +84,23 @@ func TestBulkTagManager_AddTag(t *testing.T) {
 func TestBulkTagManager_Tag1000AssetsWith5Tags(t *testing.T) {
 	ctx := context.Background()
 	mockClient := &MockImmichTagInterface{
-		UpsertTagsFunc: func(ctx context.Context, tags []string) ([]immich.TagSimplified, error) {
-			r := make([]immich.TagSimplified, len(tags))
-			for i, tag := range tags {
-				r[i] = immich.TagSimplified{ID: tag + "ID", Name: tag, Value: tag}
-			}
-			return r, nil
-		},
-		assets: make(map[string][]string),
+		assets:         make(map[string][]string),
+		idsUpsertCount: make(map[string]int),
 	}
+
+	mockClient.UpsertTagsFunc = func(ctx context.Context, tags []string) ([]immich.TagSimplified, error) {
+		mockClient.Lock()
+		defer mockClient.Unlock()
+
+		r := make([]immich.TagSimplified, len(tags))
+		for i, tag := range tags {
+			ID := tag + "ID"
+			mockClient.idsUpsertCount[ID]++
+			r[i] = immich.TagSimplified{ID: ID, Name: tag, Value: tag}
+		}
+		return r, nil
+	}
+
 	mockClient.BulkTagAssetsFunc = func(ctx context.Context, tagIDs []string, assetIDs []string) (struct {
 		Count int `json:"count"`
 	}, error,
@@ -128,6 +137,11 @@ func TestBulkTagManager_Tag1000AssetsWith5Tags(t *testing.T) {
 	}
 	bm.Close()
 
+	// Upsert is called just once per tag
+	for _, v := range mockClient.idsUpsertCount {
+		assert.Equal(t, 1, v)
+	}
+	// Check that each asset is tagged with the correct tags
 	assert.Equal(t, n, len(mockClient.assets["tag1ID"]))
 	assert.Equal(t, int(n/2), len(mockClient.assets["tag2ID"]))
 	assert.Equal(t, int(n/3), len(mockClient.assets["tag3ID"]))
