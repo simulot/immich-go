@@ -97,7 +97,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 		`Lightroom Catalog/`, // LR
 		`thumbnails/`,        // Android photo
 		`.DS_Store/`,         // Mac OS custom attributes
-		`._*.*`,              // MacOS resource files
+		`/._*`,               // MacOS resource files
 		`.photostructure/`,   // PhotoStructure
 	)
 	cmd.Flags().StringVar(&o.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
