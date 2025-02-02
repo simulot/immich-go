@@ -46,12 +46,9 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 
 	var ar AssetResponse
 	ext := path.Ext(la.OriginalFileName)
-	fmt.Println("buggy upload")
-	/*
-		if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
-			la.OriginalFileName = "No Name" + ext // fix #88, #128
-		}
-	*/
+	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
+		la.OriginalFileName = "No Name" + ext // fix #88, #128
+	}
 	if strings.ToUpper(ext) == ".MP" {
 		ext = ".MP4" // #405
 		la.OriginalFileName = la.OriginalFileName + ".MP4"
