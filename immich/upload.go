@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"path"
 	"strings"
 
@@ -50,7 +49,6 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
 		la.OriginalFileName = "No Name" + ext // fix #88, #128
 	}
-
 	if strings.ToUpper(ext) == ".MP" {
 		ext = ".MP4" // #405
 		la.OriginalFileName = la.OriginalFileName + ".MP4"
@@ -94,7 +92,7 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 			return
 		}
 
-		if la.FromSideCar != nil && strings.ToLower(la.FromSideCar.File.Name()) == ".xmp" {
+		if la.FromSideCar != nil && strings.HasSuffix(strings.ToLower(la.FromSideCar.File.Name()), ".xmp") {
 			err = ic.writeSideCarPart(m, la)
 			if err != nil {
 				return
@@ -144,30 +142,19 @@ func (ic *ImmichClient) writeMultipartFields(m *multipart.Writer, callValues map
 	return nil
 }
 
-func (ic *ImmichClient) writeFilePart(m *multipart.Writer, f io.Reader, originalFileName, mtype string) error {
-	h := textproto.MIMEHeader{}
-	h.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			escapeQuotes("assetData"), escapeQuotes(path.Base(originalFileName))))
-	h.Set("Content-Type", mtype)
-
-	part, err := m.CreatePart(h)
+func (ic *ImmichClient) writeFilePart(m *multipart.Writer, f io.Reader, originalFileName, _ string) error {
+	w, err := m.CreateFormFile("assetData", originalFileName)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(part, f)
+	_, err = io.Copy(w, f)
 	return err
 }
 
 func (ic *ImmichClient) writeSideCarPart(m *multipart.Writer, la *assets.Asset) error {
 	scName := path.Base(la.OriginalFileName) + ".xmp"
-	h := textproto.MIMEHeader{}
-	h.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			escapeQuotes("sidecarData"), escapeQuotes(scName)))
-	h.Set("Content-Type", "application/xml")
 
-	part, err := m.CreatePart(h)
+	w, err := m.CreateFormFile("sidecarData", scName)
 	if err != nil {
 		return err
 	}
@@ -176,6 +163,6 @@ func (ic *ImmichClient) writeSideCarPart(m *multipart.Writer, la *assets.Asset) 
 		return err
 	}
 	defer scf.Close()
-	_, err = io.Copy(part, scf)
+	_, err = io.Copy(w, scf)
 	return err
 }
