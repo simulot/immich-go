@@ -47,10 +47,12 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 
 	var ar AssetResponse
 	ext := path.Ext(la.OriginalFileName)
-	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
-		la.OriginalFileName = "No Name" + ext // fix #88, #128
-	}
-
+	fmt.Println("buggy upload")
+	/*
+		if strings.TrimSuffix(la.OriginalFileName, ext) == "" {
+			la.OriginalFileName = "No Name" + ext // fix #88, #128
+		}
+	*/
 	if strings.ToUpper(ext) == ".MP" {
 		ext = ".MP4" // #405
 		la.OriginalFileName = la.OriginalFileName + ".MP4"
@@ -145,17 +147,11 @@ func (ic *ImmichClient) writeMultipartFields(m *multipart.Writer, callValues map
 }
 
 func (ic *ImmichClient) writeFilePart(m *multipart.Writer, f io.Reader, originalFileName, mtype string) error {
-	h := textproto.MIMEHeader{}
-	h.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			escapeQuotes("assetData"), escapeQuotes(path.Base(originalFileName))))
-	h.Set("Content-Type", mtype)
-
-	part, err := m.CreatePart(h)
+	w, err := m.CreateFormFile("assetData", originalFileName)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(part, f)
+	_, err = io.Copy(w, f)
 	return err
 }
 
