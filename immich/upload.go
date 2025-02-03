@@ -36,7 +36,7 @@ func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
 }
 
-func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPoint string) (AssetResponse, error) {
+func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPoint string, replaceID string) (AssetResponse, error) {
 	if ic.dryRun {
 		return AssetResponse{
 			ID:     uuid.NewString(),
@@ -107,7 +107,7 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 			do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setBody(body)), responseJSON(&ar))
 	case EndPointAssetReplace:
 		errCall = ic.newServerCall(ctx, EndPointAssetReplace).
-			do(putRequest("/assets/"+la.ID+"/original", setContextValue(callValues), setAcceptJSON(), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
+			do(putRequest("/assets/"+replaceID+"/original", setContextValue(callValues), setAcceptJSON(), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
 	}
 	err = errors.Join(err, errCall)
 	return ar, err
