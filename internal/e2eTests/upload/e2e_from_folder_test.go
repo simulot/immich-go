@@ -118,6 +118,51 @@ func TestUploadFromFastFotoFolder(t *testing.T) {
 	_ = list
 }
 
+func TestUpgradeFromFolder(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+	client, err := e2e.GetImmichClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-folder",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--date-from-name",
+		// "--no-ui",
+		"../../../app/cmd/upload/TEST_DATA/folder/low",
+	})
+
+	// let's start
+	err = c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+	e2e.WaitingForJobsEnding(ctx, client, t)
+
+	c, a = cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-folder",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--date-from-name",
+		"--api-trace",
+		// "--no-ui",
+		"../../../app/cmd/upload/TEST_DATA/folder/high",
+	})
+
+	// let's start
+	err = c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
+
 var forenames = []string{
 	"James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda", "William", "Elizabeth",
 	"David", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Charles", "Karen",

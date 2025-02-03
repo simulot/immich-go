@@ -149,3 +149,52 @@ func (t ImmichTime) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(t.Time.Format("\"" + time.RFC3339 + "\""))
 }
+
+type ImmichExifTime struct {
+	time.Time
+}
+
+// ImmichTime.UnmarshalJSON read time from the JSON string.
+// The json provides a time UTC, but the server and the images dates are given in local time.
+// The get the correct time into the struct, we capture the UTC time and return it in the local zone.
+//
+// workaround for: error at connection to immich server: cannot parse "+174510-04-28T00:49:44.000Z" as "2006" #28
+// capture the error
+
+func (t *ImmichExifTime) UnmarshalJSON(b []byte) error {
+	var ts time.Time
+	if len(b) < 3 {
+		t.Time = time.Time{}
+		return nil
+	}
+	b = b[1 : len(b)-1]
+	var err error
+	var pattern string
+	str := string(b)
+
+	switch len(b) {
+	case 29:
+		pattern = "2006-01-02T15:04:05.000+00:00"
+	case 25:
+		pattern = "2006-01-02T15:04:05+00:00"
+	}
+
+	if pattern != "" {
+		ts, err = time.ParseInLocation(pattern, str, time.UTC)
+		if err != nil {
+			t.Time = time.Time{}
+			return nil
+		}
+	}
+
+	t.Time = ts.In(time.Local)
+	return nil
+}
+
+func (t ImmichExifTime) MarshalJSON() ([]byte, error) {
+	if t.IsZero() {
+		return json.Marshal("")
+	}
+
+	return json.Marshal(t.Time.Format("\"" + time.RFC3339 + "\""))
+}

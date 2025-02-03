@@ -70,13 +70,13 @@ func (ia Asset) AsAsset() *assets.Asset {
 }
 
 type ExifInfo struct {
-	Make             string     `json:"make"`
-	Model            string     `json:"model"`
-	ExifImageWidth   int        `json:"exifImageWidth"`
-	ExifImageHeight  int        `json:"exifImageHeight"`
-	FileSizeInByte   int64      `json:"fileSizeInByte"`
-	Orientation      string     `json:"orientation"`
-	DateTimeOriginal ImmichTime `json:"dateTimeOriginal,omitempty"`
+	Make             string         `json:"make"`
+	Model            string         `json:"model"`
+	ExifImageWidth   int            `json:"exifImageWidth"`
+	ExifImageHeight  int            `json:"exifImageHeight"`
+	FileSizeInByte   int64          `json:"fileSizeInByte"`
+	Orientation      string         `json:"orientation"`
+	DateTimeOriginal ImmichExifTime `json:"dateTimeOriginal,omitempty"`
 	// 	ModifyDate       time.Time `json:"modifyDate"`
 	TimeZone string `json:"timeZone"`
 	// LensModel        string    `json:"lensModel"`
@@ -119,11 +119,11 @@ func formatDuration(duration time.Duration) string {
 }
 
 func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (AssetResponse, error) {
-	return ic.uploadAsset(ctx, la, EndPointAssetUpload)
+	return ic.uploadAsset(ctx, la, EndPointAssetUpload, "")
 }
 
 func (ic *ImmichClient) ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) {
-	return ic.uploadAsset(ctx, la, EndPointAssetReplace)
+	return ic.uploadAsset(ctx, la, EndPointAssetReplace, ID)
 }
 
 type GetAssetOptions struct {
