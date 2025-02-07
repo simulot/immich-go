@@ -35,12 +35,12 @@
 
 * **Immich Server:** You need a running Immich server to use Immich-Go.
   * Prepare the server's URL (http://your-ip:2283 or https://your-domain.tld)
-  * Collect an API key for each Immich user.
+  * Generate an API key for each Immich user (Account settings > API Keys > New API Key).
 * **Basic Knowledge of Command Line:** Immich-Go is a command-line tool, so you should be comfortable using a terminal.
 
 ## Upgrading from the Original `immich-go`, Version 0.22 and Earlier
 
-This version is a complete rewrite of the original `immich-go` project. It is designed to be more efficient, more reliable, and easier to use. It is also more flexible, with more options and features. As a consequence, the command line options have changed. Please refer to the documentation for the new options.
+This version is a complete rewrite of the original `immich-go` project. It is designed to be more efficient, reliable, and easier to use. It is also more flexible, with more options and features. As a consequence, the command line options have changed. Please refer to the documentation for the new options.
 
 The visible changes are:
 - **Adoption of the Linux Convention** for the command line options: use 2 dashes for long options.
@@ -81,7 +81,7 @@ The easiest way to install Immich-Go is to download the pre-built binary for you
 
 ### Installation Steps
 
-1. Visit the [GitHub latest release page](https://github.com/simulot/immich-go/releases/latest)
+1. Visit the [releases page](https://github.com/simulot/immich-go/releases/latest)
 2. Download the archive for your operating system and architecture:
    - Windows: `immich-go_Windows_amd64.zip`
    - MacOS: `immich-go_Darwin_amd64.tar.gz`
@@ -132,7 +132,7 @@ go install
 ## Installation with Nix
 
 `immich-go` is packaged with [nix](https://nixos.org/) and distributed via [nixpkgs](https://search.nixos.org/packages?channel=unstable&type=packages&query=immich-go).
-You can try `immich-go` without installing it with:
+You can try `immich-go` without installing it with the following commands:
 
 ```bash
 nix-shell -I "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable-small.tar.gz" -p immich-go
@@ -189,7 +189,7 @@ immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-
 ```
 
 > **Note:** Depending on your OS, you may need to invoke the program differently when Immich-Go is in the current directory:
-> - Linux, MacOS, FreeBSD: `./immich-go`
+> - Linux, macOS, FreeBSD: `./immich-go`
 > - Windows: `.\immich-go`
 
 ### Global Options
@@ -201,7 +201,7 @@ The following options are shared by all commands:
 | -l, --log-file | Write log messages to a file                          |
 | --log-level    | Log level (DEBUG\|INFO\|WARN\|ERROR) (default "INFO") |
 | --log-type     | Log format (TEXT\|JSON) (default "TEXT")              |
-| -v, --version  | Version for Immich-Go                                 |
+| -v, --version  | Display current version of Immich-Go                                 |
 
 
 # The **upload** command:
@@ -223,7 +223,7 @@ The **upload** command need the following options to manage the connection with 
 
 | **Parameter**        | **Default value** | **Description**                                                                                                                    |
 | -------------------- | :---------------: | ---------------------------------------------------------------------------------------------------------------------------------- |
-| -s, --server         |                   | Immich server address (example http://your-ip:2283 or https://your-domain) (**MANDATORY**)                                         |
+| -s, --server         |                   | Immich server address (e.g http://your-ip:2283 or https://your-domain) (**MANDATORY**)                                         |
 | -k, --api-key        |                   | API Key (**MANDATORY**)                                                                                                            |
 | --api-trace          |      `FALSE`      | Enable trace of api calls                                                                                                          |
 | --client-timeout     |      `5m0s`       | Set server calls timeout                                                                                                           |
@@ -236,7 +236,7 @@ The **upload** command need the following options to manage the connection with 
 
 
 ## **--client-timeout** 
-Increase the **--client-timeout** when you have some timeout issues with the server, specialy when uploading large files.
+Increase the **--client-timeout** when you have some timeout issues with the server, especialy when uploading large files.
 
 ## **--session-tag** 
 Thanks to the **--session-tag** option, it's easy to identify all photos uploaded during a session, and remove them if needed.
@@ -255,7 +255,7 @@ The command accepts three sub-commands:
 
 All photos and videos are sorted by date of capture, following this schema: `Folder/YYYY/YYYY-MM/photo.jpg`.
 
-Here is an example of how your folder structure might look:
+Here is an example of what your folder structure might look like:
 
 ```
 Folder/
@@ -311,7 +311,7 @@ The **from-folder** sub-command processes a folder tree to upload photos to the 
 | --ignore-sidecar-files  |                `FALSE`                | Don't upload sidecar with the photo.                                                                                                                                          |
 | --include-extensions    |                  all                  | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                               |
 | --into-album            |                                       | Specify an album to import all files into                                                                                                                                     |
-| --manage-burst          |                                       | Manage burst photos. Possible values: Stack, StackKeepRaw  tackKeepJPEG                                                                                                       |
+| --manage-burst          |                                       | Manage burst photos. Possible values: Stack, StackKeepRaw tackKeepJPEG                                                                                                       |
 | --manage-epson-fastfoto |                `FALSE`                | Manage Epson FastFoto file                                                                                                                                                    |
 | --manage-heic-jpeg      |                                       | Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG                                                                         |
 | --manage-raw-jpeg       |                                       | Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG                                                                            |
@@ -330,7 +330,7 @@ The option `--date-from-name` instructs Immich-go to extract the date of capture
 Immich-go can extract the date of capture without the help of an external tool such as ExifTool. It supports basic formats .heic, .heif, .jpg, 
 .jpeg, .dng, .cr2, .mp4, .mov, .cr3. 
 
-> note: `--date-from-name` slows down the process because immich-go needs to parse files to check if the capture date is present in the file.
+> Note: `--date-from-name` slows down the process because immich-go needs to parse files to check if the capture date is present in the file.
 
 
 # **From-google-photos** sub command:
@@ -342,10 +342,10 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 | ------------------------- | :-----------------------------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | --ban-file FileList       | [See banned files](#banned-file-list) | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.                                                                                     |
 | --date-range              |                                       | Only import photos taken within the specified date range [See date range possibilities](#date-range)                                                                       |
-| --exclude-extensions      |                                       | Comma-separated list of extension to exclude. (e.g. .gif,.PM)                                                                                                              |
+| --exclude-extensions      |                                       | Comma-separated list of extension to exclude. (e.g. .gif, .PM)                                                                                                              |
 | --from-album-name string  |                                       | Only import photos from the specified Google Photos album                                                                                                                  |
 | -a, --include-archived    |                `TRUE`                 | Import archived Google Photos                                                                                                                                              |
-| --include-extensions      |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                            |
+| --include-extensions      |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg, .heic)                                                                                                            |
 | -p, --include-partner     |                `TRUE`                 | Import photos from your partner's Google Photos account                                                                                                                    |
 | -t, --include-trashed     |                `FALSE`                | Import photos that are marked as trashed in Google Photos                                                                                                                  |
 | -u, --include-unmatched   |                `FALSE`                | Import photos that do not have a matching JSON file in the takeout                                                                                                         |
@@ -356,7 +356,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 | --manage-raw-jpeg         |                                       | Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG. [See options's details](#management-of-coupled-raw-and-jpeg-files)     |
 | --partner-shared-album    |                                       | Add partner's photo to the specified album name                                                                                                                            |
 | --session-tag             |                `FALSE`                | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                                                           |
-| --sync-albums             |                `TRUE`                 | Automatically create albums in Immich that match the albums in your Google Photos takeout (default true)                                                                   |
+| --sync-albums             |                `TRUE`                 | Automatically create albums in Immich that match the albums in your Google Photos takeout                                                                   |
 | --tag strings             |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                         |
 | --takeout-tag             |                `FALSE`                | Tag uploaded photos with a tag "{takeout}/takeout-YYYYMMDDTHHMMSSZ" (default true)                                                                                         |
 
@@ -375,7 +375,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
   * You can remove any unwanted files or folders from your takeout before importing.
   * Restarting an interrupted import won't cause any problems and will resume where it left off.
 
-* **If Many Files Are Not Imported:**
+* **What if many of my files are not imported?**
   * Verify if all takeout parts have been included in the processing. Have you used the `takeout-*.zip` file name pattern?
   * Sometimes, the takeout result is incomplete. Request another takeout, either for an entire year or in smaller increments.
   * Force the import of files despite missing JSON files using the option `--include-unmatched`.
@@ -430,9 +430,9 @@ The option `--manage-raw-jpeg` instructs Immich-Go on how to manage coupled RAW 
 ## Management of Epson FastFoto Scanned Photos
 
 This device outputs three files for each scanned photo: the original scan, a "corrected" scan, and the backside of the photo if it has writing on it. The structure looks like this:
-- specified-image-name.jpg Original
-- specified-image-name_a.jpg Corrected
-- specified-image-name_b.jpg Back of Photo
+- specified-image-name.jpg (Original)
+- specified-image-name_a.jpg (Corrected)
+- specified-image-name_b.jpg (Back of Photo)
 
 The option `--manage-epson-fastfoto=TRUE` instructs Immich-Go to stack related photos, with the corrected scan as the cover.
 
@@ -443,11 +443,11 @@ The sub-command **from-immich** processes an Immich server to upload photos to a
 
 | **Parameter**                  | **Default value** | **Description**                                                                      |
 | ------------------------------ | :---------------: | ------------------------------------------------------------------------------------ |
-| --from-server                  |                   | Immich server address (example http://your-ip:2283 or https://your-domain)           |
-| --from-api-key string          |                   | API Key                                                                              |
+| --from-server                  |                   | Immich server address (e.g http://your-ip:2283 or https://your-domain)               |
+| --from-api-key string          |                   | Immich API Key                                                                              |
 | --from-album                   |                   | Get assets only from those albums, can be used multiple times                        |
 | --from-api-trace               |      `FALSE`      | Enable trace of api calls                                                            |
-| --from-client-timeout duration |      `5m0s`       | Set server calls timeout (default 5m0s)                                              |
+| --from-client-timeout duration |      `5m0s`       | Set server calls timeout                                                             |
 | --from-date-range              |                   | Get assets only within this date range.  [See date range possibilities](#date-range) |
 | --from-skip-verify-ssl         |      `FALSE`      | Skip SSL verification                                                                |
 
@@ -459,7 +459,7 @@ The command accepts the following options:
 
 | **Parameter**           | **Default value** | **Description**                                                                                                                                                            |
 | ----------------------- | :---------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| -s, --server            |                   | Immich server address (example http://your-ip:2283 or https://your-domain) (**MANDATORY**)                                                                                 |
+| -s, --server            |                   | Immich server address (e.g http://your-ip:2283 or https://your-domain) (**MANDATORY**)                                                                                 |
 | -k, --api-key           |                   | API Key (**MANDATORY**)                                                                                                                                                    |
 | --api-trace             |      `FALSE`      | Enable trace of api calls                                                                                                                                                  |
 | --client-timeout        |      `5m0s`       | Set server calls timeout                                                                                                                                                   |
@@ -467,7 +467,7 @@ The command accepts the following options:
 | --skip-verify-ssl       |      `FALSE`      | Skip SSL verification                                                                                                                                                      |
 | --time-zone             |                   | Override the system time zone (example: Europe/Paris)                                                                                                                      |
 | --manage-burst          |                   | Manage burst photos. Possible values: Stack, StackKeepRaw, StackKeepJPEG. [See option's details](#burst-detection-and-management)                                          |
-| --manage-epson-fastfoto |      `FALSE`      | Manage Epson FastFoto file (default: false)                                                                                                                                |
+| --manage-epson-fastfoto |      `FALSE`      | Manage Epson FastFoto file                                                                                                                               |
 | --manage-heic-jpeg      |                   | Manage coupled HEIC and JPEG files. Possible values: KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG   [See option's details](#management-of-coupled-heic-and-jpeg-files) |
 | --manage-raw-jpeg       |                   | Manage coupled RAW and JPEG files. Possible values: KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG. [See options's details](#management-of-coupled-raw-and-jpeg-files)     |
 
@@ -484,7 +484,7 @@ Google photos **JSON** files found in source folders are opened by Immich-go to 
 
 ## Folder archive **JSON** files process
 
-Those files are generated by the **archive** command. Their are used to restore immich features like album, date of capture, GPS location, rating, tags and archive status.
+Those files are generated by the **archive** command. Their are used to restore Immich features like album, date of capture, GPS location, rating, tags and archive status.
 
 ```json
 {
@@ -534,10 +534,10 @@ The `--date-range` option allows you to process photos taken within a specific d
 
 | **Parameter**                        | **Description**                                |
 | ------------------------------------ | ---------------------------------------------- |
-| `--date-range=YYYY-MM-DD`            | import photos taken on a particular day.       |
-| `--date-range=YYYY-MM`               | select photos taken during a particular month. |
-| `--date-range=YYYY`                  | select photos taken during a particular year.  |
-| `--date-range=YYYY-MM-DD,YYYY-MM-DD` | select photos taken between two dates.         |
+| `--date-range=YYYY-MM-DD`            | Import photos taken on a specific day.       |
+| `--date-range=YYYY-MM`               | Import photos taken during a specific month of the year. |
+| `--date-range=YYYY`                  | Import photos taken during a particular year.  |
+| `--date-range=YYYY-MM-DD,YYYY-MM-DD` | Import photos taken between a specific date range         |
 
 
 ## Environment variables
@@ -594,11 +594,11 @@ immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key
 
 Kudos to the Immich team for their stunning project! 🤩
 
-This program use following 3rd party libraries:
-- [https://github.com/rivo/tview](https://github.com/rivo/tview) the terminal user interface
+This program uses the following 3rd party libraries:
+- [https://github.com/rivo/tview](https://github.com/rivo/tview) Terminal User Interface
 
 A big thank you to the project contributors:
-- [rodneyosodo](https://github.com/rodneyosodo) gitub CI, go linter, and advice 
+- [rodneyosodo](https://github.com/rodneyosodo) GitHub CI, Go linter, and advice 
 - [sigmahour](https://github.com/sigmahour) SSL management
 - [mrwulf](https://github.com/mrwulf) Partner sharing album
 - [erkexzcx](https://github.com/erkexzcx) Date determination based on file path and file name
