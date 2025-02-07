@@ -118,9 +118,9 @@ Fine-tune import based on specific dates:
 
 | **Parameter**      | **Description**                                |
 | ------------------ | ---------------------------------------------- |
-| `-date=YYYY-MM-DD` | import photos taken on a particular day.       |
-| `-date=YYYY-MM`    | select photos taken during a particular month. |
-| `-date=YYYY`       | select photos taken during a particular year.  |
+| `-date=YYYY-MM-DD` | Import photos taken on a specific day.       |
+| `-date=YYYY-MM`    | Import photos taken during a particular month of a year. |
+| `-date=YYYY`       | Import photos taken during a particular year.  |
 
 ### Exclude files based on a pattern
 
@@ -143,14 +143,14 @@ Specialized options for Google Photos management:
 
 | **Parameter**                       | **Description**                                                                  | **Default value** |
 |-------------------------------------|----------------------------------------------------------------------------------|-------------------|
-| `-google-photos`                    | import from a Google Photos structured archive, recreating corresponding albums. |                   |
+| `-google-photos`                    | Import from a Google Photos structured archive, recreating corresponding albums. |                   |
 | `-from-album="GP Album"`            | Create the album in `immich` and import album's assets.                          |                   |
 | `-create-albums`                    | Controls creation of Google Photos albums in Immich.                             | `TRUE`            |
 | `-keep-untitled-albums`             | Untitled albums are imported into `immich` with the name of the folder as title. | `FALSE`           |
 | `-use-album-folder-as-name`         | Use the folder's name instead of the album title.                                | `FALSE`           |
 | `-keep-partner`                     | Specifies inclusion or exclusion of partner-taken photos.                        | `TRUE`            |
-| `-partner-album="partner's album"`  | import assets from partner into given album.                                     |                   |
-| `-discard-archived`                 | don't import archived assets.                                                    | `FALSE`           |
+| `-partner-album="partner's album"`  | Import assets from partner into given album.                                     |                   |
+| `-discard-archived`                 | Don't import archived assets.                                                    | `FALSE`           |
 | `-auto-archive`                     | Automatically archive photos that are also archived in Google Photos             | `TRUE`            |
 | `-upload-when-missing-JSON`         | Upload photos not associated with a JSON metadata file                           | `FALSE`           |
 
@@ -340,7 +340,7 @@ This program use following 3rd party libraries:
 -	[github.com/thlib/go-timezone-local](github.com/thlib/go-timezone-local) for its windows timezone management
 
 A big thank you to the project contributors:
-- [rodneyosodo](https://github.com/rodneyosodo) gitub CI, go linter, and advice 
+- [rodneyosodo](https://github.com/rodneyosodo) GitHub CI, go linter, and advice 
 - [sigmahour](https://github.com/sigmahour) SSL management
 - [mrwulf](https://github.com/mrwulf) Partner sharing album
 - [erkexzcx](https://github.com/erkexzcx) Date determination based on file path and file name
