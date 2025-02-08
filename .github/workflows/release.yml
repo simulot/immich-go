@@ -47,6 +47,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
+          name: ${{ matrix.os }}-${{ matrix.arch}}
           path: "./immich-go-*"
           if-no-files-found: error
 
