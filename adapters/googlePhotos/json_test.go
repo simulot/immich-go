@@ -20,6 +20,41 @@ func TestPresentFields(t *testing.T) {
 		title     string
 	}{
 		{
+			name: "new_takeout_album_2025",
+			json: `{
+				"title": "basement finishing"
+				}`,
+			isPartner: false,
+			isAlbum:   true,
+			title:     "basement finishing",
+		},
+		{
+			name: "new_takeout_album_2025 with enrichments",
+			json: `{
+				"title": "Album Title",
+				"enrichments": [{
+					"locationEnrichment": {
+					"location": [{
+						"name": "Name_Of_Location (Here I've the city)",
+						"description": "Here I've the region",
+						"latitudeE7": 12345789,
+						"longitudeE7": 123456789
+					}]
+					}
+				}],
+				"sharedAlbumComments": [{
+					"creationTime": {
+					"timestamp": "1596183682",
+					"formatted": "Jul 31, 2020, 8:21:22 AM UTC"
+					},
+					"contentOwnerName": "My_Name_On_GP",
+					"liked": true
+				}]
+				}`,
+			isAlbum: true,
+			title:   "Album Title",
+		},
+		{
 			name: "regularJSON",
 			json: `{
 				"title": "title",
@@ -311,6 +346,33 @@ func TestEnrichedAlbum(t *testing.T) {
 		wantDate        time.Time
 	}{
 		{
+			name: "new_takeout_album_2025 with enrichments",
+			json: `{
+				"title": "Album Title",
+				"enrichments": [{
+					"locationEnrichment": {
+					"location": [{
+						"name": "Name_Of_Location (Here I've the city)",
+						"description": "Here I've the region",
+						"latitudeE7": 488029439,
+						"longitudeE7": 24854290
+					}]
+					}
+				}],
+				"sharedAlbumComments": [{
+					"creationTime": {
+					"timestamp": "1596183682",
+					"formatted": "Jul 31, 2020, 8:21:22 AM UTC"
+					},
+					"contentOwnerName": "My_Name_On_GP",
+					"liked": true
+				}]
+				}`,
+			wantDescription: "Name_Of_Location (Here I've the city) - Here I've the region",
+			wantLatitude:    48.8029439,
+			wantLongitude:   2.4854290,
+		},
+		{
 			name: "test1",
 			json: `{
   "title": "Album test 6/10/23",
@@ -381,7 +443,7 @@ func TestEnrichedAlbum(t *testing.T) {
 			if album.Enrichments.Longitude != c.wantLongitude {
 				t.Errorf("album.Enrichments.Longitude=%f, expected=%f", album.Enrichments.Longitude, c.wantLongitude)
 			}
-			if !album.Date.Time().Equal(c.wantDate) {
+			if !c.wantDate.IsZero() && (album.Date == nil || !album.Date.Time().Equal(c.wantDate)) {
 				t.Errorf("album.Date.Time()=%s, expected=%s", album.Date.Time(), c.wantDate)
 			}
 		})
