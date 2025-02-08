@@ -167,9 +167,7 @@ func (s *StackCmd) ProcessAssets(ctx context.Context, app *app.Application) erro
 	gChan := groups.NewGrouperPipeline(ctx, s.groupers...).PipeGrouper(ctx, in)
 
 	for g := range gChan {
-
 		g = filters.ApplyFilters(g, s.filters...)
-
 		// Delete filtered assets
 		if len(g.Removed) > 0 {
 			for _, r := range g.Removed {

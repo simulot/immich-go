@@ -256,26 +256,27 @@ func issue390WrongCount() []fs.FS {
 		addImage("Takeout/Google Photos/Photos from 2021/image000000.jpg", 20).FSs()
 }
 
-func issue390WrongCount2() []fs.FS {
-	return newInMemFS("filesystem").
-		addJSONImage("Takeout/Google Photos/2017 - Croatia/IMG_0170.jpg.json", "IMG_0170.jpg", takenTime("2017-01-01 12:00:00")).
-		addJSONImage("Takeout/Google Photos/Photos from 2018/IMG_0170.JPG.json", "IMG_0170.JPG", takenTime("2018-01-01 12:00:00")).
-		addJSONImage("Takeout/Google Photos/Photos from 2018/IMG_0170.HEIC.json", "IMG_0170.HEIC", takenTime("2018-01-01 12:00:00")).
-		addJSONImage("Takeout/Google Photos/Photos from 2023/IMG_0170.HEIC.json", "IMG_0170.HEIC", takenTime("2023-01-01 12:00:00")).
-		addJSONImage("Takeout/Google Photos/2018 - Cambodia/IMG_0170.JPG.json", "IMG_0170.JPG", takenTime("2018-01-01 12:00:00")).
-		addJSONImage("Takeout/Google Photos/2023 - Belize/IMG_0170.HEIC.json", "IMG_0170.HEIC", takenTime("2023-01-01 12:00:00")).
-		addJSONImage("Takeout/Google Photos/Photos from 2017/IMG_0170.jpg.json", "IMG_0170.jpg", takenTime("2017-01-01 12:00:00")).
-		addImage("Takeout/Google Photos/2017 - Croatia/IMG_0170.jpg", 514963).
-		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.HEIC", 1332980).
-		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.JPG", 4570661).
-		addImage("Takeout/Google Photos/Photos from 2023/IMG_0170.MP4", 6024972).
-		addImage("Takeout/Google Photos/Photos from 2023/IMG_0170.HEIC", 4443973).
-		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.MP4", 2288647).
-		addImage("Takeout/Google Photos/2018 - Cambodia/IMG_0170.JPG", 4570661).
-		addImage("Takeout/Google Photos/2023 - Belize/IMG_0170.MP4", 6024972).
-		addImage("Takeout/Google Photos/2023 - Belize/IMG_0170.HEIC", 4443973).
-		addImage("Takeout/Google Photos/Photos from 2017/IMG_0170.jpg", 514963).FSs()
-}
+// Not used, but kept for reference
+// func issue390WrongCount2() []fs.FS {
+// 	return newInMemFS("filesystem").
+// 		addJSONImage("Takeout/Google Photos/2017 - Croatia/IMG_0170.jpg.json", "IMG_0170.jpg", takenTime("2017-01-01 12:00:00")).
+// 		addJSONImage("Takeout/Google Photos/Photos from 2018/IMG_0170.JPG.json", "IMG_0170.JPG", takenTime("2018-01-01 12:00:00")).
+// 		addJSONImage("Takeout/Google Photos/Photos from 2018/IMG_0170.HEIC.json", "IMG_0170.HEIC", takenTime("2018-01-01 12:00:00")).
+// 		addJSONImage("Takeout/Google Photos/Photos from 2023/IMG_0170.HEIC.json", "IMG_0170.HEIC", takenTime("2023-01-01 12:00:00")).
+// 		addJSONImage("Takeout/Google Photos/2018 - Cambodia/IMG_0170.JPG.json", "IMG_0170.JPG", takenTime("2018-01-01 12:00:00")).
+// 		addJSONImage("Takeout/Google Photos/2023 - Belize/IMG_0170.HEIC.json", "IMG_0170.HEIC", takenTime("2023-01-01 12:00:00")).
+// 		addJSONImage("Takeout/Google Photos/Photos from 2017/IMG_0170.jpg.json", "IMG_0170.jpg", takenTime("2017-01-01 12:00:00")).
+// 		addImage("Takeout/Google Photos/2017 - Croatia/IMG_0170.jpg", 514963).
+// 		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.HEIC", 1332980).
+// 		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.JPG", 4570661).
+// 		addImage("Takeout/Google Photos/Photos from 2023/IMG_0170.MP4", 6024972).
+// 		addImage("Takeout/Google Photos/Photos from 2023/IMG_0170.HEIC", 4443973).
+// 		addImage("Takeout/Google Photos/Photos from 2018/IMG_0170.MP4", 2288647).
+// 		addImage("Takeout/Google Photos/2018 - Cambodia/IMG_0170.JPG", 4570661).
+// 		addImage("Takeout/Google Photos/2023 - Belize/IMG_0170.MP4", 6024972).
+// 		addImage("Takeout/Google Photos/2023 - Belize/IMG_0170.HEIC", 4443973).
+// 		addImage("Takeout/Google Photos/Photos from 2017/IMG_0170.jpg", 514963).FSs()
+// }
 
 func checkLivePhoto() []fs.FS { // nolint:unused
 	return newInMemFS("filesystem").
