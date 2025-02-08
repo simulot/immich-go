@@ -137,6 +137,21 @@ func Test_matchers(t *testing.T) {
 			fileName: "Screenshot_20231027_123303_Facebook(1).jpg",
 			want:     "matchNormal",
 		},
+		{ //#652 Google Photos: add support for supplemental-metadata.json files #652
+			jsonName: "MVIMG_20191230_232926.jpg.supplemental-metadat.json",
+			fileName: "MVIMG_20191230_232926.jpg",
+			want:     "matchNormal",
+		},
+		{ //#652 Google Photos: add support for supplemental-metadata.json files #652
+			jsonName: "Screenshot_20200301-161151.png.supplemental-me.json",
+			fileName: "Screenshot_20200301-161151.png",
+			want:     "matchNormal",
+		},
+		{ //#652 Google Photos: add support for supplemental-metadata.json files #652
+			jsonName: "MVIMG_20200207_134534~2.jpg.supplemental-metad.json",
+			fileName: "MVIMG_20200207_134534~2.jpg",
+			want:     "matchNormal",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {

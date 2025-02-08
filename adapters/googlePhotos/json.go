@@ -93,10 +93,10 @@ func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName) *assets.Metadata {
 }
 
 func (gmd *GoogleMetaData) isAlbum() bool {
-	if gmd == nil || gmd.Date == nil {
+	if gmd == nil || gmd.isAsset() {
 		return false
 	}
-	return gmd.Date.Timestamp != ""
+	return gmd.Title != ""
 }
 
 func (gmd *GoogleMetaData) isAsset() bool {
