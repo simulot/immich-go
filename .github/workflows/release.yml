@@ -1,7 +1,6 @@
 name: Release Pipeline
 
 on:
-  workflow_dispatch:
   push:
     tags: ["**"]
 
@@ -31,11 +30,11 @@ jobs:
 
       - name: Get the current commit
         id: get_commit
-        run: echo "::set-output name=commit::$(git rev-parse HEAD)"
+        run: echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Get the current date
         id: get_date
-        run: echo "::set-output name=date::$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+        run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
       - name: Build binary
         run: |
