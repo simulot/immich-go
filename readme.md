@@ -10,6 +10,38 @@
 - [GitHub Sponsor](https://github.com/sponsors/simulot)
 - [PayPal Donation](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+
+#  **:warning: BREAKING CHANGES** Upgrading from `immich-go` 0.22 and earlier
+
+`Immich-go` 0.23 and after adopts the double dashes `--option` Linux convention for command line options. Commands should be updated accordingly. 
+
+> ## Google photos takeout import
+> **prior 0.23**
+> ```
+> immich-go -server=URL -key=KEY upload -google-photos  {path/to/files}
+> ```
+> 
+> **0.23 and after**
+> ```
+> immich-go upload from-google-photos --server=URL --api-key=KEY {path/to/files}
+> ```
+
+> ## Folder import
+> 
+> **prior 0.23**
+> ```
+> immich-go -server=URL -key=KEY upload  {path/to/files}
+> ```
+> 
+> **0.23 and after**
+> ```
+> immich-go upload from-folder --server=URL --api-key=KEY {path/to/files}
+> ```
+
+
+
+Read the documention below for full details.
+
 ## What Makes Immich-Go Special?
 
 ### Simple Installation:
