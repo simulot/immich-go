@@ -43,6 +43,17 @@ jobs:
           DATE=${{ steps.get_date.outputs.date }}
           GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} CGO_ENABLED=0 go build -o immich-go-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} -ldflags="-s -w -extldflags=-static -X version.Version=$VERSION -X version.Commit=$COMMIT -X version.Date=$DATE" main.go
 
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_tag.outputs.version }}
+          release_name: Release ${{ steps.get_tag.outputs.version }}
+          draft: false
+          prerelease: false
+
       - name: Upload binary
         uses: actions/upload-release-asset@v1
         env:
@@ -52,26 +63,13 @@ jobs:
           asset_path: ./immich-go-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
           asset_name: immich-go-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
           asset_content_type: application/octet-stream
-
-  release:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Upload checksum
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ github.run_number }}
-          release_name: Release ${{ github.run_number }}
-          draft: false
-          prerelease: false
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./immich-go-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}.sha256
+          asset_name: immich-go-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}.sha256
+          asset_content_type: text/plain
+
