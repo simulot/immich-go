@@ -358,7 +358,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 | --session-tag             |                `FALSE`                | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                                                           |
 | --sync-albums             |                `TRUE`                 | Automatically create albums in Immich that match the albums in your Google Photos takeout                                                                   |
 | --tag strings             |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                         |
-| --takeout-tag             |                `FALSE`                | Tag uploaded photos with a tag "{takeout}/takeout-YYYYMMDDTHHMMSSZ" (default true)                                                                                         |
+| --takeout-tag             |                `TRUE`                | Tag uploaded photos with a tag "{takeout}/takeout-YYYYMMDDTHHMMSSZ"                                                                                         |
 
 
 ## Google Photos Best Practices:
