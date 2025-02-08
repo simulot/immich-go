@@ -2,6 +2,8 @@ name: Release Pipeline
 
 on:
   workflow_dispatch:
+  push:
+    tags: ["**"]
 
 jobs:
   build:
@@ -24,10 +26,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Get the current tag
-        id: get_tag
-        run: echo "::set-output name=version::$(git describe --tags --abbrev=0)"
-
       - name: Get the current commit
         id: get_commit
         run: echo "::set-output name=commit::$(git rev-parse HEAD)"
@@ -38,7 +36,7 @@ jobs:
 
       - name: Build binary
         run: |
-          VERSION=${{ steps.get_tag.outputs.version }}
+          VERSION=${{ github.ref_name }}
           COMMIT=${{ steps.get_commit.outputs.commit }}
           DATE=${{ steps.get_date.outputs.date }}
           GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} CGO_ENABLED=0 go build -o immich-go-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} -ldflags="-s -w -extldflags=-static -X version.Version=$VERSION -X version.Commit=$COMMIT -X version.Date=$DATE" main.go
@@ -49,8 +47,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.get_tag.outputs.version }}
-          release_name: Release ${{ steps.get_tag.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
 
