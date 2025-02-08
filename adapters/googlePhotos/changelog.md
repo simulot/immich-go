@@ -1,0 +1,6 @@
+- improved counters
+    - duplicates counters when linked videos
+    - discarded partner's files not counted 
+    - correct counters when the same path/file is found in different parts of the the archive
+- improved logs
+    - the zip file that contains the asset file is now logged

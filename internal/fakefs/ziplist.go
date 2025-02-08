@@ -4,22 +4,28 @@ package fakefs
 	for f in *.zip; do echo "$f: "; unzip -l $f; done >list.lst
 */
 import (
+	"archive/zip"
 	"bufio"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/internal/gen"
 )
 
 // `  2104348  07-20-2023 00:00   Takeout/Google Photos/2020 - Costa Rica/IMG_3235.MP4`
 
-var reZipList = regexp.MustCompile(`(-rw-r--r-- 0/0\s+)?(\d+)\s+(.{16})\s+(.*)$`)
+var (
+	reZipList  = regexp.MustCompile(`(-rw-r--r-- 0/0\s+)?(\d+)\s+(.{16})\s+(.*)$`)
+	reFileLine = regexp.MustCompile(`^(\d+)\s+(\d+)\s+files$`) // 2144740441                     10826 files
+)
 
 func readFileLine(l string, dateFormat string) (string, int64, time.Time) {
 	if len(l) < 30 {
@@ -41,12 +47,34 @@ func ScanStringList(dateFormat string, s string) ([]fs.FS, error) {
 }
 
 func ScanFileList(name string, dateFormat string) ([]fs.FS, error) {
+	var r io.ReadCloser
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
+	if strings.ToLower(filepath.Ext(name)) == ".zip" {
+		i, err := f.Stat()
+		if err != nil {
+			return nil, err
+		}
+		z, err := zip.NewReader(f, i.Size())
+		if err != nil {
+			return nil, err
+		}
+		if len(z.File) == 0 {
+			return nil, errors.New("zip file is empty")
+		}
+		r, err = z.File[0].Open()
+		if err != nil {
+			return nil, err
+		}
+		defer r.Close()
+	} else {
+		r = f
+	}
+
 	defer f.Close()
-	return ScanFileListReader(f, dateFormat)
+	return ScanFileListReader(r, dateFormat)
 }
 
 func ScanFileListReader(f io.Reader, dateFormat string) ([]fs.FS, error) {
@@ -82,6 +110,9 @@ func ScanFileListReader(f io.Reader, dateFormat string) ([]fs.FS, error) {
 
 				fsyss[currentZip] = fsys
 			}
+			continue
+		}
+		if reFileLine.MatchString(l) {
 			continue
 		}
 		if name, size, modTime := readFileLine(l, dateFormat); name != "" {

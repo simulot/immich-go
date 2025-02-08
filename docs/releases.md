@@ -5,6 +5,304 @@
 - [Github Sponsor page](https://github.com/sponsors/simulot)
 - [paypal donor page](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+## Release v0.23.0-alpha6 🏗️ Work in progress 🏗️ 
+
+### New features
+
+**Folder import tags**
+Its now possible to assign tags to photos and videos:
+```sh
+--folder-as-tags                     Use the folder structure as tags, (ex: the file "holidays/summer 2024/file.jpg" get the tag holidays/summer 2024)
+--session-tag                        Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"
+--tag strings                        Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')
+```
+
+The session tag is useful to identify all photos imported at the same time. It's easy to remove them from the tag screen
+
+**Google photos import tags**
+
+```sh
+--takeout-tag                        Tag uploaded photos with the takeout file name: "{takeout}/takeout-YYYYMMDDTHHMMSSZ"
+--session-tag                        Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"
+--tag strings                        Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')
+```
+
+
+#### Breaking change since v0.23.0-alpha5
+A metadata file is created withe same name as the main file, but with the extension `.json`. The XMP file is left untouched.
+
+
+### Fixes
+* [#533](https://github.com/simulot/immich-go/issues/533) RAW file metadata
+The efforts for determining the capture date from the file name are useless.
+Now the file date is provided to Immich as if the file was dropped on the immich's page.
+The `--capture-date-method` is now set to `NONE` by default.
+* [[#534](https://github.com/simulot/immich-go/issues/534)] Errors on windows
+
+
+## Release 0.23.0-alpha5 🏗️ Work in progress 🏗️ 
+
+### New features
+
+##### The command `archive --from-immich` archives the user content from an Immich into a folder structure
+
+```sh
+Archive photos from Immich
+
+Usage:
+  immich-go archive from-immich [from-flags] [flags]
+
+Flags:
+      --from-album strings             Get assets only from those albums, can be used multiple times
+      --from-api-key string            API Key
+      --from-api-trace                 Enable trace of api calls
+      --from-client-timeout duration   Set server calls timeout (default 5m0s)
+      --from-date-range date-range     Get assets only within this date range (fromat: YYYY[-MM[-DD[,YYYY-MM-DD]]]) (default unset)
+      --from-server string             Immich server address (example http://your-ip:2283 or https://your-domain)
+      --from-skip-verify-ssl           Skip SSL verification
+  -h, --help                           help for from-immich
+
+Global Flags:
+  -l, --log-file string          Write log messages into the file
+      --log-level string         Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string          Log formatted  as text of JSON file (default "text")
+  -w, --write-to-folder string   Path where to write the archive
+```
+Comming soon:
+--minimal-rating 
+--from-favorite
+--from-trashed
+--from-archived
+
+##### The command `upload --from-immich` uploads the user's content from another Immich
+This command accepts the same flags as the `archive --from-immich` command.
+It preserves albums and tags from the source Immich.
+
+
+
+## Release 0.23.0-alpha4 🏗️ Work in progress 🏗️ 
+
+### New features
+
+#### New command `archive`
+This command aims is to store photos and videos into a plain folder structure. The folder structure is YYYY/YYYY-MM/files, as following:
+
+```sh
+tree .
+.
+├── 2011
+│   └── 2011-04
+│       ├── 20110430.CR2
+│       ├── 20110430.CR2.xmp
+│       ├── 20110430.jpg
+│       ├── 20110430.jpg.xmp
+│       ├── IMG_2477.CR2
+│       ├── IMG_2477.CR2.xmp
+│       ├── IMG_2478.CR2
+│       ├── IMG_2478.CR2.xmp
+│       ├── IMG_2479.CR2
+│       └── IMG_2479.CR2.xmp
+└── 2023
+    ├── 2023-06
+    │   ├── PXL_20230607_063000139.jpg
+    │   └── PXL_20230607_063000139.jpg.xmp
+    └── 2023-10
+        ├── PXL_20231006_063029647.jpg
+        ├── PXL_20231006_063029647.jpg.xmp
+        ├── PXL_20231006_063851485.jpg
+        └── PXL_20231006_063851485.jpg.xmp
+```
+
+XMP files present in the source folder are copied in the destination folder.
+Google Photos takeout JSON files are translated into customized XMP files and copied in the destination folder.
+Those XMP files use a custom schema to store the Google Photos metadata:
+```xml
+<?xpacket begin='?' id='W5M0MpCehiHzreSzNTczkc9d'?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:exif="http://ns.adobe.com/exif/1.0/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" xmlns:digikam="http://www.digikam.org/ns/1.0/" xmlns:immichgo="http://ns.immich-go.com/immich-go/1.0/" x:xmptk="immich-go version:dev, commit:none, date:unknown">
+  <rdf:RDF>
+    <rdf:Description>
+      <immichgo:ImmichGoProperties>
+        <immichgo:title>This is a title</immichgo:title>
+        <immichgo:DateTimeOriginal>2023-10-10T01:11:00.000-04:00</immichgo:DateTimeOriginal>
+        <immichgo:trashed>False</immichgo:trashed>
+        <immichgo:archived>False</immichgo:archived>
+        <immichgo:fromPartner>False</immichgo:fromPartner>
+        <immichgo:favorite>True</immichgo:favorite>
+        <immichgo:rating>3</immichgo:rating>
+        <immichgo:albums>
+          <rdf:Bag>
+            <rdf:Li>
+              <immichgo:album>
+                <immichgo:title>Vacation 2024</immichgo:title>
+                <immichgo:description>Vacation 2024 hawaii and more</immichgo:description>
+                <immichgo:latitude>19,49.23661N</immichgo:latitude>
+                <immichgo:longitude>155,28.39525W</immichgo:longitude>
+              </immichgo:album>
+            </rdf:Li>
+          </rdf:Bag>
+        </immichgo:albums>
+      </immichgo:ImmichGoProperties>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end='w'?>
+``` 
+
+
+
+The general syntax is:
+```sh
+.\immich-go archive from-xxx [from-xxx flags...] --write-to-folder <destination> <source> 
+```
+
+##### The command `archive --from-google-photos` archives a Google Photos takeout into a folder structure
+
+This command create a folder structure in `/path/to/destination` with the result of the takeout analysis.
+The resulting folder structure can be re-imported into immich-go with the command `upload from-google-photo path/to/archived-folder`.
+
+##### The command `archive --from-` archives a Google Photos takeout into a folder structure
+
+Example:
+```sh
+.\immich-go archive from-google-photos  --include-partner  --write-to-folder /path/to/destination /path/to/takeout*.zip
+```
+
+Coming soon: 
+- archiving an immich server into a folder.
+
+
+#### Handling of scanned photos by Epson FastFoto
+- `--manage-epson-fastfoto`  Manage Epson FastFoto file (default: false)
+  <br>Group scanned photos in stacks 
+  - Scan_0001.jpg Original photo
+  - Scan_0001_a.jpg  Enhanced photo, the cover of the stack
+  - Scan_0001_b.jpg  Back of the photo
+
+## Release 0.23.0-alpha3 🏗️ Work in progress 🏗️ 
+
+### New features
+
+- `--manage-burst=BurstFlag`   Manage burst photos. Possible values are: 
+  - `StackKeepRaw` Discard JPEG files, and stack the RAW files (default)
+  - `StackKeepJPEG` Discard RAW files, and stack the JPEG files 
+  - `Stack` Stack all photos, RAW and JPEG photos are imported in the same stack
+      
+- `--manage-heic-jpeg=HeicJpgFlag` Manage coupled HEIC and JPEG files. Possible values: 
+  - `KeepHeic` Keep only the HEIC files (default)
+  - `KeepJPG` Keep only the JPEG files
+  - `StackCoverHeic` Stack both, the HEIC file is the cover
+  - `StackCoverJPG` Stack both, the JPEG file is the cover
+
+- `--manage-raw-jpeg=RawJPGFlag`   Manage coupled RAW and JPEG files. Possible values: 
+  - `KeepRaw` Keep only the RAW files (default)
+  - `KeepJPG` Keep only the JPEG files
+  - `StackCoverRaw` Stack both, the RAW file is the cover
+  - `StackCoverJPG` Stack both, the JPEG file is the cover
+
+
+## Release 0.23.0-alpha2 🏗️ Work in progress 🏗️ 
+This an early version of immich-go version v0.23.0-alpha2 
+Yes, v0.23.0-alpha2, and not v1.0.0-alpha2. Let's stick to the semantic versioning.
+
+- [x] better logging 
+  - log level are effectives
+  - adoption of the structured log package
+  - the level DEBUG give file details and metadata
+  - colored log on screen
+- [x] clear separation between folder import and google import
+- [x] adoption of the linux convention of double dashes flags
+- [x] priority of EXIF data over file name for date capture
+- code restructuration to enable further possibilities
+  - [ ] Upload from Picasa
+  - [ ] Exporting of google photos archive as a folder
+
+### Big changes for the best
+
+The toy project has grown up. The code has been refactored to be more modular and to allow further development. The code is now more readable and maintainable. This opens the door to new features and new import possibilities. The down side is that the code is not backward compatible. The command line options have changed.
+
+
+### Upload from folder options
+```
+Upload photos from a folder
+
+Usage:
+  immich-go upload from-folder [flags] <path>...
+
+Flags:
+      --album-path-joiner string           Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') (default " / ")
+      --ban-file FileList                  Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. (default '@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/')
+      --capture-date-method DateMethod     Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename) (default EXIF-FILENAME)
+      --date-range date-range              Only import photos taken within the specified date range (default unset)
+      --exclude-extensions ExtensionList   Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)
+      --exiftool-enabled                   Enable the use of the external 'exiftool' program (if installed and available in the system path) to extract EXIF metadata
+      --exiftool-path string               Path to the ExifTool executable (default: search in system's PATH)
+      --exiftool-timezone timezone         Timezone to use when parsing exif timestamps without timezone Options: LOCAL (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York) (default Local)
+      --filename-timezone timezone         Specify the timezone to use when detecting the date from the filename. Options: Local (use the system's local timezone), UTC (use UTC timezone), or a valid timezone name (e.g. America/New_York) (default Local)
+      --folder-as-album folderMode         Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name (default NONE)
+  -h, --help                               help for from-folder
+      --ignore-sidecar-files               Don't upload sidecar with the photo.
+      --include-extensions ExtensionList   Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)
+      --into-album string                  Specify an album to import all files into
+      --recursive                          Explore the folder and all its sub-folders (default true)
+
+Global Flags:
+      --api string                Immich api endpoint (example http://container_ip:3301)
+  -k, --api-key string            API Key
+      --api-trace                 Enable trace of api calls
+      --client-timeout duration   Set server calls timeout (default 5m0s)
+      --device-uuid string        Set a device UUID (default "gl65")
+      --dry-run                   Simulate all actions
+  -l, --log-file string           Write log messages into the file
+      --log-level string          Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string           Log formatted  as text of JSON file (default "text")
+      --no-ui                     Disable the user interface
+  -s, --server string             Immich server address (example http://your-ip:2283 or https://your-domain)
+      --skip-verify-ssl           Skip SSL verification
+      --time-zone string          Override the system time zone
+```
+
+### Upload from a google-photos 
+```
+Upload photos either from a zipped Google Photos takeout or decompressed archive
+
+Usage:
+  immich-go upload from-google-photos [flags] <takeout-*.zip> | <takeout-folder>
+
+Flags:
+      --ban-file FileList                  Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.
+      --date-range date-range              Only import photos taken within the specified date range (default unset)
+      --exclude-extensions ExtensionList   Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)
+      --from-album-name string             Only import photos from the specified Google Photos album
+  -h, --help                               help for from-google-photos
+  -a, --include-archived                   Import archived Google Photos (default true)
+      --include-extensions ExtensionList   Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)
+  -p, --include-partner                    Import photos from your partner's Google Photos account (default true)
+  -t, --include-trashed                    Import photos that are marked as trashed in Google Photos
+  -u, --include-unmatched                  Import photos that do not have a matching JSON file in the takeout
+      --include-untitled-albums            Include photos from albums without a title in the import process
+      --partner-shared-album string        Add partner's photo to the specified album name
+      --sync-albums                        Automatically create albums in Immich that match the albums in your Google Photos takeout (default true)
+
+Global Flags:
+      --api string                Immich api endpoint (example http://container_ip:3301)
+  -k, --api-key string            API Key
+      --api-trace                 Enable trace of api calls
+      --client-timeout duration   Set server calls timeout (default 5m0s)
+      --device-uuid string        Set a device UUID (default "gl65")
+      --dry-run                   Simulate all actions
+  -l, --log-file string           Write log messages into the file
+      --log-level string          Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string           Log formatted  as text of JSON file (default "text")
+      --no-ui                     Disable the user interface
+  -s, --server string             Immich server address (example http://your-ip:2283 or https://your-domain)
+      --skip-verify-ssl           Skip SSL verification
+      --time-zone string          Override the system time zone
+```
+
+
+## Release 0.23.0-alpha1 🏗️ Work in progress 🏗️ 
+
+
 ## Release 0.22.1
 
 ### Fixes:

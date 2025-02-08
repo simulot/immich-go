@@ -41,6 +41,9 @@ jobs:
           go-version-file: "go.mod"
           cache-dependency-path: "go.sum"
 
+      - name: Install ExifTool
+        run: sudo apt-get install -y exiftool
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:

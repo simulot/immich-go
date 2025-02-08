@@ -1,18 +1,13 @@
 package immich
 
 import (
-	"bytes"
-	"context"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"slices"
-	"sort"
-	"strings"
-	"sync"
 	"time"
+
+	"github.com/simulot/immich-go/internal/filetypes"
 )
 
 /*
@@ -24,17 +19,22 @@ Immich API documentation https://documentation.immich.app/docs/api/introduction
 type ImmichClient struct {
 	client              *http.Client
 	roundTripper        *http.Transport
-	endPoint            string        // Server API url
-	key                 string        // User KEY
-	DeviceUUID          string        // Device
-	Retries             int           // Number of attempts on 500 errors
-	RetriesDelay        time.Duration // Duration between retries
-	apiTraceWriter      io.Writer
-	supportedMediaTypes SupportedMedia // Server's list of supported medias
+	endPoint            string                   // Server API url
+	key                 string                   // User KEY
+	DeviceUUID          string                   // Device
+	Retries             int                      // Number of attempts on 500 errors
+	RetriesDelay        time.Duration            // Duration between retries
+	apiTraceWriter      io.Writer                // If not nil, logs API calls to this writer
+	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
+	dryRun              bool                     //  If true, do not send any data to the server
 }
 
 func (ic *ImmichClient) SetEndPoint(endPoint string) {
 	ic.endPoint = endPoint
+}
+
+func (ic *ImmichClient) GetEndPoint() string {
+	return ic.endPoint
 }
 
 func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) {
@@ -45,7 +45,7 @@ func (ic *ImmichClient) EnableAppTrace(w io.Writer) {
 	ic.apiTraceWriter = w
 }
 
-func (ic *ImmichClient) SupportedMedia() SupportedMedia {
+func (ic *ImmichClient) SupportedMedia() filetypes.SupportedMedia {
 	return ic.supportedMediaTypes
 }
 
@@ -61,6 +61,13 @@ func OptionVerifySSL(verify bool) clientOption {
 func OptionConnectionTimeout(d time.Duration) clientOption {
 	return func(ic *ImmichClient) error {
 		ic.client.Timeout = d
+		return nil
+	}
+}
+
+func OptionDryRun(dryRun bool) clientOption {
+	return func(ic *ImmichClient) error {
+		ic.dryRun = dryRun
 		return nil
 	}
 }
@@ -107,164 +114,4 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 	}
 
 	return &ic, nil
-}
-
-// Ping server
-func (ic *ImmichClient) PingServer(ctx context.Context) error {
-	r := PingResponse{}
-	b := bytes.NewBuffer(nil)
-	err := ic.newServerCall(ctx, EndPointPingServer).do(getRequest("/server/ping", setAcceptJSON()), responseCopy(b), responseJSON(&r))
-	if err != nil {
-		return fmt.Errorf("unexpected response to the immich's ping API at this address: %s:\n%s", ic.endPoint+"/server/ping", b.String())
-	}
-	if r.Res != "pong" {
-		return fmt.Errorf("incorrect ping response: %s", r.Res)
-	}
-	return nil
-}
-
-// ValidateConnection
-// Validate the connection by querying the identity of the user having the given key
-
-func (ic *ImmichClient) ValidateConnection(ctx context.Context) (User, error) {
-	var user User
-
-	err := ic.newServerCall(ctx, EndPointValidateConnection).
-		do(getRequest("/users/me", setAcceptJSON()), responseJSON(&user))
-	if err != nil {
-		return user, err
-	}
-
-	sm, err := ic.GetSupportedMediaTypes(ctx)
-	if err != nil {
-		return user, err
-	}
-	ic.supportedMediaTypes = sm
-	return user, nil
-}
-
-type ServerStatistics struct {
-	Photos      int   `json:"photos"`
-	Videos      int   `json:"videos"`
-	Usage       int64 `json:"usage"`
-	UsageByUser []struct {
-		UserID           string `json:"userId"`
-		UserName         string `json:"userName"`
-		Photos           int    `json:"photos"`
-		Videos           int    `json:"videos"`
-		Usage            int64  `json:"usage"`
-		QuotaSizeInBytes any    `json:"quotaSizeInBytes"`
-	} `json:"usageByUser"`
-}
-
-// getServerStatistics
-// Get server stats
-
-func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatistics, error) {
-	var s ServerStatistics
-
-	err := ic.newServerCall(ctx, EndPointGetServerStatistics).do(getRequest("/server/statistics", setAcceptJSON()), responseJSON(&s))
-	return s, err
-}
-
-// getAssetStatistics
-// Get user's stats
-
-type UserStatistics struct {
-	Images int `json:"images"`
-	Videos int `json:"videos"`
-	Total  int `json:"total"`
-}
-
-func (ic *ImmichClient) GetAssetStatistics(ctx context.Context) (UserStatistics, error) {
-	var s UserStatistics
-	err := ic.newServerCall(ctx, EndPointGetAssetStatistics).do(getRequest("/assets/statistics", setAcceptJSON()), responseJSON(&s))
-	return s, err
-}
-
-type SupportedMedia map[string]string
-
-const (
-	TypeVideo   = "video"
-	TypeImage   = "image"
-	TypeSidecar = "sidecar"
-	TypeUnknown = ""
-)
-
-var DefaultSupportedMedia = SupportedMedia{
-	".3gp": TypeVideo, ".avi": TypeVideo, ".flv": TypeVideo, ".insv": TypeVideo, ".m2ts": TypeVideo, ".m4v": TypeVideo, ".mkv": TypeVideo, ".mov": TypeVideo, ".mp4": TypeVideo, ".mpg": TypeVideo, ".mts": TypeVideo, ".webm": TypeVideo, ".wmv": TypeVideo,
-	".3fr": TypeImage, ".ari": TypeImage, ".arw": TypeImage, ".avif": TypeImage, ".bmp": TypeImage, ".cap": TypeImage, ".cin": TypeImage, ".cr2": TypeImage, ".cr3": TypeImage, ".crw": TypeImage, ".dcr": TypeImage, ".dng": TypeImage, ".erf": TypeImage,
-	".fff": TypeImage, ".gif": TypeImage, ".heic": TypeImage, ".heif": TypeImage, ".hif": TypeImage, ".iiq": TypeImage, ".insp": TypeImage, ".jpe": TypeImage, ".jpeg": TypeImage, ".jpg": TypeImage,
-	".jxl": TypeImage, ".k25": TypeImage, ".kdc": TypeImage, ".mrw": TypeImage, ".nef": TypeImage, ".orf": TypeImage, ".ori": TypeImage, ".pef": TypeImage, ".png": TypeImage, ".psd": TypeImage, ".raf": TypeImage, ".raw": TypeImage, ".rw2": TypeImage,
-	".rwl": TypeImage, ".sr2": TypeImage, ".srf": TypeImage, ".srw": TypeImage, ".tif": TypeImage, ".tiff": TypeImage, ".webp": TypeImage, ".x3f": TypeImage,
-	".xmp": TypeSidecar,
-	".mp":  TypeVideo,
-}
-
-func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (SupportedMedia, error) {
-	var s map[string][]string
-
-	err := ic.newServerCall(ctx, EndPointGetSupportedMediaTypes).do(getRequest("/server/media-types", setAcceptJSON()), responseJSON(&s))
-	if err != nil {
-		return nil, err
-	}
-	sm := make(SupportedMedia)
-	for t, l := range s {
-		for _, e := range l {
-			sm[e] = t
-		}
-	}
-	sm[".mp"] = TypeVideo
-	return sm, err
-}
-
-func (sm SupportedMedia) TypeFromExt(ext string) string {
-	ext = strings.ToLower(ext)
-	if strings.HasPrefix(ext, ".mp~") {
-		// #405
-		ext = ".mp4"
-	}
-	return sm[ext]
-}
-
-func (sm SupportedMedia) IsMedia(ext string) bool {
-	t := sm.TypeFromExt(ext)
-	return t == TypeVideo || t == TypeImage
-}
-
-var (
-	_supportedExtension []string
-	initSupportedExtion sync.Once
-)
-
-func (sm SupportedMedia) IsExtensionPrefix(ext string) bool {
-	initSupportedExtion.Do(func() {
-		_supportedExtension = make([]string, len(sm))
-		i := 0
-		for k := range sm {
-			_supportedExtension[i] = k[:len(k)-2]
-			i++
-		}
-		sort.Strings(_supportedExtension)
-	})
-	ext = strings.ToLower(ext)
-	_, b := slices.BinarySearch(_supportedExtension, ext)
-	return b
-}
-
-func (sm SupportedMedia) IsIgnoredExt(ext string) bool {
-	t := sm.TypeFromExt(ext)
-	return t == ""
-}
-
-func (ic *ImmichClient) TypeFromExt(ext string) string {
-	return ic.supportedMediaTypes.TypeFromExt(ext)
-}
-
-func (ic *ImmichClient) IsExtensionPrefix(ext string) bool {
-	return ic.supportedMediaTypes.IsExtensionPrefix(ext)
-}
-
-func (ic *ImmichClient) IsIgnoredExt(ext string) bool {
-	return ic.supportedMediaTypes.IsIgnoredExt(ext)
 }

@@ -14,6 +14,7 @@ Google takeout structure is complex and not documented. Some information may be 
     - Hopefully, the JSON has a Trashed field.
   - The "Failed Videos" contains unreadable videos
   - Untitled albums are named in the user's language and a number: Untitled, Sin título, Sans Titre 
+  - All untitled albums can be stored into the same folder. Therefore it's impossible to rebuild original albums.
 
 ## Images have a JSON companion file
   - the JSON contains some information on the image
@@ -82,6 +83,32 @@ takeout-20240712T112341Z-010.zip:
 | Slovak     | Fotky Google         | metadáta.json    |                   |
 | German     | Google Fotos         | Metadaten.json   | \*-bearbeitet.\*  |
 | Russian    | Google Фото          | метаданные.json  |                   |
+
+
+
+
+## The "-edited" suffix in different languages
+TODO: verify the translations
+
+Here is the list of translations for the "-edited" suffix in the requested languages presented in a table:
+
+| Language   | Translation      | Confirmed |
+| ---------- | ---------------- | --------- |
+| Spanish    | -editado         | [ ]       |
+| French     | -modifié         | [X]       |
+| German     | -bearbeitet      | [X]       |
+| Italian    | -modificato      | [X]       |
+| Portuguese | -editado         | [ ]       |
+| Russian    | -отредактировано | [ ]       |
+| Chinese    | -编辑            | [ ]       |
+| Japanese   | -編集済み        | [ ]       |
+| Korean     | -편집됨          | [ ]       |
+| Dutch      | -bewerkt         | [ ]       |
+| Finnish    | -muokattu        | [ ]       |
+| Ukrainian  | -відредаговано   | [ ]       |
+| Polish     | -edytowane       | [ ]       |
+| Danish     | -redigeret       | [ ]       |
+| Slovak     | -upravené        | [ ]       |
 
 
 # What if I have problems with a takeout archive?
