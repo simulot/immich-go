@@ -25,7 +25,7 @@ on:
       environment:
         description: 'Environment to run tests against'
         type: environment
-        required: true
+        required: false
 jobs:
   ci:
     name: Continuous Integration
