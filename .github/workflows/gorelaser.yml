@@ -1,9 +1,12 @@
-name: goreleaser
+name: Build and release
 
 on:
-  label:
-    types: created
-
+  # label:
+  #   types: created
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,25 +15,35 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-            go-version-file: "go.mod"
-            cache-dependency-path: "go.sum"
+
+    - name: Set tag reference from input
+      if: github.event.ref != ''
+      run: |
+        echo "GIT_REF=refs/tags/${{ github.event.ref}}" >> $GITHUB_ENV
+
+    - name: Set tag reference from github.ref
+      if: github.ref != ''
+      run: | 
+        echo "GIT_REF=${{ github.ref }}" >> $GITHUB_ENV
         
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          # either 'goreleaser' (default) or 'goreleaser-pro'
-          distribution: goreleaser
-          # 'latest', 'nightly', or a semver
-          version: '~> v2'
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Your GoReleaser Pro key, if you are using the 'goreleaser-pro' distribution
-          # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ env.GIT_REF }}        
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
+      
+    - name: Run GoReleaser
+      uses: goreleaser/goreleaser-action@v6
+      with:
+        distribution: goreleaser
+        version: '~> v2'
+        args: release --clean
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
