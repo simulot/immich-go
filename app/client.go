@@ -128,10 +128,10 @@ func (client *Client) Initialize(ctx context.Context, app *Application) error {
 	// If the client isn't yet initialized
 	if client.Immich == nil {
 		if client.Server == "" {
-			joinedErr = errors.Join(joinedErr, errors.New("missing --server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
-			if client.APIKey == "" {
-				joinedErr = errors.Join(joinedErr, errors.New("missing --API-key"))
-			}
+			joinedErr = errors.Join(joinedErr, errors.New("missing the parameter --server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
+		}
+		if client.APIKey == "" {
+			joinedErr = errors.Join(joinedErr, errors.New("missing the parameter --api-key, Immich API key"))
 		}
 
 		if client.APITrace {
