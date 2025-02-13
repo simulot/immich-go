@@ -152,6 +152,41 @@ func Test_matchers(t *testing.T) {
 			fileName: "MVIMG_20200207_134534~2.jpg",
 			want:     "matchNormal",
 		},
+		{ //#673 Google photos supplemental metadata files
+			fileName: "Scan35(1).jpg",
+			jsonName: "Scan35.jpg.supplemental-metadata(1).json",
+			want:     "matchNormal",
+		},
+		{ //#673 Google photos supplemental metadata files
+			fileName: "CLIP0001(10).AVI",
+			jsonName: "CLIP0001.AVI.supplemental-metadata(10).json",
+			want:     "matchNormal",
+		},
+		{ //#698 Google photos supplemental metadata files
+			fileName: "IMAG0061-edited.JPG",
+			jsonName: "IMAG0061.JPG.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{ //#674 Google photos supplemental metadata files
+			fileName: "IMG-20230325-WA0122~2-edited.jpg",
+			jsonName: "IMG-20230325-WA0122~2.jpg.supplemental-metadat.json",
+			want:     "matchNormal",
+		},
+		{ //#674 Google photos supplemental metadata files
+			fileName: "2234089303984509579-edited.jpg",
+			jsonName: "2234089303984509579.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{ //#652 Google photos supplemental metadata files
+			fileName: "Screenshot_20231027_123303_Facebook-edited.jpg",
+			jsonName: "Screenshot_20231027_123303_Facebook.jpg.supple.json",
+			want:     "matchNormal",
+		},
+		{ //#652 Google photos supplemental metadata files
+			fileName: "Screenshot_20231027_123303_Facebook(1).jpg",
+			jsonName: "Screenshot_20231027_123303_Facebook.jpg.supple(1).json",
+			want:     "matchNormal",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
