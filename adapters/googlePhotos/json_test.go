@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ func TestPresentFields(t *testing.T) {
 		isAsset   bool
 		dateTaken time.Time
 		title     string
+		persons   []string
 	}{
 		{
 			name: "new_takeout_album_2025",
@@ -307,6 +309,51 @@ func TestPresentFields(t *testing.T) {
 			"category": "SHIPPED_PRINTS"
 			}`,
 		},
+		{
+			name: "with People",
+			json: `{
+				"title": "IMG_0186.HEIC",
+				"description": "",
+				"imageViews": "0",
+				"creationTime": {
+					"timestamp": "1695554428",
+					"formatted": "24 Sept 2023, 11:20:28 UTC"
+				},
+				"photoTakenTime": {
+					"timestamp": "1686305987",
+					"formatted": "9 Jun 2023, 10:19:47 UTC"
+				},
+				"geoData": {
+					"latitude": 0.0,
+					"longitude": 0.0,
+					"altitude": 0.0,
+					"latitudeSpan": 0.0,
+					"longitudeSpan": 0.0
+				},
+				"geoDataExif": {
+					"latitude": 0.0,
+					"longitude": 0.0,
+					"altitude": 0.0,
+					"latitudeSpan": 0.0,
+					"longitudeSpan": 0.0
+				},
+				"people": [{
+					"name": "Susan"
+				}, {
+					"name": "Justin"
+				}],
+				"url": "https://photos.google.com/photo/AAAAAA",
+				"googlePhotosOrigin": {
+					"mobileUpload": {
+					"deviceType": "IOS_PHONE"
+					}
+				}
+				}`,
+			isAsset:   true,
+			persons:   []string{"Susan", "Justin"},
+			title:     "IMG_0186.HEIC",
+			dateTaken: time.Date(2023, 6, 9, 10, 19, 47, 0, time.UTC),
+		},
 	}
 
 	for _, c := range tcs {
@@ -331,6 +378,9 @@ func TestPresentFields(t *testing.T) {
 			}
 			if c.title != md.Title {
 				t.Errorf("expected Title to be %s, got %s", c.title, md.Title)
+			}
+			if reflect.DeepEqual(c.persons, md.People) {
+				t.Errorf("expected People to be %v, got %v", c.persons, md.People)
 			}
 		})
 	}

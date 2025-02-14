@@ -24,9 +24,14 @@ type GoogleMetaData struct {
 	URLPresent         googIsPresent      `json:"url,omitempty"`         // true when the file is an asset metadata
 	Favorited          bool               `json:"favorited,omitempty"`   // true when starred in GP
 	Enrichments        *googleEnrichments `json:"enrichments,omitempty"` // Album enrichments
+	People             []Person           `json:"people,omitempty"`      // People tags
 	GooglePhotosOrigin struct {
 		FromPartnerSharing googIsPresent `json:"fromPartnerSharing,omitempty"` // true when this is a partner's asset
 	} `json:"googlePhotosOrigin"`
+}
+
+type Person struct {
+	Name string `json:"name"`
 }
 
 func (gmd *GoogleMetaData) UnmarshalJSON(data []byte) error {
@@ -67,6 +72,7 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 		slog.Bool("URLPresent", bool(gmd.URLPresent)),
 		slog.Bool("Favorited", gmd.Favorited),
 		slog.Any("Enrichments", gmd.Enrichments),
+		slog.Any("People", gmd.People),
 		slog.Bool("FromPartnerSharing", bool(gmd.GooglePhotosOrigin.FromPartnerSharing)),
 	)
 }
