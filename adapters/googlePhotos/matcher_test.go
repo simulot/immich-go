@@ -165,22 +165,22 @@ func Test_matchers(t *testing.T) {
 		{ //#698 Google photos supplemental metadata files
 			fileName: "IMAG0061-edited.JPG",
 			jsonName: "IMAG0061.JPG.supplemental-metadata.json",
-			want:     "matchNormal",
+			want:     "matchEditedName",
 		},
 		{ //#674 Google photos supplemental metadata files
 			fileName: "IMG-20230325-WA0122~2-edited.jpg",
 			jsonName: "IMG-20230325-WA0122~2.jpg.supplemental-metadat.json",
-			want:     "matchNormal",
+			want:     "matchEditedName",
 		},
 		{ //#674 Google photos supplemental metadata files
 			fileName: "2234089303984509579-edited.jpg",
 			jsonName: "2234089303984509579.supplemental-metadata.json",
-			want:     "matchNormal",
+			want:     "matchEditedName",
 		},
 		{ //#652 Google photos supplemental metadata files
 			fileName: "Screenshot_20231027_123303_Facebook-edited.jpg",
 			jsonName: "Screenshot_20231027_123303_Facebook.jpg.supple.json",
-			want:     "matchNormal",
+			want:     "matchEditedName",
 		},
 		{ //#652 Google photos supplemental metadata files
 			fileName: "Screenshot_20231027_123303_Facebook(1).jpg",
