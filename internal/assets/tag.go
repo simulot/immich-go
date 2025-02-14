@@ -4,8 +4,8 @@ import "path"
 
 type Tag struct {
 	ID    string `json:"-"`               // Tag ID in immich
-	Name  string `json:"-"`               // the full tag name rootTag/subtag
-	Value string `json:"value,omitempty"` // the leaf name of the tag: subtag
+	Name  string `json:"-"`               // the leaf name of the tag: subtag
+	Value string `json:"value,omitempty"` // the full tag name rootTag/subtag
 }
 
 func (t Tag) LogValuer() string {
