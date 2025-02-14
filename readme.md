@@ -241,6 +241,19 @@ The following options are shared by all commands:
 | ------- | ------------------------------------------------------------------ |
 | Linux   | `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`         |
 | Windows | `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log`       |
+| MacOS   | `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` |
+
+### Environment variables
+
+| **Variable**     | **Description**                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| IMMICHGO_TEMPDIR | Temporary directory used by Immich-go. Default: User's cache folder, or OS temporary directory. |
+
+
+| **OS**  | **Path**                                                           |
+| ------- | ------------------------------------------------------------------ |
+| Linux   | `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`         |
+| Windows | `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log`       |
 | macOS   | `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` |
 
 # The **upload** command:
@@ -578,12 +591,6 @@ The `--date-range` option allows you to process photos taken within a specific d
 | `--date-range=YYYY`                  | Import photos taken during a particular year.            |
 | `--date-range=YYYY-MM-DD,YYYY-MM-DD` | Import photos taken between a specific date range        |
 
-
-## Environment variables
-
-| **Variable**     | **Description**                                                                                 |
-| ---------------- | ----------------------------------------------------------------------------------------------- |
-| IMMICHGO_TEMPDIR | Temporary directory used by Immich-go. Default: User's cache folder, or OS temporary directory. |
 
 
 # Examples
