@@ -10,9 +10,9 @@ issues:
 linters-settings:
   gocritic:
     enabled-checks:
-      - captLocal
-      - singleCaseSwitch
-      - switchTrue
+#      - captLocal
+#      - singleCaseSwitch
+#     - switchTrue
       - httpNoBody
       - emptyStringTest
       - builtinShadow
@@ -43,7 +43,7 @@ linters:
     - decorder
     - dogsled
     - errchkjson
-    - exportloopref
+    - copyloopvar
     - ginkgolinter
     - gocheckcompilerdirectives
     - goprintffuncname

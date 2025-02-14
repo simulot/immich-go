@@ -1,5 +1,7 @@
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
+version: 2
+
 before:
   hooks:
     # You may remove this if you don't use go modules.
@@ -16,17 +18,17 @@ builds:
       - windows
       - darwin
       - freebsd
-    goarch:
+    goarch: 
       - amd64
       - arm
       - arm64      
     flags:
       - -trimpath
     ldflags:
-    - '-s -w "-extldflags=-static" -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser'
+      - -extldflags=-static -X github.com/simulot/immich-go/app.Version={{.Version}} -X github.com/simulot/immich-go/Commit={{.Commit}} -X github.com/simulot/immich-go/Date={{.Date}} -s -w
 
 archives:
-  - format: tar.gz
+  - formats: ['tar.gz']
     # this name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
       {{ .ProjectName }}_
@@ -37,20 +39,28 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
     # use zip for windows archives
     format_overrides:
-    - goos: windows
-      format: zip
+    - goos  : windows
+      formats: ['zip']
+    files:
+      - LICENSE
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
   sort: asc
   filters:
     exclude:
       - '^docs:'
       - '^test:'
+      - '^chore:'
+      
+release:
+  draft: true
+  replace_existing_draft: true
+  replace_existing_artifacts: true
+  use_existing_draft: true  
+  prerelease: auto
+  make_latest: true
+  mode: append
 
-# The lines beneath this are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/use them.
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj

@@ -13,24 +13,34 @@ type searchMetadataResponse struct {
 	}
 }
 
-type searchMetadataGetAllBody struct {
-	Page        int  `json:"page"`
-	WithExif    bool `json:"withExif,omitempty"`
-	IsVisible   bool `json:"isVisible,omitempty"`
-	WithDeleted bool `json:"withDeleted,omitempty"`
-	Size        int  `json:"size,omitempty"`
+type SearchMetadataQuery struct {
+	// pagination
+	Page int `json:"page"`
+	Size int `json:"size,omitempty"`
+
+	// filters
+	WithExif         bool   `json:"withExif,omitempty"`
+	IsVisible        bool   `json:"isVisible,omitempty"` // For motion stuff you need to pass isVisible=true to hide the motion ones (dijrasm91 — https://discord.com/channels/979116623879368755/1178366369423700080/1201206313699508295)
+	WithDeleted      bool   `json:"withDeleted,omitempty"`
+	WithArchived     bool   `json:"withArchived,omitempty"`
+	TakenBefore      string `json:"takenBefore,omitempty"`
+	TakenAfter       string `json:"takenAfter,omitempty"`
+	Model            string `json:"model,omitempty"`
+	Make             string `json:"make,omitempty"`
+	Checksum         string `json:"checksum,omitempty"`
+	OriginalFileName string `json:"originalFileName,omitempty"`
 }
 
-func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req *searchMetadataGetAllBody, filter func(*Asset) error) error {
-	req.Page = 1
-	req.Size = 1000
+func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {
+	query.Page = 1
+	query.Size = 1000
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 			resp := searchMetadataResponse{}
-			err := ic.newServerCall(ctx, EndPointGetAllAssets).do(postRequest("/search/metadata", "application/json", setJSONBody(&req), setAcceptJSON()), responseJSON(&resp))
+			err := ic.newServerCall(ctx, EndPointGetAllAssets).do(postRequest("/search/metadata", "application/json", setJSONBody(&query), setAcceptJSON()), responseJSON(&resp))
 			if err != nil {
 				return err
 			}
@@ -45,7 +55,7 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req *searchMetad
 			if resp.Assets.NextPage == 0 {
 				return nil
 			}
-			req.Page = resp.Assets.NextPage
+			query.Page = resp.Assets.NextPage
 		}
 	}
 }
@@ -53,7 +63,7 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, req *searchMetad
 func (ic *ImmichClient) GetAllAssets(ctx context.Context) ([]*Asset, error) {
 	var assets []*Asset
 
-	req := searchMetadataGetAllBody{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true}
+	req := SearchMetadataQuery{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true}
 	err := ic.callSearchMetadata(ctx, &req, func(asset *Asset) error {
 		assets = append(assets, asset)
 		return nil
@@ -64,7 +74,48 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context) ([]*Asset, error) {
 	return assets, nil
 }
 
-func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, filter func(*Asset) error) error {
-	req := searchMetadataGetAllBody{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true}
-	return ic.callSearchMetadata(ctx, &req, filter)
+func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {
+	if query == nil {
+		query = &SearchMetadataQuery{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true}
+	}
+	query.Page = 1
+	return ic.callSearchMetadata(ctx, query, filter)
+}
+
+// GetAssetByHash returns the asset with the given hash
+// The hash is the base64 encoded sha1 of the file
+func (ic *ImmichClient) GetAssetsByHash(ctx context.Context, hash string) ([]*Asset, error) {
+	query := SearchMetadataQuery{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true, Checksum: hash}
+	query.Page = 1
+	list := []*Asset{}
+	filter := func(asset *Asset) error {
+		if asset.Checksum == hash {
+			list = append(list, asset)
+		}
+		return nil
+	}
+	err := ic.callSearchMetadata(ctx, &query, filter)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+// GetAssetByHash returns the asset with the given hash
+// The hash is the base64 encoded sha1 of the file
+func (ic *ImmichClient) GetAssetsByImageName(ctx context.Context, name string) ([]*Asset, error) {
+	query := SearchMetadataQuery{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true, OriginalFileName: name}
+	query.Page = 1
+	list := []*Asset{}
+	filter := func(asset *Asset) error {
+		if asset.OriginalFileName == name {
+			list = append(list, asset)
+		}
+		return nil
+	}
+	err := ic.callSearchMetadata(ctx, &query, filter)
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
 }

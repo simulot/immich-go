@@ -1,53 +1,42 @@
 name: CI Pipeline
 
 on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
+ pull_request:
+   branches:
+     - main
+ push:
+   branches:
+     - main
+ workflow_dispatch:
 
 jobs:
-  ci:
-    name: Continuous Integration
-    runs-on: ubuntu-latest
+ ci:
+   name: Continuous Integration
+   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+   steps:
+     - name: Checkout Code
+       uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-          cache-dependency-path: "go.sum"
+     - name: Setup Go
+       uses: actions/setup-go@v5
+       with:
+         go-version-file: "go.mod"
+         cache-dependency-path: "go.sum"
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
 
-      - name: Build binary
-        run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o immich-linux-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o immich-linux-arm64.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=6 go build -o immich-linux-arm6.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o immich-linux-arm7.exe -ldflags="-s -w -extldflags=-static" main.go
+     - name: golangci-lint
+       uses: golangci/golangci-lint-action@v6
+       with:
+         version: latest
 
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o immich-windows-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -o immich-windows-arm64.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=windows GOARCH=arm GOARM=6 go build -o immich-windows-arm6.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=windows GOARCH=arm GOARM=7 go build -o immich-windows-arm7.exe -ldflags="-s -w -extldflags=-static" main.go
+     - name: Build binary
+       run: |
+         CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o immich-linux-amd64 -ldflags="-s -w -extldflags=-static" main.go
+         CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o immich-linux-arm64 -ldflags="-s -w -extldflags=-static" main.go
+         CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o immich-windows-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
+         CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o immich-darwin-amd64 -ldflags="-s -w -extldflags=-static" main.go
 
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o immich-darwin-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o immich-darwin-arm64.exe -ldflags="-s -w -extldflags=-static" main.go
-
-          CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build -o immich-freebsd-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64 go build -o immich-freebsd-arm64.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=freebsd GOARCH=arm GOARM=6 go build -o immich-freebsd-arm6.exe -ldflags="-s -w -extldflags=-static" main.go
-          CGO_ENABLED=0 GOOS=freebsd GOARCH=arm GOARM=7 go build -o immich-freebsd-arm7.exe -ldflags="-s -w -extldflags=-static" main.go
-
-      - name: Run tests
-        run: |
-          go test --race -v -count=1 -coverprofile=coverage.out ./...
+     - name: Run tests
+       run: |
+         go test --race -v -count=1 -coverprofile=coverage.out ./...

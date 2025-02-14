@@ -3,143 +3,47 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
-	"runtime/debug"
 
-	"github.com/simulot/immich-go/cmd"
-	"github.com/simulot/immich-go/cmd/duplicate"
-	"github.com/simulot/immich-go/cmd/metadata"
-	"github.com/simulot/immich-go/cmd/stack"
-	"github.com/simulot/immich-go/cmd/tool"
-	"github.com/simulot/immich-go/cmd/upload"
-	"github.com/simulot/immich-go/ui"
-	"github.com/telemachus/humane"
+	"github.com/simulot/immich-go/app/cmd"
 )
 
-var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
-)
-
-func getCommitInfo() string {
-	dirty := false
-	buildvcs := false
-
-	buildinfo, _ := debug.ReadBuildInfo()
-	for _, s := range buildinfo.Settings {
-		switch s.Key {
-		case "vcs.revision":
-			buildvcs = true
-			commit = s.Value
-		case "vcs.modified":
-			if s.Value == "true" {
-				dirty = true
-			}
-		case "vcs.time":
-			date = s.Value
-		}
-	}
-	if buildvcs && dirty {
-		commit += "-dirty"
-	}
-	return commit
-}
-
-func printVersion() {
-	fmt.Printf("immich-go  %s, commit %s, built at %s\n", version, getCommitInfo(), date)
-}
-
+// immich-go entry point
 func main() {
-	var err error
+	ctx := context.Background()
+	err := immichGoMain(ctx)
+	if err != nil {
+		if e := context.Cause(ctx); e != nil {
+			err = e
+		}
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
+// makes immich-go breakable with ^C and run it
+func immichGoMain(ctx context.Context) error {
 	// Create a context with cancel function to gracefully handle Ctrl+C events
-	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx, cancel := context.WithCancelCause(ctx)
 
 	// Handle Ctrl+C signal (SIGINT)
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt)
 
+	// Watch for ^C to be pressed
 	go func() {
 		<-signalChannel
 		fmt.Println("\nCtrl+C received. Shutting down...")
 		cancel(errors.New("Ctrl+C received")) // Cancel the context when Ctrl+C is received
 	}()
 
-	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-	default:
-		err = Run(ctx)
-	}
-	if err != nil {
-		if e := context.Cause(ctx); e != nil {
-			err = e
-		}
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-}
-
-func Run(ctx context.Context) error {
-	app := cmd.SharedFlags{
-		Log:    slog.New(humane.NewHandler(os.Stdout, &humane.Options{Level: slog.LevelInfo})),
-		Banner: ui.NewBanner(version, commit, date),
-	}
-	fs := flag.NewFlagSet("main", flag.ExitOnError)
-	fs.BoolFunc("version", "Get immich-go version", func(s string) error {
-		printVersion()
-		os.Exit(0)
-		return nil
-	})
-
-	app.InitSharedFlags()
-	app.SetFlags(fs)
-
-	err := fs.Parse(os.Args[1:])
-	if err != nil {
-		app.Log.Error(err.Error())
-		return err
-	}
-
-	printVersion()
-	fmt.Println(app.Banner.String())
-
-	if len(fs.Args()) == 0 {
-		err = errors.New("missing command upload|duplicate|stack|tool")
-	}
-
-	if err != nil {
-		app.Log.Error(err.Error())
-		return err
-	}
-
-	cmd := fs.Args()[0]
-	switch cmd {
-	case "upload":
-		err = upload.UploadCommand(ctx, &app, fs.Args()[1:])
-	case "duplicate":
-		err = duplicate.DuplicateCommand(ctx, &app, fs.Args()[1:])
-	case "metadata":
-		err = metadata.MetadataCommand(ctx, &app, fs.Args()[1:])
-	case "stack":
-		err = stack.NewStackCommand(ctx, &app, fs.Args()[1:])
-	case "tool":
-		err = tool.CommandTool(ctx, &app, fs.Args()[1:])
-	default:
-		err = fmt.Errorf("unknown command: %q", cmd)
-	}
-
-	if err != nil {
-		app.Log.Error(err.Error())
-	}
-	fmt.Println("Check the log file: ", app.LogFile)
-	if app.APITraceWriter != nil {
-		fmt.Println("Check the trace file: ", app.APITraceWriterName)
+	c, a := cmd.RootImmichGoCommand(ctx)
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
 	}
 	return err
 }

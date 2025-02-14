@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/gen"
-	"github.com/simulot/immich-go/immich/metadata"
+	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/gen"
 )
 
 /*
@@ -116,7 +116,7 @@ func (fsys FakeFS) Open(name string) (fs.File, error) {
 			r, fakeInfo.size = fakeJSON()
 		default:
 			d := info.ModTime()
-			if d2 := metadata.TakeTimeFromName(name); !d2.IsZero() {
+			if d2 := filenames.TakeTimeFromName(name, time.Local); !d2.IsZero() {
 				d = d2
 			}
 			title := strings.TrimSuffix(path.Base(name), path.Ext(base))

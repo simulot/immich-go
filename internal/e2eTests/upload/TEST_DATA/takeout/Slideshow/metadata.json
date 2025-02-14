@@ -1,0 +1,17 @@
+{
+  "title": "Slideshow",
+  "description": "",
+  "access": "protected",
+  "date": {
+    "timestamp": "1697872351",
+    "formatted": "21 oct. 2023, 07:12:31 UTC"
+  },
+  "location": "",
+  "geoData": {
+    "latitude": 0,
+    "longitude": 0,
+    "altitude": 0.0,
+    "latitudeSpan": 0.0,
+    "longitudeSpan": 0.0
+  }
+}

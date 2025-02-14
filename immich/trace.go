@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/simulot/immich-go/helpers/gen"
+	"github.com/simulot/immich-go/internal/gen"
 )
 
 /*
@@ -84,10 +84,11 @@ func setTraceRequest() serverRequestOption {
 		}
 		if v := sc.ctx.Value(ctxCallValues); v != nil {
 			if values, ok := v.(map[string]string); ok {
+				fmt.Fprintln(sc.ic.apiTraceWriter, "  Post values")
 				keys := gen.MapKeys(values)
 				sort.Strings(keys)
 				for _, k := range keys {
-					fmt.Fprintln(sc.ic.apiTraceWriter, "  ", k+": ", values[k])
+					fmt.Fprintln(sc.ic.apiTraceWriter, "    ", k+": ", values[k])
 				}
 			}
 		}
