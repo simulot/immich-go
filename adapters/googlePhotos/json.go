@@ -77,8 +77,9 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 	)
 }
 
-func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName) *assets.Metadata {
+func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *assets.Metadata {
 	md := assets.Metadata{
+		File:        name,
 		FileName:    gmd.Title,
 		Description: gmd.Description,
 		Trashed:     gmd.Trashed,
@@ -94,6 +95,11 @@ func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName) *assets.Metadata {
 	}
 	if gmd.PhotoTakenTime != nil && gmd.PhotoTakenTime.Timestamp != "" && gmd.PhotoTakenTime.Timestamp != "0" {
 		md.DateTaken = gmd.PhotoTakenTime.Time()
+	}
+	if tagPeople {
+		for _, p := range gmd.People {
+			md.AddTag("People/" + p.Name)
+		}
 	}
 	return &md
 }
