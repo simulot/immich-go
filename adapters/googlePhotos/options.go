@@ -77,6 +77,8 @@ type ImportFlags struct {
 	TakeoutTag  bool
 	TakeoutName string
 
+	// PeopleTag indicates whether to add a people tag to the imported assets.
+	PeopleTag bool
 	// Timezone
 	TZ *time.Location
 }
@@ -104,8 +106,8 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 	cmd.Flags().StringSliceVar(&o.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	cmd.Flags().BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
 	cmd.Flags().BoolVar(&o.TakeoutTag, "takeout-tag", true, "Tag uploaded photos with a tag \"{takeout}/takeout-YYYYMMDDTHHMMSSZ\"")
+	cmd.Flags().BoolVar(&o.PeopleTag, "people-tag", true, "Tag uploaded photos with tags \"people/name\" found in the JSON file")
 
-	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	// exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
 	o.SupportedMedia = filetypes.DefaultSupportedMedia
 

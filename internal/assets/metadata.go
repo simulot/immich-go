@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path"
 	"time"
 
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -57,4 +58,13 @@ func UnMarshalMetadata(data []byte) (*Metadata, error) {
 	var m Metadata
 	err := json.Unmarshal(data, &m)
 	return &m, err
+}
+
+func (m *Metadata) AddTag(tag string) {
+	for _, t := range m.Tags {
+		if t.Value == tag {
+			return
+		}
+	}
+	m.Tags = append(m.Tags, Tag{Name: path.Base(tag), Value: tag})
 }

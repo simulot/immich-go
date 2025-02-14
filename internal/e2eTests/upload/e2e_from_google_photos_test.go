@@ -175,3 +175,27 @@ func TestUploadFromGP_issue608(t *testing.T) {
 		a.Log().Error(err.Error())
 	}
 }
+
+func TestUploadFromGooglePhotosPeopleTag(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-google-photos",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--log-level=DEBUG",
+		"--people-tag=true",
+		// "--no-ui",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#713 Tag People",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
