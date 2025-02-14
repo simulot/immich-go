@@ -31,7 +31,7 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 	if p2 > 1 {
 		p1 := strings.LastIndex(jsonName[:p2], ".")
 		if p1 > 1 {
-			if strings.HasPrefix("supplemental-metadata", jsonName[p1+1:p2]) { // golint:ignore gocritic
+			if strings.HasPrefix("supplemental-metadata", jsonName[p1+1:p2]) { //nolint:argOrder
 				jsonName = jsonName[:p1] + jsonName[p2:]
 			}
 		}
@@ -74,7 +74,7 @@ func matchEditedName(jsonName string, fileName string, sm filetypes.SupportedMed
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	p1 := strings.LastIndex(base, ".")
 	if p1 > 1 {
-		if strings.HasPrefix("supplemental-metadata", base[p1+1:]) { // golint:ignore gocritic
+		if strings.HasPrefix("supplemental-metadata", base[p1+1:]) { //nolint:argOrder
 			base = jsonName[:p1]
 		}
 	}
