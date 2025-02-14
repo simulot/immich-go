@@ -9,7 +9,7 @@ import (
 	"github.com/simulot/immich-go/internal/metadata"
 )
 
-var epsonFastFotoRegex = regexp.MustCompile(`^(.*_\d+)(_[ab])?(\.[a-z]+)$`)
+var epsonFastFotoRegex = regexp.MustCompile(`^(.*\d+)(_[ab])?(\.[a-z]+)$`)
 
 type Group struct {
 	lastRadical string
