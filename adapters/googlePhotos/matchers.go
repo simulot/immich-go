@@ -26,9 +26,15 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 		return false
 	}
 
-	// When the file name is the same as the JSON name
-	if strings.HasPrefix(jsonName, fileName) {
-		return true
+	// supplemental-metadata  check
+	p2 := strings.LastIndex(jsonName, ".")
+	if p2 > 1 {
+		p1 := strings.LastIndex(jsonName[:p2], ".")
+		if p1 > 1 {
+			if strings.HasPrefix("supplemental-metadata", jsonName[p1+1:p2]) { //nolint:all
+				jsonName = jsonName[:p1] + jsonName[p2:]
+			}
+		}
 	}
 
 	// Check if the file name is the same as the JSON name
@@ -66,13 +72,19 @@ func matchEditedName(jsonName string, fileName string, sm filetypes.SupportedMed
 		return false
 	}
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	p1 := strings.LastIndex(base, ".")
+	if p1 > 1 {
+		if strings.HasPrefix("supplemental-metadata", base[p1+1:]) { //nolint:all
+			base = jsonName[:p1]
+		}
+	}
+
 	ext := path.Ext(base)
 	if ext != "" && sm.IsMedia(ext) {
 		base = strings.TrimSuffix(base, ext)
-		fname := strings.TrimSuffix(fileName, path.Ext(fileName))
-		return strings.HasPrefix(fname, base)
+		fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
 	}
-	return false
+	return strings.HasPrefix(fileName, base)
 }
 
 // matchForgottenDuplicates
