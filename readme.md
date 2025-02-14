@@ -250,12 +250,6 @@ The following options are shared by all commands:
 | IMMICHGO_TEMPDIR | Temporary directory used by Immich-go. Default: User's cache folder, or OS temporary directory. |
 
 
-| **OS**  | **Path**                                                           |
-| ------- | ------------------------------------------------------------------ |
-| Linux   | `$HOME/.cache/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log`         |
-| Windows | `%LocalAppData%\immich-go\immich-go_YYYY-MM-DD_HH-MI-SS.log`       |
-| macOS   | `$HOME/Library/Caches/immich-go/immich-go_YYYY-MM-DD_HH-MI-SS.log` |
-
 # The **upload** command:
 The **upload** command loads photos and videos from the source designated by the sub-command to the Immich server. 
 **Upload** accepts three sub-commands:
