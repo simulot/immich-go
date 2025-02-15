@@ -75,13 +75,13 @@ func (cr *CacheReader) OpenFile() (*tempFile, error) {
 func (cr *CacheReader) Close() error {
 	refs := atomic.LoadInt64(&cr.references)
 	loghelper.Debug("CacheReader: close", "name", cr.name, "references", refs)
-	if cr.shouldRemove {
+	err := cr.tmpFile.Close()
+	if err == nil && cr.shouldRemove {
 		// the source is already closed
 		loghelper.Debug("CacheReader: remove temporary file", "name", cr.name)
 		return os.Remove(cr.name)
-	} else {
-		return cr.tmpFile.Close()
 	}
+	return err
 }
 
 type tempFile struct {
