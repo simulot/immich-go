@@ -23,6 +23,9 @@ func run(ctx context.Context, jnl *fileevent.Recorder, app *app.Application, sou
 			}
 			for _, a := range g.Assets {
 				err := dest.WriteAsset(ctx, a)
+				if err == nil {
+					err = a.Close()
+				}
 				if err != nil {
 					jnl.Log().Error(err.Error())
 					errCount++
@@ -34,7 +37,6 @@ func run(ctx context.Context, jnl *fileevent.Recorder, app *app.Application, sou
 				} else {
 					jnl.Record(ctx, fileevent.Written, a)
 				}
-				a.Close()
 			}
 		}
 	}
