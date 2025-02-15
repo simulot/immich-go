@@ -44,6 +44,12 @@ func TestGroup(t *testing.T) {
 		mockAsset(ic, "SceneryAndWildlife_0005_b.jpg", baseTime.Add(2200*time.Millisecond)),
 		mockAsset(ic, "SceneryAndWildlife_0005.jpg", baseTime.Add(2400*time.Millisecond)),
 		mockAsset(ic, "img_0005.jpg", baseTime.Add(1200*time.Millisecond)),
+		mockAsset(ic, "1992-xx-xx - Easter_Arizona - 0069.jpg", baseTime.Add(2600*time.Millisecond)),
+		mockAsset(ic, "1992-xx-xx - Easter_Arizona - 0069_a.jpg", baseTime.Add(2800*time.Millisecond)),
+		mockAsset(ic, "1992-xx-xx - Easter_Arizona - 0069_b.jpg", baseTime.Add(3000*time.Millisecond)),
+		mockAsset(ic, "1992-xx-xx - Easter_Arizona (FF-680W-1200-PR) - 0069.jpg", baseTime.Add(3200*time.Millisecond)),
+		mockAsset(ic, "1992-xx-xx - Easter_Arizona (FF-680W-1200-PR) - 0069_a.jpg", baseTime.Add(3400*time.Millisecond)),
+		mockAsset(ic, "1992-xx-xx - Easter_Arizona (FF-680W-1200-PR) - 0069_b.jpg", baseTime.Add(3600*time.Millisecond)),
 	}
 
 	expectedAssets := []*assets.Asset{
@@ -75,6 +81,16 @@ func TestGroup(t *testing.T) {
 			mockAsset(ic, "SceneryAndWildlife_0005_a.jpg", baseTime.Add(2000*time.Millisecond)),
 			mockAsset(ic, "SceneryAndWildlife_0005_b.jpg", baseTime.Add(2200*time.Millisecond)),
 			mockAsset(ic, "SceneryAndWildlife_0005.jpg", baseTime.Add(2400*time.Millisecond)),
+		).SetCover(0),
+		assets.NewGroup(assets.GroupByOther,
+			mockAsset(ic, "1992-xx-xx - Easter_Arizona - 0069.jpg", baseTime.Add(2600*time.Millisecond)),
+			mockAsset(ic, "1992-xx-xx - Easter_Arizona - 0069_a.jpg", baseTime.Add(2800*time.Millisecond)),
+			mockAsset(ic, "1992-xx-xx - Easter_Arizona - 0069_b.jpg", baseTime.Add(3000*time.Millisecond)),
+		).SetCover(0),
+		assets.NewGroup(assets.GroupByOther,
+			mockAsset(ic, "1992-xx-xx - Easter_Arizona (FF-680W-1200-PR) - 0069.jpg", baseTime.Add(3200*time.Millisecond)),
+			mockAsset(ic, "1992-xx-xx - Easter_Arizona (FF-680W-1200-PR) - 0069_a.jpg", baseTime.Add(3400*time.Millisecond)),
+			mockAsset(ic, "1992-xx-xx - Easter_Arizona (FF-680W-1200-PR) - 0069_b.jpg", baseTime.Add(3600*time.Millisecond)),
 		).SetCover(0),
 	}
 
@@ -130,7 +146,7 @@ func TestGroup(t *testing.T) {
 		}
 	}
 	if len(gotAssets) != len(expectedAssets) {
-		t.Errorf("Expected 0 assets, got %d", len(gotAssets))
+		t.Errorf("Expected %d assets, got %d", len(expectedAssets), len(gotAssets))
 	} else {
 		for i := range gotAssets {
 			if !reflect.DeepEqual(gotAssets[i], expectedAssets[i]) {
