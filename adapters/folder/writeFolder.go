@@ -12,6 +12,7 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 )
 
 // type minimalFSWriter interface {
@@ -117,7 +118,9 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 				if err != nil {
 					return err
 				}
+				debugfiles.TrackOpenFile(scr, a.FromSideCar.File.Name())
 				defer scr.Close()
+				defer debugfiles.TrackCloseFile(scr)
 				var scw fshelper.WFile
 				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".XMP"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 				if err != nil {

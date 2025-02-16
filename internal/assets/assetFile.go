@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/simulot/immich-go/internal/fshelper/cachereader"
+	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 	"github.com/simulot/immich-go/internal/fshelper/osfs"
 )
 
@@ -21,6 +22,7 @@ func (a *Asset) OpenFile() (osfs.OSFS, error) {
 		if err != nil {
 			return nil, err
 		}
+		debugfiles.TrackOpenFile(f, a.File.FullName())
 		// Create a cache reader from the FS.File
 		cr, err := cachereader.NewCacheReader(a.File.FullName(), f)
 		if err != nil {

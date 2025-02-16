@@ -49,7 +49,7 @@ func NewFromFolderCommand(ctx context.Context, parent *cobra.Command, app *app.A
 			return err
 		}
 
-		return newUpload(UpModeFolder, app, upOptions).run(ctx, adapter, app)
+		return newUpload(UpModeFolder, app, upOptions).run(ctx, adapter, app, fsyss)
 	}
 
 	return cmd
