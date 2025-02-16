@@ -85,10 +85,14 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	}
 	// List flags
 	log.Info(GetVersion())
-	log.Info("Operating system: " + runtime.GOOS)
-	log.Info("Architecture " + runtime.GOARCH)
+	log.Info("Running environment:", "architecture", runtime.GOARCH, "os", runtime.GOOS)
 
-	log.Info(fmt.Sprintf("Command: %s", cmd.Use))
+	cmdStack := []string{cmd.Name()}
+	for c := cmd.Parent(); c != nil; c = c.Parent() {
+		cmdStack = append([]string{c.Name()}, cmdStack...)
+	}
+
+	log.Info(fmt.Sprintf("Command: %s", strings.Join(cmdStack, " ")))
 	log.Info("Flags:")
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		val := flag.Value.String()
