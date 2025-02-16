@@ -126,6 +126,5 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	if err != nil {
 		err = context.Cause(ctx)
 	}
-	app.Jnl().Report()
 	return err
 }

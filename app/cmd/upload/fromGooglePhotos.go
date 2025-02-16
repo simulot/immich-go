@@ -67,7 +67,8 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 		if err != nil {
 			return err
 		}
-		return newUpload(UpModeGoogleTakeout, app, upOptions).setTakeoutOptions(options).run(ctx, adapter, app)
+		err = newUpload(UpModeGoogleTakeout, app, upOptions).setTakeoutOptions(options).run(ctx, adapter, app, fsyss)
+		return err
 	}
 
 	return cmd

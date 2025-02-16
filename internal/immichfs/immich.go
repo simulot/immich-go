@@ -63,7 +63,6 @@ func (ifs *ImmichFS) Open(name string) (fs.File, error) {
 		info:   fi,
 		rc:     rc,
 	}
-
 	return file, nil
 }
 
@@ -80,6 +79,7 @@ func (file *ImmichFile) Read(b []byte) (n int, err error) {
 func (file *ImmichFile) Close() error {
 	if file.rc != nil {
 		file.cancel(file.rc.Close())
+		file.rc = nil
 	}
 	return nil
 }
