@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 )
 
 type FSCanWrite interface {
@@ -109,7 +111,9 @@ func WriteFile(fsys fs.FS, name string, r io.Reader) error {
 		if err != nil {
 			return err
 		}
+		debugfiles.TrackOpenFile(f, name)
 		defer f.Close()
+		defer debugfiles.TrackCloseFile(f)
 		if f, ok := f.(FileCanWrite); ok {
 			_, err = io.Copy(f, r)
 			return err

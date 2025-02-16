@@ -13,6 +13,7 @@ import (
 	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
 	"github.com/simulot/immich-go/internal/configuration"
+	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 	"github.com/simulot/immich-go/internal/loghelper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -107,6 +108,10 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	for _, arg := range cmd.Flags().Args() {
 		log.Info(fmt.Sprintf("  %q", arg))
 	}
+	if log.sLevel == slog.LevelDebug {
+		debugfiles.EnableTrackFiles(log.Logger)
+	}
+
 	return nil
 }
 
@@ -170,6 +175,7 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 		// No log for version command
 		return nil
 	}
+	debugfiles.ReportTrackedFiles()
 	if log.File != "" {
 		log.Message("Check the log file: %s", log.File)
 	}

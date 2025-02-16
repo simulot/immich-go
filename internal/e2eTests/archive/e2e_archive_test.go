@@ -65,6 +65,7 @@ func TestArchiveFromFolder(t *testing.T) {
 		"upload", "from-folder",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--log-level=debug",
 		"--no-ui",
 		"--into-album=ALBUM",
 		"--manage-raw-jpeg=KeepRaw",
@@ -86,6 +87,7 @@ func TestArchiveFromFolder(t *testing.T) {
 		"--from-server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--from-api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--write-to-folder=" + tmpDir,
+		"--log-level=debug",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/Reflex",
 	})
 
@@ -118,6 +120,7 @@ func TestArchiveFromImmich(t *testing.T) {
 		"upload", "from-folder",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--log-level=debug",
 		"--no-ui",
 		"--into-album=ALBUM",
 		"--manage-raw-jpeg=KeepRaw",
@@ -134,6 +137,7 @@ func TestArchiveFromImmich(t *testing.T) {
 	c, a = cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"archive", "from-immich",
+		"--log-level=debug",
 		"--from-server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--from-api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--write-to-folder=" + tmpDir,
