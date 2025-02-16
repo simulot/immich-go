@@ -101,7 +101,7 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 				val = v
 			}
 		}
-		if flag.Name == "api-key" && len(val) > 4 {
+		if strings.Contains(flag.Name, "api-key") && len(val) > 4 {
 			val = strings.Repeat("*", len(val)-4) + val[len(val)-4:]
 		}
 		log.Info("", "--"+flag.Name, val)
