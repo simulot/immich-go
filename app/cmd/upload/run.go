@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -50,21 +51,28 @@ func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
 	return upCmd
 }
 
-func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application) error {
+func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application, fsys []fs.FS) error {
 	upCmd.adapter = adapter
 	upCmd.tm = bulktags.NewBulkTagManager(ctx, app.Client().Immich, app.Log().Logger)
 	defer upCmd.tm.Close()
 
+	runner := upCmd.runUI
+
 	if upCmd.NoUI {
-		return upCmd.runNoUI(ctx, app)
+		runner = upCmd.runNoUI
 	}
 	_, err := tcell.NewScreen()
 	if err != nil {
 		upCmd.app.Log().Error("can't initialize the screen for the UI mode. Falling back to no-gui mode")
 		fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
-		return upCmd.runNoUI(ctx, app)
+		runner = upCmd.runNoUI
 	}
-	return upCmd.runUI(ctx, app)
+	err = runner(ctx, app)
+
+	err = errors.Join(err, fshelper.CloseFSs(fsys))
+	app.Jnl().Report()
+
+	return err
 }
 
 func (upCmd *UpCmd) getImmichAlbums(ctx context.Context) error {
