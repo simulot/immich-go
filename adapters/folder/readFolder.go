@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/simulot/immich-go/coverageTester"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
@@ -42,7 +43,13 @@ type LocalAssetBrowser struct {
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
+
+	fmt.Println("NewLocalFilesRunning")
+	err := coverageTester.WriteUniqueLine("NewLocalFiles - Branch 0 (Main) Covered")
+	fmt.Println(err)
+
 	if flags.ImportIntoAlbum != "" && flags.UsePathAsAlbumName != FolderModeNone {
+
 		return nil, errors.New("cannot use both --into-album and --folder-as-album")
 	}
 
