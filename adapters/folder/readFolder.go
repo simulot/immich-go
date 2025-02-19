@@ -130,8 +130,11 @@ func (la *LocalAssetBrowser) concurrentParseDir(ctx context.Context, fsys fs.FS,
 }
 
 func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) error {
+	coverageTester.WriteUniqueLine("parseDir - Branch 0/7 Covered")
+
 	fsName := ""
 	if fsys, ok := fsys.(interface{ Name() string }); ok {
+		coverageTester.WriteUniqueLine("parseDir - Branch 1/7 Covered")
 		fsName = fsys.Name()
 	}
 
@@ -141,10 +144,12 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 	select {
 	case <-ctx.Done():
+		coverageTester.WriteUniqueLine("parseDir - Branch 2/7 Covered")
 		return ctx.Err()
 	default:
 		entries, err = fs.ReadDir(fsys, dir)
 		if err != nil {
+			coverageTester.WriteUniqueLine("parseDir - Branch 3/7 Covered")
 			return err
 		}
 	}
@@ -153,24 +158,30 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		base := entry.Name()
 		name := path.Join(dir, base)
 		if entry.IsDir() {
+			coverageTester.WriteUniqueLine("parseDir - Branch 4/7 Covered")
 			continue
 		}
 
 		if la.flags.BannedFiles.Match(name) {
+			coverageTester.WriteUniqueLine("parseDir - Branch 5/7 Covered")
 			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, entry.Name()), "reason", "banned file")
 			continue
 		}
 
 		if la.flags.SupportedMedia.IsUseLess(name) {
+			coverageTester.WriteUniqueLine("parseDir - Branch 6/7 Covered")
 			la.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, entry.Name()))
 			continue
 		}
 
 		if la.flags.PicasaAlbum && (strings.ToLower(base) == ".picasa.ini" || strings.ToLower(base) == "picasa.ini") {
+			coverageTester.WriteUniqueLine("parseDir - Branch 7/7 Covered")
 			a, err := ReadPicasaIni(fsys, name)
 			if err != nil {
+				coverageTester.WriteUniqueLine("parseDir - Branch 8/7 Covered")
 				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 			} else {
+				coverageTester.WriteUniqueLine("parseDir - Branch 9/7 Covered")
 				la.picasaAlbums.Store(dir, a) // la.picasaAlbums[dir] = a
 				la.log.Log().Info("Picasa album detected", "file", fshelper.FSName(fsys, path.Join(dir, name)), "album", a.Name)
 			}
@@ -181,20 +192,26 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		mediaType := la.flags.SupportedMedia.TypeFromExt(ext)
 
 		if mediaType == filetypes.TypeUnknown {
+			coverageTester.WriteUniqueLine("parseDir - Branch 10/7 Covered")
 			la.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(fsys, name), "reason", "unsupported file type")
 			continue
 		}
 
 		switch mediaType {
 		case filetypes.TypeUseless:
+			coverageTester.WriteUniqueLine("parseDir - Branch 11/7 Covered")
 			la.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, name))
 			continue
 		case filetypes.TypeImage:
+			coverageTester.WriteUniqueLine("parseDir - Branch 12/7 Covered")
 			la.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(fsys, name))
 		case filetypes.TypeVideo:
+			coverageTester.WriteUniqueLine("parseDir - Branch 13/7 Covered")
 			la.log.Record(ctx, fileevent.DiscoveredVideo, fshelper.FSName(fsys, name))
 		case filetypes.TypeSidecar:
+			coverageTester.WriteUniqueLine("parseDir - Branch 14/7 Covered")
 			if la.flags.IgnoreSideCarFiles {
+				coverageTester.WriteUniqueLine("parseDir - Branch 15/7 Covered")
 				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "sidecar file ignored")
 				continue
 			}
@@ -203,26 +220,31 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 
 		if !la.flags.InclusionFlags.IncludedExtensions.Include(ext) {
+			coverageTester.WriteUniqueLine("parseDir - Branch 16/7 Covered")
 			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "extension not included")
 			continue
 		}
 
 		if la.flags.InclusionFlags.ExcludedExtensions.Exclude(ext) {
+			coverageTester.WriteUniqueLine("parseDir - Branch 17/7 Covered")
 			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "extension excluded")
 			continue
 		}
 
 		select {
 		case <-ctx.Done():
+			coverageTester.WriteUniqueLine("parseDir - Branch 18/7 Covered")
 			return ctx.Err()
 		default:
 			// we have a file to process
 			a, err := la.assetFromFile(ctx, fsys, name)
 			if err != nil {
+				coverageTester.WriteUniqueLine("parseDir - Branch 19/7 Covered")
 				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 				return err
 			}
 			if a != nil {
+				coverageTester.WriteUniqueLine("parseDir - Branch 20/7 Covered")
 				as = append(as, a)
 			}
 		}
@@ -233,11 +255,14 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		base := entry.Name()
 		name := path.Join(dir, base)
 		if entry.IsDir() {
+			coverageTester.WriteUniqueLine("parseDir - Branch 21/7 Covered")
 			if la.flags.BannedFiles.Match(name) {
+				coverageTester.WriteUniqueLine("parseDir - Branch 22/7 Covered")
 				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "banned folder")
 				continue // Skip this folder, no error
 			}
 			if la.flags.Recursive && entry.Name() != "." {
+				coverageTester.WriteUniqueLine("parseDir - Branch 23/7 Covered")
 				la.concurrentParseDir(ctx, fsys, name, gOut)
 			}
 			continue
@@ -253,6 +278,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			radicalI := as[i].Radical
 			radicalJ := as[j].Radical
 			if radicalI != radicalJ {
+				coverageTester.WriteUniqueLine("parseDir - Branch 24/7 Covered")
 				return radicalI < radicalJ
 			}
 			// If radicals are the same, sort by date
@@ -263,14 +289,18 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			// check the presence of a JSON file
 			jsonName, err := checkExistSideCar(fsys, a.File.Name(), ".json")
 			if err == nil && jsonName != "" {
+				coverageTester.WriteUniqueLine("parseDir - Branch 25/7 Covered")
 				buf, err := fs.ReadFile(fsys, jsonName)
 				if err != nil {
+					coverageTester.WriteUniqueLine("parseDir - Branch 26/7 Covered")
 					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 				} else {
 					if bytes.Contains(buf, []byte("immich-go version")) {
+						coverageTester.WriteUniqueLine("parseDir - Branch 27/7 Covered")
 						md := &assets.Metadata{}
 						err = jsonsidecar.Read(bytes.NewReader(buf), md)
 						if err != nil {
+							coverageTester.WriteUniqueLine("parseDir - Branch 28/7 Covered")
 							la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 						} else {
 							md.File = fshelper.FSName(fsys, jsonName)
@@ -285,13 +315,16 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			// check the presence of a XMP file
 			xmpName, err := checkExistSideCar(fsys, a.File.Name(), ".xmp")
 			if err == nil && xmpName != "" {
+				coverageTester.WriteUniqueLine("parseDir - Branch 29/7 Covered")
 				buf, err := fs.ReadFile(fsys, xmpName)
 				if err != nil {
+					coverageTester.WriteUniqueLine("parseDir - Branch 30/7 Covered")
 					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 				} else {
 					md := &assets.Metadata{}
 					err = xmpsidecar.ReadXMP(bytes.NewReader(buf), md)
 					if err != nil {
+						coverageTester.WriteUniqueLine("parseDir - Branch 31/7 Covered")
 						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 					} else {
 						md.File = fshelper.FSName(fsys, xmpName)
@@ -302,17 +335,22 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 			// Read metadata from the file only id needed (date range or take date from filename)
 			if la.requiresDateInformation {
+				coverageTester.WriteUniqueLine("parseDir - Branch 32/7 Covered")
 				if a.CaptureDate.IsZero() {
+					coverageTester.WriteUniqueLine("parseDir - Branch 33/7 Covered")
 					// no date in XMP, JSON, try reading the metadata
 					f, err := a.OpenFile()
 					if err == nil {
+						coverageTester.WriteUniqueLine("parseDir - Branch 34/7 Covered")
 						md, err := exif.GetMetaData(f, a.Ext, la.flags.TZ)
 						if err != nil {
+							coverageTester.WriteUniqueLine("parseDir - Branch 35/7 Covered")
 							la.log.Record(ctx, fileevent.INFO, a.File, "warning", err.Error())
 						} else {
 							a.FromSourceFile = a.UseMetadata(md)
 						}
 						if (md == nil || md.DateTaken.IsZero()) && !a.NameInfo.Taken.IsZero() && la.flags.TakeDateFromFilename {
+							coverageTester.WriteUniqueLine("parseDir - Branch 36/7 Covered")
 							// no exif, but we have a date in the filename and the TakeDateFromFilename is set
 							a.FromApplication = &assets.Metadata{
 								DateTaken: a.NameInfo.Taken,
@@ -325,6 +363,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 
 			if !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
+				coverageTester.WriteUniqueLine("parseDir - Branch 37/7 Covered")
 				a.Close()
 				la.log.Record(ctx, fileevent.DiscoveredDiscarded, a.File, "reason", "asset outside date range")
 				continue
@@ -332,6 +371,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 			// Add tags
 			if len(la.flags.Tags) > 0 {
+				coverageTester.WriteUniqueLine("parseDir - Branch 38/7 Covered")
 				for _, t := range la.flags.Tags {
 					a.AddTag(t)
 				}
@@ -339,41 +379,53 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 			// Add folder as tags
 			if la.flags.FolderAsTags {
+				coverageTester.WriteUniqueLine("parseDir - Branch 39/7 Covered")
 				t := fsName
 				if dir != "." {
+					coverageTester.WriteUniqueLine("parseDir - Branch 40/7 Covered")
 					t = path.Join(t, dir)
 				}
 				if t != "" {
+					coverageTester.WriteUniqueLine("parseDir - Branch 41/7 Covered")
 					a.AddTag(t)
 				}
 			}
 
 			// Manage albums
 			if la.flags.ImportIntoAlbum != "" {
+				coverageTester.WriteUniqueLine("parseDir - Branch 42/7 Covered")
 				a.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
 			} else {
 				done := false
 				if la.flags.PicasaAlbum {
+					coverageTester.WriteUniqueLine("parseDir - Branch 43/7 Covered")
 					if album, ok := la.picasaAlbums.Load(dir); ok {
+						coverageTester.WriteUniqueLine("parseDir - Branch 44/7 Covered")
 						a.Albums = []assets.Album{{Title: album.Name, Description: album.Description}}
 						done = true
 					}
 				}
 				if !done && la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
+					coverageTester.WriteUniqueLine("parseDir - Branch 45/7 Covered")
 					Album := ""
 					switch la.flags.UsePathAsAlbumName {
 					case FolderModeFolder:
+						coverageTester.WriteUniqueLine("parseDir - Branch 46/7 Covered")
 						if dir == "." {
+							coverageTester.WriteUniqueLine("parseDir - Branch 47/7 Covered")
 							Album = fsName
 						} else {
 							Album = filepath.Base(dir)
 						}
 					case FolderModePath:
+						coverageTester.WriteUniqueLine("parseDir - Branch 48/7 Covered")
 						parts := []string{}
 						if fsName != "" {
+							coverageTester.WriteUniqueLine("parseDir - Branch 49/7 Covered")
 							parts = append(parts, fsName)
 						}
 						if dir != "." {
+							coverageTester.WriteUniqueLine("parseDir - Branch 50/7 Covered")
 							parts = append(parts, strings.Split(dir, "/")...)
 							// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
 						}
@@ -384,11 +436,13 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 
 			if la.flags.SessionTag {
+				coverageTester.WriteUniqueLine("parseDir - Branch 51/7 Covered")
 				a.AddTag(la.flags.session)
 			}
 			select {
 			case in <- a:
 			case <-ctx.Done():
+				coverageTester.WriteUniqueLine("parseDir - Branch 52/7 Covered")
 				return
 			}
 		}
@@ -399,6 +453,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		select {
 		case gOut <- g:
 		case <-ctx.Done():
+			coverageTester.WriteUniqueLine("parseDir - Branch 53/7 Covered")			
 			return ctx.Err()
 		}
 	}
