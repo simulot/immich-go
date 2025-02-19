@@ -58,7 +58,6 @@ func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) 
 
 func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
 
-	fmt.Println("WriteAssetRunning")
 	coverageTester.WriteUniqueLine("WriteAsset - Branch 0 (Main) Covered")
 
 	base := a.Base
