@@ -20,3 +20,4 @@ archive.tar
 *.env
 test-config.yaml
 __debug_*
+coverageBranch.txt
