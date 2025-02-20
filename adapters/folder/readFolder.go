@@ -453,7 +453,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		select {
 		case gOut <- g:
 		case <-ctx.Done():
-			coverageTester.WriteUniqueLine("parseDir - Branch 53/7 Covered")			
+			coverageTester.WriteUniqueLine("parseDir - Branch 53/7 Covered")
 			return ctx.Err()
 		}
 	}
