@@ -135,15 +135,16 @@ func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *asse
 func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan chan *assets.Group) error {
 	var err error
 
+	fmt.Println(f)
 	// Checks if favourited asset and flag is favourite
 	if f.flags.Favorite && !a.IsFavorite {
-		coverageTester.WriteUniqueLine("Branch 1")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 1/16 Covered")
 		return nil
 	}
 
 	// Probably filtering based on if photo is put in the bin
 	if !f.flags.WithTrashed && a.IsTrashed {
-		coverageTester.WriteUniqueLine("Branch 2")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 2/16 Covered")
 		return nil
 	}
 
@@ -152,32 +153,32 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 
 	// Some filter set up in getAsset to determine is albums much be fetched later.
 	if f.mustFetchAlbums && len(albums) == 0 {
-		coverageTester.WriteUniqueLine("Branch 3")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 3/16 Covered")
 		albums, err = f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
 		if err != nil {
-			coverageTester.WriteUniqueLine("Branch 4")
+			coverageTester.WriteUniqueLine("filterAsset - Branch 4/16 Covered")
 			return f.logError(err)
 		}
 	}
 
 	// Checks if the asset is present in any albums by f.flags.Albums.
 	if len(f.flags.Albums) > 0 && len(albums) > 0 {
-		coverageTester.WriteUniqueLine("Branch 5")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 5/16 Covered")
 		keepMe := false
 		newAlbumList := []assets.Album{}
 		for _, album := range f.flags.Albums {
-			coverageTester.WriteUniqueLine("Branch 6")
+			coverageTester.WriteUniqueLine("filterAsset - Branch 6/16 Covered")
 			for _, aAlbum := range albums {
-				coverageTester.WriteUniqueLine("Branch 7")
+				coverageTester.WriteUniqueLine("filterAsset - Branch 7/16 Covered")
 				if album == aAlbum.Title {
-					coverageTester.WriteUniqueLine("Branch 8")
+					coverageTester.WriteUniqueLine("filterAsset - Branch 8/16 Covered")
 					keepMe = true
 					newAlbumList = append(newAlbumList, aAlbum)
 				}
 			}
 		}
 		if !keepMe {
-			coverageTester.WriteUniqueLine("Branch 9")
+			coverageTester.WriteUniqueLine("filterAsset - Branch 9/16 Covered")
 			return nil
 		}
 		albums = newAlbumList
@@ -187,7 +188,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	// so we need to get the asset details
 	a, err = f.flags.client.Immich.GetAssetInfo(ctx, a.ID)
 	if err != nil {
-		coverageTester.WriteUniqueLine("Branch 10")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 10/16 Covered")
 		return f.logError(err)
 	}
 	asset := a.AsAsset()
@@ -210,15 +211,15 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 
 	// Filter on rating, unsure what kind of rating though.
 	if f.flags.MinimalRating > 0 && a.Rating < f.flags.MinimalRating {
-		coverageTester.WriteUniqueLine("Branch 11")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 11/16 Covered")
 		return nil
 	}
 
 	// Filter asset on set date range.
 	if f.flags.DateRange.IsSet() {
-		coverageTester.WriteUniqueLine("Branch 12")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 12/16 Covered")
 		if asset.CaptureDate.Before(f.flags.DateRange.After) || asset.CaptureDate.After(f.flags.DateRange.Before) {
-			coverageTester.WriteUniqueLine("Branch 13")
+			coverageTester.WriteUniqueLine("filterAsset - Branch 13/16 Covered")
 			return nil
 		}
 	}
@@ -227,12 +228,12 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	g := assets.NewGroup(assets.GroupByNone, asset)
 	select {
 	case grpChan <- g:
-		coverageTester.WriteUniqueLine("Branch 14")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 14/16 Covered")
 	case <-ctx.Done():
-		coverageTester.WriteUniqueLine("Branch 15")
+		coverageTester.WriteUniqueLine("filterAsset - Branch 15/16 Covered")
 		return ctx.Err()
 	}
-	coverageTester.WriteUniqueLine("Branch 16")
+	coverageTester.WriteUniqueLine("filterAsset - Branch 16/16 Covered")
 	return nil
 }
 
