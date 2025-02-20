@@ -44,6 +44,7 @@ type LocalAssetBrowser struct {
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
 
+
 	coverageTester.WriteUniqueLine("NewLocalFiles - Branch 0/7 Covered")
 
 	if flags.ImportIntoAlbum != "" && flags.UsePathAsAlbumName != FolderModeNone {

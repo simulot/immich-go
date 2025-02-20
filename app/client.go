@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/simulot/immich-go/coverageTester"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/spf13/cobra"
@@ -35,34 +36,44 @@ func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, d
 }
 
 func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	coverageTester.WriteUniqueLine("OpenClient - Branch 0 covered")
+
 	var err error
 	client := app.Client()
 	log := app.Log()
 
 	if client.Server != "" {
+		coverageTester.WriteUniqueLine("OpenClient - Branch 1/13 covered")
 		client.Server = strings.TrimSuffix(client.Server, "/")
 	}
 	if client.TimeZone != "" {
 		// Load the specified timezone
+		coverageTester.WriteUniqueLine("OpenClient - Branch 2/13 covered")
 		client.TZ, err = time.LoadLocation(client.TimeZone)
 		if err != nil {
+			coverageTester.WriteUniqueLine("OpenClient - Branch 3/13 covered")
 			return err
 		}
 	}
 
 	// Plug the journal on the Log
 	if log.File != "" {
+		coverageTester.WriteUniqueLine("OpenClient - Branch 4/13 covered")
 		if log.mainWriter == nil {
+			coverageTester.WriteUniqueLine("OpenClient - Branch 5/13 covered")
 			err := configuration.MakeDirForFile(log.File)
 			if err != nil {
+				coverageTester.WriteUniqueLine("OpenClient - Branch 6/13 covered")
 				return err
 			}
 			f, err := os.OpenFile(log.File, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o664)
 			if err != nil {
+				coverageTester.WriteUniqueLine("OpenClient - Branch 7/13 covered")
 				return err
 			}
 			err = log.sLevel.UnmarshalText([]byte(strings.ToUpper(log.Level)))
 			if err != nil {
+				coverageTester.WriteUniqueLine("OpenClient - Branch 8/13 covered")
 				return err
 			}
 			log.setHandlers(f, nil)
@@ -73,18 +84,23 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 
 	err = client.Initialize(ctx, app)
 	if err != nil {
+		coverageTester.WriteUniqueLine("OpenClient - Branch 9/13 covered")
 		return err
 	}
 
 	err = client.Open(ctx)
 	if err != nil {
+		coverageTester.WriteUniqueLine("OpenClient - Branch 10/13 covered")
 		return err
 	}
 
 	if client.APITrace {
+		coverageTester.WriteUniqueLine("OpenClient - Branch 11/13 covered")
 		if client.APITraceWriter == nil {
+			coverageTester.WriteUniqueLine("OpenClient - Branch 12/13 covered")
 			client.APITraceWriter, err = os.OpenFile(client.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
 			if err != nil {
+				coverageTester.WriteUniqueLine("OpenClient - Branch 13/13 covered")
 				return err
 			}
 			client.Immich.EnableAppTrace(client.APITraceWriter)
