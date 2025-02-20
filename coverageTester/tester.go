@@ -6,7 +6,7 @@ import (
 )
 
 func WriteUniqueLine(input string) error {
-	filename := "/Users/samvelhovhannisyan/Documents/dev/dd2480/immich-go/coverageBranch-OpenClient.txt"
+	filename := "/Users/samvelhovhannisyan/Documents/dev/dd2480/immich-go/coverageBranch.txt"
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
