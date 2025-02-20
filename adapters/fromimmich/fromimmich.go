@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/app"
+	"github.com/simulot/immich-go/coverageTester"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -133,34 +134,50 @@ func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *asse
 
 func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan chan *assets.Group) error {
 	var err error
+
+	// Checks if favourited asset and flag is favourite
 	if f.flags.Favorite && !a.IsFavorite {
+		coverageTester.WriteUniqueLine("Branch 1")
 		return nil
 	}
 
+	// Probably filtering based on if photo is put in the bin
 	if !f.flags.WithTrashed && a.IsTrashed {
+		coverageTester.WriteUniqueLine("Branch 2")
 		return nil
 	}
 
+	// Refactor the album section
 	albums := immich.AlbumsFromAlbumSimplified(a.Albums)
 
+	// Some filter set up in getAsset to determine is albums much be fetched later.
 	if f.mustFetchAlbums && len(albums) == 0 {
+		coverageTester.WriteUniqueLine("Branch 3")
 		albums, err = f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
 		if err != nil {
+			coverageTester.WriteUniqueLine("Branch 4")
 			return f.logError(err)
 		}
 	}
+
+	// Checks if the asset is present in any albums by f.flags.Albums.
 	if len(f.flags.Albums) > 0 && len(albums) > 0 {
+		coverageTester.WriteUniqueLine("Branch 5")
 		keepMe := false
 		newAlbumList := []assets.Album{}
 		for _, album := range f.flags.Albums {
+			coverageTester.WriteUniqueLine("Branch 6")
 			for _, aAlbum := range albums {
+				coverageTester.WriteUniqueLine("Branch 7")
 				if album == aAlbum.Title {
+					coverageTester.WriteUniqueLine("Branch 8")
 					keepMe = true
 					newAlbumList = append(newAlbumList, aAlbum)
 				}
 			}
 		}
 		if !keepMe {
+			coverageTester.WriteUniqueLine("Branch 9")
 			return nil
 		}
 		albums = newAlbumList
@@ -168,9 +185,9 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 
 	// Some information are missing in the metadata result,
 	// so we need to get the asset details
-
 	a, err = f.flags.client.Immich.GetAssetInfo(ctx, a.ID)
 	if err != nil {
+		coverageTester.WriteUniqueLine("Branch 10")
 		return f.logError(err)
 	}
 	asset := a.AsAsset()
@@ -191,22 +208,31 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		Tags:        asset.Tags,
 	}
 
+	// Filter on rating, unsure what kind of rating though.
 	if f.flags.MinimalRating > 0 && a.Rating < f.flags.MinimalRating {
+		coverageTester.WriteUniqueLine("Branch 11")
 		return nil
 	}
 
+	// Filter asset on set date range.
 	if f.flags.DateRange.IsSet() {
+		coverageTester.WriteUniqueLine("Branch 12")
 		if asset.CaptureDate.Before(f.flags.DateRange.After) || asset.CaptureDate.After(f.flags.DateRange.Before) {
+			coverageTester.WriteUniqueLine("Branch 13")
 			return nil
 		}
 	}
 
+	// This part is used to channel the asset
 	g := assets.NewGroup(assets.GroupByNone, asset)
 	select {
 	case grpChan <- g:
+		coverageTester.WriteUniqueLine("Branch 14")
 	case <-ctx.Done():
+		coverageTester.WriteUniqueLine("Branch 15")
 		return ctx.Err()
 	}
+	coverageTester.WriteUniqueLine("Branch 16")
 	return nil
 }
 
