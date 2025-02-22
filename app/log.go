@@ -13,6 +13,7 @@ import (
 	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
 	"github.com/simulot/immich-go/internal/configuration"
+	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 	"github.com/simulot/immich-go/internal/loghelper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -84,10 +85,14 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	}
 	// List flags
 	log.Info(GetVersion())
-	log.Info("Operating system: " + runtime.GOOS)
-	log.Info("Architecture " + runtime.GOARCH)
+	log.Info("Running environment:", "architecture", runtime.GOARCH, "os", runtime.GOOS)
 
-	log.Info(fmt.Sprintf("Command: %s", cmd.Use))
+	cmdStack := []string{cmd.Name()}
+	for c := cmd.Parent(); c != nil; c = c.Parent() {
+		cmdStack = append([]string{c.Name()}, cmdStack...)
+	}
+
+	log.Info(fmt.Sprintf("Command: %s", strings.Join(cmdStack, " ")))
 	log.Info("Flags:")
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		val := flag.Value.String()
@@ -96,7 +101,7 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 				val = v
 			}
 		}
-		if flag.Name == "api-key" && len(val) > 4 {
+		if strings.Contains(flag.Name, "api-key") && len(val) > 4 {
 			val = strings.Repeat("*", len(val)-4) + val[len(val)-4:]
 		}
 		log.Info("", "--"+flag.Name, val)
@@ -107,6 +112,10 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	for _, arg := range cmd.Flags().Args() {
 		log.Info(fmt.Sprintf("  %q", arg))
 	}
+	if log.sLevel == slog.LevelDebug {
+		debugfiles.EnableTrackFiles(log.Logger)
+	}
+
 	return nil
 }
 
@@ -170,6 +179,7 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 		// No log for version command
 		return nil
 	}
+	debugfiles.ReportTrackedFiles()
 	if log.File != "" {
 		log.Message("Check the log file: %s", log.File)
 	}

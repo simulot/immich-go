@@ -221,7 +221,6 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	}
 
 	// Time to leave
-	app.Jnl().Report()
 	if messages.Len() > 0 {
 		return (errors.New(messages.String()))
 	}

@@ -42,6 +42,7 @@ func TestUpgradePhotoFolder(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--folder-as-album=FOLDER",
+		"--log-level=debug",
 		"../../../app/cmd/upload/TEST_DATA/folder/low",
 	})
 	err = c.ExecuteContext(ctx)
@@ -70,6 +71,7 @@ func TestUpgradePhotoFolder(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--folder-as-album=FOLDER",
+		"--log-level=debug",
 		"--api-trace",
 		"../../../app/cmd/upload/TEST_DATA/folder/high",
 	})
@@ -113,6 +115,8 @@ func TestUpgradeGooglePhotoFolder(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--folder-as-album=FOLDER",
+		"--log-level=debug",
+
 		"../../../app/cmd/upload/TEST_DATA/folder/low",
 	})
 	err = c.ExecuteContext(ctx)
@@ -141,6 +145,8 @@ func TestUpgradeGooglePhotoFolder(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--api-trace",
+		"--log-level=debug",
+
 		"../../../app/cmd/upload/TEST_DATA/Takeout1",
 	})
 	err = c.ExecuteContext(ctx)
@@ -180,6 +186,8 @@ func TestUpgradeGooglePhotoFolder2(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--api-trace",
+		"--log-level=debug",
+
 		"../../../app/cmd/upload/TEST_DATA/Takeout1",
 	})
 	err = c.ExecuteContext(ctx)
@@ -197,6 +205,8 @@ func TestUpgradeGooglePhotoFolder2(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--folder-as-album=FOLDER",
+		"--log-level=debug",
+
 		"../../../app/cmd/upload/TEST_DATA/folder/high",
 	})
 	err = c.ExecuteContext(ctx)

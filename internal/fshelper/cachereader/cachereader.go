@@ -4,8 +4,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 
+	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 	"github.com/simulot/immich-go/internal/fshelper/osfs"
 	"github.com/simulot/immich-go/internal/loghelper"
 )
@@ -15,7 +15,6 @@ type CacheReader struct {
 	tmpFile      osfs.OSFS //*os.File // tmpFile is the temporary file or the original file
 	name         string
 	shouldRemove bool
-	references   int64
 }
 
 // NewCacheReader creates a new CacheReader from an io.ReadCloser
@@ -45,6 +44,7 @@ func NewCacheReader(name string, rc io.ReadCloser) (*CacheReader, error) {
 		if err != nil {
 			return nil, err
 		}
+		debugfiles.TrackOpenFile(c.tmpFile, c.tmpFile.Name())
 		c.name = c.tmpFile.Name()
 		// be sure to copy the reader content into the temporary file
 		_, err = io.Copy(c.tmpFile, rc)
@@ -54,7 +54,7 @@ func NewCacheReader(name string, rc io.ReadCloser) (*CacheReader, error) {
 			return nil, err
 		}
 		rc.Close()
-		loghelper.Debug("CacheReader: create temporary file", "Source file", name, "temp file", c.name)
+		debugfiles.TrackCloseFile(rc)
 		c.shouldRemove = true
 	}
 	return c, err
@@ -62,26 +62,24 @@ func NewCacheReader(name string, rc io.ReadCloser) (*CacheReader, error) {
 
 // OpenFile creates a new file handler based on the temporary file
 func (cr *CacheReader) OpenFile() (*tempFile, error) {
-	refs := atomic.AddInt64(&cr.references, 1)
-	loghelper.Debug("tempFile:", "Open file", cr.name, "references", refs)
 	f, err := os.Open(cr.name)
 	if err != nil {
 		return nil, err
 	}
+	debugfiles.TrackOpenFile(f, cr.name)
 	return &tempFile{File: f, cr: cr}, nil
 }
 
 // Close closes the temporary file only if it was created by NewCacheReader
 func (cr *CacheReader) Close() error {
-	refs := atomic.LoadInt64(&cr.references)
-	loghelper.Debug("CacheReader: close", "name", cr.name, "references", refs)
-	if cr.shouldRemove {
+	debugfiles.TrackCloseFile(cr.tmpFile)
+	err := cr.tmpFile.Close()
+	if err == nil && cr.shouldRemove {
 		// the source is already closed
 		loghelper.Debug("CacheReader: remove temporary file", "name", cr.name)
 		return os.Remove(cr.name)
-	} else {
-		return cr.tmpFile.Close()
 	}
+	return err
 }
 
 type tempFile struct {
@@ -90,11 +88,7 @@ type tempFile struct {
 }
 
 func (t *tempFile) Close() error {
-	refs := atomic.AddInt64(&t.cr.references, -1)
-	loghelper.Debug("tempFile:", "assetName", t.cr.name, "close file", t.File.Name(), "references", refs+1)
-	if refs < 0 {
-		panic("tempFile: Close() called on a closed file")
-	}
+	debugfiles.TrackCloseFile(t.File)
 	err := t.File.Close()
 	return err
 }

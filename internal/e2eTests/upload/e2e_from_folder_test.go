@@ -32,6 +32,7 @@ func TestUploadBurstInAlbums(t *testing.T) {
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
 		"--into-album=ALBUM",
+		"--log-level=debug",
 		"--manage-raw-jpeg=KeepRaw",
 		"--manage-burst=stack",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/storm",
@@ -104,6 +105,7 @@ func TestUploadFromFastFotoFolder(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
+		"--log-level=DEBUG",
 		"--manage-epson-fastfoto",
 		tmp,
 	})
@@ -133,6 +135,7 @@ func TestUpgradeFromFolder(t *testing.T) {
 		"upload", "from-folder",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--log-level=debug",
 		"--date-from-name",
 		// "--no-ui",
 		"../../../app/cmd/upload/TEST_DATA/folder/low",
@@ -152,6 +155,7 @@ func TestUpgradeFromFolder(t *testing.T) {
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--date-from-name",
 		"--api-trace",
+		"--log-level=debug",
 		// "--no-ui",
 		"../../../app/cmd/upload/TEST_DATA/folder/high",
 	})

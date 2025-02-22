@@ -57,7 +57,7 @@ func TestNexus(t *testing.T) {
 				Type:    filetypes.TypeImage,
 				Kind:    assets.KindBurst,
 				Index:   100,
-				Taken:   time.Date(2018, 12, 29, 21, 35, 17, 0, time.Local),
+				Taken:   time.Date(2018, 12, 29, 21, 35, 17, 346*int(time.Millisecond), time.Local),
 			},
 		},
 		{
@@ -72,10 +72,24 @@ func TestNexus(t *testing.T) {
 				Type:    filetypes.TypeImage,
 				Kind:    assets.KindBurst,
 				Index:   0,
-				Taken:   time.Date(2019, 8, 28, 18, 18, 53, 0, time.Local),
+				Taken:   time.Date(2019, 8, 28, 18, 18, 53, 475*int(time.Millisecond), time.Local),
 			},
 		},
-
+		{
+			name:     "#743 Nexus BURST cover with unix timestamp",
+			filename: "00002IMG_00002_BURST1723801037429.jpg",
+			expected: true,
+			info: assets.NameInfo{
+				Radical: "BURST1723801037429",
+				Base:    "00002IMG_00002_BURST1723801037429.jpg",
+				IsCover: false,
+				Ext:     ".jpg",
+				Type:    filetypes.TypeImage,
+				Kind:    assets.KindBurst,
+				Index:   2,
+				Taken:   time.UnixMilli(1723801037429),
+			},
+		},
 		{
 			name:     "InvalidFilename",
 			filename: "IMG_1123.jpg",

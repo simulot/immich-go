@@ -27,7 +27,7 @@ func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.A
 			return err
 		}
 
-		return newUpload(UpModeFolder, app, upOptions).run(ctx, source, app)
+		return newUpload(UpModeFolder, app, upOptions).run(ctx, source, app, nil)
 	}
 
 	return cmd

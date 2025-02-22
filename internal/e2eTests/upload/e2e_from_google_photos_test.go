@@ -55,7 +55,8 @@ func TestUploadFromGooglePhotosZipped(t *testing.T) {
 		"--manage-burst=Stack",
 		"--manage-raw-jpeg=StackCoverJPG",
 		// "--no-ui",
-		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout-*.zip",
+		// e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout-*.zip",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#380 duplicates in GP/Takeout*.zip",
 	})
 
 	// let's start

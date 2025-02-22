@@ -9,7 +9,7 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 )
 
-func run(ctx context.Context, jnl *fileevent.Recorder, app *app.Application, source adapters.Reader, dest adapters.AssetWriter) error { // nolint:unparam
+func run(ctx context.Context, jnl *fileevent.Recorder, _ *app.Application, source adapters.Reader, dest adapters.AssetWriter) error {
 	gChan := source.Browse(ctx)
 	errCount := 0
 	for {
@@ -18,11 +18,13 @@ func run(ctx context.Context, jnl *fileevent.Recorder, app *app.Application, sou
 			return ctx.Err()
 		case g, ok := <-gChan:
 			if !ok {
-				app.Jnl().Report()
 				return nil
 			}
 			for _, a := range g.Assets {
 				err := dest.WriteAsset(ctx, a)
+				if err == nil {
+					err = a.Close()
+				}
 				if err != nil {
 					jnl.Log().Error(err.Error())
 					errCount++
@@ -34,7 +36,6 @@ func run(ctx context.Context, jnl *fileevent.Recorder, app *app.Application, sou
 				} else {
 					jnl.Record(ctx, fileevent.Written, a)
 				}
-				a.Close()
 			}
 		}
 	}

@@ -9,7 +9,8 @@ before:
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - tags:
+  - 
+    tags:
       - timetzdata
     env:
       - CGO_ENABLED=0
@@ -20,7 +21,6 @@ builds:
       - freebsd
     goarch: 
       - amd64
-      - arm
       - arm64      
     flags:
       - -trimpath
