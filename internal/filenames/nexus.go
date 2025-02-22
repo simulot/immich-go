@@ -58,6 +58,9 @@ func (ic InfoCollector) Nexus(name string) (bool, assets.NameInfo) {
 	case 13:
 		ms, _ := strconv.ParseInt(ts, 10, 64)
 		info.Taken = time.UnixMilli(ms)
+	case 17:
+		ts = ts[:14] + "." + ts[14:]
+		info.Taken, _ = time.ParseInLocation("20060102150405.000", ts, ic.TZ)
 	}
 	return true, info
 }
