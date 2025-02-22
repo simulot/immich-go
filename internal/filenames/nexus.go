@@ -25,6 +25,9 @@ Burst
 00000IMG_00000_BURST20190830164840873_COVER.jpg
 00000IMG_00000_BURST20190830164840873.jpg
 
+#743 Nothing camera BURST cover with unix timestamp
+00001IMG_00001_BURST1723801037429_COVER.jpg
+00002IMG_00002_BURST1723801037429.jpg
 
 Regular
 IMG_20171111_030055.jpg
@@ -48,6 +51,13 @@ func (ic InfoCollector) Nexus(name string) (bool, assets.NameInfo) {
 		Kind:    assets.KindBurst,
 	}
 	info.Index, _ = strconv.Atoi(parts[1])
-	info.Taken, _ = time.ParseInLocation("20060102150405", parts[2][5:19], ic.TZ)
+	ts := strings.TrimPrefix(parts[2], "BURST")
+	switch len(ts) {
+	case 14:
+		info.Taken, _ = time.ParseInLocation("20060102150405", ts, ic.TZ)
+	case 13:
+		ms, _ := strconv.ParseInt(ts, 10, 64)
+		info.Taken = time.UnixMilli(ms)
+	}
 	return true, info
 }
