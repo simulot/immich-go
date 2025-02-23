@@ -142,7 +142,7 @@ func Test_BadRequestByAzwillnj(t *testing.T) {
 		"-server="+e2e.MyEnv("IMMICHGO_SERVER"),
 		"-key="+e2e.MyEnv("IMMICHGO_APIKEY"),
 		"-google-photos",
-		e2e.MyEnv("IMMICHGO_TESTFILES")+"/#700 Error 500 when upload/azwillnj/Photos from 2016").Run()
+		e2e.MyEnv("IMMICHGO_TESTFILES")+"/#700 Error 500 when upload/azwillnj/takeout/Photos from 2016").Run()
 	if err != nil {
 		t.Log(err)
 	}
@@ -158,7 +158,7 @@ func Test_BadRequestByAzwillnj(t *testing.T) {
 		"--no-ui",
 		"--api-trace",
 		"--log-level=debug",
-		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#700 Error 500 when upload/azwillnj/Photos from 2016",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#700 Error 500 when upload/azwillnj/takeout",
 	})
 
 	err = c.ExecuteContext(ctx)
