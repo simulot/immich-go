@@ -123,7 +123,7 @@ func groupRawJPGStackJPG(g *assets.Group) *assets.Group {
 
 func (r *RawJPGFlag) Set(value string) error {
 	switch strings.ToLower(value) {
-	case "":
+	case "", "nostack": // nolint: goconst
 		*r = RawJPGNothing
 	case "keepraw":
 		*r = RawJPGKeepRaw
@@ -142,7 +142,7 @@ func (r *RawJPGFlag) Set(value string) error {
 func (r RawJPGFlag) String() string {
 	switch r {
 	case RawJPGNothing:
-		return ""
+		return "NoStack" // nolint: goconst
 	case RawJPGKeepRaw:
 		return "KeepRaw"
 	case RawJPGKeepJPG:
