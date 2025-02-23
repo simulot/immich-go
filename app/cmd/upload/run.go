@@ -220,27 +220,6 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		return err
 	}
 
-	// If the asset exists on the server, at full size, or smaller, we should get its tags and not tag it again.
-	if advice.ServerAsset != nil {
-		serverAsset, err := upCmd.app.Client().Immich.GetAssetInfo(ctx, advice.ServerAsset.ID)
-		if err == nil {
-			newList := []assets.Tag{}
-			for _, t := range a.Tags {
-				keepMe := true
-				for _, st := range serverAsset.Tags {
-					if t.Name == st.Name {
-						keepMe = false
-						break
-					}
-				}
-				if keepMe {
-					newList = append(newList, t)
-				}
-			}
-			a.Tags = newList
-		}
-	}
-
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
 		err = upCmd.uploadAsset(ctx, a)
@@ -343,6 +322,7 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset
 	if ar.Status == immich.UploadDuplicate {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
 	} else {
+		a.ID = ID
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File)
 	}
 	return nil

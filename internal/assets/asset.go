@@ -25,9 +25,10 @@ import (
 
 type Asset struct {
 	// File system and file name
-	File     fshelper.FSAndName
-	FileDate time.Time // File creation date
-	ID       string    // Immich ID after upload
+	File          fshelper.FSAndName
+	FileDate      time.Time // File creation date
+	ID            string    // Immich ID after upload
+	DeviceAssetID string    // file name on the input (as delivered in the takeout) + file size
 
 	// Common fields
 	OriginalFileName string // File name as delivered to Immich/Google

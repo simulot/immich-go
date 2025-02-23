@@ -98,16 +98,16 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 //
 // The server may have different assets with the same name. This happens with photos produced by digital cameras.
 // The server may have the asset, but in lower resolution. Compare the taken date and resolution
+//
+// la - local asset
+// la.File.Name() is the full path to the file as it is on the source
+// la.OriginalFileName is the name of the file as it was on the device before it was uploaded to the server
 
 func (ai *AssetIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
-	filename := la.OriginalFileName
-	if path.Ext(filename) == "" {
-		filename += path.Ext(la.File.Name())
-	}
+	filename := la.File.Name()
+	DeviceAssetID := fmt.Sprintf("%s-%d", path.Base(filename), la.FileSize)
 
-	ID := la.DeviceAssetID()
-
-	sa := ai.byID[ID]
+	sa := ai.byDeviceAssetID[DeviceAssetID]
 	if sa != nil {
 		// the same ID exist on the server
 		return ai.adviceSameOnServer(sa), nil

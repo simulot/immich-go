@@ -268,6 +268,8 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					baseName: base,
 					size:     finfo.Size(),
 				}
+
+				// TODO: remove debugging code
 				tracking, _ := to.fileTracker.Load(key) // tracking := to.fileTracker[key]
 				tracking.paths = append(tracking.paths, dir)
 				tracking.count++
@@ -537,9 +539,11 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *as
 
 	// get the original file name from metadata
 	if md != nil && md.FileName != "" {
-		a.OriginalFileName = md.FileName
-
 		title := md.FileName
+
+		// a.OriginalFileName = md.FileName
+		// title := md.FileName
+
 		// trim superfluous extensions
 		titleExt := path.Ext(title)
 		fileExt := path.Ext(file)
