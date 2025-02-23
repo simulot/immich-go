@@ -98,7 +98,7 @@ func stackBurstKeepJPEG(g *assets.Group) *assets.Group {
 
 func (b *BurstFlag) Set(value string) error {
 	switch strings.ToLower(value) {
-	case "":
+	case "", "nostack": // nolint: goconst
 		*b = BurstNothing
 	case "stack":
 		*b = BurstStack
@@ -115,7 +115,7 @@ func (b *BurstFlag) Set(value string) error {
 func (b BurstFlag) String() string {
 	switch b {
 	case BurstNothing:
-		return ""
+		return "NoStack" // nolint: goconst
 	case BurstStack:
 		return "Stack"
 	case BurstkKeepRaw:
