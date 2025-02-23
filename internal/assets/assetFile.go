@@ -1,16 +1,14 @@
 package assets
 
 import (
-	"fmt"
-
 	"github.com/simulot/immich-go/internal/fshelper/cachereader"
 	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 	"github.com/simulot/immich-go/internal/fshelper/osfs"
 )
 
-func (a *Asset) DeviceAssetID() string {
-	return fmt.Sprintf("%s-%d", a.OriginalFileName, a.FileSize)
-}
+// func (a *Asset) DeviceAssetID() string {
+// 	return fmt.Sprintf("%s-%d", path.Base(a.File.Name()), a.FileSize)
+// }
 
 // OpenFile return an os.File whatever the type of source reader is.
 // It can be called several times for the same asset.
