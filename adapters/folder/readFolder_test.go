@@ -7,6 +7,7 @@ import (
 	"path"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -14,6 +15,7 @@ import (
 	"github.com/kr/pretty"
 	"github.com/psanford/memfs"
 	"github.com/simulot/immich-go/app"
+	"github.com/simulot/immich-go/internal/assets"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -548,4 +550,76 @@ func sortAlbum(a map[string][]string) map[string][]string {
 		sort.Strings(a[k])
 	}
 	return a
+}
+
+func TestParseDir_WithJSON(t *testing.T) {
+	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	ctx := context.Background()
+	logFile := configuration.DefaultLogFile()
+	log := app.Log{
+		File:  logFile,
+		Level: "INFO",
+	}
+	err := log.OpenLogFile()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	recorder := fileevent.NewRecorder(log.Logger)
+
+	gOut := make(chan *assets.Group)
+	var receivedGroups []*assets.Group
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for group := range gOut {
+			receivedGroups = append(receivedGroups, group)
+		}
+	}()
+
+	fsys := newInMemFS("MemFS", ic).
+		addFile("root_01.jpg", t0).
+		addFile("photos/photo_01.jpg", t0).
+		addFile("photos/photo_01.json", t0).
+		addFile("photos/summer/photo_02.jpg", t0)
+
+	flags := &ImportFolderOptions{
+		UsePathAsAlbumName: FolderModeNone,
+		InfoCollector:      ic,
+		SupportedMedia:     filetypes.DefaultSupportedMedia,
+		ImportIntoAlbums:   []string{"dummy"},
+	}
+	la, err := NewLocalFiles(ctx, recorder, flags, fsys)
+	if err != nil {
+		t.Errorf("Error, %v", err)
+		return
+	}
+
+	err = la.parseDir(ctx, fsys, "photos", gOut)
+
+	close(gOut)
+	wg.Wait()
+
+	found := false
+	for _, group := range receivedGroups {
+		for _, asset := range group.Assets {
+			for _, album := range asset.Albums {
+				if album.Title == "dummy" {
+					found = true
+					break
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Errorf("Expected an asset with album 'dummy', but none were found")
+	}
+
+	if err != nil {
+		t.Errorf("Error, %v", err)
+	}
 }
