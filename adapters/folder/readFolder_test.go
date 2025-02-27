@@ -552,7 +552,7 @@ func sortAlbum(a map[string][]string) map[string][]string {
 	return a
 }
 
-func TestParseDir_WithJSON(t *testing.T) {
+func TestParseDir_IntoAlbums(t *testing.T) {
 	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
 	ctx := context.Background()
@@ -621,5 +621,72 @@ func TestParseDir_WithJSON(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Error, %v", err)
+	}
+}
+
+func TestParseDir_DuplicateAlbums(t *testing.T) {
+	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	ctx := context.Background()
+	logFile := configuration.DefaultLogFile()
+	log := app.Log{
+		File:  logFile,
+		Level: "INFO",
+	}
+	err := log.OpenLogFile()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	recorder := fileevent.NewRecorder(log.Logger)
+
+	gOut := make(chan *assets.Group)
+	var receivedGroups []*assets.Group
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for group := range gOut {
+			receivedGroups = append(receivedGroups, group)
+		}
+	}()
+
+	fsys := newInMemFS("MemFS", ic).
+		addFile("root_01.jpg", t0).
+		addFile("photos/photo_01.jpg", t0).
+		addFile("photos/summer/photo_02.jpg", t0)
+
+	flags := &ImportFolderOptions{
+		UsePathAsAlbumName: FolderModeNone,
+		InfoCollector:      ic,
+		SupportedMedia:     filetypes.DefaultSupportedMedia,
+		ImportIntoAlbums:   []string{"test", "test", "test1", "test2"},
+	}
+	la, err := NewLocalFiles(ctx, recorder, flags, fsys)
+	if err != nil {
+		t.Errorf("Error, %v", err)
+		return
+	}
+
+	err = la.parseDir(ctx, fsys, "photos", gOut)
+
+	if err != nil {
+		t.Errorf("Error, %v", err)
+	}
+
+	close(gOut)
+	wg.Wait()
+
+	for _, group := range receivedGroups {
+		for _, asset := range group.Assets {
+			for i := 1; i < len(asset.Albums)-1; i++ {
+				for u := 0; u < i; u++ {
+					if asset.Albums[i] == asset.Albums[u] {
+						t.Errorf("Duplicate albums found, %v", asset.Albums[i])
+					}
+				}
+			}
+		}
 	}
 }
