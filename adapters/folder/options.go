@@ -24,6 +24,9 @@ type ImportFolderOptions struct {
 	// ImportIntoAlbum is the name of the album where all assets will be added.
 	ImportIntoAlbum string
 
+	// ImportIntoAlbums is the array of the names of the albums where all assets will be added.
+	ImportIntoAlbums []string
+
 	// BannedFiles is a list of file name patterns to be excluded from the import process.
 	BannedFiles namematcher.List
 
