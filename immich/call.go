@@ -37,6 +37,7 @@ const (
 	EndPointGetAllTags             = "GetAllTags"
 	EndPointAssetUpload            = "AssetUpload"
 	EndPointAssetReplace           = "AssetReplace"
+	EndPointGetAboutInfo           = "GetAboutInfo"
 )
 
 type TooManyInternalError struct {

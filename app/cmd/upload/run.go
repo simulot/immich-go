@@ -109,6 +109,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 		default:
 			received++
 			list = append(list, a)
+			upCmd.app.Log().Debug("Immich asset:", "ID", a.ID, "FileName", a.OriginalFileName, "Capture date", a.ExifInfo.DateTimeOriginal, "CheckSum", a.Checksum, "FileSize", a.ExifInfo.FileSizeInByte, "DeviceAssetID", a.DeviceAssetID, "OwnerID", a.OwnerID)
 			if updateFn != nil {
 				updateFn(received, totalOnImmich)
 			}
@@ -131,6 +132,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 
 func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
 	var err error
+	errorCount := 0
 assetLoop:
 	for {
 		select {
@@ -143,7 +145,13 @@ assetLoop:
 			}
 			err = upCmd.handleGroup(ctx, g)
 			if err != nil {
-				return err
+				upCmd.app.Log().Error(err.Error())
+				errorCount++
+				if errorCount > 5 {
+					err := errors.New("too many errors, aborting")
+					upCmd.app.Log().Error(err.Error())
+					return err
+				}
 			}
 		}
 	}

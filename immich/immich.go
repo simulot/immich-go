@@ -57,6 +57,7 @@ type ImmichClientInterface interface {
 	GetServerStatistics(ctx context.Context) (ServerStatistics, error)
 	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
 	SupportedMedia() filetypes.SupportedMedia
+	GetAboutInfo(ctx context.Context) (AboutInfo, error)
 }
 
 type ImmichAlbumInterface interface {

@@ -66,6 +66,32 @@ func TestUploadFromGooglePhotosZipped(t *testing.T) {
 	}
 }
 
+func TestUploadFromGooglePhotosNoStackZipped(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-google-photos",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--log-level=DEBUG",
+		// "--manage-burst=Stack",
+		// "--manage-raw-jpeg=StackCoverJPG",
+		// "--no-ui",
+		// e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout-*.zip",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#380 duplicates in GP/Takeout*.zip",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
+
 func TestUploadFromGooglePhotosZippedIssue608(t *testing.T) {
 	e2e.InitMyEnv()
 	e2e.ResetImmich(t)
