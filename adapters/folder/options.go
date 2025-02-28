@@ -104,6 +104,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 		`.photostructure/`,   // PhotoStructure
 	)
 	cmd.Flags().StringVar(&o.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
+	cmd.Flags().StringSliceVar(&o.ImportIntoAlbums, "into-albums", []string{}, "Specify albums to import all files into")
 	cmd.Flags().Var(&o.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
 	cmd.Flags().StringVar(&o.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
 	cmd.Flags().BoolVar(&o.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
