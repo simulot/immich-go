@@ -45,6 +45,9 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	if len(flags.ImportIntoAlbum) != 0 && flags.UsePathAsAlbumName != FolderModeNone {
 		return nil, errors.New("cannot use both --into-album and --folder-as-album")
 	}
+	if len(flags.ImportIntoAlbums) != 0 && flags.UsePathAsAlbumName != FolderModeNone {
+		return nil, errors.New("cannot use both --into-albums and --folder-as-album")
+	}
 
 	la := LocalAssetBrowser{
 		fsyss: fsyss,
