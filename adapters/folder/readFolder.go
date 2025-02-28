@@ -371,6 +371,15 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				}
 			}
 
+			if len(la.flags.ImportIntoAlbums) != 0 {
+				albumNames := []assets.Album{}
+				for i := 0; i < len(la.flags.ImportIntoAlbums); i++ {
+					albumNames = append(albumNames, assets.Album{Title: la.flags.ImportIntoAlbums[i]})
+				}
+
+				a.Albums = append(a.Albums, albumNames...)
+			}
+
 			if la.flags.SessionTag {
 				a.AddTag(la.flags.session)
 			}
