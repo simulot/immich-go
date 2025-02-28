@@ -184,6 +184,13 @@ func (client *Client) Open(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	about, err := client.Immich.GetAboutInfo(ctx)
+	if err != nil {
+		return err
+	}
+	client.ClientLog.Info("Server information:", "version", about.Version)
+
 	client.ClientLog.Info(fmt.Sprintf("Connected, user: %s", user.Email))
 	if client.DryRun {
 		client.ClientLog.Info("Dry-run mode enabled. No changes will be made to the server.")
