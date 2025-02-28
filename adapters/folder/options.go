@@ -21,8 +21,8 @@ type ImportFolderOptions struct {
 	// AlbumNamePathSeparator specifies how multiple (sub) folders are joined when creating album names.
 	AlbumNamePathSeparator string
 
-	// ImportIntoAlbum is the name of the album where all assets will be added.
-	ImportIntoAlbum string
+	// ImportIntoAlbums is the array of the names of the albums where all assets will be added, if added separately.
+	ImportIntoAlbum []string
 
 	// ImportIntoAlbums is the array of the names of the albums where all assets will be added.
 	ImportIntoAlbums []string
@@ -103,7 +103,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 		`/._*`,               // MacOS resource files
 		`.photostructure/`,   // PhotoStructure
 	)
-	cmd.Flags().StringVar(&o.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
+	cmd.Flags().StringArrayVar(&o.ImportIntoAlbum, "into-album", []string{}, "Specify an album to import all files into")
 	cmd.Flags().StringSliceVar(&o.ImportIntoAlbums, "into-albums", []string{}, "Specify albums to import all files into")
 	cmd.Flags().Var(&o.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
 	cmd.Flags().StringVar(&o.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
