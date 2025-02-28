@@ -626,7 +626,7 @@ func TestParseDir_IntoAlbums(t *testing.T) {
 	}
 }
 
-func TestParseDirAlbumsWithSpaceChar(t *testing.T) {
+func TestParseDir_AlbumsWithSpaceChar(t *testing.T) {
 	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
 	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
 	ctx := context.Background()
