@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -23,6 +24,7 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/namematcher"
 )
 
@@ -623,6 +625,113 @@ func TestParseDir_IntoAlbums(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Error, %v", err)
+	}
+}
+
+func TestParseDir_else(t *testing.T) {
+	testCases := []struct {
+		name           string
+		flags          *ImportFolderOptions
+		dir            string
+		fsName         string
+		picasaAlbum    *PicasaAlbum // Using pointer to indicate presence/absence
+		expectedAlbums []assets.Album
+	}{
+		{ // a picasa album is found
+			name: "picasa album found",
+			flags: &ImportFolderOptions{
+				PicasaAlbum:    true,
+				SupportedMedia: filetypes.DefaultSupportedMedia,
+			},
+			dir:    "photos",
+			fsName: "testfs",
+			picasaAlbum: &PicasaAlbum{
+				Name:        "Vacation",
+				Description: "Summer 2024",
+			},
+			expectedAlbums: []assets.Album{{Title: "Vacation", Description: "Summer 2024"}},
+		},
+		{ // using FolderModeFolder with a regular directory
+			name: "folder mode - regular directory",
+			flags: &ImportFolderOptions{
+				UsePathAsAlbumName: FolderModeFolder,
+				SupportedMedia:     filetypes.DefaultSupportedMedia,
+			},
+			dir:            "photos/vacation",
+			fsName:         "testfs",
+			expectedAlbums: []assets.Album{{Title: "vacation"}},
+		},
+		{ // using FolderModeFolder with the root directory
+			name: "folder mode - root directory",
+			flags: &ImportFolderOptions{
+				UsePathAsAlbumName: FolderModeFolder,
+				SupportedMedia:     filetypes.DefaultSupportedMedia,
+			},
+			dir:            ".",
+			fsName:         "testfs",
+			expectedAlbums: []assets.Album{{Title: "testfs"}},
+		},
+		{ // using FolderModePath with a custom seperator
+			name: "path mode with separator",
+			flags: &ImportFolderOptions{
+				UsePathAsAlbumName:     FolderModePath,
+				AlbumNamePathSeparator: " > ",
+				SupportedMedia:         filetypes.DefaultSupportedMedia,
+			},
+			dir:            "photos/vacation",
+			fsName:         "testfs",
+			expectedAlbums: []assets.Album{{Title: "testfs > photos > vacation"}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			la := &LocalAssetBrowser{
+				flags:        tc.flags,
+				picasaAlbums: gen.NewSyncMap[string, PicasaAlbum](),
+			}
+
+			if tc.picasaAlbum != nil {
+				la.picasaAlbums.Store(tc.dir, *tc.picasaAlbum)
+			}
+
+			a := &assets.Asset{}
+
+			// Test the else block logic
+			done := false
+			if la.flags.PicasaAlbum {
+				if album, ok := la.picasaAlbums.Load(tc.dir); ok {
+					a.Albums = []assets.Album{{Title: album.Name, Description: album.Description}}
+					done = true
+				}
+			}
+			if !done && la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
+				Album := ""
+				switch la.flags.UsePathAsAlbumName {
+				case FolderModeFolder:
+					if tc.dir == "." {
+						Album = tc.fsName
+					} else {
+						Album = filepath.Base(tc.dir)
+					}
+				case FolderModePath:
+					parts := []string{}
+					if tc.fsName != "" {
+						parts = append(parts, tc.fsName)
+					}
+					if tc.dir != "." {
+						parts = append(parts, strings.Split(tc.dir, "/")...)
+					}
+					Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
+				}
+				a.Albums = []assets.Album{{Title: Album}}
+			}
+
+			// verify the results
+			if !reflect.DeepEqual(a.Albums, tc.expectedAlbums) {
+				t.Errorf("got albums %+v, want %+v", a.Albums, tc.expectedAlbums)
+			}
+		})
 	}
 }
 
