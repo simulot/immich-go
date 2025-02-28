@@ -131,6 +131,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 
 func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
 	var err error
+	errorCount := 0
 assetLoop:
 	for {
 		select {
@@ -143,7 +144,13 @@ assetLoop:
 			}
 			err = upCmd.handleGroup(ctx, g)
 			if err != nil {
-				return err
+				upCmd.app.Log().Error(err.Error())
+				errorCount++
+				if errorCount > 5 {
+					err := errors.New("too many errors, aborting")
+					upCmd.app.Log().Error(err.Error())
+					return err
+				}
 			}
 		}
 	}
