@@ -150,17 +150,16 @@ assetLoop:
 
 				switch {
 				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
-					return nil
+					// nop
 				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
 					return err
-
 				default:
 					errorCount++
-				}
-				if errorCount > int(upCmd.app.Client().OnServerErrors) {
-					err := errors.New("too many errors, aborting")
-					upCmd.app.Log().Error(err.Error())
-					return err
+					if errorCount >= int(upCmd.app.Client().OnServerErrors) {
+						err := errors.New("too many errors, aborting")
+						upCmd.app.Log().Error(err.Error())
+						return err
+					}
 				}
 			}
 		}
@@ -225,7 +224,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	case assets.GroupByNone:
 	}
 
-	return nil
+	return fmt.Errorf("fake error")
 }
 
 func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
