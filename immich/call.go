@@ -318,9 +318,6 @@ func setJSONBody(object any) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		b := bytes.NewBuffer(nil)
 		enc := json.NewEncoder(b)
-		if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
-			enc.SetIndent("", " ")
-		}
 		err := enc.Encode(object)
 		if err != nil {
 			return err
@@ -370,16 +367,12 @@ func responseJSON[T any](object *T) serverResponseOption {
 					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body start --")
 					defer fmt.Fprint(sc.ic.apiTraceWriter, "\n-- response body end --\n\n")
-
 				}
 
 				err := json.NewDecoder(resp.Body).Decode(object)
 				if err != nil {
 					err = fmt.Errorf("can't decode JSON response: %w", err)
 				}
-				// if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
-				// 	fmt.Fprint(sc.ic.apiTraceWriter, "\n-- response body end --\n\n")
-				// }
 				return err
 			}
 		}
