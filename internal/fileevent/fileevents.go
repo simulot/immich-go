@@ -181,7 +181,7 @@ func (r *Recorder) Report() {
 		AnalysisAssociatedMetadata,
 		AnalysisMissingAssociatedMetadata,
 	} {
-		countAnalysis += int(r.counts[c])
+		countAnalysis += int(atomic.LoadInt64(&r.counts[c]))
 	}
 
 	if countAnalysis > 0 {
