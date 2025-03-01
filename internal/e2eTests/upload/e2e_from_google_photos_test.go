@@ -31,6 +31,7 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 		"--on-server-errors=continue",
 		"--log-level=DEBUG",
 		"--api-trace",
+		"--api-trace",
 		// "--no-ui",
 		// e2e.MyEnv("IMMICHGO_TESTFILES") + "/full_takeout/takeout-20240816T155855Z-*.zip",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout-20240123T180723Z-001.zip",
