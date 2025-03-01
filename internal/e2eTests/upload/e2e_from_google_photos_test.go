@@ -28,11 +28,12 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
-		"--on-server-errors=stop",
+		"--on-server-errors=continue",
 		"--log-level=DEBUG",
 		"--api-trace",
 		// "--no-ui",
-		e2e.MyEnv("IMMICHGO_TESTFILES") + "/full_takeout/takeout-20240816T155855Z-*.zip",
+		// e2e.MyEnv("IMMICHGO_TESTFILES") + "/full_takeout/takeout-20240816T155855Z-*.zip",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/zip/takeout-20240123T180723Z-001.zip",
 	})
 
 	// let's start
