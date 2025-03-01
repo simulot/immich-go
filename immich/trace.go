@@ -101,7 +101,7 @@ func setTraceRequest() serverRequestOption {
 			}
 		}
 		if req.Header.Get("Content-Type") == "application/json" {
-			fmt.Fprintln(sc.ic.apiTraceWriter, "-- request JSON Body --")
+			fmt.Fprintln(sc.ic.apiTraceWriter, "-- body start --")
 			if req.Body != nil {
 				req.Body = hijackBody(req.Body, sc.ic.apiTraceWriter)
 			}
