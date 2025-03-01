@@ -224,7 +224,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	case assets.GroupByNone:
 	}
 
-	return fmt.Errorf("fake error")
+	return nil
 }
 
 func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
