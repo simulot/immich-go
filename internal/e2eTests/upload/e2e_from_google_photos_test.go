@@ -19,7 +19,7 @@ func TestResetImmich(t *testing.T) {
 
 func TestUploadFromGooglePhotos(t *testing.T) {
 	e2e.InitMyEnv()
-	e2e.ResetImmich(t)
+	// e2e.ResetImmich(t)
 
 	ctx := context.Background()
 
@@ -28,9 +28,11 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--on-server-errors=stop",
 		"--log-level=DEBUG",
+		"--api-trace",
 		// "--no-ui",
-		e2e.MyEnv("IMMICHGO_TESTFILES") + "/demo takeout/Takeout",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/full_takeout/takeout-20240816T155855Z-*.zip",
 	})
 
 	// let's start
