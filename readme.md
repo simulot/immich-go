@@ -279,6 +279,7 @@ The **upload** command need the following options to manage the connection with 
 | --time-zone          |                   | Override the system time zone (example: Europe/Paris)                                                                              |
 | --session-tag        |      `FALSE`      | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                   |
 | --tag strings        |                   | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1') |
+| --on-server-errors | `stop` | Action to take on server errors, (stop,continue,\<n\> to stop after n errors) |
 
 
 ## **--client-timeout**

@@ -13,6 +13,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/bulktags"
+	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -146,8 +147,17 @@ assetLoop:
 			err = upCmd.handleGroup(ctx, g)
 			if err != nil {
 				upCmd.app.Log().Error(err.Error())
-				errorCount++
-				if errorCount > 5 {
+
+				switch {
+				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
+					return nil
+				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
+					return err
+
+				default:
+					errorCount++
+				}
+				if errorCount > int(upCmd.app.Client().OnServerErrors) {
 					err := errors.New("too many errors, aborting")
 					upCmd.app.Log().Error(err.Error())
 					return err
