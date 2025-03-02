@@ -123,7 +123,7 @@ func groupHeicJpgStackJPG(g *assets.Group) *assets.Group {
 
 func (h *HeicJpgFlag) Set(value string) error {
 	switch strings.ToLower(value) {
-	case "":
+	case "", "nostack": // nolint: goconst
 		*h = HeicJpgNothing
 	case "keepheic":
 		*h = HeicJpgKeepHeic
@@ -142,7 +142,7 @@ func (h *HeicJpgFlag) Set(value string) error {
 func (h HeicJpgFlag) String() string {
 	switch h {
 	case HeicJpgNothing:
-		return ""
+		return "NoStack" // nolint: goconst
 	case HeicJpgKeepHeic:
 		return "KeepHeic"
 	case HeicJpgKeepJPG:

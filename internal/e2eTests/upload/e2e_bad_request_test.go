@@ -80,6 +80,7 @@ func Test_BadRequest(t *testing.T) {
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
 		"--api-trace",
+		"--log-level=debug",
 		"TEST_DATA/takeout",
 	})
 
@@ -98,6 +99,7 @@ func Test_BadRequest(t *testing.T) {
 		"--api-key=" + e2e.MyEnv("IMMICHGO_ALTERNATE_APIKEY"),
 		"--no-ui",
 		"--api-trace",
+		"--log-level=debug",
 		"TEST_DATA/fixtures",
 	})
 
@@ -114,6 +116,7 @@ func Test_BadRequest(t *testing.T) {
 		"--api-key=" + e2e.MyEnv("IMMICHGO_ALTERNATE_APIKEY"),
 		"--no-ui",
 		"--api-trace",
+		"--log-level=debug",
 		"TEST_DATA/takeout",
 	})
 	err = c.ExecuteContext(ctx)

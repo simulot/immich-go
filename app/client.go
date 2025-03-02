@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/immich"
+	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/spf13/cobra"
 )
@@ -29,6 +30,7 @@ func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, d
 	cmd.PersistentFlags().StringVar(&client.DeviceUUID, "device-uuid", client.DeviceUUID, "Set a device UUID")
 	cmd.PersistentFlags().BoolVar(&client.DryRun, "dry-run", dryRun, "Simulate all actions")
 	cmd.PersistentFlags().StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
+	cmd.PersistentFlags().Var(&client.OnServerErrors, "on-server-errors", "Action to take on server errors, (stop|continue| <n> errors)")
 
 	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, OpenClient, ctx, cmd, app)
 	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, CloseClient, ctx, cmd, app)
@@ -108,18 +110,19 @@ func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) erro
 type Client struct {
 	Server string // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
 	// API                string                 // Immich api endpoint (http://container_ip:3301)
-	APIKey             string                 // API Key
-	APITrace           bool                   // Enable API call traces
-	SkipSSL            bool                   // Skip SSL Verification
-	ClientTimeout      time.Duration          // Set the client request timeout
-	DeviceUUID         string                 // Set a device UUID
-	DryRun             bool                   // Protect the server from changes
-	TimeZone           string                 // Override default TZ
-	TZ                 *time.Location         // Time zone to use
-	APITraceWriter     io.WriteCloser         // API tracer
-	APITraceWriterName string                 // API trace log name
-	Immich             immich.ImmichInterface // Immich client
-	ClientLog          *slog.Logger           // Logger
+	APIKey             string                      // API Key
+	APITrace           bool                        // Enable API call traces
+	SkipSSL            bool                        // Skip SSL Verification
+	ClientTimeout      time.Duration               // Set the client request timeout
+	DeviceUUID         string                      // Set a device UUID
+	DryRun             bool                        // Protect the server from changes
+	TimeZone           string                      // Override default TZ
+	TZ                 *time.Location              // Time zone to use
+	APITraceWriter     io.WriteCloser              // API tracer
+	APITraceWriterName string                      // API trace log name
+	Immich             immich.ImmichInterface      // Immich client
+	ClientLog          *slog.Logger                // Logger
+	OnServerErrors     cliflags.OnServerErrorsFlag // Behavior on server errors
 }
 
 func (client *Client) Initialize(ctx context.Context, app *Application) error {
@@ -184,6 +187,13 @@ func (client *Client) Open(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	about, err := client.Immich.GetAboutInfo(ctx)
+	if err != nil {
+		return err
+	}
+	client.ClientLog.Info("Server information:", "version", about.Version)
+
 	client.ClientLog.Info(fmt.Sprintf("Connected, user: %s", user.Email))
 	if client.DryRun {
 		client.ClientLog.Info("Dry-run mode enabled. No changes will be made to the server.")

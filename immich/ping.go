@@ -70,6 +70,33 @@ func (ic *ImmichClient) GetServerStatistics(ctx context.Context) (ServerStatisti
 	return s, err
 }
 
+// getAboutInfo
+type AboutInfo struct {
+	Version       string `json:"version"`
+	VersionURL    string `json:"versionUrl"`
+	Licensed      bool   `json:"licensed"`
+	Build         string `json:"build"`
+	BuildURL      string `json:"buildUrl"`
+	BuildImage    string `json:"buildImage"`
+	BuildImageURL string `json:"buildImageUrl"`
+	Repository    string `json:"repository"`
+	RepositoryURL string `json:"repositoryUrl"`
+	SourceRef     string `json:"sourceRef"`
+	SourceCommit  string `json:"sourceCommit"`
+	SourceURL     string `json:"sourceUrl"`
+	Nodejs        string `json:"nodejs"`
+	Exiftool      string `json:"exiftool"`
+	Ffmpeg        string `json:"ffmpeg"`
+	Libvips       string `json:"libvips"`
+	Imagemagick   string `json:"imagemagick"`
+}
+
+func (ic *ImmichClient) GetAboutInfo(ctx context.Context) (AboutInfo, error) {
+	var a AboutInfo
+	err := ic.newServerCall(ctx, EndPointGetAboutInfo).do(getRequest("/server/about", setAcceptJSON()), responseJSON(&a))
+	return a, err
+}
+
 // getAssetStatistics
 // Get user's stats
 
