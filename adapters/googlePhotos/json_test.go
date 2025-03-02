@@ -354,6 +354,23 @@ func TestPresentFields(t *testing.T) {
 			title:     "IMG_0186.HEIC",
 			dateTaken: time.Date(2023, 6, 9, 10, 19, 47, 0, time.UTC),
 		},
+		{
+			name: "bulgarian 1",
+			json: `{
+  "title": "Фокус върху един ден"
+}`,
+			isPartner: false,
+			isAlbum:   true,
+			title:     "Фокус върху един ден",
+		},
+		{
+			name: "empty",
+			json: `{
+}`,
+			isPartner: false,
+			isAlbum:   false,
+			title:     "",
+		},
 	}
 
 	for _, c := range tcs {
