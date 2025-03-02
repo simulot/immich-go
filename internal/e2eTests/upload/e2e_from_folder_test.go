@@ -323,3 +323,30 @@ func generateRandomImage(path string) error {
 
 	return nil
 }
+
+// #786 MVIM*.MP4 files should be ignored to avoid upload errors
+func TestDiscardMVIMGFiles(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-folder",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--no-ui",
+		"--into-album=ALBUM",
+		"--log-level=debug",
+		"--api-trace",
+		"--manage-raw-jpeg=KeepRaw",
+		"--manage-burst=stack",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#786 Filter MVIMG files",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
