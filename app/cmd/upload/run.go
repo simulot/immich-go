@@ -64,7 +64,7 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.A
 	}
 	_, err := tcell.NewScreen()
 	if err != nil {
-		upCmd.app.Log().Error("can't initialize the screen for the UI mode. Falling back to no-gui mode")
+		upCmd.app.Log().Warn("can't initialize the screen for the UI mode. Falling back to no-gui mode", "err", err)
 		fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
 		runner = upCmd.runNoUI
 	}
