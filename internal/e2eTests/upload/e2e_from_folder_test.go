@@ -350,3 +350,29 @@ func TestDiscardMVIMGFiles(t *testing.T) {
 		a.Log().Error(err.Error())
 	}
 }
+
+// #784 Duplicate files with different names shouldn't be uploaded and tagged
+func TestDuplicateFilesWithDifferentNames(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-folder",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--no-ui",
+		"--into-album=ALBUM",
+		"--log-level=debug",
+		"--api-trace",
+		"--tag=tag1",
+		"TEST_DATA/takeout",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
