@@ -230,3 +230,27 @@ func TestUploadFromGooglePhotosPeopleTag(t *testing.T) {
 		a.Log().Error(err.Error())
 	}
 }
+
+// #786 MVIM*.MP4 files should be ignored to avoid upload errors
+func TestDiscardMVIMGFilesFromGP(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-google-photos",
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--no-ui",
+		"--log-level=debug",
+		"--api-trace",
+		e2e.MyEnv("IMMICHGO_TESTFILES") + "/#786 Filter MVIMG files",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
