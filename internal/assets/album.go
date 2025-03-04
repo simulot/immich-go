@@ -15,6 +15,15 @@ type Album struct {
 	Assets      *syncset.Set[string] `json:"-"`                     // The assets in the album
 }
 
+func NewAlbum(id string, title string, description string) *Album {
+	return &Album{
+		ID:          id,
+		Title:       title,
+		Description: description,
+		Assets:      syncset.NewSet[string](),
+	}
+}
+
 func (a Album) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("title", a.Title),
@@ -44,15 +53,4 @@ func (a *Album) ContainsAsset(assetID string) bool {
 
 func (a *Album) AssetIDs() []string {
 	return a.Assets.Items()
-}
-
-func NewAlbum(id string, title string, description string, latitude float64, longitude float64) *Album {
-	return &Album{
-		ID:          id,
-		Title:       title,
-		Description: description,
-		Latitude:    latitude,
-		Longitude:   longitude,
-		Assets:      syncset.NewSet[string](),
-	}
 }
