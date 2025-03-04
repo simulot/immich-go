@@ -1,6 +1,6 @@
 module github.com/simulot/immich-go
 
-go 1.23
+go 1.24
 
 require (
 	github.com/gdamore/tcell/v2 v2.8.1
@@ -17,7 +17,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
-	golang.org/x/exp v0.0.0-20250207012021-f9890c6ad9f3
+	golang.org/x/exp v0.0.0-20250228200357-dead58393ab7
 	golang.org/x/sync v0.11.0
 )
 
