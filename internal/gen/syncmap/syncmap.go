@@ -2,7 +2,9 @@ package syncmap
 
 // SyncMap is a thread-safe and type-safe map based on sync.Map.
 
-import "sync"
+import (
+	"sync"
+)
 
 type SyncMap[K comparable, V any] struct {
 	m sync.Map
@@ -114,6 +116,15 @@ func (m *SyncMap[K, V]) Keys() []K {
 	all := make([]K, 0)
 	m.Range(func(key K, value V) bool {
 		all = append(all, key)
+		return true
+	})
+	return all
+}
+
+func (m *SyncMap[K, V]) Values() []V {
+	all := make([]V, 0)
+	m.Range(func(key K, value V) bool {
+		all = append(all, value)
 		return true
 	})
 	return all
