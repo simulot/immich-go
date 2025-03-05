@@ -604,6 +604,10 @@ func TestParseDir_IntoAlbums(t *testing.T) {
 
 	err = la.parseDir(ctx, fsys, "photos", gOut)
 
+	if err != nil {
+		t.Errorf("Error, %v", err)
+	}
+
 	close(gOut)
 	wg.Wait()
 
@@ -622,10 +626,6 @@ func TestParseDir_IntoAlbums(t *testing.T) {
 	if !found {
 		t.Errorf("Expected an asset with album 'dummy', but none were found")
 	}
-
-	if err != nil {
-		t.Errorf("Error, %v", err)
-	}
 }
 
 func TestParseDir_else(t *testing.T) {
@@ -634,10 +634,10 @@ func TestParseDir_else(t *testing.T) {
 		flags          *ImportFolderOptions
 		dir            string
 		fsName         string
-		picasaAlbum    *PicasaAlbum // Using pointer to indicate presence/absence
+		picasaAlbum    *PicasaAlbum
 		expectedAlbums []assets.Album
 	}{
-		{ // a picasa album is found
+		{
 			name: "picasa album found",
 			flags: &ImportFolderOptions{
 				PicasaAlbum:    true,
@@ -651,7 +651,7 @@ func TestParseDir_else(t *testing.T) {
 			},
 			expectedAlbums: []assets.Album{{Title: "Vacation", Description: "Summer 2024"}},
 		},
-		{ // using FolderModeFolder with a regular directory
+		{
 			name: "folder mode - regular directory",
 			flags: &ImportFolderOptions{
 				UsePathAsAlbumName: FolderModeFolder,
@@ -661,7 +661,7 @@ func TestParseDir_else(t *testing.T) {
 			fsName:         "testfs",
 			expectedAlbums: []assets.Album{{Title: "vacation"}},
 		},
-		{ // using FolderModeFolder with the root directory
+		{
 			name: "folder mode - root directory",
 			flags: &ImportFolderOptions{
 				UsePathAsAlbumName: FolderModeFolder,
@@ -671,7 +671,7 @@ func TestParseDir_else(t *testing.T) {
 			fsName:         "testfs",
 			expectedAlbums: []assets.Album{{Title: "testfs"}},
 		},
-		{ // using FolderModePath with a custom seperator
+		{
 			name: "path mode with separator",
 			flags: &ImportFolderOptions{
 				UsePathAsAlbumName:     FolderModePath,
@@ -697,7 +697,6 @@ func TestParseDir_else(t *testing.T) {
 
 			a := &assets.Asset{}
 
-			// Test the else block logic
 			done := false
 			if la.flags.PicasaAlbum {
 				if album, ok := la.picasaAlbums.Load(tc.dir); ok {
@@ -727,7 +726,6 @@ func TestParseDir_else(t *testing.T) {
 				a.Albums = []assets.Album{{Title: Album}}
 			}
 
-			// verify the results
 			if !reflect.DeepEqual(a.Albums, tc.expectedAlbums) {
 				t.Errorf("got albums %+v, want %+v", a.Albums, tc.expectedAlbums)
 			}
@@ -782,6 +780,10 @@ func TestParseDir_AlbumsWithSpaceChar(t *testing.T) {
 	}
 
 	err = la.parseDir(ctx, fsys, "photos", gOut)
+
+	if err != nil {
+		t.Errorf("Error, %v", err)
+	}
 
 	close(gOut)
 	wg.Wait()
@@ -863,6 +865,85 @@ func TestParseDir_DuplicateAlbums(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestParseDir_CombiningAlbumFlags(t *testing.T) {
+	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	ctx := context.Background()
+	logFile := configuration.DefaultLogFile()
+	log := app.Log{
+		File:  logFile,
+		Level: "INFO",
+	}
+	err := log.OpenLogFile()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	recorder := fileevent.NewRecorder(log.Logger)
+
+	gOut := make(chan *assets.Group)
+	var receivedGroups []*assets.Group
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for group := range gOut {
+			receivedGroups = append(receivedGroups, group)
+		}
+	}()
+
+	fsys := newInMemFS("MemFS", ic).
+		addFile("root_01.jpg", t0).
+		addFile("photos/photo_01.jpg", t0).
+		addFile("photos/photo_01.json", t0).
+		addFile("photos/summer/photo_02.jpg", t0)
+
+	flags := &ImportFolderOptions{
+		UsePathAsAlbumName: FolderModeNone,
+		InfoCollector:      ic,
+		SupportedMedia:     filetypes.DefaultSupportedMedia,
+		ImportIntoAlbum:    []string{"album1"},
+		ImportIntoAlbums:   []string{"albums1"},
+	}
+	la, err := NewLocalFiles(ctx, recorder, flags, fsys)
+	if err != nil {
+		t.Errorf("Error, %v", err)
+		return
+	}
+
+	err = la.parseDir(ctx, fsys, "photos", gOut)
+
+	if err != nil {
+		t.Errorf("Error, %v", err)
+	}
+	close(gOut)
+	wg.Wait()
+
+	found_albumFlag := false
+	found_albumsFlag := false
+	for _, group := range receivedGroups {
+		for _, asset := range group.Assets {
+			for _, album := range asset.Albums {
+				if album.Title == "album1" {
+					found_albumFlag = true
+				}
+				if album.Title == "albums1" {
+					found_albumsFlag = true
+				}
+			}
+		}
+	}
+
+	if !found_albumFlag {
+		t.Errorf("Expected an asset with album 'album1' from ImportIntAlbum, recieved none.")
+	}
+	if !found_albumsFlag {
+		t.Errorf("Expected an asset with album 'albums1' from ImportIntoAlbums, recieved none.")
+	}
+
 }
 
 func TestNewLocalFiles_ConflictingAlbumFlags(t *testing.T) {
