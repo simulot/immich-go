@@ -341,16 +341,12 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 			// Manage albums
 			if len(la.flags.ImportIntoAlbum) > 0 || len(la.flags.ImportIntoAlbums) > 0 {
-				length := len(la.flags.ImportIntoAlbum) + len(la.flags.ImportIntoAlbums)
-				a.Albums = make([]assets.Album, length)
-				i := 0
-				for _, albumTitle := range la.flags.ImportIntoAlbum {
-					a.Albums[i] = assets.Album{Title: strings.TrimSpace(albumTitle)}
-					i++
-				}
-				for _, albumTitle := range la.flags.ImportIntoAlbums {
-					a.Albums[i] = assets.Album{Title: strings.TrimSpace(albumTitle)}
-					i++
+
+				albumsSet := mergeAlbumFlags(la.flags.ImportIntoAlbum, la.flags.ImportIntoAlbums)
+				a.Albums = make([]assets.Album, len(albumsSet))
+
+				for i, albumTitle := range albumsSet {
+					a.Albums[i] = assets.Album{Title: albumTitle}
 				}
 			} else {
 				done := false
@@ -384,15 +380,6 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				}
 			}
 
-			if len(la.flags.ImportIntoAlbums) != 0 {
-				albumNames := []assets.Album{}
-				for i := 0; i < len(la.flags.ImportIntoAlbums); i++ {
-					albumNames = append(albumNames, assets.Album{Title: strings.TrimSpace(la.flags.ImportIntoAlbums[i])})
-				}
-
-				a.Albums = append(a.Albums, albumNames...)
-			}
-
 			if la.flags.SessionTag {
 				a.AddTag(la.flags.session)
 			}
@@ -413,6 +400,26 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 	}
 	return nil
+}
+
+func mergeAlbumFlags(albumFlag []string, albumsFlag []string) []string {
+
+	albums := make(map[string]bool)
+
+	for _, album := range albumFlag {
+		albums[strings.TrimSpace(album)] = true
+	}
+	for _, album := range albumsFlag {
+		albums[strings.TrimSpace(album)] = true
+	}
+
+	albumsArray := make([]string, len(albums))
+	i := 0
+	for key := range albums {
+		albumsArray[i] = key
+		i++
+	}
+	return albumsArray
 }
 
 func checkExistSideCar(fsys fs.FS, name string, ext string) (string, error) {
