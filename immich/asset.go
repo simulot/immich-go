@@ -118,6 +118,12 @@ func formatDuration(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
 }
 
+const (
+	StatusCreated   = "created"
+	StatusReplaced  = "replaced"
+	StatusDuplicate = "duplicate"
+)
+
 func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (AssetResponse, error) {
 	return ic.uploadAsset(ctx, la, EndPointAssetUpload, "")
 }

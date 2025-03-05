@@ -13,6 +13,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/bulktags"
+	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -63,7 +64,7 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.A
 	}
 	_, err := tcell.NewScreen()
 	if err != nil {
-		upCmd.app.Log().Error("can't initialize the screen for the UI mode. Falling back to no-gui mode")
+		upCmd.app.Log().Warn("can't initialize the screen for the UI mode. Falling back to no-gui mode", "err", err)
 		fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
 		runner = upCmd.runNoUI
 	}
@@ -109,6 +110,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 		default:
 			received++
 			list = append(list, a)
+			upCmd.app.Log().Debug("Immich asset:", "ID", a.ID, "FileName", a.OriginalFileName, "Capture date", a.ExifInfo.DateTimeOriginal, "CheckSum", a.Checksum, "FileSize", a.ExifInfo.FileSizeInByte, "DeviceAssetID", a.DeviceAssetID, "OwnerID", a.OwnerID)
 			if updateFn != nil {
 				updateFn(received, totalOnImmich)
 			}
@@ -131,6 +133,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 
 func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
 	var err error
+	errorCount := 0
 assetLoop:
 	for {
 		select {
@@ -143,7 +146,21 @@ assetLoop:
 			}
 			err = upCmd.handleGroup(ctx, g)
 			if err != nil {
-				return err
+				upCmd.app.Log().Error(err.Error())
+
+				switch {
+				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
+					// nop
+				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
+					return err
+				default:
+					errorCount++
+					if errorCount >= int(upCmd.app.Client().OnServerErrors) {
+						err := errors.New("too many errors, aborting")
+						upCmd.app.Log().Error(err.Error())
+						return err
+					}
+				}
 			}
 		}
 	}
@@ -215,6 +232,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
+	var status string
 	advice, err := upCmd.AssetIndex.ShouldUpload(a)
 	if err != nil {
 		return err
@@ -222,7 +240,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
-		err = upCmd.uploadAsset(ctx, a)
+		status, err = upCmd.uploadAsset(ctx, a)
 		if err != nil {
 			return err
 		}
@@ -231,7 +249,9 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		if len(a.Albums) > 0 {
 			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		}
-		upCmd.manageAssetTags(ctx, a)
+		if status != immich.StatusDuplicate {
+			upCmd.manageAssetTags(ctx, a)
+		}
 		return nil
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 
@@ -244,7 +264,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		}
 
 		// Upload the superior asset
-		err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a)
+		status, err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a)
 		if err != nil {
 			return err
 		}
@@ -255,7 +275,9 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			upCmd.manageAssetAlbums(ctx, a.File, advice.ServerAsset.ID, a.Albums)
 		}
 
-		upCmd.manageAssetTags(ctx, a)
+		if status != immich.StatusDuplicate {
+			upCmd.manageAssetTags(ctx, a)
+		}
 		return err
 
 	case SameOnServer:
@@ -279,12 +301,13 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 
 // uploadAsset uploads the asset to the server.
 // set the server's asset ID to the asset.
-func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
+// return the duplicate condition and error.
+func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, error) {
 	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
-		return err // Must signal the error to the caller
+		return "", err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
@@ -293,7 +316,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 	}
 	a.ID = ar.ID
 
-	if a.FromApplication != nil {
+	if a.FromApplication != nil && ar.Status != immich.StatusDuplicate {
 		// metadata from application (immich or google photos) are forced.
 		// if a.Description != "" || (a.Latitude != 0 && a.Longitude != 0) || a.Rating != 0 || !a.CaptureDate.IsZero() {
 		a.UseMetadata(a.FromApplication)
@@ -306,18 +329,18 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 		})
 		if err != nil {
 			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
-			return err
+			return "", err
 		}
 	}
-	return nil
+	return ar.Status, nil
 }
 
-func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset) error {
+func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset) (string, error) {
 	defer upCmd.app.Log().Debug("replaced by", "file", a)
 	ar, err := upCmd.app.Client().Immich.ReplaceAsset(ctx, ID, a)
 	if err != nil {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
-		return err // Must signal the error to the caller
+		return "", err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
@@ -325,7 +348,7 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset
 		a.ID = ID
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File)
 	}
-	return nil
+	return ar.Status, nil
 }
 
 // manageAssetAlbums add the assets to the albums listed.

@@ -626,7 +626,6 @@ func TestParseDir_IntoAlbums(t *testing.T) {
 	if !found {
 		t.Errorf("Expected an asset with album 'dummy', but none were found")
 	}
-
 }
 
 func TestParseDir_else(t *testing.T) {

@@ -56,6 +56,11 @@ func (lw *limitWriter) Close() error {
 	return nil
 }
 
+func hijackBody(body io.ReadCloser, tracer io.Writer) io.ReadCloser {
+	b := io.TeeReader(body, tracer)
+	return &smartBodyCloser{r: b, body: body, w: tracer}
+}
+
 type smartBodyCloser struct {
 	r    io.Reader
 	body io.ReadCloser
@@ -63,7 +68,7 @@ type smartBodyCloser struct {
 }
 
 func (sb *smartBodyCloser) Close() error {
-	fmt.Fprint(sb.w, "-- request body end --\n\n")
+	fmt.Fprint(sb.w, "-- body end --\n\n")
 	return sb.body.Close()
 }
 
@@ -73,6 +78,9 @@ func (sb *smartBodyCloser) Read(b []byte) (int, error) {
 
 func setTraceRequest() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
+		sc.ic.apiTraceLock.Lock()
+		defer sc.ic.apiTraceLock.Unlock()
+		// Trace request
 		seq := sc.ctx.Value(ctxCallSequenceID)
 		fmt.Fprintln(sc.ic.apiTraceWriter, time.Now().Format(time.RFC3339), "QUERY", seq, sc.endPoint, req.Method, req.URL.String())
 		for h, v := range req.Header {
@@ -93,15 +101,13 @@ func setTraceRequest() serverRequestOption {
 			}
 		}
 		if req.Header.Get("Content-Type") == "application/json" {
-			fmt.Fprintln(sc.ic.apiTraceWriter, "-- request JSON Body --")
+			fmt.Fprintln(sc.ic.apiTraceWriter, "-- body start --")
 			if req.Body != nil {
-				// tr := io.TeeReader(req.Body, newLimitWriter(sc.ic.apiTraceWriter, 100))
-				tr := io.TeeReader(req.Body, sc.ic.apiTraceWriter)
-				req.Body = &smartBodyCloser{body: req.Body, r: tr, w: sc.ic.apiTraceWriter}
+				req.Body = hijackBody(req.Body, sc.ic.apiTraceWriter)
 			}
 		} else {
 			if req.Body != nil {
-				fmt.Fprintln(sc.ic.apiTraceWriter, "-- Empty body or binary body not dumped --")
+				fmt.Fprintln(sc.ic.apiTraceWriter, "-- binary body not dumped --")
 			}
 		}
 		return nil

@@ -100,7 +100,7 @@ func (sm SupportedMedia) IsUseLess(name string) bool {
 	}
 
 	// MVIMG* is a Google Motion Photo movie part, not useful
-	if ext == "" && strings.HasPrefix(strings.ToUpper(name), "MVIMG") {
+	if (ext == "" || sm.TypeFromExt(ext) == TypeVideo) && strings.HasPrefix(strings.ToUpper(name), "MVIMG") {
 		return true
 	}
 	return false
