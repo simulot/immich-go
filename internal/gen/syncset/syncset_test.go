@@ -14,14 +14,14 @@ func TestSet(t *testing.T) {
 
 	t.Run("Add increases size and returns false if not present", func(t *testing.T) {
 		s := New[int]()
-		if s.Add(1) {
-			t.Errorf("Expected false on first add, got true")
+		if !s.Add(1) {
+			t.Errorf("Expected true on first add, got false")
 		}
 		if s.Len() != 1 {
 			t.Errorf("Expected len 1, got %d", s.Len())
 		}
-		if !s.Add(1) {
-			t.Errorf("Expected true on adding duplicate, got false")
+		if s.Add(1) {
+			t.Errorf("Expected false on adding duplicate, got true")
 		}
 		if s.Len() != 1 {
 			t.Errorf("Expected len 1, got %d", s.Len())

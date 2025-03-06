@@ -18,9 +18,7 @@ func New[T comparable](items ...T) *Set[T] {
 		m: sync.Map{},
 	}
 	for _, item := range items {
-		if s.Add(item) {
-			s.len++
-		}
+		s.Add(item)
 	}
 	return s
 }
@@ -33,7 +31,7 @@ func (s *Set[T]) Add(item T) bool {
 	if !loaded {
 		s.len++
 	}
-	return loaded
+	return !loaded
 }
 
 // Remove removes an item from the set.
