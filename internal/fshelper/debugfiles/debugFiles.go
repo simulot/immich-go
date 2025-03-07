@@ -1,3 +1,6 @@
+//go:build debugfiles
+// +build debugfiles
+
 package debugfiles
 
 import (
