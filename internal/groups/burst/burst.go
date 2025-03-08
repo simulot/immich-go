@@ -9,7 +9,7 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-const frameInterval = 500 * time.Millisecond
+const frameInterval = 900 * time.Millisecond
 
 // Group groups photos taken within a period of less than 1 second with a digital camera.
 // This addresses photos taken with a digital camera when there isn't any burst indication in the file namee
@@ -22,6 +22,7 @@ const frameInterval = 500 * time.Millisecond
 func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asset, gOut chan<- *assets.Group) {
 	var currentGroup []*assets.Asset
 	var lastTaken time.Time
+	var lastRadical string
 
 	for {
 		select {
@@ -37,26 +38,38 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 
 			// exclude movies, edited or burst images
 			// exclude images without a date taken
-			// exclude images taken more than 500ms apart
+			// exclude images taken more than frameInterval apart
 			ni := a.NameInfo
+
+			d := getAssetCaptureDate(a)
 			dontGroupMe := ni.Type != filetypes.TypeImage ||
-				a.CaptureDate.IsZero() ||
+				d.IsZero() ||
 				ni.Kind == assets.KindBurst ||
-				ni.Kind == assets.KindEdited ||
-				abs(a.CaptureDate.Sub(lastTaken)) > frameInterval
+				ni.Kind == assets.KindEdited
+
+			if ni.Radical != lastRadical && abs(d.Sub(lastTaken)) > frameInterval {
+				dontGroupMe = true
+			}
 
 			if dontGroupMe {
 				if len(currentGroup) > 0 {
 					sendBurstGroup(ctx, out, gOut, currentGroup)
 				}
 				currentGroup = []*assets.Asset{a}
-				lastTaken = a.CaptureDate
 			} else {
 				currentGroup = append(currentGroup, a)
-				lastTaken = a.CaptureDate
 			}
+			lastRadical = ni.Radical
+			lastTaken = d
 		}
 	}
+}
+
+func getAssetCaptureDate(a *assets.Asset) time.Time {
+	if !a.CaptureDate.IsZero() {
+		return a.CaptureDate
+	}
+	return a.FileDate
 }
 
 // abs returns the absolute value of a given integer.
