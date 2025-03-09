@@ -29,7 +29,7 @@ func (s *Set[T]) Add(item T) bool {
 	defer s.lock.Unlock()
 	_, loaded := s.m.LoadOrStore(item, struct{}{})
 	if !loaded {
-		s.len++
+		atomic.AddInt64(&s.len, 1)
 	}
 	return !loaded
 }
@@ -39,7 +39,7 @@ func (s *Set[T]) Remove(item T) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if _, loaded := s.m.LoadAndDelete(item); loaded {
-		s.len--
+		atomic.AddInt64(&s.len, -1)
 	}
 }
 
