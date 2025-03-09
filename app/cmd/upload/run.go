@@ -46,10 +46,9 @@ func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *U
 		app:               app,
 		Mode:              mode,
 		localAssets:       syncset.New[string](),
-		albumsCache:       cache.NewCollectionCache[assets.Album](50),
-		tagsCache:         cache.NewCollectionCache[assets.Tag](50),
 		immichAssetsReady: make(chan struct{}),
 	}
+
 	return upCmd
 }
 
@@ -94,8 +93,7 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 		upCmd.app.Jnl().Log().Info("created tag", "tag", tag.Value)
 		tag.ID = r[0].ID
 	}
-	// _, err := upCmd.app.Client().Immich.TagAssets(ctx, tag.ID, ids) // TODO: heck why TagAssets is not working,  some assets are not tagged
-	_, err := upCmd.app.Client().Immich.BulkTagAssets(ctx, []string{tag.ID}, ids)
+	_, err := upCmd.app.Client().Immich.TagAssets(ctx, tag.ID, ids)
 	if err != nil {
 		upCmd.app.Jnl().Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
 		return tag, err
@@ -105,16 +103,19 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 }
 
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application, fsys []fs.FS) error {
+	upCmd.albumsCache = cache.NewCollectionCache[assets.Album](50, func(album assets.Album, ids []string) (assets.Album, error) {
+		return upCmd.saveAlbum(ctx, album, ids)
+	})
+	upCmd.tagsCache = cache.NewCollectionCache[assets.Tag](50, func(tag assets.Tag, ids []string) (assets.Tag, error) {
+		return upCmd.saveTags(ctx, tag, ids)
+	})
+
 	upCmd.adapter = adapter
 	defer func() {
-		upCmd.albumsCache.Flush(func(album assets.Album, ids []string) (assets.Album, error) {
-			return upCmd.saveAlbum(ctx, album, ids)
-		})
+		upCmd.albumsCache.Close()
 	}()
 	defer func() {
-		upCmd.tagsCache.Flush(func(tag assets.Tag, ids []string) (assets.Tag, error) {
-			return upCmd.saveTags(ctx, tag, ids)
-		})
+		upCmd.tagsCache.Close()
 	}()
 
 	runner := upCmd.runUI
@@ -453,9 +454,7 @@ func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName,
 
 	for _, album := range albums {
 		al := assets.NewAlbum("", album.Title, album.Description)
-		if upCmd.albumsCache.AddAssetsToCollection(al.Title, al, ID, func(al assets.Album, ids []string) (assets.Album, error) {
-			return upCmd.saveAlbum(ctx, al, ids)
-		}) {
+		if upCmd.albumsCache.AddIDToCollection(al.Title, album, ID) {
 			upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, f, "album", al.Title)
 		}
 	}
@@ -471,9 +470,7 @@ func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 		tags[i] = a.Tags[i].Name
 	}
 	for _, t := range a.Tags {
-		if upCmd.tagsCache.AddAssetsToCollection(t.Name, t, a.ID, func(t assets.Tag, ids []string) (assets.Tag, error) {
-			return upCmd.saveTags(ctx, t, ids)
-		}) {
+		if upCmd.tagsCache.AddIDToCollection(t.Name, t, a.ID) {
 			upCmd.app.Jnl().Record(ctx, fileevent.Tagged, a.File, "tag", t.Value)
 		}
 	}
