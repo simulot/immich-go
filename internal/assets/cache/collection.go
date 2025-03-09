@@ -53,18 +53,21 @@ func (cc *CollectionCache[T]) NewCollection(key string, coll T, ids []string) {
 	wg.Wait()
 }
 
-func (cc *CollectionCache[T]) AddIDToCollection(key string, id string) {
+func (cc *CollectionCache[T]) AddIDToCollection(key string, collObj T, id string) bool {
+	added := false
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	cc.chanNewCollection <- func() {
 		defer wg.Done()
 		c, ok := cc.collections.Load(key)
 		if !ok {
-			panic("collection not found: " + key)
+			c = newCollection(collObj, cc.maxCacheSize, cc.saveFn, nil, nil)
+			cc.collections.Store(key, c)
 		}
-		c.addID(id)
+		added = c.addID(id)
 	}
 	wg.Wait()
+	return added
 }
 
 func (cc *CollectionCache[T]) GetCollections() *syncmap.SyncMap[string, *Collection[T]] {
