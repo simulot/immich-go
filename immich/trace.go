@@ -69,6 +69,9 @@ type smartBodyCloser struct {
 
 func (sb *smartBodyCloser) Close() error {
 	fmt.Fprint(sb.w, "-- body end --\n\n")
+	if flusher, ok := sb.w.(interface{ Flush() error }); ok {
+		flusher.Flush()
+	}
 	return sb.body.Close()
 }
 
