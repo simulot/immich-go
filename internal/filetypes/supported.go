@@ -73,6 +73,18 @@ func (sm SupportedMedia) IsIgnoredExt(ext string) bool {
 	return t == ""
 }
 
+// MediaToExtensions defines a map from mediaType to mediaExtensions
+// returns the map with the format map[mediatype] = extensions
+func MediaToExtensions() map[string][]string {
+	reversedMap := make(map[string][]string)
+
+	for ext, mediaType := range DefaultSupportedMedia {
+		reversedMap[mediaType] = append(reversedMap[mediaType], ext)
+	}
+
+	return reversedMap
+}
+
 // rawExtensions defines the supported RAW file extensions
 // https://github.com/immich-app/immich/blob/39b571a95c99cbc4183e5d389e6d682cd8e903d9/server/src/utils/mime-types.ts#L1-L55
 // source: https://en.wikipedia.org/wiki/Raw_image_format
