@@ -15,7 +15,8 @@ type Metadata struct {
 	FileName    string             `json:"fileName,omitempty"`    // File name as presented to users
 	Latitude    float64            `json:"latitude,omitempty"`    // GPS
 	Longitude   float64            `json:"longitude,omitempty"`   // GPS
-	DateTaken   time.Time          `json:"dateTaken,omitempty"`   // Date of exposure
+	FileDate    time.Time          `json:"fileDate,omitzero"`     // Date of the file
+	DateTaken   time.Time          `json:"dateTaken,omitzero"`    // Date of exposure
 	Description string             `json:"description,omitempty"` // Long description
 	Albums      []Album            `json:"albums,omitempty"`      // Used to list albums that contain the file
 	Tags        []Tag              `json:"tags,omitempty"`        // Used to list tags
