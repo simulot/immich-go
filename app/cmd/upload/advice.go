@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"math"
 	"path"
-	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/gen/syncmap"
+	"github.com/simulot/immich-go/internal/gen/syncset"
 )
 
 // - - go:generate stringer -type=AdviceCode
@@ -40,10 +43,102 @@ const (
 	NotOnServer
 )
 
+type immichIndex struct {
+	lock sync.Mutex
+
+	// map of assetID to asset
+	immichAssets *syncmap.SyncMap[string, *assets.Asset]
+
+	// set of uploaded assets during the current session
+	uploadedAssets *syncset.Set[string]
+
+	// map of base name to assetID
+	byName *syncmap.SyncMap[string, []string]
+
+	// map of deviceID to assetID
+	byDeviceID *syncmap.SyncMap[string, string]
+
+	assetNumber int64
+}
+
+func newAssetIndex() *immichIndex {
+	return &immichIndex{
+		immichAssets:   syncmap.New[string, *assets.Asset](),
+		byName:         syncmap.New[string, []string](),
+		byDeviceID:     syncmap.New[string, string](),
+		uploadedAssets: syncset.New[string](),
+	}
+}
+
+// Add adds an asset to the index.
+// returns true if the asset was added, false if it was already present.
+// the returned asset is the existing asset if it was already present.
+func (ii *immichIndex) addImmichAsset(ia *immich.Asset) (*assets.Asset, bool) {
+	ii.lock.Lock()
+	defer ii.lock.Unlock()
+
+	if ia.ID == "" {
+		panic("asset ID is empty")
+	}
+
+	if existing, ok := ii.immichAssets.Load(ia.ID); ok {
+		return existing, false
+	}
+	a := ia.AsAsset()
+	return ii.add(a), true
+}
+
+func (ii *immichIndex) addLocalAsset(ia *assets.Asset) (*assets.Asset, bool) {
+	ii.lock.Lock()
+	defer ii.lock.Unlock()
+
+	if ia.ID == "" {
+		panic("asset ID is empty")
+	}
+	if existing, ok := ii.immichAssets.Load(ia.ID); ok {
+		return existing, false
+	}
+	if !ii.uploadedAssets.Add(ia.ID) {
+		panic("addLocalAsset asset already uploaded")
+	}
+	return ii.add(ia), true
+}
+
+func (ii *immichIndex) getByID(id string) *assets.Asset {
+	a, _ := ii.immichAssets.Load(id)
+	return a
+}
+
+func (ii *immichIndex) len() int {
+	return int(atomic.LoadInt64(&ii.assetNumber))
+}
+
+func (ii *immichIndex) add(a *assets.Asset) *assets.Asset {
+	atomic.AddInt64(&ii.assetNumber, 1)
+	ii.immichAssets.Store(a.ID, a)
+	filename := a.OriginalFileName
+
+	ii.byDeviceID.Store(a.DeviceAssetID(), a.ID)
+	l, _ := ii.byName.Load(filename)
+	l = append(l, a.ID)
+	ii.byName.Store(filename, l)
+	return a
+}
+
+func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *assets.Asset {
+	ii.lock.Lock()
+	defer ii.lock.Unlock()
+
+	ii.byDeviceID.Delete(oldA.DeviceAssetID())         // remove the old AssetID
+	ii.immichAssets.Store(newA.ID, newA)               // Store the new asset
+	ii.byDeviceID.Store(newA.DeviceAssetID(), newA.ID) // Store the new AssetID
+	return newA
+}
+
 type Advice struct {
 	Advice      AdviceCode
 	Message     string
-	ServerAsset *immich.Asset
+	ServerAsset *assets.Asset
 	LocalAsset  *assets.Asset
 }
 
@@ -63,31 +158,31 @@ func formatBytes(s int64) string {
 	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
 }
 
-func (ai *AssetIndex) adviceSameOnServer(sa *immich.Asset) *Advice {
+func (ii *immichIndex) adviceSameOnServer(sa *assets.Asset) *Advice {
 	return &Advice{
 		Advice:      SameOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Message:     fmt.Sprintf("An asset with the same name:%q, date:%q and size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.CaptureDate.Format(time.DateTime), formatBytes(int64(sa.FileSize))),
 		ServerAsset: sa,
 	}
 }
 
-func (ai *AssetIndex) adviceSmallerOnServer(sa *immich.Asset) *Advice {
+func (ii *immichIndex) adviceSmallerOnServer(sa *assets.Asset) *Advice {
 	return &Advice{
 		Advice:      SmallerOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with smaller size:%s exists on the server. Replace it.", sa.OriginalFileName, sa.CaptureDate.Format(time.DateTime), formatBytes(int64(sa.FileSize))),
 		ServerAsset: sa,
 	}
 }
 
-func (ai *AssetIndex) adviceBetterOnServer(sa *immich.Asset) *Advice {
+func (ii *immichIndex) adviceBetterOnServer(sa *assets.Asset) *Advice {
 	return &Advice{
 		Advice:      BetterOnServer,
-		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.ExifInfo.DateTimeOriginal.Format(time.DateTime), formatBytes(sa.ExifInfo.FileSizeInByte)),
+		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q but with bigger size:%s exists on the server. No need to upload.", sa.OriginalFileName, sa.CaptureDate.Format(time.DateTime), formatBytes(int64(sa.FileSize))),
 		ServerAsset: sa,
 	}
 }
 
-func (ai *AssetIndex) adviceNotOnServer() *Advice {
+func (ii *immichIndex) adviceNotOnServer() *Advice {
 	return &Advice{
 		Advice:  NotOnServer,
 		Message: "This a new asset, upload it.",
@@ -103,46 +198,49 @@ func (ai *AssetIndex) adviceNotOnServer() *Advice {
 // la.File.Name() is the full path to the file as it is on the source
 // la.OriginalFileName is the name of the file as it was on the device before it was uploaded to the server
 
-func (ai *AssetIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
-	filename := la.File.Name()
-	DeviceAssetID := fmt.Sprintf("%s-%d", path.Base(filename), la.FileSize)
+func (ii *immichIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
+	filename := path.Base(la.File.Name())
+	DeviceAssetID := fmt.Sprintf("%s-%d", filename, la.FileSize)
 
-	sa := ai.byDeviceAssetID[DeviceAssetID]
-	if sa != nil {
+	id, ok := ii.byDeviceID.Load(DeviceAssetID)
+	if ok {
 		// the same ID exist on the server
-		return ai.adviceSameOnServer(sa), nil
+		sa, ok := ii.immichAssets.Load(id)
+		if ok {
+			return ii.adviceSameOnServer(sa), nil
+		}
 	}
-
-	var l []*immich.Asset
 
 	// check all files with the same name
+	ids, ok := ii.byName.Load(filename)
 
-	n := filepath.Base(filename)
-	l = ai.byName[n]
-	if len(l) == 0 {
-		// n = strings.TrimSuffix(n, filepath.Ext(n))
-		l = ai.byName[n]
-	}
-
-	if len(l) > 0 {
+	if ok && len(ids) > 0 {
 		dateTaken := la.CaptureDate
+		if dateTaken.IsZero() {
+			dateTaken = la.FileDate
+		}
 		size := int64(la.FileSize)
 
-		for _, sa = range l {
-			compareDate := compareDate(dateTaken, sa.ExifInfo.DateTimeOriginal.Time)
-			compareSize := size - sa.ExifInfo.FileSizeInByte
+		for _, id := range ids {
+			sa, ok := ii.immichAssets.Load(id)
+			if !ok {
+				continue
+			}
+
+			compareDate := compareDate(dateTaken, sa.CaptureDate)
+			compareSize := size - int64(sa.FileSize)
 
 			switch {
 			case compareDate == 0 && compareSize == 0:
-				return ai.adviceSameOnServer(sa), nil
+				return ii.adviceSameOnServer(sa), nil
 			case compareDate == 0 && compareSize > 0:
-				return ai.adviceSmallerOnServer(sa), nil
+				return ii.adviceSmallerOnServer(sa), nil
 			case compareDate == 0 && compareSize < 0:
-				return ai.adviceBetterOnServer(sa), nil
+				return ii.adviceBetterOnServer(sa), nil
 			}
 		}
 	}
-	return ai.adviceNotOnServer(), nil
+	return ii.adviceNotOnServer(), nil
 }
 
 func compareDate(d1 time.Time, d2 time.Time) int {

@@ -119,7 +119,7 @@ func TestUploadArchive(t *testing.T) {
 func TestUploadFromFastFotoFolder(t *testing.T) {
 	e2e.InitMyEnv()
 	e2e.ResetImmich(t)
-	tmp, list, cleanup := create_test_epsonfoto_folder(t, 10, 5)
+	tmp, list, cleanup := create_test_epsonfoto_folder(t, 10, 7)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -130,7 +130,10 @@ func TestUploadFromFastFotoFolder(t *testing.T) {
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
+		"--tag=epson/fastfoto",
+		"--into-album=Epson FastFoto",
 		"--log-level=DEBUG",
+		"--api-trace",
 		"--manage-epson-fastfoto",
 		tmp,
 	})

@@ -12,6 +12,14 @@ type Album struct {
 	Longitude   float64 `json:"longitude,omitempty"`   // As found in the metadata
 }
 
+func NewAlbum(id string, title string, description string) Album {
+	return Album{
+		ID:          id,
+		Title:       title,
+		Description: description,
+	}
+}
+
 func (a Album) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("title", a.Title),

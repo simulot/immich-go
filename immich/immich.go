@@ -61,7 +61,7 @@ type ImmichClientInterface interface {
 }
 
 type ImmichAlbumInterface interface {
-	GetAllAlbums(ctx context.Context) ([]assets.Album, error)
+	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
 	CreateAlbum(
 		ctx context.Context,
@@ -71,7 +71,7 @@ type ImmichAlbumInterface interface {
 	) (assets.Album, error)
 
 	// GetAssetAlbums get all albums that an asset belongs to
-	GetAssetAlbums(ctx context.Context, assetID string) ([]assets.Album, error)
+	GetAssetAlbums(ctx context.Context, assetID string) ([]AlbumSimplified, error)
 	DeleteAlbum(ctx context.Context, id string) error
 }
 type ImmichTagInterface interface {

@@ -115,9 +115,9 @@ func (ic *ImmichClient) prepareCallValues(la *assets.Asset, s fs.FileInfo, ext, 
 	if !la.CaptureDate.IsZero() {
 		callValues["fileCreatedAt"] = la.CaptureDate.Format(TimeFormat)
 	} else {
-		callValues["fileCreatedAt"] = s.ModTime().Format(TimeFormat)
+		callValues["fileCreatedAt"] = s.ModTime().UTC().Format(TimeFormat)
 	}
-	callValues["fileModifiedAt"] = s.ModTime().Format(TimeFormat)
+	callValues["fileModifiedAt"] = s.ModTime().UTC().Format(TimeFormat)
 	callValues["isFavorite"] = myBool(la.Favorite).String()
 	callValues["fileExtension"] = ext
 	callValues["duration"] = formatDuration(0)

@@ -19,7 +19,7 @@ func TestResetImmich(t *testing.T) {
 
 func TestUploadFromGooglePhotos(t *testing.T) {
 	e2e.InitMyEnv()
-	// e2e.ResetImmich(t)
+	e2e.ResetImmich(t)
 
 	ctx := context.Background()
 
@@ -42,6 +42,7 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
 	}
+	e2e.CheckResults(t, nil, false, a.Jnl())
 }
 
 func TestUploadFromGooglePhotosZipped(t *testing.T) {
@@ -68,6 +69,7 @@ func TestUploadFromGooglePhotosZipped(t *testing.T) {
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
 	}
+	e2e.CheckResults(t, nil, false, a.Jnl())
 }
 
 func TestUploadFromGooglePhotosNoStackZipped(t *testing.T) {

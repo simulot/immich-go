@@ -101,21 +101,17 @@ func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *asse
 	}
 	for _, album := range albums {
 		for _, albumName := range f.flags.Albums {
-			if album.Title == albumName {
+			if album.AlbumName == albumName {
 				al, err := f.flags.client.Immich.GetAlbumInfo(ctx, album.ID, false)
 				if err != nil {
 					return f.logError(err)
 				}
 				for _, a := range al.Assets {
 					if _, ok := assets[a.ID]; !ok {
-						a.Albums = append(a.Albums, immich.AlbumSimplified{
-							AlbumName: album.Title,
-						})
+						a.Albums = append(a.Albums, album)
 						assets[a.ID] = a
 					} else {
-						assets[a.ID].Albums = append(assets[a.ID].Albums, immich.AlbumSimplified{
-							AlbumName: album.Title,
-						})
+						assets[a.ID].Albums = append(assets[a.ID].Albums, album)
 					}
 				}
 			}
@@ -141,7 +137,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		return nil
 	}
 
-	albums := immich.AlbumsFromAlbumSimplified(a.Albums)
+	albums := a.Albums
 
 	if f.mustFetchAlbums && len(albums) == 0 {
 		albums, err = f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
@@ -151,10 +147,10 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 	}
 	if len(f.flags.Albums) > 0 && len(albums) > 0 {
 		keepMe := false
-		newAlbumList := []assets.Album{}
+		newAlbumList := []immich.AlbumSimplified{}
 		for _, album := range f.flags.Albums {
 			for _, aAlbum := range albums {
-				if album == aAlbum.Title {
+				if album == aAlbum.AlbumName {
 					keepMe = true
 					newAlbumList = append(newAlbumList, aAlbum)
 				}
@@ -179,6 +175,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 
 	asset.FromApplication = &assets.Metadata{
 		FileName:    a.OriginalFileName,
+		FileDate:    a.FileModifiedAt.Time,
 		Latitude:    a.ExifInfo.Latitude,
 		Longitude:   a.ExifInfo.Longitude,
 		Description: a.ExifInfo.Description,
@@ -187,7 +184,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		Archived:    a.IsArchived,
 		Favorited:   a.IsFavorite,
 		Rating:      byte(a.Rating),
-		Albums:      albums,
+		Albums:      immich.AlbumsFromAlbumSimplified(albums),
 		Tags:        asset.Tags,
 	}
 

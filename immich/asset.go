@@ -54,8 +54,9 @@ func (ia Asset) AsAsset() *assets.Asset {
 		Latitude:         ia.ExifInfo.Latitude,
 		Longitude:        ia.ExifInfo.Longitude,
 		File:             fshelper.FSName(nil, ia.OriginalFileName),
+		FileSize:         int(ia.ExifInfo.FileSizeInByte),
+		Checksum:         ia.Checksum,
 	}
-	a.FileSize = int(ia.ExifInfo.FileSizeInByte)
 	for _, album := range ia.Albums {
 		a.Albums = append(a.Albums, assets.Album{
 			Title:       album.AlbumName,
