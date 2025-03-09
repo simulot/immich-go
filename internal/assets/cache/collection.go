@@ -11,21 +11,29 @@ type saveFn[T any] func(coll T, ids []string) (T, error)
 
 type CollectionCache[T comparable] struct {
 	maxCacheSize int
-	collections  *syncmap.SyncMap[string, *collection[T]] // collection of Collections
+	collections  *syncmap.SyncMap[string, *Collection[T]] // collection of Collections
 }
 
-type collection[T comparable] struct {
+type Collection[T comparable] struct {
 	lock       sync.RWMutex
 	collection T
 	items      *syncset.Set[string]
 	newItems   *syncset.Set[string]
 }
 
+func (c *Collection[T]) Items() []string {
+	return c.items.Items()
+}
+
+func (c *Collection[T]) NewItems() []string {
+	return c.newItems.Items()
+}
+
 // NewCollectionCache creates a new collection cache with the given max cache size.
 func NewCollectionCache[T comparable](maxCacheSize int) *CollectionCache[T] {
 	return &CollectionCache[T]{
 		maxCacheSize: maxCacheSize,
-		collections:  syncmap.New[string, *collection[T]](),
+		collections:  syncmap.New[string, *Collection[T]](),
 	}
 }
 
@@ -34,25 +42,39 @@ func NewCollectionCache[T comparable](maxCacheSize int) *CollectionCache[T] {
 func (cc *CollectionCache[T]) NewCollection(key string, coll T, ids []string) {
 	c, ok := cc.collections.Load(key)
 	if !ok {
-		c = &collection[T]{
+		c = &Collection[T]{
 			collection: coll,
 			items:      syncset.New(ids...),
 			newItems:   syncset.New[string](),
 		}
 		cc.collections.Store(key, c)
 	}
-
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	for _, id := range ids {
 		c.items.Add(id)
 	}
 }
 
+func (cc *CollectionCache[T]) GetCollections() *syncmap.SyncMap[string, *Collection[T]] {
+	return cc.collections
+}
+
+func (cc *CollectionCache[T]) GetCollection(key string) (T, bool) {
+	c, ok := cc.collections.Load(key)
+	if !ok {
+		var zero T
+		return zero, false
+	}
+	return c.collection, true
+}
+
 func (cc *CollectionCache[T]) AddAssetsToCollection(key string, coll T, id string, saveFn saveFn[T]) bool {
 	c, ok := cc.collections.Load(key)
 	if !ok {
-		c = &collection[T]{
+		c = &Collection[T]{
 			collection: coll,
-			items:      syncset.New[string](),
+			items:      syncset.New(id),
 			newItems:   syncset.New(id),
 		}
 		cc.collections.Store(key, c)
@@ -75,7 +97,7 @@ func (cc *CollectionCache[T]) AddAssetsToCollection(key string, coll T, id strin
 }
 
 func (cc *CollectionCache[T]) Flush(saveFn saveFn[T]) {
-	cc.collections.Range(func(key string, c *collection[T]) bool {
+	cc.collections.Range(func(key string, c *Collection[T]) bool {
 		if c.newItems.Len() > 0 {
 			c.lock.Lock()
 			defer c.lock.Unlock()
