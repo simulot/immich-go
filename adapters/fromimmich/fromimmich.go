@@ -175,6 +175,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 
 	asset.FromApplication = &assets.Metadata{
 		FileName:    a.OriginalFileName,
+		FileDate:    a.FileModifiedAt.Time,
 		Latitude:    a.ExifInfo.Latitude,
 		Longitude:   a.ExifInfo.Longitude,
 		Description: a.ExifInfo.Description,
