@@ -3,6 +3,7 @@ package e2e
 import (
 	"io/fs"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -26,6 +27,15 @@ func ExtensionFilter(seq map[string]FileInfo, ext []string) map[string]FileInfo 
 				break
 			}
 		}
+	}
+	return r
+}
+
+func BaseNameFilter(seq map[string]FileInfo) map[string]FileInfo {
+	r := map[string]FileInfo{}
+	for k, v := range seq {
+		k = path.Base(k)
+		r[k] = v
 	}
 	return r
 }
