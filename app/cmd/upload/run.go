@@ -12,11 +12,12 @@ import (
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/bulktags"
+	"github.com/simulot/immich-go/internal/assets/cache"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/gen/syncset"
 )
 
 type UpCmd struct {
@@ -24,25 +25,30 @@ type UpCmd struct {
 	*UploadOptions
 	app *app.Application
 
-	AssetIndex       *AssetIndex     // List of assets present on the server
-	deleteServerList []*immich.Asset // List of server assets to remove
+	assetIndex        *immichIndex         // List of assets present on the server
+	localAssets       *syncset.Set[string] // List of assets present on the local input by name+size
+	immichAssetsReady chan struct{}        // Signal that the asset index is ready
+	deleteServerList  []*immich.Asset      // List of server assets to remove
 
 	adapter       adapters.Reader
 	DebugCounters bool // Enable CSV action counters per file
 
-	Paths  []string                // Path to explore
-	albums map[string]assets.Album // Albums by title
-
-	tm *bulktags.BulkTagManager // Bulk tag manager
-
+	Paths          []string // Path to explore
 	takeoutOptions *gp.ImportFlags
+
+	albumsCache *cache.CollectionCache[assets.Album] // List of albums present on the server
+	tagsCache   *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 }
 
 func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *UpCmd {
 	upCmd := &UpCmd{
-		UploadOptions: options,
-		app:           app,
-		Mode:          mode,
+		UploadOptions:     options,
+		app:               app,
+		Mode:              mode,
+		localAssets:       syncset.New[string](),
+		albumsCache:       cache.NewCollectionCache[assets.Album](50),
+		tagsCache:         cache.NewCollectionCache[assets.Tag](50),
+		immichAssetsReady: make(chan struct{}),
 	}
 	return upCmd
 }
@@ -52,12 +58,67 @@ func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
 	return upCmd
 }
 
+func (upCmd *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []string) (assets.Album, error) {
+	if len(ids) == 0 {
+		return album, nil
+	}
+	if album.ID == "" {
+		r, err := upCmd.app.Client().Immich.CreateAlbum(ctx, album.Title, album.Description, ids)
+		if err != nil {
+			upCmd.app.Jnl().Log().Error("failed to create album", "err", err, "album", album.Title)
+			return album, err
+		}
+		upCmd.app.Jnl().Log().Info("created album", "album", album.Title, "assets", len(ids))
+		album.ID = r.ID
+		return album, nil
+	}
+	_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, album.ID, ids)
+	if err != nil {
+		upCmd.app.Jnl().Log().Error("failed to add assets to album", "err", err, "album", album.Title, "assets", len(ids))
+		return album, err
+	}
+	upCmd.app.Jnl().Log().Info("updated album", "album", album.Title, "assets", len(ids))
+	return album, err
+}
+
+func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) (assets.Tag, error) {
+	if len(ids) == 0 {
+		return tag, nil
+	}
+	if tag.ID == "" {
+		r, err := upCmd.app.Client().Immich.UpsertTags(ctx, []string{tag.Value})
+		if err != nil {
+			upCmd.app.Jnl().Log().Error("failed to create tag", "err", err, "tag", tag.Name)
+			return tag, err
+		}
+		upCmd.app.Jnl().Log().Info("created tag", "tag", tag.Value)
+		tag.ID = r[0].ID
+	}
+	// _, err := upCmd.app.Client().Immich.TagAssets(ctx, tag.ID, ids) // TODO: heck why TagAssets is not working,  some assets are not tagged
+	_, err := upCmd.app.Client().Immich.BulkTagAssets(ctx, []string{tag.ID}, ids)
+	if err != nil {
+		upCmd.app.Jnl().Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
+		return tag, err
+	}
+	upCmd.app.Jnl().Log().Info("updated tag", "tag", tag.Value, "assets", len(ids))
+	return tag, err
+}
+
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application, fsys []fs.FS) error {
 	upCmd.adapter = adapter
-	upCmd.tm = bulktags.NewBulkTagManager(ctx, app.Client().Immich, app.Log().Logger)
-	defer upCmd.tm.Close()
+	defer func() {
+		upCmd.albumsCache.Flush(func(album assets.Album, ids []string) (assets.Album, error) {
+			return upCmd.saveAlbum(ctx, album, ids)
+		})
+	}()
+	defer func() {
+		upCmd.tagsCache.Flush(func(tag assets.Tag, ids []string) (assets.Tag, error) {
+			return upCmd.saveTags(ctx, tag, ids)
+		})
+	}()
 
 	runner := upCmd.runUI
+	upCmd.assetIndex = newAssetIndex()
 
 	if upCmd.NoUI {
 		runner = upCmd.runNoUI
@@ -77,23 +138,54 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.A
 }
 
 func (upCmd *UpCmd) getImmichAlbums(ctx context.Context) error {
+	// Get the album list from the server, but without assets.
 	serverAlbums, err := upCmd.app.Client().Immich.GetAllAlbums(ctx)
-	upCmd.albums = map[string]assets.Album{}
 	if err != nil {
 		return fmt.Errorf("can't get the album list from the server: %w", err)
 	}
-	for _, a := range serverAlbums {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			upCmd.albums[a.Title] = a
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-upCmd.immichAssetsReady:
+		// Wait for the server's assets to be ready.
+		for _, a := range serverAlbums {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				// Get the album info from the server, with assets.
+				r, err := upCmd.app.Client().Immich.GetAlbumInfo(ctx, a.ID, false)
+				if err != nil {
+					upCmd.app.Log().Error("can't get the album info from the server", "album", a.AlbumName, "err", err)
+					continue
+				}
+				ids := make([]string, 0, len(r.Assets))
+				for _, aa := range r.Assets {
+					ids = append(ids, aa.ID)
+				}
+
+				album := assets.NewAlbum(a.ID, a.AlbumName, a.Description)
+				upCmd.albumsCache.NewCollection(a.AlbumName, album, ids)
+				upCmd.app.Log().Info("got album from the server", "album", a.AlbumName, "assets", len(r.Assets))
+				upCmd.app.Log().Debug("got album from the server", "album", a.AlbumName, "assets", ids)
+				// assign the album to the assets
+				for _, id := range ids {
+					a := upCmd.assetIndex.getByID(id)
+					if a == nil {
+						upCmd.app.Log().Debug("processing the immich albums: asset not found in index", "id", id)
+						continue
+					}
+					a.Albums = append(a.Albums, album)
+				}
+			}
 		}
 	}
 	return nil
 }
 
 func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) error {
+	defer close(upCmd.immichAssetsReady)
 	statistics, err := upCmd.app.Client().Immich.GetAssetStatistics(ctx)
 	if err != nil {
 		return err
@@ -101,15 +193,13 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	totalOnImmich := statistics.Total
 	received := 0
 
-	var list []*immich.Asset
-
 	err = upCmd.app.Client().Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 			received++
-			list = append(list, a)
+			upCmd.assetIndex.addImmichAsset(a)
 			upCmd.app.Log().Debug("Immich asset:", "ID", a.ID, "FileName", a.OriginalFileName, "Capture date", a.ExifInfo.DateTimeOriginal, "CheckSum", a.Checksum, "FileSize", a.ExifInfo.FileSizeInByte, "DeviceAssetID", a.DeviceAssetID, "OwnerID", a.OwnerID)
 			if updateFn != nil {
 				updateFn(received, totalOnImmich)
@@ -123,11 +213,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	if updateFn != nil {
 		updateFn(totalOnImmich, totalOnImmich)
 	}
-	upCmd.AssetIndex = &AssetIndex{
-		assets: list,
-	}
-	upCmd.app.Log().Info(fmt.Sprintf("Assets on the server: %d", len(list)))
-	upCmd.AssetIndex.ReIndex()
+	upCmd.app.Log().Info(fmt.Sprintf("Assets on the server: %d", upCmd.assetIndex.len()))
 	return nil
 }
 
@@ -232,62 +318,46 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
-	var status string
-	advice, err := upCmd.AssetIndex.ShouldUpload(a)
+	// check if the asset is already processed
+	if !upCmd.localAssets.Add(a.DeviceAssetID()) {
+		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, fshelper.FSName(a.File.FS(), a.OriginalFileName))
+		return nil
+	}
+
+	// var status string
+	advice, err := upCmd.assetIndex.ShouldUpload(a)
 	if err != nil {
 		return err
 	}
 
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
-		status, err = upCmd.uploadAsset(ctx, a)
+		_, err = upCmd.uploadAsset(ctx, a)
 		if err != nil {
 			return err
 		}
 
-		// Manage albums
-		if len(a.Albums) > 0 {
-			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-		}
-		if status != immich.StatusDuplicate {
-			upCmd.manageAssetTags(ctx, a)
-		}
+		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		upCmd.manageAssetTags(ctx, a)
 		return nil
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 
 		// Remember existing asset's albums, if any
-		for _, al := range advice.ServerAsset.Albums {
-			a.Albums = append(a.Albums, assets.Album{
-				Title:       al.AlbumName,
-				Description: al.Description,
-			})
-		}
+		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 		// Upload the superior asset
-		status, err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a)
+		_, err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
 		if err != nil {
 			return err
 		}
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a, "reason", advice.Message)
 
-		// Manage albums
-		if len(a.Albums) > 0 {
-			upCmd.manageAssetAlbums(ctx, a.File, advice.ServerAsset.ID, a.Albums)
-		}
-
-		if status != immich.StatusDuplicate {
-			upCmd.manageAssetTags(ctx, a)
-		}
+		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		upCmd.manageAssetTags(ctx, a)
 		return err
 
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
-		for _, al := range advice.ServerAsset.Albums {
-			a.Albums = append(a.Albums, assets.Album{
-				Title:       al.AlbumName,
-				Description: al.Description,
-			})
-		}
+		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message)
 		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
@@ -310,7 +380,16 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 		return "", err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
+		originalName := "unknown"
+		original := upCmd.assetIndex.getByID(ar.ID)
+		if original != nil {
+			originalName = original.OriginalFileName
+		}
+		if upCmd.assetIndex.uploadedAssets.Contains(ar.ID) {
+			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
+		} else {
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has already this file", "original name", originalName)
+		}
 	} else {
 		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a.File)
 	}
@@ -332,58 +411,70 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 			return "", err
 		}
 	}
+	upCmd.assetIndex.addLocalAsset(a)
 	return ar.Status, nil
 }
 
-func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a *assets.Asset) (string, error) {
-	defer upCmd.app.Log().Debug("replaced by", "file", a)
+func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.Asset) (string, error) {
+	defer upCmd.app.Log().Debug("replaced by", "ID", ID, "file", a)
 	ar, err := upCmd.app.Client().Immich.ReplaceAsset(ctx, ID, a)
 	if err != nil {
+
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 		return "", err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has this file")
+		originalName := "unknown"
+		original := upCmd.assetIndex.getByID(ar.ID)
+		if original != nil {
+			originalName = original.OriginalFileName
+		}
+		if upCmd.assetIndex.uploadedAssets.Contains(ar.ID) {
+			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
+		} else {
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has already this file", "original name", originalName)
+		}
 	} else {
 		a.ID = ID
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File)
+		upCmd.assetIndex.replaceAsset(a, old)
 	}
 	return ar.Status, nil
 }
 
 // manageAssetAlbums add the assets to the albums listed.
 // If an album does not exist, it is created.
+// If the album already has the asset, it is not added.
 // Errors are logged.
 func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName, ID string, albums []assets.Album) {
-	for _, album := range albums {
-		title := album.Title
-		l, exist := upCmd.albums[title]
-		if !exist {
-			newAl, err := upCmd.app.Client().Immich.CreateAlbum(ctx, title, album.Description, []string{ID})
-			if err != nil {
-				upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err)
-			}
-			upCmd.albums[title] = newAl
-			l = newAl
-		} else {
-			_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, l.ID, []string{ID})
-			if err != nil {
-				upCmd.app.Jnl().Record(ctx, fileevent.Error, nil, "error", err)
-				return
-			}
-		}
+	if len(albums) == 0 {
+		return
+	}
 
-		// Log the action
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, f, "Album", title)
+	for _, album := range albums {
+		al := assets.NewAlbum("", album.Title, album.Description)
+		if upCmd.albumsCache.AddAssetsToCollection(al.Title, al, ID, func(al assets.Album, ids []string) (assets.Album, error) {
+			return upCmd.saveAlbum(ctx, al, ids)
+		}) {
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, f, "album", al.Title)
+		}
 	}
 }
 
 func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
-	if len(a.Tags) > 0 {
-		// Get asset's tags
-		for _, t := range a.Tags {
-			upCmd.tm.AddTag(t.Value, a.ID)
-			upCmd.app.Jnl().Record(ctx, fileevent.Tagged, a.File, "tags", t.Name)
+	if len(a.Tags) == 0 {
+		return
+	}
+
+	tags := make([]string, len(a.Tags))
+	for i := range a.Tags {
+		tags[i] = a.Tags[i].Name
+	}
+	for _, t := range a.Tags {
+		if upCmd.tagsCache.AddAssetsToCollection(t.Name, t, a.ID, func(t assets.Tag, ids []string) (assets.Tag, error) {
+			return upCmd.saveTags(ctx, t, ids)
+		}) {
+			upCmd.app.Jnl().Record(ctx, fileevent.Tagged, a.File, "tag", t.Value)
 		}
 	}
 }
