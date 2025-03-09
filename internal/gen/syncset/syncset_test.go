@@ -1,6 +1,7 @@
 package syncset
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -66,6 +67,40 @@ func TestSet(t *testing.T) {
 		})
 		if visited != 3 {
 			t.Errorf("Expected to visit 3 items, got %d", visited)
+		}
+	})
+
+	t.Run("Concurrent access", func(t *testing.T) {
+		s := New[int]()
+		var wg sync.WaitGroup
+		const total = 100
+		for i := 0; i < total; i++ {
+			wg.Add(1)
+			go func(val int) {
+				defer wg.Done()
+				s.Add(val)
+			}(i)
+		}
+		wg.Wait()
+
+		// Verify all items were added
+		if s.Len() != total {
+			t.Errorf("expected %d items, got %d", total, s.Len())
+		}
+
+		// Concurrent remove
+		for i := 0; i < total; i++ {
+			wg.Add(1)
+			go func(val int) {
+				defer wg.Done()
+				s.Remove(val)
+			}(i)
+		}
+		wg.Wait()
+
+		// Ensure all items were removed
+		if s.Len() != 0 {
+			t.Errorf("expected 0 items, got %d", s.Len())
 		}
 	})
 }
