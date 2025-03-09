@@ -420,7 +420,6 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.
 	defer upCmd.app.Log().Debug("replaced by", "ID", ID, "file", a)
 	ar, err := upCmd.app.Client().Immich.ReplaceAsset(ctx, ID, a)
 	if err != nil {
-
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 		return "", err // Must signal the error to the caller
 	}
