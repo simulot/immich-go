@@ -3,6 +3,7 @@ package assets
 import (
 	"fmt"
 	"log/slog"
+	"path"
 	"time"
 
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -25,10 +26,10 @@ import (
 
 type Asset struct {
 	// File system and file name
-	File          fshelper.FSAndName
-	FileDate      time.Time // File creation date
-	ID            string    // Immich ID after upload
-	DeviceAssetID string    // file name on the input (as delivered in the takeout) + file size
+	File     fshelper.FSAndName
+	FileDate time.Time // File creation date
+	ID       string    // Immich ID after upload
+	Checksum string    // Hash of the file as delivered by Immich
 
 	// Common fields
 	OriginalFileName string // File name as delivered to Immich/Google
@@ -105,6 +106,10 @@ func (a *Asset) UseMetadata(md *Metadata) *Metadata {
 	a.MergeAlbums(md.Albums)
 	a.MergeTags(md.Tags)
 	return md
+}
+
+func (a Asset) DeviceAssetID() string {
+	return fmt.Sprintf("%s-%d", path.Base(a.OriginalFileName), a.FileSize)
 }
 
 // LogValue returns a slog.Value representing the LocalAssetFile's properties.
