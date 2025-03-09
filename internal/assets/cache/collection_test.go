@@ -40,9 +40,9 @@ func TestAddItemsByRepeatedNewCollectionCalls(t *testing.T) {
 	cc.NewCollection("key1", "coll1", nil)
 
 	// Adding items by calling NewCollection multiple times
-	cc.AddIDToCollection("key1", "id1")
-	cc.AddIDToCollection("key1", "id2")
-	cc.AddIDToCollection("key1", "id3")
+	cc.AddIDToCollection("key1", "coll1", "id1")
+	cc.AddIDToCollection("key1", "coll1", "id2")
+	cc.AddIDToCollection("key1", "coll1", "id3")
 
 	cc.Close()
 	if !wasCalled {
@@ -65,21 +65,21 @@ func TestMultipleCollectionsExceedingCacheSize(t *testing.T) {
 	cc.NewCollection("key2", "coll2", []string{"id3", "id4"})
 
 	// Exceed cache size by adding more IDs
-	cc.AddIDToCollection("key1", "id5")
+	cc.AddIDToCollection("key1", "coll1", "id5")
 	if wasCalledCount["coll1"] != 0 {
 		t.Errorf("expected saveFn called %d times for coll1, got %d", 0, wasCalledCount["coll1"])
 	}
-	cc.AddIDToCollection("key1", "id6")
+	cc.AddIDToCollection("key1", "coll1", "id6")
 	if wasCalledCount["coll1"] != 1 {
 		t.Errorf("expected saveFn called %d times for coll1, got %d", 1, wasCalledCount["coll1"])
 	}
 
-	cc.AddIDToCollection("key1", "id7")
+	cc.AddIDToCollection("key1", "coll1", "id7")
 	if wasCalledCount["coll1"] != 1 {
 		t.Errorf("expected saveFn called %d times for coll1, got %d", 1, wasCalledCount["coll1"])
 	}
 
-	cc.AddIDToCollection("key2", "id8")
+	cc.AddIDToCollection("key2", "coll2", "id8")
 	if wasCalledCount["coll2"] != 0 {
 		t.Errorf("expected saveFn called %d times for coll2, got %d", 0, wasCalledCount["coll2"])
 	}
@@ -132,7 +132,7 @@ func TestCollectionCacheConcurrentAccess(t *testing.T) {
 		go func(n int) {
 			defer wg.Done()
 			id := fmt.Sprintf("asset%d", n)
-			cc.AddIDToCollection("testKey", id)
+			cc.AddIDToCollection("testKey", "testColl", id)
 		}(i)
 	}
 	wg.Wait()
