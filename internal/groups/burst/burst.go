@@ -37,7 +37,7 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 
 			// exclude movies, edited or burst images
 			// exclude images without a date taken
-			// exclude images taken more than 500ms apart
+			// exclude images taken more than frameInterval ms apart
 			ni := a.NameInfo
 			dontGroupMe := ni.Type != filetypes.TypeImage ||
 				a.CaptureDate.IsZero() ||
