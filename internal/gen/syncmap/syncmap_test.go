@@ -14,8 +14,6 @@ func TestStoreAndLoad(t *testing.T) {
 	v, ok := m.Load("a")
 	if !ok || v != 1 {
 		t.Errorf("expected 1, got %v", v)
-	} else {
-		t.Errorf("value 1 found unexpectedly")
 	}
 }
 
