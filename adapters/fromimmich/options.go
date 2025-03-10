@@ -9,16 +9,17 @@ import (
 )
 
 type FromImmichFlags struct {
-	DateRange     cliflags.DateRange // get assets only within this date range  (fromat: YYYY-MM-DD,YYYY-MM-DD)
-	Albums        []string           // get assets only from those albums
-	Tags          []string           // get assets only with those tags
-	WithArchived  bool               // get archived assets too
-	WithTrashed   bool               // get trashed assets too
-	Favorite      bool               // get only favorite assets
-	MinimalRating int                // get only assets with a rating greater or equal to this value
-	Make          string             // get only assets with this make
-	Model         string             // get only assets with this model
-	client        app.Client         // client to use for the import
+	DateRange      cliflags.DateRange      // get assets only within this date range  (fromat: YYYY-MM-DD,YYYY-MM-DD)
+	Albums         []string                // get assets only from those albums
+	Tags           []string                // get assets only with those tags
+	WithArchived   bool                    // get archived assets too
+	WithTrashed    bool                    // get trashed assets too
+	Favorite       bool                    // get only favorite assets
+	MinimalRating  int                     // get only assets with a rating greater or equal to this value
+	Make           string                  // get only assets with this make
+	Model          string                  // get only assets with this model
+	client         app.Client              // client to use for the import
+	InclusionFlags cliflags.InclusionFlags // controls the file extensions to be included in the import process.
 }
 
 func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -37,4 +38,5 @@ func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.C
 	cmd.Flags().BoolVar(&o.client.APITrace, "from-api-trace", false, "Enable trace of api calls")
 	cmd.Flags().BoolVar(&o.client.SkipSSL, "from-skip-verify-ssl", false, "Skip SSL verification")
 	cmd.Flags().DurationVar(&o.client.ClientTimeout, "from-client-timeout", 5*time.Minute, "Set server calls timeout")
+	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 }
