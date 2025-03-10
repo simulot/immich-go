@@ -211,7 +211,6 @@ func TestStringList_IncludeType_Set(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			err := includeType.Set(tt.str)
-
 			if err != nil {
 				t.Errorf("Expected no error but error is: %v", err)
 			}
