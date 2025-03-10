@@ -30,9 +30,8 @@ func (m UpLoadMode) String() string {
 
 // UploadOptions represents a set of common flags used for filtering assets.
 type UploadOptions struct {
-	// TODO place this option at the top
 	NoUI bool // Disable UI
-
+	SkipProblemAssets bool // Skip assets that cause upload issues
 	Filters []filters.Filter
 }
 
@@ -46,6 +45,7 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	app.AddClientFlags(ctx, cmd, a, false)
 	cmd.TraverseChildren = true
 	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
+	cmd.PersistentFlags().BoolVar(&options.SkipProblemAssets, "skip-problem-assets", false, "Continue uploading when encountering problematic assets (like oversized files)")
 	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)
 
 	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, a, options))

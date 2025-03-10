@@ -52,7 +52,8 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 	switch mtype {
 	case "video", "image":
 	default:
-		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.OriginalFileName))
+		// Check if we're trying to upload something that's not a video or image
+		return ar, fmt.Errorf("unsupported file type: %s", ext)
 	}
 
 	f, err := la.OpenFile()
@@ -104,7 +105,22 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 			do(putRequest("/assets/"+replaceID+"/original", setContextValue(callValues), setAcceptJSON(), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
 	}
 	err = errors.Join(err, errCall)
-	return ar, err
+
+	// In case of error, enhance the error message with file size info
+	if err != nil {
+		// Get file size from the stat call we already made
+		fileSize := s.Size() // Use the file info from the stat call
+		
+		 // Look for "413" in the error message as a simple way to detect this error type
+		errStr := err.Error()
+		if strings.Contains(errStr, "413") || strings.Contains(errStr, "Request Entity Too Large") {
+			return ar, fmt.Errorf("file '%s' size %.2f MB exceeds server limits (413 Request Entity Too Large): %w", 
+				la.OriginalFileName, float64(fileSize)/(1024*1024), err)
+		}
+		return ar, err
+	}
+
+	return ar, nil
 }
 
 func (ic *ImmichClient) prepareCallValues(la *assets.Asset, s fs.FileInfo, ext, mtype string) map[string]string {
