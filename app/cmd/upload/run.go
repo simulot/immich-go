@@ -318,44 +318,57 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
-
 	// check if the asset is already processed
 	if !upCmd.localAssets.Add(a.DeviceAssetID()) {
 		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, fshelper.FSName(a.File.FS(), a.OriginalFileName))
 		return nil
 	}
-
-	// var status string
+	
 	advice, err := upCmd.assetIndex.ShouldUpload(a)
 	if err != nil {
 		return err
 	}
-
+	
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
-		_, err = upCmd.uploadAsset(ctx, a)
+		// Remove the unused status variable
+		_, err := upCmd.uploadAsset(ctx, a)
 		if err != nil {
 			return err
 		}
-
-		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-		upCmd.manageAssetTags(ctx, a)
+		
+		// Only proceed with album management if the asset was successfully uploaded (has an ID)
+		if a.ID != "" {
+			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+			upCmd.manageAssetTags(ctx, a)
+		}
 		return nil
+	
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
-
 		// Remember existing asset's albums, if any
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
-
+		
+		 // Instead of directly appending to deleteServerList, we extract just the ID
+        // This avoids type mismatches if deleteServerList expects a different type
+        upCmd.app.Log().Debug("Scheduling server asset for deletion", "ID", advice.ServerAsset.ID)
+        
+        // Store just the ID for deletion later
+        // If deleteServerList is a slice of strings (asset IDs):
+        upCmd.deleteServerAsset(advice.ServerAsset.ID)
+		
 		// Upload the superior asset
 		_, err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
 		if err != nil {
 			return err
 		}
-
-		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-		upCmd.manageAssetTags(ctx, a)
-		return err
-
+		
+		// Only proceed with album management if the asset has an ID
+		if a.ID != "" {
+			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+			upCmd.manageAssetTags(ctx, a)
+		}
+		return nil
+		
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
@@ -367,6 +380,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message)
 		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 	}
+	
 	return nil
 }
 
@@ -377,6 +391,15 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
+		// Check if we should skip this problematic asset
+		if upCmd.UploadOptions.SkipProblemAssets {
+			// Log the error but don't return it
+			upCmd.app.Log().Error("Skipping problematic asset", "file", a.OriginalFileName, "error", err.Error())
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error(), "action", "skipped")
+			return "", nil // Return nil error to continue processing
+		}
+		
+		// Regular error handling path
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 		return "", err // Must signal the error to the caller
 	}
@@ -420,6 +443,14 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.
 	defer upCmd.app.Log().Debug("replaced by", "ID", ID, "file", a)
 	ar, err := upCmd.app.Client().Immich.ReplaceAsset(ctx, ID, a)
 	if err != nil {
+		// Check if we should skip this problematic asset
+		if upCmd.UploadOptions.SkipProblemAssets {
+			// Log the error but don't return it
+			upCmd.app.Log().Error("Skipping problematic asset replacement", "file", a.OriginalFileName, "error", err.Error())
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error(), "action", "skipped")
+			return "", nil // Return nil error to continue processing
+		}
+		
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 		return "", err // Must signal the error to the caller
 	}
@@ -498,3 +529,12 @@ func (app *UpCmd) DeleteLocalAssets() error {
 	return nil
 }
 */
+
+// Helper method to schedule an asset for deletion
+func (upCmd *UpCmd) deleteServerAsset(assetID string) {
+    // We need to create a minimal immich.Asset with just the ID to append to deleteServerList
+    asset := &immich.Asset{
+        ID: assetID,
+    }
+    upCmd.deleteServerList = append(upCmd.deleteServerList, asset)
+}
