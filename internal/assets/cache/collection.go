@@ -129,11 +129,11 @@ func (c *Collection[T]) addID(id string) bool {
 		added = true
 		c.newItems.Add(id)
 		if c.newItems.Len() >= c.maxCacheSize {
-			var err error
-			c.collection, err = c.saveFn(c.collection, c.newItems.Items())
-			if err == nil {
-				c.newItems = syncset.New[string]()
-			}
+			// err is ignored because it's logged in the saveFn
+			c.collection, _ = c.saveFn(c.collection, c.newItems.Items())
+
+			// a fresh set of assets, even if the save failed, to avoid retrying the same assets
+			c.newItems = syncset.New[string]()
 		}
 	}
 	return added
