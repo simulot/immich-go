@@ -389,7 +389,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 		if upCmd.assetIndex.uploadedAssets.Contains(ar.ID) {
 			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
 		} else {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has already this file", "original name", originalName)
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName)
 		}
 	} else {
 		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a.File)
@@ -432,7 +432,7 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.
 		if upCmd.assetIndex.uploadedAssets.Contains(ar.ID) {
 			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
 		} else {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server has already this file", "original name", originalName)
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName)
 		}
 	} else {
 		a.ID = ID
