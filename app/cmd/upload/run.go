@@ -333,13 +333,17 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
-		_, err = upCmd.uploadAsset(ctx, a)
+		serverStatus, err := upCmd.uploadAsset(ctx, a)
 		if err != nil {
 			return err
 		}
 
-		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-		upCmd.manageAssetTags(ctx, a)
+		if serverStatus != "duplicate" {
+			// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
+			//       there is no mean to go the list of tagged assets for a given tag.
+			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+			upCmd.manageAssetTags(ctx, a)
+		}
 		return nil
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 
@@ -347,13 +351,17 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 		// Upload the superior asset
-		_, err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
+		serverStatus, err := upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
 		if err != nil {
 			return err
 		}
 
-		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-		upCmd.manageAssetTags(ctx, a)
+		if serverStatus != "duplicate" {
+			// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
+			//       there is no mean to go the list of tagged assets for a given tag.
+			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+			upCmd.manageAssetTags(ctx, a)
+		}
 		return err
 
 	case SameOnServer:
