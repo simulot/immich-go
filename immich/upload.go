@@ -2,6 +2,7 @@ package immich
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/fshelper/hash"
 )
 
 const (
@@ -94,11 +96,13 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 		}
 	}()
 
+	checksum, _ := hash.GetSHA1Hash(f)
+
 	var errCall error
 	switch endPoint {
 	case EndPointAssetUpload:
 		errCall = ic.newServerCall(ctx, EndPointAssetUpload).
-			do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+			do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setBody(body), setChecksum(hex.EncodeToString(checksum))), responseJSON(&ar))
 	case EndPointAssetReplace:
 		errCall = ic.newServerCall(ctx, EndPointAssetReplace).
 			do(putRequest("/assets/"+replaceID+"/original", setContextValue(callValues), setAcceptJSON(), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))

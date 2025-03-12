@@ -300,6 +300,13 @@ func setAcceptJSON() serverRequestOption {
 	}
 }
 
+func setChecksum(sum string) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Add("x-immich-checksum", sum)
+		return nil
+	}
+}
+
 func setOctetStream() serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Header.Add("Accept", "application/octet-stream")
