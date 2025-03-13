@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"path"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/fshelper/cachereader"
+	"github.com/simulot/immich-go/internal/fshelper/hash"
 )
 
 /*
@@ -160,4 +162,29 @@ func (a *Asset) MergeTags(t2 []Tag) {
 			a.Tags = append(a.Tags, tag)
 		}
 	}
+}
+
+// GetChecksum returns the checksum of the asset.
+// If the checksum is already set, it returns it. Otherwise, it computes it.
+// Use this method to get the checksum of an asset.
+func (a *Asset) GetChecksum() (string, error) {
+	if a.Checksum != "" {
+		return a.Checksum, nil
+	}
+	if a.File.FS() == nil {
+		return "", errors.New("no file to compute checksum")
+	}
+
+	f, err := a.File.Open()
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	sha1Hash, err := hash.Base64Encode(hash.GetSHA1Hash(f))
+	if err != nil {
+		return "", err
+	}
+	a.Checksum = sha1Hash
+	return a.Checksum, nil
 }

@@ -22,11 +22,12 @@ func (a *Asset) OpenFile() (osfs.OSFS, error) {
 		}
 		debugfiles.TrackOpenFile(f, a.File.FullName())
 		// Create a cache reader from the FS.File
-		cr, err := cachereader.NewCacheReader(a.File.FullName(), f)
+		cr, sha1, err := cachereader.NewCacheReader(a.File.FullName(), f)
 		if err != nil {
 			return nil, err
 		}
 		a.cacheReader = cr
+		a.Checksum = sha1
 	}
 	return a.cacheReader.OpenFile()
 }
