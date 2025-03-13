@@ -98,10 +98,10 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 	switch endPoint {
 	case EndPointAssetUpload:
 		errCall = ic.newServerCall(ctx, EndPointAssetUpload).
-			do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setBody(body)), responseJSON(&ar))
+			do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setImmichChecksum(la), setBody(body)), responseJSON(&ar))
 	case EndPointAssetReplace:
 		errCall = ic.newServerCall(ctx, EndPointAssetReplace).
-			do(putRequest("/assets/"+replaceID+"/original", setContextValue(callValues), setAcceptJSON(), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
+			do(putRequest("/assets/"+replaceID+"/original", setContextValue(callValues), setAcceptJSON(), setImmichChecksum(la), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
 	}
 	err = errors.Join(err, errCall)
 	return ar, err
@@ -109,6 +109,7 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 
 func (ic *ImmichClient) prepareCallValues(la *assets.Asset, s fs.FileInfo, ext, mtype string) map[string]string {
 	callValues := map[string]string{}
+
 	callValues["deviceAssetId"] = fmt.Sprintf("%s-%d", path.Base(la.OriginalFileName), s.Size())
 	callValues["deviceId"] = ic.DeviceUUID
 	callValues["assetType"] = mtype

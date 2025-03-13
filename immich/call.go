@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
@@ -155,8 +156,10 @@ func (sc *serverCall) request(
 	}
 	opts = append(opts, setAPIKey())
 	for _, opt := range opts {
-		if sc.joinError(opt(sc, req)) != nil {
-			return nil
+		if opt != nil {
+			if sc.joinError(opt(sc, req)) != nil {
+				return nil
+			}
 		}
 	}
 	return req
@@ -276,7 +279,9 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 
 	// We have a success
 	for _, opt := range opts {
-		_ = sc.joinError(opt(sc, resp))
+		if opt != nil {
+			_ = sc.joinError(opt(sc, resp))
+		}
 	}
 	if sc.err != nil {
 		return sc.Err(req, resp, nil)
@@ -289,6 +294,16 @@ type serverRequestOption func(sc *serverCall, req *http.Request) error
 func setBody(body io.ReadCloser) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Body = body
+		return nil
+	}
+}
+
+func setImmichChecksum(a *assets.Asset) serverRequestOption {
+	if a.Checksum == "" {
+		return nil
+	}
+	return func(sc *serverCall, req *http.Request) error {
+		req.Header.Set("x-immich-checksum", a.Checksum)
 		return nil
 	}
 }
