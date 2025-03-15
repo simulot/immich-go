@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
+	"github.com/simulot/immich-go/internal/fshelper/hash"
 	"github.com/simulot/immich-go/internal/fshelper/osfs"
 	"github.com/simulot/immich-go/internal/loghelper"
 )
@@ -20,8 +21,12 @@ type CacheReader struct {
 // NewCacheReader creates a new CacheReader from an io.ReadCloser
 // When the reader is an os.File, it will be used directly
 // Otherwise, the content will be copied into a temporary file, and the original reader will be closed
-func NewCacheReader(name string, rc io.ReadCloser) (*CacheReader, error) {
+//
+// The Checksum is computed on the fly
+func NewCacheReader(name string, rc io.ReadCloser) (*CacheReader, string, error) {
 	var err error
+	var sha1Hash string
+
 	c := &CacheReader{}
 	if f, ok := rc.(osfs.OSFS); ok {
 		c.name = f.Name()
@@ -42,22 +47,24 @@ func NewCacheReader(name string, rc io.ReadCloser) (*CacheReader, error) {
 		}
 		c.tmpFile, err = os.CreateTemp(d, "immich-go_*")
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		debugfiles.TrackOpenFile(c.tmpFile, c.tmpFile.Name())
 		c.name = c.tmpFile.Name()
+
 		// be sure to copy the reader content into the temporary file
-		_, err = io.Copy(c.tmpFile, rc)
+		// and compute the SHA1 checksum on the fly
+		sha1Hash, err = hash.Base64Encode(hash.GetSHA1Hash(io.TeeReader(rc, c.tmpFile)))
 		if err != nil {
 			c.tmpFile.Close()
 			_ = os.Remove(c.name)
-			return nil, err
+			return nil, "", err
 		}
 		rc.Close()
 		debugfiles.TrackCloseFile(rc)
 		c.shouldRemove = true
 	}
-	return c, err
+	return c, sha1Hash, err
 }
 
 // OpenFile creates a new file handler based on the temporary file

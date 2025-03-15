@@ -25,7 +25,7 @@ func Test_NewReaderAtOnBuffer(t *testing.T) {
 	}
 
 	b := makeBuffer(0, 4096)
-	cr, err := NewCacheReader("test", io.NopCloser(bytes.NewReader(b)))
+	cr, _, err := NewCacheReader("test", io.NopCloser(bytes.NewReader(b)))
 	if err != nil {
 		t.Fatalf("NewCacheReader() error = %v", err)
 	}
@@ -92,7 +92,7 @@ func Test_NewReaderAtOnFile(t *testing.T) {
 		return
 	}
 
-	cr, err := NewCacheReader("test", f)
+	cr, _, err := NewCacheReader("test", f)
 	if err != nil {
 		t.Fatalf("NewCacheReader() error = %v", err)
 	}
