@@ -39,6 +39,7 @@ type LocalAssetBrowser struct {
 	groupers                []groups.Grouper
 	requiresDateInformation bool                              // true if we need to read the date from the file for the options
 	picasaAlbums            *gen.SyncMap[string, PicasaAlbum] // ap[string]PicasaAlbum
+	icloudMetas             *gen.SyncMap[string, iCloudMeta]
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
@@ -58,6 +59,9 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 
 	if flags.PicasaAlbum {
 		la.picasaAlbums = gen.NewSyncMap[string, PicasaAlbum]() // make(map[string]PicasaAlbum)
+	}
+	if flags.ICloudTakeout {
+		la.icloudMetas = gen.NewSyncMap[string, iCloudMeta]()
 	}
 
 	if flags.InfoCollector == nil {
@@ -140,6 +144,8 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 	for _, entry := range entries {
 		base := entry.Name()
 		name := path.Join(dir, base)
+		ext := filepath.Ext(base)
+
 		if entry.IsDir() {
 			continue
 		}
@@ -154,6 +160,35 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			continue
 		}
 
+		// iCloud albums
+		if la.flags.ICloudTakeout && strings.ToLower(dir) == "albums" && ext == ".csv" {
+			a, err := UseICloudAlbum(la.icloudMetas, fsys, name)
+			if err != nil {
+				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+			} else {
+				la.log.Log().Info("iCloud album detected", "file", fshelper.FSName(fsys, name), "album", a)
+			}
+			continue
+		}
+
+		// iCloud memories
+		if la.flags.ICloudTakeout && strings.ToLower(dir) == "memories" && ext == ".csv" {
+			// ignore
+			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "iCloud memories ignored")
+			continue
+		}
+
+		// iCloud photo details (csv). File name pattern: "Photo Details.csv"
+		if la.flags.ICloudTakeout && strings.HasPrefix(strings.ToLower(base), "photo details") && ext == ".csv" {
+			err := UseICloudPhotoDetails(la.icloudMetas, fsys, name)
+			if err != nil {
+				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+			} else {
+				la.log.Log().Info("iCloud photo details detected", "file", fshelper.FSName(fsys, name))
+			}
+			continue
+		}
+
 		if la.flags.PicasaAlbum && (strings.ToLower(base) == ".picasa.ini" || strings.ToLower(base) == "picasa.ini") {
 			a, err := ReadPicasaIni(fsys, name)
 			if err != nil {
@@ -165,7 +200,6 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			continue
 		}
 
-		ext := filepath.Ext(base)
 		mediaType := la.flags.SupportedMedia.TypeFromExt(ext)
 
 		if mediaType == filetypes.TypeUnknown {
@@ -290,6 +324,16 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 			// Read metadata from the file only id needed (date range or take date from filename)
 			if la.requiresDateInformation {
+				// try to get date from icloud takeout meta
+				if a.CaptureDate.IsZero() && la.flags.ICloudTakeout {
+					meta, ok := la.icloudMetas.Load(a.OriginalFileName)
+					if ok {
+						a.FromApplication = &assets.Metadata{
+							DateTaken: meta.originalCreationDate,
+						}
+						a.CaptureDate = a.FromApplication.DateTaken
+					}
+				}
 				if a.CaptureDate.IsZero() {
 					// no date in XMP, JSON, try reading the metadata
 					f, err := a.OpenFile()
@@ -309,6 +353,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						}
 						f.Close()
 					}
+
 				}
 			}
 
@@ -344,6 +389,12 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				if la.flags.PicasaAlbum {
 					if album, ok := la.picasaAlbums.Load(dir); ok {
 						a.Albums = []assets.Album{{Title: album.Name, Description: album.Description}}
+						done = true
+					}
+				}
+				if la.flags.ICloudTakeout {
+					if meta, ok := la.icloudMetas.Load(a.OriginalFileName); ok {
+						a.Albums = meta.albums
 						done = true
 					}
 				}

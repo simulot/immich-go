@@ -15,6 +15,7 @@ const (
 	TypeImage   = "image"
 	TypeSidecar = "sidecar"
 	TypeUseless = "useless"
+	TypeMeta    = "meta"
 	TypeUnknown = ""
 )
 
@@ -27,6 +28,7 @@ var DefaultSupportedMedia = SupportedMedia{
 	".xmp":  TypeSidecar,
 	".json": TypeSidecar,
 	".mp":   TypeUseless,
+	".csv":  TypeMeta,
 }
 
 func (sm SupportedMedia) TypeFromName(name string) string {

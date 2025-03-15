@@ -79,6 +79,9 @@ type ImportFolderOptions struct {
 	// Use picasa albums
 	PicasaAlbum bool
 
+	// Use icloud takeout metadata (albums & creation date)
+	ICloudTakeout bool
+
 	// local time zone
 	TZ *time.Location
 }
@@ -123,6 +126,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 		cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
 		cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
 		cmd.Flags().BoolVar(&o.PicasaAlbum, "album-picasa", false, "Use Picasa album name found in .picasa.ini file (default: false)")
+		cmd.Flags().BoolVar(&o.ICloudTakeout, "icloud-takeout", false, "Use metadata from icloud takeout (Albums & original creation dates) (default: false)")
 	}
 }
 
