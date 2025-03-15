@@ -27,7 +27,9 @@ func (a *Asset) OpenFile() (osfs.OSFS, error) {
 			return nil, err
 		}
 		a.cacheReader = cr
-		a.Checksum = sha1
+		if sha1 != "" {
+			a.Checksum = sha1
+		}
 	}
 	return a.cacheReader.OpenFile()
 }
