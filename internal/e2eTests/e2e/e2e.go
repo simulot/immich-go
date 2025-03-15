@@ -58,9 +58,8 @@ func ResetImmich(t *testing.T) {
 		DELETE FROM tags CASCADE;
 		`,
 	)
-	b, err := c.CombinedOutput()
+	err := c.Run()
 	if err != nil {
-		t.Log(string(b))
 		t.Fatal(err)
 	}
 }

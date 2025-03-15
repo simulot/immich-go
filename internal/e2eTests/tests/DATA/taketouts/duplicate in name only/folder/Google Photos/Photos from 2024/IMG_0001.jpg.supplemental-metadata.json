@@ -1,0 +1,21 @@
+{
+    "title": "IMG_0001.jpg",
+    "description": "",
+    "creationTime": {
+        "timestamp": "1742026561",
+        "formatted": "Sat, 15 Mar 2025 08:16:01 UTC"
+    },
+    "photoTakenTime": {
+        "timestamp": "1742026561",
+        "formatted": "Sat, 15 Mar 2025 08:16:01 UTC"
+    },
+    "url": "https://photos.google.com/photo/AF1QipMjB5UVZ4V257bEr9MUafTu-bZEyk7WKmQs3TV_",
+    "googlePhotosOrigin": {
+        "mobileUpload": {
+            "deviceFolder": {
+                "localFolderName": ""
+            },
+            "deviceType": "ANDROID_PHONE"
+        }
+    }
+}
