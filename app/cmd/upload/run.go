@@ -319,26 +319,21 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
-	// check if the asset is already processed
-	if !upCmd.localAssets.Add(a.DeviceAssetID()) {
-		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, fshelper.FSName(a.File.FS(), a.OriginalFileName))
-		return nil
-	}
-
-	// var status string
+	// var status stri g
 	advice, err := upCmd.assetIndex.ShouldUpload(a)
 	if err != nil {
 		return err
 	}
 
 	switch advice.Advice {
+
 	case NotOnServer: // Upload and manage albums
 		serverStatus, err := upCmd.uploadAsset(ctx, a)
 		if err != nil {
 			return err
 		}
 
-		if serverStatus != "duplicate" {
+		if serverStatus != immich.StatusDuplicate {
 			// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
 			//       there is no mean to go the list of tagged assets for a given tag.
 			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
@@ -356,13 +351,17 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			return err
 		}
 
-		if serverStatus != "duplicate" {
+		if serverStatus != immich.StatusDuplicate {
 			// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
 			//       there is no mean to go the list of tagged assets for a given tag.
 			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 			upCmd.manageAssetTags(ctx, a)
 		}
 		return err
+
+	case AlreadyProcessed: // SHA1 already processed
+		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", advice.ServerAsset.OriginalFileName)
+		return nil
 
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
@@ -394,7 +393,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 		if original != nil {
 			originalName = original.OriginalFileName
 		}
-		if upCmd.assetIndex.uploadedAssets.Contains(ar.ID) {
+		if a.ID == "" {
 			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
 		} else {
 			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName)
@@ -403,6 +402,9 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a.File)
 	}
 	a.ID = ar.ID
+
+	// // DEBGUG
+	//  if theID, ok := upCmd.assetIndex.byI
 
 	if a.FromApplication != nil && ar.Status != immich.StatusDuplicate {
 		// metadata from application (immich or google photos) are forced.
@@ -437,7 +439,7 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.
 		if original != nil {
 			originalName = original.OriginalFileName
 		}
-		if upCmd.assetIndex.uploadedAssets.Contains(ar.ID) {
+		if a.ID == "" {
 			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
 		} else {
 			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName)
