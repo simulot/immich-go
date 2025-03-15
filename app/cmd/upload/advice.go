@@ -214,6 +214,10 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
 	// check all files with the same name
 	ids, ok := ii.byName.Load(filename)
 
+	if !ok || len(ids) == 0 {
+		ids, ok = ii.byName.Load(la.OriginalFileName)
+	}
+
 	if ok && len(ids) > 0 {
 		dateTaken := la.CaptureDate
 		if dateTaken.IsZero() {
