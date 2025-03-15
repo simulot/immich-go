@@ -31,6 +31,8 @@ func (a AdviceCode) String() string {
 		return "SameOnServer"
 	case NotOnServer:
 		return "NotOnServer"
+	case AlreadyProcessed:
+		return "AlreadyProcessed"
 	}
 	return fmt.Sprintf("advice(%d)", a)
 }
@@ -41,32 +43,33 @@ const (
 	BetterOnServer
 	SameOnServer
 	NotOnServer
+	AlreadyProcessed
 )
 
 type immichIndex struct {
 	lock sync.Mutex
 
-	// map of assetID to asset
+	// map of assetID to asset, local and server ones
 	immichAssets *syncmap.SyncMap[string, *assets.Asset]
 
-	// set of uploaded assets during the current session
-	uploadedAssets *syncset.Set[string]
+	// set of Uploaded Checksums
+	uploadsChecksum *syncset.Set[string]
 
 	// map of base name to assetID
 	byName *syncmap.SyncMap[string, []string]
 
-	// map of deviceID to assetID
-	byDeviceID *syncmap.SyncMap[string, string]
+	// map of SHA1 to assetID
+	byChecksum *syncmap.SyncMap[string, *assets.Asset]
 
 	assetNumber int64
 }
 
 func newAssetIndex() *immichIndex {
 	return &immichIndex{
-		immichAssets:   syncmap.New[string, *assets.Asset](),
-		byName:         syncmap.New[string, []string](),
-		byDeviceID:     syncmap.New[string, string](),
-		uploadedAssets: syncset.New[string](),
+		immichAssets:    syncmap.New[string, *assets.Asset](),
+		byChecksum:      syncmap.New[string, *assets.Asset](),
+		byName:          syncmap.New[string, []string](),
+		uploadsChecksum: syncset.New[string](),
 	}
 }
 
@@ -85,23 +88,27 @@ func (ii *immichIndex) addImmichAsset(ia *immich.Asset) (*assets.Asset, bool) {
 		return existing, false
 	}
 	a := ia.AsAsset()
-	return ii.add(a), true
+	return ii.add(a, false), true
 }
 
 func (ii *immichIndex) addLocalAsset(ia *assets.Asset) (*assets.Asset, bool) {
 	ii.lock.Lock()
 	defer ii.lock.Unlock()
 
-	if ia.ID == "" {
-		panic("asset ID is empty")
-	}
 	if existing, ok := ii.immichAssets.Load(ia.ID); ok {
 		return existing, false
 	}
-	if !ii.uploadedAssets.Add(ia.ID) {
-		panic("addLocalAsset asset already uploaded")
+	if existing, ok := ii.byChecksum.Load(ia.Checksum); ok {
+		return existing, false
 	}
-	return ii.add(ia), true
+	return ii.add(ia, true), true
+}
+
+func (ii *immichIndex) getByChecksum(checksum string) *assets.Asset {
+	if a, ok := ii.byChecksum.Load(checksum); ok {
+		return a
+	}
+	return nil
 }
 
 func (ii *immichIndex) getByID(id string) *assets.Asset {
@@ -113,12 +120,31 @@ func (ii *immichIndex) len() int {
 	return int(atomic.LoadInt64(&ii.assetNumber))
 }
 
-func (ii *immichIndex) add(a *assets.Asset) *assets.Asset {
+func (ii *immichIndex) add(a *assets.Asset, local bool) *assets.Asset {
+	if a.ID == "" {
+		panic("asset ID is empty")
+	}
+	if a.Checksum == "" {
+		panic("asset checksum is empty")
+	}
+
+	if _, ok := ii.byChecksum.Load(a.Checksum); ok {
+		panic("asset checksum already exists")
+	}
+
+	if ii.uploadsChecksum.Contains(a.Checksum) {
+		panic("asset checksum already exists in uploads")
+	}
+
 	atomic.AddInt64(&ii.assetNumber, 1)
 	ii.immichAssets.Store(a.ID, a)
+	ii.byChecksum.Store(a.Checksum, a)
 	filename := a.OriginalFileName
 
-	ii.byDeviceID.Store(a.DeviceAssetID(), a.ID)
+	if local {
+		ii.uploadsChecksum.Add(a.Checksum)
+	}
+
 	l, _ := ii.byName.Load(filename)
 	l = append(l, a.ID)
 	ii.byName.Store(filename, l)
@@ -126,13 +152,28 @@ func (ii *immichIndex) add(a *assets.Asset) *assets.Asset {
 }
 
 func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *assets.Asset {
+	if newA.ID == "" {
+		panic("asset ID is empty")
+	}
+	if newA.Checksum == "" {
+		panic("asset checksum is empty")
+	}
 	ii.lock.Lock()
 	defer ii.lock.Unlock()
+	oldA.Trashed = true
+	ii.immichAssets.Store(newA.ID, newA)     // Store the new asset
+	ii.byChecksum.Store(newA.Checksum, newA) // Store the new SHA1
+	ii.uploadsChecksum.Add(newA.Checksum)
 
-	ii.byDeviceID.Delete(oldA.DeviceAssetID())         // remove the old AssetID
-	ii.immichAssets.Store(newA.ID, newA)               // Store the new asset
-	ii.byDeviceID.Store(newA.DeviceAssetID(), newA.ID) // Store the new AssetID
+	filename := newA.OriginalFileName
+	l, _ := ii.byName.Load(filename)
+	l = append(l, newA.ID)
+	ii.byName.Store(filename, l)
 	return newA
+}
+
+func (ii *immichIndex) isAlreadyProcessed(checksum string) bool {
+	return ii.uploadsChecksum.Contains(checksum)
 }
 
 type Advice struct {
@@ -182,6 +223,14 @@ func (ii *immichIndex) adviceBetterOnServer(sa *assets.Asset) *Advice {
 	}
 }
 
+func (ii *immichIndex) adviceAlreadyProcessed(sa *assets.Asset) *Advice {
+	return &Advice{
+		Advice:      AlreadyProcessed,
+		Message:     fmt.Sprintf("An asset with the same checksum:%q has been already processed. No need to upload.", sa.Checksum),
+		ServerAsset: sa,
+	}
+}
+
 func (ii *immichIndex) adviceNotOnServer() *Advice {
 	return &Advice{
 		Advice:  NotOnServer,
@@ -199,17 +248,19 @@ func (ii *immichIndex) adviceNotOnServer() *Advice {
 // la.OriginalFileName is the name of the file as it was on the device before it was uploaded to the server
 
 func (ii *immichIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
-	filename := path.Base(la.File.Name())
-	DeviceAssetID := fmt.Sprintf("%s-%d", filename, la.FileSize)
-
-	id, ok := ii.byDeviceID.Load(DeviceAssetID)
-	if ok {
-		// the same ID exist on the server
-		sa, ok := ii.immichAssets.Load(id)
-		if ok {
-			return ii.adviceSameOnServer(sa), nil
-		}
+	checksum, err := la.GetChecksum()
+	if err != nil {
+		return nil, err
 	}
+
+	if sa, ok := ii.byChecksum.Load(checksum); ok {
+		if ii.isAlreadyProcessed(checksum) {
+			return ii.adviceAlreadyProcessed(sa), nil
+		}
+		return ii.adviceSameOnServer(sa), nil
+	}
+
+	filename := path.Base(la.File.Name())
 
 	// check all files with the same name
 	ids, ok := ii.byName.Load(filename)
@@ -247,9 +298,9 @@ func compareDate(d1 time.Time, d2 time.Time) int {
 	diff := d1.Sub(d2)
 
 	switch {
-	case diff < -5*time.Minute:
+	case diff < -5*time.Second:
 		return -1
-	case diff >= 5*time.Minute:
+	case diff >= 5*time.Second:
 		return +1
 	}
 	return 0
