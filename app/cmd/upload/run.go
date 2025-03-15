@@ -326,7 +326,6 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	}
 
 	switch advice.Advice {
-
 	case NotOnServer: // Upload and manage albums
 		serverStatus, err := upCmd.uploadAsset(ctx, a)
 		if err != nil {

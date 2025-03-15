@@ -104,13 +104,6 @@ func (ii *immichIndex) addLocalAsset(ia *assets.Asset) (*assets.Asset, bool) {
 	return ii.add(ia, true), true
 }
 
-func (ii *immichIndex) getByChecksum(checksum string) *assets.Asset {
-	if a, ok := ii.byChecksum.Load(checksum); ok {
-		return a
-	}
-	return nil
-}
-
 func (ii *immichIndex) getByID(id string) *assets.Asset {
 	a, _ := ii.immichAssets.Load(id)
 	return a
