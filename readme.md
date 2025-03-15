@@ -356,7 +356,8 @@ The **from-folder** sub-command processes a folder tree to upload photos to the 
 | --album-path-joiner     |                `" / "`                | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')                                                                           |
 | --album-picasa          |                `FALSE`                | Use the Picasa album name found in `.picasa.ini` files                                                                                                                        |
 | --ignore-sidecar-files  |                `FALSE`                | Don't upload sidecar with the photo.                                                                                                                                          |
-| --include-extensions    |                  all                  | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                               |
+| --include-extensions    |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                               |
+| --include-type          |                 `all`                 | Single file type to include. (`VIDEO` or `IMAGE`)                                                                                                                             |
 | --into-album            |                                       | Specify an album to import all files into                                                                                                                                     |
 | --manage-burst          |                                       | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG.  [See option's details](#burst-detection-and-management)                                               |
 | --manage-epson-fastfoto |                `FALSE`                | Manage Epson FastFoto file                                                                                                                                                    |
@@ -393,6 +394,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 | --from-album-name string  |                                       | Only import photos from the specified Google Photos album                                                                                                                  |
 | -a, --include-archived    |                `TRUE`                 | Import archived Google Photos                                                                                                                                              |
 | --include-extensions      |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg, .heic)                                                                                                           |
+| --include-type            |                 `all`                 | Single file type to include. (`VIDEO` or `IMAGE`)                                                                                                                             |
 | -p, --include-partner     |                `TRUE`                 | Import photos from your partner's Google Photos account                                                                                                                    |
 | -t, --include-trashed     |                `FALSE`                | Import photos that are marked as trashed in Google Photos                                                                                                                  |
 | -u, --include-unmatched   |                `FALSE`                | Import photos that do not have a matching JSON file in the takeout                                                                                                         |
@@ -494,6 +496,7 @@ The sub-command **from-immich** processes an Immich server to upload photos to a
 
 | **Parameter**                  | **Default value** | **Description**                                                                      |
 | ------------------------------ | :---------------: | ------------------------------------------------------------------------------------ |
+| --exclude-extensions           |                   | Comma-separated list of extension to exclude. (e.g. .gif,.PM)                        |
 | --from-server                  |                   | Immich server address (e.g http://your-ip:2283 or https://your-domain)               |
 | --from-api-key string          |                   | Immich API Key                                                                       |
 | --from-album                   |                   | Get assets only from those albums, can be used multiple times                        |
@@ -501,6 +504,8 @@ The sub-command **from-immich** processes an Immich server to upload photos to a
 | --from-client-timeout duration |      `5m0s`       | Set server calls timeout                                                             |
 | --from-date-range              |                   | Get assets only within this date range.  [See date range possibilities](#date-range) |
 | --from-skip-verify-ssl         |      `FALSE`      | Skip SSL verification                                                                |
+| --include-extensions           |       `all`       | Comma-separated list of extension to include. (e.g. .jpg, .heic)                     |
+| --include-type                 |       `all`       | Single file type to include. (`VIDEO` or `IMAGE`)                                    |
 
 
 # The **stack** command:
