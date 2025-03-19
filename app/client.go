@@ -123,6 +123,7 @@ type Client struct {
 	Immich             immich.ImmichInterface      // Immich client
 	ClientLog          *slog.Logger                // Logger
 	OnServerErrors     cliflags.OnServerErrorsFlag // Behavior on server errors
+	User               immich.User                 // User info corresponding to the API key
 }
 
 func (client *Client) Initialize(ctx context.Context, app *Application) error {
@@ -187,6 +188,7 @@ func (client *Client) Open(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	client.User = user
 
 	about, err := client.Immich.GetAboutInfo(ctx)
 	if err != nil {
@@ -194,7 +196,7 @@ func (client *Client) Open(ctx context.Context) error {
 	}
 	client.ClientLog.Info("Server information:", "version", about.Version)
 
-	client.ClientLog.Info(fmt.Sprintf("Connected, user: %s", user.Email))
+	client.ClientLog.Info(fmt.Sprintf("Connected, user: %s, ID: %s", user.Email, user.ID))
 	if client.DryRun {
 		client.ClientLog.Info("Dry-run mode enabled. No changes will be made to the server.")
 	}

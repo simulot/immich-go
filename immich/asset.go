@@ -36,7 +36,7 @@ type Asset struct {
 	StackParentID    string            `json:"stackParentId"`
 	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
 	Tags             []TagSimplified   `json:"tags"`
-	// JustUploaded     bool              `json:"-"` // TO REMOVE
+	LibraryID        string            `json:"libraryId,omitempty"`
 }
 
 // NewAssetFromImmich creates an assets.Asset from an immich.Asset.

@@ -195,16 +195,26 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	received := 0
 
 	err = upCmd.app.Client().Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) error {
+		if updateFn != nil {
+			defer func() {
+				updateFn(received, totalOnImmich)
+			}()
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 			received++
+			if a.OwnerID != upCmd.app.Client().User.ID {
+				upCmd.app.Log().Debug("Skipping asset with different owner", "assetOwnerID", a.OwnerID, "clientUserID", upCmd.app.Client().User.ID, "ID", a.ID, "FileName", a.OriginalFileName, "Capture date", a.ExifInfo.DateTimeOriginal, "CheckSum", a.Checksum, "FileSize", a.ExifInfo.FileSizeInByte, "DeviceAssetID", a.DeviceAssetID, "OwnerID", a.OwnerID, "IsTrashed", a.IsTrashed, "IsArchived", a.IsArchived)
+				return nil
+			}
+			if a.LibraryID != "" {
+				upCmd.app.Log().Debug("Skipping asset with external library", "assetLibraryID", a.LibraryID, "ID", a.ID, "FileName", a.OriginalFileName, "Capture date", a.ExifInfo.DateTimeOriginal, "CheckSum", a.Checksum, "FileSize", a.ExifInfo.FileSizeInByte, "DeviceAssetID", a.DeviceAssetID, "OwnerID", a.OwnerID, "IsTrashed", a.IsTrashed, "IsArchived", a.IsArchived)
+				return nil
+			}
 			upCmd.assetIndex.addImmichAsset(a)
 			upCmd.app.Log().Debug("Immich asset:", "ID", a.ID, "FileName", a.OriginalFileName, "Capture date", a.ExifInfo.DateTimeOriginal, "CheckSum", a.Checksum, "FileSize", a.ExifInfo.FileSizeInByte, "DeviceAssetID", a.DeviceAssetID, "OwnerID", a.OwnerID, "IsTrashed", a.IsTrashed, "IsArchived", a.IsArchived)
-			if updateFn != nil {
-				updateFn(received, totalOnImmich)
-			}
 			return nil
 		}
 	})
