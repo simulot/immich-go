@@ -12,14 +12,15 @@ import (
 
 func TestPresentFields(t *testing.T) {
 	tcs := []struct {
-		name      string
-		json      string
-		isPartner bool
-		isAlbum   bool
-		isAsset   bool
-		dateTaken time.Time
-		title     string
-		persons   []string
+		name        string
+		json        string
+		isPartner   bool
+		isAlbum     bool
+		isAsset     bool
+		isFavorited bool
+		dateTaken   time.Time
+		title       string
+		persons     []string
 	}{
 		{
 			name: "new_takeout_album_2025",
@@ -84,6 +85,7 @@ func TestPresentFields(t *testing.T) {
 				  "latitudeSpan": 0.0,
 				  "longitudeSpan": 0.0
 				},
+				 "favorited": true,
 				"url": "https://photos.google.com/photo/AAMKMAKZMAZMKAZMKZMAK",
 				"googlePhotosOrigin": {
 				  "mobileUpload": {
@@ -94,11 +96,12 @@ func TestPresentFields(t *testing.T) {
 				  }
 				}
 			  }`,
-			isPartner: false,
-			isAlbum:   false,
-			isAsset:   true,
-			dateTaken: time.Unix(1695394176, 0),
-			title:     "title",
+			isPartner:   false,
+			isAlbum:     false,
+			isAsset:     true,
+			isFavorited: true,
+			dateTaken:   time.Unix(1695394176, 0),
+			title:       "title",
 		},
 		{
 			name: "old albumJson issue #212",
@@ -392,6 +395,9 @@ func TestPresentFields(t *testing.T) {
 			}
 			if !c.dateTaken.IsZero() && !c.dateTaken.Equal(md.PhotoTakenTime.Time()) {
 				t.Errorf("expected dateTaken to be %s, got %s", c.dateTaken, md.PhotoTakenTime.Time())
+			}
+			if c.isFavorited != md.Favorited {
+				t.Errorf("expected Favorited to be %t, got %t", c.isFavorited, md.Favorited)
 			}
 			if c.title != md.Title {
 				t.Errorf("expected Title to be %s, got %s", c.title, md.Title)
