@@ -30,7 +30,7 @@ import (
 	"github.com/simulot/immich-go/internal/worker"
 )
 
-const icloudMetadataExt = ".csv'"
+const icloudMetadataExt = ".csv"
 
 type LocalAssetBrowser struct {
 	fsyss                   []fs.FS
