@@ -11,36 +11,6 @@
 - [PayPal Donation](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
 
-##  **:warning: BREAKING CHANGES** Upgrading from `immich-go` 0.22 and earlier
-
-`Immich-go` 0.23 and after adopts the double dashes `--option` Linux convention for command line options. Commands should be updated accordingly.
-
-> ### Google photos takeout import
-> **prior 0.23**
-> ```
-> immich-go -server=URL -key=KEY upload -google-photos  {path/to/files}
-> ```
->
-> **0.23 and after**
-> ```
-> immich-go upload from-google-photos --server=URL --api-key=KEY {path/to/files}
-> ```
-
-> ### Folder import
->
-> **prior 0.23**
-> ```
-> immich-go -server=URL -key=KEY upload  {path/to/files}
-> ```
->
-> **0.23 and after**
-> ```
-> immich-go upload from-folder --server=URL --api-key=KEY {path/to/files}
-> ```
-
-
-
-Read the documentation below for full details.
 
 ## What Makes Immich-Go Special?
 
@@ -48,8 +18,12 @@ Read the documentation below for full details.
   * Immich-Go doesn't require NodeJS or Docker for installation. This makes it easy to get started, even for those less familiar with technical environments.
   * Immich-Go can run on either your workstation or a NAS.
 
+### Upload your existing photo collection to your Immich server:
+  * **Upload from Google Photos Takeouts:** Immich-Go can process massive archives downloaded from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, capture date, and album information.
+  * **Upload from iCloud Takeouts:** Immich-Go can upload photos from an iCloud takeout archive, preserving the date of capture and album information.
+
 ### Handles Large Photo Collections:
-  * **Upload Large Google Photos Takeouts:** Immich-Go excels at handling massive archives downloaded from Google Photos using Google Takeout. It efficiently processes these archives while preserving valuable metadata like GPS location, capture date, and album information. Read the [best practices](#google-photos-best-practices) below for more information.
+  * **Upload Large Google Photos Takeouts:** Users have reported successfully uploading archives of over 100,000 photos. Read the [best practices](#google-photos-best-practices) below for more information.
   * **Upload Collections:** You can upload photos directly from your computer folders, folder trees, and compressed ZIP archives.
   * **Is Duplicate-aware:** Immich-Go identifies and discards duplicate photos, keeping only the highest-quality version on the server.
   * **Archive Your Immich Server:** Write the content of your Immich server to a folder tree, ready to be archived or migrated to another server.
