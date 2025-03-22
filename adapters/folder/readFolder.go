@@ -30,6 +30,8 @@ import (
 	"github.com/simulot/immich-go/internal/worker"
 )
 
+const icloudMetadataExt = ".csv"
+
 type LocalAssetBrowser struct {
 	fsyss                   []fs.FS
 	log                     *fileevent.Recorder
@@ -161,7 +163,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 
 		// iCloud albums
-		if la.flags.ICloudTakeout && strings.ToLower(dir) == "albums" && ext == ".csv" {
+		if la.flags.ICloudTakeout && strings.ToLower(dir) == "albums" && ext == icloudMetadataExt {
 			a, err := UseICloudAlbum(la.icloudMetas, fsys, name)
 			if err != nil {
 				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
@@ -353,7 +355,6 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						}
 						f.Close()
 					}
-
 				}
 			}
 
