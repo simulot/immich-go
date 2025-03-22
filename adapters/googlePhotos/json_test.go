@@ -641,6 +641,7 @@ func TestSanitizedTitle(t *testing.T) {
 		{input: "Hello:World", expected: "Hello_World"},
 		{input: "Hello\nWorld", expected: "Hello_World"},
 		{input: "Some/File|Name?", expected: "Some_File_Name_"},
+		{input: "123123\\.JPG", expected: "123123_.JPG"},
 	}
 
 	for _, c := range cases {
