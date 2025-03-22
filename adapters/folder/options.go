@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const UploadCmdName = "upload"
+
 // ImportFolderOptions represents the flags used for importing assets from a file system.
 type ImportFolderOptions struct {
 	// UsePathAsAlbumName determines whether to create albums based on the full path to the asset.
@@ -123,7 +125,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 	// exif.AddExifToolFlags(cmd, &o.ExifToolFlags) // disabled for now
 
 	// upload specific flags, not for archive to folder
-	if parent != nil && parent.Name() == "upload" {
+	if parent != nil && parent.Name() == UploadCmdName {
 		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
 		cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
 		cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
@@ -162,7 +164,7 @@ func (o *ImportFolderOptions) AddFromICloudFlags(cmd *cobra.Command, parent *cob
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	cmd.Flags().BoolVar(&o.TakeDateFromFilename, "date-from-name", true, "Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov)")
 
-	if parent != nil && parent.Name() == "upload" {
+	if parent != nil && parent.Name() == UploadCmdName {
 		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
 		cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
 		cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
@@ -206,7 +208,7 @@ func (o *ImportFolderOptions) AddFromPicasaFlags(cmd *cobra.Command, parent *cob
 	// exif.AddExifToolFlags(cmd, &o.ExifToolFlags) // disabled for now
 
 	// upload specific flags, not for archive to folder
-	if parent != nil && parent.Name() == "upload" {
+	if parent != nil && parent.Name() == UploadCmdName {
 		cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
 		cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
 		cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
