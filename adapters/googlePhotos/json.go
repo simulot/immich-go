@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -80,7 +81,7 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *assets.Metadata {
 	md := assets.Metadata{
 		File:        name,
-		FileName:    gmd.Title,
+		FileName:    sanitizedTitle(gmd.Title),
 		Description: gmd.Description,
 		Trashed:     gmd.Trashed,
 		Archived:    gmd.Archived,
@@ -257,4 +258,9 @@ func addString(s string, sep string, t string) string {
 		return s + sep + t
 	}
 	return t
+}
+
+func sanitizedTitle(title string) string {
+	// Simple removal of commonly invalid filename characters
+	return regexp.MustCompile(`[\r\n\\/:*?"<>|]`).ReplaceAllString(title, "_")
 }

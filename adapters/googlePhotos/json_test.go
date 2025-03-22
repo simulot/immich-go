@@ -625,3 +625,22 @@ func TestLog(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizedTitle(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected string
+	}{
+		{input: "HelloWorld", expected: "HelloWorld"},
+		{input: "Hello:World", expected: "Hello_World"},
+		{input: "Hello\nWorld", expected: "Hello_World"},
+		{input: "Some/File|Name?", expected: "Some_File_Name_"},
+	}
+
+	for _, c := range cases {
+		actual := sanitizedTitle(c.input)
+		if actual != c.expected {
+			t.Errorf("sanitizedTitle(%q) = %q, want %q", c.input, actual, c.expected)
+		}
+	}
+}
