@@ -102,6 +102,9 @@ func readMP4Metadata(r io.Reader) (*assets.Metadata, error) {
 	if t.Year() < 2000 {
 		t = atom.ModificationTime
 	}
+	if t.Year() < 2000 {
+		t = time.Time{}
+	}
 	return &assets.Metadata{DateTaken: t}, nil
 }
 
