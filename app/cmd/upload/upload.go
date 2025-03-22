@@ -15,6 +15,8 @@ type UpLoadMode int
 const (
 	UpModeGoogleTakeout UpLoadMode = iota
 	UpModeFolder
+	UpModeICloud
+	UpModePicasa
 )
 
 func (m UpLoadMode) String() string {
@@ -23,6 +25,10 @@ func (m UpLoadMode) String() string {
 		return "Google Takeout"
 	case UpModeFolder:
 		return "Folder"
+	case UpModeICloud:
+		return "iCloud"
+	case UpModePicasa:
+		return "Picasa"
 	default:
 		return "Unknown"
 	}
@@ -49,6 +55,8 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)
 
 	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, a, options))
+	cmd.AddCommand(NewFromICloudCommand(ctx, cmd, a, options))
+	cmd.AddCommand(NewFromPicasaCommand(ctx, cmd, a, options))
 	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, cmd, a, options))
 	cmd.AddCommand(NewFromImmichCommand(ctx, cmd, a, options))
 	return cmd
