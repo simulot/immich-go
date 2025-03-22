@@ -75,8 +75,8 @@ func TestBrowse(t *testing.T) {
 		{
 			"titlesWithForbiddenChars", titlesWithForbiddenChars,
 			sortFileResult([]fileResult{
-				{name: "27_06_12 - 1.mov", size: 52, title: "27/06/12 - 1.mov"},
-				{name: "27_06_12 - 2.jpg", size: 24, title: "27/06/12 - 2.jpg"},
+				{name: "27_06_12 - 1.mov", size: 52, title: "27_06_12 - 1.mov"},
+				{name: "27_06_12 - 2.jpg", size: 24, title: "27_06_12 - 2.jpg"},
 			}),
 		},
 		{
