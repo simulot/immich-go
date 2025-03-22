@@ -200,10 +200,14 @@ Commands must be combined with sub-commands and options to perform the required 
   * [upload](#the-upload-command)
     * from-folder
     * from-google-photos
+    * from-icloud
+    * from-picasa
     * from-immich
   * [archive](#the-archive-command)
     * from-folder
     * from-google-photos
+    * from-icloud
+    * from-picasa
     * from-immich
   * [stack](#the-stack-command)
   * version
@@ -255,6 +259,8 @@ The **upload** command loads photos and videos from the source designated by the
 **Upload** accepts three sub-commands:
   * [from-folder](#from-folder-sub-command) to upload photos from a local folder or a zipped archive
   * [from-google-photos](#from-google-photos-sub-command) to upload photos from a Google Photos takeout archive
+  * [from-icloud](#from-icloud-sub-command) to create a folder archive from an iCloud archive TODO
+  * [from-picasa](#from-picasa-sub-command)  to create a folder archive from a Picasa archive
   * [from-immich](#from-immich-sub-command) to upload photos from an Immich server to another Immich server
 
 Examples:
@@ -298,9 +304,11 @@ The destination folder isn't wiped out before the operation, so it's possible to
 The command accepts three sub-commands:
   * [from-folder](#from-folder-sub-command) to create a folder archive from a local folder or a zipped archive
   * [from-google-photos](#from-google-photos-sub-command) to create a folder archive from a Google Photos takeout archive
+  * [from-icloud](#from-icloud-sub-command) to create a folder archive from an iCloud archive TODO
+  * [from-picasa](#from-picasa-sub-command)  to create a folder archive from a Picasa archive
   * [from-immich](#from-immich-sub-command) to create a folder archive from an Immich server
 
-All photos and videos are sorted by date of capture, following this schema: `Folder/YYYY/YYYY-MM/photo.jpg`.
+All photos and videos are sorted by date of capture, following this schema: `Folder/YYYY/YYYY-MM/photo.ext`.
 
 Here is an example of what your folder structure might look like:
 
@@ -432,6 +440,55 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 ## Takeout Tag
 
 Immich-Go can tag all imported photos with a takeout tag. The tag is formatted as `{takeout}/takeout-YYYYMMDDTHHMMSSZ`. This tag can be used to identify all photos imported from a Google Photos takeout, making it easy to remove them if needed.
+
+
+# **from-icloud** sub command:
+
+The **from-icloud** sub-command processes an ICloud takeout.
+
+| **Parameter**           |           **Default value**           | **Description**                                                                                                                                                               |
+| ----------------------- | :-----------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --ban-file              | [See banned files](#banned-file-list) | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.                                                                                        |
+| --date-from-name        |                `TRUE`                 | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov).                                      |
+| --date-range            |                                       | Only import photos taken within the specified date range. [See date range possibilities](#date-range)                                                                         |
+| --exclude-extensions    |                                       | Comma-separated list of extension to exclude. (e.g. .gif,.PM)                                                                                                                                                                                                      |
+| --include-extensions    |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                               |
+| --include-type          |                 `all`                 | Single file type to include. (`VIDEO` or `IMAGE`)                                                                                                                             |
+| --into-album            |                                       | Specify an album to import all files into                                                                                                                                     |
+| --manage-burst          |                                       | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG.  [See option's details](#burst-detection-and-management)                                               |
+| --manage-heic-jpeg      |                                       | Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG.     [See option's details](#management-of-coupled-heic-and-jpeg-files)           |
+| --manage-raw-jpeg       |                                       | Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG. [See options's details](#management-of-coupled-raw-and-jpeg-files)                                                                             |
+| --session-tag           |                                       | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                                                              |
+| --tag                   |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                            |
+
+
+
+# **from-picasa** sub command:
+
+The **from-picasa** sub-command processes picasa file tree to upload photos to the Immich server.
+
+| **Parameter**           |           **Default value**           | **Description**                                                                                                                                                               |
+| ----------------------- | :-----------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --ban-file              | [See banned files](#banned-file-list) | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.                                                                                        |
+| --date-from-name        |                `TRUE`                 | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov).                                      |
+| --date-range            |                                       | Only import photos taken within the specified date range. [See date range possibilities](#date-range)                                                                         |
+| --exclude-extensions    |                                       | Comma-separated list of extension to exclude. (e.g. .gif,.PM)                                                                                                                 |
+| --folder-as-album       |                `NONE`                 | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
+| --folder-as-tags        |                `FALSE`                | Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)                                                          |
+| --album-path-joiner     |                `" / "`                | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')                                                                           |
+| --include-extensions    |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg,.heic)                                                                                                               |
+| --include-type          |                 `all`                 | Single file type to include. (`VIDEO` or `IMAGE`)                                                                                                                             |
+| --into-album            |                                       | Specify an album to import all files into                                                                                                                                     |
+| --manage-burst          |                                       | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG.  [See option's details](#burst-detection-and-management)                                               |
+| --manage-epson-fastfoto |                `FALSE`                | Manage Epson FastFoto file                                                                                                                                                    |
+| --manage-heic-jpeg      |                                       | Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG.     [See option's details](#management-of-coupled-heic-and-jpeg-files)           |
+| --manage-raw-jpeg       |                                       | Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG. [See options's details](#management-of-coupled-raw-and-jpeg-files)                                                                             |
+| --recursive             |                `TRUE`                 | Explore the folder and all its sub-folders                                                                                                                                    |
+| --session-tag           |                                       | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                                                              |
+| --tag                   |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                            |
+
+
+# Options details
 
 ## Burst Detection and Management
 
