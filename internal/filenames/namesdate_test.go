@@ -106,6 +106,14 @@ func TestTakeTimeFromPath(t *testing.T) {
 			name:     "something_2011-05-11 something/IMG_1234.JPG",
 			expected: time.Date(2011, 0o5, 11, 0, 0, 0, 0, time.UTC),
 		},
+		{
+			name:     "2021-05-27_overlay~zip-9C801DD4-6F9C-4E7B-A2D1-08C136E43C0.webp",
+			expected: time.Date(2021, 0o5, 27, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "2020-06-25_js-EjQSFXMSRzqjMGZ4WTBjulPZ21MRG9KVxoAGgAyAQdIAIAEYAE.mp4",
+			expected: time.Date(2020, 0o6, 25, 0, 0, 0, 0, time.UTC),
+		},
 	}
 
 	for _, tt := range tests {
