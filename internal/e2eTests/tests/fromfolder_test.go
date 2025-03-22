@@ -303,4 +303,39 @@ func TestFromFolders(t *testing.T) {
 			fileevent.Tagged:                 5,
 		}, false, a.Jnl())
 	})
+
+	t.Run("date-from-name", func(t *testing.T) {
+		e2e.InitMyEnv()
+		e2e.ResetImmich(t)
+
+		ctx := context.Background()
+		c, a := cmd.RootImmichGoCommand(ctx)
+		c.SetArgs([]string{
+			"upload", "from-folder",
+			"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+			"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+			"--no-ui",
+			"--api-trace",
+			"--log-level=debug",
+			"--tag=tag/subtag",
+			"--into-album=album",
+			"--date-from-name",
+			"DATA/dates",
+		})
+		err := c.ExecuteContext(ctx)
+		if err != nil && a.Log().GetSLog() != nil {
+			a.Log().Error(err.Error())
+		}
+
+		if err != nil {
+			t.Error("Unexpected error", err)
+			return
+		}
+
+		e2e.CheckResults(t, map[fileevent.Code]int64{
+			fileevent.Uploaded:         int64(len(highJpgs)),
+			fileevent.UploadAddToAlbum: int64(len(highJpgs)),
+			fileevent.Tagged:           int64(len(highJpgs)),
+		}, false, a.Jnl())
+	})
 }
