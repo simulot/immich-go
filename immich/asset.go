@@ -2,6 +2,7 @@ package immich
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -214,6 +215,22 @@ type UpdAssetField struct {
 	Description      string    `json:"description,omitempty"`
 	Rating           int       `json:"rating,omitempty"`
 	DateTimeOriginal time.Time `json:"dateTimeOriginal,omitempty"`
+}
+
+func (u UpdAssetField) MarshalJSON() ([]byte, error) {
+	type withGPS struct {
+		IsArchived       bool      `json:"isArchived,omitempty"`
+		IsFavorite       bool      `json:"isFavorite,omitempty"`
+		Latitude         float64   `json:"latitude"`
+		Longitude        float64   `json:"longitude"`
+		Description      string    `json:"description,omitempty"`
+		Rating           int       `json:"rating,omitempty"`
+		DateTimeOriginal time.Time `json:"dateTimeOriginal,omitempty"`
+	}
+	if u.Latitude != 0 || u.Longitude != 0 {
+		return json.Marshal(withGPS(u))
+	}
+	return json.Marshal(u)
 }
 
 func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error) {
