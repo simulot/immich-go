@@ -213,7 +213,6 @@ type UpdAssetField struct {
 	Longitude        float64   `json:"longitude,omitempty"`
 	Description      string    `json:"description,omitempty"`
 	Rating           int       `json:"rating,omitempty"`
-	LivePhotoVideoID string    `json:"livePhotoVideoId,omitempty"`
 	DateTimeOriginal time.Time `json:"dateTimeOriginal,omitempty"`
 }
 
