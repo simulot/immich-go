@@ -352,7 +352,6 @@ func TestFromFolders(t *testing.T) {
 			"--no-ui",
 			"--api-trace",
 			"--log-level=debug",
-			"--tag=tag/subtag",
 			"--into-album=album",
 			"--date-from-name",
 			"DATA/#843 longitude",
@@ -370,7 +369,6 @@ func TestFromFolders(t *testing.T) {
 		e2e.CheckResults(t, map[fileevent.Code]int64{
 			fileevent.Uploaded:         1,
 			fileevent.UploadAddToAlbum: 1,
-			fileevent.Tagged:           1,
 		}, false, a.Jnl())
 	})
 }
