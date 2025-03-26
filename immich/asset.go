@@ -217,7 +217,11 @@ type UpdAssetField struct {
 	DateTimeOriginal time.Time `json:"dateTimeOriginal,omitempty"`
 }
 
+// MarshalJSON customizes the JSON marshaling for the UpdAssetField struct.
+// If either Latitude or Longitude is non-zero, it includes them in the JSON output.
+// Otherwise, it omits them by using the alias type.
 func (u UpdAssetField) MarshalJSON() ([]byte, error) {
+	// withGPS is a struct that always includes Latitude and Longitude in the JSON output.
 	type withGPS struct {
 		IsArchived       bool      `json:"isArchived,omitempty"`
 		IsFavorite       bool      `json:"isFavorite,omitempty"`
@@ -227,10 +231,17 @@ func (u UpdAssetField) MarshalJSON() ([]byte, error) {
 		Rating           int       `json:"rating,omitempty"`
 		DateTimeOriginal time.Time `json:"dateTimeOriginal,omitempty"`
 	}
+
+	// alias is used to omit Latitude and Longitude when they are zero.
+	type alias UpdAssetField
+
+	// Check if Latitude or Longitude is non-zero, and use withGPS if true.
 	if u.Latitude != 0 || u.Longitude != 0 {
 		return json.Marshal(withGPS(u))
 	}
-	return json.Marshal(u)
+
+	// Otherwise, use alias to omit Latitude and Longitude.
+	return json.Marshal(alias(u))
 }
 
 func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error) {

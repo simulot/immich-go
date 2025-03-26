@@ -367,8 +367,8 @@ func TestFromFolders(t *testing.T) {
 		}
 
 		e2e.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.Uploaded:         1,
-			fileevent.UploadAddToAlbum: 1,
+			fileevent.Uploaded:         2,
+			fileevent.UploadAddToAlbum: 2,
 		}, false, a.Jnl())
 	})
 }
