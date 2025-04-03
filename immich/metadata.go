@@ -63,7 +63,7 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMet
 func (ic *ImmichClient) GetAllAssets(ctx context.Context) ([]*Asset, error) {
 	var assets []*Asset
 
-	req := SearchMetadataQuery{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true}
+	req := SearchMetadataQuery{Page: 1, WithExif: true, WithDeleted: true}
 	err := ic.callSearchMetadata(ctx, &req, func(asset *Asset) error {
 		assets = append(assets, asset)
 		return nil
@@ -76,7 +76,7 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context) ([]*Asset, error) {
 
 func (ic *ImmichClient) GetAllAssetsWithFilter(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {
 	if query == nil {
-		query = &SearchMetadataQuery{Page: 1, WithExif: true, IsVisible: true, WithDeleted: true}
+		query = &SearchMetadataQuery{Page: 1, WithExif: true, WithDeleted: true}
 	}
 	query.Page = 1
 	return ic.callSearchMetadata(ctx, query, filter)
