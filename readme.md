@@ -64,11 +64,6 @@ The upgrade process consists of installing the new version over the previous one
 - For building from source:
   - Go 1.23 or higher
   - Git
-- Optional dependencies:
-  - ExifTool: Enhanced metadata extraction capabilities
-    - On Linux: `sudo apt-get install exiftool`
-    - On MacOS: `brew install exiftool`
-    - On Windows: Download from [ExifTool website](https://exiftool.org/)
 
 ## Pre-built Binaries
 
@@ -358,8 +353,7 @@ However, some photos may not have this information.  In this case, Immich-go can
 
 The option `--date-from-name` instructs Immich-go to extract the date of capture from the filename if the date isn't available in the metadata.
 
-Immich-go can extract the date of capture without the help of an external tool such as ExifTool. It supports basic formats .heic, .heif, .jpg,
-.jpeg, .dng, .cr2, .mp4, .mov, .cr3.
+Immich-go can extract the date of capture for the following formats: .heic, .heif, .jpg, .jpeg, .dng, .cr2, .mp4, .mov, .cr3..
 
 > Note: `--date-from-name` slows down the process because immich-go needs to parse files to check if the capture date is present in the file.
 
@@ -668,7 +662,7 @@ immich-go upload from-immich --from-server=http://source-ip:2283 --from-api-key=
 To import photos taken within a specific date range from a local folder, use the following command:
 
 ```bash
-immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key --exiftool-enabled --date-range=2022-01-01,2022-12-31 /path/to/your/photos
+immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key --date-range=2022-01-01,2022-12-31 /path/to/your/photos
 ```
 
 
