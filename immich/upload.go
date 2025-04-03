@@ -103,6 +103,9 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 		errCall = ic.newServerCall(ctx, EndPointAssetReplace).
 			do(putRequest("/assets/"+replaceID+"/original", setContextValue(callValues), setAcceptJSON(), setImmichChecksum(la), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
 	}
+	if ar.Status == "duplicate" && errors.Is(err, io.ErrClosedPipe) {
+		err = nil //immich closes the connection when we upload the x-immich-checksum header and it finds a duplicate
+	}
 	err = errors.Join(err, errCall)
 	return ar, err
 }
