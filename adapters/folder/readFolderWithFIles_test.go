@@ -122,10 +122,11 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "icloud-takeout",
 			flags: ImportFolderOptions{
-				SupportedMedia: filetypes.DefaultSupportedMedia,
-				Recursive:      true,
-				ICloudTakeout:  true,
-				TZ:             time.Local,
+				SupportedMedia:         filetypes.DefaultSupportedMedia,
+				Recursive:              true,
+				ICloudTakeout:          true,
+				ICloudMemoriesAsAlbums: true,
+				TZ:                     time.Local,
 				InclusionFlags: cliflags.InclusionFlags{
 					DateRange: cliflags.InitDateRange(time.Local, "2023-10-06"),
 				},
@@ -139,11 +140,11 @@ func TestLocalAssets(t *testing.T) {
 				"Photos/photo_wo_exif.jpg",
 			},
 			expectedAlbums: map[string][]string{
-				"Spécial album":   {"Photos/photo1.jpg", "Photos/photo2.jpg"},
-				"Spécial album 2": {"Photos/photo2.jpg"},
+				"Spécial album":        {"Photos/photo1.jpg", "Photos/photo2.jpg"},
+				"Spécial album 2":      {"Photos/photo2.jpg"},
+				"Memory 1. April 2025": {"Photos/photo1.jpg", "Photos/photo2.jpg"},
 			},
 			expectedCounts: fileevent.NewCounts().
-				Set(fileevent.DiscoveredDiscarded, 1).
 				Set(fileevent.DiscoveredImage, 3).
 				Set(fileevent.Uploaded, 3).
 				Value(),

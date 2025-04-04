@@ -17,22 +17,37 @@ type iCloudMeta struct {
 	originalCreationDate time.Time
 }
 
+func UseICloudMemory(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filename string) (string, error) {
+	file, err := fsys.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	albumName := "Memory " + strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
+
+	return albumName, useAlbum(m, file, albumName)
+}
+
 func UseICloudAlbum(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filename string) (string, error) {
 	file, err := fsys.Open(filename)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
-
 	albumName := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
+
+	return albumName, useAlbum(m, file, albumName)
+}
+
+func useAlbum(m *gen.SyncMap[string, iCloudMeta], file fs.File, albumName string) error {
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return "", errors.Join(err, errors.New("failed to read all csv records"))
+		return errors.Join(err, errors.New("failed to read all csv records"))
 	}
 	for _, record := range records[1:] {
 		if len(record) != 1 {
-			return "", errors.Join(err, errors.New("invalid record"))
+			return errors.Join(err, errors.New("invalid record"))
 		}
 		fileName := record[0]
 		meta, _ := m.Load(fileName)
@@ -40,7 +55,7 @@ func UseICloudAlbum(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filename str
 		m.Store(fileName, meta)
 	}
 
-	return albumName, nil
+	return nil
 }
 
 // Example:

@@ -42,6 +42,7 @@ type LocalAssetBrowser struct {
 	requiresDateInformation bool                              // true if we need to read the date from the file for the options
 	picasaAlbums            *gen.SyncMap[string, PicasaAlbum] // ap[string]PicasaAlbum
 	icloudMetas             *gen.SyncMap[string, iCloudMeta]
+	icloudMetaPass          bool
 }
 
 func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
@@ -64,6 +65,7 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 	}
 	if flags.ICloudTakeout {
 		la.icloudMetas = gen.NewSyncMap[string, iCloudMeta]()
+		la.icloudMetaPass = true
 	}
 
 	if flags.InfoCollector == nil {
@@ -101,6 +103,14 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.Group {
 	gOut := make(chan *assets.Group)
 	go func() {
 		defer close(gOut)
+		// two passes for icloud takouts
+		if la.icloudMetaPass {
+			for _, fsys := range la.fsyss {
+				la.concurrentParseDir(ctx, fsys, ".", gOut)
+			}
+			la.wg.Wait()
+			la.icloudMetaPass = false
+		}
 		for _, fsys := range la.fsyss {
 			la.concurrentParseDir(ctx, fsys, ".", gOut)
 		}
@@ -152,6 +162,48 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			continue
 		}
 
+		// process csv files on icloud meta pass
+		if la.icloudMetaPass && ext == icloudMetadataExt {
+			if strings.HasSuffix(strings.ToLower(dir), "albums") {
+				a, err := UseICloudAlbum(la.icloudMetas, fsys, name)
+				if err != nil {
+					la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+				} else {
+					la.log.Log().Info("iCloud album detected", "file", fshelper.FSName(fsys, name), "album", a)
+				}
+				continue
+			}
+			if la.flags.ICloudMemoriesAsAlbums && strings.HasSuffix(strings.ToLower(dir), "memories") {
+				a, err := UseICloudMemory(la.icloudMetas, fsys, name)
+				if err != nil {
+					la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+				} else {
+					la.log.Log().Info("iCloud memory detected", "file", fshelper.FSName(fsys, name), "album", a)
+				}
+				continue
+			}
+			// iCloud photo details (csv). File name pattern: "Photo Details.csv"
+			if strings.HasPrefix(strings.ToLower(base), "photo details") {
+				err := UseICloudPhotoDetails(la.icloudMetas, fsys, name)
+				if err != nil {
+					la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+				} else {
+					la.log.Log().Info("iCloud photo details detected", "file", fshelper.FSName(fsys, name))
+				}
+				continue
+			}
+		}
+
+		// skip all other files in icloud meta pass
+		if la.icloudMetaPass {
+			continue
+		}
+
+		// silently ignore .csv files after icloud meta pass
+		if la.flags.ICloudTakeout && !la.icloudMetaPass && ext == icloudMetadataExt {
+			continue
+		}
+
 		if la.flags.BannedFiles.Match(name) {
 			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, entry.Name()), "reason", "banned file")
 			continue
@@ -159,35 +211,6 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 
 		if la.flags.SupportedMedia.IsUseLess(name) {
 			la.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, entry.Name()))
-			continue
-		}
-
-		// iCloud albums
-		if la.flags.ICloudTakeout && strings.ToLower(dir) == "albums" && ext == icloudMetadataExt {
-			a, err := UseICloudAlbum(la.icloudMetas, fsys, name)
-			if err != nil {
-				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
-			} else {
-				la.log.Log().Info("iCloud album detected", "file", fshelper.FSName(fsys, name), "album", a)
-			}
-			continue
-		}
-
-		// iCloud memories
-		if la.flags.ICloudTakeout && strings.ToLower(dir) == "memories" && ext == ".csv" {
-			// ignore
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "iCloud memories ignored")
-			continue
-		}
-
-		// iCloud photo details (csv). File name pattern: "Photo Details.csv"
-		if la.flags.ICloudTakeout && strings.HasPrefix(strings.ToLower(base), "photo details") && ext == ".csv" {
-			err := UseICloudPhotoDetails(la.icloudMetas, fsys, name)
-			if err != nil {
-				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
-			} else {
-				la.log.Log().Info("iCloud photo details detected", "file", fshelper.FSName(fsys, name))
-			}
 			continue
 		}
 
