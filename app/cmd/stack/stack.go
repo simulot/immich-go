@@ -148,7 +148,7 @@ func (s *StackCmd) ProcessAssets(ctx context.Context, app *app.Application) erro
 		defer close(in)
 		// Sort assets by radical, then date
 		sort.Slice(s.assets, func(i, j int) bool {
-			r1, r2 := s.assets[i].NameInfo.Radical, s.assets[j].NameInfo.Radical
+			r1, r2 := s.assets[i].Radical, s.assets[j].Radical
 			if r1 != r2 {
 				return r1 < r2
 			}

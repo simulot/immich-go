@@ -103,10 +103,10 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 }
 
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application, fsys []fs.FS) error {
-	upCmd.albumsCache = cache.NewCollectionCache[assets.Album](50, func(album assets.Album, ids []string) (assets.Album, error) {
+	upCmd.albumsCache = cache.NewCollectionCache(50, func(album assets.Album, ids []string) (assets.Album, error) {
 		return upCmd.saveAlbum(ctx, album, ids)
 	})
-	upCmd.tagsCache = cache.NewCollectionCache[assets.Tag](50, func(tag assets.Tag, ids []string) (assets.Tag, error) {
+	upCmd.tagsCache = cache.NewCollectionCache(50, func(tag assets.Tag, ids []string) (assets.Tag, error) {
 		return upCmd.saveTags(ctx, tag, ids)
 	})
 
@@ -279,7 +279,7 @@ assetLoop:
 func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	var errGroup error
 
-	g = filters.ApplyFilters(g, upCmd.UploadOptions.Filters...)
+	g = filters.ApplyFilters(g, upCmd.Filters...)
 
 	// discard rejected assets
 	for _, a := range g.Removed {

@@ -15,9 +15,11 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 )
 
+type callValues string
+
 const (
-	TimeFormat    = "2006-01-02T15:04:05Z"
-	ctxCallValues = "call-values"
+	TimeFormat    string     = "2006-01-02T15:04:05Z"
+	ctxCallValues callValues = "call-values"
 )
 
 func setContextValue(kv map[string]string) serverRequestOption {
@@ -104,7 +106,7 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 			do(putRequest("/assets/"+replaceID+"/original", setContextValue(callValues), setAcceptJSON(), setImmichChecksum(la), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
 	}
 	if ar.Status == "duplicate" && errors.Is(err, io.ErrClosedPipe) {
-		err = nil //immich closes the connection when we upload the x-immich-checksum header and it finds a duplicate
+		err = nil // immich closes the connection when we upload the x-immich-checksum header and it finds a duplicate
 	}
 	err = errors.Join(err, errCall)
 	return ar, err

@@ -139,7 +139,9 @@ type requestFunction func(sc *serverCall) *http.Request
 
 var callSequence atomic.Int64
 
-const ctxCallSequenceID = "api-call-sequence"
+type callSequenceID string
+
+const ctxCallSequenceID callSequenceID = "api-call-sequence"
 
 func (sc *serverCall) request(
 	method string,
@@ -249,9 +251,6 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
 					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
 					dec.SetIndent("", " ")
-					if err := dec.Encode(msg); err != nil {
-						// return sc.Err(req, resp, &msg)
-					}
 					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
 				}
 				return sc.Err(req, resp, &msg)

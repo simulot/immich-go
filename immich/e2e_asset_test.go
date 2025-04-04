@@ -33,35 +33,36 @@ func getImmichProdCreds() (host, key, user string) {
 	return
 }
 
-func getImmichDebugCreds() (host, key, user string) {
-	myEnv, _ := godotenv.Read("../.env")
+/*
+	func getImmichDebugCreds() (host, key, user string) {
+		myEnv, _ := godotenv.Read("../.env")
 
-	if host = myEnv["IMMICH_E2E_HOST"]; host == "" {
-		host = os.Getenv("IMMICH_E2E_HOST")
+		if host = myEnv["IMMICH_E2E_HOST"]; host == "" {
+			host = os.Getenv("IMMICH_E2E_HOST")
+		}
+
+		if key = myEnv["IMMICH_E2E_KEY"]; key == "" {
+			key = os.Getenv("IMMICH_E2E_KEY")
+		}
+
+		if user = myEnv["IMMICH_E2E_USER"]; user == "" {
+			user = os.Getenv("IMMICH_E2E_USER")
+		}
+		return
 	}
 
-	if key = myEnv["IMMICH_E2E_KEY"]; key == "" {
-		key = os.Getenv("IMMICH_E2E_KEY")
+	func getImmichClient(t *testing.T, host, key, _ string) *ImmichClient {
+		if host == "" {
+			host = "http://localhost:2283"
+		}
+		ic, err := NewImmichClient(host, key)
+		if err != nil {
+			t.Error(err)
+			return nil
+		}
+		return ic
 	}
-
-	if user = myEnv["IMMICH_E2E_USER"]; user == "" {
-		user = os.Getenv("IMMICH_E2E_USER")
-	}
-	return
-}
-
-func getImmichClient(t *testing.T, host, key, _ string) *ImmichClient {
-	if host == "" {
-		host = "http://localhost:2283"
-	}
-	ic, err := NewImmichClient(host, key)
-	if err != nil {
-		t.Error(err)
-		return nil
-	}
-	return ic
-}
-
+*/
 func checkImmich(t *testing.T, host, key, _ string) {
 	ic, err := NewImmichClient(host, key)
 	if err != nil {

@@ -148,7 +148,7 @@ func (t ImmichTime) MarshalJSON() ([]byte, error) {
 		return json.Marshal("")
 	}
 
-	return json.Marshal(t.Time.Format("\"" + time.RFC3339 + "\""))
+	return json.Marshal(t.Format("\"" + time.RFC3339 + "\""))
 }
 
 type ImmichExifTime struct {
@@ -197,5 +197,5 @@ func (t ImmichExifTime) MarshalJSON() ([]byte, error) {
 		return json.Marshal("")
 	}
 
-	return json.Marshal(t.Time.Format("\"" + time.RFC3339 + "\""))
+	return json.Marshal(t.Format("\"" + time.RFC3339 + "\""))
 }
