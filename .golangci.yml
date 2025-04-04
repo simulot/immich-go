@@ -1,63 +1,73 @@
-run:
-  timeout: 3m
-
+version: "2"
+linters:
+  default: none
+  enable:
+    - asasalint
+    - contextcheck
+    - copyloopvar
+    - decorder
+    - dogsled
+    - errcheck
+    - errchkjson
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    - goconst
+    - gocritic
+    - goprintffuncname
+    - govet
+    - ineffassign
+    - loggercheck
+    - makezero
+    - mirror
+    - misspell
+    - nakedret
+    - prealloc
+    - predeclared
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+  settings:
+    gocritic:
+      enabled-checks:
+        - httpNoBody
+        - emptyStringTest
+        - builtinShadow
+        - exposedSyncMutex
+      enabled-tags:
+        - diagnostic
+      disabled-tags:
+        - performance
+        - style
+        - experimental
+        - opinionated
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - path: (.+)\.go$
+        text: 'Added to album: '
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   max-issues-per-linter: 100
   max-same-issues: 100
-  exclude:
-    - "Added to album: "
-
-linters-settings:
-  gocritic:
-    enabled-checks:
-#      - captLocal
-#      - singleCaseSwitch
-#     - switchTrue
-      - httpNoBody
-      - emptyStringTest
-      - builtinShadow
-      - exposedSyncMutex
-    enabled-tags:
-      - diagnostic
-    disabled-tags:
-      - performance
-      - style
-      - experimental
-      - opinionated
-
-linters:
-  disable-all: true
+formatters:
   enable:
-    - gocritic
-    - gosimple
-    - govet
-    - ineffassign
-    - misspell
-    - whitespace
     - gci
     - gofmt
-    - goimports
-    - loggercheck
-    - asasalint
-    - contextcheck
-    - decorder
-    - dogsled
-    - errchkjson
-    - copyloopvar
-    - ginkgolinter
-    - gocheckcompilerdirectives
-    - goprintffuncname
-    - mirror
-    - nakedret
     - gofumpt
-    - stylecheck
-    - unused
-    - goconst
-    - makezero
-    - unparam
-    - prealloc
-    - predeclared
-    - unconvert
-    - unparam
-    - whitespace
-    - errcheck
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
