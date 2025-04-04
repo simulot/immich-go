@@ -346,10 +346,10 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						} else {
 							a.FromSourceFile = a.UseMetadata(md)
 						}
-						if (md == nil || md.DateTaken.IsZero()) && !a.NameInfo.Taken.IsZero() && la.flags.TakeDateFromFilename {
+						if (md == nil || md.DateTaken.IsZero()) && !a.Taken.IsZero() && la.flags.TakeDateFromFilename {
 							// no exif, but we have a date in the filename and the TakeDateFromFilename is set
 							a.FromApplication = &assets.Metadata{
-								DateTaken: a.NameInfo.Taken,
+								DateTaken: a.Taken,
 							}
 							a.CaptureDate = a.FromApplication.DateTaken
 						}

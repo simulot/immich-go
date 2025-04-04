@@ -54,10 +54,11 @@ func TestPingServer(t *testing.T) {
 
 func TestValidateConnection(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/users/me" {
+		switch r.URL.Path {
+		case "/api/users/me":
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"id":"1","email":"test@example.com"}`))
-		} else if r.URL.Path == "/api/server/media-types" {
+		case "/api/server/media-types":
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"image":[".jpg",".png"],"video":[".mp4"]}`))
 		}

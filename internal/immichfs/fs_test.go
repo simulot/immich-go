@@ -13,23 +13,23 @@ import (
 
 func newTestImmichServer(_ *testing.T) *immich.ImmichClient { //nolint
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/users/me":
+		switch r.URL.Path {
+		case "/api/users/me":
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"id":"1","email":"test@email.com"}`)) // nolint
-		case r.URL.Path == "/api/server/media-types":
+		case "/api/server/media-types":
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"image":[".jpg",".png"],"video":[".mp4"]}`)) // nolint
-		case r.URL.Path == "/api/server/ping":
+		case "/api/server/ping":
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"res":"pong"}`)) // nolint
 
-		case r.URL.Path == "/api/assets/test-asset-id":
+		case "/api/assets/test-asset-id":
 			w.WriteHeader(http.StatusOK)
 			// w.Write([]byte(`{"id":"test-asset-id","name":"test-asset","type":"image","size":1024}`)) // nolint
 			w.Write([]byte(asssetinfo)) // nolint
 
-		case r.URL.Path == "/api/assets/test-asset-id/original":
+		case "/api/assets/test-asset-id/original":
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`original asset content`)) // nolint
 		}

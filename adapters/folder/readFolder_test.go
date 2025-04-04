@@ -372,7 +372,7 @@ func TestInMemLocalAssets(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			log.Logger.Info("\n\n\ntest case: " + c.name)
+			log.Info("\n\n\ntest case: " + c.name)
 			recorder := fileevent.NewRecorder(log.Logger)
 			b, err := NewLocalFiles(ctx, recorder, &c.flags, c.fsys...)
 			if err != nil {
@@ -501,7 +501,7 @@ func TestInMemLocalAssetsWithTags(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			log.Logger.Info("\n\n\ntest case: " + c.name)
+			log.Info("\n\n\ntest case: " + c.name)
 			recorder := fileevent.NewRecorder(log.Logger)
 			b, err := NewLocalFiles(ctx, recorder, &c.flags, c.fsys...)
 			if err != nil {

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/psanford/memfs"
-	"github.com/simulot/immich-go/internal/fakefs"
 	"github.com/simulot/immich-go/internal/filenames"
 )
 
@@ -47,15 +46,15 @@ func (mfs *inMemFS) addFile(name string, content []byte) *inMemFS {
 	return mfs
 }
 
-func (mfs *inMemFS) addFile2(name string) *inMemFS { // nolint: unused
-	if mfs.err != nil {
-		return mfs
-	}
-	dir := path.Dir(name)
-	mfs.err = errors.Join(mfs.err, mfs.MkdirAll(dir, 0o777))
-	mfs.err = errors.Join(mfs.err, mfs.WriteFile(name, []byte(name), 0o777))
-	return mfs
-}
+// func (mfs *inMemFS) addFile2(name string) *inMemFS { // nolint: unused
+// 	if mfs.err != nil {
+// 		return mfs
+// 	}
+// 	dir := path.Dir(name)
+// 	mfs.err = errors.Join(mfs.err, mfs.MkdirAll(dir, 0o777))
+// 	mfs.err = errors.Join(mfs.err, mfs.WriteFile(name, []byte(name), 0o777))
+// 	return mfs
+// }
 
 func (mfs *inMemFS) addImage(name string, length int) *inMemFS {
 	b := make([]byte, length)
@@ -278,81 +277,81 @@ func issue390WrongCount() []fs.FS {
 // 		addImage("Takeout/Google Photos/Photos from 2017/IMG_0170.jpg", 514963).FSs()
 // }
 
-func checkLivePhoto() []fs.FS { // nolint:unused
-	return newInMemFS("filesystem").
-		addJSONImage("Motion test/20231227_152817.jpg.json", "20231227_152817.jpg").
-		addImage("Motion test/20231227_152817.jpg", 7426453).
-		addImage("Motion test/20231227_152817.MP4", 5192477).
-		addJSONImage("Motion Test/PXL_20231118_035751175.MP.jpg.json", "PXL_20231118_035751175.MP.jpg").
-		addImage("Motion Test/PXL_20231118_035751175.MP", 3478685).
-		addImage("Motion Test/PXL_20231118_035751175.MP.jpg", 8025699).
-		addJSONImage("Motion Test/MVIMG_20180418_113218.jpg.json", "MVIMG_20180418_113218.jpg").
-		addImage("Motion Test/MVIMG_20180418_113218.jpg", 12345).
-		addImage("Motion Test/MVIMG_20180418_113218", 5656).FSs()
-}
+// func checkLivePhoto() []fs.FS { // nolint:unused
+// 	return newInMemFS("filesystem").
+// 		addJSONImage("Motion test/20231227_152817.jpg.json", "20231227_152817.jpg").
+// 		addImage("Motion test/20231227_152817.jpg", 7426453).
+// 		addImage("Motion test/20231227_152817.MP4", 5192477).
+// 		addJSONImage("Motion Test/PXL_20231118_035751175.MP.jpg.json", "PXL_20231118_035751175.MP.jpg").
+// 		addImage("Motion Test/PXL_20231118_035751175.MP", 3478685).
+// 		addImage("Motion Test/PXL_20231118_035751175.MP.jpg", 8025699).
+// 		addJSONImage("Motion Test/MVIMG_20180418_113218.jpg.json", "MVIMG_20180418_113218.jpg").
+// 		addImage("Motion Test/MVIMG_20180418_113218.jpg", 12345).
+// 		addImage("Motion Test/MVIMG_20180418_113218", 5656).FSs()
+// }
 
-func loadFromString(dateFormat string, s string) []fs.FS { // nolint:unused
-	fss, err := fakefs.ScanStringList(dateFormat, s)
-	if err != nil {
-		panic(err.Error())
-	}
-	return fss
-}
+// func loadFromString(dateFormat string, s string) []fs.FS { // nolint:unused
+// 	fss, err := fakefs.ScanStringList(dateFormat, s)
+// 	if err != nil {
+// 		panic(err.Error())
+// 	}
+// 	return fss
+// }
 
-func checkLivePhotoPixil() []fs.FS { // nolint:unused
-	return loadFromString("01-02-2006 15:04", `Part: takeout-20230720T065335Z-001.zip
-Archive:  takeout-20230720T065335Z-001.zip
-  Length      Date    Time    Name
----------  ---------- -----   ----
-      309  03-05-2023 10:10   Takeout/Google Photos/2022 - Germany/metadata.json
-      801  07-19-2023 23:59   Takeout/Google Photos/2022 - Germany/IMG_4573.HEIC.json
-  2232086  07-19-2023 23:59   Takeout/Google Photos/2022 - Germany/IMG_4573.MP4
-  3530351  07-20-2023 00:00   Takeout/Google Photos/2022 - Germany/IMG_4573.HEIC
-      319  03-05-2023 10:10   Takeout/Google Photos/2022 - Germany - Private/metadata.json
-      802  07-20-2023 00:03   Takeout/Google Photos/2022 - Germany - Private/IMG_4573.HEIC.json
-  3530351  07-19-2023 23:56   Takeout/Google Photos/2022 - Germany - Private/IMG_4573.HEIC
-  2232086  07-19-2023 23:56   Takeout/Google Photos/2022 - Germany - Private/IMG_4573.MP4
-      803  07-19-2023 23:58   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC.json
-  3530351  07-19-2023 23:59   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC
-  2232086  07-19-2023 23:59   Takeout/Google Photos/Photos from 2022/IMG_4573.MP4
-`)
-}
+// func checkLivePhotoPixil() []fs.FS { // nolint:unused
+// 	return loadFromString("01-02-2006 15:04", `Part: takeout-20230720T065335Z-001.zip
+// Archive:  takeout-20230720T065335Z-001.zip
+//   Length      Date    Time    Name
+// ---------  ---------- -----   ----
+//       309  03-05-2023 10:10   Takeout/Google Photos/2022 - Germany/metadata.json
+//       801  07-19-2023 23:59   Takeout/Google Photos/2022 - Germany/IMG_4573.HEIC.json
+//   2232086  07-19-2023 23:59   Takeout/Google Photos/2022 - Germany/IMG_4573.MP4
+//   3530351  07-20-2023 00:00   Takeout/Google Photos/2022 - Germany/IMG_4573.HEIC
+//       319  03-05-2023 10:10   Takeout/Google Photos/2022 - Germany - Private/metadata.json
+//       802  07-20-2023 00:03   Takeout/Google Photos/2022 - Germany - Private/IMG_4573.HEIC.json
+//   3530351  07-19-2023 23:56   Takeout/Google Photos/2022 - Germany - Private/IMG_4573.HEIC
+//   2232086  07-19-2023 23:56   Takeout/Google Photos/2022 - Germany - Private/IMG_4573.MP4
+//       803  07-19-2023 23:58   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC.json
+//   3530351  07-19-2023 23:59   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC
+//   2232086  07-19-2023 23:59   Takeout/Google Photos/Photos from 2022/IMG_4573.MP4
+// `)
+// }
 
-func checkMissingJSON() []fs.FS { // nolint:unused
-	return loadFromString("01-02-2006 15:04", `Part:  takeout-20230720T065335Z-001.zip
-Archive:  takeout-20230720T065335Z-001.zip
-  Length      Date    Time    Name
----------  ---------- -----   ----
-      803  07-19-2023 23:58   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC.json
-  3530351  07-19-2023 23:59   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC
-  1352455  07-19-2023 15:18   Takeout/Google Foto/Photos from 2016/IMG-20161201-WA0035.jpeg
-  3530351  07-19-2023 23:56   Takeout/Google Photos/2022 - Germany - Private/IMG_4553.HEIC
-      309  03-05-2023 10:10   Takeout/Google Photos/2022 - Germany/metadata.json
-  2232086  07-19-2023 23:59   Takeout/Google Photos/2022 - Germany/IMG_1234.MP4
-  3530351  07-20-2023 00:00   Takeout/Google Photos/2022 - Germany/IMG_1234.HEIC
-`)
-}
+// func checkMissingJSON() []fs.FS { // nolint:unused
+// 	return loadFromString("01-02-2006 15:04", `Part:  takeout-20230720T065335Z-001.zip
+// Archive:  takeout-20230720T065335Z-001.zip
+//   Length      Date    Time    Name
+// ---------  ---------- -----   ----
+//       803  07-19-2023 23:58   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC.json
+//   3530351  07-19-2023 23:59   Takeout/Google Photos/Photos from 2022/IMG_4573.HEIC
+//   1352455  07-19-2023 15:18   Takeout/Google Foto/Photos from 2016/IMG-20161201-WA0035.jpeg
+//   3530351  07-19-2023 23:56   Takeout/Google Photos/2022 - Germany - Private/IMG_4553.HEIC
+//       309  03-05-2023 10:10   Takeout/Google Photos/2022 - Germany/metadata.json
+//   2232086  07-19-2023 23:59   Takeout/Google Photos/2022 - Germany/IMG_1234.MP4
+//   3530351  07-20-2023 00:00   Takeout/Google Photos/2022 - Germany/IMG_1234.HEIC
+// `)
+// }
 
-func checkDuplicates() []fs.FS { // nolint:unused
-	return loadFromString("01-02-2006 15:04", `Part:  takeout-20230720T065335Z-001.tgz
--rw-r--r-- 0/0          365022 2024-07-19 01:19 Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg
--rw-r--r-- 0/0             708 2024-07-19 01:19 Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg.json
--rw-r--r-- 0/0          364041 2024-07-19 01:51 Takeout/Google Foto/Photos from 2016/20160105_121621_LLS.jpg
--rw-r--r-- 0/0             709 2024-07-19 01:51 Takeout/Google Foto/Photos from 2016/20160105_121621_LLS.jpg.json
--rw-r--r-- 0/0             708 2024-07-19 02:13 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg.json
--rw-r--r-- 0/0          364041 2024-07-19 02:20 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg
-Part:  takeout-20230720T065335Z-002.tgz
--rw-r--r-- 0/0          364041 2024-07-19 06:14 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg
--rw-r--r-- 0/0             708 2024-07-19 02:13 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg.json
-`)
-}
+// func checkDuplicates() []fs.FS { // nolint:unused
+// 	return loadFromString("01-02-2006 15:04", `Part:  takeout-20230720T065335Z-001.tgz
+// -rw-r--r-- 0/0          365022 2024-07-19 01:19 Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg
+// -rw-r--r-- 0/0             708 2024-07-19 01:19 Takeout/Google Foto/[E&S] 2016-01-05 - Castello De Albertis e Mostra d/20160105_121621_LLS.jpg.json
+// -rw-r--r-- 0/0          364041 2024-07-19 01:51 Takeout/Google Foto/Photos from 2016/20160105_121621_LLS.jpg
+// -rw-r--r-- 0/0             709 2024-07-19 01:51 Takeout/Google Foto/Photos from 2016/20160105_121621_LLS.jpg.json
+// -rw-r--r-- 0/0             708 2024-07-19 02:13 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg.json
+// -rw-r--r-- 0/0          364041 2024-07-19 02:20 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg
+// Part:  takeout-20230720T065335Z-002.tgz
+// -rw-r--r-- 0/0          364041 2024-07-19 06:14 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg
+// -rw-r--r-- 0/0             708 2024-07-19 02:13 Takeout/Google Foto/2016-01-05 - _3/20160105_121621_LLS.jpg.json
+// `)
+// }
 
-func checkMPissue405() []fs.FS { // nolint:unused
-	return loadFromString("2006-01-02 15:04", `Part:  takeout-20230720T065335Z-001.zip
-      895  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg.json
-      893  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg.json
-  3242290  2024-01-21 16:58   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP
-  1214365  2024-01-21 16:58   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2
-  4028710  2024-01-21 16:59   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg
-  6486725  2024-01-21 16:59   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg`)
-}
+// func checkMPissue405() []fs.FS { // nolint:unused
+// 	return loadFromString("2006-01-02 15:04", `Part:  takeout-20230720T065335Z-001.zip
+//       895  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg.json
+//       893  2024-01-21 16:52   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg.json
+//   3242290  2024-01-21 16:58   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP
+//   1214365  2024-01-21 16:58   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2
+//   4028710  2024-01-21 16:59   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP~2.jpg
+//   6486725  2024-01-21 16:59   Takeout/Google Photos/Untitled(1)/PXL_20210102_221126856.MP.jpg`)
+// }
