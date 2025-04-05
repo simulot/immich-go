@@ -177,14 +177,14 @@ func readDateTime(x *exif.Exif, dateTag exif.FieldName, subSecTag exif.FieldName
 }
 
 func parseExifTime(date string, local *time.Location) (time.Time, error) {
-	var year, month, day, hour, min, sec, milli int
+	var year, month, day, hour, minutes, sec, milli int
 	date = strings.ReplaceAll(date, "-", ":")
 	date = strings.ReplaceAll(date, "/", ":")
-	fmt.Sscanf(date, "%d:%d:%d %d:%d:%d.%d", &year, &month, &day, &hour, &min, &sec, &milli)
-	if year < 1900 || month == 0 || day == 0 {
+	_, err := fmt.Sscanf(date, "%d:%d:%d %d:%d:%d.%d", &year, &month, &day, &hour, &minutes, &sec, &milli)
+	if err != nil || year < 1900 || month == 0 || day == 0 {
 		return time.Time{}, fmt.Errorf("invalid date format")
 	}
-	d := time.Date(year, time.Month(month), day, hour, min, sec, milli*int(time.Millisecond), local)
+	d := time.Date(year, time.Month(month), day, hour, minutes, sec, milli*int(time.Millisecond), local)
 	return d, nil
 }
 
