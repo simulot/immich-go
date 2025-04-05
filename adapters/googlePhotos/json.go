@@ -93,7 +93,11 @@ func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *a
 		if md.Latitude == 0 && md.Longitude == 0 && gmd.GeoData != nil {
 			md.Latitude, md.Longitude = gmd.GeoData.Latitude, gmd.GeoData.Longitude
 		}
+	} else if gmd.GeoData != nil {
+		md.Latitude, md.Longitude = gmd.GeoData.Latitude, gmd.GeoData.Longitude
 	}
+
+	// PhotoTakenTime is always present, but sometimes it's nul
 	if gmd.PhotoTakenTime != nil && gmd.PhotoTakenTime.Timestamp != "" && gmd.PhotoTakenTime.Timestamp != "0" {
 		md.DateTaken = gmd.PhotoTakenTime.Time()
 	}
