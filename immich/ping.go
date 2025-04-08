@@ -127,6 +127,5 @@ func (ic *ImmichClient) GetSupportedMediaTypes(ctx context.Context) (filetypes.S
 	}
 	sm[".mp"] = filetypes.TypeUseless
 	sm[".json"] = filetypes.TypeSidecar
-	sm[".csv"] = filetypes.TypeMeta
 	return sm, err
 }
