@@ -417,6 +417,7 @@ The **from-icloud** sub-command processes an ICloud takeout.
 
 | **Parameter**        |           **Default value**           | **Description**                                                                                                                                                                        |
 | -------------------- | :-----------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| --memories           |                `FALSE`                | Import icloud memories as albums                                                                                                                                                       |
 | --ban-file           | [See banned files](#banned-file-list) | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.                                                                                                 |
 | --date-from-name     |                `TRUE`                 | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov).                                               |
 | --date-range         |                                       | Only import photos taken within the specified date range. [See date range possibilities](#date-range)                                                                                  |
