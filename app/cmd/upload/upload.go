@@ -39,6 +39,9 @@ type UploadOptions struct {
 	// TODO place this option at the top
 	NoUI bool // Disable UI
 
+	// Add Overwrite flag to UploadOptions
+	Overwrite bool // Always overwrite files on the server with local versions
+
 	Filters []filters.Filter
 }
 
@@ -52,6 +55,7 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	app.AddClientFlags(ctx, cmd, a, false)
 	cmd.TraverseChildren = true
 	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
+	cmd.PersistentFlags().BoolVar(&options.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
 	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)
 
 	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, a, options))

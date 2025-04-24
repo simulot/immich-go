@@ -265,6 +265,13 @@ Increase the **--client-timeout** when you have some timeout issues with the ser
 Thanks to the **--session-tag** option, it's easy to identify all photos uploaded during a session, and remove them if needed.
 This tag is formatted as `{immich-go}/YYYY-MM-DD HH-MM-SS`. The tag can be deleted without removing the photos.
 
+## **--overwrite**
+The `--overwrite` flag ensures that files on the server are always replaced with their local versions during the upload process. If a file does not exist on the server, it will be uploaded as a new file. This option is useful for ensuring that the server always has the latest version of your files.
+
+Example:
+```bash
+immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key --overwrite /path/to/your/photos
+```
 
 # The **archive** command:
 
@@ -680,4 +687,3 @@ A big thank you to the project contributors:
 - [mrwulf](https://github.com/mrwulf) Partner sharing album
 - [erkexzcx](https://github.com/erkexzcx) Date determination based on file path and file name
 - [benjamonnguyen](https://github.com/benjamonnguyen) Tag API calls
-
