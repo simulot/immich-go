@@ -335,6 +335,26 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		return err
 	}
 
+	if upCmd.Overwrite {
+		if advice.ServerAsset != nil {
+			// Remember existing asset's albums, if any
+			a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
+
+			// Upload the superior asset
+			serverStatus, err := upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
+			if err != nil {
+				return err
+			}
+			if serverStatus != immich.StatusDuplicate {
+				upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+				upCmd.manageAssetTags(ctx, a)
+			}
+			return nil
+		}
+		// If no existing asset, treat as a new upload
+		advice.Advice = NotOnServer
+	}
+
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
 		serverStatus, err := upCmd.uploadAsset(ctx, a)
