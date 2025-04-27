@@ -330,29 +330,9 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	}()
 
 	// var status stri g
-	advice, err := upCmd.assetIndex.ShouldUpload(a)
+	advice, err := upCmd.assetIndex.ShouldUpload(a, upCmd)
 	if err != nil {
 		return err
-	}
-
-	if upCmd.Overwrite {
-		if advice.ServerAsset != nil {
-			// Remember existing asset's albums, if any
-			a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
-
-			// Upload the superior asset
-			serverStatus, err := upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
-			if err != nil {
-				return err
-			}
-			if serverStatus != immich.StatusDuplicate {
-				upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-				upCmd.manageAssetTags(ctx, a)
-			}
-			return nil
-		}
-		// If no existing asset, treat as a new upload
-		advice.Advice = NotOnServer
 	}
 
 	switch advice.Advice {
@@ -402,7 +382,31 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.ID = advice.ServerAsset.ID
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message)
 		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+
+	case ForceUpload:
+		var serverStatus string
+		var err error
+
+		if advice.ServerAsset != nil {
+			// Remember existing asset's albums, if any
+			a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
+
+			// Upload the superior asset
+			serverStatus, err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
+		} else {
+			serverStatus, err = upCmd.uploadAsset(ctx, a)
+		}
+		if err != nil {
+			return err
+		}
+		if serverStatus != immich.StatusDuplicate {
+			// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
+			//       there is no mean to go the list of tagged assets for a given tag.
+			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+			upCmd.manageAssetTags(ctx, a)
+		}
 	}
+
 	return nil
 }
 

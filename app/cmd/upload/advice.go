@@ -33,6 +33,8 @@ func (a AdviceCode) String() string {
 		return "NotOnServer"
 	case AlreadyProcessed:
 		return "AlreadyProcessed"
+	case ForceUpload:
+		return "ForceUpload"
 	}
 	return fmt.Sprintf("advice(%d)", a)
 }
@@ -44,6 +46,7 @@ const (
 	SameOnServer
 	NotOnServer
 	AlreadyProcessed
+	ForceUpload
 )
 
 type immichIndex struct {
@@ -231,6 +234,14 @@ func (ii *immichIndex) adviceNotOnServer() *Advice {
 	}
 }
 
+func (ii *immichIndex) adviceForceUpload(sa *assets.Asset) *Advice {
+	return &Advice{
+		Advice:      ForceUpload,
+		Message:     "This asset is marked for force upload.",
+		ServerAsset: sa,
+	}
+}
+
 // ShouldUpload check if the server has this asset
 //
 // The server may have different assets with the same name. This happens with photos produced by digital cameras.
@@ -240,7 +251,7 @@ func (ii *immichIndex) adviceNotOnServer() *Advice {
 // la.File.Name() is the full path to the file as it is on the source
 // la.OriginalFileName is the name of the file as it was on the device before it was uploaded to the server
 
-func (ii *immichIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
+func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, error) {
 	checksum, err := la.GetChecksum()
 	if err != nil {
 		return nil, err
@@ -250,7 +261,11 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
 		if ii.isAlreadyProcessed(checksum) {
 			return ii.adviceAlreadyProcessed(sa), nil
 		}
-		return ii.adviceSameOnServer(sa), nil
+		if upCmd.Overwrite {
+			return ii.adviceForceUpload(sa), nil
+		} else {
+			return ii.adviceSameOnServer(sa), nil
+		}
 	}
 
 	filename := path.Base(la.File.Name())
@@ -275,6 +290,8 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset) (*Advice, error) {
 			compareSize := size - int64(sa.FileSize)
 
 			switch {
+			case compareDate == 0 && upCmd.Overwrite:
+				return ii.adviceForceUpload(sa), nil
 			case compareDate == 0 && compareSize == 0:
 				return ii.adviceSameOnServer(sa), nil
 			case compareDate == 0 && compareSize > 0:
