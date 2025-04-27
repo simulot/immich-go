@@ -261,11 +261,7 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, er
 		if ii.isAlreadyProcessed(checksum) {
 			return ii.adviceAlreadyProcessed(sa), nil
 		}
-		if upCmd.Overwrite {
-			return ii.adviceForceUpload(sa), nil
-		} else {
-			return ii.adviceSameOnServer(sa), nil
-		}
+		return ii.adviceSameOnServer(sa), nil
 	}
 
 	filename := path.Base(la.File.Name())
