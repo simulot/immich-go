@@ -134,10 +134,12 @@ func TestFromFolders(t *testing.T) {
 		}
 
 		e2e.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.Uploaded:               5,
-			fileevent.AnalysisLocalDuplicate: 5,
-			fileevent.UploadAddToAlbum:       5,
-			fileevent.Tagged:                 5,
+			fileevent.Uploaded:               0,
+			fileevent.AnalysisLocalDuplicate: 0,
+			fileevent.UploadAddToAlbum:       0,
+			fileevent.UploadUpgraded:         1,
+			fileevent.UploadServerDuplicate:  4,
+			fileevent.Tagged:                 0,
 		}, false, a.Jnl())
 	})
 
