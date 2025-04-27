@@ -342,13 +342,8 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			return err
 		}
 
-		if serverStatus != immich.StatusDuplicate {
-			// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
-			//       there is no mean to go the list of tagged assets for a given tag.
-			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-			upCmd.manageAssetTags(ctx, a)
-		}
-		return nil
+		return upCmd.processUploadedAsset(ctx, a, serverStatus)
+
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
 
 		// Remember existing asset's albums, if any
@@ -360,13 +355,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			return err
 		}
 
-		if serverStatus != immich.StatusDuplicate {
-			// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
-			//       there is no mean to go the list of tagged assets for a given tag.
-			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-			upCmd.manageAssetTags(ctx, a)
-		}
-		return err
+		return upCmd.processUploadedAsset(ctx, a, serverStatus)
 
 	case AlreadyProcessed: // SHA1 already processed
 		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", advice.ServerAsset.OriginalFileName)
@@ -399,12 +388,8 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		if err != nil {
 			return err
 		}
-		if serverStatus != immich.StatusDuplicate {
-			// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
-			//       there is no mean to go the list of tagged assets for a given tag.
-			upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-			upCmd.manageAssetTags(ctx, a)
-		}
+
+		return upCmd.processUploadedAsset(ctx, a, serverStatus)
 	}
 
 	return nil
@@ -521,6 +506,16 @@ func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 func (upCmd *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 	upCmd.app.Log().Message("%d server assets to delete.", len(ids))
 	return upCmd.app.Client().Immich.DeleteAssets(ctx, ids, false)
+}
+
+func (upCmd *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset, serverStatus string) error {
+	if serverStatus != immich.StatusDuplicate {
+		// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
+		//       there is no mean to go the list of tagged assets for a given tag.
+		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		upCmd.manageAssetTags(ctx, a)
+	}
+	return nil
 }
 
 /*
