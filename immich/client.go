@@ -3,6 +3,7 @@ package immich
 import (
 	"crypto/tls"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"sync"
@@ -97,6 +98,10 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 			MaxIdleConnsPerHost: 100,
 			MaxConnsPerHost:     100,
+			Dial: (&net.Dialer{
+				Timeout:   10 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
 		},
 		key:          key,
 		DeviceUUID:   deviceUUID,
