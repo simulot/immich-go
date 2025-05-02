@@ -26,7 +26,7 @@ func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, d
 	cmd.PersistentFlags().StringVarP(&client.APIKey, "api-key", "k", "", "API Key")
 	cmd.PersistentFlags().BoolVar(&client.APITrace, "api-trace", false, "Enable trace of api calls")
 	cmd.PersistentFlags().BoolVar(&client.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
-	cmd.PersistentFlags().DurationVar(&client.ClientTimeout, "client-timeout", 5*time.Minute, "Set server calls timeout")
+	cmd.PersistentFlags().DurationVar(&client.ClientTimeout, "client-timeout", 20*time.Minute, "Set server calls timeout")
 	cmd.PersistentFlags().StringVar(&client.DeviceUUID, "device-uuid", client.DeviceUUID, "Set a device UUID")
 	cmd.PersistentFlags().BoolVar(&client.DryRun, "dry-run", dryRun, "Simulate all actions")
 	cmd.PersistentFlags().StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
