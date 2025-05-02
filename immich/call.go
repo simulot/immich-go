@@ -224,7 +224,20 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 	resp, err = sc.ic.client.Do(req)
 	// any non nil error must be returned
 	if err != nil {
-		_ = sc.joinError(err)
+		err = sc.joinError(err)
+		if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
+			seq := sc.ctx.Value(ctxCallSequenceID)
+			fmt.Fprintln(
+				sc.ic.apiTraceWriter,
+				time.Now().Format(time.RFC3339),
+				"RESPONSE",
+				seq,
+				sc.endPoint,
+				resp.Request.Method,
+				resp.Request.URL.String(),
+			)
+			fmt.Fprintln(sc.ic.apiTraceWriter, "  Error:", err.Error())
+		}
 		return sc.Err(req, nil, nil)
 	}
 
