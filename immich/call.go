@@ -233,8 +233,6 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 				"RESPONSE",
 				seq,
 				sc.endPoint,
-				resp.Request.Method,
-				resp.Request.URL.String(),
 			)
 			fmt.Fprintln(sc.ic.apiTraceWriter, "  Error:", err.Error())
 		}
