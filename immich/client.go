@@ -102,6 +102,8 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 				Timeout:   10 * time.Second,
 				KeepAlive: 30 * time.Second,
 			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
 		},
 		key:          key,
 		DeviceUUID:   deviceUUID,
