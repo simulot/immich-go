@@ -18,6 +18,14 @@ import (
 func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	lock := sync.RWMutex{}
+	needToResumeJobs := false
+	defer func() {
+		if needToResumeJobs {
+			// resume jobs if the UI was interrupted, the call context is already cancelled, so let's use a fresh one fpr this call
+			_ = upCmd.resumeJobs(context.Background(), app)
+			needToResumeJobs = false
+		}
+	}()
 	defer cancel(nil)
 
 	var preparationDone atomic.Bool
@@ -79,6 +87,14 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		var groupChan chan *assets.Group
 		var err error
 
+		if app.Client().PauseImmichBackgroundJobs {
+			err = upCmd.pauseJobs(ctx, app)
+			if err != nil {
+				cancel(err)
+				return err
+			}
+		}
+
 		processGrp.Go(func() error {
 			// Get immich asset
 			err := upCmd.getImmichAssets(ctx, immichUpdate)
@@ -107,6 +123,13 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		err = upCmd.uploadLoop(ctx, groupChan)
 		if err != nil {
 			cancel(err)
+		}
+		if app.Client().PauseImmichBackgroundJobs {
+			err = upCmd.resumeJobs(ctx, app)
+			needToResumeJobs = false
+			if err != nil {
+				cancel(err)
+			}
 		}
 
 		counts := app.Jnl().GetCounts()
