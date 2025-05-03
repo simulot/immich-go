@@ -69,7 +69,7 @@ func (ic *ImmichClient) SendJobCommand(
 	command JobCommand,
 	force bool,
 ) (resp SendJobCommandResponse, err error) {
-	err = ic.newServerCall(ctx, EndPointSendJobCommand).do(putRequest("/jobs/"+string(jobID),
+	err = ic.newServerCall(ctx, EndPointSendJobCommand).do(putRequest("/jobs/"+jobID,
 		setJSONBody(struct {
 			Command JobCommand `json:"command"`
 			Force   bool       `json:"force"`

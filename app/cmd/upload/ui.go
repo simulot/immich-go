@@ -58,7 +58,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	defer func() {
 		if needToResumeJobs {
 			// resume jobs if the UI was interrupted, the call context is already cancelled, so let's use a fresh one fpr this call
-			_ = upCmd.resumeJobs(context.Background(), app)
+			_ = upCmd.resumeJobs(context.Background(), app) //nolint:contextcheck
 			needToResumeJobs = false
 		}
 	}()

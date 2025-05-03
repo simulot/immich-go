@@ -117,7 +117,6 @@ func (UpCmd *UpCmd) pauseJobs(ctx context.Context, app *app.Application) error {
 			if err != nil {
 				UpCmd.app.Jnl().Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
 				return err
-
 			}
 			UpCmd.app.Jnl().Log().Info("Immich Job command sent", "pause", name)
 		}
@@ -518,10 +517,6 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.
 // If the album already has the asset, it is not added.
 // Errors are logged.
 func (upCmd *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName, ID string, albums []assets.Album) {
-	if len(albums) == 0 {
-		return
-	}
-
 	for _, album := range albums {
 		al := assets.NewAlbum("", album.Title, album.Description)
 		if upCmd.albumsCache.AddIDToCollection(al.Title, album, ID) {
