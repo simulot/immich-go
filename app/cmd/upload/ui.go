@@ -51,10 +51,17 @@ func (ui *uiPage) restoreLogger(app *app.Application) {
 
 func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
-
+	needToResumeJobs := false
 	uiApp := tview.NewApplication()
 	ui := upCmd.newUI(ctx, app)
 
+	defer func() {
+		if needToResumeJobs {
+			// resume jobs if the UI was interrupted, the call context is already cancelled, so let's use a fresh one fpr this call
+			_ = upCmd.resumeJobs(context.Background(), app)
+			needToResumeJobs = false
+		}
+	}()
 	defer cancel(nil)
 	pages := tview.NewPages()
 
@@ -166,6 +173,15 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	uiGroup.Go(func() error {
 		var groupChan chan *assets.Group
 		var err error
+
+		if app.Client().PauseImmichBackgroundJobs {
+			err = upCmd.pauseJobs(ctx, app)
+			if err != nil {
+				return err
+			}
+			needToResumeJobs = true
+		}
+
 		processGrp := errgroup.Group{}
 		processGrp.Go(func() error {
 			// Get immich asset
@@ -206,6 +222,13 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
 
+		if needToResumeJobs {
+			err = upCmd.resumeJobs(ctx, app)
+			needToResumeJobs = false
+			if err != nil {
+				stopUI(err)
+			}
+		}
 		modal := newModal(messages.String())
 		pages.AddPage("modal", modal, true, false)
 		// upload is done!
