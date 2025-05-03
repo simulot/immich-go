@@ -242,20 +242,22 @@ immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-
 The **upload** command need the following options to manage the connection with the Immich server:
 
 
-| **Parameter**        | **Default value** | **Description**                                                                                                                    |
-| -------------------- | :---------------: | ---------------------------------------------------------------------------------------------------------------------------------- |
-| -s, --server         |                   | Immich server address (e.g http://your-ip:2283 or https://your-domain) (**MANDATORY**)                                             |
-| -k, --api-key        |                   | API Key (**MANDATORY**)                                                                                                            |
-| --no-ui              |      `FALSE`      | Disable the user interface                                                                                                         |
-| --api-trace          |      `FALSE`      | Enable trace of api calls                                                                                                          |
-| --client-timeout     |      `5m0s`       | Set server calls timeout                                                                                                           |
-| --device-uuid string |   `$LOCALHOST`    | Set a device UUID                                                                                                                  |
-| --dry-run            |                   | Simulate all server actions                                                                                                        |
-| --skip-verify-ssl    |      `FALSE`      | Skip SSL verification                                                                                                              |
-| --time-zone          |                   | Override the system time zone (example: Europe/Paris)                                                                              |
-| --session-tag        |      `FALSE`      | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                   |
-| --tag strings        |                   | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1') |
-| --on-server-errors   |      `stop`       | Action to take on server errors, (stop,continue,\<n\> to stop after n errors)                                                      |
+| **Parameter**        | **Default value** | **Description**                                                                                                                           |
+| -------------------- | :---------------: | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| -s, --server         |                   | Immich server address (e.g http://your-ip:2283 or https://your-domain) (**MANDATORY**)                                                    |
+| -k, --api-key        |                   | API Key (**MANDATORY**)                                                                                                                   |
+| --admin-api-key      |                   | The Immichs admin's API key, used to pause and resume the server's jobs during operations (**MANDATORY** when uploading for a non-admin ) |
+| --no-ui              |      `FALSE`      | Disable the user interface                                                                                                                |
+| --api-trace          |      `FALSE`      | Enable trace of api calls                                                                                                                 |
+| --client-timeout     |       `20m`       | Set server calls timeout                                                                                                                  |
+| --device-uuid string |   `$LOCALHOST`    | Set a device UUID                                                                                                                         |
+| --dry-run            |                   | Simulate all server actions                                                                                                               |
+| --skip-verify-ssl    |      `FALSE`      | Skip SSL verification                                                                                                                     |
+| --time-zone          |                   | Override the system time zone (example: Europe/Paris)                                                                                     |
+| --session-tag        |      `FALSE`      | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"                                                                          |
+| --tag strings        |                   | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')        |
+| --on-server-errors   |      `stop`       | Action to take on server errors, (stop,continue,\<n\> to stop after n errors)                                                             |
+| --pause-immich-jobs  |      `TRUE`       | Pause Immich server jobs during the upload process                                                                                        |
 
 
 ## **--client-timeout**
