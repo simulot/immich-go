@@ -38,6 +38,8 @@ type UpCmd struct {
 
 	albumsCache *cache.CollectionCache[assets.Album] // List of albums present on the server
 	tagsCache   *cache.CollectionCache[assets.Tag]   // List of tags present on the server
+
+	shouldResumeJobs map[string]bool // List of jobs to resume
 }
 
 func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *UpCmd {
@@ -100,6 +102,44 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 	}
 	upCmd.app.Jnl().Log().Info("updated tag", "tag", tag.Value, "assets", len(ids))
 	return tag, err
+}
+
+func (UpCmd *UpCmd) pauseJobs(ctx context.Context, app *app.Application) error {
+	UpCmd.shouldResumeJobs = make(map[string]bool)
+	jobs, err := app.Client().AdminImmich.GetJobs(ctx)
+	if err != nil {
+		return err
+	}
+	for name, job := range jobs {
+		UpCmd.shouldResumeJobs[name] = !job.QueueStatus.IsPaused
+		if UpCmd.shouldResumeJobs[name] {
+			_, err = app.Client().AdminImmich.SendJobCommand(ctx, name, "pause", true)
+			if err != nil {
+				UpCmd.app.Jnl().Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
+				return err
+
+			}
+			UpCmd.app.Jnl().Log().Info("Immich Job command sent", "pause", name)
+		}
+	}
+	return nil
+}
+
+func (UpCmd *UpCmd) resumeJobs(ctx context.Context, app *app.Application) error {
+	if UpCmd.shouldResumeJobs == nil {
+		return nil
+	}
+	for name, shouldResume := range UpCmd.shouldResumeJobs {
+		if shouldResume {
+			_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "resume", true)
+			if err != nil {
+				UpCmd.app.Jnl().Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
+				return err
+			}
+			UpCmd.app.Jnl().Log().Info("Immich Job command sent", "resume", name)
+		}
+	}
+	return nil
 }
 
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application, fsys []fs.FS) error {
