@@ -40,8 +40,6 @@ type UpCmd struct {
 	tagsCache   *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 
 	shouldResumeJobs map[string]bool // List of jobs to resume
-
-	shouldResumeJobs map[string]bool // List of jobs to resume
 }
 
 func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *UpCmd {
