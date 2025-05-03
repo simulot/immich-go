@@ -55,13 +55,13 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	uiApp := tview.NewApplication()
 	ui := upCmd.newUI(ctx, app)
 
-	defer func() {
+	defer func(ctx context.Context) {
 		if needToResumeJobs {
 			// resume jobs if the UI was interrupted, the call context is already cancelled, so let's use a fresh one fpr this call
 			_ = upCmd.resumeJobs(context.Background(), app)
 			needToResumeJobs = false
 		}
-	}()
+	}(ctx)
 	defer cancel(nil)
 	pages := tview.NewPages()
 
