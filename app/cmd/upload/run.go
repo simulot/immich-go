@@ -117,7 +117,6 @@ func (UpCmd *UpCmd) pauseJobs(ctx context.Context, app *app.Application) error {
 			if err != nil {
 				UpCmd.app.Jnl().Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
 				return err
-
 			}
 			UpCmd.app.Jnl().Log().Info("Immich Job command sent", "pause", name)
 		}
