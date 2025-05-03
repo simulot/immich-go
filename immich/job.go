@@ -65,7 +65,7 @@ func (ic *ImmichClient) GetJobs(ctx context.Context) (map[string]Job, error) {
 
 func (ic *ImmichClient) SendJobCommand(
 	ctx context.Context,
-	jobID JobID,
+	jobID string,
 	command JobCommand,
 	force bool,
 ) (resp SendJobCommandResponse, err error) {

@@ -100,7 +100,7 @@ type ImmichJobInterface interface {
 	GetJobs(ctx context.Context) (map[string]Job, error)
 	SendJobCommand(
 		ctx context.Context,
-		jobID JobID,
+		jobID string,
 		command JobCommand,
 		force bool,
 	) (SendJobCommandResponse, error)
