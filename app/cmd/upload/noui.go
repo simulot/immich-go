@@ -19,10 +19,10 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	lock := sync.RWMutex{}
 	needToResumeJobs := false
-	defer func(ctx context.Context) {
+	defer func(_ context.Context) {
 		if needToResumeJobs {
 			// resume jobs if the UI was interrupted, the call context is already cancelled, so let's use a fresh one fpr this call
-			_ = upCmd.resumeJobs(context.Background(), app)
+			_ = upCmd.resumeJobs(context.Background(), app) //nolint:contextcheck
 			needToResumeJobs = false
 		}
 	}(ctx)
