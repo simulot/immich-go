@@ -45,6 +45,11 @@ func useAlbum(m *gen.SyncMap[string, iCloudMeta], file fs.File, albumName string
 	if err != nil {
 		return errors.Join(err, errors.New("failed to read all csv records"))
 	}
+	// icloud takeouts can have empty csv files
+	// https://github.com/simulot/immich-go/issues/924
+	if len(records) == 0 {
+		return nil // nothing to do
+	}
 	for _, record := range records[1:] {
 		if len(record) != 1 {
 			return errors.Join(err, errors.New("invalid record"))
@@ -73,6 +78,12 @@ func UseICloudPhotoDetails(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filen
 	if err != nil {
 		return errors.Join(err, errors.New("failed to read all csv records"))
 	}
+	// icloud takeouts can have empty csv files
+	// https://github.com/simulot/immich-go/issues/924
+	if len(records) == 0 {
+		return nil // nothing to do
+	}
+
 	// skip header
 	for _, record := range records[1:] {
 		if len(record) != 8 {
