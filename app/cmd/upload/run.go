@@ -557,7 +557,6 @@ func (upCmd *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset, s
 		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		upCmd.manageAssetTags(ctx, a)
 	}
-	return
 }
 
 /*
