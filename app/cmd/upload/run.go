@@ -126,15 +126,15 @@ func (UpCmd *UpCmd) pauseJobs(ctx context.Context, app *app.Application) error {
 	return nil
 }
 
-func (UpCmd *UpCmd) resumeJobs(ctx context.Context, app *app.Application) error {
+func (UpCmd *UpCmd) resumeJobs(_ context.Context, app *app.Application) error {
 	if UpCmd.shouldResumeJobs == nil {
 		return nil
 	}
 	// Start with a context not yet cancelled
-	ctx = context.Background() //nolint
+	ctx := context.Background() //nolint
 	for name, shouldResume := range UpCmd.shouldResumeJobs {
 		if shouldResume {
-			_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "resume", true)
+			_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
 			if err != nil {
 				UpCmd.app.Jnl().Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
 				return err
@@ -184,7 +184,7 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.A
 			return err
 		}
 	}
-	defer upCmd.finishing(ctx, app)
+	defer func() { _ = upCmd.finishing(ctx, app) }()
 	defer func() {
 		fmt.Println(app.Jnl().Report())
 	}()
