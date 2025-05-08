@@ -51,17 +51,9 @@ func (ui *uiPage) restoreLogger(app *app.Application) {
 
 func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
-	needToResumeJobs := false
 	uiApp := tview.NewApplication()
 	ui := upCmd.newUI(ctx, app)
 
-	defer func(_ context.Context) {
-		if needToResumeJobs {
-			// resume jobs if the UI was interrupted, the call context is already cancelled, so let's use a fresh one fpr this call
-			_ = upCmd.resumeJobs(context.Background(), app) //nolint:contextcheck
-			needToResumeJobs = false
-		}
-	}(ctx)
 	defer cancel(nil)
 	pages := tview.NewPages()
 
@@ -174,14 +166,6 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		var groupChan chan *assets.Group
 		var err error
 
-		if app.Client().PauseImmichBackgroundJobs {
-			err = upCmd.pauseJobs(ctx, app)
-			if err != nil {
-				return err
-			}
-			needToResumeJobs = true
-		}
-
 		processGrp := errgroup.Group{}
 		processGrp.Go(func() error {
 			// Get immich asset
@@ -213,22 +197,18 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 
 		// we can upload assets
 		err = upCmd.uploadLoop(ctx, groupChan)
-		if err != nil {
-			return context.Cause(ctx)
-		}
+		// if err != nil {
+		// 	return context.Cause(ctx)
+		// }
+
+		upCmd.finishing(ctx, app)
+
 		uploadDone.Store(true)
 		counts := app.Jnl().GetCounts()
 		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
 
-		if needToResumeJobs {
-			err = upCmd.resumeJobs(ctx, app)
-			needToResumeJobs = false
-			if err != nil {
-				stopUI(err)
-			}
-		}
 		modal := newModal(messages.String())
 		pages.AddPage("modal", modal, true, false)
 		// upload is done!
