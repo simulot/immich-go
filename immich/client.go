@@ -65,6 +65,7 @@ func OptionVerifySSL(verify bool) clientOption {
 func OptionConnectionTimeout(d time.Duration) clientOption {
 	return func(ic *ImmichClient) error {
 		ic.client.Timeout = d
+		ic.client.Transport.(*http.Transport).ResponseHeaderTimeout = d
 		return nil
 	}
 }
@@ -99,11 +100,11 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 			MaxIdleConnsPerHost: 100,
 			MaxConnsPerHost:     100,
 			Dial: (&net.Dialer{
-				Timeout:   10 * time.Second,
+				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
 			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ResponseHeaderTimeout: 10 * time.Second,
+			TLSHandshakeTimeout:   30 * time.Second,
+			ResponseHeaderTimeout: 20 * time.Minute,
 		},
 		key:          key,
 		DeviceUUID:   deviceUUID,
@@ -112,7 +113,7 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 	}
 
 	ic.client = &http.Client{
-		Timeout:   time.Second * 60,
+		Timeout:   time.Minute * 20,
 		Transport: ic.roundTripper,
 	}
 
