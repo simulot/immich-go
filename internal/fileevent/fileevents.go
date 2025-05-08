@@ -167,7 +167,7 @@ func (r *Recorder) SetLogger(l *slog.Logger) {
 	r.log = l
 }
 
-func (r *Recorder) Report() {
+func (r *Recorder) Report() string {
 	sb := strings.Builder{}
 
 	countAnalysis := 0
@@ -227,15 +227,9 @@ func (r *Recorder) Report() {
 		} {
 			sb.WriteString(fmt.Sprintf("%-40s: %7d\n", c.String(), r.counts[c]))
 		}
-		fmt.Println(sb.String())
+		// fmt.Println(sb.String())
 	}
-
-	if countsUpload > 0 || countAnalysis > 0 {
-		lines := strings.Split(sb.String(), "\n")
-		for _, s := range lines {
-			r.log.Info(s)
-		}
-	}
+	return sb.String()
 }
 
 func (r *Recorder) GetCounts() []int64 {
