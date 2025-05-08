@@ -179,11 +179,12 @@ func (client *Client) Open(ctx context.Context) error {
 		return err
 	}
 
+	adminTime := max(client.ClientTimeout, 10*time.Second)
 	client.AdminImmich, err = immich.NewImmichClient(
 		client.Server,
 		client.AdminAPIKey,
 		immich.OptionVerifySSL(client.SkipSSL),
-		immich.OptionConnectionTimeout(client.ClientTimeout),
+		immich.OptionConnectionTimeout(adminTime),
 	)
 	if err != nil {
 		return err

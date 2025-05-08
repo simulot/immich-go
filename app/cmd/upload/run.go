@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -40,6 +41,7 @@ type UpCmd struct {
 	tagsCache   *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 
 	shouldResumeJobs map[string]bool // List of jobs to resume
+	finished         bool            // the finish task has been run
 }
 
 func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *UpCmd {
@@ -128,6 +130,8 @@ func (UpCmd *UpCmd) resumeJobs(ctx context.Context, app *app.Application) error 
 	if UpCmd.shouldResumeJobs == nil {
 		return nil
 	}
+	// Start with a context not yet cancelled
+	ctx = context.Background() //nolint
 	for name, shouldResume := range UpCmd.shouldResumeJobs {
 		if shouldResume {
 			_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "resume", true)
@@ -141,7 +145,49 @@ func (UpCmd *UpCmd) resumeJobs(ctx context.Context, app *app.Application) error 
 	return nil
 }
 
+func (UpCmd *UpCmd) finishing(ctx context.Context, app *app.Application) error {
+	if UpCmd.finished {
+		return nil
+	}
+	defer func() { UpCmd.finished = true }()
+	// do waiting operations
+	UpCmd.albumsCache.Close()
+	UpCmd.tagsCache.Close()
+
+	// Resume immich background jobs if requested
+	err := UpCmd.resumeJobs(ctx, app)
+	if err != nil {
+		return err
+	}
+	// Log the journal report
+	report := app.Jnl().Report()
+
+	if len(report) > 0 {
+		lines := strings.Split(report, "\n")
+		for _, s := range lines {
+			app.Jnl().Log().Info(s)
+		}
+	}
+
+	return nil
+}
+
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application, fsys []fs.FS) error {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	// Stop immich background jobs if requested
+	// will be resumed with a call to finishing()
+	if app.Client().PauseImmichBackgroundJobs {
+		err := upCmd.pauseJobs(ctx, app)
+		if err != nil {
+			return err
+		}
+	}
+	defer upCmd.finishing(ctx, app)
+	defer func() {
+		fmt.Println(app.Jnl().Report())
+	}()
 	upCmd.albumsCache = cache.NewCollectionCache(50, func(album assets.Album, ids []string) (assets.Album, error) {
 		return upCmd.saveAlbum(ctx, album, ids)
 	})
@@ -150,12 +196,6 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.A
 	})
 
 	upCmd.adapter = adapter
-	defer func() {
-		upCmd.albumsCache.Close()
-	}()
-	defer func() {
-		upCmd.tagsCache.Close()
-	}()
 
 	runner := upCmd.runUI
 	upCmd.assetIndex = newAssetIndex()
@@ -172,7 +212,6 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.A
 	err = runner(ctx, app)
 
 	err = errors.Join(err, fshelper.CloseFSs(fsys))
-	app.Jnl().Report()
 
 	return err
 }
