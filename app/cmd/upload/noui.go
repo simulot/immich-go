@@ -118,7 +118,7 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		if messages.Len() > 0 {
 			cancel(errors.New(messages.String()))
 		}
-		upCmd.finishing(ctx, app)
+		err = errors.Join(err, upCmd.finishing(ctx, app))
 		close(stopProgress)
 		return err
 	})

@@ -201,7 +201,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		// 	return context.Cause(ctx)
 		// }
 
-		upCmd.finishing(ctx, app)
+		err = errors.Join(err, upCmd.finishing(ctx, app))
 
 		uploadDone.Store(true)
 		counts := app.Jnl().GetCounts()
