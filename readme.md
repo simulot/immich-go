@@ -130,6 +130,25 @@ go build
 go install
 ```
 
+### Building in Termux
+The prebuilt `Linux_Arm64` binaries won't work in Termux for Android, so you have to build it yourself.
+You can follow the same build steps as above, but install `git` and `golang` via `pkg`.
+
+If you want to use `go install`, make sure to add `GOPATH/bin` to your `PATH`:
+```bash
+# Create or open .bashrc
+nano  ~/.bashrc
+
+# Add the following line in order to include GOPATH/bin in your $PATH
+export PATH=$PATH:$(go env GOPATH)/bin
+
+# Save and exit with Ctrl+X, then Y and Enter
+
+# Restart your session or apply changes to your current session with:
+source ~/.bashrc
+
+```
+
 ## Installation with Nix
 
 `immich-go` is packaged with [nix](https://nixos.org/) and distributed via [nixpkgs](https://search.nixos.org/packages?channel=unstable&type=packages&query=immich-go).
