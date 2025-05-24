@@ -175,13 +175,12 @@ func (UpCmd *UpCmd) finishing(ctx context.Context, app *app.Application) error {
 func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application, fsys []fs.FS) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
-
 	// Stop immich background jobs if requested
 	// will be resumed with a call to finishing()
 	if app.Client().PauseImmichBackgroundJobs {
 		err := upCmd.pauseJobs(ctx, app)
 		if err != nil {
-			return err
+			return fmt.Errorf("Can't pause immich background jobs: %wpass an adminstrator key with the flag --admin-api-key or disable the pause with thee flag --pause-immich-jobs=FALSE", err)
 		}
 	}
 	defer func() { _ = upCmd.finishing(ctx, app) }()
