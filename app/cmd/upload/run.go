@@ -180,7 +180,7 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.A
 	if app.Client().PauseImmichBackgroundJobs {
 		err := upCmd.pauseJobs(ctx, app)
 		if err != nil {
-			return fmt.Errorf("Can't pause immich background jobs: %wpass an administrator key with the flag --admin-api-key or disable the pause with thee flag --pause-immich-jobs=FALSE", err)
+			return fmt.Errorf("can't pause immich background jobs: pass an administrator key with the flag --admin-api-key or disable the jobs pausing with the flag --pause-immich-jobs=FALSE\n%w", err)
 		}
 	}
 	defer func() { _ = upCmd.finishing(ctx, app) }()
