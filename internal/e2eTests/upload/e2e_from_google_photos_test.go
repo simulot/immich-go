@@ -27,6 +27,7 @@ func TestUploadFromGooglePhotos(t *testing.T) {
 	c.SetArgs([]string{
 		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		// "--api-key=" + e2e.MyEnv("IMMICHGO_ALTERNATE_APIKEY"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--on-server-errors=continue",
 		"--log-level=DEBUG",

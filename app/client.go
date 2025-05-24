@@ -225,13 +225,6 @@ func (client *Client) Open(ctx context.Context) error {
 
 	client.ClientLog.Info(fmt.Sprintf("Connected, user: %s, ID: %s", user.Email, user.ID))
 
-	_, err = client.AdminImmich.GetJobs(ctx)
-	if err != nil {
-		// client.ClientLog.Error("Can't get admin jobs with the provided API-key", err)
-		err = fmt.Errorf("can't get server jobs with the provided API-key: %w", err)
-		return err
-	}
-
 	if client.DryRun {
 		client.ClientLog.Info("Dry-run mode enabled. No changes will be made to the server.")
 	}
