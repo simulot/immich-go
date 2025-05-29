@@ -283,3 +283,30 @@ func TestDuplicateFilesWithDifferentNamesGP(t *testing.T) {
 		a.Log().Error(err.Error())
 	}
 }
+
+// #932  Google Takeout Upload seems to miss a ton of album tags
+// reproduce the problem conditions
+
+func TestAlbumAndTagOnReplacedAssetsGP(t *testing.T) {
+	e2e.InitMyEnv()
+	e2e.ResetImmich(t)
+
+	ctx := context.Background()
+	c, a := cmd.RootImmichGoCommand(ctx)
+	c.SetArgs([]string{
+		"upload", "from-google-photos"
+		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
+		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--no-ui",
+		"--log-level=debug",
+		"--api-trace",
+		"--tag=tag1",
+		"TEST_DATA/Issue #932",
+	})
+
+	// let's start
+	err := c.ExecuteContext(ctx)
+	if err != nil && a.Log().GetSLog() != nil {
+		a.Log().Error(err.Error())
+	}
+}
