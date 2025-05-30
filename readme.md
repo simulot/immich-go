@@ -425,7 +425,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 * **Importing Your Photos:**
   * If your takeout is in ZIP format, you can import it directly without needing to unzip the files first.
   * It's important to import all parts of the takeout together, as some data might be spread across multiple files. Use `/path/to/your/files/takeout-*.zip` as the file name.
-  * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. The use the command `immich-go upload from-google-photos /path/to/your/files`.  
+  * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. Then use the command `immich-go upload from-google-photos /path/to/your/files`.  
   * You can remove any unwanted files or folders from your takeout before importing.
   * Restarting an interrupted import won't cause any problems and will resume where it left off.
 
