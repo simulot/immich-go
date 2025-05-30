@@ -157,7 +157,7 @@ You can try `immich-go` without installing it with the following commands:
 ```bash
 nix-shell -I "nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable-small.tar.gz" -p immich-go
 # Or with flakes enabled
-nix run "github:nixos/nixpkgs?ref=nixos-unstable-small#immich-go" -- -help
+nix run "github:nixos/nixpkgs?ref=nixos-unstable-small#immich-go" -- --help
 ```
 
 Or you can add `immich-go` to your `configuration.nix` in the `environment.systemPackages` section.
