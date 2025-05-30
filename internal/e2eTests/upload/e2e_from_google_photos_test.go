@@ -294,7 +294,7 @@ func TestAlbumAndTagOnReplacedAssetsGP(t *testing.T) {
 	ctx := context.Background()
 	c, a := cmd.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
-		"upload", "from-google-photos"
+		"upload", "from-google-photos",
 		"--server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
 		"--no-ui",
