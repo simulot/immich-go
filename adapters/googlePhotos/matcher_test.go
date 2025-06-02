@@ -187,6 +187,11 @@ func Test_matchers(t *testing.T) {
 			jsonName: "Screenshot_20231027_123303_Facebook.jpg.supple(1).json",
 			want:     "matchNormal",
 		},
+		{
+			fileName: "Screenshot_2024-08-31-00-53-48-647_com.snapchat.jpg",
+			jsonName: "Screenshot_2024-08-31-00-53-48-647_com.snapcha.json",
+			want:     "matchNormal",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
