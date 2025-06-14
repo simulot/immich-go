@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func Test_GlobWalkFS(t *testing.T) {
+func Test_VirtualGlobFS(t *testing.T) {
 	tc := []struct {
 		pattern        string
 		expected       []string
@@ -107,7 +107,7 @@ func Test_GlobWalkFS(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.pattern, func(t *testing.T) {
-			fsys, err := NewGlobWalkFS(path.Join("TESTDATA", c.pattern))
+			fsys, err := NewVirtualGlobFS(path.Join("TESTDATA", c.pattern))
 			if err != nil {
 				t.Error(err)
 				return
