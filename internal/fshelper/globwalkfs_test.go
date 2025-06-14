@@ -9,12 +9,14 @@ import (
 
 func Test_GlobWalkFS(t *testing.T) {
 	tc := []struct {
-		pattern  string
-		expected []string
+		pattern        string
+		expected       []string
+		expectedFSName string
 	}{
 		{
-			pattern:  "A/T/10.jpg",
-			expected: []string{"10.jpg"},
+			pattern:        "A/T/10.jpg",
+			expected:       []string{"10.jpg"},
+			expectedFSName: "T",
 		},
 		{
 			pattern: "A/T/*.*",
@@ -22,12 +24,14 @@ func Test_GlobWalkFS(t *testing.T) {
 				"10.jpg",
 				"10.json",
 			},
+			expectedFSName: "T",
 		},
 		{
 			pattern: "A/T/*.jpg",
 			expected: []string{
 				"10.jpg",
 			},
+			expectedFSName: "T",
 		},
 		{
 			pattern: "*/T/*.*",
@@ -37,6 +41,7 @@ func Test_GlobWalkFS(t *testing.T) {
 				"B/T/20.jpg",
 				"B/T/20.json",
 			},
+			expectedFSName: "TESTDATA",
 		},
 		{
 			pattern: "*/T/*.jpg",
@@ -44,6 +49,7 @@ func Test_GlobWalkFS(t *testing.T) {
 				"A/T/10.jpg",
 				"B/T/20.jpg",
 			},
+			expectedFSName: "TESTDATA",
 		},
 		{
 			pattern: "*/*.jpg",
@@ -52,6 +58,7 @@ func Test_GlobWalkFS(t *testing.T) {
 				"A/2.jpg",
 				"B/4.jpg",
 			},
+			expectedFSName: "TESTDATA",
 		},
 		{
 			pattern: "A",
@@ -63,12 +70,14 @@ func Test_GlobWalkFS(t *testing.T) {
 				"T/10.jpg",
 				"T/10.json",
 			},
+			expectedFSName: "A",
 		},
 		{
 			pattern: "*.jpg",
 			expected: []string{
 				"C.JPG",
 			},
+			expectedFSName: "TESTDATA",
 		},
 	}
 
@@ -93,8 +102,12 @@ func Test_GlobWalkFS(t *testing.T) {
 				t.Error(err)
 				return
 			}
+
 			if !reflect.DeepEqual(c.expected, files) {
-				t.Error("Result differs")
+				t.Errorf("unexpected filelist; expected %v, got %v", c.expected, files)
+			}
+			if c.expectedFSName != fsys.(NameFS).Name() {
+				t.Errorf("unexpected FSName; expected %v, got %v", c.expectedFSName, fsys.(NameFS).Name())
 			}
 		})
 	}
