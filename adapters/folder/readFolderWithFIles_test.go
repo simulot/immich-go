@@ -62,7 +62,7 @@ func TestLocalAssets(t *testing.T) {
 				},
 			},
 			fsys: []fs.FS{
-				fshelper.NewFSWithName(os.DirFS("DATA/2023/2023-10/2023-10-06"), "2023-10-06"),
+				fshelper.NewFSWithName("DATA/2023/2023-10/2023-10-06"),
 			},
 			expectedFiles: []string{
 				"photo1_w_exif.jpg",
@@ -86,7 +86,7 @@ func TestLocalAssets(t *testing.T) {
 				},
 			},
 			fsys: []fs.FS{
-				fshelper.NewFSWithName(os.DirFS("DATA/2023/2023-10/2023-10-06"), "2023-10-06"),
+				fshelper.NewFSWithName("DATA/2023/2023-10/2023-10-06"),
 			},
 			expectedFiles: []string{
 				"photo1_w_exif.jpg",
@@ -110,7 +110,7 @@ func TestLocalAssets(t *testing.T) {
 				},
 			},
 			fsys: []fs.FS{
-				fshelper.NewFSWithName(os.DirFS("DATA/2023/2023-10/2023-10-06"), "2023-10-06"),
+				fshelper.NewFSWithName("DATA/2023/2023-10/2023-10-06"),
 			},
 			expectedFiles: []string{
 				"photo1_w_exif.jpg",
