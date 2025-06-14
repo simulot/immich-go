@@ -41,7 +41,7 @@ func ParsePath(args []string) ([]fs.FS, error) {
 				}
 				fsyss = append(fsyss, fsys)
 			default:
-				fsys, err := NewVFS(f)
+				fsys, err := NewGlobWalkFS(f)
 				if err != nil {
 					errs = errors.Join(errs, err)
 					continue

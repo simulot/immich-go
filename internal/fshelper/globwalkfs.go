@@ -17,80 +17,113 @@ import (
 //
 
 type GlobWalkFS struct {
-	rootFS fs.FS
-	dir    string
+	rootFS NameFS
+	files  map[string]fs.DirEntry
+	dirs   map[string][]string
 	parts  []string
 }
 
+var _ fs.FS = GlobWalkFS{}
+var _ fs.ReadDirFS = GlobWalkFS{}
+var _ fs.StatFS = GlobWalkFS{}
+var _ NameFS = GlobWalkFS{}
+
 func NewGlobWalkFS(pattern string) (fs.FS, error) {
+	rootFs, parts, err := getRootFs(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	gwfs := &GlobWalkFS{
+		rootFS: rootFs,
+		files:  make(map[string]fs.DirEntry),
+		dirs:   make(map[string][]string),
+		parts:  parts,
+	}
+
+	err = fs.WalkDir(gwfs.rootFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// directories should always be added
+		parentDir := filepath.Dir(path)
+		if parentDir != path {
+			gwfs.dirs[parentDir] = append(gwfs.dirs[parentDir], path)
+			gwfs.files[path] = d
+			return nil
+		}
+
+		if !gwfs.match(path) {
+			return nil
+		}
+
+		gwfs.files[path] = d
+		return nil
+	})
+
+	return gwfs, err
+}
+
+func getRootFs(pattern string) (NameFS, []string, error) {
 	dir, magic := FixedPathAndMagic(pattern)
 	if magic == "" {
-		s, err := os.Stat(dir)
-		if err != nil {
-			return nil, err
-		}
-
-		if !s.IsDir() {
-			magic = strings.ToLower(path.Base(dir))
-			dir = path.Dir(dir)
-			if dir == "" {
-				dir, _ = os.Getwd()
-			}
-			return &GlobWalkFS{
-				rootFS: NewFSWithName(os.DirFS(dir), filepath.Base(dir)),
-				dir:    dir,
-				parts:  []string{magic},
-			}, nil
-		} else {
-			name := filepath.Base(dir)
-			if name == "." {
-				name, _ = os.Getwd()
-				name = filepath.Base(name)
-			}
-
-			return &GlobWalkFS{
-				rootFS: NewFSWithName(os.DirFS(dir), name),
-				dir:    dir,
-			}, nil
-		}
+		return simpleRootFS(dir)
 	}
+
 	if dir == "" {
 		dir, _ = os.Getwd()
 	}
-	parts := strings.Split(magic, string(os.PathSeparator))
-	for i := range parts {
-		parts[i] = strings.ToLower(parts[i])
+
+	return NewFSWithName(dir), strings.Split(strings.ToLower(magic), string(os.PathSeparator)), nil
+}
+
+func simpleRootFS(root string) (NameFS, []string, error) {
+	s, err := os.Stat(root)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return &GlobWalkFS{
-		rootFS: NewFSWithName(os.DirFS(dir), filepath.Base(dir)),
-		dir:    dir,
-		parts:  parts,
-	}, nil
+	if !s.IsDir() {
+		// In the case of a file, we use the filename as the matching "magic" component.
+		file := strings.ToLower(path.Base(root))
+		rootDir := path.Dir(root)
+		if rootDir == "" {
+			rootDir, _ = os.Getwd()
+		}
+		return NewFSWithName(rootDir), []string{file}, nil
+	}
+
+	// Otherwise, we just use the directory
+	return NewFSWithName(root), nil, nil
 }
 
 // match the current file name with the pattern
 // matches files having a path starting by the patten
 //
 //	ex:  file /path/to/file matches with the pattern /*/to
-func (gw GlobWalkFS) match(name string) bool {
-	if name == "." {
+func (gw GlobWalkFS) match(filename string) bool {
+	if filename == "." {
 		return true
 	}
 
-	parts := strings.Split(name, string(os.PathSeparator))
-	for i := range parts {
-		parts[i] = strings.ToLower(parts[i])
+	lowerFName := strings.ToLower(filename)
+	if strings.HasSuffix(lowerFName, ".xmp") {
+		return true
 	}
+
+	parts := strings.Split(lowerFName, string(os.PathSeparator))
+
 	for i := 0; i < min(len(gw.parts), len(parts)); i++ {
 		if m, err := path.Match(gw.parts[i], parts[i]); err != nil || !m {
 			return false
 		}
 	}
-	parts = strings.Split(name, string(os.PathSeparator))
+
+	parts = strings.Split(filename, string(os.PathSeparator))
 	if len(gw.parts) > len(parts) {
-		s, err := fs.Stat(gw, path.Join(parts[:min(len(gw.parts), len(parts))]...))
-		if err != nil || !s.IsDir() {
+		join := path.Join(parts[:min(len(gw.parts), len(parts))]...)
+		if f, ok := gw.files[join]; !ok || !f.IsDir() {
 			return false
 		}
 	}
@@ -99,51 +132,41 @@ func (gw GlobWalkFS) match(name string) bool {
 
 // Open the name only if the name matches with the pattern
 func (gw GlobWalkFS) Open(name string) (fs.File, error) {
+	if _, ok := gw.files[name]; !ok {
+		return nil, fmt.Errorf("%s: %w", name, fs.ErrNotExist)
+	}
 	return gw.rootFS.Open(name)
 }
 
 // Stat the name only if the name matches with the pattern
 func (gw GlobWalkFS) Stat(name string) (fs.FileInfo, error) {
-	return fs.Stat(gw.rootFS, name)
+	fi, ok := gw.files[name]
+	if !ok {
+		return nil, fmt.Errorf("%s: %w", name, fs.ErrNotExist)
+	}
+	return fi.Info()
 }
 
 // ReadDir return all DirEntries that match with the pattern or .XMP files
 func (gw GlobWalkFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	match := gw.match(name)
-	if !match {
-		return nil, fs.ErrNotExist
-	}
-	entries, err := fs.ReadDir(gw.rootFS, name)
-	if err != nil {
-		return nil, fmt.Errorf("ReadDir %s: %w", name, err)
+	files, ok := gw.dirs[name]
+	if !ok {
+		return nil, fmt.Errorf("%s: %w", name, fs.ErrNotExist)
 	}
 
-	returned := []fs.DirEntry{}
-	for _, e := range entries {
-		p := path.Join(name, e.Name())
-
-		// Always matches .XMP files...
-		if !e.IsDir() {
-			ext := strings.ToUpper(path.Ext(e.Name()))
-			if ext == ".XMP" {
-				returned = append(returned, e)
-				continue
-			}
+	entries := make([]fs.DirEntry, 0, len(files))
+	for _, f := range files {
+		if !gw.match(f) {
+			continue
 		}
-		match = gw.match(p)
-		if match {
-			returned = append(returned, e)
-		}
+		entries = append(entries, gw.files[f])
 	}
-	return returned, nil
+	return entries, nil
 }
 
-// FSName gives the folder name when argument was .
+// Name gives the folder name when the argument was '.'
 func (gw GlobWalkFS) Name() string {
-	if fsys, ok := gw.rootFS.(NameFS); ok {
-		return fsys.Name()
-	}
-	return filepath.Base(gw.dir)
+	return gw.rootFS.Name()
 }
 
 // FixedPathAndMagic split the path with the fixed part and the variable part
@@ -166,47 +189,27 @@ func FixedPathAndMagic(name string) (string, string) {
 	return fixed + path.Join(parts[:p]...), path.Join(parts[p:]...)
 }
 
+// NameFS creates an fs.FS which can be named to pass around details.
+type NameFS interface {
+	fs.FS
+	Name() string
+}
 type FSWithName struct {
+	fs.FS
 	name string
-	fsys fs.FS
 }
 
-func NewFSWithName(fsys fs.FS, name string) fs.FS {
+var _ NameFS = FSWithName{}
+
+// NewFSWithName creates a new rooted filesystem at the provided root. See os.DirFS for details.
+// It then extends that by naming the FS by the base directory that's being used.
+func NewFSWithName(root string) NameFS {
 	return &FSWithName{
-		name: name,
-		fsys: fsys,
+		name: filepath.Base(root),
+		FS:   os.DirFS(root),
 	}
-}
-
-func (f FSWithName) Open(name string) (fs.File, error) {
-	return f.fsys.Open(name)
 }
 
 func (f FSWithName) Name() string {
 	return f.name
-}
-
-func (f FSWithName) ReadDir(name string) ([]fs.DirEntry, error) {
-	if fsys, ok := f.fsys.(fs.ReadDirFS); ok {
-		return fsys.ReadDir(name)
-	}
-	return fs.ReadDir(f.fsys, name)
-}
-
-func (f FSWithName) Stat(name string) (fs.FileInfo, error) {
-	if fsys, ok := f.fsys.(fs.StatFS); ok {
-		return fsys.Stat(name)
-	}
-	return fs.Stat(f.fsys, name)
-}
-
-func (f FSWithName) ReadFile(name string) ([]byte, error) {
-	if fsys, ok := f.fsys.(fs.ReadFileFS); ok {
-		return fsys.ReadFile(name)
-	}
-	return fs.ReadFile(f.fsys, name)
-}
-
-type NameFS interface {
-	Name() string
 }
