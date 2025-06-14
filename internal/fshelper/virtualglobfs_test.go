@@ -7,53 +7,82 @@ import (
 	"testing"
 )
 
-func Test_GlobWalkFS(t *testing.T) {
+func Test_VirtualGlobFS(t *testing.T) {
 	tc := []struct {
-		pattern  string
-		expected []string
+		pattern        string
+		expected       []string
+		expectedFSName string
 	}{
 		{
-			pattern:  "A/T/10.jpg",
-			expected: []string{"10.jpg"},
+			// Exact match
+			pattern:        "A/T/10.jpg",
+			expected:       []string{"10.jpg"},
+			expectedFSName: "T",
 		},
 		{
+			// Also return XMP files, even on exact matches
+			pattern:        "C.jpg",
+			expected:       []string{"C.JPG", "C.XMP"},
+			expectedFSName: "TESTDATA",
+		},
+		{
+			// All files, of all types, in a directory
 			pattern: "A/T/*.*",
 			expected: []string{
 				"10.jpg",
 				"10.json",
 			},
+			expectedFSName: "T",
 		},
 		{
-			pattern: "A/T/*.jpg",
+			// All files of one type in a directory (and always XMP)
+			pattern: "B/T/*.jpg",
 			expected: []string{
-				"10.jpg",
+				"20.jpg",
+				"20.xmp",
 			},
+			expectedFSName: "T",
 		},
 		{
+			// All files in directories called "T"
 			pattern: "*/T/*.*",
 			expected: []string{
 				"A/T/10.jpg",
 				"A/T/10.json",
+				"B/4.xmp",
 				"B/T/20.jpg",
 				"B/T/20.json",
+				"B/T/20.xmp",
+				"C.XMP",
 			},
+			expectedFSName: "TESTDATA",
 		},
 		{
+			// All JPG (and XMP) files in directories called "T"
 			pattern: "*/T/*.jpg",
 			expected: []string{
 				"A/T/10.jpg",
+				"B/4.xmp",
 				"B/T/20.jpg",
+				"B/T/20.xmp",
+				"C.XMP",
 			},
+			expectedFSName: "TESTDATA",
 		},
 		{
+			// All JPGs (and XMP) of top-level directories
 			pattern: "*/*.jpg",
 			expected: []string{
 				"A/1.jpg",
 				"A/2.jpg",
 				"B/4.jpg",
+				"B/4.xmp",
+				"C.XMP",
 			},
+			expectedFSName: "TESTDATA",
 		},
 		{
+			// All contents of directory 'A'
 			pattern: "A",
 			expected: []string{
 				"1.jpg",
@@ -63,18 +92,22 @@ func Test_GlobWalkFS(t *testing.T) {
 				"T/10.jpg",
 				"T/10.json",
 			},
+			expectedFSName: "A",
 		},
 		{
+			// Top level patterns
 			pattern: "*.jpg",
 			expected: []string{
 				"C.JPG",
+				"C.XMP",
 			},
+			expectedFSName: "TESTDATA",
 		},
 	}
 
 	for _, c := range tc {
 		t.Run(c.pattern, func(t *testing.T) {
-			fsys, err := NewGlobWalkFS(path.Join("TESTDATA", c.pattern))
+			fsys, err := NewVirtualGlobFS(path.Join("TESTDATA", c.pattern))
 			if err != nil {
 				t.Error(err)
 				return
@@ -93,8 +126,12 @@ func Test_GlobWalkFS(t *testing.T) {
 				t.Error(err)
 				return
 			}
+
 			if !reflect.DeepEqual(c.expected, files) {
-				t.Error("Result differs")
+				t.Errorf("unexpected filelist; expected %v, got %v", c.expected, files)
+			}
+			if c.expectedFSName != fsys.(NameFS).Name() {
+				t.Errorf("unexpected FSName; expected %v, got %v", c.expectedFSName, fsys.(NameFS).Name())
 			}
 		})
 	}
