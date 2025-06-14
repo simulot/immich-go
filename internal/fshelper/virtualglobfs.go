@@ -9,39 +9,39 @@ import (
 	"strings"
 )
 
-//  GlobWalkFS create a FS that limits the WalkDir function to the
+//  VirtualGlobFS create a FS that limits the WalkDir function to the
 //  list of files that match the glob expression, and cheats to
 //  matches *.XMP files in all circumstances
 //
 //  It implements ReadDir and Stat to filter the file list
 //
 
-type GlobWalkFS struct {
+type VirtualGlobFS struct {
 	rootFS NameFS
 	files  map[string]fs.DirEntry
 	dirs   map[string][]string
 	parts  []string
 }
 
-var _ fs.FS = GlobWalkFS{}
-var _ fs.ReadDirFS = GlobWalkFS{}
-var _ fs.StatFS = GlobWalkFS{}
-var _ NameFS = GlobWalkFS{}
+var _ fs.FS = VirtualGlobFS{}
+var _ fs.ReadDirFS = VirtualGlobFS{}
+var _ fs.StatFS = VirtualGlobFS{}
+var _ NameFS = VirtualGlobFS{}
 
-func NewGlobWalkFS(pattern string) (fs.FS, error) {
+func NewVirtualGlobFS(pattern string) (fs.FS, error) {
 	rootFs, parts, err := getRootFs(pattern)
 	if err != nil {
 		return nil, err
 	}
 
-	gwfs := &GlobWalkFS{
+	vfs := &VirtualGlobFS{
 		rootFS: rootFs,
 		files:  make(map[string]fs.DirEntry),
 		dirs:   make(map[string][]string),
 		parts:  parts,
 	}
 
-	err = fs.WalkDir(gwfs.rootFS, ".", func(path string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(vfs.rootFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -49,20 +49,20 @@ func NewGlobWalkFS(pattern string) (fs.FS, error) {
 		// directories should always be added
 		parentDir := filepath.Dir(path)
 		if parentDir != path {
-			gwfs.dirs[parentDir] = append(gwfs.dirs[parentDir], path)
-			gwfs.files[path] = d
+			vfs.dirs[parentDir] = append(vfs.dirs[parentDir], path)
+			vfs.files[path] = d
 			return nil
 		}
 
-		if !gwfs.match(path) {
+		if !vfs.match(path) {
 			return nil
 		}
 
-		gwfs.files[path] = d
+		vfs.files[path] = d
 		return nil
 	})
 
-	return gwfs, err
+	return vfs, err
 }
 
 func getRootFs(pattern string) (NameFS, []string, error) {
@@ -102,7 +102,7 @@ func simpleRootFS(root string) (NameFS, []string, error) {
 // matches files having a path starting by the patten
 //
 //	ex:  file /path/to/file matches with the pattern /*/to
-func (gw GlobWalkFS) match(filename string) bool {
+func (gw VirtualGlobFS) match(filename string) bool {
 	if filename == "." {
 		return true
 	}
@@ -131,7 +131,7 @@ func (gw GlobWalkFS) match(filename string) bool {
 }
 
 // Open the name only if the name matches with the pattern
-func (gw GlobWalkFS) Open(name string) (fs.File, error) {
+func (gw VirtualGlobFS) Open(name string) (fs.File, error) {
 	if _, ok := gw.files[name]; !ok {
 		return nil, fmt.Errorf("%s: %w", name, fs.ErrNotExist)
 	}
@@ -139,7 +139,7 @@ func (gw GlobWalkFS) Open(name string) (fs.File, error) {
 }
 
 // Stat the name only if the name matches with the pattern
-func (gw GlobWalkFS) Stat(name string) (fs.FileInfo, error) {
+func (gw VirtualGlobFS) Stat(name string) (fs.FileInfo, error) {
 	fi, ok := gw.files[name]
 	if !ok {
 		return nil, fmt.Errorf("%s: %w", name, fs.ErrNotExist)
@@ -148,7 +148,7 @@ func (gw GlobWalkFS) Stat(name string) (fs.FileInfo, error) {
 }
 
 // ReadDir return all DirEntries that match with the pattern or .XMP files
-func (gw GlobWalkFS) ReadDir(name string) ([]fs.DirEntry, error) {
+func (gw VirtualGlobFS) ReadDir(name string) ([]fs.DirEntry, error) {
 	files, ok := gw.dirs[name]
 	if !ok {
 		return nil, fmt.Errorf("%s: %w", name, fs.ErrNotExist)
@@ -165,7 +165,7 @@ func (gw GlobWalkFS) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 // Name gives the folder name when the argument was '.'
-func (gw GlobWalkFS) Name() string {
+func (gw VirtualGlobFS) Name() string {
 	return gw.rootFS.Name()
 }
 
