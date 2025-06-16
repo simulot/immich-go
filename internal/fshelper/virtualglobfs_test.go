@@ -21,7 +21,7 @@ func Test_VirtualGlobFS(t *testing.T) {
 		},
 		{
 			// Also return XMP files, even on exact matches
-			pattern:        "C.jpg",
+			pattern:        "C.JPG",
 			expected:       []string{"C.JPG", "C.XMP"},
 			expectedFSName: "TESTDATA",
 		},
