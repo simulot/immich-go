@@ -84,16 +84,16 @@ The easiest way to install Immich-Go is to download the pre-built binary for you
 
 1. Visit the [releases page](https://github.com/simulot/immich-go/releases/latest)
 2. Download the archive for your operating system and architecture:
-   - Windows: `immich-go_Windows_amd64.zip`
-   - MacOS: `immich-go_Darwin_amd64.tar.gz`
-   - Linux: `immich-go_Linux_amd64.tar.gz`
-   - FreeBSD: `immich-go_Freebsd_amd64.tar.gz`
+   - Windows: `immich-go_Windows_x86_64.zip`
+   - MacOS: `immich-go_Darwin_x86_64.tar.gz`
+   - Linux: `immich-go_Linux_x86_64.tar.gz`
+   - FreeBSD: `immich-go_Freebsd_x86_64.tar.gz`
    - and more...
 
 3. Extract the archive:
    ```bash
    # For Linux/MacOS/FreeBSD
-   tar -xzf immich-go_*_amd64.tar.gz
+   tar -xzf immich-go_*_x86_64.tar.gz
 
    # For Windows
    # Use your preferred zip tool to extract the archive
