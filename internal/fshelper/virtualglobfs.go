@@ -23,10 +23,12 @@ type VirtualGlobFS struct {
 	parts  []string
 }
 
-var _ fs.FS = VirtualGlobFS{}
-var _ fs.ReadDirFS = VirtualGlobFS{}
-var _ fs.StatFS = VirtualGlobFS{}
-var _ NameFS = VirtualGlobFS{}
+var (
+	_ fs.FS        = VirtualGlobFS{}
+	_ fs.ReadDirFS = VirtualGlobFS{}
+	_ fs.StatFS    = VirtualGlobFS{}
+	_ NameFS       = VirtualGlobFS{}
+)
 
 func NewVirtualGlobFS(pattern string) (fs.FS, error) {
 	rootFs, parts, err := getRootFs(pattern)
