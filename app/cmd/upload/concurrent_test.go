@@ -31,7 +31,7 @@ func TestConcurrentProcessing(t *testing.T) {
 	// Record start time
 	overallStart := time.Now()
 
-	// Simulate the concurrent processing pattern from uploadLoopConcurrent
+	// Simulate the concurrent processing pattern from uploadLoopWithWorkers
 	var wg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
