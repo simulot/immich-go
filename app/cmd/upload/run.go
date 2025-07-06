@@ -299,11 +299,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	return nil
 }
 
-func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
-	return upCmd.uploadLoopWithWorkers(ctx, groupChan, upCmd.ConcurrentUploads)
-}
-
-func (upCmd *UpCmd) uploadLoopWithWorkers(ctx context.Context, groupChan chan *assets.Group, numWorkers int) error {
+func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group, numWorkers int) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	errorCount := 0
