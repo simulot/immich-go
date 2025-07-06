@@ -277,6 +277,7 @@ The **upload** command need the following options to manage the connection with 
 | --tag strings        |                   | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')        |
 | --on-server-errors   |      `stop`       | Action to take on server errors, (stop,continue,\<n\> to stop after n errors)                                                             |
 | --pause-immich-jobs  |      `TRUE`       | Pause Immich server jobs during the upload process                                                                                        |
+| --concurrent-uploads |        `4`        | Number of concurrent upload workers (1-20)                                                                                                |
 
 
 ## **--client-timeout**
@@ -285,6 +286,21 @@ Increase the **--client-timeout** when you have some timeout issues with the ser
 ## **--session-tag**
 Thanks to the **--session-tag** option, it's easy to identify all photos uploaded during a session, and remove them if needed.
 This tag is formatted as `{immich-go}/YYYY-MM-DD HH-MM-SS`. The tag can be deleted without removing the photos.
+
+## **--concurrent-uploads**
+The `--concurrent-uploads` option controls how many files are uploaded simultaneously to your Immich server. The default value is 4 workers, which provides a good balance between upload speed and server load. You can adjust this value between 1 and 20 based on your server's capacity and network bandwidth.
+
+- **Lower values (1-2)**: More conservative, reduces server load, better for slower connections
+- **Higher values (8-16)**: Faster uploads, requires more server resources and bandwidth
+
+Example:
+```bash
+# Use 8 concurrent uploads for faster processing
+immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key --concurrent-uploads=8 /path/to/your/photos
+
+# Use single-threaded uploads for maximum stability
+immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key --concurrent-uploads=1 /path/to/your/photos
+```
 
 ## **--overwrite**
 The `--overwrite` flag ensures that files on the server are always replaced with their local versions during the upload process. If a file does not exist on the server, it will be uploaded as a new file. This option is useful for ensuring that the server always has the latest version of your files.
