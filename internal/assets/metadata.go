@@ -25,6 +25,7 @@ type Metadata struct {
 	Archived    bool               `json:"archived,omitempty"`    // Flag to indicate if the image has been archived
 	Favorited   bool               `json:"favorited,omitempty"`   // Flag to indicate if the image has been favorited
 	FromPartner bool               `json:"fromPartner,omitempty"` // Flag to indicate if the image is from a partner
+	FromSharedAlbum bool   `json:"fromSharedAlbum,omitempty"` // Flag to indicate if the image is from a shared album
 }
 
 func (m Metadata) LogValue() slog.Value {
@@ -46,6 +47,7 @@ func (m Metadata) LogValue() slog.Value {
 		slog.Bool("archived", m.Archived),
 		slog.Bool("favorited", m.Favorited),
 		slog.Bool("fromPartner", m.FromPartner),
+		slog.Bool("fromSharedAlbum", m.FromSharedAlbum),
 		slog.Any("albums", m.Albums),
 		slog.Any("tags", m.Tags),
 	)

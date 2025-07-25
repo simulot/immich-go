@@ -43,6 +43,7 @@ type Asset struct {
 	Trashed     bool      // The asset is trashed
 	Archived    bool      // The asset is archived
 	FromPartner bool      // the asset comes from a partner
+	FromSharedAlbum bool // the asset comes from a shared album
 	Favorite    bool      // the asset is marked as favorite
 	Rating      int       // the asset is marked with stars
 	Albums      []Album   // List of albums the asset is in
@@ -100,13 +101,12 @@ func (a *Asset) UseMetadata(md *Metadata) *Metadata {
 	a.Latitude = md.Latitude
 	a.Longitude = md.Longitude
 	a.CaptureDate = md.DateTaken
-	a.FromPartner = md.FromPartner
 	a.Trashed = md.Trashed
 	a.Archived = md.Archived
 	a.Favorite = md.Favorited
 	a.Rating = int(md.Rating)
-	a.MergeAlbums(md.Albums)
-	a.MergeTags(md.Tags)
+	a.FromPartner = md.FromPartner
+	a.FromSharedAlbum = md.FromSharedAlbum
 	return md
 }
 
@@ -127,6 +127,7 @@ func (a Asset) LogValue() slog.Value {
 		slog.Bool("Trashed", a.Trashed),
 		slog.Bool("Archived", a.Archived),
 		slog.Bool("FromPartner", a.FromPartner),
+		slog.Bool("FromSharedAlbum", a.FromSharedAlbum),
 		slog.Bool("Favorite", a.Favorite),
 		slog.Int("Stars", a.Rating),
 		slog.String("Latitude", fmt.Sprintf("%.0f.xxxxx", a.Latitude)),
