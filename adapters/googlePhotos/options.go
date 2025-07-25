@@ -33,6 +33,9 @@ type ImportFlags struct {
 	// KeepPartner determines whether to import photos from the partner's Google Photos account.
 	KeepPartner bool
 
+	// KeepSharedAlbum determines whether to import photos from shared albums.
+	KeepSharedAlbum bool
+
 	// KeepUntitled determines whether to include photos from albums without a title in the import process.
 	KeepUntitled bool
 
@@ -99,6 +102,7 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 	cmd.Flags().BoolVar(&o.KeepUntitled, "include-untitled-albums", false, "Include photos from albums without a title in the import process")
 	cmd.Flags().BoolVarP(&o.KeepTrashed, "include-trashed", "t", false, "Import photos that are marked as trashed in Google Photos")
 	cmd.Flags().BoolVarP(&o.KeepPartner, "include-partner", "p", true, "Import photos from your partner's Google Photos account")
+	cmd.Flags().BoolVar(&o.KeepSharedAlbum, "include-shared-album", true, "Import photos from shared albums in Google Photos")
 	cmd.Flags().StringVar(&o.PartnerSharedAlbum, "partner-shared-album", "", "Add partner's photo to the specified album name")
 	cmd.Flags().BoolVarP(&o.KeepArchived, "include-archived", "a", true, "Import archived Google Photos")
 	cmd.Flags().BoolVarP(&o.KeepJSONLess, "include-unmatched", "u", false, "Import photos that do not have a matching JSON file in the takeout")

@@ -28,6 +28,7 @@ type GoogleMetaData struct {
 	People             []Person           `json:"people,omitempty"`      // People tags
 	GooglePhotosOrigin struct {
 		FromPartnerSharing googIsPresent `json:"fromPartnerSharing,omitempty"` // true when this is a partner's asset
+		FromSharedAlbum    googIsPresent `json:"fromSharedAlbum,omitempty"`    // true when this is from a shared album
 	} `json:"googlePhotosOrigin"`
 }
 
@@ -87,6 +88,7 @@ func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *a
 		Archived:    gmd.Archived,
 		Favorited:   gmd.Favorited,
 		FromPartner: gmd.isPartner(),
+		FromSharedAlbum: gmd.isSharedAlbum(),
 	}
 	if gmd.GeoDataExif != nil {
 		md.Latitude, md.Longitude = gmd.GeoDataExif.Latitude, gmd.GeoDataExif.Longitude
@@ -128,6 +130,13 @@ func (gmd *GoogleMetaData) isPartner() bool {
 		return false
 	}
 	return bool(gmd.GooglePhotosOrigin.FromPartnerSharing)
+}
+
+func (gmd *GoogleMetaData) isSharedAlbum() bool {
+	if gmd == nil {
+		return false
+	}
+	return bool(gmd.GooglePhotosOrigin.FromSharedAlbum)
 }
 
 // Key return an expected unique key for the asset

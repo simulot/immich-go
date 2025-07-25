@@ -573,6 +573,11 @@ func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileev
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
+	if !to.flags.KeepSharedAlbum && a.FromSharedAlbum {
+		to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding shared album file")
+		a.Close()
+		return fileevent.DiscoveredDiscarded
+	}
 	if !to.flags.KeepTrashed && a.Trashed {
 		to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding trashed file")
 		a.Close()
