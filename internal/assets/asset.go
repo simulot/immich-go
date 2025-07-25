@@ -39,15 +39,15 @@ type Asset struct {
 	FileSize         int    // File size in bytes
 
 	// Metadata for the process and the upload to Immich
-	CaptureDate time.Time // Date of the capture
-	Trashed     bool      // The asset is trashed
-	Archived    bool      // The asset is archived
-	FromPartner bool      // the asset comes from a partner
-	FromSharedAlbum bool // the asset comes from a shared album
-	Favorite    bool      // the asset is marked as favorite
-	Rating      int       // the asset is marked with stars
-	Albums      []Album   // List of albums the asset is in
-	Tags        []Tag     // List of tags the asset is tagged with
+	CaptureDate     time.Time // Date of the capture
+	Trashed         bool      // The asset is trashed
+	Archived        bool      // The asset is archived
+	FromPartner     bool      // the asset comes from a partner
+	FromSharedAlbum bool      // the asset comes from a shared album
+	Favorite        bool      // the asset is marked as favorite
+	Rating          int       // the asset is marked with stars
+	Albums          []Album   // List of albums the asset is in
+	Tags            []Tag     // List of tags the asset is tagged with
 
 	// Information inferred from the original file name
 	NameInfo
@@ -107,6 +107,8 @@ func (a *Asset) UseMetadata(md *Metadata) *Metadata {
 	a.Rating = int(md.Rating)
 	a.FromPartner = md.FromPartner
 	a.FromSharedAlbum = md.FromSharedAlbum
+	a.MergeAlbums(md.Albums)
+	a.MergeTags(md.Tags)
 	return md
 }
 
