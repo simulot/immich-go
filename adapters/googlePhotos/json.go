@@ -81,13 +81,13 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 
 func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *assets.Metadata {
 	md := assets.Metadata{
-		File:        name,
-		FileName:    sanitizedTitle(gmd.Title),
-		Description: gmd.Description,
-		Trashed:     gmd.Trashed,
-		Archived:    gmd.Archived,
-		Favorited:   gmd.Favorited,
-		FromPartner: gmd.isPartner(),
+		File:            name,
+		FileName:        sanitizedTitle(gmd.Title),
+		Description:     gmd.Description,
+		Trashed:         gmd.Trashed,
+		Archived:        gmd.Archived,
+		Favorited:       gmd.Favorited,
+		FromPartner:     gmd.isPartner(),
 		FromSharedAlbum: gmd.isSharedAlbum(),
 	}
 	if gmd.GeoDataExif != nil {

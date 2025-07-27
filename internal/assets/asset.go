@@ -101,12 +101,12 @@ func (a *Asset) UseMetadata(md *Metadata) *Metadata {
 	a.Latitude = md.Latitude
 	a.Longitude = md.Longitude
 	a.CaptureDate = md.DateTaken
+	a.FromPartner = md.FromPartner
+	a.FromSharedAlbum = md.FromSharedAlbum
 	a.Trashed = md.Trashed
 	a.Archived = md.Archived
 	a.Favorite = md.Favorited
 	a.Rating = int(md.Rating)
-	a.FromPartner = md.FromPartner
-	a.FromSharedAlbum = md.FromSharedAlbum
 	a.MergeAlbums(md.Albums)
 	a.MergeTags(md.Tags)
 	return md
