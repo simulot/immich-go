@@ -39,14 +39,15 @@ type Asset struct {
 	FileSize         int    // File size in bytes
 
 	// Metadata for the process and the upload to Immich
-	CaptureDate time.Time // Date of the capture
-	Trashed     bool      // The asset is trashed
-	Archived    bool      // The asset is archived
-	FromPartner bool      // the asset comes from a partner
-	Favorite    bool      // the asset is marked as favorite
-	Rating      int       // the asset is marked with stars
-	Albums      []Album   // List of albums the asset is in
-	Tags        []Tag     // List of tags the asset is tagged with
+	CaptureDate     time.Time // Date of the capture
+	Trashed         bool      // The asset is trashed
+	Archived        bool      // The asset is archived
+	FromPartner     bool      // the asset comes from a partner
+	FromSharedAlbum bool      // the asset comes from a shared album
+	Favorite        bool      // the asset is marked as favorite
+	Rating          int       // the asset is marked with stars
+	Albums          []Album   // List of albums the asset is in
+	Tags            []Tag     // List of tags the asset is tagged with
 
 	// Information inferred from the original file name
 	NameInfo
@@ -101,6 +102,7 @@ func (a *Asset) UseMetadata(md *Metadata) *Metadata {
 	a.Longitude = md.Longitude
 	a.CaptureDate = md.DateTaken
 	a.FromPartner = md.FromPartner
+	a.FromSharedAlbum = md.FromSharedAlbum
 	a.Trashed = md.Trashed
 	a.Archived = md.Archived
 	a.Favorite = md.Favorited
@@ -127,6 +129,7 @@ func (a Asset) LogValue() slog.Value {
 		slog.Bool("Trashed", a.Trashed),
 		slog.Bool("Archived", a.Archived),
 		slog.Bool("FromPartner", a.FromPartner),
+		slog.Bool("FromSharedAlbum", a.FromSharedAlbum),
 		slog.Bool("Favorite", a.Favorite),
 		slog.Int("Stars", a.Rating),
 		slog.String("Latitude", fmt.Sprintf("%.0f.xxxxx", a.Latitude)),
