@@ -415,6 +415,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 | --tag strings             |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                                 |
 | --takeout-tag             |                `TRUE`                 | Tag uploaded photos with a tag "{takeout}/takeout-YYYYMMDDTHHMMSSZ"                                                                                                                |
 | --people-tag              |                `TRUE`                 | Tag uploaded photos with tags \"people/name\" found in the JSON file                                                                                                               |
+| --shared-album-tag        |                `TRUE`                 | Tag photos from others in shared albums with \"From Shared Album\".                                                                                                                  |
 
 ## Google Photos Best Practices:
 

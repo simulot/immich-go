@@ -213,7 +213,7 @@ func (to *Takeout) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					if err == nil {
 						switch {
 						case md.isAsset():
-							md := md.AsMetadata(fshelper.FSName(w, name), to.flags.PeopleTag) // Keep metadata
+							md := md.AsMetadata(fshelper.FSName(w, name), to.flags.PeopleTag, to.flags) // Keep metadata
 							dirCatalog.jsons[base] = md
 							to.log.Log().Debug("Asset JSON", "metadata", md)
 							to.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)

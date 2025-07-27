@@ -79,7 +79,7 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 	)
 }
 
-func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *assets.Metadata {
+func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool, flags *ImportFlags) *assets.Metadata {
 	md := assets.Metadata{
 		File:            name,
 		FileName:        sanitizedTitle(gmd.Title),
@@ -108,6 +108,11 @@ func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *a
 			md.AddTag("People/" + p.Name)
 		}
 	}
+
+	if flags.SharedAlbumTag && md.FromSharedAlbum {
+		md.AddTag("From Shared Album")
+	}
+
 	return &md
 }
 

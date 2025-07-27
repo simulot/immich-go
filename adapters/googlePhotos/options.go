@@ -82,6 +82,10 @@ type ImportFlags struct {
 
 	// PeopleTag indicates whether to add a people tag to the imported assets.
 	PeopleTag bool
+
+	// SharedAlbumTag indicates whether to add \"From Shared Album\" tag.
+	SharedAlbumTag bool
+
 	// Timezone
 	TZ *time.Location
 }
@@ -111,6 +115,7 @@ func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra
 	cmd.Flags().BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
 	cmd.Flags().BoolVar(&o.TakeoutTag, "takeout-tag", true, "Tag uploaded photos with a tag \"{takeout}/takeout-YYYYMMDDTHHMMSSZ\"")
 	cmd.Flags().BoolVar(&o.PeopleTag, "people-tag", true, "Tag uploaded photos with tags \"people/name\" found in the JSON file")
+	cmd.Flags().BoolVar(&o.SharedAlbumTag, "shared-album-tag", true, "Tag photos from shared albums with \"From Shared Album\"")
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 
 	// exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
