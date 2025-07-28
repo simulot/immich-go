@@ -44,6 +44,9 @@ type UpCmd struct {
 	albumAssetCounts      map[string]int // Track total asset counts per album
 	albumAssetCountsMutex sync.RWMutex   // Mutex to protect albumAssetCounts
 
+	tagAssetCounts      map[string]int // Track total asset counts per tag
+	tagAssetCountsMutex sync.RWMutex   // Mutex to protect tagAssetCounts
+
 	shouldResumeJobs map[string]bool // List of jobs to resume
 	finished         bool            // the finish task has been run
 }
@@ -56,6 +59,7 @@ func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *U
 		localAssets:       syncset.New[string](),
 		immichAssetsReady: make(chan struct{}),
 		albumAssetCounts:  make(map[string]int),
+		tagAssetCounts:    make(map[string]int),
 	}
 
 	return upCmd
@@ -100,21 +104,28 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 	if len(ids) == 0 {
 		return tag, nil
 	}
+
+	// Update the cumulative count for this tag
+	upCmd.tagAssetCountsMutex.Lock()
+	upCmd.tagAssetCounts[tag.Value] += len(ids)
+	totalAssets := upCmd.tagAssetCounts[tag.Value]
+	upCmd.tagAssetCountsMutex.Unlock()
+
 	if tag.ID == "" {
 		r, err := upCmd.app.Client().Immich.UpsertTags(ctx, []string{tag.Value})
 		if err != nil {
 			upCmd.app.Jnl().Log().Error("failed to create tag", "err", err, "tag", tag.Name)
 			return tag, err
 		}
-		upCmd.app.Jnl().Log().Info("created tag", "tag", tag.Value)
+		upCmd.app.Jnl().Log().Info("created tag", "tag", tag.Value, "assets", len(ids), "total_assets", totalAssets)
 		tag.ID = r[0].ID
 	}
 	_, err := upCmd.app.Client().Immich.TagAssets(ctx, tag.ID, ids)
 	if err != nil {
-		upCmd.app.Jnl().Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
+		upCmd.app.Jnl().Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids), "total_assets", totalAssets)
 		return tag, err
 	}
-	upCmd.app.Jnl().Log().Info("updated tag", "tag", tag.Value, "assets", len(ids))
+	upCmd.app.Jnl().Log().Info("updated tag", "tag", tag.Value, "assets", len(ids), "total_assets", totalAssets)
 	return tag, err
 }
 
