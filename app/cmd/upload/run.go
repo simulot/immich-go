@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+	"sync"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -40,6 +41,12 @@ type UpCmd struct {
 	albumsCache *cache.CollectionCache[assets.Album] // List of albums present on the server
 	tagsCache   *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 
+	albumAssetCounts      map[string]int // Track total asset counts per album
+	albumAssetCountsMutex sync.RWMutex   // Mutex to protect albumAssetCounts
+
+	tagAssetCounts      map[string]int // Track total asset counts per tag
+	tagAssetCountsMutex sync.RWMutex   // Mutex to protect tagAssetCounts
+
 	shouldResumeJobs map[string]bool // List of jobs to resume
 	finished         bool            // the finish task has been run
 }
@@ -51,6 +58,8 @@ func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *U
 		Mode:              mode,
 		localAssets:       syncset.New[string](),
 		immichAssetsReady: make(chan struct{}),
+		albumAssetCounts:  make(map[string]int),
+		tagAssetCounts:    make(map[string]int),
 	}
 
 	return upCmd
@@ -65,22 +74,29 @@ func (upCmd *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []str
 	if len(ids) == 0 {
 		return album, nil
 	}
+
+	// Update the cumulative count for this album
+	upCmd.albumAssetCountsMutex.Lock()
+	upCmd.albumAssetCounts[album.Title] += len(ids)
+	totalAssets := upCmd.albumAssetCounts[album.Title]
+	upCmd.albumAssetCountsMutex.Unlock()
+
 	if album.ID == "" {
 		r, err := upCmd.app.Client().Immich.CreateAlbum(ctx, album.Title, album.Description, ids)
 		if err != nil {
 			upCmd.app.Jnl().Log().Error("failed to create album", "err", err, "album", album.Title)
 			return album, err
 		}
-		upCmd.app.Jnl().Log().Info("created album", "album", album.Title, "assets", len(ids))
+		upCmd.app.Jnl().Log().Info("created album", "album", album.Title, "assets", len(ids), "total_assets", totalAssets)
 		album.ID = r.ID
 		return album, nil
 	}
 	_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, album.ID, ids)
 	if err != nil {
-		upCmd.app.Jnl().Log().Error("failed to add assets to album", "err", err, "album", album.Title, "assets", len(ids))
+		upCmd.app.Jnl().Log().Error("failed to add assets to album", "err", err, "album", album.Title, "assets", len(ids), "total_assets", totalAssets)
 		return album, err
 	}
-	upCmd.app.Jnl().Log().Info("updated album", "album", album.Title, "assets", len(ids))
+	upCmd.app.Jnl().Log().Info("updated album", "album", album.Title, "assets", len(ids), "total_assets", totalAssets)
 	return album, err
 }
 
@@ -88,21 +104,28 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 	if len(ids) == 0 {
 		return tag, nil
 	}
+
+	// Update the cumulative count for this tag
+	upCmd.tagAssetCountsMutex.Lock()
+	upCmd.tagAssetCounts[tag.Value] += len(ids)
+	totalAssets := upCmd.tagAssetCounts[tag.Value]
+	upCmd.tagAssetCountsMutex.Unlock()
+
 	if tag.ID == "" {
 		r, err := upCmd.app.Client().Immich.UpsertTags(ctx, []string{tag.Value})
 		if err != nil {
 			upCmd.app.Jnl().Log().Error("failed to create tag", "err", err, "tag", tag.Name)
 			return tag, err
 		}
-		upCmd.app.Jnl().Log().Info("created tag", "tag", tag.Value)
+		upCmd.app.Jnl().Log().Info("created tag", "tag", tag.Value, "assets", len(ids), "total_assets", totalAssets)
 		tag.ID = r[0].ID
 	}
 	_, err := upCmd.app.Client().Immich.TagAssets(ctx, tag.ID, ids)
 	if err != nil {
-		upCmd.app.Jnl().Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
+		upCmd.app.Jnl().Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids), "total_assets", totalAssets)
 		return tag, err
 	}
-	upCmd.app.Jnl().Log().Info("updated tag", "tag", tag.Value, "assets", len(ids))
+	upCmd.app.Jnl().Log().Info("updated tag", "tag", tag.Value, "assets", len(ids), "total_assets", totalAssets)
 	return tag, err
 }
 
@@ -153,6 +176,15 @@ func (UpCmd *UpCmd) finishing(ctx context.Context, app *app.Application) error {
 	// do waiting operations
 	UpCmd.albumsCache.Close()
 	UpCmd.tagsCache.Close()
+
+	// Log final album asset counts
+	UpCmd.albumAssetCountsMutex.RLock()
+	for albumName, count := range UpCmd.albumAssetCounts {
+		if count > 0 {
+			app.Jnl().Log().Info("final album asset count", "album", albumName, "total_assets", count)
+		}
+	}
+	UpCmd.albumAssetCountsMutex.RUnlock()
 
 	// Resume immich background jobs if requested
 	err := UpCmd.resumeJobs(ctx, app)
@@ -242,6 +274,11 @@ func (upCmd *UpCmd) getImmichAlbums(ctx context.Context) error {
 				for _, aa := range r.Assets {
 					ids = append(ids, aa.ID)
 				}
+
+				// Initialize the album asset count
+				upCmd.albumAssetCountsMutex.Lock()
+				upCmd.albumAssetCounts[a.AlbumName] = len(ids)
+				upCmd.albumAssetCountsMutex.Unlock()
 
 				album := assets.NewAlbum(a.ID, a.AlbumName, a.Description)
 				upCmd.albumsCache.NewCollection(a.AlbumName, album, ids)
