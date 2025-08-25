@@ -3,7 +3,7 @@ module github.com/simulot/immich-go
 go 1.24
 
 require (
-	github.com/gdamore/tcell/v2 v2.8.1
+	github.com/gdamore/tcell/v2 v2.9.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/kr/pretty v0.3.1
@@ -17,7 +17,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
-	golang.org/x/sync v0.15.0
+	golang.org/x/sync v0.16.0
 )
 
 require (
@@ -52,7 +52,7 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.1
 	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/term v0.34.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 )
