@@ -11,7 +11,7 @@ require (
 	github.com/navidys/tvxwidgets v0.11.0
 	github.com/phsym/console-slog v0.3.1
 	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
-	github.com/rivo/tview v0.0.0-20241227133733-17b7edb88c57
+	github.com/rivo/tview v0.42.0
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/samber/slog-multi v1.4.1
 	github.com/spf13/cobra v1.9.1
