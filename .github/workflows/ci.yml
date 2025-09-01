@@ -42,3 +42,20 @@ jobs:
      - name: Run tests
        run: |
          go test -race -v -count=1 -coverprofile=coverage.out ./...
+ ci-windows:
+   name: Continuous Integration (Windows)
+   runs-on: windows-latest
+
+   steps:
+     - name: Checkout Code
+       uses: actions/checkout@v4
+
+     - name: Setup Go
+       uses: actions/setup-go@v5
+       with:
+         go-version-file: "go.mod"
+         cache-dependency-path: "go.sum"
+
+     - name: Run tests
+       run: |
+         go test -v -count=1 ./...
