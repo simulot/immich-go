@@ -84,7 +84,7 @@ func getRootFs(pattern string) (NameFS, []string, error) {
 }
 
 func simpleRootFS(root string) (NameFS, []string, error) {
-	s, err := os.Stat(root)
+	s, err := os.Stat(filepath.FromSlash(root))
 	if err != nil {
 		return nil, nil, err
 	}
