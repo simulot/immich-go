@@ -3,7 +3,6 @@ package folder
 import (
 	"context"
 	"io/fs"
-	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -38,7 +37,7 @@ func TestLocalAssets(t *testing.T) {
 				TZ:             time.Local,
 			},
 			fsys: []fs.FS{
-				os.DirFS("DATA/date-range"),
+				fshelper.NewFSWithName("DATA/date-range"),
 			},
 			expectedFiles: []string{
 				"photo1_w_exif.jpg",
@@ -132,7 +131,7 @@ func TestLocalAssets(t *testing.T) {
 				},
 			},
 			fsys: []fs.FS{
-				os.DirFS("DATA/icloud-takeout"),
+				fshelper.NewFSWithName("DATA/icloud-takeout"),
 			},
 			expectedFiles: []string{
 				"Photos/photo1.jpg",
