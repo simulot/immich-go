@@ -33,7 +33,7 @@ func TestImmichExifTimeUnmarshalJSON_Valid(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error for input %s: %v", tt.input, err)
 			}
-			if !et.Time.Equal(expected) {
+			if !et.Equal(expected) {
 				t.Errorf("for input %s: expected %v, got %v", tt.input, expected, et.Time)
 			}
 		})
@@ -54,7 +54,7 @@ func TestImmichExifTimeUnmarshalJSON_Invalid(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error for input %s: %v", input, err)
 			}
-			if !et.Time.IsZero() {
+			if !et.IsZero() {
 				t.Errorf("expected zero time for input %s, got %v", input, et.Time)
 			}
 		})
