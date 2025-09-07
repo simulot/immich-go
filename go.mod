@@ -8,7 +8,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/kr/pretty v0.3.1
 	github.com/melbahja/goph v1.4.0
-	github.com/navidys/tvxwidgets v0.11.0
+	github.com/navidys/tvxwidgets v0.11.3
 	github.com/phsym/console-slog v0.3.1
 	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
 	github.com/rivo/tview v0.42.0
