@@ -11,20 +11,21 @@ import (
 )
 
 type Metadata struct {
-	File        fshelper.FSAndName `json:"-"`                     // File name and file system that holds the metadata. Could be empty
-	FileName    string             `json:"fileName,omitempty"`    // File name as presented to users
-	Latitude    float64            `json:"latitude,omitempty"`    // GPS
-	Longitude   float64            `json:"longitude,omitempty"`   // GPS
-	FileDate    time.Time          `json:"fileDate,omitzero"`     // Date of the file
-	DateTaken   time.Time          `json:"dateTaken,omitzero"`    // Date of exposure
-	Description string             `json:"description,omitempty"` // Long description
-	Albums      []Album            `json:"albums,omitempty"`      // Used to list albums that contain the file
-	Tags        []Tag              `json:"tags,omitempty"`        // Used to list tags
-	Rating      byte               `json:"rating,omitempty"`      // 0 to 5
-	Trashed     bool               `json:"trashed,omitempty"`     // Flag to indicate if the image has been trashed
-	Archived    bool               `json:"archived,omitempty"`    // Flag to indicate if the image has been archived
-	Favorited   bool               `json:"favorited,omitempty"`   // Flag to indicate if the image has been favorited
-	FromPartner bool               `json:"fromPartner,omitempty"` // Flag to indicate if the image is from a partner
+	File            fshelper.FSAndName `json:"-"`                         // File name and file system that holds the metadata. Could be empty
+	FileName        string             `json:"fileName,omitempty"`        // File name as presented to users
+	Latitude        float64            `json:"latitude,omitempty"`        // GPS
+	Longitude       float64            `json:"longitude,omitempty"`       // GPS
+	FileDate        time.Time          `json:"fileDate,omitzero"`         // Date of the file
+	DateTaken       time.Time          `json:"dateTaken,omitzero"`        // Date of exposure
+	Description     string             `json:"description,omitempty"`     // Long description
+	Albums          []Album            `json:"albums,omitempty"`          // Used to list albums that contain the file
+	Tags            []Tag              `json:"tags,omitempty"`            // Used to list tags
+	Rating          byte               `json:"rating,omitempty"`          // 0 to 5
+	Trashed         bool               `json:"trashed,omitempty"`         // Flag to indicate if the image has been trashed
+	Archived        bool               `json:"archived,omitempty"`        // Flag to indicate if the image has been archived
+	Favorited       bool               `json:"favorited,omitempty"`       // Flag to indicate if the image has been favorited
+	FromPartner     bool               `json:"fromPartner,omitempty"`     // Flag to indicate if the image is from a partner
+	FromSharedAlbum bool               `json:"fromSharedAlbum,omitempty"` // Flag to indicate if the image is from a shared album
 }
 
 func (m Metadata) LogValue() slog.Value {
@@ -46,6 +47,7 @@ func (m Metadata) LogValue() slog.Value {
 		slog.Bool("archived", m.Archived),
 		slog.Bool("favorited", m.Favorited),
 		slog.Bool("fromPartner", m.FromPartner),
+		slog.Bool("fromSharedAlbum", m.FromSharedAlbum),
 		slog.Any("albums", m.Albums),
 		slog.Any("tags", m.Tags),
 	)
