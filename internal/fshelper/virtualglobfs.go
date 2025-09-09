@@ -48,9 +48,6 @@ func NewVirtualGlobFS(pattern string) (fs.FS, error) {
 			return err
 		}
 
-		// normalize to unix style paths
-		p = filepath.ToSlash(p)
-
 		// directories should always be added
 		parentDir := path.Dir(p)
 		if parentDir != p {
@@ -154,9 +151,6 @@ func (gw VirtualGlobFS) Stat(name string) (fs.FileInfo, error) {
 
 // ReadDir return all DirEntries that match with the pattern or .XMP files
 func (gw VirtualGlobFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	// canonicalize to unix style paths
-	name = filepath.ToSlash(name)
-
 	files, ok := gw.dirs[name]
 	if !ok {
 		return nil, fmt.Errorf("%s: %w", name, fs.ErrNotExist)
@@ -179,9 +173,6 @@ func (gw VirtualGlobFS) Name() string {
 
 // FixedPathAndMagic split the path with the fixed part and the variable part
 func FixedPathAndMagic(name string) (string, string) {
-	// canonicalize to unix style paths
-	name = filepath.ToSlash(name)
-
 	if !HasMagic(name) {
 		return name, ""
 	}
