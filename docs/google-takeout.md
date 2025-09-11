@@ -2,6 +2,8 @@
 This project aims to make the process of importing Google Photos takeouts as easy and accurate as possible. But keep in mind that 
 Google takeout structure is complex and not documented. Some information may be missed or may even be wrong. 
 
+When downloading your photos from Google Photos, you have the choice between .zip and .tgz format. `immich-go` supports both formats.
+
 ## Folders in takeout
   - The Year folder contains all images taken that year
   - Albums are in separate folders named as the album
