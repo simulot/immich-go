@@ -2,6 +2,7 @@ package upload
 
 import (
 	"context"
+	"runtime"
 	"time"
 
 	"github.com/simulot/immich-go/app"
@@ -59,7 +60,7 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd.TraverseChildren = true
 	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
 	cmd.PersistentFlags().BoolVar(&options.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
-	cmd.PersistentFlags().IntVar(&options.ConcurrentUploads, "concurrent-uploads", 4, "Number of concurrent upload workers (1-20)")
+	cmd.PersistentFlags().IntVar(&options.ConcurrentUploads, "concurrent-uploads", max(runtime.NumCPU(), 4), "Number of concurrent upload workers (1-20)")
 	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)
 
 	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, a, options))
@@ -83,11 +84,6 @@ func (options *UploadOptions) Open(ctx context.Context, cmd *cobra.Command, app 
 	}
 
 	// Validate concurrent uploads range
-	if options.ConcurrentUploads < 1 {
-		options.ConcurrentUploads = 1
-	} else if options.ConcurrentUploads > 20 {
-		options.ConcurrentUploads = 20
-	}
-
+	options.ConcurrentUploads = min(max(options.ConcurrentUploads, 1), 20)
 	return nil
 }
