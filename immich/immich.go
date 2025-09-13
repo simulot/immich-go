@@ -176,6 +176,10 @@ func (t *ImmichExifTime) UnmarshalJSON(b []byte) error {
 	switch len(b) {
 	case 29:
 		pattern = "2006-01-02T15:04:05.000+00:00"
+	case 28:
+		pattern = "2006-01-02T15:04:05.00+00:00"
+	case 27:
+		pattern = "2006-01-02T15:04:05.0+00:00"
 	case 25:
 		pattern = "2006-01-02T15:04:05+00:00"
 	}
