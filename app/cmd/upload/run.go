@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
-	"sync"
+	"sync/atomic"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -20,6 +20,7 @@ import (
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/gen/syncset"
+	"github.com/simulot/immich-go/internal/worker"
 )
 
 // workerIDKey is a custom type for context keys to avoid collisions
@@ -299,61 +300,48 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	return nil
 }
 
-func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group, numWorkers int) error {
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	errorCount := 0
-	var lastError error
+func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
+	workers := worker.NewPool(upCmd.ConcurrentUploads)
+	ctx, cancel := context.WithCancelCause(ctx)
 
-	// Create workers
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		workerID := i + 1
-		go func() {
-			defer wg.Done()
-
-			// Create a context with worker information
-			workerCtx := context.WithValue(ctx, workerIDKey{}, workerID)
-
-			for {
-				select {
-				case <-ctx.Done():
+	// the goroutine submits the groups, and stops when then number of error is higher than tolerated
+	go func() {
+		var errorCount atomic.Int32
+		for {
+			select {
+			case <-ctx.Done():
+				cancel(ctx.Err())
+				return
+			case g, ok := <-groupChan:
+				if !ok {
 					return
-				case g, ok := <-groupChan:
-					if !ok {
-						return
-					}
-
-					err := upCmd.handleGroup(workerCtx, g)
+				}
+				workers.Submit(func() {
+					err := upCmd.handleGroup(ctx, g)
 					if err != nil {
 						upCmd.app.Log().Error(err.Error())
-
-						mu.Lock()
-						lastError = err
-
 						switch {
 						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
 							// nop
 						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
-							mu.Unlock()
+							cancel(err)
 							return
 						default:
-							errorCount++
-							if errorCount >= int(upCmd.app.Client().OnServerErrors) {
-								lastError = errors.New("too many errors, aborting")
-								upCmd.app.Log().Error("too many errors, aborting")
-								mu.Unlock()
+							c := int(errorCount.Add(1))
+							if c < int(upCmd.app.Client().OnServerErrors) {
 								return
 							}
+							upCmd.app.Log().Error("too many errors, aborting")
+							cancel(errors.New("too many errors, aborting"))
+							return
 						}
-						mu.Unlock()
 					}
-				}
+				})
 			}
-		}()
-	}
+		}
+	}()
 
-	wg.Wait()
+	err := context.Cause(ctx)
 
 	// Cleanup: delete server assets if needed
 	if len(upCmd.deleteServerList) > 0 {
@@ -367,7 +355,7 @@ func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group
 		}
 	}
 
-	return lastError
+	return err
 }
 
 func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
