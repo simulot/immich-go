@@ -43,24 +43,24 @@ func ResetImmich(t *testing.T) {
 	//
 	c := exec.Command("docker", "exec", "-i", "immich_postgres", "psql", "--dbname=immich", "--username=postgres", "-c",
 		`
-		DELETE FROM asset_stack CASCADE;
-		DELETE FROM libraries CASCADE;
-		DELETE FROM shared_links CASCADE;
-		DELETE FROM person CASCADE;
-		DELETE FROM albums CASCADE;
-		DELETE FROM assets CASCADE;
-		DELETE FROM asset_faces CASCADE;
-		DELETE FROM activity CASCADE;
-		--DELETE FROM api_keys CASCADE;
-		--DELETE FROM sessions CASCADE;
-		--DELETE FROM users CASCADE;
-		DELETE FROM "system_metadata" where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
-		DELETE FROM tags CASCADE;
+        delete from stack CASACDE;
+        delete from library CASACDE;
+        delete from shared_link CASACDE;
+        delete from person CASACDE;
+        delete from album CASACDE;
+        delete from asset CASACDE;
+        delete from asset_face CASACDE;
+        delete from activity CASACDE;
+        -- delete from api_key CASACDE;
+        -- delete from session CASACDE;
+        -- delete from user CASACDE;
+        delete from system_metadata where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
+        delete from tag CASACDE;
 		`,
 	)
-	err := c.Run()
+	out, err := c.CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(string(out), err.Error())
 	}
 }
 

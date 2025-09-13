@@ -438,7 +438,6 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						}
 						if dir != "." {
 							parts = append(parts, strings.Split(dir, "/")...)
-							// parts = append(parts, strings.Split(dir, string(filepath.Separator))...)
 						}
 						Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
 					}
@@ -516,7 +515,7 @@ func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name s
 	a.FileSize = int(i.Size())
 	a.FileDate = i.ModTime()
 
-	n := path.Dir(name) + "/" + a.OriginalFileName
+	n := path.Join(path.Dir(name), a.OriginalFileName)
 	if fsys, ok := fsys.(interface{ Name() string }); ok {
 		n = path.Join(fsys.Name(), n)
 	}

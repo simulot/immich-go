@@ -125,6 +125,7 @@ func TestArchiveFromImmich(t *testing.T) {
 		"--into-album=ALBUM",
 		"--manage-raw-jpeg=KeepRaw",
 		"--manage-burst=stack",
+		"--api-trace",
 		e2e.MyEnv("IMMICHGO_TESTFILES") + "/burst/storm",
 	})
 
@@ -140,6 +141,7 @@ func TestArchiveFromImmich(t *testing.T) {
 		"--log-level=debug",
 		"--from-server=" + e2e.MyEnv("IMMICHGO_SERVER"),
 		"--from-api-key=" + e2e.MyEnv("IMMICHGO_APIKEY"),
+		"--from-api-trace",
 		"--write-to-folder=" + tmpDir,
 	})
 

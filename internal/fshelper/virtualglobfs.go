@@ -43,24 +43,24 @@ func NewVirtualGlobFS(pattern string) (fs.FS, error) {
 		parts:  parts,
 	}
 
-	err = fs.WalkDir(vfs.rootFS, ".", func(path string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(vfs.rootFS, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
 		// directories should always be added
-		parentDir := filepath.Dir(path)
-		if parentDir != path {
-			vfs.dirs[parentDir] = append(vfs.dirs[parentDir], path)
-			vfs.files[path] = d
+		parentDir := path.Dir(p)
+		if parentDir != p {
+			vfs.dirs[parentDir] = append(vfs.dirs[parentDir], p)
+			vfs.files[p] = d
 			return nil
 		}
 
-		if !vfs.match(path) {
+		if !vfs.match(p) {
 			return nil
 		}
 
-		vfs.files[path] = d
+		vfs.files[p] = d
 		return nil
 	})
 
@@ -77,11 +77,11 @@ func getRootFs(pattern string) (NameFS, []string, error) {
 		dir, _ = os.Getwd()
 	}
 
-	return NewFSWithName(dir), strings.Split(strings.ToLower(magic), string(os.PathSeparator)), nil
+	return NewFSWithName(dir), strings.Split(strings.ToLower(magic), "/"), nil
 }
 
 func simpleRootFS(root string) (NameFS, []string, error) {
-	s, err := os.Stat(root)
+	s, err := os.Stat(filepath.FromSlash(root))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -114,7 +114,7 @@ func (gw VirtualGlobFS) match(filename string) bool {
 		return true
 	}
 
-	parts := strings.Split(lowerFName, string(os.PathSeparator))
+	parts := strings.Split(lowerFName, "/")
 
 	for i := 0; i < min(len(gw.parts), len(parts)); i++ {
 		if m, err := path.Match(gw.parts[i], parts[i]); err != nil || !m {
@@ -122,7 +122,7 @@ func (gw VirtualGlobFS) match(filename string) bool {
 		}
 	}
 
-	parts = strings.Split(filename, string(os.PathSeparator))
+	parts = strings.Split(filename, "/")
 	if len(gw.parts) > len(parts) {
 		join := path.Join(parts[:min(len(gw.parts), len(parts))]...)
 		if f, ok := gw.files[join]; !ok || !f.IsDir() {
@@ -176,7 +176,6 @@ func FixedPathAndMagic(name string) (string, string) {
 	if !HasMagic(name) {
 		return name, ""
 	}
-	name = filepath.ToSlash(name)
 	parts := strings.Split(name, "/")
 	p := 0
 	for p = range parts {
@@ -185,6 +184,8 @@ func FixedPathAndMagic(name string) (string, string) {
 		}
 	}
 	fixed := ""
+
+	// this root name only works on Unix-like systems
 	if name[0] == '/' {
 		fixed = "/"
 	}

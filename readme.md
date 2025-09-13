@@ -41,7 +41,23 @@
 
 * **Immich Server:** You need a running Immich server to use Immich-Go.
   * Prepare the server's URL (http://your-ip:2283 or https://your-domain.tld)
-  * Generate an API key for each Immich user (Account settings > API Keys > New API Key).
+  * Generate an API key for each Immich user (Account settings > API Keys > New API Key). The following API permissions are required at least:
+    * `asset.read`
+    * `asset.statistics`
+    * `asset.update`
+    * `asset.upload`
+    * `asset.replace`
+    * `asset.download`
+    * `album.create`
+    * `album.read`
+    * `albumAsset.create`
+    * `job.create`
+    * `job.read`
+    * `server.about`
+    * `stack.create`
+    * `tag.asset`
+    * `tag.create`
+    * `user.read`
 * **Basic Knowledge of Command Line:** Immich-Go is a command-line tool, so you should be comfortable using a terminal.
 
 ## Upgrading from the Original `immich-go`, Version 0.22 and Earlier
