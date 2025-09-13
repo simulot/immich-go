@@ -54,7 +54,7 @@ func ResetImmich(t *testing.T) {
         -- delete from api_key CASACDE;
         -- delete from session CASACDE;
         -- delete from user CASACDE;
-        -- delete from system_metadata CASACDE;
+        delete from system_metadata where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
         delete from tag CASACDE;
 		`,
 	)
