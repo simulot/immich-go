@@ -1,3 +1,14 @@
+# Abstract 
+
+The test  consists of uploading 2,846 items to an Immich server using the `immich-go` tool with varying numbers of concurrent processes. The goal is to analyze how the number of concurrent uploads affects the overall upload time and system resource usage.
+
+The test system's CPU has 6 physical cores but 12 logical CPUs, thanks to Hyper-Threading technology.
+
+As the number of concurrent processes increases from 1 to 6, the task completion time decreases significantly as each process gets a dedicated physical core. The performance gain continues between 6 and 9 processes because the system starts using the second logical thread on each core, utilizing idle resources to improve efficiency.
+
+Beyond 12 concurrent processes (the number of logical cores), the performance gains diminish, and the time can even slightly increase. This is likely due to the overhead of the operating system needing to manage and switch between more processes than there are logical cores.
+            
+            
 # System Information
 
 ## CPU Details

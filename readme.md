@@ -58,19 +58,8 @@
     * `tag.asset`
     * `tag.create`
     * `user.read`
+
 * **Basic Knowledge of Command Line:** Immich-Go is a command-line tool, so you should be comfortable using a terminal.
-
-## Upgrading from the Original `immich-go`, Version 0.22 and Earlier
-
-This version is a complete rewrite of the original `immich-go` project. It is designed to be more efficient, reliable, and easier to use. It is also more flexible, with more options and features. As a consequence, the command line options have changed. Please refer to the documentation for the new options.
-
-The visible changes are:
-- **Adoption of the Linux Convention** for the command line options: use 2 dashes for long options.
-- Complete restructuring of the CLI logic:
-  - The `upload` command accepts 3 sub-commands: `from-google-photos`, `from-folder`, `from-immich`. This removes all ambiguity from the options.
-  - The new `archive` command takes advantage of this sub-command logic. It is possible to archive from a Google Photos takeout, a folder tree, or an Immich server.
-
-The upgrade process consists of installing the new version over the previous one. You can check the version of the installed `immich-go` by running `immich-go --version`.
 
 # Installation
 
@@ -293,7 +282,7 @@ The **upload** command need the following options to manage the connection with 
 | --tag strings        |                   | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')        |
 | --on-server-errors   |      `stop`       | Action to take on server errors, (stop,continue,\<n\> to stop after n errors)                                                             |
 | --pause-immich-jobs  |      `TRUE`       | Pause Immich server jobs during the upload process                                                                                        |
-| --concurrent-uploads |        `4`        | Number of concurrent upload workers (1-20)                                                                                                |
+| --concurrent-uploads |        Your number of cores        | Number of concurrent upload workers (1-20)                                                                                                |
 
 
 ## **--client-timeout**
@@ -304,7 +293,8 @@ Thanks to the **--session-tag** option, it's easy to identify all photos uploade
 This tag is formatted as `{immich-go}/YYYY-MM-DD HH-MM-SS`. The tag can be deleted without removing the photos.
 
 ## **--concurrent-uploads**
-The `--concurrent-uploads` option controls how many files are uploaded simultaneously to your Immich server. The default value is 4 workers, which provides a good balance between upload speed and server load. You can adjust this value between 1 and 20 based on your server's capacity and network bandwidth.
+The `--concurrent-uploads` option controls how many files are uploaded simultaneously to your Immich server. The default value is set to the number of CPU cores on your machine, but you can adjust it based on your network and server capabilities. This allows for optimal use of available resources, providing a good balance between upload speed and server load. 
+
 
 - **Lower values (1-2)**: More conservative, reduces server load, better for slower connections
 - **Higher values (8-16)**: Faster uploads, requires more server resources and bandwidth
@@ -317,6 +307,10 @@ immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key
 # Use single-threaded uploads for maximum stability
 immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key --concurrent-uploads=1 /path/to/your/photos
 ```
+
+Our tests have shown that the upload is constrained by the network bandwidth rather than the CPU usage. Therefore, using the number of CPU cores as the default value for `--concurrent-uploads` is a good compromise.
+
+Read the test results and methodology in this [article](docs/concurrency/multi-threading.md).
 
 ## **--overwrite**
 The `--overwrite` flag ensures that files on the server are always replaced with their local versions during the upload process. If a file does not exist on the server, it will be uploaded as a new file. This option is useful for ensuring that the server always has the latest version of your files.
