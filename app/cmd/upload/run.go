@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/gdamore/tcell/v2"
@@ -301,12 +302,14 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 }
 
 func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
-	workers := worker.NewPool(upCmd.ConcurrentUploads)
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	// the goroutine submits the groups, and stops when then number of error is higher than tolerated
-	go func() {
+	var wg sync.WaitGroup
+	wg.Go(func() {
 		var errorCount atomic.Int32
+		workers := worker.NewPool(upCmd.ConcurrentUploads)
+		defer workers.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -339,8 +342,9 @@ func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group
 				})
 			}
 		}
-	}()
+	})
 
+	wg.Wait()
 	err := context.Cause(ctx)
 
 	// Cleanup: delete server assets if needed
@@ -363,18 +367,15 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	g = filters.ApplyFilters(g, upCmd.Filters...)
 
-	// Extract worker information from context
-	workerID := ctx.Value(workerIDKey{}).(int)
-
 	// discard rejected assets
 	for _, a := range g.Removed {
 		a.Asset.Close()
-		upCmd.app.Jnl().Record(ctx, fileevent.DiscoveredDiscarded, a.Asset.File, "reason", a.Reason, "worker", workerID)
+		upCmd.app.Jnl().Record(ctx, fileevent.DiscoveredDiscarded, a.Asset.File, "reason", a.Reason)
 	}
 
 	// Upload assets from the group
 	for _, a := range g.Assets {
-		err := upCmd.handleAsset(ctx, a, workerID)
+		err := upCmd.handleAsset(ctx, a)
 		errGroup = errors.Join(err)
 	}
 
@@ -385,7 +386,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		client := upCmd.app.Client().Immich.(immich.ImmichStackInterface)
 		ids := []string{g.Assets[g.CoverIndex].ID}
 		for i, a := range g.Assets {
-			upCmd.app.Jnl().Record(ctx, fileevent.Stacked, g.Assets[i].File, "worker", workerID)
+			upCmd.app.Jnl().Record(ctx, fileevent.Stacked, g.Assets[i].File)
 			if i != g.CoverIndex && a.ID != "" {
 				ids = append(ids, a.ID)
 			}
@@ -401,7 +402,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	return errGroup
 }
 
-func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, workerID int) error {
+func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
@@ -414,7 +415,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, workerID i
 
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
-		serverStatus, err := upCmd.uploadAsset(ctx, a, workerID)
+		serverStatus, err := upCmd.uploadAsset(ctx, a)
 		if err != nil {
 			return err
 		}
@@ -428,7 +429,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, workerID i
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 		// Upload the superior asset
-		serverStatus, err := upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset, workerID)
+		serverStatus, err := upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
 		if err != nil {
 			return err
 		}
@@ -437,18 +438,18 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, workerID i
 		return nil
 
 	case AlreadyProcessed: // SHA1 already processed
-		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", advice.ServerAsset.OriginalFileName, "worker", workerID)
+		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", advice.ServerAsset.OriginalFileName, "worker")
 		return nil
 
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message, "worker", workerID)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message, "worker")
 		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message, "worker", workerID)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message, "worker")
 		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case ForceUpload:
@@ -460,9 +461,9 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, workerID i
 			a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 			// Upload the superior asset
-			serverStatus, err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset, workerID)
+			serverStatus, err = upCmd.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
 		} else {
-			serverStatus, err = upCmd.uploadAsset(ctx, a, workerID)
+			serverStatus, err = upCmd.uploadAsset(ctx, a)
 		}
 		if err != nil {
 			return err
@@ -478,11 +479,11 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, workerID i
 // uploadAsset uploads the asset to the server.
 // set the server's asset ID to the asset.
 // return the duplicate condition and error.
-func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset, workerID int) (string, error) {
+func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, error) {
 	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error(), "worker", workerID)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 		return "", err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
@@ -492,12 +493,12 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset, workerID i
 			originalName = original.OriginalFileName
 		}
 		if a.ID == "" {
-			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName, "worker", workerID)
+			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
 		} else {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName, "worker", workerID)
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName)
 		}
 	} else {
-		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a.File, "worker", workerID)
+		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a.File)
 	}
 	a.ID = ar.ID
 
@@ -516,7 +517,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset, workerID i
 			DateTimeOriginal: a.CaptureDate,
 		})
 		if err != nil {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error(), "worker", workerID)
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 			return "", err
 		}
 	}
@@ -524,11 +525,11 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset, workerID i
 	return ar.Status, nil
 }
 
-func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.Asset, workerID int) (string, error) {
+func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.Asset) (string, error) {
 	defer upCmd.app.Log().Debug("replaced by", "ID", ID, "file", a)
 	ar, err := upCmd.app.Client().Immich.ReplaceAsset(ctx, ID, a)
 	if err != nil {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error(), "worker", workerID)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 		return "", err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
@@ -538,13 +539,13 @@ func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.
 			originalName = original.OriginalFileName
 		}
 		if a.ID == "" {
-			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName, "worker", workerID)
+			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
 		} else {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName, "worker", workerID)
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName)
 		}
 	} else {
 		a.ID = ID
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File, "worker", workerID)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File)
 		upCmd.assetIndex.replaceAsset(a, old)
 	}
 	return ar.Status, nil

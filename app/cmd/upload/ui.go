@@ -196,7 +196,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		preparationDone.Store(true)
 
 		// we can upload assets
-		err = upCmd.uploadLoop(ctx, groupChan, upCmd.ConcurrentUploads)
+		err = upCmd.uploadLoop(ctx, groupChan)
 		// if err != nil {
 		// 	return context.Cause(ctx)
 		// }

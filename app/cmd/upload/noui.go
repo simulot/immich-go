@@ -104,7 +104,7 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 			}
 		}
 		preparationDone.Store(true)
-		err = upCmd.uploadLoop(ctx, groupChan, upCmd.ConcurrentUploads)
+		err = upCmd.uploadLoop(ctx, groupChan)
 		if err != nil {
 			cancel(err)
 		}
