@@ -17,7 +17,7 @@ jobs:
           target_branch="${{ github.base_ref }}"
           
           # Check if the source branch name is valid (feature/bugfix/hotfix)
-          if! [[ "$source_branch" =~ ^(feature|bugfix|hotfix)/.+$ ]]; then
+          if ! [[ "$source_branch" =~ ^(feature|bugfix|hotfix)/.+$ ]]; then
             echo "::error::Branch name '$source_branch' does not follow the naming convention (feature/, bugfix/, hotfix/)."
             exit 1
           fi
