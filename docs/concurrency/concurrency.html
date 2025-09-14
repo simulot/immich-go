@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-threading Performance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        canvas {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="p-6 md:p-12 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-4xl mx-auto space-y-8">
+        <!-- Card container with rounded corners and shadow -->
+        <div class="bg-white p-8 rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold text-gray-900 text-center mb-2">
+                Task Performance vs. Concurrency
+            </h1>
+            <p class="text-gray-600 text-center mb-6">
+                Line chart showing the breakdown of task completion time for each metric, including the performance gain.
+            </p>
+
+            <!-- Chart container -->
+            <div>
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Data source and analysis section -->
+        <div class="bg-white p-6 rounded-xl shadow-lg text-gray-700">
+            <h2 class="text-xl font-semibold mb-2">Data Analysis</h2>
+            <p class="mb-4">
+                The data was extracted from the provided `multi-threading.txt` file. The system's CPU has 6 physical cores but 12 logical CPUs, thanks to Hyper-Threading technology.
+            </p>
+            <p class="mb-4">
+                As the number of concurrent processes increases from 1 to 6, the task completion time decreases significantly as each process gets a dedicated physical core. The performance gain continues between 6 and 9 processes because the system starts using the second logical thread on each core, utilizing idle resources to improve efficiency.
+            </p>
+            <p>
+                Beyond 12 concurrent processes, the performance gains diminish, and the time can even slightly increase. This is likely due to the overhead of the operating system needing to manage and switch between more processes than there are logical cores.
+            </p>
+        </div>
+
+        <!-- New section for explaining the metrics -->
+        <div class="bg-white p-6 rounded-xl shadow-lg text-gray-700">
+            <h2 class="text-xl font-semibold mb-2">Understanding the Time Metrics</h2>
+            <ul class="list-disc list-inside space-y-2">
+                <li>
+                    <strong>Real Time:</strong> This is the total elapsed time from start to finish, including time spent waiting for other processes or I/O. It's the "wall-clock" time you would measure with a stopwatch.
+                </li>
+                <li>
+                    <strong>User Time:</strong> This is the amount of time the CPU spent executing the user's code. It reflects the time spent on the actual computations of your program.
+                </li>
+                <li>
+                    <strong>System Time:</strong> This is the amount of time the CPU spent on system-level tasks on behalf of your program, such as interacting with the operating system kernel, handling I/O, or managing memory.
+                </li>
+            </ul>
+            <p class="mt-4">
+                In a multi-threaded application, the sum of user time and system time can be greater than the real time because multiple cores are working in parallel.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+
+            // Data extracted and converted from the uploaded file.
+            const realTimeData = [135.894, 83.660, 73.339, 59.056, 53.401, 50.978, 52.683, 50.230, 52.204];
+            const userTimeData = [28.587, 28.489, 33.579, 32.258, 31.836, 31.978, 33.811, 33.574, 32.865];
+            const systemTimeData = [21.053, 21.773, 29.538, 25.384, 23.953, 24.865, 25.185, 24.492, 25.004];
+
+            const baselineRealTime = realTimeData[0];
+            const performanceGainData = realTimeData.map(time => baselineRealTime / time);
+
+            const data = {
+                labels: [1, 2, 5, 6, 9, 12, 18, 24, 48],
+                datasets: [
+                    {
+                        label: 'Real Time',
+                        data: realTimeData,
+                        yAxisID: 'yTime',
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(29, 78, 216, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        label: 'User Time',
+                        data: userTimeData,
+                        yAxisID: 'yTime',
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(5, 150, 105, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        label: 'System Time',
+                        data: systemTimeData,
+                        yAxisID: 'yTime',
+                        backgroundColor: 'rgba(249, 115, 22, 0.6)',
+                        borderColor: 'rgba(249, 115, 22, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(234, 88, 12, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        label: 'Performance Gain',
+                        data: performanceGainData,
+                        yAxisID: 'yGain',
+                        backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                        borderColor: 'rgba(139, 92, 246, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(109, 40, 217, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        tension: 0.3,
+                        fill: false
+                    }
+                ]
+            };
+
+            // Chart configuration
+            const config = {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Number of Concurrent Processes',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                },
+                                color: '#4b5563'
+                            },
+                            ticks: {
+                                color: '#6b7280'
+                            }
+                        },
+                        yTime: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                },
+                                color: '#4b5563'
+                            },
+                            ticks: {
+                                color: '#6b7280'
+                            }
+                        },
+                        yGain: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: {
+                                drawOnChartArea: false, // only want the grid lines for the left axis
+                            },
+                            title: {
+                                display: true,
+                                text: 'Performance Gain (x)',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                },
+                                color: '#4b5563'
+                            },
+                            ticks: {
+                                color: '#6b7280'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#1f2937'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        if (context.dataset.label === 'Performance Gain') {
+                                            label += context.parsed.y.toFixed(2) + 'x';
+                                        } else {
+                                            label += context.parsed.y.toFixed(3) + 's';
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // Create the chart
+            new Chart(ctx, config);
+        });
+    </script>
+</body>
+</html>
+
