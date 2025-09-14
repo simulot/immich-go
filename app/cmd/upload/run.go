@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -19,7 +21,11 @@ import (
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/gen/syncset"
+	"github.com/simulot/immich-go/internal/worker"
 )
+
+// workerIDKey is a custom type for context keys to avoid collisions
+type workerIDKey struct{}
 
 type UpCmd struct {
 	Mode UpLoadMode
@@ -296,39 +302,52 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 }
 
 func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
-	var err error
-	errorCount := 0
-assetLoop:
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
+	ctx, cancel := context.WithCancelCause(ctx)
 
-		case g, ok := <-groupChan:
-			if !ok {
-				break assetLoop
-			}
-			err = upCmd.handleGroup(ctx, g)
-			if err != nil {
-				upCmd.app.Log().Error(err.Error())
-
-				switch {
-				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
-					// nop
-				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
-					return err
-				default:
-					errorCount++
-					if errorCount >= int(upCmd.app.Client().OnServerErrors) {
-						err := errors.New("too many errors, aborting")
-						upCmd.app.Log().Error(err.Error())
-						return err
-					}
+	// the goroutine submits the groups, and stops when then number of error is higher than tolerated
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		var errorCount atomic.Int32
+		workers := worker.NewPool(upCmd.ConcurrentUploads)
+		defer workers.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				cancel(ctx.Err())
+				return
+			case g, ok := <-groupChan:
+				if !ok {
+					return
 				}
+				workers.Submit(func() {
+					err := upCmd.handleGroup(ctx, g)
+					if err != nil {
+						upCmd.app.Log().Error(err.Error())
+						switch {
+						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
+							// nop
+						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
+							cancel(err)
+							return
+						default:
+							c := int(errorCount.Add(1))
+							if c < int(upCmd.app.Client().OnServerErrors) {
+								return
+							}
+							upCmd.app.Log().Error("too many errors, aborting")
+							cancel(errors.New("too many errors, aborting"))
+							return
+						}
+					}
+				})
 			}
 		}
-	}
+	})
 
+	wg.Wait()
+	err := context.Cause(ctx)
+
+	// Cleanup: delete server assets if needed
 	if len(upCmd.deleteServerList) > 0 {
 		ids := []string{}
 		for _, da := range upCmd.deleteServerList {
@@ -380,15 +399,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		}
 	}
 
-	if errGroup != nil {
-		return errGroup
-	}
-
-	switch g.Grouping {
-	case assets.GroupByNone:
-	}
-
-	return nil
+	return errGroup
 }
 
 func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
@@ -427,18 +438,18 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		return nil
 
 	case AlreadyProcessed: // SHA1 already processed
-		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", advice.ServerAsset.OriginalFileName)
+		upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", advice.ServerAsset.OriginalFileName, "worker")
 		return nil
 
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message, "worker")
 		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message)
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message, "worker")
 		upCmd.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case ForceUpload:
