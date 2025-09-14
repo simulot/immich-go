@@ -301,10 +301,13 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	return nil
 }
 
+// uploadLoop processes asset groups from the groupChan channel and uploads them concurrently.
+// It uses a worker pool to handle uploads, and cancels the context if too many errors occur or if configured to stop on errors.
+// After processing, it deletes server assets if needed.
 func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 
-	// the goroutine submits the groups, and stops when then number of error is higher than tolerated
+	// The goroutine submits the groups, and stops when the number of errors exceeds the tolerated threshold.
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		var errorCount atomic.Int32
@@ -313,23 +316,28 @@ func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group
 		for {
 			select {
 			case <-ctx.Done():
+				// Context cancelled, exit goroutine.
 				cancel(ctx.Err())
 				return
 			case g, ok := <-groupChan:
 				if !ok {
+					// Channel closed, exit goroutine.
 					return
 				}
+				// Submit group processing to worker pool.
 				workers.Submit(func() {
 					err := upCmd.handleGroup(ctx, g)
 					if err != nil {
 						upCmd.app.Log().Error(err.Error())
 						switch {
 						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
-							// nop
+							// Never stop on errors, continue processing.
 						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
+							// Stop immediately on error.
 							cancel(err)
 							return
 						default:
+							// Stop if error count exceeds configured threshold.
 							c := int(errorCount.Add(1))
 							if c < int(upCmd.app.Client().OnServerErrors) {
 								return
@@ -347,7 +355,7 @@ func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group
 	wg.Wait()
 	err := context.Cause(ctx)
 
-	// Cleanup: delete server assets if needed
+	// Cleanup: delete server assets if needed.
 	if len(upCmd.deleteServerList) > 0 {
 		ids := []string{}
 		for _, da := range upCmd.deleteServerList {
