@@ -7,16 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/simulot/immich-go/internal/fshelper/tgzname"
 	zipname "github.com/simulot/immich-go/internal/fshelper/zipName"
 )
 
 // ParsePath return a list of FS bases on args
 //
-// Zip files are opened and returned as FS
+// Zip and tgz files are opened and returned as FS
 // Manage wildcards in path
-//
-// TODO: Implement a tgz reader for non google-photos archives
-
 func ParsePath(args []string) ([]fs.FS, error) {
 	var errs error
 	fsyss := []fs.FS{}
@@ -32,7 +30,12 @@ func ParsePath(args []string) ([]fs.FS, error) {
 			lowF := strings.ToLower(f)
 			switch {
 			case strings.HasSuffix(lowF, ".tgz") || strings.HasSuffix(lowF, ".tar.gz"):
-				errs = errors.Join(fmt.Errorf("immich-go can't use tgz archives: %s", filepath.Base(a)))
+				fsys, err := tgzname.OpenReader(f)
+				if err != nil {
+					errs = errors.Join(errs, fmt.Errorf("%s: %w", a, err))
+					continue
+				}
+				fsyss = append(fsyss, fsys)
 			case strings.HasSuffix(lowF, ".zip"):
 				fsys, err := zipname.OpenReader(f) //   zip.OpenReader(f)
 				if err != nil {
