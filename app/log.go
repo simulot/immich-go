@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -158,7 +159,7 @@ func (log *Log) setHandlers(file, con io.Writer) {
 		}))
 	}
 
-	log.Logger = slog.New(slogmulti.Fanout(handlers...))
+	log.Logger = slog.New(NewFilteredHandler(slogmulti.Fanout(handlers...)))
 }
 
 func (log *Log) SetLogWriter(w io.Writer) *slog.Logger {
@@ -191,4 +192,53 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 
 func (log *Log) GetSLog() *slog.Logger {
 	return log.Logger
+}
+
+// FilteredHandler filterslog messages and filters out context canceled errors
+// if err, ok := a.Value.Any().(error); ok {
+// if errors.Is(err, context.Canceled) {
+type FilteredHandler struct {
+	handler slog.Handler
+}
+
+var _ slog.Handler = (*FilteredHandler)(nil)
+
+func NewFilteredHandler(handler slog.Handler) slog.Handler {
+	return &FilteredHandler{
+		handler: handler,
+	}
+}
+
+func (h *FilteredHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.handler.Enabled(ctx, level)
+}
+
+func (h *FilteredHandler) Handle(ctx context.Context, r slog.Record) error {
+	// When error level is Error or more serious
+	if r.Level >= slog.LevelError {
+		keepMe := true
+		// parses the attributes
+		r.Attrs(func(a slog.Attr) bool {
+			if err, ok := a.Value.Any().(error); ok {
+				if errors.Is(err, context.Canceled) {
+					keepMe = false
+					return false
+				}
+			}
+			return true
+		})
+		if !keepMe {
+			return nil
+		}
+	}
+	// Otherwise, log the message
+	return h.handler.Handle(ctx, r)
+}
+
+func (h *FilteredHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &FilteredHandler{handler: h.handler.WithAttrs(attrs)}
+}
+
+func (h *FilteredHandler) WithGroup(name string) slog.Handler {
+	return &FilteredHandler{handler: h.handler.WithGroup(name)}
 }
