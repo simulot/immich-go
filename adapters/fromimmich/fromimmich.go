@@ -21,7 +21,7 @@ type FromImmich struct {
 	ifs *immichfs.ImmichFS
 	ic  *filenames.InfoCollector
 
-	mustFetchAlbums bool // True if we need to fetch the asset's albums in 2nd step
+	mustFetchAlbums bool // When there isn't any album as criteria, should check if the asset belongs to an album (true)
 	errCount        int  // Count the number of errors, to stop after 5
 }
 
@@ -67,9 +67,9 @@ const timeFormat = "2006-01-02T15:04:05.000Z"
 
 func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
 	query := immich.SearchMetadataQuery{
-		Make:  f.flags.Make,
-		Model: f.flags.Model,
-		// WithExif:     true,
+		Make:         f.flags.Make,
+		Model:        f.flags.Model,
+		WithExif:     true,
 		WithArchived: f.flags.WithArchived,
 	}
 
@@ -137,8 +137,7 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		return nil
 	}
 
-	albums := a.Albums
-
+	albums := a.Albums // Albums are set only when from-album is given
 	if f.mustFetchAlbums && len(albums) == 0 {
 		albums, err = f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
 		if err != nil {
@@ -162,13 +161,6 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		albums = newAlbumList
 	}
 
-	// Some information are missing in the metadata result,
-	// so we need to get the asset details
-
-	a, err = f.flags.client.Immich.GetAssetInfo(ctx, a.ID)
-	if err != nil {
-		return f.logError(err)
-	}
 	asset := a.AsAsset()
 	asset.SetNameInfo(f.ic.GetInfo(asset.OriginalFileName))
 	asset.File = fshelper.FSName(f.ifs, a.ID)
@@ -187,6 +179,12 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		Albums:      immich.AlbumsFromAlbumSimplified(albums),
 		Tags:        asset.Tags,
 	}
+
+	// clear the ID of the album that exists in from server, but not in to server
+	for i := range asset.FromApplication.Albums {
+		asset.FromApplication.Albums[i].ID = ""
+	}
+	asset.Albums = asset.FromApplication.Albums
 
 	if f.flags.MinimalRating > 0 && a.Rating < f.flags.MinimalRating {
 		return nil
