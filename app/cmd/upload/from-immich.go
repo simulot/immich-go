@@ -11,7 +11,7 @@ import (
 func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.Application, upOptions *UploadOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-immich [flags]",
-		Short: "Upload photos from another Immich server",
+		Short: "Get photos from an Immich server",
 		Args:  cobra.MaximumNArgs(0),
 	}
 	cmd.SetContext(ctx)
