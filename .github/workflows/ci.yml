@@ -11,6 +11,9 @@ on:
      - next
  workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
  ci:
    name: Continuous Integration
