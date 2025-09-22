@@ -24,9 +24,6 @@ import (
 	"github.com/simulot/immich-go/internal/worker"
 )
 
-// workerIDKey is a custom type for context keys to avoid collisions
-type workerIDKey struct{}
-
 type UpCmd struct {
 	Mode UpLoadMode
 	*UploadOptions
