@@ -12,7 +12,7 @@ func GenRandomBytes(size int) (blk []byte) {
 	for i := 0; i < size; i++ {
 		blk[i] = byte(i & 0xff)
 	}
-	return
+	return blk
 }
 
 func Test_searchPattern(t *testing.T) {

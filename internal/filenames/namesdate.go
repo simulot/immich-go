@@ -1,7 +1,6 @@
 package filenames
 
 import (
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,7 +14,7 @@ var timeRe = regexp.MustCompile(`(19[89]\d|20\d\d)\D?(0\d|1[0-2])\D?([0-3]\d)\D{
 // name (end to start), If no time is found - it will try to extract from the path itself as a
 // last resort (e.g. /something/2024/06/06/file123.png).
 func TakeTimeFromPath(fullpath string, tz *time.Location) time.Time {
-	parts := strings.Split(fullpath, string(os.PathSeparator))
+	parts := strings.Split(fullpath, "/")
 
 	for i := len(parts) - 1; i >= 0; i-- {
 		if t := TakeTimeFromName(parts[i], tz); !t.IsZero() {

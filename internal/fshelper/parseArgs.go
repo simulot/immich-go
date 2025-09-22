@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	zipname "github.com/simulot/immich-go/internal/fshelper/zipName"
@@ -20,6 +21,14 @@ import (
 func ParsePath(args []string) ([]fs.FS, error) {
 	var errs error
 	fsyss := []fs.FS{}
+
+	// sometimes in windows powershell completion, when the path contains a space, it contains a trailing quote
+	// in the last argument
+	if runtime.GOOS == "windows" {
+		if len(args) > 0 {
+			args[len(args)-1] = strings.TrimSuffix(args[len(args)-1], "\"")
+		}
+	}
 
 	for _, a := range args {
 		a = filepath.ToSlash(a)

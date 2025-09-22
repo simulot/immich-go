@@ -37,6 +37,6 @@ func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.C
 	cmd.Flags().StringVar(&o.client.APIKey, "from-api-key", "", "API Key")
 	cmd.Flags().BoolVar(&o.client.APITrace, "from-api-trace", false, "Enable trace of api calls")
 	cmd.Flags().BoolVar(&o.client.SkipSSL, "from-skip-verify-ssl", false, "Skip SSL verification")
-	cmd.Flags().DurationVar(&o.client.ClientTimeout, "from-client-timeout", 5*time.Minute, "Set server calls timeout")
+	cmd.Flags().DurationVar(&o.client.ClientTimeout, "from-client-timeout", 20*time.Minute, "Set server calls timeout")
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 }

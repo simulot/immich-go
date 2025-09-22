@@ -2,6 +2,7 @@ package upload
 
 import (
 	"context"
+	"runtime"
 	"time"
 
 	"github.com/simulot/immich-go/app"
@@ -42,6 +43,9 @@ type UploadOptions struct {
 	// Add Overwrite flag to UploadOptions
 	Overwrite bool // Always overwrite files on the server with local versions
 
+	// Concurrent upload configuration
+	ConcurrentUploads int // Number of concurrent upload workers
+
 	Filters []filters.Filter
 }
 
@@ -56,6 +60,7 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd.TraverseChildren = true
 	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
 	cmd.PersistentFlags().BoolVar(&options.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
+	cmd.PersistentFlags().IntVar(&options.ConcurrentUploads, "concurrent-uploads", runtime.NumCPU(), "Number of concurrent upload workers (1-20)")
 	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)
 
 	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, a, options))
@@ -77,5 +82,8 @@ func (options *UploadOptions) Open(ctx context.Context, cmd *cobra.Command, app 
 			app.SetTZ(loc)
 		}
 	}
+
+	// Validate concurrent uploads range
+	options.ConcurrentUploads = min(max(options.ConcurrentUploads, 1), 20)
 	return nil
 }

@@ -30,7 +30,7 @@ func getImmichProdCreds() (host, key, user string) {
 	if user = myEnv["IMMICH_USER"]; user == "" {
 		user = os.Getenv("IMMICH_USER")
 	}
-	return
+	return host, key, user
 }
 
 /*

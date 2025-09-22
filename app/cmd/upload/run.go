@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -19,6 +21,7 @@ import (
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/gen/syncset"
+	"github.com/simulot/immich-go/internal/worker"
 )
 
 type UpCmd struct {
@@ -40,8 +43,8 @@ type UpCmd struct {
 	albumsCache *cache.CollectionCache[assets.Album] // List of albums present on the server
 	tagsCache   *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 
-	shouldResumeJobs map[string]bool // List of jobs to resume
-	finished         bool            // the finish task has been run
+	// shouldResumeJobs map[string]bool // List of jobs to resume
+	finished bool // the finish task has been run
 }
 
 func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *UpCmd {
@@ -107,40 +110,30 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 }
 
 func (UpCmd *UpCmd) pauseJobs(ctx context.Context, app *app.Application) error {
-	UpCmd.shouldResumeJobs = make(map[string]bool)
-	jobs, err := app.Client().AdminImmich.GetJobs(ctx)
-	if err != nil {
-		return err
-	}
-	for name, job := range jobs {
-		UpCmd.shouldResumeJobs[name] = !job.QueueStatus.IsPaused
-		if UpCmd.shouldResumeJobs[name] {
-			_, err = app.Client().AdminImmich.SendJobCommand(ctx, name, "pause", true)
-			if err != nil {
-				UpCmd.app.Jnl().Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
-				return err
-			}
-			UpCmd.app.Jnl().Log().Info("Immich Job command sent", "pause", name)
+	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
+	for _, name := range jobs {
+		_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "pause", true)
+		if err != nil {
+			UpCmd.app.Jnl().Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
+			return err
 		}
+		UpCmd.app.Jnl().Log().Info("Immich Job command sent", "pause", name)
 	}
 	return nil
 }
 
 func (UpCmd *UpCmd) resumeJobs(_ context.Context, app *app.Application) error {
-	if UpCmd.shouldResumeJobs == nil {
-		return nil
-	}
+	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
+
 	// Start with a context not yet cancelled
 	ctx := context.Background() //nolint
-	for name, shouldResume := range UpCmd.shouldResumeJobs {
-		if shouldResume {
-			_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
-			if err != nil {
-				UpCmd.app.Jnl().Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
-				return err
-			}
-			UpCmd.app.Jnl().Log().Info("Immich Job command sent", "resume", name)
+	for _, name := range jobs {
+		_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
+		if err != nil {
+			UpCmd.app.Jnl().Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
+			return err
 		}
+		UpCmd.app.Jnl().Log().Info("Immich Job command sent", "resume", name)
 	}
 	return nil
 }
@@ -306,39 +299,52 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 }
 
 func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
-	var err error
-	errorCount := 0
-assetLoop:
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
+	ctx, cancel := context.WithCancelCause(ctx)
 
-		case g, ok := <-groupChan:
-			if !ok {
-				break assetLoop
-			}
-			err = upCmd.handleGroup(ctx, g)
-			if err != nil {
-				upCmd.app.Log().Error(err.Error())
-
-				switch {
-				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
-					// nop
-				case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
-					return err
-				default:
-					errorCount++
-					if errorCount >= int(upCmd.app.Client().OnServerErrors) {
-						err := errors.New("too many errors, aborting")
-						upCmd.app.Log().Error(err.Error())
-						return err
-					}
+	// the goroutine submits the groups, and stops when then number of error is higher than tolerated
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		var errorCount atomic.Int32
+		workers := worker.NewPool(upCmd.ConcurrentUploads)
+		defer workers.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				cancel(ctx.Err())
+				return
+			case g, ok := <-groupChan:
+				if !ok {
+					return
 				}
+				workers.Submit(func() {
+					err := upCmd.handleGroup(ctx, g)
+					if err != nil {
+						upCmd.app.Log().Error(err.Error())
+						switch {
+						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
+							// nop
+						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
+							cancel(err)
+							return
+						default:
+							c := int(errorCount.Add(1))
+							if c < int(upCmd.app.Client().OnServerErrors) {
+								return
+							}
+							upCmd.app.Log().Error("too many errors, aborting")
+							cancel(errors.New("too many errors, aborting"))
+							return
+						}
+					}
+				})
 			}
 		}
-	}
+	})
 
+	wg.Wait()
+	err := context.Cause(ctx)
+
+	// Cleanup: delete server assets if needed
 	if len(upCmd.deleteServerList) > 0 {
 		ids := []string{}
 		for _, da := range upCmd.deleteServerList {
@@ -390,15 +396,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		}
 	}
 
-	if errGroup != nil {
-		return errGroup
-	}
-
-	switch g.Grouping {
-	case assets.GroupByNone:
-	}
-
-	return nil
+	return errGroup
 }
 
 func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
