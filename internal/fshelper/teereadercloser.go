@@ -14,7 +14,7 @@ func (t *teeReadCloser) Read(p []byte) (n int, err error) {
 			return n, err
 		}
 	}
-	return
+	return n, err
 }
 
 func (t *teeReadCloser) Close() error {

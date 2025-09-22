@@ -74,7 +74,7 @@ func (ic *ImmichClient) SendJobCommand(
 			Command JobCommand `json:"command"`
 			Force   bool       `json:"force"`
 		}{Command: command, Force: force})), responseJSON(&resp))
-	return
+	return resp, err
 }
 
 func (ic *ImmichClient) CreateJob(ctx context.Context, name JobName) error {
