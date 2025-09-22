@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize]
     branches:
       - main
-      - next
+      - develop
 permissions:
   contents: read
 
@@ -19,7 +19,7 @@ jobs:
           target_branch="${{ github.base_ref }}"
           
           # Allow certain system/integration branches to bypass naming convention
-          if [[ "$source_branch" =~ ^(main|next|develop|master)$ ]]; then
+          if [[ "$source_branch" =~ ^(main|develop|master)$ ]]; then
             echo "System branch '$source_branch' is exempt from naming convention."
           else
             # Check if the source branch name is valid (feature/bugfix/hotfix)
@@ -29,9 +29,9 @@ jobs:
             fi
           fi
           
-          # Check if a feature or bugfix branch is targeting the correct branch (next)
-          if [[ "$source_branch" =~ ^(feature|bugfix)/.+ ]] && [ "$target_branch" != "next" ]; then
-            echo "::error::'feature/*' and 'bugfix/*' branches must only be merged into 'next'."
+          # Check if a feature or bugfix branch is targeting the correct branch (develop)
+          if [[ "$source_branch" =~ ^(feature|bugfix)/.+ ]] && [ "$target_branch" != "develop" ]; then
+            echo "::error::'feature/*' and 'bugfix/*' branches must only be merged into 'develop'."
             exit 1
           fi
 
