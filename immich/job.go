@@ -63,18 +63,14 @@ func (ic *ImmichClient) GetJobs(ctx context.Context) (map[string]Job, error) {
 	return resp, err
 }
 
-func (ic *ImmichClient) SendJobCommand(
-	ctx context.Context,
-	jobID string,
-	command JobCommand,
-	force bool,
-) (resp SendJobCommandResponse, err error) {
-	err = ic.newServerCall(ctx, EndPointSendJobCommand).do(putRequest("/jobs/"+jobID,
+func (ic *ImmichClient) SendJobCommand(ctx context.Context, jobID string, command JobCommand, force bool) (*SendJobCommandResponse, error) {
+	resp := SendJobCommandResponse{}
+	err := ic.newServerCall(ctx, EndPointSendJobCommand).do(putRequest("/jobs/"+jobID,
 		setJSONBody(struct {
 			Command JobCommand `json:"command"`
 			Force   bool       `json:"force"`
 		}{Command: command, Force: force})), responseJSON(&resp))
-	return
+	return &resp, err
 }
 
 func (ic *ImmichClient) CreateJob(ctx context.Context, name JobName) error {
