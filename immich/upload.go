@@ -128,7 +128,11 @@ func (ic *ImmichClient) prepareCallValues(la *assets.Asset, s fs.FileInfo, ext, 
 	callValues["fileExtension"] = ext
 	callValues["duration"] = formatDuration(0)
 	callValues["isReadOnly"] = "false"
-	callValues["isArchived"] = myBool(la.Archived).String()
+	if la.Archived {
+		callValues["visibility"] = "archive"
+	} else {
+		callValues["visibility"] = "timeline"
+	}
 	return callValues
 }
 
