@@ -9,11 +9,11 @@ import (
 )
 
 type FromImmichFlags struct {
-	DateRange      cliflags.DateRange      // get assets only within this date range  (fromat: YYYY-MM-DD,YYYY-MM-DD)
-	Albums         []string                // get assets only from those albums
-	Tags           []string                // get assets only with those tags
-	WithArchived   bool                    // get archived assets too
-	WithTrashed    bool                    // get trashed assets too
+	DateRange cliflags.DateRange // get assets only within this date range  (fromat: YYYY-MM-DD,YYYY-MM-DD)
+	Albums    []string           // get assets only from those albums
+	Tags      []string           // get assets only with those tags
+	// WithArchived   bool                    // get archived assets too
+	// WithTrashed    bool                    // get trashed assets too
 	Favorite       bool                    // get only favorite assets
 	MinimalRating  int                     // get only assets with a rating greater or equal to this value
 	Make           string                  // get only assets with this make
@@ -28,9 +28,9 @@ func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.C
 	cmd.Flags().StringSliceVar(&o.Albums, "from-album", nil, "Get assets only from those albums, can be used multiple times")
 	// cmd.Flags().StringSliceVar(&o.Tags, "from-tags", nil, "Get assets only with those tags")
 	cmd.Flags().Var(&o.DateRange, "from-date-range", "Get assets only within this date range (fromat: YYYY[-MM[-DD[,YYYY-MM-DD]]])")
-	// cmd.Flags().BoolVar(&o.WithArchived, "from-archived", false, "Get archived assets too")
+	// cmd.Flags().BoolVar(&o.WithArchived, "from-archived", false, "Get archived assets too") //TODO after having implemented visibility
 	// cmd.Flags().BoolVar(&o.WithTrashed, "from-trashed", false, "Get trashed assets too")
-	// cmd.Flags().BoolVar(&o.Favorite, "from-favorite", false, "Get only favorite assets")
+	cmd.Flags().BoolVar(&o.Favorite, "from-favorite", false, "Get only favorite assets")
 	// cmd.Flags().IntVar(&o.MinimalRating, "from-minimal-rating", 0, "Get only assets with a rating greater or equal to this value")
 
 	cmd.Flags().StringVar(&o.client.Server, "from-server", o.client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
