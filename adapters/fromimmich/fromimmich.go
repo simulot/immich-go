@@ -133,6 +133,10 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		return nil
 	}
 
+	if f.flags.Make != "" && a.ExifInfo.Make != f.flags.Make {
+		return nil
+	}
+
 	if !f.flags.WithTrashed && a.IsTrashed {
 		return nil
 	}
