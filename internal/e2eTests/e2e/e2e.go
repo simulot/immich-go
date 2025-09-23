@@ -13,7 +13,7 @@ import (
 
 var myEnv map[string]string
 
-const e2eEnv = "../../../e2e.env"
+const e2eEnv = "../../../../e2e.env"
 
 func InitMyEnv() {
 	if len(myEnv) > 0 {
