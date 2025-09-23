@@ -25,7 +25,7 @@ type FromImmichFlags struct {
 func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.Command) {
 	cmd.Flags().StringVar(&o.Make, "from-make", "", "Get only assets with this make")
 	cmd.Flags().StringVar(&o.Model, "from-model", "", "Get only assets with this model")
-	cmd.Flags().StringSliceVar(&o.Albums, "from-album", nil, "Get assets only from those albums, can be used multiple times")
+	cmd.Flags().StringSliceVar(&o.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
 	// cmd.Flags().StringSliceVar(&o.Tags, "from-tags", nil, "Get assets only with those tags")
 	cmd.Flags().Var(&o.DateRange, "from-date-range", "Get assets only within this date range (fromat: YYYY[-MM[-DD[,YYYY-MM-DD]]])")
 	// cmd.Flags().BoolVar(&o.WithArchived, "from-archived", false, "Get archived assets too") //TODO after having implemented visibility
