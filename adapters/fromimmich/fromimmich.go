@@ -67,10 +67,11 @@ const timeFormat = "2006-01-02T15:04:05.000Z"
 
 func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
 	query := immich.SearchMetadataQuery{
-		Make:         f.flags.Make,
-		Model:        f.flags.Model,
-		WithExif:     true,
-		WithArchived: f.flags.WithArchived,
+		Make:       f.flags.Make,
+		Model:      f.flags.Model,
+		WithExif:   true,
+		IsFavorite: f.flags.Favorite,
+		// WithArchived: f.flags.WithArchived,
 	}
 
 	f.mustFetchAlbums = true
@@ -83,13 +84,14 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 		if f.flags.Favorite && !a.IsFavorite {
 			return nil
 		}
-		if !f.flags.WithTrashed && a.IsTrashed {
-			return nil
-		}
+		// if !f.flags.WithTrashed && a.IsTrashed {
+		// 	return nil
+		// }
 		return f.filterAsset(ctx, a, grpChan)
 	})
 }
 
+// TODO leverage https://immich.app/docs/api/search-assets field albumIds
 func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *assets.Group) error {
 	f.mustFetchAlbums = false
 
@@ -129,6 +131,7 @@ func (f *FromImmich) getAssetsFromAlbums(ctx context.Context, grpChan chan *asse
 
 func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan chan *assets.Group) error {
 	var err error
+
 	if f.flags.Favorite && !a.IsFavorite {
 		return nil
 	}
@@ -137,9 +140,9 @@ func (f *FromImmich) filterAsset(ctx context.Context, a *immich.Asset, grpChan c
 		return nil
 	}
 
-	if !f.flags.WithTrashed && a.IsTrashed {
-		return nil
-	}
+	// if !f.flags.WithTrashed && a.IsTrashed {
+	// 	return nil
+	// }
 
 	albums := a.Albums // Albums are set only when from-album is given
 	if f.mustFetchAlbums && len(albums) == 0 {

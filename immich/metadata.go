@@ -19,10 +19,12 @@ type SearchMetadataQuery struct {
 	Size int `json:"size,omitempty"`
 
 	// filters
-	WithExif         bool   `json:"withExif,omitempty"`
-	IsVisible        bool   `json:"isVisible,omitempty"` // For motion stuff you need to pass isVisible=true to hide the motion ones (dijrasm91 — https://discord.com/channels/979116623879368755/1178366369423700080/1201206313699508295)
-	WithDeleted      bool   `json:"withDeleted,omitempty"`
-	WithArchived     bool   `json:"withArchived,omitempty"`
+	WithExif    bool `json:"withExif,omitempty"`
+	IsVisible   bool `json:"isVisible,omitempty"` // For motion stuff you need to pass isVisible=true to hide the motion ones (dijrasm91 — https://discord.com/channels/979116623879368755/1178366369423700080/1201206313699508295)
+	IsFavorite  bool `json:"isFavorite,omitempty"`
+	WithDeleted bool `json:"withDeleted,omitempty"`
+
+	// WithArchived     bool   `json:"withArchived,omitempty"` // TODO after implementing visibility
 	TakenBefore      string `json:"takenBefore,omitempty"`
 	TakenAfter       string `json:"takenAfter,omitempty"`
 	Model            string `json:"model,omitempty"`
