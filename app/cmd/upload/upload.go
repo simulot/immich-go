@@ -55,6 +55,8 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upload",
 		Short: "Upload photos to an Immich server from various sources",
+		Args:  cobra.NoArgs, // This command does not accept any arguments, only subcommands
+
 	}
 	app.AddClientFlags(ctx, cmd, a, false)
 	cmd.TraverseChildren = true
