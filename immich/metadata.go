@@ -25,12 +25,13 @@ type SearchMetadataQuery struct {
 	WithDeleted bool `json:"withDeleted,omitempty"`
 
 	// WithArchived     bool   `json:"withArchived,omitempty"` // TODO after implementing visibility
-	TakenBefore      string `json:"takenBefore,omitempty"`
-	TakenAfter       string `json:"takenAfter,omitempty"`
-	Model            string `json:"model,omitempty"`
-	Make             string `json:"make,omitempty"`
-	Checksum         string `json:"checksum,omitempty"`
-	OriginalFileName string `json:"originalFileName,omitempty"`
+	AlbumIds         []string `json:"albumIds,omitempty"`
+	TakenBefore      string   `json:"takenBefore,omitempty"`
+	TakenAfter       string   `json:"takenAfter,omitempty"`
+	Model            string   `json:"model,omitempty"`
+	Make             string   `json:"make,omitempty"`
+	Checksum         string   `json:"checksum,omitempty"`
+	OriginalFileName string   `json:"originalFileName,omitempty"`
 }
 
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {
