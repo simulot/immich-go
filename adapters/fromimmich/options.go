@@ -31,7 +31,7 @@ func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.C
 	// cmd.Flags().BoolVar(&o.WithArchived, "from-archived", false, "Get archived assets too") //TODO after having implemented visibility
 	// cmd.Flags().BoolVar(&o.WithTrashed, "from-trashed", false, "Get trashed assets too")
 	cmd.Flags().BoolVar(&o.Favorite, "from-favorite", false, "Get only favorite assets")
-	// cmd.Flags().IntVar(&o.MinimalRating, "from-minimal-rating", 0, "Get only assets with a rating greater or equal to this value")
+	cmd.Flags().IntVar(&o.MinimalRating, "from-minimal-rating", 0, "Get only assets with a rating greater or equal to this value")
 
 	cmd.Flags().StringVar(&o.client.Server, "from-server", o.client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
 	cmd.Flags().StringVar(&o.client.APIKey, "from-api-key", "", "API Key")

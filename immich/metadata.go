@@ -19,12 +19,10 @@ type SearchMetadataQuery struct {
 	Size int `json:"size,omitempty"`
 
 	// filters
-	WithExif    bool `json:"withExif,omitempty"`
-	IsVisible   bool `json:"isVisible,omitempty"` // For motion stuff you need to pass isVisible=true to hide the motion ones (dijrasm91 — https://discord.com/channels/979116623879368755/1178366369423700080/1201206313699508295)
-	IsFavorite  bool `json:"isFavorite,omitempty"`
-	WithDeleted bool `json:"withDeleted,omitempty"`
-
-	// WithArchived     bool   `json:"withArchived,omitempty"` // TODO after implementing visibility
+	WithExif         bool     `json:"withExif,omitempty"`
+	IsVisible        bool     `json:"isVisible,omitempty"` // For motion stuff you need to pass isVisible=true to hide the motion ones (dijrasm91 — https://discord.com/channels/979116623879368755/1178366369423700080/1201206313699508295)
+	IsFavorite       bool     `json:"isFavorite,omitempty"`
+	WithDeleted      bool     `json:"withDeleted,omitempty"`
 	AlbumIds         []string `json:"albumIds,omitempty"`
 	TagIds           []string `json:"tagIds,omitempty"`
 	TakenBefore      string   `json:"takenBefore,omitempty"`
@@ -33,6 +31,7 @@ type SearchMetadataQuery struct {
 	Make             string   `json:"make,omitempty"`
 	Checksum         string   `json:"checksum,omitempty"`
 	OriginalFileName string   `json:"originalFileName,omitempty"`
+	Rating           int      `json:"rating,omitzero"`
 }
 
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {
