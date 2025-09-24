@@ -28,6 +28,7 @@ type GoogleMetaData struct {
 	People             []Person           `json:"people,omitempty"`      // People tags
 	GooglePhotosOrigin struct {
 		FromPartnerSharing googIsPresent `json:"fromPartnerSharing,omitempty"` // true when this is a partner's asset
+		FromSharedAlbum    googIsPresent `json:"fromSharedAlbum,omitempty"`    // true when this is from a shared album
 	} `json:"googlePhotosOrigin"`
 }
 
@@ -78,15 +79,16 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 	)
 }
 
-func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *assets.Metadata {
+func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool, flags *ImportFlags) *assets.Metadata {
 	md := assets.Metadata{
-		File:        name,
-		FileName:    sanitizedTitle(gmd.Title),
-		Description: gmd.Description,
-		Trashed:     gmd.Trashed,
-		Archived:    gmd.Archived,
-		Favorited:   gmd.Favorited,
-		FromPartner: gmd.isPartner(),
+		File:            name,
+		FileName:        sanitizedTitle(gmd.Title),
+		Description:     gmd.Description,
+		Trashed:         gmd.Trashed,
+		Archived:        gmd.Archived,
+		Favorited:       gmd.Favorited,
+		FromPartner:     gmd.isPartner(),
+		FromSharedAlbum: gmd.isSharedAlbum(),
 	}
 	if gmd.GeoDataExif != nil {
 		md.Latitude, md.Longitude = gmd.GeoDataExif.Latitude, gmd.GeoDataExif.Longitude
@@ -106,6 +108,11 @@ func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *a
 			md.AddTag("People/" + p.Name)
 		}
 	}
+
+	if flags.SharedAlbumTag && md.FromSharedAlbum {
+		md.AddTag("From Shared Album")
+	}
+
 	return &md
 }
 
@@ -128,6 +135,13 @@ func (gmd *GoogleMetaData) isPartner() bool {
 		return false
 	}
 	return bool(gmd.GooglePhotosOrigin.FromPartnerSharing)
+}
+
+func (gmd *GoogleMetaData) isSharedAlbum() bool {
+	if gmd == nil {
+		return false
+	}
+	return bool(gmd.GooglePhotosOrigin.FromSharedAlbum)
 }
 
 // Key return an expected unique key for the asset

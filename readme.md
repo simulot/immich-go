@@ -427,6 +427,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 | --include-extensions      |                 `all`                 | Comma-separated list of extension to include. (e.g. .jpg, .heic)                                                                                                                   |
 | --include-type            |                 `all`                 | Single file type to include. (`VIDEO` or `IMAGE`)                                                                                                                                  |
 | -p, --include-partner     |                `TRUE`                 | Import photos from your partner's Google Photos account                                                                                                                            |
+| --include-shared-album    |                `TRUE`                 | Import photos from others in shared albums in Google Photos                                                                                                                                    |
 | -t, --include-trashed     |                `FALSE`                | Import photos that are marked as trashed in Google Photos                                                                                                                          |
 | -u, --include-unmatched   |                `FALSE`                | Import photos that do not have a matching JSON file in the takeout                                                                                                                 |
 | --include-untitled-albums |                `FALSE`                | Include photos from albums without a title in the import process                                                                                                                   |
@@ -440,6 +441,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
 | --tag strings             |                                       | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')                                                 |
 | --takeout-tag             |                `TRUE`                 | Tag uploaded photos with a tag "{takeout}/takeout-YYYYMMDDTHHMMSSZ"                                                                                                                |
 | --people-tag              |                `TRUE`                 | Tag uploaded photos with tags \"people/name\" found in the JSON file                                                                                                               |
+| --shared-album-tag        |                `TRUE`                 | Tag photos from others in shared albums with \"From Shared Album\".                                                                                                                  |
 
 ## Google Photos Best Practices:
 
