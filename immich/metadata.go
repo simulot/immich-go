@@ -26,6 +26,7 @@ type SearchMetadataQuery struct {
 
 	// WithArchived     bool   `json:"withArchived,omitempty"` // TODO after implementing visibility
 	AlbumIds         []string `json:"albumIds,omitempty"`
+	TagIds           []string `json:"tagIds,omitempty"`
 	TakenBefore      string   `json:"takenBefore,omitempty"`
 	TakenAfter       string   `json:"takenAfter,omitempty"`
 	Model            string   `json:"model,omitempty"`
