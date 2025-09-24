@@ -51,11 +51,11 @@ func ResetImmich(t *testing.T) {
         delete from asset CASACDE;
         delete from asset_face CASACDE;
         delete from activity CASACDE;
+        delete from tag CASACDE;
         -- delete from api_key CASACDE;
         -- delete from session CASACDE;
         -- delete from user CASACDE;
-        delete from system_metadata where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
-        delete from tag CASACDE;
+        -- delete from system_metadata where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
 		`,
 	)
 	out, err := c.CombinedOutput()
