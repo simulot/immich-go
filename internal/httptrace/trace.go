@@ -26,12 +26,12 @@ func NewHttpTracer(out io.Writer) *HttpTracer {
 	}
 }
 
-func (ht *HttpTracer) Write(req *requestTrace, resp *responseTrace) {
+func (ht *HttpTracer) Write(req *requestTrace, resp *responseTrace, rtErr error) {
 	go func() {
 		if req.Body != nil {
 			req.Body.closed.Wait()
 		}
-		if resp.Body != nil {
+		if resp != nil && resp.Body != nil {
 			resp.Body.closed.Wait()
 		}
 		ht.lock.Lock()
@@ -40,7 +40,11 @@ func (ht *HttpTracer) Write(req *requestTrace, resp *responseTrace) {
 		fmt.Fprintf(ht.out, "/---- request  #%d -----\n", ht.count)
 		io.WriteString(ht.out, req.String())
 		fmt.Fprintf(ht.out, "+---- response #%d -----\n", ht.count)
-		io.WriteString(ht.out, resp.String())
+		if resp != nil {
+			io.WriteString(ht.out, resp.String())
+		} else if rtErr != nil {
+			fmt.Fprintf(ht.out, "Error: %s\n", rtErr.Error())
+		}
 		fmt.Fprintf(ht.out, "\\---- response #%d -----\n", ht.count)
 	}()
 }

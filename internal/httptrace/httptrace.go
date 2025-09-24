@@ -38,6 +38,7 @@ func (drt *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 
 	resp, err := drt.rt.RoundTrip(req)
 	if err != nil {
+		drt.out.Write(&reqTrace, nil, err)
 		return nil, err
 	}
 
@@ -57,6 +58,6 @@ func (drt *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 		resp.Body = respTrace.Body
 	}
 
-	drt.out.Write(&reqTrace, &respTrace)
+	drt.out.Write(&reqTrace, &respTrace, nil)
 	return resp, nil
 }
