@@ -75,10 +75,14 @@ func (log *Log) OpenLogFile() error {
 }
 
 func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) error {
-	if cmd.Name() == "version" {
-		// No log for version command
-		return nil
+	for c := cmd; c != nil; c = c.Parent() {
+		switch c.Name() {
+		case "version", "completion":
+			// no log, nor banner for those commands
+			return nil
+		}
 	}
+
 	fmt.Println(Banner())
 	err := log.OpenLogFile()
 	if err != nil {
