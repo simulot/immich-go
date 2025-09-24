@@ -51,9 +51,8 @@ func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
 	gOut := make(chan *assets.Group)
 	go func() {
 		defer close(gOut)
-		var err error
 
-		err = f.getAssets(ctx, gOut)
+		err := f.getAssets(ctx, gOut)
 		if err != nil {
 			f.flags.client.ClientLog.Error(fmt.Sprintf("Error while getting from-immich assets: %v", err))
 		}
