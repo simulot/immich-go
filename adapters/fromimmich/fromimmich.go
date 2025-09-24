@@ -13,6 +13,7 @@ import (
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/immichfs"
+	"golang.org/x/sync/errgroup"
 )
 
 type FromImmich struct {
@@ -96,22 +97,37 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 		}
 	}
 
+	f.flags.MinimalRating = min(max(0, f.flags.MinimalRating), 5)
+
+	// TODO: add support for archived and trashed
 	query := immich.SearchMetadataQuery{
-		Make:  f.flags.Make,
-		Model: f.flags.Model,
-		// WithExif:   true,
+		Make:       f.flags.Make,
+		Model:      f.flags.Model,
 		IsFavorite: f.flags.Favorite,
 		AlbumIds:   albumsIDs,
 		TagIds:     tagsIds,
-
-		// WithArchived: f.flags.WithArchived,
+		Rating:     f.flags.MinimalRating,
 	}
 
 	if f.flags.DateRange.IsSet() {
 		query.TakenAfter = f.flags.DateRange.After.Format(timeFormat)
 		query.TakenBefore = f.flags.DateRange.Before.Format(timeFormat)
 	}
+	if f.flags.MinimalRating <= 0 {
+		return f.queryAndProcess(ctx, query, grpChan)
+	}
+	wg := errgroup.Group{}
+	for r := f.flags.MinimalRating; r <= 5; r++ {
+		wg.Go(func() error {
+			q := query
+			q.Rating = r
+			return f.queryAndProcess(ctx, q, grpChan)
+		})
+	}
+	return wg.Wait()
+}
 
+func (f *FromImmich) queryAndProcess(ctx context.Context, query immich.SearchMetadataQuery, grpChan chan *assets.Group) error {
 	return f.flags.client.Immich.GetAllAssetsWithFilter(ctx, &query, func(a *immich.Asset) error {
 		// Fetch details
 		a, err := f.flags.client.Immich.GetAssetInfo(ctx, a.ID)
@@ -119,12 +135,20 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 			return f.logError(err)
 		}
 
-		// apply filters that don't fit in the immch search api
-		if f.flags.MinimalRating > 0 && a.Rating < f.flags.MinimalRating {
-			return nil
-		}
-
 		asset := a.AsAsset()
+		asset.FromApplication = &assets.Metadata{
+			FileName:    a.OriginalFileName,
+			Latitude:    a.ExifInfo.Latitude,
+			Longitude:   a.ExifInfo.Longitude,
+			Description: a.ExifInfo.Description,
+			DateTaken:   a.ExifInfo.DateTimeOriginal.Time,
+			Trashed:     a.IsTrashed,
+			Archived:    a.IsArchived,
+			Favorited:   a.IsFavorite,
+			Rating:      byte(a.ExifInfo.Rating),
+			Tags:        asset.Tags,
+		}
+		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(f.ifs, a.ID)
 
 		// Transfer the album

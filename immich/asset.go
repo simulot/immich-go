@@ -92,6 +92,7 @@ type ExifInfo struct {
 	// 	State            string    `json:"state"`
 	// 	Country          string    `json:"country"`
 	Description string `json:"description"`
+	Rating      int    `json:"rating"`
 }
 
 type AssetResponse struct {
