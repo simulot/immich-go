@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -152,7 +152,7 @@ func (sc *serverCall) request(
 		seq := callSequence.Add(1)
 		sc.ctx = context.WithValue(sc.ctx, ctxCallSequenceID, seq)
 	}
-	req, err := http.NewRequestWithContext(sc.ctx, method, url, http.NoBody)
+	req, err := http.NewRequestWithContext(sc.ctx, method, url, nil)
 	if sc.joinError(err) != nil {
 		return nil
 	}
@@ -217,70 +217,21 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		return sc.Err(req, nil, nil)
 	}
 
-	if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
-		_ = sc.joinError(setTraceRequest()(sc, req))
-	}
-
 	resp, err = sc.ic.client.Do(req)
 	// any non nil error must be returned
 	if err != nil {
 		err = sc.joinError(err)
-		if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
-			seq := sc.ctx.Value(ctxCallSequenceID)
-			fmt.Fprintln(
-				sc.ic.apiTraceWriter,
-				time.Now().Format(time.RFC3339),
-				"RESPONSE",
-				seq,
-				sc.endPoint,
-			)
-			fmt.Fprintln(sc.ic.apiTraceWriter, "  Error:", err.Error())
-		}
 		return sc.Err(req, nil, nil)
 	}
 
-	// Any StatusCode above 300 denotes a problem
+	// Any StatusCode above 300 denotes a problem, we expect a JSON with the server's error
 	if resp.StatusCode >= 300 {
 		msg := ServerErrorMessage{}
 		if resp.Body != nil {
 			defer resp.Body.Close()
-			b := bytes.NewBuffer(nil)
-			_, _ = io.Copy(b, resp.Body)
-			if json.NewDecoder(b).Decode(&msg) == nil {
-				if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
-					seq := sc.ctx.Value(ctxCallSequenceID)
-					fmt.Fprintln(
-						sc.ic.apiTraceWriter,
-						time.Now().Format(time.RFC3339),
-						"RESPONSE",
-						seq,
-						sc.endPoint,
-						resp.Request.Method,
-						resp.Request.URL.String(),
-					)
-					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
-					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
-					dec := json.NewEncoder(newLimitWriter(sc.ic.apiTraceWriter, 100))
-					dec.SetIndent("", " ")
-					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
-				}
-				return sc.Err(req, resp, &msg)
-			} else {
-				if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
-					seq := sc.ctx.Value(ctxCallSequenceID)
-					fmt.Fprintln(
-						sc.ic.apiTraceWriter,
-						time.Now().Format(time.RFC3339),
-						"RESPONSE",
-						seq,
-						sc.endPoint,
-						resp.Request.Method,
-						resp.Request.URL.String(),
-					)
-					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
-					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body --")
-					fmt.Fprintln(sc.ic.apiTraceWriter, b.String())
-					fmt.Fprint(sc.ic.apiTraceWriter, "-- response body end --\n\n")
+			if isJSON(resp.Header.Get("Content-Type")) {
+				if json.NewDecoder(resp.Body).Decode(&msg) == nil {
+					return sc.Err(req, resp, &msg)
 				}
 			}
 		}
@@ -370,30 +321,6 @@ func responseJSON[T any](object *T) serverResponseOption {
 				if resp.StatusCode == http.StatusNoContent {
 					return nil
 				}
-
-				if sc.ic.apiTraceWriter != nil && sc.endPoint != EndPointGetJobs {
-					sc.ic.apiTraceLock.Lock()
-					defer sc.ic.apiTraceLock.Unlock()
-					resp.Body = hijackBody(resp.Body, sc.ic.apiTraceWriter)
-					seq := sc.ctx.Value(ctxCallSequenceID)
-					fmt.Fprintln(
-						sc.ic.apiTraceWriter,
-						time.Now().Format(time.RFC3339),
-						"RESPONSE",
-						seq,
-						sc.endPoint,
-						resp.Request.Method,
-						resp.Request.URL.String(),
-					)
-					fmt.Fprintln(sc.ic.apiTraceWriter, "  Header:")
-					for k, v := range resp.Header {
-						fmt.Fprintln(sc.ic.apiTraceWriter, "    ", k, ":", strings.Join(v, "; "))
-					}
-					fmt.Fprintln(sc.ic.apiTraceWriter, "  Status:", resp.Status)
-					fmt.Fprintln(sc.ic.apiTraceWriter, "-- response body start --")
-					defer fmt.Fprint(sc.ic.apiTraceWriter, "\n-- response body end --\n\n")
-				}
-
 				err := json.NewDecoder(resp.Body).Decode(object)
 				if err != nil {
 					err = fmt.Errorf("can't decode JSON response: %w", err)
@@ -428,4 +355,9 @@ func responseOctetStream(rc *io.ReadCloser) serverResponseOption {
 		}
 		return nil
 	}
+}
+
+func isJSON(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && mediaType == "application/json"
 }

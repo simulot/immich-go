@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -20,14 +19,13 @@ Immich API documentation https://documentation.immich.app/docs/api/introduction
 
 type ImmichClient struct {
 	client         *http.Client
-	roundTripper   *http.Transport
+	transport      *http.Transport
 	endPoint       string        // Server API url
 	key            string        // User KEY
 	DeviceUUID     string        // Device
 	Retries        int           // Number of attempts on 500 errors
 	RetriesDelay   time.Duration // Duration between retries
 	apiTraceWriter io.Writer     // If not nil, logs API calls to this writer
-	apiTraceLock   sync.Mutex    // Lock for API trace
 
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
 	dryRun              bool                     //  If true, do not send any data to the server
@@ -45,19 +43,30 @@ func (ic *ImmichClient) SetDeviceUUID(deviceUUID string) {
 	ic.DeviceUUID = deviceUUID
 }
 
-func (ic *ImmichClient) EnableAppTrace(w io.Writer) {
-	ic.apiTraceWriter = w
-}
-
 func (ic *ImmichClient) SupportedMedia() filetypes.SupportedMedia {
 	return ic.supportedMediaTypes
 }
 
+func (ic *ImmichClient) EnableAppTrace(rtd RoundTripperDecorator) {
+	if rtd != nil {
+		ic.client.Transport = rtd(ic.client.Transport)
+	} else {
+		ic.client.Transport = ic.transport
+	}
+}
+
 type clientOption func(ic *ImmichClient) error
+
+func OptionSetAPITrace(rtd RoundTripperDecorator) clientOption {
+	return func(ic *ImmichClient) error {
+		ic.EnableAppTrace(rtd)
+		return nil
+	}
+}
 
 func OptionVerifySSL(verify bool) clientOption {
 	return func(ic *ImmichClient) error {
-		ic.roundTripper.TLSClientConfig.InsecureSkipVerify = verify
+		ic.transport.TLSClientConfig.InsecureSkipVerify = verify
 		return nil
 	}
 }
@@ -93,7 +102,7 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 
 	ic := ImmichClient{
 		endPoint: endPoint + "/api",
-		roundTripper: &http.Transport{
+		transport: &http.Transport{
 			MaxIdleConns:        100,
 			IdleConnTimeout:     90 * time.Second,
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
@@ -114,7 +123,7 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 
 	ic.client = &http.Client{
 		Timeout:   time.Minute * 20,
-		Transport: ic.roundTripper,
+		Transport: ic.transport,
 	}
 
 	for _, fn := range options {
