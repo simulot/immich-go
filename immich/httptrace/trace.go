@@ -56,10 +56,10 @@ func (rt *roundTripTrace) Write() {
 		rt.ht.lock.Lock()
 		defer rt.ht.lock.Unlock()
 		fmt.Fprintf(rt.ht.out, "/---- client #%d request  #%d ---------------------------------------------------\n", rt.instance, rt.reqId)
-		io.WriteString(rt.ht.out, rt.req.String())
+		fmt.Fprint(rt.ht.out, rt.req.String())
 		fmt.Fprintf(rt.ht.out, "+---- response  -----\n")
 		if rt.resp.resp != nil {
-			io.WriteString(rt.ht.out, rt.resp.String())
+			fmt.Fprint(rt.ht.out, rt.resp.String())
 		} else if rt.resp.err != nil {
 			fmt.Fprintf(rt.ht.out, "Error: %s\n", rt.resp.err.Error())
 		}
