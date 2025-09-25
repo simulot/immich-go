@@ -220,7 +220,6 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 	resp, err = sc.ic.client.Do(req)
 	// any non nil error must be returned
 	if err != nil {
-		err = sc.joinError(err)
 		return sc.Err(req, nil, nil)
 	}
 
