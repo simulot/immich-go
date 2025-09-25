@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/simulot/immich-go/app/cmd"
+	"github.com/simulot/immich-go/immich/httptrace"
 	"github.com/simulot/immich-go/internal/e2eTests/e2e"
 )
 
@@ -27,7 +28,8 @@ func Test_BadRequestOnPurpose(t *testing.T) {
 	}
 	defer logfile.Close()
 
-	client.EnableAppTrace(logfile)
+	tracer := httptrace.NewTracer(logfile)
+	client.EnableAppTrace(tracer.DecorateRT)
 	u, err := client.ValidateConnection(context.Background())
 	_ = u
 	if err != nil {
