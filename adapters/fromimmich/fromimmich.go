@@ -28,7 +28,10 @@ type FromImmich struct {
 func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Recorder, flags *FromImmichFlags) (*FromImmich, error) {
 	client := &flags.client
 
-	client.Open(ctx, app)
+	err := client.Open(ctx, app)
+	if err != nil {
+		return nil, err
+	}
 
 	ifs := immichfs.NewImmichFS(ctx, flags.client.Server, client.Immich)
 	f := FromImmich{
