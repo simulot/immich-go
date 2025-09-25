@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const maxBodyDumpSize = 1024
+const maxBodyDumpSize = 4096
 
 type dumpReader struct {
 	lock      sync.Mutex
