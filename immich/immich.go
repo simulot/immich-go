@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
@@ -48,9 +49,12 @@ type ImmichAssetInterface interface {
 	DeleteAssets(context.Context, []string, bool) error
 }
 
+type RoundTripperDecorator func(rt http.RoundTripper) http.RoundTripper
+
 type ImmichClientInterface interface {
 	SetEndPoint(string)
-	EnableAppTrace(w io.Writer)
+	// EnableAppTrace by decorating the client's transport with round tripper that logs queries
+	EnableAppTrace(rtd RoundTripperDecorator)
 	SetDeviceUUID(string)
 	PingServer(ctx context.Context) error
 	ValidateConnection(ctx context.Context) (User, error)
