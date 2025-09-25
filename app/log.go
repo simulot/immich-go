@@ -7,12 +7,14 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
+	"github.com/simulot/immich-go/immich/httptrace"
 	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 	"github.com/simulot/immich-go/internal/loghelper"
@@ -32,6 +34,10 @@ type Log struct {
 
 	mainWriter    io.Writer // the log writer to file
 	consoleWriter io.Writer
+
+	apiTracer      *httptrace.Tracer
+	apiTraceWriter *os.File
+	apiTraceName   string
 }
 
 func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
@@ -196,6 +202,24 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 
 func (log *Log) GetSLog() *slog.Logger {
 	return log.Logger
+}
+
+func (log *Log) OpenAPITrace() error {
+	if log.apiTraceWriter == nil {
+		var err error
+		log.apiTraceName = strings.TrimSuffix(log.File, path.Ext(log.File)) + ".trace.log"
+		log.apiTraceWriter, err = os.OpenFile(log.apiTraceName, os.O_CREATE|os.O_WRONLY, 0o664)
+		if err != nil {
+			return err
+		}
+		log.Message("Check the API-TRACE file: %s", log.apiTraceName)
+		log.apiTracer = httptrace.NewTracer(log.apiTraceWriter)
+	}
+	return nil
+}
+
+func (log *Log) APITracer() *httptrace.Tracer {
+	return log.apiTracer
 }
 
 // FilteredHandler filterslog messages and filters out context canceled errors
