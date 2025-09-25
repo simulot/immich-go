@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/immich"
-	"github.com/simulot/immich-go/immich/httptrace"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/spf13/cobra"
@@ -38,7 +37,6 @@ type Client struct {
 	OnServerErrors            cliflags.OnServerErrorsFlag // Behavior on server errors
 	User                      immich.User                 // User info corresponding to the API key
 	PauseImmichBackgroundJobs bool                        // Pause Immich background jobs
-	httpTracer                *httptrace.Tracer           // API calls tracer
 }
 
 // add server flags to the command cmd
@@ -123,7 +121,7 @@ func (client *Client) Open(ctx context.Context, app *Application) error {
 		}
 	}
 
-	// check server's paramters
+	// check server's parameters
 	if client.APIKey == "" && client.AdminAPIKey != "" {
 		client.APIKey = client.AdminAPIKey
 		client.ClientLog.Warn("The parameter --api-key is empty. Using the admin's API key for for photos upload")
