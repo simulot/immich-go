@@ -17,16 +17,17 @@ import (
 //  rate >= minimal rate
 
 type searchOptions struct {
-	withExif     bool
-	takenRange   cliflags.DateRange // created date range
-	isTrashed    bool               // to be added as "trashedAfter":"0001-01-01T00:00:00.000Z"
-	isNotInAlbum bool               // assets not in any album
-	isFavorite   bool
+	withExif         bool
+	takenRange       cliflags.DateRange // created date range
+	withAll          bool               // to get all assets timeline,archive,hidden,locked and archived
+	withOnlyTrashed  bool               // to get only trashed items
+	withNotInAlbum   bool               // assets not in any album, set the isNotInAlbum
+	withOnlyFavorite bool               // get only favorite assets
 
 	// following filters are resolved as ID
-	albums []string // album names
-	tags   []string // tag names
-	people []string // people names
+	withAlbums []string // album names
+	withTags   []string // tag names
+	withPeople []string // people names
 
 	// future options
 	// deviceIds []string           // device id used for the upload
@@ -49,6 +50,8 @@ func (so *searchOptions) WithExif() *searchOptions {
 	return so
 }
 
+var defaultVisibility = []assets.Visibility{assets.VisibilityArchive, assets.VisibilityTimeline, assets.VisibilityHidden}
+
 // set the queried visibilities in archive, timeline, hidden, locked values
 func (so *searchOptions) WithVisibility(visibilities ...assets.Visibility) *searchOptions {
 	gen.AddOnce(so.visibilities, visibilities...)
@@ -57,8 +60,8 @@ func (so *searchOptions) WithVisibility(visibilities ...assets.Visibility) *sear
 
 // get everything
 func (so *searchOptions) All() *searchOptions {
-	so.visibilities = []assets.Visibility{assets.VisibilityArchive, assets.VisibilityTimeline, assets.VisibilityHidden /*, assets.VisibilityLocked*/}
-	so.isTrashed = true
+	so.withAll = true
+	so.visibilities = defaultVisibility
 	so.withExif = true
 	return so
 }
@@ -67,47 +70,66 @@ func (so *searchOptions) All() *searchOptions {
 func (so *searchOptions) WithMinimalRate(r int) *searchOptions {
 	so.rates = nil
 	if r >= 1 && r <= 5 {
-		for i := 0; i <= r; i++ {
+		for i := r; i <= 5; i++ {
 			so.rates = append(so.rates, i)
 		}
 	}
 	return so
 }
 
-// set IsNotInAlbum and clear Albums
+// to get the assets not belonging to any album, clear WithAlbums
 func (so *searchOptions) WithNotInAlbum() *searchOptions {
-	so.isNotInAlbum = true
-	so.albums = nil
+	so.withNotInAlbum = true
+	so.withAlbums = nil
 	return so
 }
 
-// set the list of albums to be queried, reset IsNotInAlbum
+// to get the assets belonging to the listed albums by name, reset WithNotInAlbum
 func (so *searchOptions) WithAlbums(albums ...string) *searchOptions {
-	gen.AddOnce(so.albums, albums...)
-	so.isNotInAlbum = false
+	gen.AddOnce(so.withAlbums, albums...)
+	so.withNotInAlbum = false
 	return so
 }
 
-// set the list of tags to be queried
+// to get assets with listed tags (by name)
 func (so *searchOptions) WithTags(tags ...string) *searchOptions {
-	gen.AddOnce(so.tags, tags...)
+	gen.AddOnce(so.withTags, tags...)
 	return so
 }
 
-// set the list of people to be queried
+// to get assets with listed people only (by name)
 func (so *searchOptions) WithPeople(people ...string) *searchOptions {
-	gen.AddOnce(so.people, people...)
+	gen.AddOnce(so.withPeople, people...)
 	return so
 }
 
-// set the date range to be queried
+// to get assets captured within the date range
 func (so *searchOptions) WithDateRange(dr cliflags.DateRange) *searchOptions {
 	so.takenRange = dr
 	return so
 }
 
-func (so *searchOptions) WithIsFavorte() *searchOptions {
-	so.isFavorite = true
+// to get only favorite assets
+func (so *searchOptions) WithOnlyFavorite() *searchOptions {
+	so.withOnlyFavorite = true
+	so.withOnlyTrashed = false
+	so.visibilities = defaultVisibility
+	return so
+}
+
+// to get only trashed items
+func (so *searchOptions) WithOnlyTrashed() *searchOptions {
+	so.withOnlyFavorite = false
+	so.withOnlyTrashed = true
+	so.visibilities = defaultVisibility
+	return so
+}
+
+// to get only archived assets
+func (so *searchOptions) WithOnlyArchived() *searchOptions {
+	so.withOnlyFavorite = false
+	so.withOnlyTrashed = false
+	so.visibilities = []assets.Visibility{assets.VisibilityArchive}
 	return so
 }
 
@@ -134,8 +156,8 @@ func (so *searchOptions) WithIsFavorte() *searchOptions {
 func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQuery {
 	base := SearchMetadataQuery{
 		WithExif:     so.withExif,
-		IsNotInAlbum: so.isNotInAlbum,
-		IsFavorite:   so.isFavorite,
+		IsNotInAlbum: so.withNotInAlbum,
+		IsFavorite:   so.withOnlyFavorite,
 	}
 
 	if !so.takenRange.Before.IsZero() {
@@ -148,7 +170,7 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 	// TODO albums, Tags and persons
 
 	if len(so.visibilities) == 0 {
-		so.visibilities = []assets.Visibility{assets.VisibilityTimeline}
+		so.visibilities = defaultVisibility
 	}
 	qs := []SearchMetadataQuery{}
 
@@ -156,6 +178,9 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 		if len(so.rates) == 0 {
 			q := base
 			q.Visibility = v
+			if so.withOnlyTrashed {
+				q.TrashedAfter = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC).Format(TimeFormat)
+			}
 			qs = append(qs, q)
 			continue
 		}
@@ -167,7 +192,8 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 		}
 	}
 
-	if so.isTrashed {
+	if so.withAll {
+		// add same queries but with TrashedAfter to the query set
 		qs2 := []SearchMetadataQuery{}
 		for _, q := range qs {
 			q.TrashedAfter = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC).Format(TimeFormat)
@@ -180,13 +206,13 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 }
 
 func (ic *ImmichClient) GetAllAssets(ctx context.Context, filter func(*Asset) error) error {
-	return ic.SearchOptionFn(ctx, SearchOptions().All(), filter)
+	return ic.GetFilteredAssetsFn(ctx, SearchOptions().All(), filter)
 }
 
-func (ic *ImmichClient) SearchOptionFn(ctx context.Context, so *searchOptions, filter func(*Asset) error) error {
+func (ic *ImmichClient) GetFilteredAssetsFn(ctx context.Context, so *searchOptions, filter func(*Asset) error) error {
 	qs := ic.buildSearchQueries(so)
 	wg, ctx := errgroup.WithContext(ctx)
-	wg.SetLimit(4)
+	wg.SetLimit(4) // most of the queries will return nothing
 	for _, q := range qs {
 		wg.Go(func() error {
 			return ic.callSearchMetadata(ctx, &q, filter)
