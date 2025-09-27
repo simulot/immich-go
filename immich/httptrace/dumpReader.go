@@ -25,10 +25,14 @@ type dumpReader struct {
 }
 
 func newDumpReader(rc io.ReadCloser, limit int) *dumpReader {
+	// Get a buffer from the pool and ensure it's clean
+	buffer := bufferPool.Get().(*bytes.Buffer)
+	buffer.Reset() // clear any previous content
+
 	dr := dumpReader{
 		limit:  limit,
 		rc:     rc,
-		buffer: bufferPool.Get().(*bytes.Buffer),
+		buffer: buffer,
 	}
 	dr.closed.Add(1)
 	return &dr
