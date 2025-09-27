@@ -194,6 +194,11 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 	if log.File != "" {
 		log.Message("Check the log file: %s", log.File)
 	}
+	if log.apiTraceWriter == nil {
+		log.Message("Check the API-TRACE file: %s", log.apiTraceName)
+		log.apiTraceWriter.Close()
+	}
+
 	if closer, ok := log.mainWriter.(io.Closer); ok {
 		return closer.Close()
 	}
