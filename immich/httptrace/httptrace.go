@@ -29,8 +29,6 @@ func (ht *Tracer) DecorateRT(rt http.RoundTripper) http.RoundTripper {
 }
 
 func (drt *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	start := time.Now()
-
 	rt := drt.ht.newRoundTripTrace(drt.instance, int(drt.reqId.Add(1)))
 	rt.req.timestamp = time.Now()
 	rt.req.req = req
@@ -46,7 +44,7 @@ func (drt *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 
 	resp, err := drt.originRT.RoundTrip(req)
 	rt.resp.timestamp = time.Now()
-	rt.resp.duration = time.Since(start).Round(time.Millisecond)
+	rt.resp.duration = rt.resp.timestamp.Sub(rt.req.timestamp).Round(time.Millisecond)
 	rt.resp.err = err
 	if err != nil {
 		rt.Write()
