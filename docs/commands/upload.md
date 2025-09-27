@@ -31,13 +31,13 @@ All upload sub-commands require these connection parameters:
 
 ## Upload Behavior Options
 
-| Option                 | Default   | Description                                     |
-| ---------------------- | --------- | ----------------------------------------------- |
-| `--dry-run`            | `false`   | Simulate upload without actual transfers        |
-| `--concurrent-uploads` | CPU cores | Number of parallel uploads (1-20)               |
-| `--overwrite`          | `false`   | Replace existing files on server                |
-| `--pause-immich-jobs`  | `true`    | Pause server jobs during upload                 |
-| `--on-server-errors`   | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors  |
+| Option                 | Default   | Description                                                         |
+| ---------------------- | --------- | ------------------------------------------------------------------- |
+| `--dry-run`            | `false`   | Simulate upload without actual transfers                            |
+| `--concurrent-uploads` | CPU cores | Number of parallel uploads (1-20)                                   |
+| `--overwrite`          | `false`   | Replace existing files on server                                    |
+| `--pause-immich-jobs`  | `true`    | Pause server jobs during upload                                     |
+| `--on-server-errors`   | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors |
 
 ## Tagging and Organization
 
@@ -220,14 +220,24 @@ immich-go upload from-immich [source-options] [destination-options]
 
 ### Source Server Options
 
-| Option                   | Description                         |
-| ------------------------ | ----------------------------------- |
-| `--from-server`          | Source Immich server URL            |
-| `--from-api-key`         | Source server API key               |
-| `--from-album`           | Transfer only from specified albums |
-| `--from-date-range`      | Date range filter for source        |
-| `--from-client-timeout`  | Source server timeout               |
-| `--from-skip-verify-ssl` | Skip SSL verification for source    |
+  | Option                   | Description                      |
+  | ------------------------ | -------------------------------- |
+  | `--from-server`          | Source Immich server URL         |
+  | `--from-api-key`         | Source server API key            |
+  | `--from-client-timeout`  | Source server timeout            |
+  | `--from-skip-verify-ssl` | Skip SSL verification for source |
+
+### Source Filtering
+
+
+  | Option                  | Description                  |
+  | ----------------------- | ---------------------------- |
+  | `--from-date-range`     | Date range filter for source |
+  | `--include-archived`    | Include archived assets      |
+  | `--include-trash`       | Include trashed assets       |
+  | `--from-favorite`       | Include only favorite assets |
+  | `--from-minimal-rating` | Minimum rating filter        |
+
 
 ### Examples
 ```bash
@@ -236,11 +246,18 @@ immich-go upload from-immich \
   --from-server=http://old-server:2283 --from-api-key=old-key \
   --server=http://new-server:2283 --api-key=new-key
 
-# Transfer specific album
+# Transfer images with a rating of 3 or above
 immich-go upload from-immich \
-  --from-server=http://old-server:2283 --from-api-key=old-key --from-album="Family Photos" \
+  --from-server=http://old-server:2283 --from-api-key=old-key --from-minimal-rating=3 \
+  --server=http://new-server:2283 --api-key=new-key
+
+# Transfer photos from a specific date range
+immich-go upload from-immich \
+  --from-server=http://old-server:2283 --from-api-key=old-key --from-date-range=2023-01-01,2023-06-30 \
   --server=http://new-server:2283 --api-key=new-key
 ```
+
+
 
 ## Performance Tips
 
