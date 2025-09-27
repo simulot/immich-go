@@ -264,7 +264,7 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 	totalOnImmich := statistics.Total
 	received := 0
 
-	err = upCmd.app.Client().Immich.GetAllAssetsWithFilter(ctx, nil, func(a *immich.Asset) error {
+	err = upCmd.app.Client().Immich.GetAllAssets(ctx, func(a *immich.Asset) error {
 		if updateFn != nil {
 			defer func() {
 				updateFn(received, totalOnImmich)

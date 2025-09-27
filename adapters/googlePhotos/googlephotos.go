@@ -563,7 +563,7 @@ func (to *Takeout) makeAsset(_ context.Context, dir string, f *assetFile, md *as
 }
 
 func (to *Takeout) filterOnMetadata(ctx context.Context, a *assets.Asset) fileevent.Code {
-	if !to.flags.KeepArchived && a.Archived {
+	if !to.flags.KeepArchived && a.Visibility == assets.VisibilityArchive {
 		to.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding archived file")
 		a.Close()
 		return fileevent.DiscoveredDiscarded

@@ -18,7 +18,7 @@ import (
 type callValues string
 
 const (
-	TimeFormat    string     = "2006-01-02T15:04:05Z"
+	TimeFormat    string     = "2006-01-02T15:04:05.000Z"
 	ctxCallValues callValues = "call-values"
 )
 

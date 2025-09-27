@@ -29,7 +29,7 @@ type ImmichAssetInterface interface {
 	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
 	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error)
-	GetAllAssets(ctx context.Context) ([]*Asset, error)
+	GetAllAssets(ctx context.Context, fn func(*Asset) error) error
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(
 		ctx context.Context,
