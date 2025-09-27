@@ -1,5 +1,7 @@
 package gen
 
+import "slices"
+
 func DeleteItem[T comparable](s []T, item T) []T {
 	r := make([]T, 0, len(s))
 	for i := range s {
@@ -18,4 +20,13 @@ func Filter[T any](s []T, f func(i T) bool) []T {
 		}
 	}
 	return r
+}
+
+func AddOnce[T comparable](s []T, vv ...T) []T {
+	for _, v := range vv {
+		if !slices.Contains(s, v) {
+			s = append(s, v)
+		}
+	}
+	return s
 }
