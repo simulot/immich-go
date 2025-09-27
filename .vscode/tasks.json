@@ -1,0 +1,194 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Git: Update Develop",
+            "type": "shell",
+            "command": "git",
+            "args": [
+                "checkout",
+                "develop"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "runOptions": {
+                "runOn": "default"
+            },
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Git: Pull Develop"
+            ]
+        },
+        {
+            "label": "Git: Pull Develop",
+            "type": "shell",
+            "command": "git",
+            "args": [
+                "pull",
+                "origin",
+                "develop"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Git: Create Feature Branch",
+            "type": "shell",
+            "command": "git",
+            "args": [
+                "checkout",
+                "-b",
+                "${input:branchName}"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "dependsOn": "Git: Update Develop"
+        },
+        {
+            "label": "Git: Push Current Branch",
+            "type": "shell",
+            "command": "git",
+            "args": [
+                "push",
+                "-u",
+                "origin",
+                "HEAD"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Git: Rebase on Develop",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "git fetch origin develop && git rebase origin/develop"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Go: Test All",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "test",
+                "./..."
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Go: Lint",
+            "type": "shell",
+            "command": "/home/jfcassan/go/bin/golangci-lint",
+            "args": [
+                "run"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": {
+                "owner": "go",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Development: Pre-commit Check",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Go: Lint",
+                "Go: Test All"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "Git: Create PR",
+            "type": "shell",
+            "command": "gh",
+            "args": [
+                "pr",
+                "create",
+                "--base",
+                "develop",
+                "--title",
+                "${input:prTitle}",
+                "--body",
+                "${input:prBody}"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "branchName",
+            "description": "Feature branch name",
+            "default": "feature/",
+            "type": "promptString"
+        },
+        {
+            "id": "prTitle",
+            "description": "Pull Request Title",
+            "default": "feat: ",
+            "type": "promptString"
+        },
+        {
+            "id": "prBody",
+            "description": "Pull Request Description",
+            "default": "## Changes\n\n## Testing\n- [ ] Unit tests pass\n- [ ] Manual testing completed\n\n## Documentation\n- [ ] Updated if needed",
+            "type": "promptString"
+        }
+    ]
+}
