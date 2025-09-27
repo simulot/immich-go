@@ -57,6 +57,7 @@ immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-ke
 - [GitHub Sponsor](https://github.com/sponsors/simulot)
 - [PayPal Donation](https://www.paypal.com/donate/?hosted_button_id=VGU2SQE88T2T4)
 
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please see our [contributing guidelines](CONTRIBUTING.md) for details.

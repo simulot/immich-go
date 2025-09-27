@@ -23,3 +23,6 @@ __debug_*
 
 # macOS system files
 .DS_Store
+
+# API monitoring temporary files
+.github/immich-api-monitor/temp-specs.json
