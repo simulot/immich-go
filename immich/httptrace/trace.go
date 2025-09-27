@@ -18,12 +18,26 @@ type Tracer struct {
 	lock       sync.Mutex
 	out        io.Writer
 	instanceId atomic.Int64
+	wg         sync.WaitGroup
 }
 
 func NewTracer(out io.Writer) *Tracer {
 	return &Tracer{
 		out:  out,
 		lock: sync.Mutex{},
+	}
+}
+
+func (ht *Tracer) Close() error {
+	ht.wg.Wait()
+	return nil 
+}
+
+func (ht *Tracer) newRoundTripTrace(instance, reqId int) *roundTripTrace {
+	return &roundTripTrace{
+		ht:       ht,
+		instance: instance,
+		reqId:    reqId,
 	}
 }
 
@@ -35,12 +49,19 @@ type roundTripTrace struct {
 	resp     responseTrace // the response
 }
 
-func (ht *Tracer) newRoundTripTrace(instance, reqId int) *roundTripTrace {
-	return &roundTripTrace{
-		ht:       ht,
-		instance: instance,
-		reqId:    reqId,
+func (rt *roundTripTrace) Request(req *http.Request) io.ReadCloser {
+	rt.req.timestamp = time.Now()
+	rt.req.req = req
+	if req.Body != nil {
+		if isJSON(req.Header.Get("Content-Type")) {
+			rt.req.isJson = true
+			rt.req.body = newDumpReader(req.Body, 0)
+		} else {
+			rt.req.body = newDumpReader(req.Body, maxBodyDumpSize)
+		}
+		return rt.req.body
 	}
+	return req.Body
 }
 
 func (rt *roundTripTrace) Write() {
@@ -73,6 +94,26 @@ type requestTrace struct {
 	isJson    bool
 	body      *dumpReader
 	timestamp time.Time
+}
+
+func (rt *roundTripTrace) Response(resp *http.Response, err error) io.ReadCloser {
+	rt.resp.timestamp = time.Now()
+	rt.resp.duration = rt.resp.timestamp.Sub(rt.req.timestamp).Round(time.Millisecond)
+	rt.resp.err = err
+	if err != nil {
+		return nil
+	}
+	rt.resp.resp = resp
+	if resp.Body != nil {
+		if isJSON(resp.Header.Get("Content-Type")) {
+			rt.resp.isJson = true
+			rt.resp.body = newDumpReader(resp.Body, 0)
+		} else {
+			rt.resp.body = newDumpReader(resp.Body, maxBodyDumpSize)
+		}
+		return rt.resp.body
+	}
+	return resp.Body
 }
 
 func (rt requestTrace) String() string {
