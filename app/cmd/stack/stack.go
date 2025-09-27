@@ -98,15 +98,9 @@ func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 		}
 		o.groupers = append(o.groupers, series.Group)
 
-		query := &immich.SearchMetadataQuery{
-			WithExif: true,
-		}
+		so := immich.SearchOptions().WithExif().WithDateRange(o.DateRange)
 
-		if o.DateRange.IsSet() {
-			query.TakenAfter = o.DateRange.After.Format(timeFormat)
-			query.TakenBefore = o.DateRange.Before.Format(timeFormat)
-		}
-		err := client.Immich.GetAllAssetsWithFilter(ctx, query,
+		err := client.Immich.GetFilteredAssetsFn(ctx, so,
 			func(a *immich.Asset) error {
 				if a.IsTrashed {
 					return nil
