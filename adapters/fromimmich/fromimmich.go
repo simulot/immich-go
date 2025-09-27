@@ -13,7 +13,6 @@ import (
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/immichfs"
-	"golang.org/x/sync/errgroup"
 )
 
 type FromImmich struct {
@@ -57,8 +56,6 @@ func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
 	return gOut
 }
 
-const timeFormat = "2006-01-02T15:04:05.000Z"
-
 func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
 	var albumsIDs []string
 	var tagsIds []string
@@ -96,35 +93,34 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 	f.flags.MinimalRating = min(max(0, f.flags.MinimalRating), 5)
 
 	// TODO: add support for archived and trashed
-	query := immich.SearchMetadataQuery{
-		Make:       f.flags.Make,
-		Model:      f.flags.Model,
-		IsFavorite: f.flags.Favorite,
-		AlbumIds:   albumsIDs,
-		TagIds:     tagsIds,
-		Rating:     f.flags.MinimalRating,
+
+	so := immich.SearchOptions()
+
+	if !(f.flags.OnlyArchived || f.flags.OnlyTrashed || f.flags.OnlyFavorite) {
+		so.All()
+	} else {
+		if f.flags.OnlyArchived {
+			so.WithOnlyArchived()
+		}
+		if f.flags.OnlyTrashed {
+			so.WithOnlyTrashed()
+		}
+		if f.flags.OnlyFavorite {
+			so.WithOnlyFavorite()
+		}
+		if f.flags.DateRange.IsSet() {
+			so.WithDateRange(f.flags.DateRange)
+		}
 	}
 
 	if f.flags.DateRange.IsSet() {
-		query.TakenAfter = f.flags.DateRange.After.Format(timeFormat)
-		query.TakenBefore = f.flags.DateRange.Before.Format(timeFormat)
+		so.WithDateRange(f.flags.DateRange)
 	}
-	if f.flags.MinimalRating <= 0 {
-		return f.queryAndProcess(ctx, query, grpChan)
-	}
-	wg := errgroup.Group{}
-	for r := f.flags.MinimalRating; r <= 5; r++ {
-		wg.Go(func() error {
-			q := query
-			q.Rating = r
-			return f.queryAndProcess(ctx, q, grpChan)
-		})
-	}
-	return wg.Wait()
-}
 
-func (f *FromImmich) queryAndProcess(ctx context.Context, query immich.SearchMetadataQuery, grpChan chan *assets.Group) error {
-	return f.flags.client.Immich.GetAllAssetsWithFilter(ctx, &query, func(a *immich.Asset) error {
+	if f.flags.MinimalRating > 1 {
+		so.WithMinimalRate(f.flags.MinimalRating)
+	}
+	return f.flags.client.Immich.GetFilteredAssetsFn(ctx, so, func(a *immich.Asset) error {
 		// Fetch details
 		a, err := f.flags.client.Immich.GetAssetInfo(ctx, a.ID)
 		if err != nil {
