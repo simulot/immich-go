@@ -14,30 +14,49 @@ import (
 
 // immich Asset simplified
 type Asset struct {
-	ID               string            `json:"id"`
-	DeviceAssetID    string            `json:"deviceAssetId"`
-	OwnerID          string            `json:"ownerId"`
-	DeviceID         string            `json:"deviceId"`
-	Type             string            `json:"type"`
-	OriginalPath     string            `json:"originalPath"`
-	OriginalFileName string            `json:"originalFileName"`
-	Resized          bool              `json:"resized"`
-	Thumbhash        string            `json:"thumbhash"`
-	FileCreatedAt    ImmichTime        `json:"fileCreatedAt"`
-	FileModifiedAt   ImmichTime        `json:"fileModifiedAt"`
-	UpdatedAt        ImmichTime        `json:"updatedAt"`
-	IsFavorite       bool              `json:"isFavorite"`
-	IsArchived       bool              `json:"isArchived"`
-	IsTrashed        bool              `json:"isTrashed"`
-	Duration         string            `json:"duration"`
-	Rating           int               `json:"rating"`
-	ExifInfo         ExifInfo          `json:"exifInfo"`
-	LivePhotoVideoID string            `json:"livePhotoVideoId"`
-	Checksum         string            `json:"checksum"`
-	StackParentID    string            `json:"stackParentId"`
-	Albums           []AlbumSimplified `json:"-"` // Albums that asset belong to
-	Tags             []TagSimplified   `json:"tags"`
-	LibraryID        string            `json:"libraryId,omitempty"`
+	Checksum string `json:"checksum"`
+	// createdAt
+	DeviceAssetID string `json:"deviceAssetId"`
+	DeviceID      string `json:"deviceId"`
+	// duplicateId
+	Duration       string     `json:"duration"`
+	ExifInfo       ExifInfo   `json:"exifInfo"`
+	FileCreatedAt  ImmichTime `json:"fileCreatedAt"`
+	FileModifiedAt ImmichTime `json:"fileModifiedAt"`
+	// hasMetadata
+	ID         string `json:"id"`
+	IsArchived bool   `json:"isArchived"`
+	IsFavorite bool   `json:"isFavorite"`
+	// isOffline
+	IsTrashed        bool   `json:"isTrashed"`
+	LibraryID        string `json:"libraryId,omitempty"`
+	LivePhotoVideoID string `json:"livePhotoVideoId"`
+
+	// The local date and time when the photo/video was taken,
+	// derived from EXIF metadata. This represents the
+	// photographer's local time regardless of timezone,
+	// stored as a timezone-agnostic timestamp.
+	// Used for timeline grouping by "local" days and months.
+	LocalDateTime    ImmichTime `json:"localDateTime"`
+	OriginalFileName string     `json:"originalFileName"`
+	// originalMimeType
+	OriginalPath string `json:"originalPath"`
+	// owner
+	OwnerID string `json:"ownerId"`
+	// people
+	Resized bool `json:"resized"`
+	// stack
+	Tags      []TagSimplified `json:"tags"`
+	Thumbhash string          `json:"thumbhash"`
+	Type      string          `json:"type"`
+	// unassignedFaces
+	UpdatedAt ImmichTime `json:"updatedAt"`
+	// rating not listed on the API page?
+	Rating int `json:"rating"`
+	// StackParentID string            `json:"stackParentId"`
+	Visibility string `json:"visibility"`
+
+	Albums []AlbumSimplified `json:"-"` // Albums that asset belong to, not in the API
 }
 
 // NewAssetFromImmich creates an assets.Asset from an immich.Asset.
@@ -92,6 +111,7 @@ type ExifInfo struct {
 	// 	State            string    `json:"state"`
 	// 	Country          string    `json:"country"`
 	Description string `json:"description"`
+	Rating      int    `json:"rating"`
 }
 
 type AssetResponse struct {
@@ -170,6 +190,8 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 	return ic.newServerCall(ctx, "DeleteAsset").do(deleteRequest("/assets", setJSONBody(&req)))
 }
 
+// getAssetInfo
+// https://api.immich.app/endpoints/assets/getAssetInfo
 func (ic *ImmichClient) GetAssetInfo(ctx context.Context, id string) (*Asset, error) {
 	r := Asset{}
 	err := ic.newServerCall(ctx, "GetAssetInfo").do(getRequest("/assets/"+id, setAcceptJSON()), responseJSON(&r))

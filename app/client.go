@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -63,9 +62,23 @@ func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, d
 }
 
 func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
-	var err error
 	client := app.Client()
-	log := app.Log()
+	return client.Open(ctx, app)
+}
+
+func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	if app.Client() != nil {
+		if app.Client().APITraceWriter != nil {
+			app.Client().APITraceWriter.Close()
+			app.log.Message("Check the API-TRACE file: %s", app.Client().APITraceWriterName)
+		}
+		return app.Client().Close()
+	}
+	return nil
+}
+
+func (client *Client) Open(ctx context.Context, app *Application) error {
+	var err error
 
 	if client.Server != "" {
 		client.Server = strings.TrimSuffix(client.Server, "/")
@@ -79,6 +92,7 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 	}
 
 	// Plug the journal on the Log
+	log := app.Log()
 	if log.File != "" {
 		if log.mainWriter == nil {
 			err := configuration.MakeDirForFile(log.File)
@@ -94,50 +108,27 @@ func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error
 				return err
 			}
 			log.setHandlers(f, nil)
-			// prepare the trace file name
-			client.APITraceWriterName = strings.TrimSuffix(log.File, filepath.Ext(log.File)) + ".trace.log"
 		}
 	}
 
-	err = client.Initialize(ctx, app)
-	if err != nil {
-		return err
-	}
+	client.ClientLog = app.log.Logger
 
-	err = client.Open(ctx)
-	if err != nil {
-		return err
-	}
-
-	if client.APITrace {
-		if client.APITraceWriter == nil {
-			client.APITraceWriter, err = os.OpenFile(client.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
-			if err != nil {
-				return err
-			}
-			client.Immich.EnableAppTrace(client.APITraceWriter)
-			client.AdminImmich.EnableAppTrace(client.APITraceWriter)
-		}
-		app.log.Message("Check the API-TRACE file: %s", client.APITraceWriterName)
-	}
-	return nil
-}
-
-func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
-	if app.Client() != nil {
-		if app.Client().APITraceWriter != nil {
-			app.Client().APITraceWriter.Close()
-			app.log.Message("Check the API-TRACE file: %s", app.Client().APITraceWriterName)
-		}
-		return app.Client().Close()
-	}
-	return nil
-}
-
-func (client *Client) Initialize(ctx context.Context, app *Application) error {
 	var joinedErr error
+	if client.APITrace {
+		err = log.OpenAPITrace()
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+		}
+	}
 
-	// If the client isn't yet initialized
+	// check server's parameters
+	if client.APIKey == "" && client.AdminAPIKey != "" {
+		client.APIKey = client.AdminAPIKey
+		client.ClientLog.Warn("The parameter --api-key is empty. Using the admin's API key for for photos upload")
+	} else if client.AdminAPIKey == "" && client.APIKey != "" {
+		client.AdminAPIKey = client.APIKey
+	}
+
 	if client.Immich == nil {
 		if client.Server == "" {
 			joinedErr = errors.Join(joinedErr, errors.New("missing the parameter --server, Immich server address (http://<your-ip>:2283 or https://<your-domain>)"))
@@ -146,25 +137,9 @@ func (client *Client) Initialize(ctx context.Context, app *Application) error {
 			joinedErr = errors.Join(joinedErr, errors.New("missing the parameter --api-key and/or --admin-api-key, Immich API keys"))
 		}
 
-		if client.APITrace {
-			client.APITraceWriterName = strings.TrimSuffix(app.Log().File, filepath.Ext(app.Log().File)) + ".trace.log"
-		}
 		if joinedErr != nil {
 			return joinedErr
 		}
-	}
-	client.ClientLog = app.log.Logger
-	return nil
-}
-
-func (client *Client) Open(ctx context.Context) error {
-	var err error
-
-	if client.APIKey == "" && client.AdminAPIKey != "" {
-		client.APIKey = client.AdminAPIKey
-		client.ClientLog.Warn("The parameter --api-key is empty. Using the admin's API key for for photos upload")
-	} else if client.AdminAPIKey == "" && client.APIKey != "" {
-		client.AdminAPIKey = client.APIKey
 	}
 
 	client.ClientLog.Info("Connection to the server " + client.Server)
@@ -179,12 +154,17 @@ func (client *Client) Open(ctx context.Context) error {
 		return err
 	}
 
+	if t := log.APITracer(); t != nil {
+		client.Immich.EnableAppTrace(t.DecorateRT)
+	}
+
 	adminTime := max(client.ClientTimeout, 10*time.Second)
 	client.AdminImmich, err = immich.NewImmichClient(
 		client.Server,
 		client.AdminAPIKey,
 		immich.OptionVerifySSL(client.SkipSSL),
 		immich.OptionConnectionTimeout(adminTime),
+		// no trace pulling job status
 	)
 	if err != nil {
 		return err
@@ -192,17 +172,6 @@ func (client *Client) Open(ctx context.Context) error {
 
 	if client.DeviceUUID != "" {
 		client.Immich.SetDeviceUUID(client.DeviceUUID)
-	}
-
-	if client.APITrace {
-		if client.APITraceWriter == nil {
-			client.APITraceWriter, err = os.OpenFile(client.APITraceWriterName, os.O_CREATE|os.O_WRONLY, 0o664)
-			if err != nil {
-				return err
-			}
-			client.Immich.EnableAppTrace(client.APITraceWriter)
-			client.AdminImmich.EnableAppTrace(client.APITraceWriter)
-		}
 	}
 
 	err = client.Immich.PingServer(ctx)

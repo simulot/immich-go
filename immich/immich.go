@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
@@ -28,7 +29,7 @@ type ImmichAssetInterface interface {
 	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
 	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error)
-	GetAllAssets(ctx context.Context) ([]*Asset, error)
+	GetAllAssets(ctx context.Context, fn func(*Asset) error) error
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(
 		ctx context.Context,
@@ -40,7 +41,8 @@ type ImmichAssetInterface interface {
 		removeParent bool,
 		stackParentID string,
 	) error
-	GetAllAssetsWithFilter(context.Context, *SearchMetadataQuery, func(*Asset) error) error
+	GetFilteredAssetsFn(ctx context.Context, so *searchOptions, filter func(*Asset) error) error
+	// GetAllAssetsWithFilter(context.Context, *SearchMetadataQuery, func(*Asset) error) error
 	GetAssetsByHash(ctx context.Context, hash string) ([]*Asset, error)
 	GetAssetsByImageName(ctx context.Context, name string) ([]*Asset, error)
 
@@ -48,9 +50,12 @@ type ImmichAssetInterface interface {
 	DeleteAssets(context.Context, []string, bool) error
 }
 
+type RoundTripperDecorator func(rt http.RoundTripper) http.RoundTripper
+
 type ImmichClientInterface interface {
 	SetEndPoint(string)
-	EnableAppTrace(w io.Writer)
+	// EnableAppTrace by decorating the client's transport with round tripper that logs queries
+	EnableAppTrace(rtd RoundTripperDecorator)
 	SetDeviceUUID(string)
 	PingServer(ctx context.Context) error
 	ValidateConnection(ctx context.Context) (User, error)
