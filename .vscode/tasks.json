@@ -169,6 +169,22 @@
                 "focus": false,
                 "panel": "shared"
             }
+        },
+        {
+            "label": "Immich: Check API Changes",
+            "type": "shell",
+            "command": "./scripts/check-immich-api.sh",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
         }
     ],
     "inputs": [
