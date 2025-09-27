@@ -57,7 +57,7 @@ func (rt *roundTripTrace) Write() {
 		defer rt.ht.lock.Unlock()
 		fmt.Fprintf(rt.ht.out, "/---- client #%d request  #%d ---------------------------------------------------\n", rt.instance, rt.reqId)
 		fmt.Fprint(rt.ht.out, rt.req.String())
-		fmt.Fprintf(rt.ht.out, "+---- response  -----\n")
+		fmt.Fprintf(rt.ht.out, "+---- response  ---------------------------------------------------\n")
 		if rt.resp.resp != nil {
 			fmt.Fprint(rt.ht.out, rt.resp.String())
 		} else if rt.resp.err != nil {
@@ -77,12 +77,12 @@ type requestTrace struct {
 
 func (rt requestTrace) String() string {
 	sb := strings.Builder{}
-	fmt.Fprintf(&sb, "Method: %s\n", rt.req.Method)
-	fmt.Fprintf(&sb, "URL: %s\n", rt.req.URL)
-	sb.WriteString(writeHeaders(rt.req.Header))
+	fmt.Fprintf(&sb, "Method: %s, URL: %s\n", rt.req.Method, rt.req.URL)
 	fmt.Fprintf(&sb, "Timestamp: %s\n", rt.timestamp.Format(timeFormat))
+	sb.WriteString(writeHeaders(rt.req.Header))
 	if rt.body != nil {
 		sb.WriteString(writeBody(rt.isJson, rt.body))
+		rt.body.Done()
 	}
 	return sb.String()
 }
@@ -98,13 +98,13 @@ type responseTrace struct {
 
 func (rt *responseTrace) String() string {
 	sb := strings.Builder{}
-	fmt.Fprintln(&sb, "Response:")
 	fmt.Fprintf(&sb, "Status: %s: %d\n", rt.resp.Status, rt.resp.StatusCode)
-	sb.WriteString(writeHeaders(rt.resp.Header))
 	fmt.Fprintf(&sb, "Timestamp: %s\n", rt.timestamp.Format(timeFormat))
 	fmt.Fprintf(&sb, "Duration: %s\n", rt.duration)
+	sb.WriteString(writeHeaders(rt.resp.Header))
 	if rt.body != nil {
 		sb.WriteString(writeBody(rt.isJson, rt.body))
+		rt.body.Done()
 	}
 	return sb.String()
 }
