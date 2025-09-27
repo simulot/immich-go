@@ -21,8 +21,8 @@ type FromImmich struct {
 	ifs *immichfs.ImmichFS
 	ic  *filenames.InfoCollector
 
-	albums   []immich.AlbumSimplified
-	tags     []immich.TagSimplified
+	// albums   []immich.AlbumSimplified
+	// tags     []immich.TagSimplified
 	errCount int // Count the number of errors, to stop after 5
 }
 
@@ -57,46 +57,46 @@ func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
 }
 
 func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
-	var albumsIDs []string
-	var tagsIds []string
-	var err error
-	client := f.flags.client.Immich
+	// todo implement from-album and from-tag
 
-	if len(f.flags.Albums) > 0 {
-		f.albums, err = client.GetAllAlbums(ctx)
-		if err != nil {
-			return err
-		}
-		for _, fromAlbum := range f.flags.Albums {
-			for _, a := range f.albums {
-				if a.AlbumName == fromAlbum {
-					albumsIDs = append(albumsIDs, a.ID)
-				}
-			}
-		}
-	}
+	// var albumsIDs []string
+	// var tagsIds []string
+	// var err error
+	// client := f.flags.client.Immich
 
-	if len(f.flags.Tags) > 0 {
-		f.tags, err = client.GetAllTags(ctx)
-		if err != nil {
-			return err
-		}
-		for _, fromTag := range f.tags {
-			for _, t := range f.flags.Tags {
-				if t == fromTag.Value {
-					tagsIds = append(tagsIds, fromTag.ID)
-				}
-			}
-		}
-	}
+	// if len(f.flags.Albums) > 0 {
+	// 	f.albums, err = client.GetAllAlbums(ctx)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	for _, fromAlbum := range f.flags.Albums {
+	// 		for _, a := range f.albums {
+	// 			if a.AlbumName == fromAlbum {
+	// 				albumsIDs = append(albumsIDs, a.ID)
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	// if len(f.flags.Tags) > 0 {
+	// 	f.tags, err = client.GetAllTags(ctx)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	for _, fromTag := range f.tags {
+	// 		for _, t := range f.flags.Tags {
+	// 			if t == fromTag.Value {
+	// 				tagsIds = append(tagsIds, fromTag.ID)
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	f.flags.MinimalRating = min(max(0, f.flags.MinimalRating), 5)
 
-	// TODO: add support for archived and trashed
-
 	so := immich.SearchOptions()
 
-	if !(f.flags.OnlyArchived || f.flags.OnlyTrashed || f.flags.OnlyFavorite) {
+	if !f.flags.OnlyArchived && !f.flags.OnlyTrashed && !f.flags.OnlyFavorite {
 		so.All()
 	} else {
 		if f.flags.OnlyArchived {

@@ -60,7 +60,7 @@ type StackCmd struct {
 	filters  []filters.Filter // filters are used to filter assets in groups
 }
 
-const timeFormat = "2006-01-02T15:04:05.000Z"
+// const timeFormat = "2006-01-02T15:04:05.000Z"
 
 func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
