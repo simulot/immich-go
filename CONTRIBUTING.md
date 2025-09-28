@@ -197,5 +197,55 @@ To make the review process as efficient as possible, please follow these guideli
   * **Target the Right Branch:** Double-check that you are opening the PR to the correct target branch (`develop` for new features/bugfixes, `main` for hotfixes). Our automated system will block incorrect merges.
   * **Code Style:** Please follow the existing code style.
 
+## Creating Pre-releases
+
+Pre-releases allow us to distribute development versions of the software for testing before official releases. These are created from the `develop` branch and are marked as pre-releases on GitHub.
+
+### Automated Pre-release Workflow
+
+We have a GitHub Actions workflow that can create pre-releases on demand:
+
+1. **Navigate to Actions:** Go to the [Actions tab](../../actions) in the GitHub repository
+2. **Select Workflow:** Choose "Create Pre-release" from the workflow list
+3. **Run Workflow:** Click "Run workflow" and provide:
+   - **Version:** Follow semantic versioning with a pre-release identifier (e.g., `v1.0.0-beta.1`, `v1.0.0-rc.1`)
+   - **Draft:** Choose whether to create as a draft release (optional, defaults to false)
+4. **Automatic Process:** The workflow will:
+   - Validate the version format
+   - Check that the version tag doesn't already exist
+   - Run tests and linting
+   - Create and push the version tag
+   - Build and publish the pre-release using GoReleaser
+   - Generate a changelog and update the release description
+
+### Manual Pre-release Script
+
+For maintainers who prefer a local approach, we provide a script at `scripts/create-prerelease.sh`:
+
+```bash
+# Basic usage
+./scripts/create-prerelease.sh v1.0.0-beta.1
+
+# Create as draft
+./scripts/create-prerelease.sh v1.0.0-beta.1 --draft
+
+# Run local checks only (no release creation)
+./scripts/create-prerelease.sh v1.0.0-beta.1 --local-only
+```
+
+**Requirements for manual script:**
+- GitHub CLI (`gh`) must be installed and authenticated
+- `golangci-lint` should be installed for linting (optional but recommended)
+- Repository must be on the `develop` branch
+
+### Pre-release Version Naming
+
+Follow these conventions for pre-release versions:
+- **Alpha releases:** `v1.0.0-alpha.1`, `v1.0.0-alpha.2`, etc.
+- **Beta releases:** `v1.0.0-beta.1`, `v1.0.0-beta.2`, etc.
+- **Release candidates:** `v1.0.0-rc.1`, `v1.0.0-rc.2`, etc.
+
+Pre-releases are automatically marked with a warning that they may contain bugs or incomplete features.
+
 Thank you for your contribution!
 

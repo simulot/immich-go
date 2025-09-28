@@ -1,0 +1,154 @@
+name: Create Pre-release
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: "Pre-release version (e.g., v0.12.0-beta.1)"
+                required: true
+                type: string
+            draft:
+                description: "Create as draft release"
+                required: false
+                type: boolean
+                default: false
+
+permissions:
+    contents: write
+
+jobs:
+    pre-release:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Validate version format
+              run: |
+                  if [[ ! "${{ inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+                    echo "Error: Version must follow semantic versioning format (e.g., v1.0.0-beta.1)"
+                    exit 1
+                  fi
+
+            - name: Checkout develop branch
+              uses: actions/checkout@v4
+              with:
+                  ref: develop
+                  fetch-depth: 0
+
+            - name: Check if version tag already exists
+              run: |
+                  if git rev-parse "${{ inputs.version }}" >/dev/null 2>&1; then
+                    echo "Error: Tag '${{ inputs.version }}' already exists"
+                    exit 1
+                  fi
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: "go.mod"
+                  cache-dependency-path: "go.sum"
+
+            - name: Run tests
+              run: go test ./...
+
+            - name: Run linter
+              uses: golangci/golangci-lint-action@v4
+              with:
+                  version: latest
+
+            - name: Create and push tag
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git tag -a "${{ inputs.version }}" -m "Pre-release ${{ inputs.version }}"
+                  git push origin "${{ inputs.version }}"
+
+            - name: Run GoReleaser for pre-release
+              uses: goreleaser/goreleaser-action@v5
+              with:
+                  distribution: goreleaser
+                  version: latest
+                  args: release --clean ${{ inputs.draft && '--draft' || '' }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Update release to mark as pre-release
+              if: ${{ !inputs.draft }}
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const { data: release } = await github.rest.repos.getReleaseByTag({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        tag: '${{ inputs.version }}'
+                      });
+
+                      await github.rest.repos.updateRelease({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        release_id: release.id,
+                        prerelease: true,
+                        make_latest: false
+                      });
+
+            - name: Generate changelog since last release
+              id: changelog
+              run: |
+                  LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+                  if [ -n "$LAST_TAG" ]; then
+                    echo "Generating changelog since $LAST_TAG"
+                    CHANGELOG=$(git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD)
+                  else
+                    echo "No previous tag found, generating changelog from first commit"
+                    CHANGELOG=$(git log --pretty=format:"- %s (%h)")
+                  fi
+
+                  # Save changelog to file to handle multiline content
+                  echo "$CHANGELOG" > /tmp/changelog.txt
+                  echo "changelog_file=/tmp/changelog.txt" >> $GITHUB_OUTPUT
+
+            - name: Update release description
+              if: ${{ !inputs.draft }}
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const fs = require('fs');
+                      const changelog = fs.readFileSync('${{ steps.changelog.outputs.changelog_file }}', 'utf8');
+
+                      const { data: release } = await github.rest.repos.getReleaseByTag({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        tag: '${{ inputs.version }}'
+                      });
+
+                      const body = `## Pre-release ${{ inputs.version }}
+
+                      This is a pre-release build based on the develop branch.
+
+                      ⚠️ **Warning**: This is a pre-release version and may contain bugs or incomplete features. Use at your own risk.
+
+                      ### Changes since last release:
+                      ${changelog}
+
+                      ### Installation
+
+                      Download the appropriate binary for your platform from the assets below.
+
+                      ### Feedback
+
+                      Please report any issues or feedback in the [GitHub Issues](https://github.com/${{ github.repository }}/issues).`;
+
+                      await github.rest.repos.updateRelease({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        release_id: release.id,
+                        body: body
+                      });
+
+    notify:
+        needs: pre-release
+        runs-on: ubuntu-latest
+        if: success()
+        steps:
+            - name: Notify success
+              run: |
+                  echo "✅ Pre-release ${{ inputs.version }} has been successfully created!"
+                  echo "🔗 View the release at: https://github.com/${{ github.repository }}/releases/tag/${{ inputs.version }}"

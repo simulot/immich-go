@@ -185,6 +185,45 @@
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Release: Test Pre-release Script",
+            "type": "shell",
+            "command": "./scripts/create-prerelease.sh",
+            "args": [
+                "${input:prereleaseVersion}",
+                "--local-only"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Git: Update Develop"
+        },
+        {
+            "label": "Release: Create Pre-release (Local)",
+            "type": "shell",
+            "command": "./scripts/create-prerelease.sh",
+            "args": [
+                "${input:prereleaseVersion}"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Development: Pre-commit Check"
         }
     ],
     "inputs": [
@@ -204,6 +243,12 @@
             "id": "prBody",
             "description": "Pull Request Description",
             "default": "## Changes\n\n## Testing\n- [ ] Unit tests pass\n- [ ] Manual testing completed\n\n## Documentation\n- [ ] Updated if needed",
+            "type": "promptString"
+        },
+        {
+            "id": "prereleaseVersion",
+            "description": "Pre-release version (e.g., v1.0.0-beta.1)",
+            "default": "v0.23.0-alpha.",
             "type": "promptString"
         }
     ]
