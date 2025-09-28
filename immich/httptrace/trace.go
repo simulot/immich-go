@@ -17,6 +17,7 @@ import (
 const (
 	timeFormat     = "2006-01-02T15:04:05.999Z07:00"
 	binaryDumpSize = 1024 // 1KB for binary content
+	jsonMediaType  = "application/json"
 )
 
 type Tracer struct {
@@ -174,7 +175,7 @@ func getDumpLimit(contentType string) int {
 	}
 
 	switch {
-	case mediaType == "application/json":
+	case mediaType == jsonMediaType:
 		return 0 // No limit for JSON
 	case strings.HasPrefix(mediaType, "multipart/"):
 		return 0 // No limit for multipart to parse all parts
@@ -200,7 +201,7 @@ func writeBody(contentType string, body *dumpReader) string {
 	}
 
 	switch {
-	case mediaType == "application/json":
+	case mediaType == jsonMediaType:
 		return writeJSONBody(&sb, data)
 	case strings.HasPrefix(mediaType, "multipart/"):
 		return writeMultipartBody(&sb, data, params["boundary"])
@@ -324,9 +325,4 @@ func isSimpleFormField(disposition, contentType string) bool {
 	}
 
 	return strings.HasPrefix(mediaType, "text/") || mediaType == "application/x-www-form-urlencoded"
-}
-
-func isJSON(contentType string) bool {
-	mediaType, _, err := mime.ParseMediaType(contentType)
-	return err == nil && mediaType == "application/json"
 }

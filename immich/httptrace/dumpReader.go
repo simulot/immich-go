@@ -6,8 +6,6 @@ import (
 	"sync"
 )
 
-const maxBodyDumpSize = 1024 // Keep for backward compatibility
-
 // bufferPool reuses bytes.Buffer instances to reduce allocations
 var bufferPool = sync.Pool{
 	New: func() interface{} {
