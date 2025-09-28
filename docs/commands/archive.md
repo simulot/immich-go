@@ -6,7 +6,31 @@ The `archive` command exports photos and videos from various sources to a local 
 ## Syntax
 
 ```bash
-immich-go archive <sub-command> --write-to-folder=<destination> [options] <source>
+immich-go [--config=<config-file>] archive <sub-command> --write-to-folder=<destination> [options] <source>
+```
+
+## Configuration File Support
+
+The archive command supports configuration files to set default options:
+
+```yaml
+# immich-config.yaml
+server:
+  url: "http://localhost:2283"
+  api_key: "your-api-key"
+
+archive:
+  # Set default date range for archiving
+  date_range: "2022-01-01,2024-12-31"
+
+upload:
+  # Archive uses upload.dry_run setting
+  dry_run: false
+```
+
+Use the configuration:
+```bash
+immich-go --config immich-config.yaml archive from-immich --write-to-folder=/backup
 ```
 
 ## Output Structure
@@ -86,7 +110,10 @@ Each photo gets a corresponding `.JSON` file containing:
 
 ### Archive from Immich Server
 ```bash
-# Archive all photos from server
+# Archive with configuration file
+immich-go --config my-config.yaml archive from-immich --write-to-folder=/backup/photos
+
+# Archive all photos from server (with flags)
 immich-go archive from-immich \
   --server=http://localhost:2283 \
   --api-key=your-key \
@@ -96,7 +123,7 @@ immich-go archive from-immich \
 immich-go archive from-immich \
   --server=http://localhost:2283 \
   --api-key=your-key \
-  --from-date-range=2023 \
+  --date-range=2023-01-01,2023-12-31 \
   --write-to-folder=/backup/2023-photos
 
 # Archive specific album

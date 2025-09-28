@@ -5,7 +5,36 @@ The `stack` command organizes related photos into stacks on your Immich server w
 ## Syntax
 
 ```bash
-immich-go stack [options]
+immich-go [--config=<config-file>] stack [options]
+```
+
+## Configuration File Support
+
+The stack command supports configuration files to set default stacking preferences:
+
+```yaml
+# immich-config.yaml  
+server:
+  url: "http://localhost:2283"
+  api_key: "your-api-key"
+
+stack:
+  # Set default stacking behavior
+  manage_heic_jpeg: "StackCoverHeic"
+  manage_raw_jpeg: "StackCoverRaw"
+  manage_burst: "Stack"
+  manage_epson_fastfoto: true
+  # Only process photos from specific date range
+  date_range: "2023-01-01,2023-12-31"
+
+upload:
+  # Stack uses upload.dry_run setting
+  dry_run: false
+```
+
+Use the configuration:
+```bash
+immich-go --config immich-config.yaml stack
 ```
 
 ## Purpose
@@ -37,6 +66,29 @@ Stacking groups related photos together for better organization:
 | ------------- | ------- | ---------------------------------------- |
 | `--dry-run`   | `false` | Simulate stacking without making changes |
 | `--time-zone` | System  | Override timezone for date operations    |
+
+## Configuration Options
+
+All stacking options can be set in the configuration file under the `stack` section:
+
+| Configuration Key | CLI Flag | Values | Description |
+|-------------------|----------|---------|-------------|
+| `manage_heic_jpeg` | `--manage-heic-jpeg` | `NoStack`, `KeepHeic`, `KeepJPG`, `StackCoverHeic`, `StackCoverJPG` | HEIC+JPEG pair handling |
+| `manage_raw_jpeg` | `--manage-raw-jpeg` | `NoStack`, `KeepRaw`, `KeepJPG`, `StackCoverRaw`, `StackCoverJPG` | RAW+JPEG pair handling |
+| `manage_burst` | `--manage-burst` | `NoStack`, `Stack`, `StackKeepRaw`, `StackKeepJPEG` | Burst photo handling |
+| `manage_epson_fastfoto` | `--manage-epson-fastfoto` | `true`, `false` | Epson FastFoto scan grouping |
+| `date_range` | `--date-range` | `YYYY-MM-DD,YYYY-MM-DD` | Limit processing to date range |
+
+### Environment Variable Override
+
+All configuration options can be overridden with environment variables:
+
+```bash
+# Override stacking behavior with environment variables
+IMMICHGO_STACK_MANAGE_BURST="StackKeepRaw" \
+IMMICHGO_STACK_MANAGE_RAW_JPEG="KeepJPG" \
+immich-go --config my-config.yaml stack
+```
 
 ## Stacking Rules
 
@@ -95,7 +147,10 @@ When enabled, stacks all three with corrected scan as cover.
 
 ### Basic Stacking
 ```bash
-# Stack burst photos automatically
+# Stack with configuration file
+immich-go --config my-config.yaml stack
+
+# Stack burst photos automatically (with flags)
 immich-go stack \
   --server=http://localhost:2283 \
   --api-key=your-key \
@@ -126,7 +181,10 @@ immich-go stack \
 
 ### Comprehensive Organization
 ```bash
-# Handle all photo types
+# Handle all photo types with configuration file (preferred)
+immich-go --config comprehensive-stack.yaml stack
+
+# Handle all photo types with flags
 immich-go stack \
   --server=http://localhost:2283 \
   --api-key=your-key \

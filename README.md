@@ -9,6 +9,7 @@
 
 - **Simple Installation**: No NodeJS or Docker required
 - **Multiple Sources**: Upload from Google Photos Takeouts, iCloud, local folders, ZIP archives, and other Immich servers
+- **Configuration Files**: Store `immich-go`'s settings and preferences in YAML, JSON, or TOML files
 - **Large Collections**: Successfully handles 100,000+ photos
 - **Smart Management**: Duplicate detection, burst photo stacking, RAW+JPEG handling
 - **Cross-Platform**: Available for Windows, macOS, Linux, and FreeBSD
@@ -30,7 +31,21 @@ immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-
 immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-key --write-to-folder=/path/to/archive
 ```
 
-### 3. Requirements
+### 3. Configuration Files (Optional)
+Store your server details and common options in a configuration file instead of using command-line flags:
+
+```bash
+# Generate a sample configuration file
+immich-go config generate immich-config.yaml
+
+# Edit the file with your server details, then use simplified commands
+immich-go upload from-folder /path/to/your/photos
+```
+
+Supports YAML, JSON, and TOML formats. Configuration can also be set via environment variables with `IMMICHGO_` prefix.
+Read more in the [Configuration documentation](docs/configuration.md).
+
+### 4. Requirements
 - A running Immich server with API access
 - API key with appropriate permissions ([see full list](docs/installation.md#api-permissions))
 

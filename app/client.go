@@ -14,6 +14,7 @@ import (
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type Client struct {
@@ -42,23 +43,200 @@ type Client struct {
 // add server flags to the command cmd
 func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, dryRun bool) {
 	client := app.Client()
-	client.DeviceUUID, _ = os.Hostname()
+	hostname, _ := os.Hostname()
 
-	cmd.PersistentFlags().StringVarP(&client.Server, "server", "s", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
+	// Define flags with default values that will be overridden by Viper
+	cmd.PersistentFlags().StringVarP(&client.Server, "server", "s", "", "Immich server address (example http://your-ip:2283 or https://your-domain)")
 	cmd.PersistentFlags().StringVarP(&client.APIKey, "api-key", "k", "", "API Key")
 	cmd.PersistentFlags().StringVar(&client.AdminAPIKey, "admin-api-key", "", "Admin's API Key for managing server's jobs")
 	cmd.PersistentFlags().BoolVar(&client.APITrace, "api-trace", false, "Enable trace of api calls")
-
 	cmd.PersistentFlags().BoolVar(&client.PauseImmichBackgroundJobs, "pause-immich-jobs", true, "Pause Immich background jobs during upload operations")
 	cmd.PersistentFlags().BoolVar(&client.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
 	cmd.PersistentFlags().DurationVar(&client.ClientTimeout, "client-timeout", 20*time.Minute, "Set server calls timeout")
-	cmd.PersistentFlags().StringVar(&client.DeviceUUID, "device-uuid", client.DeviceUUID, "Set a device UUID")
+	cmd.PersistentFlags().StringVar(&client.DeviceUUID, "device-uuid", hostname, "Set a device UUID")
 	cmd.PersistentFlags().BoolVar(&client.DryRun, "dry-run", dryRun, "Simulate all actions")
-	cmd.PersistentFlags().StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
+	cmd.PersistentFlags().StringVar(&client.TimeZone, "time-zone", "", "Override the system time zone")
 	cmd.PersistentFlags().Var(&client.OnServerErrors, "on-server-errors", "Action to take on server errors, (stop|continue| <n> errors)")
 
+	// Bind flags to Viper
+	_ = viper.BindPFlag("server.url", cmd.PersistentFlags().Lookup("server"))
+	_ = viper.BindPFlag("server.api_key", cmd.PersistentFlags().Lookup("api-key"))
+	_ = viper.BindPFlag("server.admin_api_key", cmd.PersistentFlags().Lookup("admin-api-key"))
+	_ = viper.BindPFlag("logging.api_trace", cmd.PersistentFlags().Lookup("api-trace"))
+	_ = viper.BindPFlag("upload.pause_immich_jobs", cmd.PersistentFlags().Lookup("pause-immich-jobs"))
+	_ = viper.BindPFlag("server.skip_ssl", cmd.PersistentFlags().Lookup("skip-verify-ssl"))
+	_ = viper.BindPFlag("server.client_timeout", cmd.PersistentFlags().Lookup("client-timeout"))
+	_ = viper.BindPFlag("server.device_uuid", cmd.PersistentFlags().Lookup("device-uuid"))
+	_ = viper.BindPFlag("upload.dry_run", cmd.PersistentFlags().Lookup("dry-run"))
+	_ = viper.BindPFlag("server.time_zone", cmd.PersistentFlags().Lookup("time-zone"))
+	_ = viper.BindPFlag("server.on_server_errors", cmd.PersistentFlags().Lookup("on-server-errors"))
+
+	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, LoadConfigurationIntoClient, ctx, cmd, app)
 	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, OpenClient, ctx, cmd, app)
 	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, CloseClient, ctx, cmd, app)
+}
+
+func LoadConfigurationIntoClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	// Load configuration values from Viper into the client struct
+	client := app.Client()
+
+	// Get configuration from Viper
+	config, err := configuration.GetConfiguration()
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	// Get configuration info for logging
+	configInfo := configuration.GetConfigurationInfo()
+
+	// Log configuration source information
+	if configInfo.ConfigFile != "" {
+		app.Log().Message("Using configuration file: %s", configInfo.ConfigFile)
+	} else {
+		app.Log().Message("No configuration file found. Using defaults, environment variables, and command-line flags.")
+	}
+
+	// Track which values come from which sources for logging
+	var configSources []string
+
+	// Apply configuration values to client (only if not already set by flags)
+	if client.Server == "" {
+		client.Server = config.Server.URL
+		if config.Server.URL != "" {
+			configSources = append(configSources, "server.url from config")
+		}
+	} else {
+		configSources = append(configSources, "server from CLI flag")
+	}
+
+	if client.APIKey == "" {
+		client.APIKey = config.Server.APIKey
+		if config.Server.APIKey != "" {
+			configSources = append(configSources, "server.api_key from config")
+		}
+	} else {
+		configSources = append(configSources, "api-key from CLI flag")
+	}
+
+	if client.AdminAPIKey == "" {
+		client.AdminAPIKey = config.Server.AdminAPIKey
+		if config.Server.AdminAPIKey != "" {
+			configSources = append(configSources, "server.admin_api_key from config")
+		}
+	} else {
+		configSources = append(configSources, "admin-api-key from CLI flag")
+	}
+
+	if client.DeviceUUID == "" {
+		hostname, _ := os.Hostname()
+		if config.Server.DeviceUUID != "" {
+			client.DeviceUUID = config.Server.DeviceUUID
+			configSources = append(configSources, "server.device_uuid from config")
+		} else {
+			client.DeviceUUID = hostname
+			configSources = append(configSources, "device-uuid from hostname default")
+		}
+	} else {
+		configSources = append(configSources, "device-uuid from CLI flag")
+	}
+
+	if client.TimeZone == "" {
+		client.TimeZone = config.Server.TimeZone
+		if config.Server.TimeZone != "" {
+			configSources = append(configSources, "server.time_zone from config")
+		}
+	} else {
+		configSources = append(configSources, "time-zone from CLI flag")
+	}
+
+	// Apply boolean and other settings from config
+	if !cmd.PersistentFlags().Changed("skip-verify-ssl") {
+		client.SkipSSL = config.Server.SkipSSL
+		if config.Server.SkipSSL {
+			configSources = append(configSources, "skip-verify-ssl=true from config")
+		}
+	} else {
+		configSources = append(configSources, "skip-verify-ssl from CLI flag")
+	}
+
+	if !cmd.PersistentFlags().Changed("client-timeout") {
+		client.ClientTimeout = config.Server.ClientTimeout
+		if config.Server.ClientTimeout > 0 {
+			configSources = append(configSources, fmt.Sprintf("client-timeout=%v from config", config.Server.ClientTimeout))
+		}
+	} else {
+		configSources = append(configSources, "client-timeout from CLI flag")
+	}
+
+	if !cmd.PersistentFlags().Changed("api-trace") {
+		client.APITrace = config.Logging.APITrace
+		if config.Logging.APITrace {
+			configSources = append(configSources, "api-trace=true from config")
+		}
+	} else {
+		configSources = append(configSources, "api-trace from CLI flag")
+	}
+
+	if !cmd.PersistentFlags().Changed("pause-immich-jobs") {
+		client.PauseImmichBackgroundJobs = config.Upload.PauseImmichJobs
+		configSources = append(configSources, fmt.Sprintf("pause-immich-jobs=%v from config", config.Upload.PauseImmichJobs))
+	} else {
+		configSources = append(configSources, "pause-immich-jobs from CLI flag")
+	}
+
+	if !cmd.PersistentFlags().Changed("dry-run") {
+		client.DryRun = config.Upload.DryRun
+		if config.Upload.DryRun {
+			configSources = append(configSources, "dry-run=true from config")
+		}
+	} else {
+		configSources = append(configSources, "dry-run from CLI flag")
+	}
+
+	if !cmd.PersistentFlags().Changed("on-server-errors") && config.Server.OnServerErrors != "" {
+		_ = client.OnServerErrors.Set(config.Server.OnServerErrors)
+		configSources = append(configSources, fmt.Sprintf("on-server-errors=%s from config", config.Server.OnServerErrors))
+	} else if cmd.PersistentFlags().Changed("on-server-errors") {
+		configSources = append(configSources, "on-server-errors from CLI flag")
+	}
+
+	// Log final resolved configuration values (with sensitive data masked)
+	app.Log().Message("Configuration sources resolved:")
+	for _, source := range configSources {
+		app.Log().Message("  - %s", source)
+	}
+
+	// Log final resolved values
+	serverURL := client.Server
+	if serverURL == "" {
+		serverURL = "<not set>"
+	}
+
+	apiKey := client.APIKey
+	if apiKey != "" {
+		if len(apiKey) > 8 {
+			apiKey = apiKey[:4] + "****" + apiKey[len(apiKey)-4:]
+		} else {
+			apiKey = "****"
+		}
+	} else {
+		apiKey = "<not set>"
+	}
+
+	app.Log().Message("Final configuration values:")
+	app.Log().Message("  - Server URL: %s", serverURL)
+	app.Log().Message("  - API Key: %s", apiKey)
+	app.Log().Message("  - Device UUID: %s", client.DeviceUUID)
+	app.Log().Message("  - Client Timeout: %v", client.ClientTimeout)
+	app.Log().Message("  - Skip SSL: %v", client.SkipSSL)
+	app.Log().Message("  - API Trace: %v", client.APITrace)
+	app.Log().Message("  - Dry Run: %v", client.DryRun)
+	app.Log().Message("  - Pause Immich Jobs: %v", client.PauseImmichBackgroundJobs)
+	if client.TimeZone != "" {
+		app.Log().Message("  - Time Zone: %s", client.TimeZone)
+	}
+
+	return nil
 }
 
 func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error {

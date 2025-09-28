@@ -14,11 +14,43 @@ This guide provides practical examples for common Immich-Go scenarios.
 | [Photo organization](#photo-organization) | `stack` | Organize existing photos |
 | [Selective sync](#selective-sync) | Various filters | Partial imports |
 
+## Configuration File Setup
+
+Before diving into examples, consider setting up a configuration file to avoid repeating server details:
+
+```bash
+# Generate a configuration file
+immich-go config generate immich-config.yaml
+```
+
+Edit the file with your server details:
+```yaml
+server:
+  url: "http://localhost:2283"
+  api_key: "your-api-key-here"
+  
+upload:
+  concurrent_uploads: 4
+  pause_immich_jobs: true
+  
+logging:
+  level: "info"
+```
+
+Now use simplified commands:
+```bash
+# All examples below can use --config instead of server flags
+immich-go --config immich-config.yaml upload from-folder /photos
+```
+
 ## Local Photo Upload
 
 ### Basic Upload
 ```bash
-# Upload entire photo collection
+# Upload with configuration file (recommended)
+immich-go --config immich-config.yaml upload from-folder /home/user/Pictures
+
+# Upload with server flags
 immich-go upload from-folder \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
@@ -27,7 +59,13 @@ immich-go upload from-folder \
 
 ### Organized Upload with Albums
 ```bash
-# Create albums from folder structure
+# With configuration file
+immich-go --config immich-config.yaml upload from-folder \
+  --folder-as-album=FOLDER \
+  --manage-raw-jpeg=StackCoverRaw \
+  /home/user/Pictures/Organized
+
+# With server flags
 immich-go upload from-folder \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
@@ -211,8 +249,26 @@ immich-go upload from-immich \
 ## Photo Organization
 
 ### Organize Existing Library
+
+Create a stacking configuration file:
+```yaml
+# stacking-config.yaml
+server:
+  url: "http://localhost:2283"
+  api_key: "your-api-key"
+
+stack:
+  manage_burst: "Stack"
+  manage_raw_jpeg: "StackCoverRaw"
+  manage_heic_jpeg: "StackCoverJPG"
+  manage_epson_fastfoto: true
+```
+
 ```bash
-# Stack burst photos and RAW+JPEG pairs
+# Organize with configuration file (recommended)
+immich-go --config stacking-config.yaml stack
+
+# Organize with flags
 immich-go stack \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
@@ -223,7 +279,10 @@ immich-go stack \
 
 ### Test Organization (Dry Run)
 ```bash
-# Preview organization changes
+# Preview organization changes with configuration
+immich-go --config stacking-config.yaml stack --dry-run
+
+# Preview with flags
 immich-go stack \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
@@ -383,6 +442,75 @@ Write-Host "Backup completed: $BackupDir\$Date"
 
 # Weekly full backup on Sundays at 3 AM  
 0 3 * * 0 immich-go archive from-immich --server=http://localhost:2283 --api-key=your-key --write-to-folder=/backup/weekly/$(date +\%Y-\%m-\%d)
+```
+
+## Configuration File Examples
+
+### Development Environment
+```yaml
+# dev-config.yaml
+server:
+  url: "http://localhost:2283"
+  api_key: "dev-api-key"
+  skip_ssl: true
+
+upload:
+  concurrent_uploads: 2
+  dry_run: true  # Safe for testing
+
+logging:
+  level: "debug"
+  api_trace: true
+
+stack:
+  manage_burst: "Stack"
+  manage_raw_jpeg: "StackCoverRaw"
+```
+
+### Production Environment
+```yaml
+# prod-config.yaml
+server:
+  url: "https://immich.example.com"
+  api_key: "prod-api-key"
+  client_timeout: "30m"
+
+upload:
+  concurrent_uploads: 8
+  pause_immich_jobs: true
+
+archive:
+  date_range: "2020-01-01,2024-12-31"
+
+logging:
+  level: "info"
+  file: "/var/log/immich-go.log"
+```
+
+### Photo Organization Profile
+```yaml
+# organize-config.yaml
+server:
+  url: "http://localhost:2283"
+  api_key: "organize-api-key"
+
+stack:
+  manage_heic_jpeg: "StackCoverHeic"
+  manage_raw_jpeg: "StackCoverRaw"
+  manage_burst: "Stack"
+  manage_epson_fastfoto: true
+  date_range: "2024-01-01,2024-12-31"  # Only current year
+
+logging:
+  level: "info"
+```
+
+### Multi-Environment Setup
+```bash
+# Use different configs for different purposes
+immich-go --config dev-config.yaml upload from-folder /test-photos
+immich-go --config prod-config.yaml upload from-folder /production-photos  
+immich-go --config organize-config.yaml stack
 ```
 
 ## Troubleshooting Examples
