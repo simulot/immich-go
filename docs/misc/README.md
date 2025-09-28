@@ -25,6 +25,13 @@ Development notes about code refactoring efforts, architectural improvements, an
 ### [Release Notes](releases.md)
 Historical release information and changelog details for Immich-Go versions.
 
+### [Release Process](release-process.md)
+Complete guide for creating official releases and pre-releases, including:
+- GitHub Actions workflow for automated pre-releases
+- Manual release script usage
+- Version naming conventions
+- Troubleshooting common release issues
+
 ### [TODO List](todo.md)
 Development roadmap, feature requests, and planned improvements for future versions.
 
