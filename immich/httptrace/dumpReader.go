@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const maxBodyDumpSize = 1024
+const maxBodyDumpSize = 1024 // Keep for backward compatibility
 
 // bufferPool reuses bytes.Buffer instances to reduce allocations
 var bufferPool = sync.Pool{
@@ -16,12 +16,13 @@ var bufferPool = sync.Pool{
 }
 
 type dumpReader struct {
-	lock      sync.Mutex
+	lock      sync.RWMutex
 	rc        io.ReadCloser
 	limit     int
 	buffer    *bytes.Buffer
 	truncated bool
 	closed    sync.WaitGroup
+	done      bool // Track if buffer has been returned to pool
 }
 
 func newDumpReader(rc io.ReadCloser, limit int) *dumpReader {
@@ -39,19 +40,31 @@ func newDumpReader(rc io.ReadCloser, limit int) *dumpReader {
 }
 
 func (dr *dumpReader) Read(p []byte) (int, error) {
-	dr.lock.Lock()
-	defer dr.lock.Unlock()
+	// First read from the underlying reader without holding the lock
 	n, err := dr.rc.Read(p)
-	if dr.limit <= 0 {
-		dr.buffer.Write(p[:n])
-	} else {
-		if dr.buffer.Len() < dr.limit {
-			dr.buffer.Write(p[:min(dr.limit-dr.buffer.Len(), n)])
-		} else {
-			// don't read more than limit
-			dr.truncated = true
+
+	if n > 0 && !dr.done {
+		// Only acquire lock if we have data to write and haven't returned buffer yet
+		dr.lock.Lock()
+		if !dr.done && dr.buffer != nil {
+			if dr.limit <= 0 {
+				// No limit - write all data
+				dr.buffer.Write(p[:n])
+			} else {
+				// Check if we still have space in buffer
+				remaining := dr.limit - dr.buffer.Len()
+				if remaining > 0 {
+					writeSize := min(remaining, n)
+					dr.buffer.Write(p[:writeSize])
+				} else if !dr.truncated {
+					// Mark as truncated only once
+					dr.truncated = true
+				}
+			}
 		}
+		dr.lock.Unlock()
 	}
+
 	return n, err
 }
 
@@ -66,8 +79,27 @@ func (dr *dumpReader) Done() {
 	dr.lock.Lock()
 	defer dr.lock.Unlock()
 
-	if dr.buffer != nil {
+	if !dr.done && dr.buffer != nil {
 		bufferPool.Put(dr.buffer)
 		dr.buffer = nil
+		dr.done = true
 	}
+}
+
+// Bytes returns the buffered data (safe for concurrent access)
+func (dr *dumpReader) Bytes() []byte {
+	dr.lock.RLock()
+	defer dr.lock.RUnlock()
+
+	if dr.buffer == nil {
+		return nil
+	}
+	return dr.buffer.Bytes()
+}
+
+// Truncated returns whether the buffer was truncated (safe for concurrent access)
+func (dr *dumpReader) Truncated() bool {
+	dr.lock.RLock()
+	defer dr.lock.RUnlock()
+	return dr.truncated
 }

@@ -32,6 +32,6 @@ func (drt *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 	req.Body = rt.Request(req)
 	resp, err := drt.originRT.RoundTrip(req)
 	resp.Body = rt.Response(resp, err)
-	rt.Write()
+	rt.Dump()
 	return resp, nil
 }
