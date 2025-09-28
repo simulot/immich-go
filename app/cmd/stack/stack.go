@@ -2,6 +2,7 @@ package stack
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
@@ -17,6 +19,7 @@ import (
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 /*
@@ -78,6 +81,15 @@ func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
 	cmd.Flags().Var(&o.DateRange, "date-range", "photos must be taken in the date range")
 
+	// Bind stack flags to Viper
+	_ = viper.BindPFlag("stack.manage_heic_jpeg", cmd.Flags().Lookup("manage-heic-jpeg"))
+	_ = viper.BindPFlag("stack.manage_raw_jpeg", cmd.Flags().Lookup("manage-raw-jpeg"))
+	_ = viper.BindPFlag("stack.manage_burst", cmd.Flags().Lookup("manage-burst"))
+	_ = viper.BindPFlag("stack.manage_epson_fastfoto", cmd.Flags().Lookup("manage-epson-fastfoto"))
+	_ = viper.BindPFlag("stack.date_range", cmd.Flags().Lookup("date-range"))
+
+	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, o.LoadConfiguration, ctx, cmd, a)
+
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
 		ctx := cmd.Context()
@@ -131,6 +143,64 @@ func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 		return err
 	}
 	return cmd
+}
+
+func (s *StackCmd) LoadConfiguration(ctx context.Context, cmd *cobra.Command, app *app.Application) error {
+	// Load configuration values from Viper into stack options
+	config, err := configuration.GetConfiguration()
+	if err != nil {
+		return err
+	}
+
+	var stackConfigSources []string
+
+	// Apply configuration values (only if not set by flags)
+	if !cmd.Flags().Changed("manage-heic-jpeg") && config.Stack.ManageHEICJPEG != "" {
+		_ = s.ManageHEICJPG.Set(config.Stack.ManageHEICJPEG)
+		stackConfigSources = append(stackConfigSources, fmt.Sprintf("manage-heic-jpeg=%s from config", config.Stack.ManageHEICJPEG))
+	} else if cmd.Flags().Changed("manage-heic-jpeg") {
+		stackConfigSources = append(stackConfigSources, "manage-heic-jpeg from CLI flag")
+	}
+
+	if !cmd.Flags().Changed("manage-raw-jpeg") && config.Stack.ManageRawJPEG != "" {
+		_ = s.ManageRawJPG.Set(config.Stack.ManageRawJPEG)
+		stackConfigSources = append(stackConfigSources, fmt.Sprintf("manage-raw-jpeg=%s from config", config.Stack.ManageRawJPEG))
+	} else if cmd.Flags().Changed("manage-raw-jpeg") {
+		stackConfigSources = append(stackConfigSources, "manage-raw-jpeg from CLI flag")
+	}
+
+	if !cmd.Flags().Changed("manage-burst") && config.Stack.ManageBurst != "" {
+		_ = s.ManageBurst.Set(config.Stack.ManageBurst)
+		stackConfigSources = append(stackConfigSources, fmt.Sprintf("manage-burst=%s from config", config.Stack.ManageBurst))
+	} else if cmd.Flags().Changed("manage-burst") {
+		stackConfigSources = append(stackConfigSources, "manage-burst from CLI flag")
+	}
+
+	if !cmd.Flags().Changed("manage-epson-fastfoto") {
+		s.ManageEpsonFastFoto = config.Stack.ManageEpsonFastFoto
+		if config.Stack.ManageEpsonFastFoto {
+			stackConfigSources = append(stackConfigSources, "manage-epson-fastfoto=true from config")
+		}
+	} else {
+		stackConfigSources = append(stackConfigSources, "manage-epson-fastfoto from CLI flag")
+	}
+
+	if !cmd.Flags().Changed("date-range") && config.Stack.DateRange != "" {
+		_ = s.DateRange.Set(config.Stack.DateRange)
+		stackConfigSources = append(stackConfigSources, fmt.Sprintf("date-range=%s from config", config.Stack.DateRange))
+	} else if cmd.Flags().Changed("date-range") {
+		stackConfigSources = append(stackConfigSources, "date-range from CLI flag")
+	}
+
+	// Log stack-specific configuration
+	if len(stackConfigSources) > 0 {
+		app.Log().Message("Stack configuration sources:")
+		for _, source := range stackConfigSources {
+			app.Log().Message("  - %s", source)
+		}
+	}
+
+	return nil
 }
 
 func (s *StackCmd) ProcessAssets(ctx context.Context, app *app.Application) error {

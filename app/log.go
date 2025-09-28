@@ -46,8 +46,32 @@ func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
 	cmd.PersistentFlags().StringVarP(&log.File, "log-file", "l", "", "Write log messages into the file")
 	cmd.PersistentFlags().StringVar(&log.Type, "log-type", "text", "Log formatted  as text of JSON file")
 
+	// Bind log flags to Viper
+	_ = viper.BindPFlag("logging.level", cmd.PersistentFlags().Lookup("log-level"))
+	_ = viper.BindPFlag("logging.file", cmd.PersistentFlags().Lookup("log-file"))
+
+	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, log.LoadConfiguration, ctx, cmd, app)
 	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, log.Open, ctx, cmd, app)
 	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, log.Close, ctx, cmd, app)
+}
+
+func (log *Log) LoadConfiguration(ctx context.Context, cmd *cobra.Command, app *Application) error {
+	// Load configuration values from Viper into log options
+	config, err := configuration.GetConfiguration()
+	if err != nil {
+		return err
+	}
+
+	// Apply configuration values (only if not set by flags)
+	if !cmd.PersistentFlags().Changed("log-level") {
+		log.Level = config.Logging.Level
+	}
+
+	if !cmd.PersistentFlags().Changed("log-file") && config.Logging.File != "" {
+		log.File = config.Logging.File
+	}
+
+	return nil
 }
 
 func (log *Log) OpenLogFile() error {
@@ -104,18 +128,20 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	}
 
 	log.Info(fmt.Sprintf("Command: %s", strings.Join(cmdStack, " ")))
-	log.Info("Flags:")
+	log.Info("Resolved flag values (after configuration file and environment variable processing):")
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		val := flag.Value.String()
-		if val == "" {
-			if v := viper.GetString(flag.Name); v != "" {
-				val = v
-			}
-		}
+		val := log.getResolvedFlagValue(flag)
+		source := log.getFlagSource(flag)
+
 		if strings.Contains(flag.Name, "api-key") && len(val) > 4 {
 			val = strings.Repeat("*", len(val)-4) + val[len(val)-4:]
 		}
-		log.Info("", "--"+flag.Name, val)
+
+		if val != "" {
+			log.Info("", "--"+flag.Name, val, "source", source)
+		} else {
+			log.Info("", "--"+flag.Name, "<not set>", "source", "default")
+		}
 	})
 
 	// List arguments
@@ -123,6 +149,7 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	for _, arg := range cmd.Flags().Args() {
 		log.Info(fmt.Sprintf("  %q", arg))
 	}
+
 	if log.sLevel == slog.LevelDebug {
 		debugfiles.EnableTrackFiles(log.Logger)
 	}
@@ -226,6 +253,109 @@ func (log *Log) OpenAPITrace() error {
 
 func (log *Log) APITracer() *httptrace.Tracer {
 	return log.apiTracer
+}
+
+// getResolvedFlagValue returns the final resolved value for a flag after considering
+// CLI flags, environment variables, and configuration file values
+func (log *Log) getResolvedFlagValue(flag *pflag.Flag) string {
+	// First, try to get the value from the flag itself (CLI argument)
+	val := flag.Value.String()
+
+	// If flag is not set, try to get from Viper (which handles config file + env vars)
+	if val == "" || !flag.Changed {
+		// Try various Viper key mappings
+		viperKeys := []string{
+			flag.Name,
+			strings.ReplaceAll(flag.Name, "-", "_"),
+			strings.ReplaceAll(flag.Name, "-", "."),
+		}
+
+		for _, key := range viperKeys {
+			if viperVal := viper.GetString(key); viperVal != "" {
+				val = viperVal
+				break
+			}
+		}
+	}
+
+	return val
+}
+
+// getFlagSource determines where a flag's value came from
+func (log *Log) getFlagSource(flag *pflag.Flag) string {
+	// If flag was explicitly set via CLI, it takes precedence
+	if flag.Changed {
+		return "CLI flag"
+	}
+
+	// Check if value comes from environment variable (flag name style)
+	envKey := "IMMICHGO_" + strings.ToUpper(strings.ReplaceAll(flag.Name, "-", "_"))
+	if os.Getenv(envKey) != "" {
+		return "environment variable"
+	}
+
+	// Check if value comes from config file by testing common Viper key mappings
+	// We need to check the actual configuration structure keys used by Viper
+	configKeys := log.getConfigKeysForFlag(flag.Name)
+
+	for _, key := range configKeys {
+		if viper.IsSet(key) {
+			// Check if it's from environment variable (config key style)
+			envKeyAlt := "IMMICHGO_" + strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
+			if os.Getenv(envKeyAlt) != "" {
+				return "environment variable"
+			}
+
+			viperVal := viper.GetString(key)
+			flagVal := log.getResolvedFlagValue(flag)
+
+			// If the viper value matches what we resolved and we have a config file
+			if viperVal != "" && viperVal == flagVal && viper.ConfigFileUsed() != "" {
+				return "configuration file"
+			}
+		}
+	}
+
+	return "default"
+}
+
+// getConfigKeysForFlag maps flag names to their configuration file keys
+func (log *Log) getConfigKeysForFlag(flagName string) []string {
+	// Map common flags to their config file keys
+	configKeyMap := map[string][]string{
+		"server":                {"server.url"},
+		"api-key":               {"server.api_key"},
+		"admin-api-key":         {"server.admin_api_key"},
+		"skip-verify-ssl":       {"server.skip_ssl"},
+		"client-timeout":        {"server.client_timeout"},
+		"device-uuid":           {"server.device_uuid"},
+		"time-zone":             {"server.time_zone"},
+		"on-server-errors":      {"server.on_server_errors"},
+		"dry-run":               {"upload.dry_run"},
+		"concurrent-uploads":    {"upload.concurrent_uploads"},
+		"overwrite":             {"upload.overwrite"},
+		"pause-immich-jobs":     {"upload.pause_immich_jobs"},
+		"no-ui":                 {"ui.no_ui"},
+		"log-level":             {"logging.level"},
+		"log-file":              {"logging.file"},
+		"api-trace":             {"logging.api_trace"},
+		"date-range":            {"archive.date_range", "stack.date_range"},
+		"manage-heic-jpeg":      {"stack.manage_heic_jpeg"},
+		"manage-raw-jpeg":       {"stack.manage_raw_jpeg"},
+		"manage-burst":          {"stack.manage_burst"},
+		"manage-epson-fastfoto": {"stack.manage_epson_fastfoto"},
+	}
+
+	if keys, exists := configKeyMap[flagName]; exists {
+		return keys
+	}
+
+	// Fallback to standard transformations
+	return []string{
+		flagName,
+		strings.ReplaceAll(flagName, "-", "_"),
+		strings.ReplaceAll(flagName, "-", "."),
+	}
 }
 
 // FilteredHandler filterslog messages and filters out context canceled errors

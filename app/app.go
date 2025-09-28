@@ -20,8 +20,8 @@ type Application struct {
 	jnl    *fileevent.Recorder
 	tz     *time.Location
 
-	// TODO manage configuration file
-	// ConfigurationFile string // Path to the configuration file to use
+	// Configuration file management
+	ConfigurationFile string // Path to the configuration file to use
 }
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {
@@ -30,7 +30,10 @@ func New(ctx context.Context, cmd *cobra.Command) *Application {
 		log: &Log{},
 		tz:  time.Local,
 	}
-	// app.PersistentFlags().StringVar(&app.ConfigurationFile, "use-configuration", app.ConfigurationFile, "Specifies the configuration to use")
+
+	// Add configuration file flag
+	cmd.PersistentFlags().StringVar(&app.ConfigurationFile, "config", "", "Configuration file (supported formats: JSON, YAML, TOML)")
+
 	AddLogFlags(ctx, cmd, app)
 	return app
 }
@@ -64,6 +67,10 @@ func (app *Application) Log() *Log {
 
 func (app *Application) SetLog(log *Log) {
 	app.log = log
+}
+
+func (app *Application) GetConfigFile() string {
+	return app.ConfigurationFile
 }
 
 func ChainRunEFunctions(prev RunE, fn RunEAdaptor, ctx context.Context, cmd *cobra.Command, app *Application) RunE {
