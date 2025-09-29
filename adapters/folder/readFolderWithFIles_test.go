@@ -30,10 +30,12 @@ func TestLocalAssets(t *testing.T) {
 			name: "easy",
 			flags: ImportFolderOptions{
 				SupportedMedia: filetypes.DefaultSupportedMedia,
-				ManageBurst:    filters.BurstNothing,
-				ManageRawJPG:   filters.RawJPGNothing,
-				ManageHEICJPG:  filters.HeicJpgNothing,
-				TZ:             time.Local,
+				UploadFlags: UploadFlags{
+					ManageBurst:   filters.BurstNothing,
+					ManageRawJPG:  filters.RawJPGNothing,
+					ManageHEICJPG: filters.HeicJpgNothing,
+				},
+				TZ: time.Local,
 			},
 			fsys: []fs.FS{
 				fshelper.NewFSWithName("DATA/date-range"),
@@ -49,9 +51,11 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "date on the path given as argument, use names",
 			flags: ImportFolderOptions{
-				ManageBurst:          filters.BurstNothing,
-				ManageRawJPG:         filters.RawJPGNothing,
-				ManageHEICJPG:        filters.HeicJpgNothing,
+				UploadFlags: UploadFlags{
+					ManageBurst:   filters.BurstNothing,
+					ManageRawJPG:  filters.RawJPGNothing,
+					ManageHEICJPG: filters.HeicJpgNothing,
+				},
 				SupportedMedia:       filetypes.DefaultSupportedMedia,
 				TakeDateFromFilename: true,
 				TZ:                   time.Local,
@@ -73,9 +77,11 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "date on the path given as argument, use names, in a TZ",
 			flags: ImportFolderOptions{
-				ManageBurst:          filters.BurstNothing,
-				ManageRawJPG:         filters.RawJPGNothing,
-				ManageHEICJPG:        filters.HeicJpgNothing,
+				UploadFlags: UploadFlags{
+					ManageBurst:   filters.BurstNothing,
+					ManageRawJPG:  filters.RawJPGNothing,
+					ManageHEICJPG: filters.HeicJpgNothing,
+				},
 				SupportedMedia:       filetypes.DefaultSupportedMedia,
 				TakeDateFromFilename: true,
 				TZ:                   time.FixedZone("UTC-4", -4*60*60),
@@ -97,9 +103,11 @@ func TestLocalAssets(t *testing.T) {
 		{
 			name: "date on the path given as argument, don't use names",
 			flags: ImportFolderOptions{
-				ManageBurst:          filters.BurstNothing,
-				ManageRawJPG:         filters.RawJPGNothing,
-				ManageHEICJPG:        filters.HeicJpgNothing,
+				UploadFlags: UploadFlags{
+					ManageBurst:   filters.BurstNothing,
+					ManageRawJPG:  filters.RawJPGNothing,
+					ManageHEICJPG: filters.HeicJpgNothing,
+				},
 				SupportedMedia:       filetypes.DefaultSupportedMedia,
 				TakeDateFromFilename: false,
 				TZ:                   time.Local,

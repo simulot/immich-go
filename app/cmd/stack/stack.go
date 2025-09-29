@@ -17,6 +17,7 @@ import (
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 /*
@@ -26,6 +27,7 @@ TODO
 - [X] Take sub second exif time into account
 */
 type StackCmd struct {
+	app.CommonFlags
 	DateRange cliflags.DateRange // Set capture date range
 
 	// Stack jpg/raw
@@ -60,6 +62,14 @@ type StackCmd struct {
 	filters  []filters.Filter // filters are used to filter assets in groups
 }
 
+func (sc *StackCmd) DefineFlags(flags *pflag.FlagSet) {
+	flags.Var(&sc.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
+	flags.Var(&sc.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
+	flags.Var(&sc.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
+	flags.BoolVar(&sc.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
+	flags.Var(&sc.DateRange, "date-range", "photos must be taken in the date range")
+}
+
 // const timeFormat = "2006-01-02T15:04:05.000Z"
 
 func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
@@ -70,19 +80,16 @@ func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	}
 
 	o := &StackCmd{}
+	a.Config.Register(cmd, o)
 	app.AddClientFlags(ctx, cmd, a, false)
 	cmd.TraverseChildren = true
-	cmd.Flags().Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
-	cmd.Flags().Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
-	cmd.Flags().Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
-	cmd.Flags().BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
-	cmd.Flags().Var(&o.DateRange, "date-range", "photos must be taken in the date range")
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
 		ctx := cmd.Context()
 		client := a.Client()
 		o.TZ = a.GetTZ()
+		o.DateRange.SetTZ(a.GetTZ())
 
 		o.InfoCollector = filenames.NewInfoCollector(o.TZ, client.Immich.SupportedMedia())
 		o.filters = append(o.filters,

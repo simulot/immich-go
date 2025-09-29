@@ -24,7 +24,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 	}
 	cmd.SetContext(ctx)
 	options := &gp.ImportFlags{}
-	options.AddFromGooglePhotosFlags(cmd, parent)
+	app.Config.Register(cmd, options)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		ctx := cmd.Context()

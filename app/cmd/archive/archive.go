@@ -18,6 +18,7 @@ import (
 )
 
 type ArchiveOptions struct {
+	app.CommonFlags
 	ArchivePath string
 }
 
@@ -27,6 +28,7 @@ func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command
 		Short: "Archive various sources of photos to a file system",
 	}
 	options := &ArchiveOptions{}
+	app.Config.Register(cmd, &options.CommonFlags)
 
 	cmd.PersistentFlags().StringVarP(&options.ArchivePath, "write-to-folder", "w", "", "Path where to write the archive")
 	_ = cmd.MarkPersistentFlagRequired("write-to-folder")
@@ -48,7 +50,7 @@ func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app 
 	}
 
 	options := &folder.ImportFolderOptions{}
-	options.AddFromFolderFlags(cmd, parent)
+	app.Config.Register(cmd, options, &options.InclusionFlags)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
@@ -58,7 +60,7 @@ func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app 
 			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
 			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
 		}
-
+		options.InclusionFlags.SetIncludeTypeExtensions()
 		options.TZ = app.GetTZ()
 
 		p, err := cmd.Flags().GetString("write-to-folder")
@@ -105,7 +107,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 	}
 	cmd.SetContext(ctx)
 	options := &gp.ImportFlags{}
-	options.AddFromGooglePhotosFlags(cmd, parent)
+	app.Config.Register(cmd, options, &options.InclusionFlags)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		ctx := cmd.Context()
@@ -114,6 +116,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
 			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
 		}
+		options.InclusionFlags.SetIncludeTypeExtensions()
 		options.TZ = app.GetTZ()
 		p, err := cmd.Flags().GetString("write-to-folder")
 		if err != nil {
@@ -156,7 +159,7 @@ func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	}
 	cmd.SetContext(ctx)
 	options := &fromimmich.FromImmichFlags{}
-	options.AddFromImmichFlags(cmd, parent)
+	app.Config.Register(cmd, options, &options.InclusionFlags)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		ctx := cmd.Context()
@@ -164,6 +167,7 @@ func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.A
 			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
 			app.Jnl().SetLogger(app.Log().SetLogWriter(os.Stdout))
 		}
+		options.InclusionFlags.SetIncludeTypeExtensions()
 
 		p, err := cmd.Flags().GetString("write-to-folder")
 		if err != nil {

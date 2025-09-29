@@ -5,7 +5,9 @@ import (
 
 	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/config"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // TODO add Locked option
@@ -23,20 +25,26 @@ type FromImmichFlags struct {
 	InclusionFlags cliflags.InclusionFlags // controls the file extensions to be included in the import process.
 }
 
+var _ config.FlagDefiner = (*FromImmichFlags)(nil)
+
+func (o *FromImmichFlags) DefineFlags(flags *pflag.FlagSet) {
+	// flags.StringVar(&o.Make, "from-make", "", "Get only assets with this make")
+	// flags.StringVar(&o.Model, "from-model", "", "Get only assets with this model")
+	// flags.StringSliceVar(&o.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
+	// flags.StringSliceVar(&o.Tags, "from-tags", nil, "Get assets only with those tags, can be used multiple times")
+	flags.Var(&o.DateRange, "from-date-range", "Get assets only within this date range (fromat: YYYY[-MM[-DD[,YYYY-MM-DD]]])")
+	flags.BoolVar(&o.OnlyArchived, "from-archived", false, "Get only archived assets")
+	flags.BoolVar(&o.OnlyTrashed, "from-trash", false, "Get only trashed assets")
+	flags.BoolVar(&o.OnlyFavorite, "from-favorite", false, "Get only favorite assets")
+	flags.IntVar(&o.MinimalRating, "from-minimal-rating", 0, "Get only assets with a rating greater or equal to this value")
+	flags.StringVar(&o.client.Server, "from-server", o.client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
+	flags.StringVar(&o.client.APIKey, "from-api-key", "", "API Key")
+	flags.BoolVar(&o.client.APITrace, "from-api-trace", false, "Enable trace of api calls")
+	flags.BoolVar(&o.client.SkipSSL, "from-skip-verify-ssl", false, "Skip SSL verification")
+	flags.DurationVar(&o.client.ClientTimeout, "from-client-timeout", 20*time.Minute, "Set server calls timeout")
+}
+
 func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.Command) {
-	// cmd.Flags().StringVar(&o.Make, "from-make", "", "Get only assets with this make")
-	// cmd.Flags().StringVar(&o.Model, "from-model", "", "Get only assets with this model")
-	// cmd.Flags().StringSliceVar(&o.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
-	// cmd.Flags().StringSliceVar(&o.Tags, "from-tags", nil, "Get assets only with those tags, can be used multiple times")
-	cmd.Flags().Var(&o.DateRange, "from-date-range", "Get assets only within this date range (fromat: YYYY[-MM[-DD[,YYYY-MM-DD]]])")
-	cmd.Flags().BoolVar(&o.OnlyArchived, "from-archived", false, "Get only archived assets")
-	cmd.Flags().BoolVar(&o.OnlyTrashed, "from-trash", false, "Get only trashed assets")
-	cmd.Flags().BoolVar(&o.OnlyFavorite, "from-favorite", false, "Get only favorite assets")
-	cmd.Flags().IntVar(&o.MinimalRating, "from-minimal-rating", 0, "Get only assets with a rating greater or equal to this value")
-	cmd.Flags().StringVar(&o.client.Server, "from-server", o.client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
-	cmd.Flags().StringVar(&o.client.APIKey, "from-api-key", "", "API Key")
-	cmd.Flags().BoolVar(&o.client.APITrace, "from-api-trace", false, "Enable trace of api calls")
-	cmd.Flags().BoolVar(&o.client.SkipSSL, "from-skip-verify-ssl", false, "Skip SSL verification")
-	cmd.Flags().DurationVar(&o.client.ClientTimeout, "from-client-timeout", 20*time.Minute, "Set server calls timeout")
+	o.DefineFlags(cmd.Flags())
 	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 }
