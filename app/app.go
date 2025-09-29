@@ -4,8 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type (
@@ -19,13 +21,26 @@ type Application struct {
 	log    *Log
 	jnl    *fileevent.Recorder
 	tz     *time.Location
+	Config *config.ConfigurationManager
+	CommonFlags
 }
 
-func New(ctx context.Context, cmd *cobra.Command) *Application {
+type CommonFlags struct {
+	DryRun bool
+}
+
+func (cf *CommonFlags) DefineFlags(flags *pflag.FlagSet) {
+	flags.BoolVar(&cf.DryRun, "dry-run", false, "dry run")
+}
+
+var _ config.FlagDefiner = (*CommonFlags)(nil)
+
+func New(ctx context.Context, cmd *cobra.Command, cm *config.ConfigurationManager) *Application {
 	// application's context
 	app := &Application{
-		log: &Log{},
-		tz:  time.Local,
+		log:    &Log{},
+		tz:     time.Local,
+		Config: cm,
 	}
 	// app.PersistentFlags().StringVar(&app.ConfigurationFile, "use-configuration", app.ConfigurationFile, "Specifies the configuration to use")
 	AddLogFlags(ctx, cmd, app)

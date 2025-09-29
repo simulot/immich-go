@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/app"
+	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type UpLoadMode int
@@ -60,9 +62,8 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	}
 	app.AddClientFlags(ctx, cmd, a, false)
 	cmd.TraverseChildren = true
-	cmd.PersistentFlags().BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
-	cmd.PersistentFlags().BoolVar(&options.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
-	cmd.PersistentFlags().IntVar(&options.ConcurrentUploads, "concurrent-uploads", runtime.NumCPU(), "Number of concurrent upload workers (1-20)")
+	a.Config.Register(cmd, options)
+
 	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)
 
 	cmd.AddCommand(NewFromFolderCommand(ctx, cmd, a, options))
@@ -71,6 +72,14 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd.AddCommand(NewFromGooglePhotosCommand(ctx, cmd, a, options))
 	cmd.AddCommand(NewFromImmichCommand(ctx, cmd, a, options))
 	return cmd
+}
+
+var _ config.FlagDefiner = (*UploadOptions)(nil)
+
+func (options *UploadOptions) DefineFlags(flags *pflag.FlagSet) {
+	flags.BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
+	flags.BoolVar(&options.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
+	flags.IntVar(&options.ConcurrentUploads, "concurrent-uploads", runtime.NumCPU(), "Number of concurrent upload workers (1-20)")
 }
 
 func (options *UploadOptions) Open(ctx context.Context, cmd *cobra.Command, app *app.Application) error {
