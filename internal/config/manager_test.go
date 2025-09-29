@@ -275,3 +275,48 @@ func TestInit(t *testing.T) {
 		assert.Equal(t, "env-value", cm.v.GetString("my-flag"))
 	})
 }
+
+func TestViperEnvBinding(t *testing.T) {
+	// Setup a root command and a subcommand
+	rootCmd := &cobra.Command{Use: "root", Run: func(cmd *cobra.Command, args []string) {}}
+	uploadCmd := &cobra.Command{Use: "upload", Run: func(cmd *cobra.Command, args []string) {}}
+	fromFolderCmd := &cobra.Command{Use: "from-folder", Run: func(cmd *cobra.Command, args []string) {}}
+
+	rootCmd.AddCommand(uploadCmd)
+	uploadCmd.AddCommand(fromFolderCmd)
+
+	// Add a persistent flag to the upload command
+	var server string
+	uploadCmd.PersistentFlags().StringVar(&server, "server", "", "server address")
+
+	var overwrite bool
+	uploadCmd.Flags().BoolVar(&overwrite, "overwrite", false, "overwrite flag")
+
+	var recursive bool
+	fromFolderCmd.Flags().BoolVar(&recursive, "recursive", false, "recursive flag")
+
+	// Set environment variables for the subcommand's flags
+	os.Setenv("IMMICH_GO_UPLOAD_SERVER", "http://test.com")
+	os.Setenv("IMMICH_GO_UPLOAD_OVERWRITE", "true")
+	os.Setenv("IMMICH_GO_UPLOAD_FROM_FOLDER_RECURSIVE", "true")
+	defer os.Unsetenv("IMMICH_GO_UPLOAD_SERVER")
+	defer os.Unsetenv("IMMICH_GO_UPLOAD_OVERWRITE")
+	defer os.Unsetenv("IMMICH_GO_UPLOAD_FROM_FOLDER_RECURSIVE")
+
+	// Initialize the configuration manager
+	cm := New()
+	cm.Init("") // Initialize with no config file
+
+	// Process the command
+	err := cm.ProcessCommand(rootCmd)
+	assert.NoError(t, err)
+
+	// Simulate running the command
+	rootCmd.SetArgs([]string{"upload", "from-folder"})
+	rootCmd.Execute()
+
+	// Check if the flag values were set from the environment variables
+	assert.Equal(t, "http://test.com", server, "The persistent flag should be set from the subcommand's environment variable")
+	assert.Equal(t, true, overwrite, "The local flag should be set from the environment variable")
+	assert.Equal(t, true, recursive, "The nested subcommand flag should be set from the environment variable")
+}

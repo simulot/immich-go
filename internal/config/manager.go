@@ -67,36 +67,54 @@ func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) {
 		}
 	}
 
-	// bind flags of the current command
-	cm.v.BindPFlags(cmd.Flags())
-
-	// transfer viper values to flags
+	// Bind and apply viper values
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		// Create a nested key for viper
-		key := getViperKey(cmd, f.Name)
-
-		// Apply the viper config value to the flag when the flag is not set and viper has a value
+		key := getViperKey(cmd, f)
+		cm.v.BindPFlag(key, f)
 		if !f.Changed && cm.v.IsSet(key) {
 			val := cm.v.Get(key)
 			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
 		}
 	})
 
-	// Let's do the same for sub commands
+	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		key := getViperKey(cmd, f)
+		cm.v.BindPFlag(key, f)
+		if !f.Changed && cm.v.IsSet(key) {
+			val := cm.v.Get(key)
+			cmd.PersistentFlags().Set(f.Name, fmt.Sprintf("%v", val))
+		}
+	})
+
+	// Recurse for subcommands
 	for _, c := range cmd.Commands() {
 		cm.processCommand(c)
 	}
 }
 
-func getViperKey(cmd *cobra.Command, flagName string) string {
-	path := []string{}
-	for c := cmd; c.Parent() != nil; c = c.Parent() {
-		path = append([]string{c.Name()}, path...)
+func getViperKey(cmd *cobra.Command, f *pflag.Flag) string {
+	isInherited := cmd.Parent() != nil && cmd.Parent().PersistentFlags().Lookup(f.Name) != nil
+	if isInherited {
+		// Use parent path
+		path := []string{}
+		for c := cmd.Parent(); c.Parent() != nil; c = c.Parent() {
+			path = append([]string{c.Name()}, path...)
+		}
+		if len(path) > 0 {
+			return strings.Join(path, ".") + "." + f.Name
+		}
+		return f.Name
+	} else {
+		// Use current path
+		path := []string{}
+		for c := cmd; c.Parent() != nil; c = c.Parent() {
+			path = append([]string{c.Name()}, path...)
+		}
+		if len(path) > 0 {
+			return strings.Join(path, ".") + "." + f.Name
+		}
+		return f.Name
 	}
-	if len(path) > 0 {
-		return strings.Join(path, ".") + "." + flagName
-	}
-	return flagName
 }
 
 func (cm *ConfigurationManager) Save(fileName string) error {
