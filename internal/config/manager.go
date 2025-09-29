@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -14,12 +15,14 @@ type ConfigurationManager struct {
 	command   *cobra.Command
 	definers  map[*cobra.Command][]FlagDefiner
 	processed bool
+	origins   map[string]string
 }
 
 func New() *ConfigurationManager {
 	return &ConfigurationManager{
 		v:        viper.New(),
 		definers: map[*cobra.Command][]FlagDefiner{},
+		origins:  make(map[string]string),
 	}
 }
 
@@ -67,6 +70,17 @@ func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) {
 		}
 	}
 
+	// First, record CLI origins
+	origins := make(map[string]string)
+	recordOrigins := func(f *pflag.Flag) {
+		key := getViperKey(cmd, f)
+		if f.Changed {
+			origins[key] = "cli"
+		}
+	}
+	cmd.Flags().VisitAll(recordOrigins)
+	cmd.PersistentFlags().VisitAll(recordOrigins)
+
 	// Bind and apply viper values
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		key := getViperKey(cmd, f)
@@ -74,6 +88,15 @@ func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) {
 		if !f.Changed && cm.v.IsSet(key) {
 			val := cm.v.Get(key)
 			_ = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+			// Determine origin
+			envKey := "IMMICH_GO_" + strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(key, ".", "_"), "-", "_"))
+			if os.Getenv(envKey) != "" {
+				origins[key] = "environment"
+			} else {
+				origins[key] = "config file"
+			}
+		} else if _, ok := origins[key]; !ok {
+			origins[key] = "default"
 		}
 	})
 
@@ -83,8 +106,22 @@ func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) {
 		if !f.Changed && cm.v.IsSet(key) {
 			val := cm.v.Get(key)
 			_ = cmd.PersistentFlags().Set(f.Name, fmt.Sprintf("%v", val))
+			// Determine origin
+			envKey := "IMMICH_GO_" + strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(key, ".", "_"), "-", "_"))
+			if os.Getenv(envKey) != "" {
+				origins[key] = "environment"
+			} else {
+				origins[key] = "config file"
+			}
+		} else if _, ok := origins[key]; !ok {
+			origins[key] = "default"
 		}
 	})
+
+	// Set origins
+	for k, v := range origins {
+		cm.origins[k] = v
+	}
 
 	// Recurse for subcommands
 	for _, c := range cmd.Commands() {
@@ -115,6 +152,14 @@ func getViperKey(cmd *cobra.Command, f *pflag.Flag) string {
 		}
 		return f.Name
 	}
+}
+
+func (cm *ConfigurationManager) GetFlagOrigin(cmd *cobra.Command, flag *pflag.Flag) string {
+	key := getViperKey(cmd, flag)
+	if origin, ok := cm.origins[key]; ok {
+		return origin
+	}
+	return "default"
 }
 
 func (cm *ConfigurationManager) Save(fileName string) error {
