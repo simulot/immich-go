@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -162,5 +164,114 @@ func TestProcessCommand(t *testing.T) {
 
 		// Assert
 		assert.NoError(t, err)
+	})
+}
+
+func TestInit(t *testing.T) {
+	t.Run("should read config from a specific file", func(t *testing.T) {
+		// Arrange
+		cm := New()
+		// Create a temporary config file
+		content := []byte("test-key: test-value")
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config.yaml")
+		err := os.WriteFile(configFile, content, 0o644)
+		assert.NoError(t, err)
+
+		// Act
+		err = cm.Init(configFile)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "test-value", cm.v.GetString("test-key"))
+	})
+
+	t.Run("should return error for non-existent specific config file", func(t *testing.T) {
+		// Arrange
+		cm := New()
+
+		// Act
+		err := cm.Init("non-existent-file.yaml")
+
+		// Assert
+		assert.Error(t, err)
+	})
+
+	t.Run("should search for default config file and not return error if not found", func(t *testing.T) {
+		// Arrange
+		cm := New()
+		dir := t.TempDir()
+
+		// Change working directory to temp dir
+		oldWd, err := os.Getwd()
+		assert.NoError(t, err)
+		err = os.Chdir(dir)
+		assert.NoError(t, err)
+		defer os.Chdir(oldWd)
+
+		// Act
+		err = cm.Init("") // empty string should trigger search in new empty CWD
+
+		// Assert
+		assert.NoError(t, err)
+	})
+
+	t.Run("should search for default config file and load it if present", func(t *testing.T) {
+		// Arrange
+		cm := New()
+		content := []byte("another-key: another-value")
+		dir := t.TempDir()
+
+		// Change working directory to temp dir
+		oldWd, err := os.Getwd()
+		assert.NoError(t, err)
+		err = os.Chdir(dir)
+		assert.NoError(t, err)
+		defer os.Chdir(oldWd)
+
+		configFile := filepath.Join(dir, "immich-go.yaml")
+		err = os.WriteFile(configFile, content, 0o644)
+		assert.NoError(t, err)
+
+		// Act
+		err = cm.Init("") // empty string should trigger search
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "another-value", cm.v.GetString("another-key"))
+	})
+
+	t.Run("should bind environment variables", func(t *testing.T) {
+		// Arrange
+		cm := New()
+		t.Setenv("IMMICH_GO_ENV_VAR", "env-value")
+		t.Setenv("IMMICH_GO_MY_FLAG", "env-flag-value")
+
+		// Act
+		err := cm.Init("")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "env-value", cm.v.GetString("env-var"))
+		assert.Equal(t, "env-flag-value", cm.v.GetString("my-flag"))
+	})
+
+	t.Run("should use env vars with correct precedence over config file", func(t *testing.T) {
+		// Arrange
+		cm := New()
+		content := []byte("my-flag: file-value")
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config.yaml")
+		err := os.WriteFile(configFile, content, 0o644)
+		assert.NoError(t, err)
+
+		t.Setenv("IMMICH_GO_MY_FLAG", "env-value")
+
+		// Act
+		err = cm.Init(configFile)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "env-value", cm.v.GetString("my-flag"))
 	})
 }
