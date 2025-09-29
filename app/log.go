@@ -20,7 +20,6 @@ import (
 	"github.com/simulot/immich-go/internal/loghelper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 type Log struct {
@@ -115,18 +114,16 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 
 	log.Info(fmt.Sprintf("Command: %s", strings.Join(cmdStack, " ")))
 	log.Info("Flags:")
-	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+	visitFlags := func(flag *pflag.Flag) {
+		origin := app.Config.GetFlagOrigin(cmd, flag)
 		val := flag.Value.String()
-		if val == "" {
-			if v := viper.GetString(flag.Name); v != "" {
-				val = v
-			}
-		}
 		if strings.Contains(flag.Name, "api-key") && len(val) > 4 {
 			val = strings.Repeat("*", len(val)-4) + val[len(val)-4:]
 		}
-		log.Info("", "--"+flag.Name, val)
-	})
+		log.Info("", "--"+flag.Name, val, "origin", origin)
+	}
+	cmd.Flags().VisitAll(visitFlags)
+	cmd.PersistentFlags().VisitAll(visitFlags)
 
 	// List arguments
 	log.Info("Arguments:")
