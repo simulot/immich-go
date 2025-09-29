@@ -7,12 +7,12 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/simulot/immich-go/immich"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/spf13/cobra"
 )
 
@@ -95,7 +95,8 @@ func (client *Client) Open(ctx context.Context, app *Application) error {
 	log := app.Log()
 	if log.File != "" {
 		if log.mainWriter == nil {
-			err := configuration.MakeDirForFile(log.File)
+			dir := filepath.Dir(log.File)
+			err := os.MkdirAll(dir, 0o700)
 			if err != nil {
 				return err
 			}

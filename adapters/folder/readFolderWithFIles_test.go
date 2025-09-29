@@ -11,7 +11,6 @@ import (
 	"github.com/kr/pretty"
 	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
@@ -150,7 +149,7 @@ func TestLocalAssets(t *testing.T) {
 		},
 	}
 
-	logFile := configuration.DefaultLogFile()
+	logFile := app.DefaultLogFile()
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()

@@ -19,9 +19,6 @@ type Application struct {
 	log    *Log
 	jnl    *fileevent.Recorder
 	tz     *time.Location
-
-	// TODO manage configuration file
-	// ConfigurationFile string // Path to the configuration file to use
 }
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {

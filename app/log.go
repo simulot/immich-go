@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
 	"github.com/simulot/immich-go/immich/httptrace"
-	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 	"github.com/simulot/immich-go/internal/loghelper"
 	"github.com/spf13/cobra"
@@ -50,15 +50,25 @@ func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
 	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, log.Close, ctx, cmd, app)
 }
 
+// DefaultLogFile returns the default log file path
+func DefaultLogFile() string {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return time.Now().Format("immich-go_2006-01-02_15-04-05.log")
+	}
+	return filepath.Join(cacheDir, "immich-go", time.Now().Format("immich-go_2006-01-02_15-04-05.log"))
+}
+
 func (log *Log) OpenLogFile() error {
 	var w io.WriteCloser
 
 	if log.File == "" {
-		log.File = configuration.DefaultLogFile()
+		log.File = DefaultLogFile()
 	}
 	if log.File != "" {
 		if log.mainWriter == nil {
-			err := configuration.MakeDirForFile(log.File)
+			dir := filepath.Dir(log.File)
+			err := os.MkdirAll(dir, 0o700)
 			if err != nil {
 				return err
 			}
