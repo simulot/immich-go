@@ -15,7 +15,6 @@ import (
 	"github.com/psanford/memfs"
 	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/configuration"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -358,7 +357,7 @@ func TestInMemLocalAssets(t *testing.T) {
 		},
 	}
 
-	logFile := configuration.DefaultLogFile()
+	logFile := app.DefaultLogFile()
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
@@ -487,7 +486,7 @@ func TestInMemLocalAssetsWithTags(t *testing.T) {
 		},
 	}
 
-	logFile := configuration.DefaultLogFile()
+	logFile := app.DefaultLogFile()
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
