@@ -159,18 +159,25 @@ func NewConfigFrom(cmd *cobra.Command) any {
 }
 
 func collectEnvVars(cmd *cobra.Command, path []string, envVars map[string]EnvVarInfo) {
-	if cmd.HasFlags() {
-		cmd.Flags().VisitAll(func(f *pflag.Flag) {
+	flags := cmd.Flags()
+	if cmd.HasPersistentFlags() {
+		flags.AddFlagSet(cmd.PersistentFlags())
+	}
+	if flags.HasFlags() {
+		flags.VisitAll(func(f *pflag.Flag) {
 			if f.Name != "config" && f.Name != "help" {
 				varName := "IMMICH_GO_"
 				if len(path) > 0 {
 					varName += strings.ToUpper(strings.ReplaceAll(strings.Join(path, "_"), "-", "_")) + "_"
 				}
 				varName += strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
-				envVars[varName] = EnvVarInfo{
-					Path:  strings.Join(path, " "),
-					Flag:  f.Name,
-					Usage: f.Usage,
+				current, ok := envVars[varName]
+				if !ok || len(current.Path) > len(strings.Join(path, " ")) {
+					envVars[varName] = EnvVarInfo{
+						Path:  strings.Join(path, " "),
+						Flag:  f.Name,
+						Usage: f.Usage,
+					}
 				}
 			}
 		})

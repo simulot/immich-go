@@ -13,7 +13,9 @@ import (
 
 	"github.com/simulot/immich-go/immich"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/config"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type Client struct {
@@ -34,28 +36,42 @@ type Client struct {
 	Immich                    immich.ImmichInterface      // Immich client
 	AdminImmich               immich.ImmichInterface      // Immich client for admin
 	ClientLog                 *slog.Logger                // Logger
-	OnServerErrors            cliflags.OnServerErrorsFlag // Behavior on server errors
+	OnServerErrors            cliflags.OnServerErrorsFlag // Behavior on server errors, (stop|continue| <n> errors)
 	User                      immich.User                 // User info corresponding to the API key
 	PauseImmichBackgroundJobs bool                        // Pause Immich background jobs
+}
+
+var _ config.FlagDefiner = (*Client)(nil)
+
+// add server flags to the command cmd
+func (client *Client) DefineFlags(flags *pflag.FlagSet) {
+	client.DeviceUUID, _ = os.Hostname()
+
+	flags.StringVarP(&client.Server, "server", "s", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
+	flags.StringVarP(&client.APIKey, "api-key", "k", "", "API Key")
+	flags.StringVar(&client.AdminAPIKey, "admin-api-key", "", "Admin's API Key for managing server's jobs")
+	flags.BoolVar(&client.APITrace, "api-trace", false, "Enable trace of api calls")
+
+	flags.BoolVar(&client.PauseImmichBackgroundJobs, "pause-immich-jobs", true, "Pause Immich background jobs during upload operations")
+	flags.BoolVar(&client.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
+	flags.DurationVar(&client.ClientTimeout, "client-timeout", 20*time.Minute, "Set server calls timeout")
+	flags.StringVar(&client.DeviceUUID, "device-uuid", client.DeviceUUID, "Set a device UUID")
+	flags.BoolVar(&client.DryRun, "dry-run", false, "Simulate all actions")
+	flags.StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
+	flags.Var(&client.OnServerErrors, "on-server-errors", "Action to take on server errors, (stop|continue| <n> errors)")
 }
 
 // add server flags to the command cmd
 func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, dryRun bool) {
 	client := app.Client()
-	client.DeviceUUID, _ = os.Hostname()
+	client.DryRun = dryRun
+	app.Config.Register(cmd, client)
 
-	cmd.PersistentFlags().StringVarP(&client.Server, "server", "s", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
-	cmd.PersistentFlags().StringVarP(&client.APIKey, "api-key", "k", "", "API Key")
-	cmd.PersistentFlags().StringVar(&client.AdminAPIKey, "admin-api-key", "", "Admin's API Key for managing server's jobs")
-	cmd.PersistentFlags().BoolVar(&client.APITrace, "api-trace", false, "Enable trace of api calls")
-
-	cmd.PersistentFlags().BoolVar(&client.PauseImmichBackgroundJobs, "pause-immich-jobs", true, "Pause Immich background jobs during upload operations")
-	cmd.PersistentFlags().BoolVar(&client.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
-	cmd.PersistentFlags().DurationVar(&client.ClientTimeout, "client-timeout", 20*time.Minute, "Set server calls timeout")
-	cmd.PersistentFlags().StringVar(&client.DeviceUUID, "device-uuid", client.DeviceUUID, "Set a device UUID")
-	cmd.PersistentFlags().BoolVar(&client.DryRun, "dry-run", dryRun, "Simulate all actions")
-	cmd.PersistentFlags().StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
-	cmd.PersistentFlags().Var(&client.OnServerErrors, "on-server-errors", "Action to take on server errors, (stop|continue| <n> errors)")
+	cmd.PersistentFlags().AddFlagSet(func() *pflag.FlagSet {
+		fs := pflag.NewFlagSet(cmd.Name(), pflag.ContinueOnError)
+		client.DefineFlags(fs)
+		return fs
+	}())
 
 	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, OpenClient, ctx, cmd, app)
 	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, CloseClient, ctx, cmd, app)

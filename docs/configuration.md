@@ -9,8 +9,14 @@ The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immi
 title: TOML
 ---
 ```toml
+log-file = ''
+log-level = 'INFO'
+log-type = 'text'
+save-config = false
+
 [archive]
 dry-run = false
+write-to-folder = ''
 
 [archive.from-folder]
 album-path-joiner = ' / '
@@ -81,19 +87,33 @@ After = 0001-01-01T00:00:00Z
 Before = 0001-01-01T00:00:00Z
 
 [stack]
-manage-burst = 0
-manage-epson-fastfoto = false
-manage-heic-jpeg = 0
-manage-raw-jpeg = 0
-
-[stack.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
+admin-api-key = ''
+api-key = ''
+api-trace = false
+client-timeout = 1200000000000
+device-uuid = 'gl65'
+dry-run = false
+on-server-errors = 0
+pause-immich-jobs = true
+server = ''
+skip-verify-ssl = false
+time-zone = ''
 
 [upload]
+admin-api-key = ''
+api-key = ''
+api-trace = false
+client-timeout = 1200000000000
 concurrent-uploads = 12
+device-uuid = 'gl65'
+dry-run = false
 no-ui = false
+on-server-errors = 0
 overwrite = false
+pause-immich-jobs = true
+server = ''
+skip-verify-ssl = false
+time-zone = ''
 
 [upload.from-folder]
 album-path-joiner = ' / '
@@ -280,16 +300,31 @@ archive:
     from-trash: false
     include-extensions: []
     include-type: ""
+  write-to-folder: ""
+log-file: ""
+log-level: INFO
+log-type: text
+save-config: false
 stack:
-  date-range:
-    after: 0001-01-01T00:00:00Z
-    before: 0001-01-01T00:00:00Z
-  manage-burst: 0
-  manage-epson-fastfoto: false
-  manage-heic-jpeg: 0
-  manage-raw-jpeg: 0
+  admin-api-key: ""
+  api-key: ""
+  api-trace: false
+  client-timeout: 1200000000000
+  device-uuid: gl65
+  dry-run: false
+  on-server-errors: 0
+  pause-immich-jobs: true
+  server: ""
+  skip-verify-ssl: false
+  time-zone: ""
 upload:
+  admin-api-key: ""
+  api-key: ""
+  api-trace: false
+  client-timeout: 1200000000000
   concurrent-uploads: 12
+  device-uuid: gl65
+  dry-run: false
   from-folder:
     album-path-joiner: ' / '
     album-picasa: false
@@ -391,7 +426,12 @@ upload:
     session-tag: false
     tag: {}
   no-ui: false
+  on-server-errors: 0
   overwrite: false
+  pause-immich-jobs: true
+  server: ""
+  skip-verify-ssl: false
+  time-zone: ""
 version: {}
 ```
 ````
@@ -466,20 +506,34 @@ title: JSON
       "from-trash": false,
       "include-extensions": null,
       "include-type": ""
-    }
-  },
-  "stack": {
-    "date-range": {
-      "After": "0001-01-01T00:00:00Z",
-      "Before": "0001-01-01T00:00:00Z"
     },
-    "manage-burst": 0,
-    "manage-epson-fastfoto": false,
-    "manage-heic-jpeg": 0,
-    "manage-raw-jpeg": 0
+    "write-to-folder": ""
+  },
+  "log-file": "",
+  "log-level": "INFO",
+  "log-type": "text",
+  "save-config": false,
+  "stack": {
+    "admin-api-key": "",
+    "api-key": "",
+    "api-trace": false,
+    "client-timeout": 1200000000000,
+    "device-uuid": "gl65",
+    "dry-run": false,
+    "on-server-errors": 0,
+    "pause-immich-jobs": true,
+    "server": "",
+    "skip-verify-ssl": false,
+    "time-zone": ""
   },
   "upload": {
+    "admin-api-key": "",
+    "api-key": "",
+    "api-trace": false,
+    "client-timeout": 1200000000000,
     "concurrent-uploads": 12,
+    "device-uuid": "gl65",
+    "dry-run": false,
     "from-folder": {
       "album-path-joiner": " / ",
       "album-picasa": false,
@@ -591,7 +645,12 @@ title: JSON
       "tag": {}
     },
     "no-ui": false,
-    "overwrite": false
+    "on-server-errors": 0,
+    "overwrite": false,
+    "pause-immich-jobs": true,
+    "server": "",
+    "skip-verify-ssl": false,
+    "time-zone": ""
   },
   "version": {}
 }
