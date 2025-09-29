@@ -1,36 +1,599 @@
 # Configuration File
 
-The configuration file is a TOML file. By default, `immich-go` looks for a file named `immich-go.toml` in the current directory.
+The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immich-go` looks for a file named `immich-go.toml` in the current directory.
 
-## Global settings
+## Configuration file structure
 
+````
+---
+title: TOML
+---
 ```toml
-# Immich server URL
-server = "http://immich:2283"
-# Immich API key
-api-key = "..."
-# Log level (DEBUG|INFO|WARN|ERROR)
-log-level = "INFO"
-```
+[archive]
+dry-run = false
 
-## Command specific settings
+[archive.from-folder]
+album-path-joiner = ' / '
+album-picasa = false
+date-from-name = true
+exclude-extensions = []
+folder-as-album = ''
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = []
+include-type = ''
+into-album = ''
+recursive = true
+session-tag = false
 
-Settings for specific commands are nested under keys corresponding to the command path.
+[archive.from-folder.ban-file]
 
-### `upload` command
+[archive.from-folder.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
 
-```toml
+[archive.from-folder.tag]
+
+[archive.from-google-photos]
+exclude-extensions = []
+from-album-name = ''
+include-archived = true
+include-extensions = []
+include-partner = true
+include-trashed = false
+include-type = ''
+include-unmatched = false
+include-untitled-albums = false
+partner-shared-album = ''
+people-tag = true
+session-tag = false
+sync-albums = true
+takeout-tag = true
+
+[archive.from-google-photos.ban-file]
+
+[archive.from-google-photos.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
+[archive.from-google-photos.tag]
+
+[archive.from-immich]
+exclude-extensions = []
+from-api-key = ''
+from-api-trace = false
+from-archived = false
+from-client-timeout = 1200000000000
+from-favorite = false
+from-minimal-rating = 0
+from-server = ''
+from-skip-verify-ssl = false
+from-trash = false
+include-extensions = []
+include-type = ''
+
+[archive.from-immich.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
+[archive.from-immich.from-date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
+[stack]
+manage-burst = 0
+manage-epson-fastfoto = false
+manage-heic-jpeg = 0
+manage-raw-jpeg = 0
+
+[stack.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
 [upload]
-# Number of concurrent upload workers
-concurrent = 2
-# Create albums for assets
-create-albums = true
-```
+concurrent-uploads = 12
+no-ui = false
+overwrite = false
 
-### `upload from-folder` command
-
-```toml
 [upload.from-folder]
-# Use the folder name as the album name
-folder-as-album = "FOLDER"
+album-path-joiner = ' / '
+album-picasa = false
+date-from-name = true
+exclude-extensions = []
+folder-as-album = 'none'
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = []
+include-type = ''
+into-album = ''
+manage-burst = 0
+manage-epson-fastfoto = false
+manage-heic-jpeg = 0
+manage-raw-jpeg = 0
+recursive = true
+session-tag = false
+
+[upload.from-folder.ban-file]
+
+[upload.from-folder.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
+[upload.from-folder.tag]
+
+[upload.from-google-photos]
+from-album-name = ''
+include-archived = true
+include-partner = true
+include-trashed = false
+include-unmatched = false
+include-untitled-albums = false
+partner-shared-album = ''
+people-tag = true
+session-tag = false
+sync-albums = true
+takeout-tag = true
+
+[upload.from-google-photos.ban-file]
+
+[upload.from-google-photos.tag]
+
+[upload.from-icloud]
+album-path-joiner = ' / '
+album-picasa = false
+date-from-name = true
+exclude-extensions = []
+folder-as-album = 'NONE'
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = []
+include-type = ''
+into-album = ''
+manage-burst = 0
+manage-epson-fastfoto = false
+manage-heic-jpeg = 0
+manage-raw-jpeg = 0
+memories = false
+recursive = true
+session-tag = false
+
+[upload.from-icloud.ban-file]
+
+[upload.from-icloud.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
+[upload.from-icloud.tag]
+
+[upload.from-immich]
+exclude-extensions = []
+from-api-key = ''
+from-api-trace = false
+from-archived = false
+from-client-timeout = 1200000000000
+from-favorite = false
+from-minimal-rating = 0
+from-server = ''
+from-skip-verify-ssl = false
+from-trash = false
+include-extensions = []
+include-type = ''
+
+[upload.from-immich.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
+[upload.from-immich.from-date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
+[upload.from-picasa]
+album-path-joiner = ' / '
+album-picasa = false
+date-from-name = true
+exclude-extensions = []
+folder-as-album = 'NONE'
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = []
+include-type = ''
+into-album = ''
+manage-burst = 0
+manage-epson-fastfoto = false
+manage-heic-jpeg = 0
+manage-raw-jpeg = 0
+recursive = true
+session-tag = false
+
+[upload.from-picasa.ban-file]
+
+[upload.from-picasa.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
+
+[upload.from-picasa.tag]
+
+[version]
 ```
+````
+````
+---
+title: YAML
+---
+```yaml
+archive:
+  dry-run: false
+  from-folder:
+    album-path-joiner: ' / '
+    album-picasa: false
+    ban-file: {}
+    date-from-name: true
+    date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    exclude-extensions: []
+    folder-as-album: ""
+    folder-as-tags: false
+    ignore-sidecar-files: false
+    include-extensions: []
+    include-type: ""
+    into-album: ""
+    recursive: true
+    session-tag: false
+    tag: {}
+  from-google-photos:
+    ban-file: {}
+    date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    exclude-extensions: []
+    from-album-name: ""
+    include-archived: true
+    include-extensions: []
+    include-partner: true
+    include-trashed: false
+    include-type: ""
+    include-unmatched: false
+    include-untitled-albums: false
+    partner-shared-album: ""
+    people-tag: true
+    session-tag: false
+    sync-albums: true
+    tag: {}
+    takeout-tag: true
+  from-immich:
+    date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    exclude-extensions: []
+    from-api-key: ""
+    from-api-trace: false
+    from-archived: false
+    from-client-timeout: 1200000000000
+    from-date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    from-favorite: false
+    from-minimal-rating: 0
+    from-server: ""
+    from-skip-verify-ssl: false
+    from-trash: false
+    include-extensions: []
+    include-type: ""
+stack:
+  date-range:
+    after: 0001-01-01T00:00:00Z
+    before: 0001-01-01T00:00:00Z
+  manage-burst: 0
+  manage-epson-fastfoto: false
+  manage-heic-jpeg: 0
+  manage-raw-jpeg: 0
+upload:
+  concurrent-uploads: 12
+  from-folder:
+    album-path-joiner: ' / '
+    album-picasa: false
+    ban-file: {}
+    date-from-name: true
+    date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    exclude-extensions: []
+    folder-as-album: none
+    folder-as-tags: false
+    ignore-sidecar-files: false
+    include-extensions: []
+    include-type: ""
+    into-album: ""
+    manage-burst: 0
+    manage-epson-fastfoto: false
+    manage-heic-jpeg: 0
+    manage-raw-jpeg: 0
+    recursive: true
+    session-tag: false
+    tag: {}
+  from-google-photos:
+    ban-file: {}
+    from-album-name: ""
+    include-archived: true
+    include-partner: true
+    include-trashed: false
+    include-unmatched: false
+    include-untitled-albums: false
+    partner-shared-album: ""
+    people-tag: true
+    session-tag: false
+    sync-albums: true
+    tag: {}
+    takeout-tag: true
+  from-icloud:
+    album-path-joiner: ' / '
+    album-picasa: false
+    ban-file: {}
+    date-from-name: true
+    date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    exclude-extensions: []
+    folder-as-album: NONE
+    folder-as-tags: false
+    ignore-sidecar-files: false
+    include-extensions: []
+    include-type: ""
+    into-album: ""
+    manage-burst: 0
+    manage-epson-fastfoto: false
+    manage-heic-jpeg: 0
+    manage-raw-jpeg: 0
+    memories: false
+    recursive: true
+    session-tag: false
+    tag: {}
+  from-immich:
+    date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    exclude-extensions: []
+    from-api-key: ""
+    from-api-trace: false
+    from-archived: false
+    from-client-timeout: 1200000000000
+    from-date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    from-favorite: false
+    from-minimal-rating: 0
+    from-server: ""
+    from-skip-verify-ssl: false
+    from-trash: false
+    include-extensions: []
+    include-type: ""
+  from-picasa:
+    album-path-joiner: ' / '
+    album-picasa: false
+    ban-file: {}
+    date-from-name: true
+    date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    exclude-extensions: []
+    folder-as-album: NONE
+    folder-as-tags: false
+    ignore-sidecar-files: false
+    include-extensions: []
+    include-type: ""
+    into-album: ""
+    manage-burst: 0
+    manage-epson-fastfoto: false
+    manage-heic-jpeg: 0
+    manage-raw-jpeg: 0
+    recursive: true
+    session-tag: false
+    tag: {}
+  no-ui: false
+  overwrite: false
+version: {}
+```
+````
+````
+---
+title: JSON
+---
+```json
+{
+  "archive": {
+    "dry-run": false,
+    "from-folder": {
+      "album-path-joiner": " / ",
+      "album-picasa": false,
+      "ban-file": {},
+      "date-from-name": true,
+      "date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "exclude-extensions": null,
+      "folder-as-album": "",
+      "folder-as-tags": false,
+      "ignore-sidecar-files": false,
+      "include-extensions": null,
+      "include-type": "",
+      "into-album": "",
+      "recursive": true,
+      "session-tag": false,
+      "tag": {}
+    },
+    "from-google-photos": {
+      "ban-file": {},
+      "date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "exclude-extensions": null,
+      "from-album-name": "",
+      "include-archived": true,
+      "include-extensions": null,
+      "include-partner": true,
+      "include-trashed": false,
+      "include-type": "",
+      "include-unmatched": false,
+      "include-untitled-albums": false,
+      "partner-shared-album": "",
+      "people-tag": true,
+      "session-tag": false,
+      "sync-albums": true,
+      "tag": {},
+      "takeout-tag": true
+    },
+    "from-immich": {
+      "date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "exclude-extensions": null,
+      "from-api-key": "",
+      "from-api-trace": false,
+      "from-archived": false,
+      "from-client-timeout": 1200000000000,
+      "from-date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "from-favorite": false,
+      "from-minimal-rating": 0,
+      "from-server": "",
+      "from-skip-verify-ssl": false,
+      "from-trash": false,
+      "include-extensions": null,
+      "include-type": ""
+    }
+  },
+  "stack": {
+    "date-range": {
+      "After": "0001-01-01T00:00:00Z",
+      "Before": "0001-01-01T00:00:00Z"
+    },
+    "manage-burst": 0,
+    "manage-epson-fastfoto": false,
+    "manage-heic-jpeg": 0,
+    "manage-raw-jpeg": 0
+  },
+  "upload": {
+    "concurrent-uploads": 12,
+    "from-folder": {
+      "album-path-joiner": " / ",
+      "album-picasa": false,
+      "ban-file": {},
+      "date-from-name": true,
+      "date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "exclude-extensions": null,
+      "folder-as-album": "none",
+      "folder-as-tags": false,
+      "ignore-sidecar-files": false,
+      "include-extensions": null,
+      "include-type": "",
+      "into-album": "",
+      "manage-burst": 0,
+      "manage-epson-fastfoto": false,
+      "manage-heic-jpeg": 0,
+      "manage-raw-jpeg": 0,
+      "recursive": true,
+      "session-tag": false,
+      "tag": {}
+    },
+    "from-google-photos": {
+      "ban-file": {},
+      "from-album-name": "",
+      "include-archived": true,
+      "include-partner": true,
+      "include-trashed": false,
+      "include-unmatched": false,
+      "include-untitled-albums": false,
+      "partner-shared-album": "",
+      "people-tag": true,
+      "session-tag": false,
+      "sync-albums": true,
+      "tag": {},
+      "takeout-tag": true
+    },
+    "from-icloud": {
+      "album-path-joiner": " / ",
+      "album-picasa": false,
+      "ban-file": {},
+      "date-from-name": true,
+      "date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "exclude-extensions": null,
+      "folder-as-album": "NONE",
+      "folder-as-tags": false,
+      "ignore-sidecar-files": false,
+      "include-extensions": null,
+      "include-type": "",
+      "into-album": "",
+      "manage-burst": 0,
+      "manage-epson-fastfoto": false,
+      "manage-heic-jpeg": 0,
+      "manage-raw-jpeg": 0,
+      "memories": false,
+      "recursive": true,
+      "session-tag": false,
+      "tag": {}
+    },
+    "from-immich": {
+      "date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "exclude-extensions": null,
+      "from-api-key": "",
+      "from-api-trace": false,
+      "from-archived": false,
+      "from-client-timeout": 1200000000000,
+      "from-date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "from-favorite": false,
+      "from-minimal-rating": 0,
+      "from-server": "",
+      "from-skip-verify-ssl": false,
+      "from-trash": false,
+      "include-extensions": null,
+      "include-type": ""
+    },
+    "from-picasa": {
+      "album-path-joiner": " / ",
+      "album-picasa": false,
+      "ban-file": {},
+      "date-from-name": true,
+      "date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "exclude-extensions": null,
+      "folder-as-album": "NONE",
+      "folder-as-tags": false,
+      "ignore-sidecar-files": false,
+      "include-extensions": null,
+      "include-type": "",
+      "into-album": "",
+      "manage-burst": 0,
+      "manage-epson-fastfoto": false,
+      "manage-heic-jpeg": 0,
+      "manage-raw-jpeg": 0,
+      "recursive": true,
+      "session-tag": false,
+      "tag": {}
+    },
+    "no-ui": false,
+    "overwrite": false
+  },
+  "version": {}
+}
+```
+````
