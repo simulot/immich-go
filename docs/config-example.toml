@@ -1,19 +1,52 @@
-admin-api-key = ''
+config = ''
+log-file = ''
+log-level = 'INFO'
+log-type = 'text'
+save-config = false
+
+[archive]
+dry-run = false
+write-to-folder = ''
+
+[archive.from-folder]
 album-path-joiner = ' / '
 album-picasa = false
-api-key = ''
-api-trace = false
-ban-file = "'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/'"
-client-timeout = '20m0s'
-concurrent-uploads = 12
+ban-file = ''
 date-from-name = true
 date-range = 'unset'
-device-uuid = 'gl65'
-dry-run = false
 exclude-extensions = ''
-folder-as-album = 'NONE'
+folder-as-album = ''
 folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = ''
+include-type = ''
+into-album = ''
+recursive = true
+session-tag = false
+tag = []
+
+[archive.from-google-photos]
+ban-file = ''
+date-range = 'unset'
+exclude-extensions = ''
 from-album-name = ''
+include-archived = true
+include-extensions = ''
+include-partner = true
+include-trashed = false
+include-type = ''
+include-unmatched = false
+include-untitled-albums = false
+partner-shared-album = ''
+people-tag = true
+session-tag = false
+sync-albums = true
+tag = []
+takeout-tag = true
+
+[archive.from-immich]
+date-range = 'unset'
+exclude-extensions = ''
 from-api-key = ''
 from-api-trace = false
 from-archived = false
@@ -24,31 +57,129 @@ from-minimal-rating = 0
 from-server = ''
 from-skip-verify-ssl = false
 from-trash = false
-ignore-sidecar-files = false
-include-archived = true
 include-extensions = ''
+include-type = ''
+
+[stack]
+admin-api-key = ''
+api-key = ''
+api-trace = false
+client-timeout = '20m0s'
+device-uuid = 'gl65'
+dry-run = false
+on-server-errors = 'stop'
+pause-immich-jobs = true
+server = ''
+skip-verify-ssl = false
+time-zone = ''
+
+[upload]
+admin-api-key = ''
+api-key = ''
+api-trace = false
+client-timeout = '20m0s'
+concurrent-uploads = 12
+device-uuid = 'gl65'
+dry-run = false
+no-ui = false
+on-server-errors = 'stop'
+overwrite = false
+pause-immich-jobs = true
+server = ''
+skip-verify-ssl = false
+time-zone = ''
+
+[upload.from-folder]
+album-path-joiner = ' / '
+album-picasa = false
+ban-file = "'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/'"
+date-from-name = true
+date-range = 'unset'
+exclude-extensions = ''
+folder-as-album = 'none'
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = ''
+include-type = ''
+into-album = ''
+manage-burst = 'NoStack'
+manage-epson-fastfoto = false
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
+recursive = true
+session-tag = false
+tag = []
+
+[upload.from-google-photos]
+ban-file = ''
+from-album-name = ''
+include-archived = true
 include-partner = true
 include-trashed = false
-include-type = ''
 include-unmatched = false
 include-untitled-albums = false
+partner-shared-album = ''
+people-tag = true
+session-tag = false
+sync-albums = true
+tag = []
+takeout-tag = true
+
+[upload.from-icloud]
+album-path-joiner = ' / '
+album-picasa = false
+ban-file = "'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'"
+date-from-name = true
+date-range = 'unset'
+exclude-extensions = ''
+folder-as-album = 'NONE'
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = ''
+include-type = ''
 into-album = ''
 manage-burst = 'NoStack'
 manage-epson-fastfoto = false
 manage-heic-jpeg = 'NoStack'
 manage-raw-jpeg = 'NoStack'
 memories = false
-no-ui = false
-on-server-errors = 'stop'
-overwrite = false
-partner-shared-album = ''
-pause-immich-jobs = true
-people-tag = true
 recursive = true
-server = ''
 session-tag = false
-skip-verify-ssl = false
-sync-albums = true
 tag = []
-takeout-tag = true
-time-zone = ''
+
+[upload.from-immich]
+date-range = 'unset'
+exclude-extensions = ''
+from-api-key = ''
+from-api-trace = false
+from-archived = false
+from-client-timeout = '20m0s'
+from-date-range = 'unset'
+from-favorite = false
+from-minimal-rating = 0
+from-server = ''
+from-skip-verify-ssl = false
+from-trash = false
+include-extensions = ''
+include-type = ''
+
+[upload.from-picasa]
+album-path-joiner = ' / '
+album-picasa = false
+ban-file = "'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/'"
+date-from-name = true
+date-range = 'unset'
+exclude-extensions = ''
+folder-as-album = 'NONE'
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = ''
+include-type = ''
+into-album = ''
+manage-burst = 'NoStack'
+manage-epson-fastfoto = false
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
+recursive = true
+session-tag = false
+tag = []
