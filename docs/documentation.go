@@ -94,7 +94,9 @@ func main() {
 
 func generateConfigurationFileExamples(rootCmd *cobra.Command, app *app.Application) {
 	cfg := NewConfigFrom(rootCmd)
-	app.Config.Save("docs/config-example.toml")
+	if err := app.Config.Save("docs/config-example.toml"); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to save config example: %v\n", err)
+	}
 	f, err := os.Create("docs/configuration.md")
 	if err != nil {
 		panic(err)

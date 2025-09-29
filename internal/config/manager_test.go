@@ -207,7 +207,7 @@ func TestInit(t *testing.T) {
 		assert.NoError(t, err)
 		err = os.Chdir(dir)
 		assert.NoError(t, err)
-		defer os.Chdir(oldWd)
+		defer func() { _ = os.Chdir(oldWd) }()
 
 		// Act
 		err = cm.Init("") // empty string should trigger search in new empty CWD
@@ -227,7 +227,7 @@ func TestInit(t *testing.T) {
 		assert.NoError(t, err)
 		err = os.Chdir(dir)
 		assert.NoError(t, err)
-		defer os.Chdir(oldWd)
+		defer func() { _ = os.Chdir(oldWd) }()
 
 		configFile := filepath.Join(dir, "immich-go.yaml")
 		err = os.WriteFile(configFile, content, 0o644)
@@ -305,7 +305,7 @@ func TestViperEnvBinding(t *testing.T) {
 
 	// Initialize the configuration manager
 	cm := New()
-	cm.Init("") // Initialize with no config file
+	_ = cm.Init("") // Initialize with no config file
 
 	// Process the command
 	err := cm.ProcessCommand(rootCmd)
@@ -313,7 +313,7 @@ func TestViperEnvBinding(t *testing.T) {
 
 	// Simulate running the command
 	rootCmd.SetArgs([]string{"upload", "from-folder"})
-	rootCmd.Execute()
+	_ = rootCmd.Execute()
 
 	// Check if the flag values were set from the environment variables
 	assert.Equal(t, "http://test.com", server, "The persistent flag should be set from the subcommand's environment variable")

@@ -70,19 +70,19 @@ func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) {
 	// Bind and apply viper values
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		key := getViperKey(cmd, f)
-		cm.v.BindPFlag(key, f)
+		_ = cm.v.BindPFlag(key, f)
 		if !f.Changed && cm.v.IsSet(key) {
 			val := cm.v.Get(key)
-			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+			_ = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
 		}
 	})
 
 	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		key := getViperKey(cmd, f)
-		cm.v.BindPFlag(key, f)
+		_ = cm.v.BindPFlag(key, f)
 		if !f.Changed && cm.v.IsSet(key) {
 			val := cm.v.Get(key)
-			cmd.PersistentFlags().Set(f.Name, fmt.Sprintf("%v", val))
+			_ = cmd.PersistentFlags().Set(f.Name, fmt.Sprintf("%v", val))
 		}
 	})
 
