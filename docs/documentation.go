@@ -244,11 +244,8 @@ func setDateRanges(m map[string]interface{}, value string) {
 // main generates documentation for environment variables and configuration files
 func main() {
 	rootCmd, _ := cmd.RootImmichGoCommand(context.Background())
-	err := rootCmd.Execute()
-	if err != nil {
-		panic(err)
-	}
 
+	// Generate documentation
 	generateEnvVarsDoc(rootCmd)
 	generateConfigurationFileExamples(rootCmd)
 }
