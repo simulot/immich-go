@@ -5,17 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
-	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/app/cmd"
 	"github.com/simulot/immich-go/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	exampleTimeout = "20m"
 )
 
 type EnvVarInfo struct {
@@ -123,7 +127,7 @@ func generateEnvVarsDoc(rootCmd *cobra.Command) {
 }
 
 // generateConfigurationFileExamples generates markdown documentation with configuration file examples
-func generateConfigurationFileExamples(rootCmd *cobra.Command, app *app.Application) {
+func generateConfigurationFileExamples(rootCmd *cobra.Command) {
 	cfg := NewConfigFrom(rootCmd)
 
 	// Set example values for documentation
@@ -132,14 +136,14 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, app *app.Applicat
 		if upload, ok := configMap["upload"].(map[string]interface{}); ok {
 			upload["server"] = "https://immich.app"
 			upload["api-key"] = "YOUR-API-KEY"
-			upload["client-timeout"] = "20m"
+			upload["client-timeout"] = exampleTimeout
 			upload["device-uuid"] = "HOSTNAME"
 		}
 		// Set server and API key in stack section
 		if stack, ok := configMap["stack"].(map[string]interface{}); ok {
 			stack["server"] = "https://immich.app"
 			stack["api-key"] = "YOUR-API-KEY"
-			stack["client-timeout"] = "20m"
+			stack["client-timeout"] = exampleTimeout
 			stack["device-uuid"] = "HOSTNAME"
 		}
 		// Set server and API key in archive.from-immich section
@@ -147,13 +151,13 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, app *app.Applicat
 			if fromImmich, ok := archive["from-immich"].(map[string]interface{}); ok {
 				fromImmich["from-server"] = "https://old.immich.app"
 				fromImmich["from-api-key"] = "OLD-API-KEY"
-				fromImmich["from-client-timeout"] = "20m"
+				fromImmich["from-client-timeout"] = exampleTimeout
 			}
 		}
 		// Set timeout in upload.from-immich section
 		if upload, ok := configMap["upload"].(map[string]interface{}); ok {
 			if fromImmich, ok := upload["from-immich"].(map[string]interface{}); ok {
-				fromImmich["from-client-timeout"] = "20m"
+				fromImmich["from-client-timeout"] = exampleTimeout
 				fromImmich["from-server"] = "https://old.immich.app"
 				fromImmich["from-api-key"] = "OLD-API-KEY"
 			}
@@ -227,7 +231,9 @@ func setDateRanges(m map[string]interface{}, value string) {
 		if k == "date-range" || k == "from-date-range" {
 			// Try to set the DateRange value by calling Set on it
 			if dr, ok := v.(interface{ Set(string) error }); ok {
-				dr.Set(value)
+				if err := dr.Set(value); err != nil {
+					log.Printf("Error setting date range value: %v", err)
+				}
 			}
 		} else if subMap, ok := v.(map[string]interface{}); ok {
 			setDateRanges(subMap, value)
@@ -237,12 +243,12 @@ func setDateRanges(m map[string]interface{}, value string) {
 
 // main generates documentation for environment variables and configuration files
 func main() {
-	rootCmd, app := cmd.RootImmichGoCommand(context.Background())
-	err := app.Config.ProcessCommand(rootCmd)
+	rootCmd, _ := cmd.RootImmichGoCommand(context.Background())
+	err := rootCmd.Execute()
 	if err != nil {
 		panic(err)
 	}
 
 	generateEnvVarsDoc(rootCmd)
-	generateConfigurationFileExamples(rootCmd, app)
+	generateConfigurationFileExamples(rootCmd)
 }

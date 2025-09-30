@@ -11,6 +11,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_LOG_LEVEL` | `--log-level` | Log level (DEBUG|INFO|WARN|ERROR), default INFO |
 | `IMMICH_GO_LOG_TYPE` | `--log-type` | Log formatted  as text of JSON file |
 | `IMMICH_GO_SAVE_CONFIG` | `--save-config` | Save the configuration to immich-go.yaml |
+| `IMMICH_GO_VERSION` | `--version` | version for immich-go |
 
 ## archive
 
@@ -75,6 +76,30 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER` | `--from-server` | Immich server address (example http://your-ip:2283 or https://your-domain) |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SKIP_VERIFY_SSL` | `--from-skip-verify-ssl` | Skip SSL verification |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_TRASH` | `--from-trash` | Get only trashed assets |
+
+## completion bash
+
+| Variable | Flag | Description |
+|----------|------|-------------|
+| `IMMICH_GO_COMPLETION_BASH_NO_DESCRIPTIONS` | `--no-descriptions` | disable completion descriptions |
+
+## completion fish
+
+| Variable | Flag | Description |
+|----------|------|-------------|
+| `IMMICH_GO_COMPLETION_FISH_NO_DESCRIPTIONS` | `--no-descriptions` | disable completion descriptions |
+
+## completion powershell
+
+| Variable | Flag | Description |
+|----------|------|-------------|
+| `IMMICH_GO_COMPLETION_POWERSHELL_NO_DESCRIPTIONS` | `--no-descriptions` | disable completion descriptions |
+
+## completion zsh
+
+| Variable | Flag | Description |
+|----------|------|-------------|
+| `IMMICH_GO_COMPLETION_ZSH_NO_DESCRIPTIONS` | `--no-descriptions` | disable completion descriptions |
 
 ## stack
 
