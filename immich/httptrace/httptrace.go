@@ -31,7 +31,10 @@ func (drt *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 	rt := drt.ht.newRoundTripTrace(drt.instance, int(drt.reqId.Add(1)))
 	req.Body = rt.Request(req)
 	resp, err := drt.originRT.RoundTrip(req)
-	resp.Body = rt.Response(resp, err)
+	rt.Response(resp, err)
+	if resp != nil {
+		resp.Body = rt.resp.body
+	}
 	rt.Dump()
 	return resp, nil
 }
