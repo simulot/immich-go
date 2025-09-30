@@ -128,12 +128,12 @@ func (a Asset) DeviceAssetID() string {
 // LogValue returns a slog.Value representing the LocalAssetFile's properties.
 func (a Asset) LogValue() slog.Value {
 	return slog.GroupValue(
+		slog.String("OriginalFileName", a.OriginalFileName),
 		slog.Any("FileName", a.File),
+		slog.String("ID", a.ID),
 		slog.Time("FileDate", a.FileDate),
 		slog.String("Description", a.Description),
-		slog.String("Title", a.OriginalFileName),
 		slog.Int("FileSize", a.FileSize),
-		slog.String("ID", a.ID),
 		slog.Time("CaptureDate", a.CaptureDate),
 		slog.Bool("Trashed", a.Trashed),
 		slog.Bool("Archived", a.Archived),
