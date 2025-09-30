@@ -26,13 +26,24 @@ cd "$PROJECT_ROOT"
 if [ -z "$GITHUB_TOKEN" ]; then
     echo -e "${YELLOW}🔑 GITHUB_TOKEN not set, trying to get from GitHub CLI...${NC}"
     if command -v gh >/dev/null 2>&1; then
-        GITHUB_TOKEN=$(gh auth token 2>/dev/null)
-        if [ -z "$GITHUB_TOKEN" ]; then
-            echo -e "${RED}❌ Could not get token from GitHub CLI. Please run 'gh auth login' first${NC}"
+        # Check if gh auth token command is available (requires newer gh version)
+        if gh auth --help 2>/dev/null | grep -q "token"; then
+            GITHUB_TOKEN=$(gh auth token 2>/dev/null || echo "")
+            if [ -z "$GITHUB_TOKEN" ]; then
+                echo -e "${RED}❌ Could not get token from GitHub CLI${NC}"
+                echo -e "${YELLOW}💡 Please ensure you're logged in with 'gh auth login'${NC}"
+                exit 1
+            fi
+            echo -e "${GREEN}✅ Got token from GitHub CLI${NC}"
+            export GITHUB_TOKEN
+        else
+            echo -e "${RED}❌ GitHub CLI version too old to get token automatically${NC}"
+            echo -e "${YELLOW}💡 Please either:${NC}"
+            echo "  1. Upgrade GitHub CLI: sudo apt update && sudo apt install gh"
+            echo "  2. Or set GITHUB_TOKEN manually: export GITHUB_TOKEN=your_token_here"
+            echo "     Get a token at: https://github.com/settings/tokens (scopes: repo, workflow)"
             exit 1
         fi
-        echo -e "${GREEN}✅ Got token from GitHub CLI${NC}"
-        export GITHUB_TOKEN
     else
         echo -e "${RED}❌ GITHUB_TOKEN environment variable is not set and GitHub CLI is not available${NC}"
         echo -e "${YELLOW}💡 Please either:${NC}"
