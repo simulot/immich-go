@@ -14,7 +14,6 @@ log-file = ''
 log-level = 'INFO'
 log-type = 'text'
 save-config = false
-version = false
 
 [archive]
 dry-run = false
@@ -71,19 +70,6 @@ from-minimal-rating = 0
 from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
 from-trash = false
-
-[completion]
-[completion.bash]
-no-descriptions = false
-
-[completion.fish]
-no-descriptions = false
-
-[completion.powershell]
-no-descriptions = false
-
-[completion.zsh]
-no-descriptions = false
 
 [stack]
 admin-api-key = ''
@@ -229,6 +215,8 @@ session-tag = false
 [upload.from-picasa.ban-file]
 
 [upload.from-picasa.tag]
+
+[version]
 ```
 ````
 ````
@@ -284,15 +272,6 @@ archive:
     from-skip-verify-ssl: false
     from-trash: false
   write-to-folder: ""
-completion:
-  bash:
-    no-descriptions: false
-  fish:
-    no-descriptions: false
-  powershell:
-    no-descriptions: false
-  zsh:
-    no-descriptions: false
 dry-run: false
 log-file: ""
 log-level: INFO
@@ -428,7 +407,7 @@ upload:
   server: https://immich.app
   skip-verify-ssl: false
   time-zone: ""
-version: false
+version: {}
 ```
 ````
 ````
@@ -488,20 +467,6 @@ title: JSON
       "from-trash": false
     },
     "write-to-folder": ""
-  },
-  "completion": {
-    "bash": {
-      "no-descriptions": false
-    },
-    "fish": {
-      "no-descriptions": false
-    },
-    "powershell": {
-      "no-descriptions": false
-    },
-    "zsh": {
-      "no-descriptions": false
-    }
   },
   "dry-run": false,
   "log-file": "",
@@ -645,7 +610,7 @@ title: JSON
     "skip-verify-ssl": false,
     "time-zone": ""
   },
-  "version": false
+  "version": {}
 }
 ```
 ````
