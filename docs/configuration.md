@@ -66,13 +66,13 @@ Before = 0001-01-01T00:00:00Z
 [archive.from-google-photos.tag]
 
 [archive.from-immich]
-from-api-key = ''
+from-api-key = 'OLD-API-KEY'
 from-api-trace = false
 from-archived = false
-from-client-timeout = 1200000000000
+from-client-timeout = '20m'
 from-favorite = false
 from-minimal-rating = 0
-from-server = ''
+from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
 from-trash = false
 
@@ -82,10 +82,10 @@ Before = 0001-01-01T00:00:00Z
 
 [stack]
 admin-api-key = ''
-api-key = ''
+api-key = 'YOUR-API-KEY'
 api-trace = false
-client-timeout = 1200000000000
-device-uuid = 'gl65'
+client-timeout = '20m'
+device-uuid = 'HOSTNAME'
 dry-run = false
 manage-burst = 0
 manage-epson-fastfoto = false
@@ -93,7 +93,7 @@ manage-heic-jpeg = 0
 manage-raw-jpeg = 0
 on-server-errors = 0
 pause-immich-jobs = true
-server = ''
+server = 'https://immich.app'
 skip-verify-ssl = false
 time-zone = ''
 
@@ -103,17 +103,17 @@ Before = 0001-01-01T00:00:00Z
 
 [upload]
 admin-api-key = ''
-api-key = ''
+api-key = 'YOUR-API-KEY'
 api-trace = false
-client-timeout = 1200000000000
+client-timeout = '20m'
 concurrent-uploads = 12
-device-uuid = 'gl65'
+device-uuid = 'HOSTNAME'
 dry-run = false
 no-ui = false
 on-server-errors = 0
 overwrite = false
 pause-immich-jobs = true
-server = ''
+server = 'https://immich.app'
 skip-verify-ssl = false
 time-zone = ''
 
@@ -200,13 +200,13 @@ Before = 0001-01-01T00:00:00Z
 
 [upload.from-immich]
 exclude-extensions = []
-from-api-key = ''
+from-api-key = 'OLD-API-KEY'
 from-api-trace = false
 from-archived = false
-from-client-timeout = 1200000000000
+from-client-timeout = '20m'
 from-favorite = false
 from-minimal-rating = 0
-from-server = ''
+from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
 from-trash = false
 include-extensions = []
@@ -295,16 +295,16 @@ archive:
     tag: {}
     takeout-tag: true
   from-immich:
-    from-api-key: ""
+    from-api-key: OLD-API-KEY
     from-api-trace: false
     from-archived: false
-    from-client-timeout: 1200000000000
+    from-client-timeout: 20m
     from-date-range:
       after: 0001-01-01T00:00:00Z
       before: 0001-01-01T00:00:00Z
     from-favorite: false
     from-minimal-rating: 0
-    from-server: ""
+    from-server: https://old.immich.app
     from-skip-verify-ssl: false
     from-trash: false
   write-to-folder: ""
@@ -315,13 +315,13 @@ log-type: text
 save-config: false
 stack:
   admin-api-key: ""
-  api-key: ""
+  api-key: YOUR-API-KEY
   api-trace: false
-  client-timeout: 1200000000000
+  client-timeout: 20m
   date-range:
     after: 0001-01-01T00:00:00Z
     before: 0001-01-01T00:00:00Z
-  device-uuid: gl65
+  device-uuid: HOSTNAME
   dry-run: false
   manage-burst: 0
   manage-epson-fastfoto: false
@@ -329,16 +329,16 @@ stack:
   manage-raw-jpeg: 0
   on-server-errors: 0
   pause-immich-jobs: true
-  server: ""
+  server: https://immich.app
   skip-verify-ssl: false
   time-zone: ""
 upload:
   admin-api-key: ""
-  api-key: ""
+  api-key: YOUR-API-KEY
   api-trace: false
-  client-timeout: 1200000000000
+  client-timeout: 20m
   concurrent-uploads: 12
-  device-uuid: gl65
+  device-uuid: HOSTNAME
   dry-run: false
   from-folder:
     album-path-joiner: ' / '
@@ -414,16 +414,16 @@ upload:
       after: 0001-01-01T00:00:00Z
       before: 0001-01-01T00:00:00Z
     exclude-extensions: []
-    from-api-key: ""
+    from-api-key: OLD-API-KEY
     from-api-trace: false
     from-archived: false
-    from-client-timeout: 1200000000000
+    from-client-timeout: 20m
     from-date-range:
       after: 0001-01-01T00:00:00Z
       before: 0001-01-01T00:00:00Z
     from-favorite: false
     from-minimal-rating: 0
-    from-server: ""
+    from-server: https://old.immich.app
     from-skip-verify-ssl: false
     from-trash: false
     include-extensions: []
@@ -454,7 +454,7 @@ upload:
   on-server-errors: 0
   overwrite: false
   pause-immich-jobs: true
-  server: ""
+  server: https://immich.app
   skip-verify-ssl: false
   time-zone: ""
 version: {}
@@ -511,17 +511,17 @@ title: JSON
       "takeout-tag": true
     },
     "from-immich": {
-      "from-api-key": "",
+      "from-api-key": "OLD-API-KEY",
       "from-api-trace": false,
       "from-archived": false,
-      "from-client-timeout": 1200000000000,
+      "from-client-timeout": "20m",
       "from-date-range": {
         "After": "0001-01-01T00:00:00Z",
         "Before": "0001-01-01T00:00:00Z"
       },
       "from-favorite": false,
       "from-minimal-rating": 0,
-      "from-server": "",
+      "from-server": "https://old.immich.app",
       "from-skip-verify-ssl": false,
       "from-trash": false
     },
@@ -534,14 +534,14 @@ title: JSON
   "save-config": false,
   "stack": {
     "admin-api-key": "",
-    "api-key": "",
+    "api-key": "YOUR-API-KEY",
     "api-trace": false,
-    "client-timeout": 1200000000000,
+    "client-timeout": "20m",
     "date-range": {
       "After": "0001-01-01T00:00:00Z",
       "Before": "0001-01-01T00:00:00Z"
     },
-    "device-uuid": "gl65",
+    "device-uuid": "HOSTNAME",
     "dry-run": false,
     "manage-burst": 0,
     "manage-epson-fastfoto": false,
@@ -549,17 +549,17 @@ title: JSON
     "manage-raw-jpeg": 0,
     "on-server-errors": 0,
     "pause-immich-jobs": true,
-    "server": "",
+    "server": "https://immich.app",
     "skip-verify-ssl": false,
     "time-zone": ""
   },
   "upload": {
     "admin-api-key": "",
-    "api-key": "",
+    "api-key": "YOUR-API-KEY",
     "api-trace": false,
-    "client-timeout": 1200000000000,
+    "client-timeout": "20m",
     "concurrent-uploads": 12,
-    "device-uuid": "gl65",
+    "device-uuid": "HOSTNAME",
     "dry-run": false,
     "from-folder": {
       "album-path-joiner": " / ",
@@ -642,17 +642,17 @@ title: JSON
         "Before": "0001-01-01T00:00:00Z"
       },
       "exclude-extensions": null,
-      "from-api-key": "",
+      "from-api-key": "OLD-API-KEY",
       "from-api-trace": false,
       "from-archived": false,
-      "from-client-timeout": 1200000000000,
+      "from-client-timeout": "20m",
       "from-date-range": {
         "After": "0001-01-01T00:00:00Z",
         "Before": "0001-01-01T00:00:00Z"
       },
       "from-favorite": false,
       "from-minimal-rating": 0,
-      "from-server": "",
+      "from-server": "https://old.immich.app",
       "from-skip-verify-ssl": false,
       "from-trash": false,
       "include-extensions": null,
@@ -686,7 +686,7 @@ title: JSON
     "on-server-errors": 0,
     "overwrite": false,
     "pause-immich-jobs": true,
-    "server": "",
+    "server": "https://immich.app",
     "skip-verify-ssl": false,
     "time-zone": ""
   },

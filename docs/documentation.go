@@ -24,15 +24,48 @@ type EnvVarInfo struct {
 	Usage string
 }
 
-// generate markdown documentation for environment variables
-func main() {
-	rootCmd, app := cmd.RootImmichGoCommand(context.Background())
-	err := app.Config.ProcessCommand(rootCmd)
-	if err != nil {
-		panic(err)
+// collectEnvVars recursively collects environment variable information from cobra commands
+func collectEnvVars(cmd *cobra.Command, path []string, envVars map[string]EnvVarInfo) {
+	flags := cmd.Flags()
+	if cmd.HasPersistentFlags() {
+		flags.AddFlagSet(cmd.PersistentFlags())
+	}
+	if flags.HasFlags() {
+		flags.VisitAll(func(f *pflag.Flag) {
+			if f.Name != "config" && f.Name != "help" {
+				varName := "IMMICH_GO_"
+				if len(path) > 0 {
+					varName += strings.ToUpper(strings.ReplaceAll(strings.Join(path, "_"), "-", "_")) + "_"
+				}
+				varName += strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
+				current, ok := envVars[varName]
+				if !ok || len(current.Path) > len(strings.Join(path, " ")) {
+					envVars[varName] = EnvVarInfo{
+						Path:  strings.Join(path, " "),
+						Flag:  f.Name,
+						Usage: f.Usage,
+					}
+				}
+			}
+		})
 	}
 
-	// Generate environment variables documentation
+	for _, c := range cmd.Commands() {
+		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
+			continue
+		}
+		collectEnvVars(c, append(path, c.Name()), envVars)
+	}
+}
+
+// NewConfigFrom creates a configuration map from cobra command flags
+func NewConfigFrom(cmd *cobra.Command) any {
+	m := config.ToMap(cmd)
+	return m
+}
+
+// generateEnvVarsDoc generates markdown documentation for environment variables
+func generateEnvVarsDoc(rootCmd *cobra.Command) {
 	envVars := map[string]EnvVarInfo{}
 	collectEnvVars(rootCmd, []string{}, envVars)
 
@@ -87,16 +120,46 @@ func main() {
 		}
 		fmt.Fprintln(f, "")
 	}
-
-	// Generate configuration file examples
-	generateConfigurationFileExamples(rootCmd, app)
 }
 
+// generateConfigurationFileExamples generates markdown documentation with configuration file examples
 func generateConfigurationFileExamples(rootCmd *cobra.Command, app *app.Application) {
 	cfg := NewConfigFrom(rootCmd)
-	if err := app.Config.Save("docs/config-example.toml"); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to save config example: %v\n", err)
+
+	// Set example values for documentation
+	if configMap, ok := cfg.(map[string]interface{}); ok {
+		// Set server and API key in upload section
+		if upload, ok := configMap["upload"].(map[string]interface{}); ok {
+			upload["server"] = "https://immich.app"
+			upload["api-key"] = "YOUR-API-KEY"
+			upload["client-timeout"] = "20m"
+			upload["device-uuid"] = "HOSTNAME"
+		}
+		// Set server and API key in stack section
+		if stack, ok := configMap["stack"].(map[string]interface{}); ok {
+			stack["server"] = "https://immich.app"
+			stack["api-key"] = "YOUR-API-KEY"
+			stack["client-timeout"] = "20m"
+			stack["device-uuid"] = "HOSTNAME"
+		}
+		// Set server and API key in archive.from-immich section
+		if archive, ok := configMap["archive"].(map[string]interface{}); ok {
+			if fromImmich, ok := archive["from-immich"].(map[string]interface{}); ok {
+				fromImmich["from-server"] = "https://old.immich.app"
+				fromImmich["from-api-key"] = "OLD-API-KEY"
+				fromImmich["from-client-timeout"] = "20m"
+			}
+		}
+		// Set timeout in upload.from-immich section
+		if upload, ok := configMap["upload"].(map[string]interface{}); ok {
+			if fromImmich, ok := upload["from-immich"].(map[string]interface{}); ok {
+				fromImmich["from-client-timeout"] = "20m"
+				fromImmich["from-server"] = "https://old.immich.app"
+				fromImmich["from-api-key"] = "OLD-API-KEY"
+			}
+		}
 	}
+
 	f, err := os.Create("docs/configuration.md")
 	if err != nil {
 		panic(err)
@@ -155,40 +218,14 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, app *app.Applicat
 	fmt.Fprintln(f, "````")
 }
 
-func NewConfigFrom(cmd *cobra.Command) any {
-	m := config.ToMap(cmd)
-	return m
-}
-
-func collectEnvVars(cmd *cobra.Command, path []string, envVars map[string]EnvVarInfo) {
-	flags := cmd.Flags()
-	if cmd.HasPersistentFlags() {
-		flags.AddFlagSet(cmd.PersistentFlags())
-	}
-	if flags.HasFlags() {
-		flags.VisitAll(func(f *pflag.Flag) {
-			if f.Name != "config" && f.Name != "help" {
-				varName := "IMMICH_GO_"
-				if len(path) > 0 {
-					varName += strings.ToUpper(strings.ReplaceAll(strings.Join(path, "_"), "-", "_")) + "_"
-				}
-				varName += strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
-				current, ok := envVars[varName]
-				if !ok || len(current.Path) > len(strings.Join(path, " ")) {
-					envVars[varName] = EnvVarInfo{
-						Path:  strings.Join(path, " "),
-						Flag:  f.Name,
-						Usage: f.Usage,
-					}
-				}
-			}
-		})
+// main generates documentation for environment variables and configuration files
+func main() {
+	rootCmd, app := cmd.RootImmichGoCommand(context.Background())
+	err := app.Config.ProcessCommand(rootCmd)
+	if err != nil {
+		panic(err)
 	}
 
-	for _, c := range cmd.Commands() {
-		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
-			continue
-		}
-		collectEnvVars(c, append(path, c.Name()), envVars)
-	}
+	generateEnvVarsDoc(rootCmd)
+	generateConfigurationFileExamples(rootCmd, app)
 }
