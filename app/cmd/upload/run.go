@@ -480,7 +480,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 	defer upCmd.app.Log().Debug("", "file", a)
 	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
 	if err != nil {
-		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
+		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a, "error", err.Error())
 		return "", err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
@@ -490,12 +490,12 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 			originalName = original.OriginalFileName
 		}
 		if a.ID == "" {
-			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
+			upCmd.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a, "reason", "the file is already present in the input", "original name", originalName)
 		} else {
-			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName)
+			upCmd.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a, "reason", "the server already has this file", "original name", originalName)
 		}
 	} else {
-		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a.File)
+		upCmd.app.Jnl().Record(ctx, fileevent.Uploaded, a)
 	}
 	a.ID = ar.ID
 
