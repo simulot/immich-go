@@ -16,6 +16,8 @@ const (
 	RawJPGKeepJPG             // Keep only JPEG files
 	RawJPGStackRaw            // Stack raw and JPEG files, with the raw file as the cover
 	RawJPGStackJPG            // Stack raw and JPEG files, with the JPEG file as the cover
+
+	jpegExt = ".jpeg"
 )
 
 func (r RawJPGFlag) GroupFilter() Filter {
@@ -76,7 +78,7 @@ func groupRawJPGKeepJPG(g *assets.Group) *assets.Group {
 	removedAssets := []*assets.Asset{}
 	keep := 0
 	for _, a := range g.Assets {
-		if a.Ext == ".jpg" || a.Ext == ".jpeg" {
+		if a.Ext == ".jpg" || a.Ext == jpegExt {
 			keep++
 		} else {
 			removedAssets = append(removedAssets, a)
@@ -113,7 +115,7 @@ func groupRawJPGStackJPG(g *assets.Group) *assets.Group {
 	}
 	// Set the cover index to the first JPEG file
 	for i, a := range g.Assets {
-		if a.Ext == ".jpg" || a.Ext == ".jpeg" {
+		if a.Ext == ".jpg" || a.Ext == jpegExt {
 			g.CoverIndex = i
 			break
 		}
@@ -158,4 +160,42 @@ func (r RawJPGFlag) String() string {
 
 func (r RawJPGFlag) Type() string {
 	return "RawJPGFlag"
+}
+
+// MarshalJSON implements json.Marshaler
+func (r RawJPGFlag) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + r.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (r *RawJPGFlag) UnmarshalJSON(data []byte) error {
+	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
+		return fmt.Errorf("invalid JSON string for RawJPGFlag")
+	}
+	s := string(data[1 : len(data)-1])
+	return r.Set(s)
+}
+
+// MarshalYAML implements yaml.Marshaler
+func (r RawJPGFlag) MarshalYAML() (interface{}, error) {
+	return r.String(), nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler
+func (r *RawJPGFlag) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	return r.Set(s)
+}
+
+// MarshalText implements encoding.TextMarshaler
+func (r RawJPGFlag) MarshalText() ([]byte, error) {
+	return []byte(r.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (r *RawJPGFlag) UnmarshalText(data []byte) error {
+	return r.Set(string(data))
 }

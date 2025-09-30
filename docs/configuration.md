@@ -14,6 +14,7 @@ log-file = ''
 log-level = 'INFO'
 log-type = 'text'
 save-config = false
+version = false
 
 [archive]
 dry-run = false
@@ -71,6 +72,19 @@ from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
 from-trash = false
 
+[completion]
+[completion.bash]
+no-descriptions = false
+
+[completion.fish]
+no-descriptions = false
+
+[completion.powershell]
+no-descriptions = false
+
+[completion.zsh]
+no-descriptions = false
+
 [stack]
 admin-api-key = ''
 api-key = 'YOUR-API-KEY'
@@ -79,10 +93,10 @@ client-timeout = '20m'
 date-range = '2024-01-15,2024-03-31'
 device-uuid = 'HOSTNAME'
 dry-run = false
-manage-burst = 0
+manage-burst = 'NoStack'
 manage-epson-fastfoto = false
-manage-heic-jpeg = 0
-manage-raw-jpeg = 0
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
 on-server-errors = 0
 pause-immich-jobs = true
 server = 'https://immich.app'
@@ -117,10 +131,10 @@ ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
 into-album = ''
-manage-burst = 0
+manage-burst = 'NoStack'
 manage-epson-fastfoto = false
-manage-heic-jpeg = 0
-manage-raw-jpeg = 0
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
 recursive = true
 session-tag = false
 
@@ -139,10 +153,10 @@ include-trashed = false
 include-type = ''
 include-unmatched = false
 include-untitled-albums = false
-manage-burst = 0
+manage-burst = 'NoStack'
 manage-epson-fastfoto = false
-manage-heic-jpeg = 0
-manage-raw-jpeg = 0
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
 partner-shared-album = ''
 people-tag = true
 session-tag = false
@@ -165,10 +179,10 @@ ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
 into-album = ''
-manage-burst = 0
+manage-burst = 'NoStack'
 manage-epson-fastfoto = false
-manage-heic-jpeg = 0
-manage-raw-jpeg = 0
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
 memories = false
 recursive = true
 session-tag = false
@@ -205,18 +219,16 @@ ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
 into-album = ''
-manage-burst = 0
+manage-burst = 'NoStack'
 manage-epson-fastfoto = false
-manage-heic-jpeg = 0
-manage-raw-jpeg = 0
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
 recursive = true
 session-tag = false
 
 [upload.from-picasa.ban-file]
 
 [upload.from-picasa.tag]
-
-[version]
 ```
 ````
 ````
@@ -272,6 +284,15 @@ archive:
     from-skip-verify-ssl: false
     from-trash: false
   write-to-folder: ""
+completion:
+  bash:
+    no-descriptions: false
+  fish:
+    no-descriptions: false
+  powershell:
+    no-descriptions: false
+  zsh:
+    no-descriptions: false
 dry-run: false
 log-file: ""
 log-level: INFO
@@ -285,10 +306,10 @@ stack:
   date-range: 2024-01-15,2024-03-31
   device-uuid: HOSTNAME
   dry-run: false
-  manage-burst: 0
+  manage-burst: NoStack
   manage-epson-fastfoto: false
-  manage-heic-jpeg: 0
-  manage-raw-jpeg: 0
+  manage-heic-jpeg: NoStack
+  manage-raw-jpeg: NoStack
   on-server-errors: 0
   pause-immich-jobs: true
   server: https://immich.app
@@ -315,10 +336,10 @@ upload:
     include-extensions: []
     include-type: ""
     into-album: ""
-    manage-burst: 0
+    manage-burst: NoStack
     manage-epson-fastfoto: false
-    manage-heic-jpeg: 0
-    manage-raw-jpeg: 0
+    manage-heic-jpeg: NoStack
+    manage-raw-jpeg: NoStack
     recursive: true
     session-tag: false
     tag: {}
@@ -334,10 +355,10 @@ upload:
     include-type: ""
     include-unmatched: false
     include-untitled-albums: false
-    manage-burst: 0
+    manage-burst: NoStack
     manage-epson-fastfoto: false
-    manage-heic-jpeg: 0
-    manage-raw-jpeg: 0
+    manage-heic-jpeg: NoStack
+    manage-raw-jpeg: NoStack
     partner-shared-album: ""
     people-tag: true
     session-tag: false
@@ -357,10 +378,10 @@ upload:
     include-extensions: []
     include-type: ""
     into-album: ""
-    manage-burst: 0
+    manage-burst: NoStack
     manage-epson-fastfoto: false
-    manage-heic-jpeg: 0
-    manage-raw-jpeg: 0
+    manage-heic-jpeg: NoStack
+    manage-raw-jpeg: NoStack
     memories: false
     recursive: true
     session-tag: false
@@ -393,10 +414,10 @@ upload:
     include-extensions: []
     include-type: ""
     into-album: ""
-    manage-burst: 0
+    manage-burst: NoStack
     manage-epson-fastfoto: false
-    manage-heic-jpeg: 0
-    manage-raw-jpeg: 0
+    manage-heic-jpeg: NoStack
+    manage-raw-jpeg: NoStack
     recursive: true
     session-tag: false
     tag: {}
@@ -407,7 +428,7 @@ upload:
   server: https://immich.app
   skip-verify-ssl: false
   time-zone: ""
-version: {}
+version: false
 ```
 ````
 ````
@@ -468,6 +489,20 @@ title: JSON
     },
     "write-to-folder": ""
   },
+  "completion": {
+    "bash": {
+      "no-descriptions": false
+    },
+    "fish": {
+      "no-descriptions": false
+    },
+    "powershell": {
+      "no-descriptions": false
+    },
+    "zsh": {
+      "no-descriptions": false
+    }
+  },
   "dry-run": false,
   "log-file": "",
   "log-level": "INFO",
@@ -481,10 +516,10 @@ title: JSON
     "date-range": "2024-01-15,2024-03-31",
     "device-uuid": "HOSTNAME",
     "dry-run": false,
-    "manage-burst": 0,
+    "manage-burst": "NoStack",
     "manage-epson-fastfoto": false,
-    "manage-heic-jpeg": 0,
-    "manage-raw-jpeg": 0,
+    "manage-heic-jpeg": "NoStack",
+    "manage-raw-jpeg": "NoStack",
     "on-server-errors": 0,
     "pause-immich-jobs": true,
     "server": "https://immich.app",
@@ -512,10 +547,10 @@ title: JSON
       "include-extensions": null,
       "include-type": "",
       "into-album": "",
-      "manage-burst": 0,
+      "manage-burst": "NoStack",
       "manage-epson-fastfoto": false,
-      "manage-heic-jpeg": 0,
-      "manage-raw-jpeg": 0,
+      "manage-heic-jpeg": "NoStack",
+      "manage-raw-jpeg": "NoStack",
       "recursive": true,
       "session-tag": false,
       "tag": {}
@@ -532,10 +567,10 @@ title: JSON
       "include-type": "",
       "include-unmatched": false,
       "include-untitled-albums": false,
-      "manage-burst": 0,
+      "manage-burst": "NoStack",
       "manage-epson-fastfoto": false,
-      "manage-heic-jpeg": 0,
-      "manage-raw-jpeg": 0,
+      "manage-heic-jpeg": "NoStack",
+      "manage-raw-jpeg": "NoStack",
       "partner-shared-album": "",
       "people-tag": true,
       "session-tag": false,
@@ -556,10 +591,10 @@ title: JSON
       "include-extensions": null,
       "include-type": "",
       "into-album": "",
-      "manage-burst": 0,
+      "manage-burst": "NoStack",
       "manage-epson-fastfoto": false,
-      "manage-heic-jpeg": 0,
-      "manage-raw-jpeg": 0,
+      "manage-heic-jpeg": "NoStack",
+      "manage-raw-jpeg": "NoStack",
       "memories": false,
       "recursive": true,
       "session-tag": false,
@@ -594,10 +629,10 @@ title: JSON
       "include-extensions": null,
       "include-type": "",
       "into-album": "",
-      "manage-burst": 0,
+      "manage-burst": "NoStack",
       "manage-epson-fastfoto": false,
-      "manage-heic-jpeg": 0,
-      "manage-raw-jpeg": 0,
+      "manage-heic-jpeg": "NoStack",
+      "manage-raw-jpeg": "NoStack",
       "recursive": true,
       "session-tag": false,
       "tag": {}
@@ -610,7 +645,7 @@ title: JSON
     "skip-verify-ssl": false,
     "time-zone": ""
   },
-  "version": {}
+  "version": false
 }
 ```
 ````
