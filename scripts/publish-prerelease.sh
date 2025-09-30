@@ -2,7 +2,7 @@
 
 # Prerelease Publishing Script
 # This script creates a prerelease based on the develop branch
-# Tag format: v{major}.{minor+1}.{patch}-{short_commit}
+# Tag format: v{major}.{minor+1}.{patch}-dev-{short_commit}
 # Where patch increments for each prerelease after the last stable
 
 set -e
@@ -79,12 +79,12 @@ next_version="$major.$next_minor"
 echo -e "${BLUE}📊 Next version base: v$next_version.0${NC}"
 
 # Find existing prerelease tags for the next version
-existing_prereleases=$(git tag --list "v$next_version.*" --sort=-version:refname | grep -E "v$next_version\.[0-9]+-")
+existing_prereleases=$(git tag --list "v$next_version.*" --sort=-version:refname | grep -E "v$next_version\.[0-9]+-dev-")
 
 next_patch=0
 if [ -n "$existing_prereleases" ]; then
     # Extract patch numbers and find the highest
-    highest_patch=$(echo "$existing_prereleases" | sed -E "s/v$next_version\.([0-9]+)-.*/\1/" | sort -n | tail -1)
+    highest_patch=$(echo "$existing_prereleases" | sed -E "s/v$next_version\.([0-9]+)-dev-.*/\1/" | sort -n | tail -1)
     next_patch=$((highest_patch + 1))
     echo -e "${YELLOW}📈 Found existing prereleases, next patch: $next_patch${NC}"
 fi
@@ -93,7 +93,7 @@ fi
 short_commit=$(git rev-parse --short HEAD)
 
 # Create tag
-tag="v$next_version.$next_patch-$short_commit"
+tag="v$next_version.$next_patch-dev-$short_commit"
 
 echo -e "${YELLOW}🏷️  Creating prerelease tag: $tag${NC}"
 
