@@ -1,7 +1,14 @@
 #!/bin/bash
-# filepath: scripts/publish-prerelease.sh
+
+# Prerelease Publishing Script
+# This script creates a prerelease based on the develop branch
+# Tag format: v{major}.{minor+1}.{patch}-{short_commit}
+# Where patch increments for each prerelease after the last stable
 
 set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -10,125 +17,85 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🚀 Publishing Prerelease from develop branch${NC}"
-echo "========================================"
+echo -e "${BLUE}🚀 Immich Go Prerelease Publisher${NC}"
+echo "====================================="
 
-# Check if we're on the develop branch
-CURRENT_BRANCH=$(git branch --show-current)
-if [ "$CURRENT_BRANCH" != "develop" ]; then
-    echo -e "${YELLOW}⚠️  Switching to develop branch...${NC}"
-    git checkout develop
+cd "$PROJECT_ROOT"
+
+# Check if on develop branch
+current_branch=$(git branch --show-current)
+if [ "$current_branch" != "develop" ]; then
+    echo -e "${RED}❌ Not on develop branch. Current branch: $current_branch${NC}"
+    echo -e "${YELLOW}💡 Please switch to develop branch first${NC}"
+    exit 1
 fi
 
 # Pull latest changes
-echo -e "${YELLOW}📥 Pulling latest changes...${NC}"
+echo -e "${YELLOW}📥 Pulling latest changes from develop...${NC}"
 git pull origin develop
 
-# Check if working directory is clean
-if [ -n "$(git status --porcelain)" ]; then
-    echo -e "${RED}❌ Working directory is not clean. Please commit or stash changes.${NC}"
+# Get latest stable release tag (without prerelease suffix)
+latest_stable=$(git tag --list 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+
+if [ -z "$latest_stable" ]; then
+    echo -e "${RED}❌ No stable release tags found${NC}"
     exit 1
 fi
 
-# Get the current version from the latest tag or use default
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.28.0")
-echo -e "${BLUE}Latest stable version: ${LATEST_TAG}${NC}"
+echo -e "${GREEN}✅ Latest stable release: $latest_stable${NC}"
 
-# Increment version for next release (develop branch work)
-# Extract version numbers and increment minor version
-if [[ $LATEST_TAG =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-    MAJOR=${BASH_REMATCH[1]}
-    MINOR=${BASH_REMATCH[2]}
-    PATCH=${BASH_REMATCH[3]}
-    # Increment minor version for next development cycle
-    NEXT_MINOR=$((MINOR + 1))
-    NEXT_VERSION="v${MAJOR}.${NEXT_MINOR}.0"
-else
-    # Fallback if tag format doesn't match
-    NEXT_VERSION="v0.29.0"
+# Parse version (remove 'v' prefix)
+version=${latest_stable#v}
+IFS='.' read -r major minor patch <<< "$version"
+
+# Calculate next version (increment minor, reset patch)
+next_minor=$((minor + 1))
+next_version="$major.$next_minor"
+
+echo -e "${BLUE}📊 Next version base: v$next_version.0${NC}"
+
+# Find existing prerelease tags for the next version
+existing_prereleases=$(git tag --list "v$next_version.*" --sort=-version:refname | grep -E "v$next_version\.[0-9]+-")
+
+next_patch=0
+if [ -n "$existing_prereleases" ]; then
+    # Extract patch numbers and find the highest
+    highest_patch=$(echo "$existing_prereleases" | sed -E "s/v$next_version\.([0-9]+)-.*/\1/" | sort -n | tail -1)
+    next_patch=$((highest_patch + 1))
+    echo -e "${YELLOW}📈 Found existing prereleases, next patch: $next_patch${NC}"
 fi
 
-echo -e "${BLUE}Next development version: ${NEXT_VERSION}${NC}"
+# Get short commit hash
+short_commit=$(git rev-parse --short HEAD)
 
-# Generate prerelease version based on current date and commit
-DATE=$(date +"%Y%m%d")
-SHORT_COMMIT=$(git rev-parse --short HEAD)
-PRERELEASE_VERSION="${NEXT_VERSION}-alpha.${DATE}.${SHORT_COMMIT}"
+# Create tag
+tag="v$next_version.$next_patch-$short_commit"
 
-echo -e "${YELLOW}📋 Creating prerelease: ${PRERELEASE_VERSION}${NC}"
+echo -e "${YELLOW}🏷️  Creating prerelease tag: $tag${NC}"
 
-# Create and push the tag
-git tag -a "$PRERELEASE_VERSION" -m "Prerelease $PRERELEASE_VERSION from develop branch
-
-Built from commit: ${SHORT_COMMIT}
-Date: $(date -u)
-
-This prerelease includes binaries for:
-- Linux AMD64
-- Linux ARM64  
-- macOS AMD64
-- Windows AMD64"
-
-git push origin "$PRERELEASE_VERSION"
-
-# Check if GoReleaser is installed
-if ! command -v goreleaser &> /dev/null; then
-    echo -e "${RED}❌ GoReleaser is not installed. Please install it first:${NC}"
-    echo "  # Using Homebrew"
-    echo "  brew install goreleaser/tap/goreleaser"
-    echo ""
-    echo "  # Using Go"
-    echo "  go install github.com/goreleaser/goreleaser@latest"
-    echo ""
-    echo "  # Using apt (Ubuntu/Debian)"
-    echo "  echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list"
-    echo "  sudo apt update && sudo apt install goreleaser"
-    exit 1
+# Confirm before proceeding
+echo -e "${BLUE}Ready to create prerelease:${NC}"
+echo "  Tag: $tag"
+echo "  Based on commit: $short_commit"
+echo "  Branch: $current_branch"
+echo ""
+read -p "Continue? (y/N): " confirm
+if [[ ! $confirm =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}👋 Aborted${NC}"
+    exit 0
 fi
 
-# Check if GitHub token is set
-if [ -z "$GITHUB_TOKEN" ]; then
-    echo -e "${RED}❌ GITHUB_TOKEN environment variable is not set.${NC}"
-    echo "Please set your GitHub token:"
-    echo "  export GITHUB_TOKEN=your_token_here"
-    echo ""
-    echo "You can create a token at: https://github.com/settings/tokens"
-    echo "Required scopes: repo, write:packages"
-    exit 1
-fi
+# Create and push tag
+git tag "$tag"
+git push origin "$tag"
 
-# Validate GoReleaser configuration
-echo -e "${YELLOW}🔍 Validating GoReleaser configuration...${NC}"
-if ! goreleaser check; then
-    echo -e "${RED}❌ GoReleaser configuration is invalid${NC}"
-    exit 1
-fi
-
-# Run GoReleaser with prerelease flag
+# Run GoReleaser
 echo -e "${YELLOW}🔨 Building and publishing prerelease...${NC}"
-echo "This will create binaries for:"
-echo "  - Linux AMD64"
-echo "  - Linux ARM64"
-echo "  - macOS AMD64 (Darwin)"
-echo "  - Windows AMD64"
+goreleaser release --clean
 
-if goreleaser release --prerelease --clean --timeout 20m; then
-    echo -e "${GREEN}✅ Prerelease published successfully!${NC}"
-    echo -e "${BLUE}🔗 Check your release at: https://github.com/simulot/immich-go/releases/tag/${PRERELEASE_VERSION}${NC}"
-    echo ""
-    echo -e "${YELLOW}📦 Available downloads:${NC}"
-    echo "  - immich-go_${PRERELEASE_VERSION#v}_Linux_x86_64.tar.gz"
-    echo "  - immich-go_${PRERELEASE_VERSION#v}_Linux_arm64.tar.gz"
-    echo "  - immich-go_${PRERELEASE_VERSION#v}_Darwin_x86_64.tar.gz"
-    echo "  - immich-go_${PRERELEASE_VERSION#v}_Windows_x86_64.zip"
-    echo ""
-    echo -e "${BLUE}💡 Installation example:${NC}"
-    echo "  curl -L https://github.com/simulot/immich-go/releases/download/${PRERELEASE_VERSION}/immich-go_${PRERELEASE_VERSION#v}_Linux_x86_64.tar.gz | tar -xz"
-else
-    echo -e "${RED}❌ GoReleaser failed${NC}"
-    exit 1
-fi
-
-# Update release notes for next version
-echo -e "${YELLOW}📝 Consider updating release notes in docs/releases.md${NC}"
-echo "Current alpha version: ${PRERELEASE_VERSION}"
+echo -e "${GREEN}✅ Prerelease published successfully!${NC}"
+echo -e "${BLUE}📋 Release details:${NC}"
+echo "  Tag: $tag"
+echo "  URL: https://github.com/simulot/immich-go/releases/tag/$tag"
+echo ""
+echo -e "${YELLOW}💡 Note: Binaries are attached to the GitHub release${NC}"
