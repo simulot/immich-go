@@ -23,7 +23,6 @@ func NewFromPicasaCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	}
 	cmd.SetContext(ctx)
 	options := &folder.ImportFolderOptions{}
-	app.Config.Register(cmd, options, &options.UploadFlags, &options.InclusionFlags)
 
 	options.ManageHEICJPG = filters.HeicJpgNothing
 	options.ManageRawJPG = filters.RawJPGNothing
@@ -31,19 +30,13 @@ func NewFromPicasaCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	options.Recursive = true
 	options.SupportedMedia = filetypes.DefaultSupportedMedia
 	options.UsePathAsAlbumName = folder.FolderModeNone
-	options.BannedFiles, _ = namematcher.New(
-		`@eaDir/`,
-		`@__thumb/`,          // QNAP
-		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
-		`Lightroom Catalog/`, // LR
-		`thumbnails/`,        // Android photo
-		`.DS_Store/`,         // Mac OS custom attributes
-		`/._*`,               // MacOS resource files
-		`.photostructure/`,   // PhotoStructure
-	)
-
+	options.BannedFiles, _ = namematcher.New(folder.DefaultBannedFiles...)
 	options.ICloudTakeout = false
 	options.PicasaAlbum = true
+	options.RegisterFlags(cmd.Flags())
+	if parent != nil && parent.Name() == "upload" {
+		options.UploadFlags.RegisterFlags(cmd.Flags())
+	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run

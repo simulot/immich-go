@@ -6,7 +6,6 @@ import (
 	"time"
 
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
@@ -16,6 +15,19 @@ import (
 )
 
 const UploadCmdName = "upload"
+
+var DefaultBannedFiles = []string{
+	`@eaDir/`,
+	`@__thumb/`,          // QNAP
+	`SYNOFILE_THUMB_*.*`, // SYNOLOGY
+	`Lightroom Catalog/`, // LR
+	`thumbnails/`,        // Android photo
+	`.DS_Store/`,         // Mac OS custom attributes
+	`/._*`,               // MacOS resource files
+	`.photostructure/`,   // PhotoStructure
+	`Recently Deleted/`,  // ICloud recently deleted
+
+}
 
 type UploadFlags struct {
 	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
@@ -31,9 +43,7 @@ type UploadFlags struct {
 	ManageEpsonFastFoto bool
 }
 
-var _ config.FlagDefiner = (*UploadFlags)(nil)
-
-func (o *UploadFlags) DefineFlags(flags *pflag.FlagSet) {
+func (o *UploadFlags) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
 	flags.Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
 	flags.Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
@@ -103,9 +113,7 @@ type ImportFolderOptions struct {
 	TZ *time.Location
 }
 
-var _ config.FlagDefiner = (*ImportFolderOptions)(nil)
-
-func (o *ImportFolderOptions) DefineFlags(flags *pflag.FlagSet) {
+func (o *ImportFolderOptions) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
 	flags.Var(&o.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
 	flags.StringVar(&o.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
@@ -117,9 +125,9 @@ func (o *ImportFolderOptions) DefineFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.FolderAsTags, "folder-as-tags", false, "Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)")
 	flags.BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
 
-	// cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
 	flags.BoolVar(&o.TakeDateFromFilename, "date-from-name", true, "Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov)")
 	flags.BoolVar(&o.PicasaAlbum, "album-picasa", false, "Use Picasa album name found in .picasa.ini file (default: false)")
+	o.InclusionFlags.RegisterFlags(flags)
 }
 
 func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -129,20 +137,13 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 	o.Recursive = true
 	o.SupportedMedia = filetypes.DefaultSupportedMedia
 	o.UsePathAsAlbumName = FolderModeNone
-	o.BannedFiles, _ = namematcher.New(
-		`@eaDir/`,
-		`@__thumb/`,          // QNAP
-		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
-		`Lightroom Catalog/`, // LR
-		`thumbnails/`,        // Android photo
-		`.DS_Store/`,         // Mac OS custom attributes
-		`/._*`,               // MacOS resource files
-		`.photostructure/`,   // PhotoStructure
-	)
-
+	o.BannedFiles, _ = namematcher.New()
 	o.ICloudTakeout = false
 	o.PicasaAlbum = false
-	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
+	o.RegisterFlags(cmd.Flags())
+	if parent != nil && parent.Name() == UploadCmdName {
+		o.UploadFlags.RegisterFlags(cmd.Flags())
+	}
 }
 
 func (o *ImportFolderOptions) AddFromICloudFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -152,22 +153,14 @@ func (o *ImportFolderOptions) AddFromICloudFlags(cmd *cobra.Command, parent *cob
 	o.Recursive = true
 	o.SupportedMedia = filetypes.DefaultSupportedMedia
 	o.UsePathAsAlbumName = FolderModeNone
-	o.BannedFiles, _ = namematcher.New(
-		`@eaDir/`,
-		`@__thumb/`,          // QNAP
-		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
-		`Lightroom Catalog/`, // LR
-		`thumbnails/`,        // Android photo
-		`.DS_Store/`,         // Mac OS custom attributes
-		`/._*`,               // MacOS resource files
-		`.photostructure/`,   // PhotoStructure
-		`Recently Deleted/`,  // ICloud recently deleted
-	)
+	o.BannedFiles, _ = namematcher.New(DefaultBannedFiles...)
 
 	o.ICloudTakeout = true
 	cmd.Flags().BoolVar(&o.ICloudMemoriesAsAlbums, "memories", false, "Import icloud memories as albums (default: false)")
 	o.PicasaAlbum = false
-	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
+	if parent != nil && parent.Name() == UploadCmdName {
+		o.UploadFlags.RegisterFlags(cmd.Flags())
+	}
 }
 
 func (o *ImportFolderOptions) AddFromPicasaFlags(cmd *cobra.Command, parent *cobra.Command) {
@@ -177,20 +170,13 @@ func (o *ImportFolderOptions) AddFromPicasaFlags(cmd *cobra.Command, parent *cob
 	o.Recursive = true
 	o.SupportedMedia = filetypes.DefaultSupportedMedia
 	o.UsePathAsAlbumName = FolderModeNone
-	o.BannedFiles, _ = namematcher.New(
-		`@eaDir/`,
-		`@__thumb/`,          // QNAP
-		`SYNOFILE_THUMB_*.*`, // SYNOLOGY
-		`Lightroom Catalog/`, // LR
-		`thumbnails/`,        // Android photo
-		`.DS_Store/`,         // Mac OS custom attributes
-		`/._*`,               // MacOS resource files
-		`.photostructure/`,   // PhotoStructure
-	)
+	o.BannedFiles, _ = namematcher.New(DefaultBannedFiles...)
 
 	o.ICloudTakeout = false
 	o.PicasaAlbum = true
-	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
+	if parent != nil && parent.Name() == UploadCmdName {
+		o.UploadFlags.RegisterFlags(cmd.Flags())
+	}
 }
 
 // AlbumFolderMode represents the mode in which album folders are organized.

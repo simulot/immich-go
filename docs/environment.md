@@ -6,6 +6,7 @@ The following environment variables can be used to configure `immich-go`.
 
 | Variable | Flag | Description |
 |----------|------|-------------|
+| `IMMICH_GO_DRY_RUN` | `--dry-run` | dry run |
 | `IMMICH_GO_LOG_FILE` | `--log-file` | Write log messages into the file |
 | `IMMICH_GO_LOG_LEVEL` | `--log-level` | Log level (DEBUG|INFO|WARN|ERROR), default INFO |
 | `IMMICH_GO_LOG_TYPE` | `--log-type` | Log formatted  as text of JSON file |
@@ -64,8 +65,6 @@ The following environment variables can be used to configure `immich-go`.
 
 | Variable | Flag | Description |
 |----------|------|-------------|
-| `IMMICH_GO_ARCHIVE_FROM_IMMICH_DATE_RANGE` | `--date-range` | Only import photos taken within the specified date range |
-| `IMMICH_GO_ARCHIVE_FROM_IMMICH_EXCLUDE_EXTENSIONS` | `--exclude-extensions` | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY` | `--from-api-key` | API Key |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_TRACE` | `--from-api-trace` | Enable trace of api calls |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ARCHIVED` | `--from-archived` | Get only archived assets |
@@ -76,8 +75,6 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER` | `--from-server` | Immich server address (example http://your-ip:2283 or https://your-domain) |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SKIP_VERIFY_SSL` | `--from-skip-verify-ssl` | Skip SSL verification |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_TRASH` | `--from-trash` | Get only trashed assets |
-| `IMMICH_GO_ARCHIVE_FROM_IMMICH_INCLUDE_EXTENSIONS` | `--include-extensions` | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
-| `IMMICH_GO_ARCHIVE_FROM_IMMICH_INCLUDE_TYPE` | `--include-type` | Single file type to include. (VIDEO or IMAGE) (default: all) |
 
 ## stack
 
@@ -87,8 +84,13 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_STACK_API_KEY` | `--api-key` | API Key |
 | `IMMICH_GO_STACK_API_TRACE` | `--api-trace` | Enable trace of api calls |
 | `IMMICH_GO_STACK_CLIENT_TIMEOUT` | `--client-timeout` | Set server calls timeout |
+| `IMMICH_GO_STACK_DATE_RANGE` | `--date-range` | photos must be taken in the date range |
 | `IMMICH_GO_STACK_DEVICE_UUID` | `--device-uuid` | Set a device UUID |
 | `IMMICH_GO_STACK_DRY_RUN` | `--dry-run` | Simulate all actions |
+| `IMMICH_GO_STACK_MANAGE_BURST` | `--manage-burst` | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG |
+| `IMMICH_GO_STACK_MANAGE_EPSON_FASTFOTO` | `--manage-epson-fastfoto` | Manage Epson FastFoto file (default: false) |
+| `IMMICH_GO_STACK_MANAGE_HEIC_JPEG` | `--manage-heic-jpeg` | Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG |
+| `IMMICH_GO_STACK_MANAGE_RAW_JPEG` | `--manage-raw-jpeg` | Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG |
 | `IMMICH_GO_STACK_ON_SERVER_ERRORS` | `--on-server-errors` | Action to take on server errors, (stop|continue| <n> errors) |
 | `IMMICH_GO_STACK_PAUSE_IMMICH_JOBS` | `--pause-immich-jobs` | Pause Immich background jobs during upload operations |
 | `IMMICH_GO_STACK_SERVER` | `--server` | Immich server address (example http://your-ip:2283 or https://your-domain) |
@@ -143,12 +145,20 @@ The following environment variables can be used to configure `immich-go`.
 | Variable | Flag | Description |
 |----------|------|-------------|
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_BAN_FILE` | `--ban-file` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_DATE_RANGE` | `--date-range` | Only import photos taken within the specified date range |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_EXCLUDE_EXTENSIONS` | `--exclude-extensions` | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_FROM_ALBUM_NAME` | `--from-album-name` | Only import photos from the specified Google Photos album |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_ARCHIVED` | `--include-archived` | Import archived Google Photos |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_EXTENSIONS` | `--include-extensions` | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_PARTNER` | `--include-partner` | Import photos from your partner's Google Photos account |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_TRASHED` | `--include-trashed` | Import photos that are marked as trashed in Google Photos |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_TYPE` | `--include-type` | Single file type to include. (VIDEO or IMAGE) (default: all) |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_UNMATCHED` | `--include-unmatched` | Import photos that do not have a matching JSON file in the takeout |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_UNTITLED_ALBUMS` | `--include-untitled-albums` | Include photos from albums without a title in the import process |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_MANAGE_BURST` | `--manage-burst` | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_MANAGE_EPSON_FASTFOTO` | `--manage-epson-fastfoto` | Manage Epson FastFoto file (default: false) |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_MANAGE_HEIC_JPEG` | `--manage-heic-jpeg` | Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_MANAGE_RAW_JPEG` | `--manage-raw-jpeg` | Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_PARTNER_SHARED_ALBUM` | `--partner-shared-album` | Add partner's photo to the specified album name |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_PEOPLE_TAG` | `--people-tag` | Tag uploaded photos with tags "people/name" found in the JSON file |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_SESSION_TAG` | `--session-tag` | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS" |

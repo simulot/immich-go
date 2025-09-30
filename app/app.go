@@ -29,11 +29,9 @@ type CommonFlags struct {
 	DryRun bool
 }
 
-func (cf *CommonFlags) DefineFlags(flags *pflag.FlagSet) {
+func (cf *CommonFlags) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&cf.DryRun, "dry-run", false, "dry run")
 }
-
-var _ config.FlagDefiner = (*CommonFlags)(nil)
 
 func New(ctx context.Context, cmd *cobra.Command, cm *config.ConfigurationManager) *Application {
 	// application's context
@@ -42,7 +40,7 @@ func New(ctx context.Context, cmd *cobra.Command, cm *config.ConfigurationManage
 		tz:     time.Local,
 		Config: cm,
 	}
-	// app.PersistentFlags().StringVar(&app.ConfigurationFile, "use-configuration", app.ConfigurationFile, "Specifies the configuration to use")
+	app.RegisterFlags(cmd.PersistentFlags())
 	AddLogFlags(ctx, cmd, app)
 	return app
 }

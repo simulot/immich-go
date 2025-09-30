@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -28,20 +29,18 @@ const (
 // It handles flag registration, binding to configuration sources, and tracks the origin
 // of configuration values (CLI, environment, config file, or default).
 type ConfigurationManager struct {
-	v         *viper.Viper                     // Viper instance for configuration handling
-	command   *cobra.Command                   // Root command being processed
-	definers  map[*cobra.Command][]FlagDefiner // Flag definers registered per command
-	processed bool                             // Whether the command has been processed
-	origins   map[string]string                // Maps configuration keys to their origin source
+	v         *viper.Viper      // Viper instance for configuration handling
+	command   *cobra.Command    // Root command being processed
+	processed bool              // Whether the command has been processed
+	origins   map[string]string // Maps configuration keys to their origin source
 }
 
 // New creates a new ConfigurationManager instance.
-// It initializes the Viper instance and internal maps for flag definers and origins.
+// It initializes the Viper instance and internal maps for origins.
 func New() *ConfigurationManager {
 	return &ConfigurationManager{
-		v:        viper.New(),
-		definers: map[*cobra.Command][]FlagDefiner{},
-		origins:  make(map[string]string),
+		v:       viper.New(),
+		origins: make(map[string]string),
 	}
 }
 
@@ -68,12 +67,6 @@ func (cm *ConfigurationManager) Init(cfgFile string) error {
 	return nil
 }
 
-// Register associates flag definers with a specific command.
-// Flag definers are used to define flags for the command during processing.
-func (cm *ConfigurationManager) Register(cmd *cobra.Command, definers ...FlagDefiner) {
-	cm.definers[cmd] = definers
-}
-
 // ProcessCommand processes the given command and its subcommands.
 // It registers flags, binds them to Viper, applies configuration values,
 // and tracks the origin of each configuration value.
@@ -83,24 +76,15 @@ func (cm *ConfigurationManager) ProcessCommand(cmd *cobra.Command) error {
 		return nil
 	}
 	cm.command = cmd
-	cm.processCommand(cmd)
+	err := cm.processCommand(cmd)
 	cm.processed = true
-	return nil
+	return err
 }
 
 // processCommand recursively processes a command and its subcommands.
 // It defines flags, binds them to Viper, applies configuration values from various sources,
 // and determines the origin of each configuration value.
-func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) {
-	// get the definers for the command
-	definers, ok := cm.definers[cmd]
-	if ok {
-		// let them register flags
-		for _, d := range definers {
-			d.DefineFlags(cmd.Flags())
-		}
-	}
-
+func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) error {
 	// First, record CLI origins
 	origins := make(map[string]string)
 	recordOrigins := func(f *pflag.Flag) {
@@ -112,9 +96,14 @@ func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(recordOrigins)
 	cmd.PersistentFlags().VisitAll(recordOrigins)
 
+	var err error
 	// Bind and apply viper values
-	cm.processFlagSet(cmd.Flags(), origins)
-	cm.processFlagSet(cmd.PersistentFlags(), origins)
+	if flagErr := cm.processFlagSet(cmd, cmd.Flags(), origins); flagErr != nil {
+		err = errors.Join(err, flagErr)
+	}
+	if flagErr := cm.processFlagSet(cmd, cmd.PersistentFlags(), origins); flagErr != nil {
+		err = errors.Join(err, flagErr)
+	}
 
 	// Set origins
 	for k, v := range origins {
@@ -123,18 +112,21 @@ func (cm *ConfigurationManager) processCommand(cmd *cobra.Command) {
 
 	// Recurse for subcommands
 	for _, c := range cmd.Commands() {
-		cm.processCommand(c)
+		err = errors.Join(err, cm.processCommand(c))
 	}
+	return err
 }
 
 // processFlagSet binds flags to Viper and applies configuration values for a given flag set.
-func (cm *ConfigurationManager) processFlagSet(fs *pflag.FlagSet, origins map[string]string) {
+func (cm *ConfigurationManager) processFlagSet(cmd *cobra.Command, fs *pflag.FlagSet, origins map[string]string) error {
+	var err error
 	fs.VisitAll(func(f *pflag.Flag) {
-		key := getViperKey(cm.command, f)
-		_ = cm.v.BindPFlag(key, f)
+		key := getViperKey(cmd, f)
+		_ = cm.v.BindPFlag(key, f) // can't fail in this context
 		if !f.Changed && cm.v.IsSet(key) {
 			val := cm.v.Get(key)
-			_ = fs.Set(f.Name, fmt.Sprintf("%v", val))
+
+			err = errors.Join(fs.Set(f.Name, fmt.Sprintf("%v", val)))
 			// Determine origin
 			envKey := "IMMICH_GO_" + strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(key, ".", "_"), "-", "_"))
 			if os.Getenv(envKey) != "" {
@@ -146,6 +138,7 @@ func (cm *ConfigurationManager) processFlagSet(fs *pflag.FlagSet, origins map[st
 			origins[key] = OriginDefault
 		}
 	})
+	return err
 }
 
 // getViperKey generates a Viper key for a flag based on the command hierarchy.

@@ -5,7 +5,6 @@ import (
 
 	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -25,9 +24,7 @@ type FromImmichFlags struct {
 	InclusionFlags cliflags.InclusionFlags // controls the file extensions to be included in the import process.
 }
 
-var _ config.FlagDefiner = (*FromImmichFlags)(nil)
-
-func (o *FromImmichFlags) DefineFlags(flags *pflag.FlagSet) {
+func (o *FromImmichFlags) RegisterFlags(flags *pflag.FlagSet) {
 	// flags.StringVar(&o.Make, "from-make", "", "Get only assets with this make")
 	// flags.StringVar(&o.Model, "from-model", "", "Get only assets with this model")
 	// flags.StringSliceVar(&o.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
@@ -45,6 +42,6 @@ func (o *FromImmichFlags) DefineFlags(flags *pflag.FlagSet) {
 }
 
 func (o *FromImmichFlags) AddFromImmichFlags(cmd *cobra.Command, parent *cobra.Command) {
-	o.DefineFlags(cmd.Flags())
-	cliflags.AddInclusionFlags(cmd, &o.InclusionFlags)
+	o.RegisterFlags(cmd.Flags())
+	o.InclusionFlags.RegisterFlags(cmd.Flags())
 }

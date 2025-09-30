@@ -16,7 +16,7 @@ func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	}
 	cmd.SetContext(ctx)
 	options := &fromimmich.FromImmichFlags{}
-	app.Config.Register(cmd, options, &options.InclusionFlags)
+	options.AddFromImmichFlags(cmd, parent)
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
