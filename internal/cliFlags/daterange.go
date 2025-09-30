@@ -133,6 +133,11 @@ func (dr *DateRange) Set(s string) (err error) {
 		dr.set = false
 		return fmt.Errorf("invalid date range:%s", s)
 	}
+
+	if dr.Before.Before(dr.After) {
+		dr.set = false
+		return fmt.Errorf("invalid date range:%s", s)
+	}
 	dr.set = true
 	dr.s = s
 	return nil
