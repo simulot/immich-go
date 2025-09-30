@@ -179,6 +179,12 @@ func (cm *ConfigurationManager) GetFlagOrigin(cmd *cobra.Command, flag *pflag.Fl
 	return OriginDefault
 }
 
+// GetConfigFile returns the name of the configuration file used, if any.
+// Returns empty string if no config file was loaded.
+func (cm *ConfigurationManager) GetConfigFile() string {
+	return cm.v.ConfigFileUsed()
+}
+
 // Save writes the current configuration to the specified file.
 // The file format is determined by the file extension (e.g., .toml, .yaml, .json).
 func (cm *ConfigurationManager) Save(fileName string) error {

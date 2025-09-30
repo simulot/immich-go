@@ -26,3 +26,4 @@ __debug_*
 
 # API monitoring temporary files
 .github/immich-api-monitor/temp-specs.json
+immich-go.yaml
