@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/app"
-	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/spf13/cobra"
@@ -61,8 +60,8 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 
 	}
 	app.AddClientFlags(ctx, cmd, a, false)
-	cmd.TraverseChildren = true
-	a.Config.Register(cmd, options)
+	options.RegisterFlags(cmd.PersistentFlags())
+	// cmd.TraverseChildren = true
 
 	cmd.PersistentPreRunE = app.ChainRunEFunctions(cmd.PersistentPreRunE, options.Open, ctx, cmd, a)
 
@@ -74,9 +73,7 @@ func NewUploadCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	return cmd
 }
 
-var _ config.FlagDefiner = (*UploadOptions)(nil)
-
-func (options *UploadOptions) DefineFlags(flags *pflag.FlagSet) {
+func (options *UploadOptions) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&options.NoUI, "no-ui", false, "Disable the user interface")
 	flags.BoolVar(&options.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
 	flags.IntVar(&options.ConcurrentUploads, "concurrent-uploads", runtime.NumCPU(), "Number of concurrent upload workers (1-20)")

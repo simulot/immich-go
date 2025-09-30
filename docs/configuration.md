@@ -9,6 +9,7 @@ The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immi
 title: TOML
 ---
 ```toml
+dry-run = false
 log-file = ''
 log-level = 'INFO'
 log-type = 'text'
@@ -65,7 +66,6 @@ Before = 0001-01-01T00:00:00Z
 [archive.from-google-photos.tag]
 
 [archive.from-immich]
-exclude-extensions = []
 from-api-key = ''
 from-api-trace = false
 from-archived = false
@@ -75,12 +75,6 @@ from-minimal-rating = 0
 from-server = ''
 from-skip-verify-ssl = false
 from-trash = false
-include-extensions = []
-include-type = ''
-
-[archive.from-immich.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
 
 [archive.from-immich.from-date-range]
 After = 0001-01-01T00:00:00Z
@@ -93,11 +87,19 @@ api-trace = false
 client-timeout = 1200000000000
 device-uuid = 'gl65'
 dry-run = false
+manage-burst = 0
+manage-epson-fastfoto = false
+manage-heic-jpeg = 0
+manage-raw-jpeg = 0
 on-server-errors = 0
 pause-immich-jobs = true
 server = ''
 skip-verify-ssl = false
 time-zone = ''
+
+[stack.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
 
 [upload]
 admin-api-key = ''
@@ -142,12 +144,19 @@ Before = 0001-01-01T00:00:00Z
 [upload.from-folder.tag]
 
 [upload.from-google-photos]
+exclude-extensions = []
 from-album-name = ''
 include-archived = true
+include-extensions = []
 include-partner = true
 include-trashed = false
+include-type = ''
 include-unmatched = false
 include-untitled-albums = false
+manage-burst = 0
+manage-epson-fastfoto = false
+manage-heic-jpeg = 0
+manage-raw-jpeg = 0
 partner-shared-album = ''
 people-tag = true
 session-tag = false
@@ -155,6 +164,10 @@ sync-albums = true
 takeout-tag = true
 
 [upload.from-google-photos.ban-file]
+
+[upload.from-google-photos.date-range]
+After = 0001-01-01T00:00:00Z
+Before = 0001-01-01T00:00:00Z
 
 [upload.from-google-photos.tag]
 
@@ -282,10 +295,6 @@ archive:
     tag: {}
     takeout-tag: true
   from-immich:
-    date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
-    exclude-extensions: []
     from-api-key: ""
     from-api-trace: false
     from-archived: false
@@ -298,9 +307,8 @@ archive:
     from-server: ""
     from-skip-verify-ssl: false
     from-trash: false
-    include-extensions: []
-    include-type: ""
   write-to-folder: ""
+dry-run: false
 log-file: ""
 log-level: INFO
 log-type: text
@@ -310,8 +318,15 @@ stack:
   api-key: ""
   api-trace: false
   client-timeout: 1200000000000
+  date-range:
+    after: 0001-01-01T00:00:00Z
+    before: 0001-01-01T00:00:00Z
   device-uuid: gl65
   dry-run: false
+  manage-burst: 0
+  manage-epson-fastfoto: false
+  manage-heic-jpeg: 0
+  manage-raw-jpeg: 0
   on-server-errors: 0
   pause-immich-jobs: true
   server: ""
@@ -349,12 +364,22 @@ upload:
     tag: {}
   from-google-photos:
     ban-file: {}
+    date-range:
+      after: 0001-01-01T00:00:00Z
+      before: 0001-01-01T00:00:00Z
+    exclude-extensions: []
     from-album-name: ""
     include-archived: true
+    include-extensions: []
     include-partner: true
     include-trashed: false
+    include-type: ""
     include-unmatched: false
     include-untitled-albums: false
+    manage-burst: 0
+    manage-epson-fastfoto: false
+    manage-heic-jpeg: 0
+    manage-raw-jpeg: 0
     partner-shared-album: ""
     people-tag: true
     session-tag: false
@@ -486,11 +511,6 @@ title: JSON
       "takeout-tag": true
     },
     "from-immich": {
-      "date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
-      "exclude-extensions": null,
       "from-api-key": "",
       "from-api-trace": false,
       "from-archived": false,
@@ -503,12 +523,11 @@ title: JSON
       "from-minimal-rating": 0,
       "from-server": "",
       "from-skip-verify-ssl": false,
-      "from-trash": false,
-      "include-extensions": null,
-      "include-type": ""
+      "from-trash": false
     },
     "write-to-folder": ""
   },
+  "dry-run": false,
   "log-file": "",
   "log-level": "INFO",
   "log-type": "text",
@@ -518,8 +537,16 @@ title: JSON
     "api-key": "",
     "api-trace": false,
     "client-timeout": 1200000000000,
+    "date-range": {
+      "After": "0001-01-01T00:00:00Z",
+      "Before": "0001-01-01T00:00:00Z"
+    },
     "device-uuid": "gl65",
     "dry-run": false,
+    "manage-burst": 0,
+    "manage-epson-fastfoto": false,
+    "manage-heic-jpeg": 0,
+    "manage-raw-jpeg": 0,
     "on-server-errors": 0,
     "pause-immich-jobs": true,
     "server": "",
@@ -560,12 +587,23 @@ title: JSON
     },
     "from-google-photos": {
       "ban-file": {},
+      "date-range": {
+        "After": "0001-01-01T00:00:00Z",
+        "Before": "0001-01-01T00:00:00Z"
+      },
+      "exclude-extensions": null,
       "from-album-name": "",
       "include-archived": true,
+      "include-extensions": null,
       "include-partner": true,
       "include-trashed": false,
+      "include-type": "",
       "include-unmatched": false,
       "include-untitled-albums": false,
+      "manage-burst": 0,
+      "manage-epson-fastfoto": false,
+      "manage-heic-jpeg": 0,
+      "manage-raw-jpeg": 0,
       "partner-shared-album": "",
       "people-tag": true,
       "session-tag": false,

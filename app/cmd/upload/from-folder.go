@@ -23,7 +23,7 @@ func NewFromFolderCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	}
 	cmd.SetContext(ctx)
 	options := &folder.ImportFolderOptions{}
-	app.Config.Register(cmd, options, &options.UploadFlags, &options.InclusionFlags)
+	options.AddFromFolderFlags(cmd, parent)
 
 	options.ManageHEICJPG = filters.HeicJpgNothing
 	options.ManageRawJPG = filters.RawJPGNothing

@@ -1,3 +1,5 @@
+// Package app provides the main application logic for immich-go,
+// including client management for connecting to Immich servers.
 package app
 
 import (
@@ -13,17 +15,16 @@ import (
 
 	"github.com/simulot/immich-go/immich"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
+// Client represents an Immich server client with configuration and connection management.
+// It handles authentication, API communication, and various client-side settings.
 type Client struct {
-	Server string // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	// API                string                 // Immich api endpoint (http://container_ip:3301)
-	APIKey      string // API Key
-	AdminAPIKey string // API Key for admin
-
+	Server                    string                      // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
+	APIKey                    string                      // API Key
+	AdminAPIKey               string                      // API Key for admin
 	APITrace                  bool                        // Enable API call traces
 	SkipSSL                   bool                        // Skip SSL Verification
 	ClientTimeout             time.Duration               // Set the client request timeout
@@ -41,10 +42,9 @@ type Client struct {
 	PauseImmichBackgroundJobs bool                        // Pause Immich background jobs
 }
 
-var _ config.FlagDefiner = (*Client)(nil)
-
-// add server flags to the command cmd
-func (client *Client) DefineFlags(flags *pflag.FlagSet) {
+// RegisterFlags adds client-related command-line flags to the provided flag set.
+// These flags control server connection, authentication, and client behavior.
+func (client *Client) RegisterFlags(flags *pflag.FlagSet) {
 	client.DeviceUUID, _ = os.Hostname()
 
 	flags.StringVarP(&client.Server, "server", "s", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
@@ -61,27 +61,26 @@ func (client *Client) DefineFlags(flags *pflag.FlagSet) {
 	flags.Var(&client.OnServerErrors, "on-server-errors", "Action to take on server errors, (stop|continue| <n> errors)")
 }
 
-// add server flags to the command cmd
+// AddClientFlags registers client flags for a command and sets up pre/post run hooks
+// for opening and closing the client connection. The dryRun parameter overrides the client's dry-run setting.
 func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, dryRun bool) {
 	client := app.Client()
 	client.DryRun = dryRun
-	app.Config.Register(cmd, client)
-
-	cmd.PersistentFlags().AddFlagSet(func() *pflag.FlagSet {
-		fs := pflag.NewFlagSet(cmd.Name(), pflag.ContinueOnError)
-		client.DefineFlags(fs)
-		return fs
-	}())
+	client.RegisterFlags(cmd.PersistentFlags())
 
 	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, OpenClient, ctx, cmd, app)
 	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, CloseClient, ctx, cmd, app)
 }
 
+// OpenClient is a pre-run hook that opens the client connection.
+// It validates configuration and establishes connection to the Immich server.
 func OpenClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
 	client := app.Client()
 	return client.Open(ctx, app)
 }
 
+// CloseClient is a post-run hook that closes the client connection.
+// It handles cleanup of API trace writers and logs relevant information.
 func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) error {
 	if app.Client() != nil {
 		if app.Client().APITraceWriter != nil {
@@ -93,6 +92,9 @@ func CloseClient(ctx context.Context, cmd *cobra.Command, app *Application) erro
 	return nil
 }
 
+// Open establishes a connection to the Immich server.
+// It validates configuration, sets up logging, creates client instances,
+// and performs initial server validation including ping and authentication.
 func (client *Client) Open(ctx context.Context, app *Application) error {
 	var err error
 
@@ -217,6 +219,8 @@ func (client *Client) Open(ctx context.Context, app *Application) error {
 	return nil
 }
 
+// Close cleans up the client connection.
+// It logs dry-run status and performs any necessary cleanup operations.
 func (client *Client) Close() error {
 	if client.DryRun {
 		client.ClientLog.Info("Dry-run mode enabled. No changes were made to the server.")

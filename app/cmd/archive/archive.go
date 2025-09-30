@@ -28,7 +28,7 @@ func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command
 		Short: "Archive various sources of photos to a file system",
 	}
 	options := &ArchiveOptions{}
-	app.Config.Register(cmd, &options.CommonFlags)
+	options.RegisterFlags(cmd.Flags())
 
 	cmd.PersistentFlags().StringVarP(&options.ArchivePath, "write-to-folder", "w", "", "Path where to write the archive")
 	_ = cmd.MarkPersistentFlagRequired("write-to-folder")
@@ -50,7 +50,7 @@ func NewImportFromFolderCommand(ctx context.Context, parent *cobra.Command, app 
 	}
 
 	options := &folder.ImportFolderOptions{}
-	app.Config.Register(cmd, options, &options.InclusionFlags)
+	options.RegisterFlags(cmd.Flags())
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
@@ -107,7 +107,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 	}
 	cmd.SetContext(ctx)
 	options := &gp.ImportFlags{}
-	app.Config.Register(cmd, options, &options.InclusionFlags)
+	options.RegisterFlags(cmd.Flags())
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		ctx := cmd.Context()
@@ -159,7 +159,7 @@ func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	}
 	cmd.SetContext(ctx)
 	options := &fromimmich.FromImmichFlags{}
-	app.Config.Register(cmd, options, &options.InclusionFlags)
+	options.RegisterFlags(cmd.Flags())
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		ctx := cmd.Context()

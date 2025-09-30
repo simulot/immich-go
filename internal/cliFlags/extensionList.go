@@ -5,9 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/filetypes"
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -18,9 +16,7 @@ type InclusionFlags struct {
 	DateRange          DateRange
 }
 
-var _ config.FlagDefiner = (*InclusionFlags)(nil)
-
-func (flags *InclusionFlags) DefineFlags(fs *pflag.FlagSet) {
+func (flags *InclusionFlags) RegisterFlags(fs *pflag.FlagSet) {
 	fs.Var(&flags.DateRange, "date-range", "Only import photos taken within the specified date range")
 	fs.Var(&flags.ExcludedExtensions, "exclude-extensions", "Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)")
 	fs.Var(&flags.IncludedExtensions, "include-extensions", "Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)")
@@ -48,15 +44,6 @@ func (flags *InclusionFlags) SetIncludeTypeExtensions() {
 		flags.IncludedExtensions = append(flags.IncludedExtensions, mediaToExtensionsMap[filetypes.TypeImage]...)
 	}
 	flags.IncludedExtensions = append(flags.IncludedExtensions, mediaToExtensionsMap[filetypes.TypeSidecar]...)
-}
-
-func AddInclusionFlags(cmd *cobra.Command, flags *InclusionFlags) {
-	flags.DefineFlags(cmd.Flags())
-	cmd.PreRun = func(cmd *cobra.Command, args []string) {
-		if cmd.Flags().Changed("include-type") {
-			flags.SetIncludeTypeExtensions()
-		}
-	}
 }
 
 // Add the approprite extensions flags given the user inclusion flag

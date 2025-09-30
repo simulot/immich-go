@@ -1,11 +1,11 @@
 config = ''
+dry-run = false
 log-file = ''
 log-level = 'INFO'
 log-type = 'text'
 save-config = false
 
 [archive]
-dry-run = false
 write-to-folder = ''
 
 [archive.from-folder]
@@ -45,8 +45,6 @@ tag = []
 takeout-tag = true
 
 [archive.from-immich]
-date-range = 'unset'
-exclude-extensions = ''
 from-api-key = ''
 from-api-trace = false
 from-archived = false
@@ -57,16 +55,18 @@ from-minimal-rating = 0
 from-server = ''
 from-skip-verify-ssl = false
 from-trash = false
-include-extensions = ''
-include-type = ''
 
 [stack]
 admin-api-key = ''
 api-key = ''
 api-trace = false
 client-timeout = '20m0s'
+date-range = 'unset'
 device-uuid = 'gl65'
-dry-run = false
+manage-burst = 'NoStack'
+manage-epson-fastfoto = false
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
 on-server-errors = 'stop'
 pause-immich-jobs = true
 server = ''
@@ -80,7 +80,6 @@ api-trace = false
 client-timeout = '20m0s'
 concurrent-uploads = 12
 device-uuid = 'gl65'
-dry-run = false
 no-ui = false
 on-server-errors = 'stop'
 overwrite = false
@@ -111,13 +110,21 @@ session-tag = false
 tag = []
 
 [upload.from-google-photos]
-ban-file = ''
+ban-file = "'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'"
+date-range = 'unset'
+exclude-extensions = ''
 from-album-name = ''
 include-archived = true
+include-extensions = ''
 include-partner = true
 include-trashed = false
+include-type = ''
 include-unmatched = false
 include-untitled-albums = false
+manage-burst = 'NoStack'
+manage-epson-fastfoto = false
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
 partner-shared-album = ''
 people-tag = true
 session-tag = false
@@ -166,7 +173,7 @@ include-type = ''
 [upload.from-picasa]
 album-path-joiner = ' / '
 album-picasa = false
-ban-file = "'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/'"
+ban-file = "'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'"
 date-from-name = true
 date-range = 'unset'
 exclude-extensions = ''

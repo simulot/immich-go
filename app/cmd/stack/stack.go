@@ -62,7 +62,7 @@ type StackCmd struct {
 	filters  []filters.Filter // filters are used to filter assets in groups
 }
 
-func (sc *StackCmd) DefineFlags(flags *pflag.FlagSet) {
+func (sc *StackCmd) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Var(&sc.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
 	flags.Var(&sc.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
 	flags.Var(&sc.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
@@ -80,7 +80,7 @@ func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	}
 
 	o := &StackCmd{}
-	a.Config.Register(cmd, o)
+	o.RegisterFlags(cmd.Flags())
 	app.AddClientFlags(ctx, cmd, a, false)
 	cmd.TraverseChildren = true
 

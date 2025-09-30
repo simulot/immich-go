@@ -3,320 +3,330 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// mockFlagDefiner is a mock implementation of FlagDefiner for testing.
-type mockFlagDefiner struct {
-	defineFunc func(fs *pflag.FlagSet)
+func TestNew(t *testing.T) {
+	cm := New()
+	assert.NotNil(t, cm)
+	assert.NotNil(t, cm.v)
+	assert.NotNil(t, cm.origins)
+	assert.False(t, cm.processed)
+	assert.Nil(t, cm.command)
 }
 
-func (m *mockFlagDefiner) DefineFlags(fs *pflag.FlagSet) {
-	if m.defineFunc != nil {
-		m.defineFunc(fs)
+func TestInit(t *testing.T) {
+	tests := []struct {
+		name    string
+		cfgFile string
+		setup   func() string // returns temp dir path
+		wantErr bool
+	}{
+		{
+			name:    "no config file specified",
+			cfgFile: "",
+			setup:   func() string { return "" },
+			wantErr: false,
+		},
+		{
+			name:    "config file exists",
+			cfgFile: "",
+			setup: func() string {
+				dir := t.TempDir()
+				file := filepath.Join(dir, "immich-go.toml")
+				err := os.WriteFile(file, []byte("test = \"value\""), 0o644)
+				require.NoError(t, err)
+				return dir
+			},
+			wantErr: false,
+		},
+		{
+			name:    "specified config file exists",
+			cfgFile: "",
+			setup: func() string {
+				dir := t.TempDir()
+				file := filepath.Join(dir, "custom.toml")
+				err := os.WriteFile(file, []byte("test = \"value\""), 0o644)
+				require.NoError(t, err)
+				return file
+			},
+			wantErr: false,
+		},
+		{
+			name:    "specified config file does not exist",
+			cfgFile: "/nonexistent/file.toml",
+			setup:   func() string { return "" },
+			wantErr: true, // viper does error when specific config file doesn't exist
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm := New()
+			var originalDir string
+			if tt.setup != nil {
+				if tempDir := tt.setup(); tempDir != "" {
+					if strings.HasSuffix(tempDir, ".toml") {
+						tt.cfgFile = tempDir
+					} else {
+						originalDir, _ = os.Getwd()
+						err := os.Chdir(tempDir)
+						require.NoError(t, err)
+						t.Cleanup(func() {
+							err := os.Chdir(originalDir)
+							if err != nil {
+								t.Logf("Failed to restore directory: %v", err)
+							}
+						})
+					}
+				}
+			}
+
+			err := cm.Init(tt.cfgFile)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }
 
 func TestProcessCommand(t *testing.T) {
-	t.Run("should process flags for the root command", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		rootCmd := &cobra.Command{Use: "root"}
-		definer := &mockFlagDefiner{
-			defineFunc: func(fs *pflag.FlagSet) {
-				fs.String("test-flag", "", "a test flag")
+	tests := []struct {
+		name        string
+		setupCmd    func() *cobra.Command
+		setupEnv    func()
+		cleanupEnv  func()
+		checkOrigin func(t *testing.T, cm *ConfigurationManager, cmd *cobra.Command)
+		wantErr     bool
+	}{
+		{
+			name: "simple command with flags",
+			setupCmd: func() *cobra.Command {
+				cmd := &cobra.Command{Use: "test"}
+				cmd.Flags().String("test-flag", "default", "test flag")
+				return cmd
 			},
-		}
-		cm.Register(rootCmd, definer)
-		cm.v.Set("test-flag", "viper-value")
-
-		// Act
-		err := cm.ProcessCommand(rootCmd)
-
-		// Assert
-		assert.NoError(t, err)
-		flagValue, err := rootCmd.Flags().GetString("test-flag")
-		assert.NoError(t, err)
-		assert.Equal(t, "viper-value", flagValue)
-	})
-
-	t.Run("should process flags for a subcommand", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		rootCmd := &cobra.Command{Use: "root"}
-		subCmd := &cobra.Command{Use: "sub"}
-		rootCmd.AddCommand(subCmd)
-
-		definer := &mockFlagDefiner{
-			defineFunc: func(fs *pflag.FlagSet) {
-				fs.String("sub-flag", "", "a sub test flag")
+			checkOrigin: func(t *testing.T, cm *ConfigurationManager, cmd *cobra.Command) {
+				flag := cmd.Flags().Lookup("test-flag")
+				origin := cm.GetFlagOrigin(cmd, flag)
+				assert.Equal(t, OriginDefault, origin)
 			},
-		}
-		cm.Register(subCmd, definer)
-		cm.v.Set("sub.sub-flag", "viper-sub-value")
+		},
+		{
+			name: "command with CLI provided flag",
+			setupCmd: func() *cobra.Command {
+				cmd := &cobra.Command{Use: "test"}
+				cmd.Flags().String("test-flag", "default", "test flag")
+				err := cmd.Flags().Set("test-flag", "cli-value")
+				require.NoError(t, err)
+				return cmd
+			},
+			checkOrigin: func(t *testing.T, cm *ConfigurationManager, cmd *cobra.Command) {
+				flag := cmd.Flags().Lookup("test-flag")
+				origin := cm.GetFlagOrigin(cmd, flag)
+				assert.Equal(t, OriginCLI, origin)
+			},
+		},
+		{
+			name: "command with environment variable",
+			setupCmd: func() *cobra.Command {
+				cmd := &cobra.Command{Use: "test"}
+				cmd.Flags().String("test-flag", "default", "test flag")
+				return cmd
+			},
+			setupEnv: func() {
+				os.Setenv("IMMICH_GO_TEST_FLAG", "env-value")
+			},
+			cleanupEnv: func() {
+				os.Unsetenv("IMMICH_GO_TEST_FLAG")
+			},
+			checkOrigin: func(t *testing.T, cm *ConfigurationManager, cmd *cobra.Command) {
+				flag := cmd.Flags().Lookup("test-flag")
+				origin := cm.GetFlagOrigin(cmd, flag)
+				assert.Equal(t, OriginEnvironment, origin)
+			},
+		},
+	}
 
-		// Act
-		err := cm.ProcessCommand(rootCmd)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm := New()
+			err := cm.Init("")
+			require.NoError(t, err)
 
-		// Assert
-		assert.NoError(t, err)
-		flagValue, err := subCmd.Flags().GetString("sub-flag")
-		assert.NoError(t, err)
-		assert.Equal(t, "viper-sub-value", flagValue)
-	})
+			if tt.setupEnv != nil {
+				tt.setupEnv()
+			}
+			if tt.cleanupEnv != nil {
+				defer tt.cleanupEnv()
+			}
 
-	t.Run("should not override flags set by command line", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		rootCmd := &cobra.Command{Use: "root"}
-		definer := &mockFlagDefiner{
-			defineFunc: func(fs *pflag.FlagSet) {
-				// Use a flag that doesn't exist to avoid redefinition panic
-				if fs.Lookup("test-flag") == nil {
-					fs.String("test-flag", "", "a test flag")
+			cmd := tt.setupCmd()
+			err = cm.ProcessCommand(cmd)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if tt.checkOrigin != nil {
+					tt.checkOrigin(t, cm, cmd)
 				}
-			},
-		}
-		cm.Register(rootCmd, definer)
-		definer.DefineFlags(rootCmd.Flags())
-
-		cm.v.Set("test-flag", "viper-value")
-
-		// Simulate setting the flag via command line, which marks it as "Changed"
-		err := rootCmd.Flags().Set("test-flag", "cli-value")
-		assert.NoError(t, err)
-
-		// Act
-		err = cm.ProcessCommand(rootCmd)
-
-		// Assert
-		assert.NoError(t, err)
-		flagValue, err := rootCmd.Flags().GetString("test-flag")
-		assert.NoError(t, err)
-		assert.Equal(t, "cli-value", flagValue)
-	})
-
-	t.Run("should process flags for nested subcommands", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		rootCmd := &cobra.Command{Use: "root"}
-		subCmd1 := &cobra.Command{Use: "sub1"}
-		subCmd2 := &cobra.Command{Use: "sub2"}
-		rootCmd.AddCommand(subCmd1)
-		subCmd1.AddCommand(subCmd2)
-
-		definer := &mockFlagDefiner{
-			defineFunc: func(fs *pflag.FlagSet) {
-				fs.String("deep-flag", "", "a deep test flag")
-			},
-		}
-		cm.Register(subCmd2, definer)
-		cm.v.Set("sub1.sub2.deep-flag", "deep-value")
-
-		// Act
-		err := cm.ProcessCommand(rootCmd)
-
-		// Assert
-		assert.NoError(t, err)
-		flagValue, err := subCmd2.Flags().GetString("deep-flag")
-		assert.NoError(t, err)
-		assert.Equal(t, "deep-value", flagValue)
-	})
-
-	t.Run("should only process commands once", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		rootCmd := &cobra.Command{Use: "root"}
-		callCount := 0
-		definer := &mockFlagDefiner{
-			defineFunc: func(fs *pflag.FlagSet) {
-				callCount++
-				fs.String("test-flag", "", "a test flag")
-			},
-		}
-		cm.Register(rootCmd, definer)
-
-		// Act
-		err1 := cm.ProcessCommand(rootCmd)
-		err2 := cm.ProcessCommand(rootCmd)
-
-		// Assert
-		assert.NoError(t, err1)
-		assert.NoError(t, err2)
-		assert.Equal(t, 1, callCount, "DefineFlags should only be called once")
-		assert.True(t, cm.processed)
-	})
-
-	t.Run("should handle commands with no registered definers", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		rootCmd := &cobra.Command{Use: "root"}
-		subCmd := &cobra.Command{Use: "sub"}
-		rootCmd.AddCommand(subCmd)
-		// No definers are registered
-
-		// Act
-		err := cm.ProcessCommand(rootCmd)
-
-		// Assert
-		assert.NoError(t, err)
-	})
+			}
+		})
+	}
 }
 
-func TestInit(t *testing.T) {
-	t.Run("should read config from a specific file", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		// Create a temporary config file
-		content := []byte("test-key: test-value")
-		dir := t.TempDir()
-		configFile := filepath.Join(dir, "config.yaml")
-		err := os.WriteFile(configFile, content, 0o644)
-		assert.NoError(t, err)
+func TestProcessCommand_WithConfigFile(t *testing.T) {
+	// Create config file before Init
+	file := "immich-go.toml"
+	err := os.WriteFile(file, []byte("test-flag = \"config-value\""), 0o644)
+	require.NoError(t, err)
+	defer os.Remove(file)
 
-		// Act
-		err = cm.Init(configFile)
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Equal(t, "test-value", cm.v.GetString("test-key"))
-	})
-
-	t.Run("should return error for non-existent specific config file", func(t *testing.T) {
-		// Arrange
-		cm := New()
-
-		// Act
-		err := cm.Init("non-existent-file.yaml")
-
-		// Assert
-		assert.Error(t, err)
-	})
-
-	t.Run("should search for default config file and not return error if not found", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		dir := t.TempDir()
-
-		// Change working directory to temp dir
-		oldWd, err := os.Getwd()
-		assert.NoError(t, err)
-		err = os.Chdir(dir)
-		assert.NoError(t, err)
-		defer func() { _ = os.Chdir(oldWd) }()
-
-		// Act
-		err = cm.Init("") // empty string should trigger search in new empty CWD
-
-		// Assert
-		assert.NoError(t, err)
-	})
-
-	t.Run("should search for default config file and load it if present", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		content := []byte("another-key: another-value")
-		dir := t.TempDir()
-
-		// Change working directory to temp dir
-		oldWd, err := os.Getwd()
-		assert.NoError(t, err)
-		err = os.Chdir(dir)
-		assert.NoError(t, err)
-		defer func() { _ = os.Chdir(oldWd) }()
-
-		configFile := filepath.Join(dir, "immich-go.yaml")
-		err = os.WriteFile(configFile, content, 0o644)
-		assert.NoError(t, err)
-
-		// Act
-		err = cm.Init("") // empty string should trigger search
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Equal(t, "another-value", cm.v.GetString("another-key"))
-	})
-
-	t.Run("should bind environment variables", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		t.Setenv("IMMICH_GO_ENV_VAR", "env-value")
-		t.Setenv("IMMICH_GO_MY_FLAG", "env-flag-value")
-
-		// Act
-		err := cm.Init("")
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Equal(t, "env-value", cm.v.GetString("env-var"))
-		assert.Equal(t, "env-flag-value", cm.v.GetString("my-flag"))
-	})
-
-	t.Run("should use env vars with correct precedence over config file", func(t *testing.T) {
-		// Arrange
-		cm := New()
-		content := []byte("my-flag: file-value")
-		dir := t.TempDir()
-		configFile := filepath.Join(dir, "config.yaml")
-		err := os.WriteFile(configFile, content, 0o644)
-		assert.NoError(t, err)
-
-		t.Setenv("IMMICH_GO_MY_FLAG", "env-value")
-
-		// Act
-		err = cm.Init(configFile)
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Equal(t, "env-value", cm.v.GetString("my-flag"))
-	})
-}
-
-func TestViperEnvBinding(t *testing.T) {
-	// Setup a root command and a subcommand
-	rootCmd := &cobra.Command{Use: "root", Run: func(cmd *cobra.Command, args []string) {}}
-	uploadCmd := &cobra.Command{Use: "upload", Run: func(cmd *cobra.Command, args []string) {}}
-	fromFolderCmd := &cobra.Command{Use: "from-folder", Run: func(cmd *cobra.Command, args []string) {}}
-
-	rootCmd.AddCommand(uploadCmd)
-	uploadCmd.AddCommand(fromFolderCmd)
-
-	// Add a persistent flag to the upload command
-	var server string
-	uploadCmd.PersistentFlags().StringVar(&server, "server", "", "server address")
-
-	var overwrite bool
-	uploadCmd.Flags().BoolVar(&overwrite, "overwrite", false, "overwrite flag")
-
-	var recursive bool
-	fromFolderCmd.Flags().BoolVar(&recursive, "recursive", false, "recursive flag")
-
-	// Set environment variables for the subcommand's flags
-	os.Setenv("IMMICH_GO_UPLOAD_SERVER", "http://test.com")
-	os.Setenv("IMMICH_GO_UPLOAD_OVERWRITE", "true")
-	os.Setenv("IMMICH_GO_UPLOAD_FROM_FOLDER_RECURSIVE", "true")
-	defer os.Unsetenv("IMMICH_GO_UPLOAD_SERVER")
-	defer os.Unsetenv("IMMICH_GO_UPLOAD_OVERWRITE")
-	defer os.Unsetenv("IMMICH_GO_UPLOAD_FROM_FOLDER_RECURSIVE")
-
-	// Initialize the configuration manager
 	cm := New()
-	_ = cm.Init("") // Initialize with no config file
+	err = cm.Init("")
+	require.NoError(t, err)
 
-	// Process the command
-	err := cm.ProcessCommand(rootCmd)
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("test-flag", "default", "test flag")
+
+	err = cm.ProcessCommand(cmd)
 	assert.NoError(t, err)
 
-	// Simulate running the command
-	rootCmd.SetArgs([]string{"upload", "from-folder"})
-	_ = rootCmd.Execute()
+	flag := cmd.Flags().Lookup("test-flag")
+	origin := cm.GetFlagOrigin(cmd, flag)
+	assert.Equal(t, OriginConfigFile, origin)
+}
 
-	// Check if the flag values were set from the environment variables
-	assert.Equal(t, "http://test.com", server, "The persistent flag should be set from the subcommand's environment variable")
-	assert.Equal(t, true, overwrite, "The local flag should be set from the environment variable")
-	assert.Equal(t, true, recursive, "The nested subcommand flag should be set from the environment variable")
+func TestGetViperKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		setupCmd func() (*cobra.Command, *pflag.Flag)
+		expected string
+	}{
+		{
+			name: "root command flag",
+			setupCmd: func() (*cobra.Command, *pflag.Flag) {
+				cmd := &cobra.Command{Use: "root"}
+				cmd.Flags().String("test", "value", "")
+				flag := cmd.Flags().Lookup("test")
+				return cmd, flag
+			},
+			expected: "test",
+		},
+		{
+			name: "subcommand local flag",
+			setupCmd: func() (*cobra.Command, *pflag.Flag) {
+				rootCmd := &cobra.Command{Use: "root"}
+				subCmd := &cobra.Command{Use: "sub"}
+				rootCmd.AddCommand(subCmd)
+				subCmd.Flags().String("local-flag", "value", "")
+				flag := subCmd.Flags().Lookup("local-flag")
+				return subCmd, flag
+			},
+			expected: "sub.local-flag",
+		},
+		{
+			name: "subcommand inherited persistent flag",
+			setupCmd: func() (*cobra.Command, *pflag.Flag) {
+				rootCmd := &cobra.Command{Use: "root"}
+				rootCmd.PersistentFlags().String("persistent-flag", "value", "")
+				subCmd := &cobra.Command{Use: "sub"}
+				rootCmd.AddCommand(subCmd)
+				// The flag should be available on the subcommand
+				flag := subCmd.PersistentFlags().Lookup("persistent-flag")
+				if flag == nil {
+					// If not found, it might be inherited but not yet looked up
+					flag = rootCmd.PersistentFlags().Lookup("persistent-flag")
+				}
+				return subCmd, flag
+			},
+			expected: "persistent-flag",
+		},
+		{
+			name: "deeply nested subcommand",
+			setupCmd: func() (*cobra.Command, *pflag.Flag) {
+				rootCmd := &cobra.Command{Use: "root"}
+				midCmd := &cobra.Command{Use: "mid"}
+				rootCmd.AddCommand(midCmd)
+				subCmd := &cobra.Command{Use: "sub"}
+				midCmd.AddCommand(subCmd)
+				subCmd.Flags().String("deep-flag", "value", "")
+				flag := subCmd.Flags().Lookup("deep-flag")
+				return subCmd, flag
+			},
+			expected: "mid.sub.deep-flag",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, flag := tt.setupCmd()
+			key := getViperKey(cmd, flag)
+			assert.Equal(t, tt.expected, key)
+		})
+	}
+}
+
+func TestGetFlagOrigin(t *testing.T) {
+	cm := New()
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("test-flag", "default", "test flag")
+
+	// Test default origin
+	flag := cmd.Flags().Lookup("test-flag")
+	origin := cm.GetFlagOrigin(cmd, flag)
+	assert.Equal(t, OriginDefault, origin)
+
+	// Test after processing with CLI value
+	err := cmd.Flags().Set("test-flag", "cli-value")
+	require.NoError(t, err)
+	err = cm.ProcessCommand(cmd)
+	require.NoError(t, err)
+	origin = cm.GetFlagOrigin(cmd, flag)
+	assert.Equal(t, OriginCLI, origin)
+}
+
+func TestSave(t *testing.T) {
+	cm := New()
+	err := cm.Init("")
+	require.NoError(t, err)
+
+	// Set some values
+	cm.v.Set("test.key", "value")
+	cm.v.Set("another", "value2")
+
+	tempFile := filepath.Join(t.TempDir(), "test.toml")
+	err = cm.Save(tempFile)
+	assert.NoError(t, err)
+
+	// Verify file was created and contains expected content
+	content, err := os.ReadFile(tempFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "test")
+	assert.Contains(t, string(content), "value")
+}
+
+func TestConfigurationManager_ProcessCommand_Idempotent(t *testing.T) {
+	cm := New()
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("flag", "value", "")
+
+	// First call
+	err1 := cm.ProcessCommand(cmd)
+	assert.NoError(t, err1)
+	assert.True(t, cm.processed)
+
+	// Second call should be idempotent
+	err2 := cm.ProcessCommand(cmd)
+	assert.NoError(t, err2)
+	assert.True(t, cm.processed)
 }
