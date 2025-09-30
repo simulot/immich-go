@@ -23,6 +23,7 @@ write-to-folder = ''
 album-path-joiner = ' / '
 album-picasa = false
 date-from-name = true
+date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
 folder-as-album = ''
 folder-as-tags = false
@@ -35,13 +36,10 @@ session-tag = false
 
 [archive.from-folder.ban-file]
 
-[archive.from-folder.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
-
 [archive.from-folder.tag]
 
 [archive.from-google-photos]
+date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
 from-album-name = ''
 include-archived = true
@@ -59,10 +57,6 @@ takeout-tag = true
 
 [archive.from-google-photos.ban-file]
 
-[archive.from-google-photos.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
-
 [archive.from-google-photos.tag]
 
 [archive.from-immich]
@@ -70,21 +64,19 @@ from-api-key = 'OLD-API-KEY'
 from-api-trace = false
 from-archived = false
 from-client-timeout = '20m'
+from-date-range = '2024-01-15,2024-03-31'
 from-favorite = false
 from-minimal-rating = 0
 from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
 from-trash = false
 
-[archive.from-immich.from-date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
-
 [stack]
 admin-api-key = ''
 api-key = 'YOUR-API-KEY'
 api-trace = false
 client-timeout = '20m'
+date-range = '2024-01-15,2024-03-31'
 device-uuid = 'HOSTNAME'
 dry-run = false
 manage-burst = 0
@@ -96,10 +88,6 @@ pause-immich-jobs = true
 server = 'https://immich.app'
 skip-verify-ssl = false
 time-zone = ''
-
-[stack.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
 
 [upload]
 admin-api-key = ''
@@ -121,6 +109,7 @@ time-zone = ''
 album-path-joiner = ' / '
 album-picasa = false
 date-from-name = true
+date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
 folder-as-album = 'none'
 folder-as-tags = false
@@ -137,13 +126,10 @@ session-tag = false
 
 [upload.from-folder.ban-file]
 
-[upload.from-folder.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
-
 [upload.from-folder.tag]
 
 [upload.from-google-photos]
+date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
 from-album-name = ''
 include-archived = true
@@ -165,16 +151,13 @@ takeout-tag = true
 
 [upload.from-google-photos.ban-file]
 
-[upload.from-google-photos.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
-
 [upload.from-google-photos.tag]
 
 [upload.from-icloud]
 album-path-joiner = ' / '
 album-picasa = false
 date-from-name = true
+date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
 folder-as-album = 'NONE'
 folder-as-tags = false
@@ -192,18 +175,16 @@ session-tag = false
 
 [upload.from-icloud.ban-file]
 
-[upload.from-icloud.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
-
 [upload.from-icloud.tag]
 
 [upload.from-immich]
+date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
 from-api-key = 'OLD-API-KEY'
 from-api-trace = false
 from-archived = false
 from-client-timeout = '20m'
+from-date-range = '2024-01-15,2024-03-31'
 from-favorite = false
 from-minimal-rating = 0
 from-server = 'https://old.immich.app'
@@ -212,18 +193,11 @@ from-trash = false
 include-extensions = []
 include-type = ''
 
-[upload.from-immich.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
-
-[upload.from-immich.from-date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
-
 [upload.from-picasa]
 album-path-joiner = ' / '
 album-picasa = false
 date-from-name = true
+date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
 folder-as-album = 'NONE'
 folder-as-tags = false
@@ -239,10 +213,6 @@ recursive = true
 session-tag = false
 
 [upload.from-picasa.ban-file]
-
-[upload.from-picasa.date-range]
-After = 0001-01-01T00:00:00Z
-Before = 0001-01-01T00:00:00Z
 
 [upload.from-picasa.tag]
 
@@ -261,9 +231,7 @@ archive:
     album-picasa: false
     ban-file: {}
     date-from-name: true
-    date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
     folder-as-album: ""
     folder-as-tags: false
@@ -276,9 +244,7 @@ archive:
     tag: {}
   from-google-photos:
     ban-file: {}
-    date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
     from-album-name: ""
     include-archived: true
@@ -299,9 +265,7 @@ archive:
     from-api-trace: false
     from-archived: false
     from-client-timeout: 20m
-    from-date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    from-date-range: 2024-01-15,2024-03-31
     from-favorite: false
     from-minimal-rating: 0
     from-server: https://old.immich.app
@@ -318,9 +282,7 @@ stack:
   api-key: YOUR-API-KEY
   api-trace: false
   client-timeout: 20m
-  date-range:
-    after: 0001-01-01T00:00:00Z
-    before: 0001-01-01T00:00:00Z
+  date-range: 2024-01-15,2024-03-31
   device-uuid: HOSTNAME
   dry-run: false
   manage-burst: 0
@@ -345,9 +307,7 @@ upload:
     album-picasa: false
     ban-file: {}
     date-from-name: true
-    date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
     folder-as-album: none
     folder-as-tags: false
@@ -364,9 +324,7 @@ upload:
     tag: {}
   from-google-photos:
     ban-file: {}
-    date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
     from-album-name: ""
     include-archived: true
@@ -391,9 +349,7 @@ upload:
     album-picasa: false
     ban-file: {}
     date-from-name: true
-    date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
     folder-as-album: NONE
     folder-as-tags: false
@@ -410,17 +366,13 @@ upload:
     session-tag: false
     tag: {}
   from-immich:
-    date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
     from-api-key: OLD-API-KEY
     from-api-trace: false
     from-archived: false
     from-client-timeout: 20m
-    from-date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    from-date-range: 2024-01-15,2024-03-31
     from-favorite: false
     from-minimal-rating: 0
     from-server: https://old.immich.app
@@ -433,9 +385,7 @@ upload:
     album-picasa: false
     ban-file: {}
     date-from-name: true
-    date-range:
-      after: 0001-01-01T00:00:00Z
-      before: 0001-01-01T00:00:00Z
+    date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
     folder-as-album: NONE
     folder-as-tags: false
@@ -473,10 +423,7 @@ title: JSON
       "album-picasa": false,
       "ban-file": {},
       "date-from-name": true,
-      "date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
       "folder-as-album": "",
       "folder-as-tags": false,
@@ -490,10 +437,7 @@ title: JSON
     },
     "from-google-photos": {
       "ban-file": {},
-      "date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
       "from-album-name": "",
       "include-archived": true,
@@ -515,10 +459,7 @@ title: JSON
       "from-api-trace": false,
       "from-archived": false,
       "from-client-timeout": "20m",
-      "from-date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "from-date-range": "2024-01-15,2024-03-31",
       "from-favorite": false,
       "from-minimal-rating": 0,
       "from-server": "https://old.immich.app",
@@ -537,10 +478,7 @@ title: JSON
     "api-key": "YOUR-API-KEY",
     "api-trace": false,
     "client-timeout": "20m",
-    "date-range": {
-      "After": "0001-01-01T00:00:00Z",
-      "Before": "0001-01-01T00:00:00Z"
-    },
+    "date-range": "2024-01-15,2024-03-31",
     "device-uuid": "HOSTNAME",
     "dry-run": false,
     "manage-burst": 0,
@@ -566,10 +504,7 @@ title: JSON
       "album-picasa": false,
       "ban-file": {},
       "date-from-name": true,
-      "date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
       "folder-as-album": "none",
       "folder-as-tags": false,
@@ -587,10 +522,7 @@ title: JSON
     },
     "from-google-photos": {
       "ban-file": {},
-      "date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
       "from-album-name": "",
       "include-archived": true,
@@ -616,10 +548,7 @@ title: JSON
       "album-picasa": false,
       "ban-file": {},
       "date-from-name": true,
-      "date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
       "folder-as-album": "NONE",
       "folder-as-tags": false,
@@ -637,19 +566,13 @@ title: JSON
       "tag": {}
     },
     "from-immich": {
-      "date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
       "from-api-key": "OLD-API-KEY",
       "from-api-trace": false,
       "from-archived": false,
       "from-client-timeout": "20m",
-      "from-date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "from-date-range": "2024-01-15,2024-03-31",
       "from-favorite": false,
       "from-minimal-rating": 0,
       "from-server": "https://old.immich.app",
@@ -663,10 +586,7 @@ title: JSON
       "album-picasa": false,
       "ban-file": {},
       "date-from-name": true,
-      "date-range": {
-        "After": "0001-01-01T00:00:00Z",
-        "Before": "0001-01-01T00:00:00Z"
-      },
+      "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
       "folder-as-album": "NONE",
       "folder-as-tags": false,

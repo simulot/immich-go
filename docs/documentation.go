@@ -158,6 +158,9 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, app *app.Applicat
 				fromImmich["from-api-key"] = "OLD-API-KEY"
 			}
 		}
+
+		// Set date ranges to example value
+		setDateRanges(configMap, "2024-01-15,2024-03-31")
 	}
 
 	f, err := os.Create("docs/configuration.md")
@@ -216,6 +219,20 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, app *app.Applicat
 	fmt.Fprint(f, out.String())
 	fmt.Fprintln(f, "```")
 	fmt.Fprintln(f, "````")
+}
+
+// setDateRanges recursively sets all date-range fields in the configuration map
+func setDateRanges(m map[string]interface{}, value string) {
+	for k, v := range m {
+		if k == "date-range" || k == "from-date-range" {
+			// Try to set the DateRange value by calling Set on it
+			if dr, ok := v.(interface{ Set(string) error }); ok {
+				dr.Set(value)
+			}
+		} else if subMap, ok := v.(map[string]interface{}); ok {
+			setDateRanges(subMap, value)
+		}
+	}
 }
 
 // main generates documentation for environment variables and configuration files
