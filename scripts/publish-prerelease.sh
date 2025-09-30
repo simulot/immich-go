@@ -22,12 +22,25 @@ echo "====================================="
 
 cd "$PROJECT_ROOT"
 
-# Check if on develop branch
-current_branch=$(git branch --show-current)
-if [ "$current_branch" != "develop" ]; then
-    echo -e "${RED}❌ Not on develop branch. Current branch: $current_branch${NC}"
-    echo -e "${YELLOW}💡 Please switch to develop branch first${NC}"
-    exit 1
+# Check for required tokens
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo -e "${YELLOW}🔑 GITHUB_TOKEN not set, trying to get from GitHub CLI...${NC}"
+    if command -v gh >/dev/null 2>&1; then
+        GITHUB_TOKEN=$(gh auth token 2>/dev/null)
+        if [ -z "$GITHUB_TOKEN" ]; then
+            echo -e "${RED}❌ Could not get token from GitHub CLI. Please run 'gh auth login' first${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✅ Got token from GitHub CLI${NC}"
+        export GITHUB_TOKEN
+    else
+        echo -e "${RED}❌ GITHUB_TOKEN environment variable is not set and GitHub CLI is not available${NC}"
+        echo -e "${YELLOW}💡 Please either:${NC}"
+        echo "  1. Install GitHub CLI and run 'gh auth login'"
+        echo "  2. Or set GITHUB_TOKEN manually: export GITHUB_TOKEN=your_token_here"
+        echo "     Get a token at: https://github.com/settings/tokens (scopes: repo, workflow)"
+        exit 1
+    fi
 fi
 
 # Pull latest changes
