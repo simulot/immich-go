@@ -1,0 +1,176 @@
+name: Manual Prerelease
+
+on:
+    workflow_dispatch:
+        inputs:
+            branch:
+                description: "Branch to create prerelease from"
+                required: true
+                default: "develop"
+                type: choice
+                options:
+                    - develop
+                    - main
+            version_type:
+                description: "Version increment type"
+                required: true
+                default: "minor"
+                type: choice
+                options:
+                    - major
+                    - minor
+                    - patch
+            prerelease_suffix:
+                description: "Prerelease suffix (alpha, beta, rc)"
+                required: true
+                default: "alpha"
+                type: choice
+                options:
+                    - alpha
+                    - beta
+                    - rc
+            custom_version:
+                description: "Custom version (optional, overrides auto-increment)"
+                required: false
+                type: string
+
+permissions:
+    contents: write
+    packages: write
+
+jobs:
+    manual-prerelease:
+        name: Create Manual Prerelease
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+              with:
+                  ref: ${{ github.event.inputs.branch }}
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Setup Go
+              uses: actions/setup-go@v6
+              with:
+                  go-version-file: "go.mod"
+                  cache-dependency-path: "go.sum"
+
+            - name: Configure Git
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Calculate version
+              id: version
+              run: |
+                  # Get latest tag
+                  LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.28.0")
+                  echo "Latest tag: $LATEST_TAG"
+
+                  # Use custom version if provided
+                  if [[ -n "${{ github.event.inputs.custom_version }}" ]]; then
+                    NEXT_VERSION="${{ github.event.inputs.custom_version }}"
+                    if [[ ! $NEXT_VERSION =~ ^v ]]; then
+                      NEXT_VERSION="v$NEXT_VERSION"
+                    fi
+                  else
+                    # Auto-increment based on type
+                    if [[ $LATEST_TAG =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+                      MAJOR=${BASH_REMATCH[1]}
+                      MINOR=${BASH_REMATCH[2]}
+                      PATCH=${BASH_REMATCH[3]}
+                      
+                      case "${{ github.event.inputs.version_type }}" in
+                        "major")
+                          NEXT_VERSION="v$((MAJOR + 1)).0.0"
+                          ;;
+                        "minor")
+                          NEXT_VERSION="v${MAJOR}.$((MINOR + 1)).0"
+                          ;;
+                        "patch")
+                          NEXT_VERSION="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+                          ;;
+                      esac
+                    else
+                      NEXT_VERSION="v0.29.0"
+                    fi
+                  fi
+
+                  # Create prerelease version
+                  DATE=$(date +"%Y%m%d")
+                  SHORT_COMMIT=$(git rev-parse --short HEAD)
+                  PRERELEASE_VERSION="${NEXT_VERSION}-${{ github.event.inputs.prerelease_suffix }}.${DATE}.${SHORT_COMMIT}"
+
+                  echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+                  echo "prerelease_version=$PRERELEASE_VERSION" >> $GITHUB_OUTPUT
+                  echo "🏷️ Creating prerelease: $PRERELEASE_VERSION"
+
+            - name: Validate inputs
+              run: |
+                  echo "📋 Prerelease Configuration:"
+                  echo "  Branch: ${{ github.event.inputs.branch }}"
+                  echo "  Version Type: ${{ github.event.inputs.version_type }}"
+                  echo "  Prerelease Suffix: ${{ github.event.inputs.prerelease_suffix }}"
+                  echo "  Custom Version: ${{ github.event.inputs.custom_version }}"
+                  echo "  Generated Version: ${{ steps.version.outputs.prerelease_version }}"
+                  echo "  Commit: $(git rev-parse --short HEAD)"
+
+            - name: Run CI checks
+              run: |
+                  echo "🧪 Running tests..."
+                  go test ./...
+
+                  echo "🔍 Running linter..."
+                  go vet ./...
+
+            - name: Create and push tag
+              run: |
+                  PRERELEASE_VERSION="${{ steps.version.outputs.prerelease_version }}"
+                  SHORT_COMMIT=$(git rev-parse --short HEAD)
+
+                  # Create annotated tag
+                  git tag -a "$PRERELEASE_VERSION" -m "Manual prerelease $PRERELEASE_VERSION from ${{ github.event.inputs.branch }} branch
+
+                  Built from commit: ${SHORT_COMMIT}
+                  Date: $(date -u)
+                  Branch: ${{ github.event.inputs.branch }}
+                  Version Type: ${{ github.event.inputs.version_type }}
+                  Prerelease Type: ${{ github.event.inputs.prerelease_suffix }}
+
+                  This prerelease includes binaries for:
+                  - Linux AMD64
+                  - Linux ARM64  
+                  - macOS AMD64
+                  - Windows AMD64"
+
+                  # Push tag
+                  git push origin "$PRERELEASE_VERSION"
+
+            - name: Run GoReleaser
+              uses: goreleaser/goreleaser-action@v6
+              with:
+                  distribution: goreleaser
+                  version: "~> v2"
+                  args: release --prerelease --clean --timeout 20m
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Create release summary
+              run: |
+                  PRERELEASE_VERSION="${{ steps.version.outputs.prerelease_version }}"
+                  echo "## 🎯 Manual Prerelease Published!" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "**Version:** \`$PRERELEASE_VERSION\`" >> $GITHUB_STEP_SUMMARY
+                  echo "**Branch:** ${{ github.event.inputs.branch }}" >> $GITHUB_STEP_SUMMARY
+                  echo "**Type:** ${{ github.event.inputs.prerelease_suffix }}" >> $GITHUB_STEP_SUMMARY
+                  echo "**Commit:** \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### 📦 Available Downloads:" >> $GITHUB_STEP_SUMMARY
+                  echo "- Linux AMD64: \`immich-go_${PRERELEASE_VERSION#v}_Linux_x86_64.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+                  echo "- Linux ARM64: \`immich-go_${PRERELEASE_VERSION#v}_Linux_arm64.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+                  echo "- macOS AMD64: \`immich-go_${PRERELEASE_VERSION#v}_Darwin_x86_64.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+                  echo "- Windows AMD64: \`immich-go_${PRERELEASE_VERSION#v}_Windows_x86_64.zip\`" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "🔗 **[View Release](https://github.com/simulot/immich-go/releases/tag/$PRERELEASE_VERSION)**" >> $GITHUB_STEP_SUMMARY
