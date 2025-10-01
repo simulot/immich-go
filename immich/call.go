@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync/atomic"
 
@@ -39,6 +40,7 @@ const (
 	EndPointAssetUpload            = "AssetUpload"
 	EndPointAssetReplace           = "AssetReplace"
 	EndPointGetAboutInfo           = "GetAboutInfo"
+	EndPointGetSearchSuggestions   = "GetSearchSuggestions"
 )
 
 type TooManyInternalError struct {
@@ -306,6 +308,19 @@ func setJSONBody(object any) serverRequestOption {
 func setContentType(cType string) serverRequestOption {
 	return func(sc *serverCall, req *http.Request) error {
 		req.Header.Set("Content-Type", cType)
+		return nil
+	}
+}
+
+type URLRequester interface {
+	SetURL(u *url.URL) error
+}
+
+func UrlRequest(ur URLRequester) serverRequestOption {
+	return func(sc *serverCall, req *http.Request) error {
+		if ur != nil {
+			return ur.SetURL(req.URL)
+		}
 		return nil
 	}
 }

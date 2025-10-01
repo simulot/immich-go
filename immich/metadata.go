@@ -2,6 +2,8 @@ package immich
 
 import (
 	"context"
+	"errors"
+	"net/url"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
@@ -23,6 +25,7 @@ type searchOptions struct {
 	withOnlyTrashed  bool               // to get only trashed items
 	withNotInAlbum   bool               // assets not in any album, set the isNotInAlbum
 	withOnlyFavorite bool               // get only favorite assets
+	withOnlyMake     string             // get only assets taken with this camera maker
 
 	// following filters are resolved as ID
 	withAlbums []string // album names
@@ -133,6 +136,12 @@ func (so *searchOptions) WithOnlyArchived() *searchOptions {
 	return so
 }
 
+// to get only assets taken with the maker
+func (so *searchOptions) WithOnlyMake(make string) *searchOptions {
+	so.withOnlyMake = make
+	return so
+}
+
 // func (so *searchOptions) WithDeviceIds(deviceIds ...string) *searchOptions {
 // 	gen.AddOnce(so.deviceIds, deviceIds...)
 // 	return so
@@ -153,11 +162,12 @@ func (so *searchOptions) WithOnlyArchived() *searchOptions {
 // 	return so
 // }
 
-func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQuery {
+func (ic *ImmichClient) buildSearchQueries(ctx context.Context, so *searchOptions) ([]SearchMetadataQuery, error) {
 	base := SearchMetadataQuery{
 		WithExif:     so.withExif,
 		IsNotInAlbum: so.withNotInAlbum,
 		IsFavorite:   so.withOnlyFavorite,
+		Make:         so.withOnlyMake,
 	}
 
 	if !so.takenRange.Before.IsZero() {
@@ -165,6 +175,10 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 	}
 	if !so.takenRange.After.IsZero() {
 		base.TakenAfter = so.takenRange.After.Format(TimeFormat)
+	}
+
+	if so.withOnlyMake != "" {
+		base.Make = so.withOnlyMake
 	}
 
 	// TODO albums, Tags and persons
@@ -202,7 +216,7 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 		qs = append(qs, qs2...)
 	}
 
-	return qs
+	return qs, nil
 }
 
 func (ic *ImmichClient) GetAllAssets(ctx context.Context, filter func(*Asset) error) error {
@@ -210,7 +224,10 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context, filter func(*Asset) er
 }
 
 func (ic *ImmichClient) GetFilteredAssetsFn(ctx context.Context, so *searchOptions, filter func(*Asset) error) error {
-	qs := ic.buildSearchQueries(so)
+	qs, err := ic.buildSearchQueries(ctx, so)
+	if err != nil {
+		return err
+	}
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.SetLimit(4) // most of the queries will return nothing
 	for _, q := range qs {
@@ -327,4 +344,82 @@ func (ic *ImmichClient) GetAssetsByImageName(ctx context.Context, name string) (
 		return nil, err
 	}
 	return list, nil
+}
+
+/*
+search suggestion
+
+```
+The getSearchSuggestions endpoint in the Immich server (from the immich-app/immich repository) is used to retrieve autocomplete suggestions for search filters. The fields country, make, and model are optional query parameters that act as filters to narrow down the suggestions based on the required type parameter.
+
+Key Usage Details:
+Endpoint: GET /search/suggestions
+Required Parameter: type (enum: country, state, city, camera-make, camera-model)
+Optional Parameters: country, state, make, model, includeNull (boolean to include null values)
+These fields enable hierarchical filtering:
+- For type=camera-model: Pass make to get models only for that camera make.
+- For type=city: Pass country (and optionally state) to get cities within that location.
+- For type=state: Pass country to get states within that country.
+- country, make, and model are not directly suggested themselves but are used to refine suggestions for other types.
+```
+
+*/
+
+// SearchSuggestionType represents the type of search suggestions to retrieve
+type SearchSuggestionType string
+
+const (
+	SearchSuggestionTypeCountry     SearchSuggestionType = "country"
+	SearchSuggestionTypeState       SearchSuggestionType = "state"
+	SearchSuggestionTypeCity        SearchSuggestionType = "city"
+	SearchSuggestionTypeCameraMake  SearchSuggestionType = "camera-make"
+	SearchSuggestionTypeCameraModel SearchSuggestionType = "camera-model"
+)
+
+// SearchSuggestionRequest represents the request parameters for getSearchSuggestions
+type SearchSuggestionRequest struct {
+	Type        SearchSuggestionType `json:"type"`
+	Country     string               `json:"country,omitempty"`
+	State       string               `json:"state,omitempty"`
+	Make        string               `json:"make,omitempty"`
+	Model       string               `json:"model,omitempty"`
+	IncludeNull bool                 `json:"includeNull,omitzero"`
+}
+
+func (q SearchSuggestionRequest) SetURL(u *url.URL) error {
+	if q.Type == "" {
+		return errors.New("the field Type must be set")
+	}
+	qv := u.Query()
+	qv.Set("type", string(q.Type))
+	if q.Country != "" {
+		qv.Set("country", q.Country)
+	}
+	if q.State != "" {
+		qv.Set("state", q.State)
+	}
+	if q.Country != "" {
+		qv.Set("country", q.Country)
+	}
+	if q.Make != "" {
+		qv.Set("make", q.Make)
+	}
+	if q.Model != "" {
+		qv.Set("model", q.Model)
+	}
+	if q.IncludeNull {
+		qv.Set("includeNull", "true")
+	}
+	u.RawQuery = qv.Encode()
+	return nil
+}
+
+// SearchSuggestions represents the response from getSearchSuggestions: a list of suggestion strings
+type SearchSuggestions []string
+
+// GetSearchSuggestions retrieves search suggestions based on the provided request parameters
+func (ic *ImmichClient) GetSearchSuggestions(ctx context.Context, req SearchSuggestionRequest) (SearchSuggestions, error) {
+	var suggestions SearchSuggestions
+	err := ic.newServerCall(ctx, EndPointGetSearchSuggestions).do(getRequest("/search/suggestions", UrlRequest(req)), responseJSON(&suggestions))
+	return suggestions, err
 }
