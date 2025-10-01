@@ -22,6 +22,13 @@ echo "====================================="
 
 cd "$PROJECT_ROOT"
 
+# Check current branch
+current_branch=$(git branch --show-current)
+if [ "$current_branch" != "develop" ]; then
+    echo -e "${RED}❌ Must be on develop branch (currently on: $current_branch)${NC}"
+    exit 1
+fi
+
 # Check for required tokens
 if [ -z "$GITHUB_TOKEN" ]; then
     echo -e "${YELLOW}🔑 GITHUB_TOKEN not set, trying to get from GitHub CLI...${NC}"
@@ -113,13 +120,13 @@ fi
 git tag "$tag"
 git push origin "$tag"
 
-# Run GoReleaser
+# Run GoReleaser with prerelease flag
 echo -e "${YELLOW}🔨 Building and publishing prerelease...${NC}"
-goreleaser release --clean
+goreleaser release --clean --prerelease
 
 echo -e "${GREEN}✅ Prerelease published successfully!${NC}"
 echo -e "${BLUE}📋 Release details:${NC}"
 echo "  Tag: $tag"
 echo "  URL: https://github.com/simulot/immich-go/releases/tag/$tag"
 echo ""
-echo -e "${YELLOW}💡 Note: Binaries are attached to the GitHub release${NC}"
+echo -e "${YELLOW}💡 Note: Binaries are attached to the GitHub prerelease${NC}"
