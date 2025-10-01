@@ -21,7 +21,6 @@ func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
 		ctx := cmd.Context()
-		options.InclusionFlags.SetIncludeTypeExtensions()
 
 		source, err := fromimmich.NewFromImmich(ctx, app, app.Jnl(), options)
 		if err != nil {
