@@ -10,10 +10,10 @@ import (
 )
 
 type InclusionFlags struct {
-	ExcludedExtensions ExtensionList
-	IncludedExtensions ExtensionList
-	IncludedType       IncludeType
-	DateRange          DateRange
+	ExcludedExtensions ExtensionList `mapstructure:"exclude-extensions" yaml:"exclude-extensions" json:"exclude-extensions" toml:"exclude-extensions"`
+	IncludedExtensions ExtensionList `mapstructure:"include-extensions" yaml:"include-extensions" json:"include-extensions" toml:"include-extensions"`
+	IncludedType       IncludeType   `mapstructure:"include-type" yaml:"include-type" json:"include-type" toml:"include-type"`
+	DateRange          DateRange     `mapstructure:"date-range" yaml:"date-range" json:"date-range" toml:"date-range"`
 }
 
 func (flags *InclusionFlags) RegisterFlags(fs *pflag.FlagSet, prefix string) {

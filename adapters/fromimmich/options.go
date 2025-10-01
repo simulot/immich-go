@@ -11,22 +11,22 @@ import (
 
 // TODO add Locked folder option
 type FromImmichFlags struct {
-	Albums          []string                // get assets only from those albums
-	Tags            []string                // get assets only with those tags
-	People          []string                // get assets only with those people
-	IncludePartners bool                    // get partner's assets as well
-	OnlyArchived    bool                    // get only archived assets
-	OnlyTrashed     bool                    // get only trashed assets
-	OnlyFavorite    bool                    // get only favorite assets
-	OnlyNoAlbum     bool                    // get only assets that are not in any album
-	MinimalRating   int                     // get only assets with a rating greater or equal to this value
-	Make            string                  // get only assets with this make
-	Model           string                  // get only assets with this model
-	Country         string                  // get only assets from the country
-	State           string                  // get only assets from this state
-	City            string                  // get only assets from this city
+	Albums          []string                `mapstructure:"from-albums" yaml:"from-albums" json:"from-albums" toml:"from-albums"`                                 // get assets only from those albums
+	Tags            []string                `mapstructure:"from-tags" yaml:"from-tags" json:"from-tags" toml:"from-tags"`                                         // get assets only with those tags
+	People          []string                `mapstructure:"from-people" yaml:"from-people" json:"from-people" toml:"from-people"`                                 // get assets only with those people
+	IncludePartners bool                    `mapstructure:"from-partners" yaml:"from-partners" json:"from-partners" toml:"from-partners"`                         // get partner's assets as well
+	OnlyArchived    bool                    `mapstructure:"from-archived" yaml:"from-archived" json:"from-archived" toml:"from-archived"`                         // get only archived assets
+	OnlyTrashed     bool                    `mapstructure:"from-trash" yaml:"from-trash" json:"from-trash" toml:"from-trash"`                                     // get only trashed assets
+	OnlyFavorite    bool                    `mapstructure:"from-favorite" yaml:"from-favorite" json:"from-favorite" toml:"from-favorite"`                         // get only favorite assets
+	OnlyNoAlbum     bool                    `mapstructure:"from-no-album" yaml:"from-no-album" json:"from-no-album" toml:"from-no-album"`                         // get only assets that are not in any album
+	MinimalRating   int                     `mapstructure:"from-minimal-rating" yaml:"from-minimal-rating" json:"from-minimal-rating" toml:"from-minimal-rating"` // get only assets with a rating greater or equal to this value
+	Make            string                  `mapstructure:"from-make" yaml:"from-make" json:"from-make" toml:"from-make"`                                         // get only assets with this make
+	Model           string                  `mapstructure:"from-model" yaml:"from-model" json:"from-model" toml:"from-model"`                                     // get only assets with this model
+	Country         string                  `mapstructure:"from-country" yaml:"from-country" json:"from-country" toml:"from-country"`                             // get only assets from the country
+	State           string                  `mapstructure:"from-state" yaml:"from-state" json:"from-state" toml:"from-state"`                                     // get only assets from this state
+	City            string                  `mapstructure:"from-city" yaml:"from-city" json:"from-city" toml:"from-city"`                                         // get only assets from this city
 	client          app.Client              // client to use for the import
-	InclusionFlags  cliflags.InclusionFlags // controls the file extensions to be included in the import process.
+	InclusionFlags  cliflags.InclusionFlags `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"` // controls the file extensions to be included in the import process.
 	albumIDs        []string
 	tagIDs          []string
 	peopleIDs       []string
