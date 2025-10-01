@@ -63,13 +63,25 @@ takeout-tag = true
 from-api-key = 'OLD-API-KEY'
 from-api-trace = false
 from-archived = false
+from-city = ''
 from-client-timeout = '20m'
-from-date-range = '2024-01-15,2024-03-31'
+from-country = ''
 from-favorite = false
+from-make = ''
 from-minimal-rating = 0
+from-model = ''
+from-no-album = false
+from-partners = false
 from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
+from-state = ''
 from-trash = false
+
+[archive.from-immich.from-albums]
+
+[archive.from-immich.from-people]
+
+[archive.from-immich.from-tags]
 
 [stack]
 admin-api-key = ''
@@ -178,20 +190,32 @@ session-tag = false
 [upload.from-icloud.tag]
 
 [upload.from-immich]
-date-range = '2024-01-15,2024-03-31'
-exclude-extensions = []
 from-api-key = 'OLD-API-KEY'
 from-api-trace = false
 from-archived = false
+from-city = ''
 from-client-timeout = '20m'
+from-country = ''
 from-date-range = '2024-01-15,2024-03-31'
+from-exclude-extensions = []
 from-favorite = false
+from-include-extensions = []
+from-include-type = ''
+from-make = ''
 from-minimal-rating = 0
+from-model = ''
+from-no-album = false
+from-partners = false
 from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
+from-state = ''
 from-trash = false
-include-extensions = []
-include-type = ''
+
+[upload.from-immich.from-albums]
+
+[upload.from-immich.from-people]
+
+[upload.from-immich.from-tags]
 
 [upload.from-picasa]
 album-path-joiner = ' / '
@@ -261,15 +285,24 @@ archive:
     tag: {}
     takeout-tag: true
   from-immich:
+    from-albums: {}
     from-api-key: OLD-API-KEY
     from-api-trace: false
     from-archived: false
+    from-city: ""
     from-client-timeout: 20m
-    from-date-range: 2024-01-15,2024-03-31
+    from-country: ""
     from-favorite: false
+    from-make: ""
     from-minimal-rating: 0
+    from-model: ""
+    from-no-album: false
+    from-partners: false
+    from-people: {}
     from-server: https://old.immich.app
     from-skip-verify-ssl: false
+    from-state: ""
+    from-tags: {}
     from-trash: false
   write-to-folder: ""
 dry-run: false
@@ -366,20 +399,29 @@ upload:
     session-tag: false
     tag: {}
   from-immich:
-    date-range: 2024-01-15,2024-03-31
-    exclude-extensions: []
+    from-albums: {}
     from-api-key: OLD-API-KEY
     from-api-trace: false
     from-archived: false
+    from-city: ""
     from-client-timeout: 20m
+    from-country: ""
     from-date-range: 2024-01-15,2024-03-31
+    from-exclude-extensions: []
     from-favorite: false
+    from-include-extensions: []
+    from-include-type: ""
+    from-make: ""
     from-minimal-rating: 0
+    from-model: ""
+    from-no-album: false
+    from-partners: false
+    from-people: {}
     from-server: https://old.immich.app
     from-skip-verify-ssl: false
+    from-state: ""
+    from-tags: {}
     from-trash: false
-    include-extensions: []
-    include-type: ""
   from-picasa:
     album-path-joiner: ' / '
     album-picasa: false
@@ -455,15 +497,24 @@ title: JSON
       "takeout-tag": true
     },
     "from-immich": {
+      "from-albums": {},
       "from-api-key": "OLD-API-KEY",
       "from-api-trace": false,
       "from-archived": false,
+      "from-city": "",
       "from-client-timeout": "20m",
-      "from-date-range": "2024-01-15,2024-03-31",
+      "from-country": "",
       "from-favorite": false,
+      "from-make": "",
       "from-minimal-rating": 0,
+      "from-model": "",
+      "from-no-album": false,
+      "from-partners": false,
+      "from-people": {},
       "from-server": "https://old.immich.app",
       "from-skip-verify-ssl": false,
+      "from-state": "",
+      "from-tags": {},
       "from-trash": false
     },
     "write-to-folder": ""
@@ -566,20 +617,29 @@ title: JSON
       "tag": {}
     },
     "from-immich": {
-      "date-range": "2024-01-15,2024-03-31",
-      "exclude-extensions": null,
+      "from-albums": {},
       "from-api-key": "OLD-API-KEY",
       "from-api-trace": false,
       "from-archived": false,
+      "from-city": "",
       "from-client-timeout": "20m",
+      "from-country": "",
       "from-date-range": "2024-01-15,2024-03-31",
+      "from-exclude-extensions": null,
       "from-favorite": false,
+      "from-include-extensions": null,
+      "from-include-type": "",
+      "from-make": "",
       "from-minimal-rating": 0,
+      "from-model": "",
+      "from-no-album": false,
+      "from-partners": false,
+      "from-people": {},
       "from-server": "https://old.immich.app",
       "from-skip-verify-ssl": false,
-      "from-trash": false,
-      "include-extensions": null,
-      "include-type": ""
+      "from-state": "",
+      "from-tags": {},
+      "from-trash": false
     },
     "from-picasa": {
       "album-path-joiner": " / ",
