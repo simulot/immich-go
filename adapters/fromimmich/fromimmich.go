@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/simulot/immich-go/app"
@@ -14,6 +16,17 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/immichfs"
 )
+
+func formatQuotedStrings(ss []string) string {
+	if len(ss) == 0 {
+		return ""
+	}
+	quoted := make([]string, len(ss))
+	for i, s := range ss {
+		quoted[i] = fmt.Sprintf("%q", s)
+	}
+	return strings.Join(quoted, ", ")
+}
 
 type FromImmich struct {
 	flags *FromImmichFlags
@@ -40,7 +53,29 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 		ifs:   ifs,
 		ic:    filenames.NewInfoCollector(time.Local, client.Immich.SupportedMedia()),
 	}
+	// check filters values
+	if flags.Make != "" {
+		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+			Type: immich.SearchSuggestionTypeCameraMake,
+		}, flags.Make)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid make: %w", err)
+		}
+	}
+
 	return &f, nil
+}
+
+func (f *FromImmich) checkSuggestion(ctx context.Context, q immich.SearchSuggestionRequest, suggestion string) error {
+	sug := f.flags.client.Immich.(immich.ImmichGetSuggestion)
+	suggestions, err := sug.GetSearchSuggestions(ctx, q)
+	if err != nil {
+		return err
+	}
+	if slices.Contains(suggestions, suggestion) {
+		return nil
+	}
+	return fmt.Errorf("There is not '%s' in the suggestions, accepted values: %s", suggestion, formatQuotedStrings(suggestions))
 }
 
 func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
@@ -108,9 +143,6 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 		if f.flags.OnlyFavorite {
 			so.WithOnlyFavorite()
 		}
-		if f.flags.InclusionFlags.DateRange.IsSet() {
-			so.WithDateRange(f.flags.InclusionFlags.DateRange)
-		}
 	}
 
 	if f.flags.InclusionFlags.DateRange.IsSet() {
@@ -120,6 +152,11 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 	if f.flags.MinimalRating > 1 {
 		so.WithMinimalRate(f.flags.MinimalRating)
 	}
+
+	if f.flags.Make != "" {
+		so.WithOnlyMake(f.flags.Make)
+	}
+
 	return f.flags.client.Immich.GetFilteredAssetsFn(ctx, so, func(a *immich.Asset) error {
 		// filters on data returned by the search API
 		if !f.flags.IncludePartners && a.OwnerID != f.flags.client.User.ID {
