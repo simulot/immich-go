@@ -89,7 +89,17 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 		}
 	}
 
-	err = f.checkAlbums(ctx)
+	err = f.resolveAlbums(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = f.resolveTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = f.resolvePeople(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +119,7 @@ func (f *FromImmich) checkSuggestion(ctx context.Context, q immich.SearchSuggest
 	return fmt.Errorf("There is not '%s' in the suggestions, accepted values: %s", suggestion, formatQuotedStrings(suggestions))
 }
 
-func (f *FromImmich) checkAlbums(ctx context.Context) error {
+func (f *FromImmich) resolveAlbums(ctx context.Context) error {
 	if len(f.flags.Albums) == 0 {
 		return nil
 	}
@@ -143,6 +153,82 @@ func (f *FromImmich) checkAlbums(ctx context.Context) error {
 	return fmt.Errorf("unknown album(s): %v, available album(s): %v", formatQuotedStrings(unknownAlbums), formatQuotedStrings(availables))
 }
 
+func (f *FromImmich) resolveTags(ctx context.Context) error {
+	if len(f.flags.Tags) == 0 {
+		return nil
+	}
+	tags, err := f.flags.client.Immich.GetAllTags(ctx)
+	if err != nil {
+		return err
+	}
+	unknownTags := []string{}
+
+	for _, fromTag := range f.flags.Tags {
+		found := false
+		for _, t := range tags {
+			if t.Value == fromTag {
+				f.flags.tagIDs = gen.AddOnce(f.flags.tagIDs, t.ID)
+				found = true
+			}
+		}
+		if !found {
+			unknownTags = append(unknownTags, fromTag)
+		}
+	}
+
+	if len(unknownTags) == 0 {
+		return nil
+	}
+
+	availables := []string{}
+	for _, t := range tags {
+		availables = append(availables, t.Value)
+	}
+	return fmt.Errorf("unknown tag(s): %v, available tag(s): %v", formatQuotedStrings(unknownTags), formatQuotedStrings(availables))
+}
+
+func (f *FromImmich) resolvePeople(ctx context.Context) error {
+	if len(f.flags.People) == 0 {
+		return nil
+	}
+
+	icP := f.flags.client.Immich.(immich.ImmichPeopleInterface)
+	// Get people by names using the new GetAllPeople endpoint
+	peopleMap, err := icP.GetPeopleByNames(ctx, f.flags.People)
+	if err != nil {
+		return fmt.Errorf("failed to resolve people names: %w", err)
+	}
+
+	unknownPeople := []string{}
+	f.flags.peopleIDs = nil // Reset people IDs
+
+	for _, fromPerson := range f.flags.People {
+		if person, found := peopleMap[fromPerson]; found {
+			f.flags.peopleIDs = gen.AddOnce(f.flags.peopleIDs, person.ID)
+		} else {
+			unknownPeople = append(unknownPeople, fromPerson)
+		}
+	}
+
+	if len(unknownPeople) > 0 {
+		// Get all available people names for error message
+		var availablePeople []string
+		err := icP.GetAllPeopleIterator(ctx, func(person *immich.PersonResponseDto) error {
+			if person.Name != "" {
+				availablePeople = append(availablePeople, person.Name)
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("unknown people: %v (failed to get available people: %w)", formatQuotedStrings(unknownPeople), err)
+		}
+
+		return fmt.Errorf("unknown people: %v, available people: %v", formatQuotedStrings(unknownPeople), formatQuotedStrings(availablePeople))
+	}
+
+	return nil
+}
+
 func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
 	gOut := make(chan *assets.Group)
 	go func() {
@@ -157,22 +243,6 @@ func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
 }
 
 func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
-	// todo implement from-album and from-tag
-
-	// if len(f.flags.Tags) > 0 {
-	// 	f.tags, err = client.GetAllTags(ctx)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	for _, fromTag := range f.tags {
-	// 		for _, t := range f.flags.Tags {
-	// 			if t == fromTag.Value {
-	// 				tagsIds = append(tagsIds, fromTag.ID)
-	// 			}
-	// 		}
-	// 	}
-	// }
-
 	f.flags.MinimalRating = min(max(0, f.flags.MinimalRating), 5)
 
 	so := immich.SearchOptions()
@@ -228,6 +298,14 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 
 	if len(f.flags.albumIDs) > 0 {
 		so.WithAlbums(f.flags.albumIDs...)
+	}
+
+	if len(f.flags.tagIDs) > 0 {
+		so.WithTags(f.flags.tagIDs...)
+	}
+
+	if len(f.flags.peopleIDs) > 0 {
+		so.WithPeople(f.flags.peopleIDs...)
 	}
 
 	return f.flags.client.Immich.GetFilteredAssetsFn(ctx, so, func(a *immich.Asset) error {

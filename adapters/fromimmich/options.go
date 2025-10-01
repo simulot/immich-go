@@ -13,6 +13,7 @@ import (
 type FromImmichFlags struct {
 	Albums          []string                // get assets only from those albums
 	Tags            []string                // get assets only with those tags
+	People          []string                // get assets only with those people
 	IncludePartners bool                    // get partner's assets as well
 	OnlyArchived    bool                    // get only archived assets
 	OnlyTrashed     bool                    // get only trashed assets
@@ -28,6 +29,7 @@ type FromImmichFlags struct {
 	InclusionFlags  cliflags.InclusionFlags // controls the file extensions to be included in the import process.
 	albumIDs        []string
 	tagIDs          []string
+	peopleIDs       []string
 }
 
 func (o *FromImmichFlags) RegisterFlags(flags *pflag.FlagSet) {
@@ -38,6 +40,7 @@ func (o *FromImmichFlags) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.City, "from-city", "", "Get only assets from this city")
 	flags.StringSliceVar(&o.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
 	flags.StringSliceVar(&o.Tags, "from-tags", nil, "Get assets only with those tags, can be used multiple times")
+	flags.StringSliceVar(&o.People, "from-people", nil, "Get assets only with those people, can be used multiple times")
 	flags.BoolVar(&o.IncludePartners, "from-partners", false, "Get partner's assets as well")
 	flags.BoolVar(&o.OnlyArchived, "from-archived", false, "Get only archived assets")
 	flags.BoolVar(&o.OnlyTrashed, "from-trash", false, "Get only trashed assets")
