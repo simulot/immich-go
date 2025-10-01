@@ -50,6 +50,11 @@ type ImmichAssetInterface interface {
 	DeleteAssets(context.Context, []string, bool) error
 }
 
+// ImmichGetSuggestion is not a part of the immich client interface to simplify the client mokes
+type ImmichGetSuggestion interface {
+	GetSearchSuggestions(ctx context.Context, req SearchSuggestionRequest) (SearchSuggestions, error)
+}
+
 type RoundTripperDecorator func(rt http.RoundTripper) http.RoundTripper
 
 type ImmichClientInterface interface {
