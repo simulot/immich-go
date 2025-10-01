@@ -40,37 +40,37 @@ func (o *UploadFlags) RegisterFlags(flags *pflag.FlagSet) {
 type ImportFlags struct {
 	UploadFlags
 	// CreateAlbums determines whether to create albums in Immich that match the albums in the Google Photos takeout.
-	CreateAlbums bool
+	CreateAlbums bool `mapstructure:"sync-albums" yaml:"sync-albums" json:"sync-albums" toml:"sync-albums"`
 
 	// ImportFromAlbum specifies the name of the Google Photos album to import from. If empty, all albums will be imported.
-	ImportFromAlbum string
+	ImportFromAlbum string `mapstructure:"from-album-name" yaml:"from-album-name" json:"from-album-name" toml:"from-album-name"`
 
 	// ImportIntoAlbum specifies the name of the album to import assets into.
-	ImportIntoAlbum string
+	ImportIntoAlbum string `mapstructure:"into-album" yaml:"into-album" json:"into-album" toml:"into-album"`
 
 	// PartnerSharedAlbum specifies the name of the album to add partner's photos to.
-	PartnerSharedAlbum string
+	PartnerSharedAlbum string `mapstructure:"partner-shared-album" yaml:"partner-shared-album" json:"partner-shared-album" toml:"partner-shared-album"`
 
 	// KeepTrashed determines whether to import photos that are marked as trashed in Google Photos.
-	KeepTrashed bool
+	KeepTrashed bool `mapstructure:"include-trashed" yaml:"include-trashed" json:"include-trashed" toml:"include-trashed"`
 
 	// KeepPartner determines whether to import photos from the partner's Google Photos account.
-	KeepPartner bool
+	KeepPartner bool `mapstructure:"include-partner" yaml:"include-partner" json:"include-partner" toml:"include-partner"`
 
 	// KeepUntitled determines whether to include photos from albums without a title in the import process.
-	KeepUntitled bool
+	KeepUntitled bool `mapstructure:"include-untitled-albums" yaml:"include-untitled-albums" json:"include-untitled-albums" toml:"include-untitled-albums"`
 
 	// KeepArchived determines whether to import archived Google Photos.
-	KeepArchived bool
+	KeepArchived bool `mapstructure:"include-archived" yaml:"include-archived" json:"include-archived" toml:"include-archived"`
 
 	// KeepJSONLess determines whether to import photos that do not have a matching JSON file in the takeout.
-	KeepJSONLess bool
+	KeepJSONLess bool `mapstructure:"include-unmatched" yaml:"include-unmatched" json:"include-unmatched" toml:"include-unmatched"`
 
 	// Flags  for controlling the extensions of the files to be uploaded
-	InclusionFlags cliflags.InclusionFlags
+	InclusionFlags cliflags.InclusionFlags `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
 
 	// List of banned files
-	BannedFiles namematcher.List // List of banned file name patterns
+	BannedFiles namematcher.List `mapstructure:"ban-file" yaml:"ban-file" json:"ban-file" toml:"ban-file"` // List of banned file name patterns
 
 	// SupportedMedia represents the server's actual list of supported media. This is not a flag.
 	SupportedMedia filetypes.SupportedMedia
@@ -79,18 +79,18 @@ type ImportFlags struct {
 	InfoCollector *filenames.InfoCollector
 
 	// Tags is a list of tags to be added to the imported assets.
-	Tags []string
+	Tags []string `mapstructure:"tag" yaml:"tag" json:"tag" toml:"tag"`
 
 	// SessionTag indicates whether to add a session tag to the imported assets.
-	SessionTag bool
+	SessionTag bool   `mapstructure:"session-tag" yaml:"session-tag" json:"session-tag" toml:"session-tag"`
 	session    string // Session tag value
 
 	// Add the takeout file name as tag
-	TakeoutTag  bool
+	TakeoutTag  bool `mapstructure:"takeout-tag" yaml:"takeout-tag" json:"takeout-tag" toml:"takeout-tag"`
 	TakeoutName string
 
 	// PeopleTag indicates whether to add a people tag to the imported assets.
-	PeopleTag bool
+	PeopleTag bool `mapstructure:"people-tag" yaml:"people-tag" json:"people-tag" toml:"people-tag"`
 	// Timezone
 	TZ *time.Location
 }

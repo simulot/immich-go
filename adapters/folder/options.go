@@ -54,28 +54,28 @@ func (o *UploadFlags) RegisterFlags(flags *pflag.FlagSet) {
 type ImportFolderOptions struct {
 	UploadFlags
 	// UsePathAsAlbumName determines whether to create albums based on the full path to the asset.
-	UsePathAsAlbumName AlbumFolderMode
+	UsePathAsAlbumName AlbumFolderMode `mapstructure:"folder-as-album" yaml:"folder-as-album" json:"folder-as-album" toml:"folder-as-album"`
 
 	// AlbumNamePathSeparator specifies how multiple (sub) folders are joined when creating album names.
-	AlbumNamePathSeparator string
+	AlbumNamePathSeparator string `mapstructure:"album-path-joiner" yaml:"album-path-joiner" json:"album-path-joiner" toml:"album-path-joiner"`
 
 	// ImportIntoAlbum is the name of the album where all assets will be added.
-	ImportIntoAlbum string
+	ImportIntoAlbum string `mapstructure:"into-album" yaml:"into-album" json:"into-album" toml:"into-album"`
 
 	// BannedFiles is a list of file name patterns to be excluded from the import process.
-	BannedFiles namematcher.List
+	BannedFiles namematcher.List `mapstructure:"ban-file" yaml:"ban-file" json:"ban-file" toml:"ban-file"`
 
 	// Recursive indicates whether to explore the folder and all its sub-folders.
-	Recursive bool
+	Recursive bool `mapstructure:"recursive" yaml:"recursive" json:"recursive" toml:"recursive"`
 
 	// InclusionFlags controls the file extensions to be included in the import process.
-	InclusionFlags cliflags.InclusionFlags
+	InclusionFlags cliflags.InclusionFlags `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
 
 	// // ExifToolFlags specifies options for the exif.
 	// ExifToolFlags exif.ExifToolFlags
 
 	// IgnoreSideCarFiles indicates whether to ignore XMP files during the import process.
-	IgnoreSideCarFiles bool
+	IgnoreSideCarFiles bool `mapstructure:"ignore-sidecar-files" yaml:"ignore-sidecar-files" json:"ignore-sidecar-files" toml:"ignore-sidecar-files"`
 
 	// Stack jpg/raw
 	StackJpgWithRaw bool
@@ -90,24 +90,24 @@ type ImportFolderOptions struct {
 	InfoCollector *filenames.InfoCollector
 
 	// Tags is a list of tags to be added to the imported assets.
-	Tags []string
+	Tags []string `mapstructure:"tag" yaml:"tag" json:"tag" toml:"tag"`
 
 	// Folder as tags
-	FolderAsTags bool
+	FolderAsTags bool `mapstructure:"folder-as-tags" yaml:"folder-as-tags" json:"folder-as-tags" toml:"folder-as-tags"`
 
 	// SessionTag indicates whether to add a session tag to the imported assets.
-	SessionTag bool
+	SessionTag bool   `mapstructure:"session-tag" yaml:"session-tag" json:"session-tag" toml:"session-tag"`
 	session    string // Session tag value
 
 	// TakeDateFromFilename indicates whether to take the date from the filename if the date isn't available in the image.
-	TakeDateFromFilename bool
+	TakeDateFromFilename bool `mapstructure:"date-from-name" yaml:"date-from-name" json:"date-from-name" toml:"date-from-name"`
 
 	// Use picasa albums
-	PicasaAlbum bool
+	PicasaAlbum bool `mapstructure:"album-picasa" yaml:"album-picasa" json:"album-picasa" toml:"album-picasa"`
 
 	// Use icloud takeout metadata (albums & creation date)
-	ICloudTakeout          bool
-	ICloudMemoriesAsAlbums bool
+	ICloudTakeout          bool `mapstructure:"icloud-takeout" yaml:"icloud-takeout" json:"icloud-takeout" toml:"icloud-takeout"`
+	ICloudMemoriesAsAlbums bool `mapstructure:"memories" yaml:"memories" json:"memories" toml:"memories"`
 
 	// local time zone
 	TZ *time.Location
