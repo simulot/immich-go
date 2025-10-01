@@ -91,22 +91,22 @@ func (so *searchOptions) WithNotInAlbum() *searchOptions {
 	return so
 }
 
-// to get the assets belonging to the listed albums by name, reset WithNotInAlbum
+// to get the assets belonging to the listed albums by ID, reset WithNotInAlbum
 func (so *searchOptions) WithAlbums(albums ...string) *searchOptions {
-	gen.AddOnce(so.withAlbums, albums...)
+	so.withAlbums = gen.AddOnce(so.withAlbums, albums...)
 	so.withNotInAlbum = false
 	return so
 }
 
-// to get assets with listed tags (by name)
+// to get assets with listed tags (by ID)
 func (so *searchOptions) WithTags(tags ...string) *searchOptions {
-	gen.AddOnce(so.withTags, tags...)
+	so.withAlbums = gen.AddOnce(so.withTags, tags...)
 	return so
 }
 
-// to get assets with listed people only (by name)
+// to get assets with listed people only (by ID)
 func (so *searchOptions) WithPeople(people ...string) *searchOptions {
-	gen.AddOnce(so.withPeople, people...)
+	so.withAlbums = gen.AddOnce(so.withPeople, people...)
 	return so
 }
 
@@ -180,6 +180,7 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) ([]SearchMetadataQ
 		Country:      so.withOnlyCountry,
 		State:        so.withOnlyState,
 		City:         so.withOnlyCity,
+		AlbumIds:     so.withAlbums,
 	}
 
 	if !so.takenRange.Before.IsZero() {
