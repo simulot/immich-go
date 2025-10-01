@@ -32,15 +32,12 @@ type searchOptions struct {
 	withOnlyCity     string             // got only assets taken in this city
 
 	// following filters are resolved as ID
-	withAlbums []string // album names
-	withTags   []string // tag names
-	withPeople []string // people names
+	withAlbums []string // album ids
+	withTags   []string // tag ids
+	withPeople []string // people ids
 
 	// future options
 	// deviceIds []string           // device id used for the upload
-	// cities    []string           // city names
-	// countries []string           // country names
-	// states    []string           // state names
 
 	// following filters requires several calls
 	rates        []int
@@ -91,22 +88,22 @@ func (so *searchOptions) WithNotInAlbum() *searchOptions {
 	return so
 }
 
-// to get the assets belonging to the listed albums by ID, reset WithNotInAlbum
+// to get the assets belonging to the listed albums by name (will be converted to IDs), reset WithNotInAlbum
 func (so *searchOptions) WithAlbums(albums ...string) *searchOptions {
 	so.withAlbums = gen.AddOnce(so.withAlbums, albums...)
 	so.withNotInAlbum = false
 	return so
 }
 
-// to get assets with listed tags (by ID)
+// to get assets with listed tags (by name, will be converted to IDs)
 func (so *searchOptions) WithTags(tags ...string) *searchOptions {
-	so.withAlbums = gen.AddOnce(so.withTags, tags...)
+	so.withTags = gen.AddOnce(so.withTags, tags...)
 	return so
 }
 
-// to get assets with listed people only (by ID)
+// to get assets with listed people only (by name, will be converted to IDs)
 func (so *searchOptions) WithPeople(people ...string) *searchOptions {
-	so.withAlbums = gen.AddOnce(so.withPeople, people...)
+	so.withPeople = gen.AddOnce(so.withPeople, people...)
 	return so
 }
 
@@ -181,6 +178,8 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) ([]SearchMetadataQ
 		State:        so.withOnlyState,
 		City:         so.withOnlyCity,
 		AlbumIds:     so.withAlbums,
+		TagIds:       so.withTags,
+		PersonIds:    so.withPeople,
 	}
 
 	if !so.takenRange.Before.IsZero() {
@@ -270,6 +269,7 @@ type SearchMetadataQuery struct {
 	WithDeleted      bool              `json:"withDeleted,omitempty"`
 	AlbumIds         []string          `json:"albumIds,omitempty"`
 	TagIds           []string          `json:"tagIds,omitempty"`
+	PersonIds        []string          `json:"personIds,omitempty"`
 	TakenBefore      string            `json:"takenBefore,omitzero"`
 	TakenAfter       string            `json:"takenAfter,omitzero"`
 	TrashedAfter     string            `json:"trashedAfter,omitzero"`
