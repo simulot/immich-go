@@ -41,6 +41,7 @@ const (
 	EndPointAssetReplace           = "AssetReplace"
 	EndPointGetAboutInfo           = "GetAboutInfo"
 	EndPointGetSearchSuggestions   = "GetSearchSuggestions"
+	EndPointGetAllPeople           = "GetAllPeople"
 )
 
 type TooManyInternalError struct {

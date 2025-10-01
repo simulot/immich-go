@@ -117,6 +117,13 @@ type ImmichJobInterface interface {
 	CreateJob(ctx context.Context, name JobName) error
 }
 
+type ImmichPeopleInterface interface {
+	GetAllPeople(ctx context.Context, opts ...GetAllPeopleOptions) (*PeopleResponseDto, error)
+	GetAllPeopleIterator(ctx context.Context, fn func(*PersonResponseDto) error, opts ...GetAllPeopleOptions) error
+	GetPersonByName(ctx context.Context, name string, opts ...GetAllPeopleOptions) (*PersonResponseDto, error)
+	GetPeopleByNames(ctx context.Context, names []string, opts ...GetAllPeopleOptions) (map[string]*PersonResponseDto, error)
+}
+
 type myBool bool
 
 func (b myBool) String() string {
