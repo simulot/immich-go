@@ -28,3 +28,9 @@ Examples:
 * Get all assets from a list of cities
 
 
+
+## 3. People endpoint
+
+3.1 getAllPeople with has Name filter
+
+
