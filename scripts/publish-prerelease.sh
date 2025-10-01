@@ -86,7 +86,7 @@ next_version="$major.$next_minor"
 echo -e "${BLUE}📊 Next version base: v$next_version.0${NC}"
 
 # Find existing prerelease tags for the next version
-existing_prereleases=$(git tag --list "v$next_version.*" --sort=-version:refname | grep -E "v$next_version\.[0-9]+-dev-")
+existing_prereleases=$(git tag --list "v$next_version.*" --sort=-version:refname | grep -E "v$next_version\.[0-9]+-dev-" || true)
 
 next_patch=0
 if [ -n "$existing_prereleases" ]; then
@@ -94,6 +94,8 @@ if [ -n "$existing_prereleases" ]; then
     highest_patch=$(echo "$existing_prereleases" | sed -E "s/v$next_version\.([0-9]+)-dev-.*/\1/" | sort -n | tail -1)
     next_patch=$((highest_patch + 1))
     echo -e "${YELLOW}📈 Found existing prereleases, next patch: $next_patch${NC}"
+else
+    echo -e "${BLUE}📋 No existing prereleases found for v$next_version, starting with patch 0${NC}"
 fi
 
 # Get short commit hash
@@ -122,7 +124,7 @@ git push origin "$tag"
 
 # Run GoReleaser with prerelease flag
 echo -e "${YELLOW}🔨 Building and publishing prerelease...${NC}"
-goreleaser release --clean --prerelease
+goreleaser release --clean
 
 echo -e "${GREEN}✅ Prerelease published successfully!${NC}"
 echo -e "${BLUE}📋 Release details:${NC}"
