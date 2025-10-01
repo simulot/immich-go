@@ -138,8 +138,8 @@ func (so *searchOptions) WithOnlyArchived() *searchOptions {
 }
 
 // to get only assets taken with the maker
-func (so *searchOptions) WithOnlyMake(make string) *searchOptions {
-	so.withOnlyMake = make
+func (so *searchOptions) WithOnlyMake(cameraMake string) *searchOptions {
+	so.withOnlyMake = cameraMake
 	return so
 }
 
@@ -167,7 +167,7 @@ func (so *searchOptions) WithOnlyCity(city string) *searchOptions {
 	return so
 }
 
-func (ic *ImmichClient) buildSearchQueries(so *searchOptions) ([]SearchMetadataQuery, error) {
+func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQuery {
 	base := SearchMetadataQuery{
 		WithExif:     so.withExif,
 		IsNotInAlbum: so.withNotInAlbum,
@@ -226,7 +226,7 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) ([]SearchMetadataQ
 		qs = append(qs, qs2...)
 	}
 
-	return qs, nil
+	return qs
 }
 
 func (ic *ImmichClient) GetAllAssets(ctx context.Context, filter func(*Asset) error) error {
@@ -234,10 +234,7 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context, filter func(*Asset) er
 }
 
 func (ic *ImmichClient) GetFilteredAssetsFn(ctx context.Context, so *searchOptions, filter func(*Asset) error) error {
-	qs, err := ic.buildSearchQueries(so)
-	if err != nil {
-		return err
-	}
+	qs := ic.buildSearchQueries(so)
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.SetLimit(4) // most of the queries will return nothing
 	for _, q := range qs {

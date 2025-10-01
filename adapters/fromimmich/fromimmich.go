@@ -49,7 +49,7 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 			Type: immich.SearchSuggestionTypeCameraMake,
 		}, flags.Make)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid make: %w", err)
+			return nil, fmt.Errorf("invalid make: %w", err)
 		}
 	}
 	if flags.Model != "" {
@@ -58,7 +58,7 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 			Make: flags.Make,
 		}, flags.Model)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid model: %w", err)
+			return nil, fmt.Errorf("invalid model: %w", err)
 		}
 	}
 	if flags.Country != "" {
@@ -66,7 +66,7 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 			Type: immich.SearchSuggestionTypeCountry,
 		}, flags.Country)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid country: %w", err)
+			return nil, fmt.Errorf("invalid country: %w", err)
 		}
 	}
 	if flags.State != "" {
@@ -75,7 +75,7 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 			Country: flags.Country,
 		}, flags.State)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid state: %w", err)
+			return nil, fmt.Errorf("invalid state: %w", err)
 		}
 	}
 	if flags.City != "" {
@@ -85,7 +85,7 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 			State:   flags.State,
 		}, flags.City)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid city: %w", err)
+			return nil, fmt.Errorf("invalid city: %w", err)
 		}
 	}
 
@@ -116,7 +116,7 @@ func (f *FromImmich) checkSuggestion(ctx context.Context, q immich.SearchSuggest
 	if slices.Contains(suggestions, suggestion) {
 		return nil
 	}
-	return fmt.Errorf("There is not '%s' in the suggestions, accepted values: %s", suggestion, formatQuotedStrings(suggestions))
+	return fmt.Errorf("there is not '%s' in the suggestions, accepted values: %s", suggestion, formatQuotedStrings(suggestions))
 }
 
 func (f *FromImmich) resolveAlbums(ctx context.Context) error {

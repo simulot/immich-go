@@ -51,7 +51,10 @@ linters:
       - std-error-handling
     rules:
       - path: (.+)\.go$
-        text: 'Added to album: '
+        text: "Added to album: "
+      # Disable errcheck for JSON encoding in test files
+      - path: "_test\\.go$"
+        text: "Error return value of.*Encode.* is not checked"
     paths:
       - third_party$
       - builtin$
