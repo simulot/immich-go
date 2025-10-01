@@ -121,5 +121,5 @@ func (o *ImportFlags) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
 	flags.BoolVar(&o.TakeoutTag, "takeout-tag", true, "Tag uploaded photos with a tag \"{takeout}/takeout-YYYYMMDDTHHMMSSZ\"")
 	flags.BoolVar(&o.PeopleTag, "people-tag", true, "Tag uploaded photos with tags \"people/name\" found in the JSON file")
-	o.InclusionFlags.RegisterFlags(flags)
+	o.InclusionFlags.RegisterFlags(flags, "")
 }

@@ -108,19 +108,24 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 		if f.flags.OnlyFavorite {
 			so.WithOnlyFavorite()
 		}
-		if f.flags.DateRange.IsSet() {
-			so.WithDateRange(f.flags.DateRange)
+		if f.flags.InclusionFlags.DateRange.IsSet() {
+			so.WithDateRange(f.flags.InclusionFlags.DateRange)
 		}
 	}
 
-	if f.flags.DateRange.IsSet() {
-		so.WithDateRange(f.flags.DateRange)
+	if f.flags.InclusionFlags.DateRange.IsSet() {
+		so.WithDateRange(f.flags.InclusionFlags.DateRange)
 	}
 
 	if f.flags.MinimalRating > 1 {
 		so.WithMinimalRate(f.flags.MinimalRating)
 	}
 	return f.flags.client.Immich.GetFilteredAssetsFn(ctx, so, func(a *immich.Asset) error {
+		// filters on data returned by the search API
+		if !f.flags.IncludePartners && a.OwnerID != f.flags.client.User.ID {
+			return nil
+		}
+
 		// Fetch details
 		a, err := f.flags.client.Immich.GetAssetInfo(ctx, a.ID)
 		if err != nil {

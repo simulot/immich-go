@@ -127,7 +127,7 @@ func (o *ImportFolderOptions) RegisterFlags(flags *pflag.FlagSet) {
 
 	flags.BoolVar(&o.TakeDateFromFilename, "date-from-name", true, "Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov)")
 	flags.BoolVar(&o.PicasaAlbum, "album-picasa", false, "Use Picasa album name found in .picasa.ini file (default: false)")
-	o.InclusionFlags.RegisterFlags(flags)
+	o.InclusionFlags.RegisterFlags(flags, "")
 }
 
 func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cobra.Command) {
