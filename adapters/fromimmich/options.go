@@ -17,6 +17,7 @@ type FromImmichFlags struct {
 	OnlyArchived    bool                    // get only archived assets
 	OnlyTrashed     bool                    // get only trashed assets
 	OnlyFavorite    bool                    // get only favorite assets
+	OnlyNoAlbum     bool                    // get only assets that are not in any album
 	MinimalRating   int                     // get only assets with a rating greater or equal to this value
 	Make            string                  // get only assets with this make
 	Model           string                  // get only assets with this model
@@ -25,6 +26,8 @@ type FromImmichFlags struct {
 	City            string                  // get only assets from this city
 	client          app.Client              // client to use for the import
 	InclusionFlags  cliflags.InclusionFlags // controls the file extensions to be included in the import process.
+	albumIDs        []string
+	tagIDs          []string
 }
 
 func (o *FromImmichFlags) RegisterFlags(flags *pflag.FlagSet) {
@@ -33,12 +36,13 @@ func (o *FromImmichFlags) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&o.Country, "from-country", "", "Get only assets from this country")
 	flags.StringVar(&o.State, "from-state", "", "Get only assets from this state")
 	flags.StringVar(&o.City, "from-city", "", "Get only assets from this city")
-	// flags.StringSliceVar(&o.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
-	// flags.StringSliceVar(&o.Tags, "from-tags", nil, "Get assets only with those tags, can be used multiple times")
+	flags.StringSliceVar(&o.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
+	flags.StringSliceVar(&o.Tags, "from-tags", nil, "Get assets only with those tags, can be used multiple times")
 	flags.BoolVar(&o.IncludePartners, "from-partners", false, "Get partner's assets as well")
 	flags.BoolVar(&o.OnlyArchived, "from-archived", false, "Get only archived assets")
 	flags.BoolVar(&o.OnlyTrashed, "from-trash", false, "Get only trashed assets")
 	flags.BoolVar(&o.OnlyFavorite, "from-favorite", false, "Get only favorite assets")
+	flags.BoolVar(&o.OnlyNoAlbum, "from-no-album", false, "Get only assets that are not in any album")
 	flags.IntVar(&o.MinimalRating, "from-minimal-rating", 0, "Get only assets with a rating greater or equal to this value")
 	flags.StringVar(&o.client.Server, "from-server", o.client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
 	flags.StringVar(&o.client.APIKey, "from-api-key", "", "API Key")

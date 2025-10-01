@@ -14,19 +14,9 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/immichfs"
 )
-
-func formatQuotedStrings(ss []string) string {
-	if len(ss) == 0 {
-		return ""
-	}
-	quoted := make([]string, len(ss))
-	for i, s := range ss {
-		quoted[i] = fmt.Sprintf("%q", s)
-	}
-	return strings.Join(quoted, ", ")
-}
 
 type FromImmich struct {
 	flags *FromImmichFlags
@@ -98,6 +88,12 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 			return nil, fmt.Errorf("Invalid city: %w", err)
 		}
 	}
+
+	err = f.checkAlbums(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &f, nil
 }
 
@@ -111,6 +107,40 @@ func (f *FromImmich) checkSuggestion(ctx context.Context, q immich.SearchSuggest
 		return nil
 	}
 	return fmt.Errorf("There is not '%s' in the suggestions, accepted values: %s", suggestion, formatQuotedStrings(suggestions))
+}
+
+func (f *FromImmich) checkAlbums(ctx context.Context) error {
+	if len(f.flags.Albums) == 0 {
+		return nil
+	}
+	albums, err := f.flags.client.Immich.GetAllAlbums(ctx)
+	if err != nil {
+		return err
+	}
+	unknownAlbums := []string{}
+
+	for _, fromAlbum := range f.flags.Albums {
+		found := false
+		for _, a := range albums {
+			if a.AlbumName == fromAlbum {
+				f.flags.albumIDs = gen.AddOnce(f.flags.albumIDs, a.ID)
+				found = true
+			}
+		}
+		if !found {
+			unknownAlbums = append(unknownAlbums, fromAlbum)
+		}
+	}
+
+	if len(unknownAlbums) == 0 {
+		return nil
+	}
+
+	availables := []string{}
+	for _, a := range albums {
+		availables = append(availables, a.AlbumName)
+	}
+	return fmt.Errorf("unknown album(s): %v, available album(s): %v", formatQuotedStrings(unknownAlbums), formatQuotedStrings(availables))
 }
 
 func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
@@ -128,25 +158,6 @@ func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
 
 func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
 	// todo implement from-album and from-tag
-
-	// var albumsIDs []string
-	// var tagsIds []string
-	// var err error
-	// client := f.flags.client.Immich
-
-	// if len(f.flags.Albums) > 0 {
-	// 	f.albums, err = client.GetAllAlbums(ctx)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	for _, fromAlbum := range f.flags.Albums {
-	// 		for _, a := range f.albums {
-	// 			if a.AlbumName == fromAlbum {
-	// 				albumsIDs = append(albumsIDs, a.ID)
-	// 			}
-	// 		}
-	// 	}
-	// }
 
 	// if len(f.flags.Tags) > 0 {
 	// 	f.tags, err = client.GetAllTags(ctx)
@@ -197,6 +208,12 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 		so.WithOnlyCity(f.flags.City)
 	}
 
+	if f.flags.OnlyNoAlbum {
+		so.WithNotInAlbum()
+	} else {
+		so.WithAlbums(f.flags.albumIDs...)
+	}
+
 	if f.flags.InclusionFlags.DateRange.IsSet() {
 		so.WithDateRange(f.flags.InclusionFlags.DateRange)
 	}
@@ -207,6 +224,10 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 
 	if f.flags.Make != "" {
 		so.WithOnlyMake(f.flags.Make)
+	}
+
+	if len(f.flags.albumIDs) > 0 {
+		so.WithAlbums(f.flags.albumIDs...)
 	}
 
 	return f.flags.client.Immich.GetFilteredAssetsFn(ctx, so, func(a *immich.Asset) error {
@@ -274,4 +295,15 @@ func (f *FromImmich) logError(err error) error {
 		return err
 	}
 	return nil
+}
+
+func formatQuotedStrings(ss []string) string {
+	if len(ss) == 0 {
+		return ""
+	}
+	quoted := make([]string, len(ss))
+	for i, s := range ss {
+		quoted[i] = fmt.Sprintf("'%s'", s)
+	}
+	return strings.Join(quoted, ", ")
 }
