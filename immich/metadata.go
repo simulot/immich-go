@@ -26,6 +26,10 @@ type searchOptions struct {
 	withNotInAlbum   bool               // assets not in any album, set the isNotInAlbum
 	withOnlyFavorite bool               // get only favorite assets
 	withOnlyMake     string             // get only assets taken with this camera maker
+	withOnlyModel    string             // get only assets taken with this camera model
+	withOnlyCountry  string             // got only assets taken in this country
+	withOnlyState    string             // got only assets taken in this state
+	withOnlyCity     string             // got only assets taken in this city
 
 	// following filters are resolved as ID
 	withAlbums []string // album names
@@ -142,32 +146,40 @@ func (so *searchOptions) WithOnlyMake(make string) *searchOptions {
 	return so
 }
 
-// func (so *searchOptions) WithDeviceIds(deviceIds ...string) *searchOptions {
-// 	gen.AddOnce(so.deviceIds, deviceIds...)
-// 	return so
-// }
+// to get only assets taken with the model
+func (so *searchOptions) WithOnlyModel(model string) *searchOptions {
+	so.withOnlyModel = model
+	return so
+}
 
-// func (so *searchOptions) WithCounties(countries ...string) *searchOptions {
-// 	gen.AddOnce(so.countries, countries...)
-// 	return so
-// }
+// to get only assets taken in the country
+func (so *searchOptions) WithOnlyCountry(country string) *searchOptions {
+	so.withOnlyCountry = country
+	return so
+}
 
-// func (so *searchOptions) WithStates(states ...string) *searchOptions {
-// 	gen.AddOnce(so.states, states...)
-// 	return so
-// }
+// to get only assets taken in the state
+func (so *searchOptions) WithOnlyState(state string) *searchOptions {
+	so.withOnlyState = state
+	return so
+}
 
-// func (so *searchOptions) WithCities(cities ...string) *searchOptions {
-// 	gen.AddOnce(so.cities, cities...)
-// 	return so
-// }
+// to get only assets taken in the city
+func (so *searchOptions) WithOnlyCity(city string) *searchOptions {
+	so.withOnlyCity = city
+	return so
+}
 
-func (ic *ImmichClient) buildSearchQueries(ctx context.Context, so *searchOptions) ([]SearchMetadataQuery, error) {
+func (ic *ImmichClient) buildSearchQueries(so *searchOptions) ([]SearchMetadataQuery, error) {
 	base := SearchMetadataQuery{
 		WithExif:     so.withExif,
 		IsNotInAlbum: so.withNotInAlbum,
 		IsFavorite:   so.withOnlyFavorite,
 		Make:         so.withOnlyMake,
+		Model:        so.withOnlyModel,
+		Country:      so.withOnlyCountry,
+		State:        so.withOnlyState,
+		City:         so.withOnlyCity,
 	}
 
 	if !so.takenRange.Before.IsZero() {
@@ -177,11 +189,9 @@ func (ic *ImmichClient) buildSearchQueries(ctx context.Context, so *searchOption
 		base.TakenAfter = so.takenRange.After.Format(TimeFormat)
 	}
 
-	if so.withOnlyMake != "" {
-		base.Make = so.withOnlyMake
-	}
-
-	// TODO albums, Tags and persons
+	base.Make = so.withOnlyMake
+	base.Model = so.withOnlyModel
+	base.Country = so.withOnlyCountry
 
 	if len(so.visibilities) == 0 {
 		so.visibilities = defaultVisibility
@@ -224,7 +234,7 @@ func (ic *ImmichClient) GetAllAssets(ctx context.Context, filter func(*Asset) er
 }
 
 func (ic *ImmichClient) GetFilteredAssetsFn(ctx context.Context, so *searchOptions, filter func(*Asset) error) error {
-	qs, err := ic.buildSearchQueries(ctx, so)
+	qs, err := ic.buildSearchQueries(so)
 	if err != nil {
 		return err
 	}
@@ -265,6 +275,9 @@ type SearchMetadataQuery struct {
 	TrashedBefore    string            `json:"trashedBefore,omitzero"`
 	Model            string            `json:"model,omitempty"`
 	Make             string            `json:"make,omitempty"`
+	Country          string            `json:"country,omitempty"`
+	State            string            `json:"state,omitempty"`
+	City             string            `json:"city,omitempty"`
 	Checksum         string            `json:"checksum,omitempty"`
 	OriginalFileName string            `json:"originalFileName,omitempty"`
 	Rating           int               `json:"rating,omitzero"`

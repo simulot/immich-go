@@ -53,7 +53,7 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 		ifs:   ifs,
 		ic:    filenames.NewInfoCollector(time.Local, client.Immich.SupportedMedia()),
 	}
-	// check filters values
+	// check filters values against immich suggestions
 	if flags.Make != "" {
 		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
 			Type: immich.SearchSuggestionTypeCameraMake,
@@ -62,7 +62,42 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 			return nil, fmt.Errorf("Invalid make: %w", err)
 		}
 	}
-
+	if flags.Model != "" {
+		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+			Type: immich.SearchSuggestionTypeCameraModel,
+			Make: flags.Make,
+		}, flags.Model)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid model: %w", err)
+		}
+	}
+	if flags.Country != "" {
+		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+			Type: immich.SearchSuggestionTypeCountry,
+		}, flags.Country)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid country: %w", err)
+		}
+	}
+	if flags.State != "" {
+		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+			Type:    immich.SearchSuggestionTypeState,
+			Country: flags.Country,
+		}, flags.State)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid state: %w", err)
+		}
+	}
+	if flags.City != "" {
+		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+			Type:    immich.SearchSuggestionTypeCity,
+			Country: flags.Country,
+			State:   flags.State,
+		}, flags.City)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid city: %w", err)
+		}
+	}
 	return &f, nil
 }
 
@@ -143,6 +178,23 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 		if f.flags.OnlyFavorite {
 			so.WithOnlyFavorite()
 		}
+	}
+
+	if f.flags.Make != "" {
+		so.WithOnlyMake(f.flags.Make)
+	}
+
+	if f.flags.Model != "" {
+		so.WithOnlyMake(f.flags.Model)
+	}
+	if f.flags.Country != "" {
+		so.WithOnlyCountry(f.flags.Country)
+	}
+	if f.flags.State != "" {
+		so.WithOnlyState(f.flags.State)
+	}
+	if f.flags.City != "" {
+		so.WithOnlyCity(f.flags.City)
 	}
 
 	if f.flags.InclusionFlags.DateRange.IsSet() {

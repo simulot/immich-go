@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// TODO add Locked option
+// TODO add Locked folder option
 type FromImmichFlags struct {
 	Albums          []string                // get assets only from those albums
 	Tags            []string                // get assets only with those tags
@@ -20,13 +20,19 @@ type FromImmichFlags struct {
 	MinimalRating   int                     // get only assets with a rating greater or equal to this value
 	Make            string                  // get only assets with this make
 	Model           string                  // get only assets with this model
+	Country         string                  // get only assets from the country
+	State           string                  // get only assets from this state
+	City            string                  // get only assets from this city
 	client          app.Client              // client to use for the import
 	InclusionFlags  cliflags.InclusionFlags // controls the file extensions to be included in the import process.
 }
 
 func (o *FromImmichFlags) RegisterFlags(flags *pflag.FlagSet) {
-	// flags.StringVar(&o.Make, "from-make", "", "Get only assets with this make")
-	// flags.StringVar(&o.Model, "from-model", "", "Get only assets with this model")
+	flags.StringVar(&o.Make, "from-make", "", "Get only assets with this make")
+	flags.StringVar(&o.Model, "from-model", "", "Get only assets with this model")
+	flags.StringVar(&o.Country, "from-country", "", "Get only assets from this country")
+	flags.StringVar(&o.State, "from-state", "", "Get only assets from this state")
+	flags.StringVar(&o.City, "from-city", "", "Get only assets from this city")
 	// flags.StringSliceVar(&o.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
 	// flags.StringSliceVar(&o.Tags, "from-tags", nil, "Get assets only with those tags, can be used multiple times")
 	flags.BoolVar(&o.IncludePartners, "from-partners", false, "Get partner's assets as well")
