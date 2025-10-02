@@ -18,7 +18,7 @@ import (
 )
 
 type ArchiveOptions struct {
-	ArchivePath string
+	ArchivePath string `mapstructure:"write-to-folder" yaml:"write-to-folder" json:"write-to-folder" toml:"write-to-folder"`
 }
 
 func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command {
