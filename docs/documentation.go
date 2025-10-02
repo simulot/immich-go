@@ -188,10 +188,10 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, p string) {
 	fmt.Fprintln(f, "")
 	fmt.Fprintln(f, "## Configuration file structure")
 	fmt.Fprintln(f, "")
-	fmt.Fprintln(f, "````")
-	fmt.Fprintln(f, "---")
-	fmt.Fprintln(f, "title: TOML")
-	fmt.Fprintln(f, "---")
+
+	fmt.Fprintln(f, "<details>")
+	fmt.Fprintln(f, "<summary>TOML</summary>")
+	fmt.Fprintln(f, "")
 	fmt.Fprintln(f, "```toml")
 	b, err := toml.Marshal(cfg)
 	if err != nil {
@@ -199,12 +199,13 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, p string) {
 	}
 	fmt.Fprint(f, string(b))
 	fmt.Fprintln(f, "```")
-	fmt.Fprintln(f, "````")
+	fmt.Fprintln(f, "")
+	fmt.Fprintln(f, "</details>")
 
-	fmt.Fprintln(f, "````")
-	fmt.Fprintln(f, "---")
-	fmt.Fprintln(f, "title: YAML")
-	fmt.Fprintln(f, "---")
+	fmt.Fprintln(f, "")
+	fmt.Fprintln(f, "<details>")
+	fmt.Fprintln(f, "<summary>YAML</summary>")
+	fmt.Fprintln(f, "")
 	fmt.Fprintln(f, "```yaml")
 	out := bytes.NewBuffer(nil)
 	encoder := yaml.NewEncoder(out)
@@ -215,12 +216,13 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, p string) {
 	}
 	fmt.Fprint(f, out.String())
 	fmt.Fprintln(f, "```")
-	fmt.Fprintln(f, "````")
+	fmt.Fprintln(f, "")
+	fmt.Fprintln(f, "</details>")
 
-	fmt.Fprintln(f, "````")
-	fmt.Fprintln(f, "---")
-	fmt.Fprintln(f, "title: JSON")
-	fmt.Fprintln(f, "---")
+	fmt.Fprintln(f, "")
+	fmt.Fprintln(f, "<details>")
+	fmt.Fprintln(f, "<summary>JSON</summary>")
+	fmt.Fprintln(f, "")
 	fmt.Fprintln(f, "```json")
 	out.Reset()
 	encoderJ := json.NewEncoder(out)
@@ -231,7 +233,8 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, p string) {
 	}
 	fmt.Fprint(f, out.String())
 	fmt.Fprintln(f, "```")
-	fmt.Fprintln(f, "````")
+	fmt.Fprintln(f, "")
+	fmt.Fprintln(f, "</details>")
 }
 
 // setDateRanges recursively sets all date-range fields in the configuration map

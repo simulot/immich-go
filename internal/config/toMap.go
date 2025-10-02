@@ -16,8 +16,7 @@ func TraverseCommands(cmd *cobra.Command, path []string, visitor CommandVisitor)
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
 			continue
 		}
-		subPath := append(path, c.Name())
-		subM := TraverseCommands(c, subPath, visitor)
+		subM := TraverseCommands(c, append(path, c.Name()), visitor)
 		if len(subM) > 0 {
 			m[c.Name()] = subM
 		}
