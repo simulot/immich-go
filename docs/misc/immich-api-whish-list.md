@@ -34,3 +34,7 @@ Examples:
 3.1 getAllPeople with has Name filter
 
 
+
+## 4. Cross user API keys
+
+Immich-go archive command is currently tied to a single user. It would be useful to have API keys that can access multiple users' data, especially for administrative tasks.
