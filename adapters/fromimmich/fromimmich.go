@@ -2,7 +2,6 @@ package fromimmich
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -20,13 +19,9 @@ import (
 
 type FromImmich struct {
 	flags *FromImmichFlags
-	// client *app.Client
-	ifs *immichfs.ImmichFS
-	ic  *filenames.InfoCollector
-
-	// albums   []immich.AlbumSimplified
-	// tags     []immich.TagSimplified
-	errCount int // Count the number of errors, to stop after 5
+	ifs   *immichfs.ImmichFS
+	ic    *filenames.InfoCollector
+	app   *app.Application
 }
 
 func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Recorder, flags *FromImmichFlags) (*FromImmich, error) {
@@ -42,6 +37,7 @@ func NewFromImmich(ctx context.Context, app *app.Application, jnl *fileevent.Rec
 		flags: flags,
 		ifs:   ifs,
 		ic:    filenames.NewInfoCollector(time.Local, client.Immich.SupportedMedia()),
+		app:   app,
 	}
 	// check filters values against immich suggestions
 	if flags.Make != "" {
@@ -235,8 +231,8 @@ func (f *FromImmich) Browse(ctx context.Context) chan *assets.Group {
 		defer close(gOut)
 
 		err := f.getAssets(ctx, gOut)
-		if err != nil {
-			f.flags.client.ClientLog.Error(fmt.Sprintf("Error while getting from-immich assets: %v", err))
+		if err = f.app.ProcessError(err); err != nil {
+			return
 		}
 	}()
 	return gOut
@@ -316,8 +312,8 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 
 		// Fetch details
 		a, err := f.flags.client.Immich.GetAssetInfo(ctx, a.ID)
-		if err != nil {
-			return f.logError(err)
+		if err = f.app.ProcessError(err); err != nil {
+			return err
 		}
 
 		asset := a.AsAsset()
@@ -338,9 +334,10 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 
 		// Transfer the album
 		simplifiedA, err := f.flags.client.Immich.GetAssetAlbums(ctx, a.ID)
-		if err != nil {
-			return f.logError(err)
+		if err = f.app.ProcessError(err); err != nil {
+			return err
 		}
+
 		albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
 		// clear the ID of the album that exists in from server, but not in to server
 		for i := range albums {
@@ -362,17 +359,6 @@ func (f *FromImmich) getAssets(ctx context.Context, grpChan chan *assets.Group) 
 		}
 		return nil
 	})
-}
-
-func (f *FromImmich) logError(err error) error {
-	f.flags.client.ClientLog.Error(fmt.Sprintf("Error while getting Immich assets: %v", err))
-	f.errCount++
-	if f.errCount > 5 {
-		err := errors.New("too many errors, aborting")
-		f.flags.client.ClientLog.Error(err.Error())
-		return err
-	}
-	return nil
 }
 
 func formatQuotedStrings(ss []string) string {
