@@ -10,14 +10,8 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_LOG_FILE` | `--log-file` | Write log messages into the file |
 | `IMMICH_GO_LOG_LEVEL` | `--log-level` | Log level (DEBUG|INFO|WARN|ERROR), default INFO |
 | `IMMICH_GO_LOG_TYPE` | `--log-type` | Log formatted  as text of JSON file |
+| `IMMICH_GO_ON_ERRORS` | `--on-errors` | Action to take on errors, (stop|continue| <n> errors) |
 | `IMMICH_GO_SAVE_CONFIG` | `--save-config` | Save the configuration to immich-go.yaml |
-
-## archive
-
-| Variable | Flag | Description |
-|----------|------|-------------|
-| `IMMICH_GO_ARCHIVE_DRY_RUN` | `--dry-run` | dry run |
-| `IMMICH_GO_ARCHIVE_WRITE_TO_FOLDER` | `--write-to-folder` | Path where to write the archive |
 
 ## archive from-folder
 
@@ -89,41 +83,11 @@ The following environment variables can be used to configure `immich-go`.
 
 | Variable | Flag | Description |
 |----------|------|-------------|
-| `IMMICH_GO_STACK_ADMIN_API_KEY` | `--admin-api-key` | Admin's API Key for managing server's jobs |
-| `IMMICH_GO_STACK_API_KEY` | `--api-key` | API Key |
-| `IMMICH_GO_STACK_API_TRACE` | `--api-trace` | Enable trace of api calls |
-| `IMMICH_GO_STACK_CLIENT_TIMEOUT` | `--client-timeout` | Set server calls timeout |
 | `IMMICH_GO_STACK_DATE_RANGE` | `--date-range` | photos must be taken in the date range |
-| `IMMICH_GO_STACK_DEVICE_UUID` | `--device-uuid` | Set a device UUID |
-| `IMMICH_GO_STACK_DRY_RUN` | `--dry-run` | Simulate all actions |
 | `IMMICH_GO_STACK_MANAGE_BURST` | `--manage-burst` | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG |
 | `IMMICH_GO_STACK_MANAGE_EPSON_FASTFOTO` | `--manage-epson-fastfoto` | Manage Epson FastFoto file (default: false) |
 | `IMMICH_GO_STACK_MANAGE_HEIC_JPEG` | `--manage-heic-jpeg` | Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG |
 | `IMMICH_GO_STACK_MANAGE_RAW_JPEG` | `--manage-raw-jpeg` | Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG |
-| `IMMICH_GO_STACK_ON_SERVER_ERRORS` | `--on-server-errors` | Action to take on server errors, (stop|continue| <n> errors) |
-| `IMMICH_GO_STACK_PAUSE_IMMICH_JOBS` | `--pause-immich-jobs` | Pause Immich background jobs during upload operations |
-| `IMMICH_GO_STACK_SERVER` | `--server` | Immich server address (example http://your-ip:2283 or https://your-domain) |
-| `IMMICH_GO_STACK_SKIP_VERIFY_SSL` | `--skip-verify-ssl` | Skip SSL verification |
-| `IMMICH_GO_STACK_TIME_ZONE` | `--time-zone` | Override the system time zone |
-
-## upload
-
-| Variable | Flag | Description |
-|----------|------|-------------|
-| `IMMICH_GO_UPLOAD_ADMIN_API_KEY` | `--admin-api-key` | Admin's API Key for managing server's jobs |
-| `IMMICH_GO_UPLOAD_API_KEY` | `--api-key` | API Key |
-| `IMMICH_GO_UPLOAD_API_TRACE` | `--api-trace` | Enable trace of api calls |
-| `IMMICH_GO_UPLOAD_CLIENT_TIMEOUT` | `--client-timeout` | Set server calls timeout |
-| `IMMICH_GO_UPLOAD_CONCURRENT_UPLOADS` | `--concurrent-uploads` | Number of concurrent upload workers (1-20) |
-| `IMMICH_GO_UPLOAD_DEVICE_UUID` | `--device-uuid` | Set a device UUID |
-| `IMMICH_GO_UPLOAD_DRY_RUN` | `--dry-run` | Simulate all actions |
-| `IMMICH_GO_UPLOAD_NO_UI` | `--no-ui` | Disable the user interface |
-| `IMMICH_GO_UPLOAD_ON_SERVER_ERRORS` | `--on-server-errors` | Action to take on server errors, (stop|continue| <n> errors) |
-| `IMMICH_GO_UPLOAD_OVERWRITE` | `--overwrite` | Always overwrite files on the server with local versions |
-| `IMMICH_GO_UPLOAD_PAUSE_IMMICH_JOBS` | `--pause-immich-jobs` | Pause Immich background jobs during upload operations |
-| `IMMICH_GO_UPLOAD_SERVER` | `--server` | Immich server address (example http://your-ip:2283 or https://your-domain) |
-| `IMMICH_GO_UPLOAD_SKIP_VERIFY_SSL` | `--skip-verify-ssl` | Skip SSL verification |
-| `IMMICH_GO_UPLOAD_TIME_ZONE` | `--time-zone` | Override the system time zone |
 
 ## upload from-folder
 

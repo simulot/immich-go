@@ -13,12 +13,10 @@ dry-run = false
 log-file = ''
 log-level = 'INFO'
 log-type = 'text'
+on-errors = 'stop'
 save-config = false
 
 [archive]
-dry-run = false
-write-to-folder = ''
-
 [archive.from-folder]
 album-path-joiner = ' / '
 album-picasa = false
@@ -84,38 +82,21 @@ from-trash = false
 [archive.from-immich.from-tags]
 
 [stack]
-admin-api-key = ''
 api-key = 'YOUR-API-KEY'
-api-trace = false
 client-timeout = '20m'
 date-range = '2024-01-15,2024-03-31'
 device-uuid = 'HOSTNAME'
-dry-run = false
 manage-burst = 'NoStack'
 manage-epson-fastfoto = false
 manage-heic-jpeg = 'NoStack'
 manage-raw-jpeg = 'NoStack'
-on-server-errors = 0
-pause-immich-jobs = true
 server = 'https://immich.app'
-skip-verify-ssl = false
-time-zone = ''
 
 [upload]
-admin-api-key = ''
 api-key = 'YOUR-API-KEY'
-api-trace = false
 client-timeout = '20m'
-concurrent-uploads = 12
 device-uuid = 'HOSTNAME'
-dry-run = false
-no-ui = false
-on-server-errors = 0
-overwrite = false
-pause-immich-jobs = true
 server = 'https://immich.app'
-skip-verify-ssl = false
-time-zone = ''
 
 [upload.from-folder]
 album-path-joiner = ' / '
@@ -239,8 +220,6 @@ session-tag = false
 [upload.from-picasa.ban-file]
 
 [upload.from-picasa.tag]
-
-[version]
 ```
 ````
 ````
@@ -249,7 +228,6 @@ title: YAML
 ---
 ```yaml
 archive:
-  dry-run: false
   from-folder:
     album-path-joiner: ' / '
     album-picasa: false
@@ -304,37 +282,26 @@ archive:
     from-state: ""
     from-tags: {}
     from-trash: false
-  write-to-folder: ""
 dry-run: false
 log-file: ""
 log-level: INFO
 log-type: text
+on-errors: stop
 save-config: false
 stack:
-  admin-api-key: ""
   api-key: YOUR-API-KEY
-  api-trace: false
   client-timeout: 20m
   date-range: 2024-01-15,2024-03-31
   device-uuid: HOSTNAME
-  dry-run: false
   manage-burst: NoStack
   manage-epson-fastfoto: false
   manage-heic-jpeg: NoStack
   manage-raw-jpeg: NoStack
-  on-server-errors: 0
-  pause-immich-jobs: true
   server: https://immich.app
-  skip-verify-ssl: false
-  time-zone: ""
 upload:
-  admin-api-key: ""
   api-key: YOUR-API-KEY
-  api-trace: false
   client-timeout: 20m
-  concurrent-uploads: 12
   device-uuid: HOSTNAME
-  dry-run: false
   from-folder:
     album-path-joiner: ' / '
     album-picasa: false
@@ -442,14 +409,7 @@ upload:
     recursive: true
     session-tag: false
     tag: {}
-  no-ui: false
-  on-server-errors: 0
-  overwrite: false
-  pause-immich-jobs: true
   server: https://immich.app
-  skip-verify-ssl: false
-  time-zone: ""
-version: {}
 ```
 ````
 ````
@@ -459,7 +419,6 @@ title: JSON
 ```json
 {
   "archive": {
-    "dry-run": false,
     "from-folder": {
       "album-path-joiner": " / ",
       "album-picasa": false,
@@ -516,40 +475,29 @@ title: JSON
       "from-state": "",
       "from-tags": {},
       "from-trash": false
-    },
-    "write-to-folder": ""
+    }
   },
   "dry-run": false,
   "log-file": "",
   "log-level": "INFO",
   "log-type": "text",
+  "on-errors": "stop",
   "save-config": false,
   "stack": {
-    "admin-api-key": "",
     "api-key": "YOUR-API-KEY",
-    "api-trace": false,
     "client-timeout": "20m",
     "date-range": "2024-01-15,2024-03-31",
     "device-uuid": "HOSTNAME",
-    "dry-run": false,
     "manage-burst": "NoStack",
     "manage-epson-fastfoto": false,
     "manage-heic-jpeg": "NoStack",
     "manage-raw-jpeg": "NoStack",
-    "on-server-errors": 0,
-    "pause-immich-jobs": true,
-    "server": "https://immich.app",
-    "skip-verify-ssl": false,
-    "time-zone": ""
+    "server": "https://immich.app"
   },
   "upload": {
-    "admin-api-key": "",
     "api-key": "YOUR-API-KEY",
-    "api-trace": false,
     "client-timeout": "20m",
-    "concurrent-uploads": 12,
     "device-uuid": "HOSTNAME",
-    "dry-run": false,
     "from-folder": {
       "album-path-joiner": " / ",
       "album-picasa": false,
@@ -662,15 +610,8 @@ title: JSON
       "session-tag": false,
       "tag": {}
     },
-    "no-ui": false,
-    "on-server-errors": 0,
-    "overwrite": false,
-    "pause-immich-jobs": true,
-    "server": "https://immich.app",
-    "skip-verify-ssl": false,
-    "time-zone": ""
-  },
-  "version": {}
+    "server": "https://immich.app"
+  }
 }
 ```
 ````
