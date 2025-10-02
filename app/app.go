@@ -2,8 +2,11 @@ package app
 
 import (
 	"context"
+	"errors"
+	"sync/atomic"
 	"time"
 
+	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/spf13/cobra"
@@ -23,14 +26,19 @@ type Application struct {
 	tz     *time.Location
 	Config *config.ConfigurationManager
 	CommonFlags
+
+	numErrors atomic.Int64 // count the errors occurred during the run
 }
 
 type CommonFlags struct {
-	DryRun bool
+	DryRun   bool
+	OnErrors cliflags.OnErrorsFlag
 }
 
 func (cf *CommonFlags) RegisterFlags(flags *pflag.FlagSet) {
+	cf.OnErrors.Set("stop")
 	flags.BoolVar(&cf.DryRun, "dry-run", false, "dry run")
+	flags.Var(&cf.OnErrors, "on-error", "Action to take on errors, (stop|continue| <n> errors)")
 }
 
 func New(ctx context.Context, cmd *cobra.Command, cm *config.ConfigurationManager) *Application {
@@ -91,4 +99,28 @@ func ChainRunEFunctions(prev RunE, fn RunEAdaptor, ctx context.Context, cmd *cob
 		}
 		return fn(ctx, cmd, app)
 	}
+}
+
+func (app *Application) ProcessError(err error) error {
+	if err == nil {
+		return nil
+	}
+	// we don't count context.Canceled as an error
+	// but we want to return it to the caller
+	if errors.Is(err, context.Canceled) {
+		return err
+	}
+
+	nErr := app.numErrors.Add(1)
+	if app.OnErrors == cliflags.OnErrorsStop {
+		app.Log().Error("Error", "err", err.Error())
+		return err
+	} else if app.OnErrors == cliflags.OnErrorsNeverStop {
+		app.Log().Error("Error", "err", err.Error())
+		return nil
+	} else if nErr > int64(app.OnErrors) {
+		app.Log().Error("Too many errors, stopping", "err", err.Error())
+		return err
+	}
+	return nil
 }

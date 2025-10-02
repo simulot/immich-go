@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -16,7 +15,6 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assets/cache"
-	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -304,7 +302,6 @@ func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group
 	// the goroutine submits the groups, and stops when then number of error is higher than tolerated
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		var errorCount atomic.Int32
 		workers := worker.NewPool(upCmd.ConcurrentUploads)
 		defer workers.Stop()
 		for {
@@ -319,21 +316,9 @@ func (upCmd *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group
 				workers.Submit(func() {
 					err := upCmd.handleGroup(ctx, g)
 					if err != nil {
-						upCmd.app.Log().Error(err.Error())
-						switch {
-						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsNeverStop:
-							// nop
-						case upCmd.app.Client().OnServerErrors == cliflags.OnServerErrorsStop:
+						err = upCmd.app.ProcessError(err)
+						if err != nil {
 							cancel(err)
-							return
-						default:
-							c := int(errorCount.Add(1))
-							if c < int(upCmd.app.Client().OnServerErrors) {
-								return
-							}
-							upCmd.app.Log().Error("too many errors, aborting")
-							cancel(errors.New("too many errors, aborting"))
-							return
 						}
 					}
 				})
