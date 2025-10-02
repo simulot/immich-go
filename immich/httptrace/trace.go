@@ -82,11 +82,7 @@ func (rt *roundTripTrace) Dump() {
 		fmt.Fprintf(rt.ht.out, "/---- client #%d request  #%d ---------------------------------------------------\n", rt.instance, rt.reqId)
 		fmt.Fprint(rt.ht.out, rt.req.String())
 		fmt.Fprintf(rt.ht.out, "+---- response  ---------------------------------------------------\n")
-		if rt.resp.resp != nil {
-			fmt.Fprint(rt.ht.out, rt.resp.String())
-		} else if rt.resp.err != nil {
-			fmt.Fprintf(rt.ht.out, "Error: %s\n", rt.resp.err.Error())
-		}
+		fmt.Fprint(rt.ht.out, rt.resp.String())
 		fmt.Fprintf(rt.ht.out, "\\---- client #%d request  #%d ---------------------------------------------------\n", rt.instance, rt.reqId)
 		fmt.Fprint(rt.ht.out, "\n")
 	}()
@@ -139,13 +135,17 @@ type responseTrace struct {
 
 func (rt *responseTrace) String() string {
 	sb := strings.Builder{}
-	fmt.Fprintf(&sb, "Status: %s: %d\n", rt.resp.Status, rt.resp.StatusCode)
 	fmt.Fprintf(&sb, "Timestamp: %s\n", rt.timestamp.Format(timeFormat))
 	fmt.Fprintf(&sb, "Duration: %s\n", rt.duration)
-	sb.WriteString(writeHeaders(rt.resp.Header))
-	if rt.body != nil {
-		sb.WriteString(writeBody(rt.contentType, rt.body))
-		rt.body.Done()
+	if rt.err != nil {
+		fmt.Fprintf(&sb, "Error: %s\n", rt.err.Error())
+	} else {
+		fmt.Fprintf(&sb, "Status: %s: %d\n", rt.resp.Status, rt.resp.StatusCode)
+		sb.WriteString(writeHeaders(rt.resp.Header))
+		if rt.body != nil {
+			sb.WriteString(writeBody(rt.contentType, rt.body))
+			rt.body.Done()
+		}
 	}
 	return sb.String()
 }
