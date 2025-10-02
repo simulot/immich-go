@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/immich"
-	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -22,24 +21,23 @@ import (
 // Client represents an Immich server client with configuration and connection management.
 // It handles authentication, API communication, and various client-side settings.
 type Client struct {
-	Server                    string                      // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
-	APIKey                    string                      // API Key
-	AdminAPIKey               string                      // API Key for admin
-	APITrace                  bool                        // Enable API call traces
-	SkipSSL                   bool                        // Skip SSL Verification
-	ClientTimeout             time.Duration               // Set the client request timeout
-	DeviceUUID                string                      // Set a device UUID
-	DryRun                    bool                        // Protect the server from changes
-	TimeZone                  string                      // Override default TZ
-	TZ                        *time.Location              // Time zone to use
-	APITraceWriter            io.WriteCloser              // API tracer
-	APITraceWriterName        string                      // API trace log name
-	Immich                    immich.ImmichInterface      // Immich client
-	AdminImmich               immich.ImmichInterface      // Immich client for admin
-	ClientLog                 *slog.Logger                // Logger
-	OnServerErrors            cliflags.OnServerErrorsFlag // Behavior on server errors, (stop|continue| <n> errors)
-	User                      immich.User                 // User info corresponding to the API key
-	PauseImmichBackgroundJobs bool                        // Pause Immich background jobs
+	Server                    string                 // Immich server address (http://<your-ip>:2283/api or https://<your-domain>/api)
+	APIKey                    string                 // API Key
+	AdminAPIKey               string                 // API Key for admin
+	APITrace                  bool                   // Enable API call traces
+	SkipSSL                   bool                   // Skip SSL Verification
+	ClientTimeout             time.Duration          // Set the client request timeout
+	DeviceUUID                string                 // Set a device UUID
+	DryRun                    bool                   // Protect the server from changes
+	TimeZone                  string                 // Override default TZ
+	TZ                        *time.Location         // Time zone to use
+	APITraceWriter            io.WriteCloser         // API tracer
+	APITraceWriterName        string                 // API trace log name
+	Immich                    immich.ImmichInterface // Immich client
+	AdminImmich               immich.ImmichInterface // Immich client for admin
+	ClientLog                 *slog.Logger           // Logger
+	User                      immich.User            // User info corresponding to the API key
+	PauseImmichBackgroundJobs bool                   // Pause Immich background jobs
 }
 
 // RegisterFlags adds client-related command-line flags to the provided flag set.
@@ -58,7 +56,6 @@ func (client *Client) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&client.DeviceUUID, "device-uuid", client.DeviceUUID, "Set a device UUID")
 	flags.BoolVar(&client.DryRun, "dry-run", false, "Simulate all actions")
 	flags.StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
-	flags.Var(&client.OnServerErrors, "on-server-errors", "Action to take on server errors, (stop|continue| <n> errors)")
 }
 
 // AddClientFlags registers client flags for a command and sets up pre/post run hooks
