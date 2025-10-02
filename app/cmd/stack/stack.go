@@ -27,7 +27,6 @@ TODO
 - [X] Take sub second exif time into account
 */
 type StackCmd struct {
-	app.CommonFlags
 	DateRange cliflags.DateRange // Set capture date range
 
 	// Stack jpg/raw
