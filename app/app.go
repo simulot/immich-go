@@ -36,9 +36,9 @@ type CommonFlags struct {
 }
 
 func (cf *CommonFlags) RegisterFlags(flags *pflag.FlagSet) {
-	cf.OnErrors.Set("stop")
+	_ = cf.OnErrors.Set("stop")
+	cf.OnErrors.RegisterFlags(flags, "")
 	flags.BoolVar(&cf.DryRun, "dry-run", false, "dry run")
-	flags.Var(&cf.OnErrors, "on-error", "Action to take on errors, (stop|continue| <n> errors)")
 }
 
 func New(ctx context.Context, cmd *cobra.Command, cm *config.ConfigurationManager) *Application {
