@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
 )
 
@@ -28,7 +29,7 @@ func (f OnErrorsFlag) String() string {
 	case f == OnErrorsNeverStop:
 		return "continue"
 	case f >= OnErrorsStopAfter:
-		return fmt.Sprintf("stop after %d errors", f)
+		return fmt.Sprintf("%d", f)
 	default:
 		return "unknown"
 	}
@@ -84,10 +85,24 @@ func (f *OnErrorsFlag) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // MarshalTOML implements the toml.Marshaler interface.
 func (f OnErrorsFlag) MarshalTOML() ([]byte, error) {
-	return []byte(f.String()), nil
+	return toml.Marshal(f.String())
 }
 
 // UnmarshalTOML implements the toml.Unmarshaler interface.
 func (f *OnErrorsFlag) UnmarshalTOML(data []byte) error {
+	var value string
+	if err := toml.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	return f.Set(value)
+}
+
+// MarshalText implements encoding.TextMarshaler
+func (f OnErrorsFlag) MarshalText() ([]byte, error) {
+	return []byte(f.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (f *OnErrorsFlag) UnmarshalText(data []byte) error {
 	return f.Set(string(data))
 }
