@@ -4,51 +4,45 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/spf13/cobra"
 )
 
-type OnServerErrorsFlag int
+type OnErrorsFlag int
 
 const (
-	OnServerErrorsStop OnServerErrorsFlag = iota
-	OnServerErrorsStopAfter
-	OnServerErrorsNeverStop = -1
+	OnErrorsStop OnErrorsFlag = iota
+	OnErrorsStopAfter
+	OnErrorsNeverStop = -1
 )
 
-func (f OnServerErrorsFlag) String() string {
+func (f OnErrorsFlag) String() string {
 	switch {
-	case f == OnServerErrorsStop:
+	case f == OnErrorsStop:
 		return "stop"
-	case f == OnServerErrorsNeverStop:
+	case f == OnErrorsNeverStop:
 		return "continue"
-	case f >= OnServerErrorsStopAfter:
+	case f >= OnErrorsStopAfter:
 		return fmt.Sprintf("stop after %d errors", f)
 	default:
 		return "unknown"
 	}
 }
 
-func (f *OnServerErrorsFlag) Set(value string) error {
+func (f *OnErrorsFlag) Set(value string) error {
 	switch strings.ToLower(value) {
 	case "stop":
-		*f = OnServerErrorsStop
+		*f = OnErrorsStop
 	case "continue":
-		*f = OnServerErrorsNeverStop
+		*f = OnErrorsNeverStop
 	default:
 		n, err := strconv.Atoi(value)
 		if err != nil {
 			return fmt.Errorf("invalid value for on-server-errors: %s", value)
 		}
-		*f = OnServerErrorsFlag(n)
+		*f = OnErrorsFlag(n)
 	}
 	return nil
 }
 
-func (OnServerErrorsFlag) Type() string {
-	return "OnServerErrorsFlag"
-}
-
-func AddOnServerErrorsFlag(cmd *cobra.Command, flags *OnServerErrorsFlag) {
-	cmd.Flags().Var(flags, "on-server-errors", "What to do when server errors occur. (options: stop (default), continue, <n>)")
+func (OnErrorsFlag) Type() string {
+	return "OnErrorsFlag"
 }
