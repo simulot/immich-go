@@ -4,10 +4,9 @@ The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immi
 
 ## Configuration file structure
 
-````
----
-title: TOML
----
+<details>
+<summary>TOML</summary>
+
 ```toml
 dry-run = false
 log-file = ''
@@ -221,11 +220,12 @@ session-tag = false
 
 [upload.from-picasa.tag]
 ```
-````
-````
----
-title: YAML
----
+
+</details>
+
+<details>
+<summary>YAML</summary>
+
 ```yaml
 archive:
   from-folder:
@@ -411,11 +411,12 @@ upload:
     tag: {}
   server: https://immich.app
 ```
-````
-````
----
-title: JSON
----
+
+</details>
+
+<details>
+<summary>JSON</summary>
+
 ```json
 {
   "archive": {
@@ -614,4 +615,5 @@ title: JSON
   }
 }
 ```
-````
+
+</details>
