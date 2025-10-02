@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"sort"
 	"strings"
 
@@ -29,13 +30,10 @@ type EnvVarInfo struct {
 }
 
 // collectEnvVars recursively collects environment variable information from cobra commands
-func collectEnvVars(cmd *cobra.Command, path []string, envVars map[string]EnvVarInfo) {
-	flags := cmd.Flags()
-	if cmd.HasPersistentFlags() {
-		flags.AddFlagSet(cmd.PersistentFlags())
-	}
-	if flags.HasFlags() {
-		flags.VisitAll(func(f *pflag.Flag) {
+func collectEnvVars(cmd *cobra.Command, envVars map[string]EnvVarInfo) {
+	config.TraverseCommands(cmd, []string{}, func(cmd *cobra.Command, path []string) map[string]any {
+		// Process local flags for this command
+		cmd.Flags().VisitAll(func(f *pflag.Flag) {
 			if f.Name != "config" && f.Name != "help" {
 				varName := "IMMICH_GO_"
 				if len(path) > 0 {
@@ -52,14 +50,25 @@ func collectEnvVars(cmd *cobra.Command, path []string, envVars map[string]EnvVar
 				}
 			}
 		})
-	}
 
-	for _, c := range cmd.Commands() {
-		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
-			continue
+		// Process persistent flags only at the root level (when path is empty)
+		if len(path) == 0 && cmd.HasPersistentFlags() {
+			cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+				if f.Name != "config" && f.Name != "help" {
+					varName := "IMMICH_GO_" + strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
+					current, ok := envVars[varName]
+					if !ok || len(current.Path) > len("Global") {
+						envVars[varName] = EnvVarInfo{
+							Path:  "Global",
+							Flag:  f.Name,
+							Usage: f.Usage,
+						}
+					}
+				}
+			})
 		}
-		collectEnvVars(c, append(path, c.Name()), envVars)
-	}
+		return map[string]any{}
+	})
 }
 
 // NewConfigFrom creates a configuration map from cobra command flags
@@ -69,11 +78,11 @@ func NewConfigFrom(cmd *cobra.Command) any {
 }
 
 // generateEnvVarsDoc generates markdown documentation for environment variables
-func generateEnvVarsDoc(rootCmd *cobra.Command) {
+func generateEnvVarsDoc(rootCmd *cobra.Command, p string) {
 	envVars := map[string]EnvVarInfo{}
-	collectEnvVars(rootCmd, []string{}, envVars)
+	collectEnvVars(rootCmd, envVars)
 
-	f, err := os.Create("docs/environment.md")
+	f, err := os.Create(path.Join(p, "environment.md"))
 	if err != nil {
 		panic(err)
 	}
@@ -127,7 +136,7 @@ func generateEnvVarsDoc(rootCmd *cobra.Command) {
 }
 
 // generateConfigurationFileExamples generates markdown documentation with configuration file examples
-func generateConfigurationFileExamples(rootCmd *cobra.Command) {
+func generateConfigurationFileExamples(rootCmd *cobra.Command, p string) {
 	cfg := NewConfigFrom(rootCmd)
 
 	// Set example values for documentation
@@ -167,7 +176,7 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command) {
 		setDateRanges(configMap, "2024-01-15,2024-03-31")
 	}
 
-	f, err := os.Create("docs/configuration.md")
+	f, err := os.Create(path.Join(p, "configuration.md"))
 	if err != nil {
 		panic(err)
 	}
@@ -243,9 +252,15 @@ func setDateRanges(m map[string]interface{}, value string) {
 
 // main generates documentation for environment variables and configuration files
 func main() {
+	p := path.Base(path.Dir(os.Args[0]))
 	rootCmd, _ := cmd.RootImmichGoCommand(context.Background())
 
+	if p == "docs" {
+		p = "."
+	} else {
+		p = "docs/"
+	}
 	// Generate documentation
-	generateEnvVarsDoc(rootCmd)
-	generateConfigurationFileExamples(rootCmd)
+	generateEnvVarsDoc(rootCmd, p)
+	generateConfigurationFileExamples(rootCmd, p)
 }
