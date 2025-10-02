@@ -18,7 +18,6 @@ import (
 )
 
 type ArchiveOptions struct {
-	app.CommonFlags
 	ArchivePath string
 }
 
@@ -28,7 +27,6 @@ func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command
 		Short: "Archive various sources of photos to a file system",
 	}
 	options := &ArchiveOptions{}
-	options.RegisterFlags(cmd.Flags())
 
 	cmd.PersistentFlags().StringVarP(&options.ArchivePath, "write-to-folder", "w", "", "Path where to write the archive")
 	_ = cmd.MarkPersistentFlagRequired("write-to-folder")

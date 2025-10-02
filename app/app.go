@@ -31,8 +31,8 @@ type Application struct {
 }
 
 type CommonFlags struct {
-	DryRun   bool
-	OnErrors cliflags.OnErrorsFlag
+	DryRun   bool                  `mapstructure:"dry-run" yaml:"dry-run" json:"dry-run" toml:"dry-run"`
+	OnErrors cliflags.OnErrorsFlag `mapstructure:"on-errors" yaml:"on-errors" json:"on-errors" toml:"on-errors"`
 }
 
 func (cf *CommonFlags) RegisterFlags(flags *pflag.FlagSet) {
