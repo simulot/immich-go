@@ -1,44 +1,28 @@
-// Package gp provides functionality for importing Google Photos takeout into Immich.
-
 package gp
 
 import (
+	"context"
+	"errors"
+	"io/fs"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
-	"github.com/simulot/immich-go/adapters/folder"
+	"github.com/simulot/immich-go/adapters"
+	"github.com/simulot/immich-go/adapters/shared"
+	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
-	"github.com/simulot/immich-go/internal/filters"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-type UploadFlags struct {
-	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
-	ManageHEICJPG filters.HeicJpgFlag
-
-	// ManageRawJPG determines how to manage raw and JPEG files.
-	ManageRawJPG filters.RawJPGFlag
-
-	// BurstFlag determines how to manage burst photos.
-	ManageBurst filters.BurstFlag
-
-	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
-	ManageEpsonFastFoto bool
-}
-
-func (o *UploadFlags) RegisterFlags(flags *pflag.FlagSet) {
-	flags.Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
-	flags.Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
-	flags.Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
-	flags.BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
-}
-
 // ImportFlags represents the command-line flags for the Google Photos takeout import command.
 type ImportFlags struct {
-	UploadFlags
 	// CreateAlbums determines whether to create albums in Immich that match the albums in the Google Photos takeout.
 	CreateAlbums bool `mapstructure:"sync-albums" yaml:"sync-albums" json:"sync-albums" toml:"sync-albums"`
 
@@ -72,42 +56,23 @@ type ImportFlags struct {
 	// List of banned files
 	BannedFiles namematcher.List `mapstructure:"ban-file" yaml:"ban-file" json:"ban-file" toml:"ban-file"` // List of banned file name patterns
 
-	// SupportedMedia represents the server's actual list of supported media. This is not a flag.
-	SupportedMedia filetypes.SupportedMedia
-
-	// InfoCollector collects information about filenames.
-	InfoCollector *filenames.InfoCollector
-
-	// Tags is a list of tags to be added to the imported assets.
-	Tags []string `mapstructure:"tag" yaml:"tag" json:"tag" toml:"tag"`
-
-	// SessionTag indicates whether to add a session tag to the imported assets.
-	SessionTag bool   `mapstructure:"session-tag" yaml:"session-tag" json:"session-tag" toml:"session-tag"`
-	session    string // Session tag value
-
 	// Add the takeout file name as tag
 	TakeoutTag  bool `mapstructure:"takeout-tag" yaml:"takeout-tag" json:"takeout-tag" toml:"takeout-tag"`
 	TakeoutName string
 
 	// PeopleTag indicates whether to add a people tag to the imported assets.
 	PeopleTag bool `mapstructure:"people-tag" yaml:"people-tag" json:"people-tag" toml:"people-tag"`
-	// Timezone
-	TZ *time.Location
+
+	SupportedMedia filetypes.SupportedMedia
+	InfoCollector  *filenames.InfoCollector
+	TZ             *time.Location
+	fsyss          []fs.FS
 }
 
-func (o *ImportFlags) AddFromGooglePhotosFlags(cmd *cobra.Command, parent *cobra.Command) {
-	o.BannedFiles, _ = namematcher.New(folder.DefaultBannedFiles...)
-
-	// exif.AddExifToolFlags(cmd, &o.ExifToolFlags)
+func (o *ImportFlags) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
+	o.BannedFiles, _ = namematcher.New(shared.DefaultBannedFiles...)
 	o.SupportedMedia = filetypes.DefaultSupportedMedia
-	o.RegisterFlags(cmd.Flags())
 
-	if parent != nil && parent.Name() == "upload" {
-		o.UploadFlags.RegisterFlags(cmd.Flags())
-	}
-}
-
-func (o *ImportFlags) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&o.CreateAlbums, "sync-albums", true, "Automatically create albums in Immich that match the albums in your Google Photos takeout")
 	flags.StringVar(&o.ImportFromAlbum, "from-album-name", "", "Only import photos from the specified Google Photos album")
 	flags.BoolVar(&o.KeepUntitled, "include-untitled-albums", false, "Include photos from albums without a title in the import process")
@@ -117,9 +82,66 @@ func (o *ImportFlags) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVarP(&o.KeepArchived, "include-archived", "a", true, "Import archived Google Photos")
 	flags.BoolVarP(&o.KeepJSONLess, "include-unmatched", "u", false, "Import photos that do not have a matching JSON file in the takeout")
 	flags.Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
-	flags.StringSliceVar(&o.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
-	flags.BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
 	flags.BoolVar(&o.TakeoutTag, "takeout-tag", true, "Tag uploaded photos with a tag \"{takeout}/takeout-YYYYMMDDTHHMMSSZ\"")
 	flags.BoolVar(&o.PeopleTag, "people-tag", true, "Tag uploaded photos with tags \"people/name\" found in the JSON file")
+
 	o.InclusionFlags.RegisterFlags(flags, "")
+}
+
+var _re3digits = regexp.MustCompile(`-\d{3}$`)
+
+func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app *app.Application, runner adapters.Runner) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "from-google-photos [flags] <takeout-*.zip> | <takeout-folder>",
+		Short: "Upload photos either from a zipped Google Photos takeout or decompressed archive",
+		Args:  cobra.MinimumNArgs(1),
+	}
+	cmd.SetContext(ctx)
+	opt := &ImportFlags{}
+	opt.RegisterFlags(cmd.Flags(), cmd)
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
+		ctx := cmd.Context()
+		log := app.Log()
+
+		opt.TZ = app.GetTZ()
+
+		fsyss, err := fshelper.ParsePath(args)
+		if err != nil {
+			return err
+		}
+		if len(fsyss) == 0 {
+			log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
+			return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
+		}
+
+		defer fshelper.CloseFSs(fsyss)
+
+		if opt.TakeoutTag {
+			for _, fsys := range fsyss {
+				if fsys, ok := fsys.(fshelper.NameFS); ok {
+					opt.TakeoutName = fsys.Name()
+					break
+				}
+			}
+
+			if filepath.Ext(opt.TakeoutName) == ".zip" {
+				opt.TakeoutName = strings.TrimSuffix(opt.TakeoutName, filepath.Base(opt.TakeoutName))
+			}
+			if opt.TakeoutName == "" {
+				opt.TakeoutTag = false
+			}
+			opt.TakeoutName = _re3digits.ReplaceAllString(opt.TakeoutName, "")
+		}
+
+		adapter, err := NewTakeout(ctx, app.Jnl(), opt, fsyss...)
+		if err != nil {
+			return err
+		}
+
+		err = runner.Run(cmd, adapter)
+		return err
+	}
+
+	return cmd
 }

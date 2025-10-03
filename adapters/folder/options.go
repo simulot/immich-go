@@ -1,58 +1,26 @@
 package folder
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/simulot/immich-go/adapters/folder"
+	"github.com/simulot/immich-go/adapters/shared"
+	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
+	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-const UploadCmdName = "upload"
-
-var DefaultBannedFiles = []string{
-	`@eaDir/`,
-	`@__thumb/`,          // QNAP
-	`SYNOFILE_THUMB_*.*`, // SYNOLOGY
-	`Lightroom Catalog/`, // LR
-	`thumbnails/`,        // Android photo
-	`.DS_Store/`,         // Mac OS custom attributes
-	`/._*`,               // MacOS resource files
-	`.photostructure/`,   // PhotoStructure
-	`Recently Deleted/`,  // ICloud recently deleted
-
-}
-
-type UploadFlags struct {
-	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
-	ManageHEICJPG filters.HeicJpgFlag
-
-	// ManageRawJPG determines how to manage raw and JPEG files.
-	ManageRawJPG filters.RawJPGFlag
-
-	// BurstFlag determines how to manage burst photos.
-	ManageBurst filters.BurstFlag
-
-	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
-	ManageEpsonFastFoto bool
-}
-
-func (o *UploadFlags) RegisterFlags(flags *pflag.FlagSet) {
-	flags.Var(&o.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
-	flags.Var(&o.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
-	flags.Var(&o.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
-	flags.BoolVar(&o.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
-}
-
 // ImportFolderOptions represents the flags used for importing assets from a file system.
 type ImportFolderOptions struct {
-	UploadFlags
 	// UsePathAsAlbumName determines whether to create albums based on the full path to the asset.
 	UsePathAsAlbumName AlbumFolderMode `mapstructure:"folder-as-album" yaml:"folder-as-album" json:"folder-as-album" toml:"folder-as-album"`
 
@@ -77,17 +45,7 @@ type ImportFolderOptions struct {
 	// IgnoreSideCarFiles indicates whether to ignore XMP files during the import process.
 	IgnoreSideCarFiles bool `mapstructure:"ignore-sidecar-files" yaml:"ignore-sidecar-files" json:"ignore-sidecar-files" toml:"ignore-sidecar-files"`
 
-	// Stack jpg/raw
-	StackJpgWithRaw bool
-
-	// Stack burst
-	StackBurstPhotos bool
-
-	// SupportedMedia is the server's actual list of supported media types.
-	SupportedMedia filetypes.SupportedMedia
-
-	// InfoCollector is used to extract information from the file name.
-	InfoCollector *filenames.InfoCollector
+	shared.StackOptions
 
 	// Tags is a list of tags to be added to the imported assets.
 	Tags []string `mapstructure:"tag" yaml:"tag" json:"tag" toml:"tag"`
@@ -109,27 +67,86 @@ type ImportFolderOptions struct {
 	ICloudTakeout          bool `mapstructure:"icloud-takeout" yaml:"icloud-takeout" json:"icloud-takeout" toml:"icloud-takeout"`
 	ICloudMemoriesAsAlbums bool `mapstructure:"memories" yaml:"memories" json:"memories" toml:"memories"`
 
-	// local time zone
-	TZ *time.Location
+	Client         app.Client
+	TZ             *time.Location
+	SupportedMedia filetypes.SupportedMedia
+	InfoCollector  *filenames.InfoCollector
 }
 
-func (o *ImportFolderOptions) RegisterFlags(flags *pflag.FlagSet) {
+func (o *ImportFolderOptions) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
+	o.ManageHEICJPG = filters.HeicJpgNothing
+	o.ManageRawJPG = filters.RawJPGNothing
+	o.ManageBurst = filters.BurstNothing
+	o.Recursive = true
+	o.SupportedMedia = filetypes.DefaultSupportedMedia
+	o.UsePathAsAlbumName = "none"
+	o.BannedFiles, _ = namematcher.New(shared.DefaultBannedFiles...)
+
+	flags.Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	flags.StringVar(&o.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
 	flags.Var(&o.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
 	flags.StringVar(&o.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
 	flags.BoolVar(&o.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
 	flags.Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	flags.BoolVar(&o.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
-
 	flags.StringSliceVar(&o.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	flags.BoolVar(&o.FolderAsTags, "folder-as-tags", false, "Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)")
 	flags.BoolVar(&o.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
-
 	flags.BoolVar(&o.TakeDateFromFilename, "date-from-name", true, "Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov)")
-	flags.BoolVar(&o.PicasaAlbum, "album-picasa", false, "Use Picasa album name found in .picasa.ini file (default: false)")
-	o.InclusionFlags.RegisterFlags(flags, "")
+
+	o.InclusionFlags.RegisterFlags(flags, "") // selection per extension
+
+	// Stacking is available only for upload
+	if cmd.Parent() != nil && cmd.Parent().Name() == "upload" {
+		o.StackOptions.RegisterFlags(flags) // stack options
+	}
+
+	o.ICloudTakeout = false
+	o.PicasaAlbum = false
+	switch cmd.Name() {
+	case "from-picasa":
+		flags.BoolVar(&o.PicasaAlbum, "album-picasa", true, "Use Picasa album name found in .picasa.ini file (default: false)")
+	case "from-icloud":
+		o.ICloudTakeout = true
+		o.PicasaAlbum = false
+		cmd.Flags().BoolVar(&o.ICloudMemoriesAsAlbums, "memories", false, "Import icloud memories as albums (default: false)")
+	}
 }
 
+func (options *ImportFolderOptions) Run(cmd *cobra.Command, args []string, app *app.Application) error {
+	ctx := cmd.Context()
+	log := app.Log()
+	err := options.Client.Open(ctx, app)
+	if err != nil {
+		return nil
+	}
+	options.TZ = app.GetTZ()
+	options.InclusionFlags.SetIncludeTypeExtensions()
+
+	// parse arguments
+	fsyss, err := fshelper.ParsePath(args)
+	if err != nil {
+		return err
+	}
+	if len(fsyss) == 0 {
+		log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
+		return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
+	}
+
+	// create the adapter for folders
+	options.SupportedMedia = options.Client.Immich.SupportedMedia()
+	options.StackOptions.Filters = append(options.StackOptions.Filters, options.ManageBurst.GroupFilter(), options.ManageRawJPG.GroupFilter(), options.ManageHEICJPG.GroupFilter())
+
+	options.InfoCollector = filenames.NewInfoCollector(app.GetTZ(), options.SupportedMedia)
+	adapter, err := folder.NewLocalFiles(ctx, app.Jnl(), options, fsyss...)
+	if err != nil {
+		return err
+	}
+
+	return newUpload(UpModeFolder, app, upOptions).run(ctx, adapter, app, fsyss)
+}
+
+/*
 func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cobra.Command) {
 	o.ManageHEICJPG = filters.HeicJpgNothing
 	o.ManageRawJPG = filters.RawJPGNothing
@@ -145,6 +162,7 @@ func (o *ImportFolderOptions) AddFromFolderFlags(cmd *cobra.Command, parent *cob
 		o.UploadFlags.RegisterFlags(cmd.Flags())
 	}
 }
+
 
 func (o *ImportFolderOptions) AddFromICloudFlags(cmd *cobra.Command, parent *cobra.Command) {
 	o.ManageHEICJPG = filters.HeicJpgNothing
@@ -178,6 +196,8 @@ func (o *ImportFolderOptions) AddFromPicasaFlags(cmd *cobra.Command, parent *cob
 		o.UploadFlags.RegisterFlags(cmd.Flags())
 	}
 }
+
+*/
 
 // AlbumFolderMode represents the mode in which album folders are organized.
 // Implement the interface pflag.Value

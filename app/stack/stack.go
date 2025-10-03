@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/simulot/immich-go/adapters/shared"
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
@@ -27,45 +28,24 @@ TODO
 - [X] Take sub second exif time into account
 */
 type StackCmd struct {
-	DateRange cliflags.DateRange // Set capture date range
-
-	// Stack jpg/raw
-	StackJpgWithRaw bool
-
-	// Stack burst
-	StackBurstPhotos bool
+	StackOptions shared.StackOptions
+	// Set capture date range
+	DateRange cliflags.DateRange `mapstructure:"date_range" json:"date_range" toml:"date_range" yaml:"date_range"`
 
 	// SupportedMedia is the server's actual list of supported media types.
 	SupportedMedia filetypes.SupportedMedia
-
 	// InfoCollector is used to extract information from the file name.
 	InfoCollector *filenames.InfoCollector
 
-	// ManageHEICJPG determines whether to manage HEIC to JPG conversion options.
-	ManageHEICJPG filters.HeicJpgFlag
-
-	// ManageRawJPG determines how to manage raw and JPEG files.
-	ManageRawJPG filters.RawJPGFlag
-
-	// BurstFlag determines how to manage burst photos.
-	ManageBurst filters.BurstFlag
-
-	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
-	ManageEpsonFastFoto bool
-
-	TZ *time.Location
-
-	assets []*assets.Asset
-
+	TZ       *time.Location
+	assets   []*assets.Asset
+	client   app.Client
 	groupers []groups.Grouper // groups are used to group assets
 	filters  []filters.Filter // filters are used to filter assets in groups
 }
 
 func (sc *StackCmd) RegisterFlags(flags *pflag.FlagSet) {
-	flags.Var(&sc.ManageHEICJPG, "manage-heic-jpeg", "Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG")
-	flags.Var(&sc.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
-	flags.Var(&sc.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
-	flags.BoolVar(&sc.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
+	sc.StackOptions.RegisterFlags(flags)
 	flags.Var(&sc.DateRange, "date-range", "photos must be taken in the date range")
 }
 
@@ -80,33 +60,36 @@ func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 
 	o := &StackCmd{}
 	o.RegisterFlags(cmd.Flags())
-	app.AddClientFlags(ctx, cmd, a, false)
+	o.client.RegisterFlags(cmd.Flags(), "")
 	cmd.TraverseChildren = true
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// ready to run
 		ctx := cmd.Context()
-		client := a.Client()
+		err := o.client.Open(ctx, a)
+		if err != nil {
+			return err
+		}
 		o.TZ = a.GetTZ()
 		o.DateRange.SetTZ(a.GetTZ())
 
-		o.InfoCollector = filenames.NewInfoCollector(o.TZ, client.Immich.SupportedMedia())
+		o.InfoCollector = filenames.NewInfoCollector(o.TZ, o.client.Immich.SupportedMedia())
 		o.filters = append(o.filters,
-			o.ManageBurst.GroupFilter(),
-			o.ManageRawJPG.GroupFilter(),
-			o.ManageHEICJPG.GroupFilter())
+			o.StackOptions.ManageBurst.GroupFilter(),
+			o.StackOptions.ManageRawJPG.GroupFilter(),
+			o.StackOptions.ManageHEICJPG.GroupFilter())
 
-		if o.ManageEpsonFastFoto {
+		if o.StackOptions.ManageEpsonFastFoto {
 			o.groupers = append(o.groupers, epsonfastfoto.Group{}.Group)
 		}
-		if o.ManageBurst != filters.BurstNothing {
+		if o.StackOptions.ManageBurst != filters.BurstNothing {
 			o.groupers = append(o.groupers, burst.Group)
 		}
 		o.groupers = append(o.groupers, series.Group)
 
 		so := immich.SearchOptions().WithExif().WithDateRange(o.DateRange)
 
-		err := client.Immich.GetFilteredAssetsFn(ctx, so,
+		err = o.client.Immich.GetFilteredAssetsFn(ctx, so,
 			func(a *immich.Asset) error {
 				if a.IsTrashed {
 					return nil
@@ -171,7 +154,7 @@ func (s *StackCmd) ProcessAssets(ctx context.Context, app *app.Application) erro
 		// Delete filtered assets
 		if len(g.Removed) > 0 {
 			for _, r := range g.Removed {
-				if err := app.Client().Immich.DeleteAssets(ctx, []string{r.Asset.ID}, false); err != nil {
+				if err := s.client.Immich.DeleteAssets(ctx, []string{r.Asset.ID}, false); err != nil {
 					log.Error("can't delete asset %s: %s", r.Asset.OriginalFileName, err)
 				} else {
 					log.Info("Asset %s deleted: %s", r.Asset.OriginalFileName, r.Reason)
@@ -180,7 +163,7 @@ func (s *StackCmd) ProcessAssets(ctx context.Context, app *app.Application) erro
 		}
 
 		if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
-			client := app.Client().Immich.(immich.ImmichStackInterface)
+			client := s.client.Immich.(immich.ImmichStackInterface)
 			ids := []string{g.Assets[g.CoverIndex].ID}
 			for _, a := range g.Assets {
 				log.Info("Stacking", "file", a.OriginalFileName)

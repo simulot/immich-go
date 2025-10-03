@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif"
 	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
@@ -28,7 +29,23 @@ import (
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/simulot/immich-go/internal/worker"
+	"github.com/spf13/cobra"
 )
+
+func NewFromFolderCommand(ctx context.Context, parent *cobra.Command, app *app.Application) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "from-folder [flags] <path>...",
+		Short: "Upload photos from a folder",
+		Args:  cobra.MinimumNArgs(1),
+	}
+	cmd.SetContext(ctx)
+	flags := cmd.Flags()
+	o := ImportFolderOptions{}
+	o.RegisterFlags(flags, cmd)
+	cmd.RunE = uo.runE
+
+	return cmd
+}
 
 const icloudMetadataExt = ".csv"
 

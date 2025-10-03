@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"strings"
 	"sync"
 
@@ -25,6 +24,7 @@ import (
 type UpCmd struct {
 	Mode UpLoadMode
 	*UploadOptions
+	// Options folder.ImportFolderOptions
 	app *app.Application
 
 	assetIndex        *immichIndex         // List of assets present on the server
@@ -41,25 +41,10 @@ type UpCmd struct {
 	albumsCache *cache.CollectionCache[assets.Album] // List of albums present on the server
 	tagsCache   *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 
+	client *app.Client
+
 	// shouldResumeJobs map[string]bool // List of jobs to resume
 	finished bool // the finish task has been run
-}
-
-func newUpload(mode UpLoadMode, app *app.Application, options *UploadOptions) *UpCmd {
-	upCmd := &UpCmd{
-		UploadOptions:     options,
-		app:               app,
-		Mode:              mode,
-		localAssets:       syncset.New[string](),
-		immichAssetsReady: make(chan struct{}),
-	}
-
-	return upCmd
-}
-
-func (upCmd *UpCmd) setTakeoutOptions(options *gp.ImportFlags) *UpCmd {
-	upCmd.takeoutOptions = options
-	return upCmd
 }
 
 func (upCmd *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []string) (assets.Album, error) {
@@ -67,7 +52,7 @@ func (upCmd *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []str
 		return album, nil
 	}
 	if album.ID == "" {
-		r, err := upCmd.app.Client().Immich.CreateAlbum(ctx, album.Title, album.Description, ids)
+		r, err := upCmd.client.Immich.CreateAlbum(ctx, album.Title, album.Description, ids)
 		if err != nil {
 			upCmd.app.Jnl().Log().Error("failed to create album", "err", err, "album", album.Title)
 			return album, err
@@ -76,7 +61,7 @@ func (upCmd *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []str
 		album.ID = r.ID
 		return album, nil
 	}
-	_, err := upCmd.app.Client().Immich.AddAssetToAlbum(ctx, album.ID, ids)
+	_, err := upCmd.client.Immich.AddAssetToAlbum(ctx, album.ID, ids)
 	if err != nil {
 		upCmd.app.Jnl().Log().Error("failed to add assets to album", "err", err, "album", album.Title, "assets", len(ids))
 		return album, err
@@ -90,7 +75,7 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 		return tag, nil
 	}
 	if tag.ID == "" {
-		r, err := upCmd.app.Client().Immich.UpsertTags(ctx, []string{tag.Value})
+		r, err := upCmd.client.Immich.UpsertTags(ctx, []string{tag.Value})
 		if err != nil {
 			upCmd.app.Jnl().Log().Error("failed to create tag", "err", err, "tag", tag.Name)
 			return tag, err
@@ -98,7 +83,7 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 		upCmd.app.Jnl().Log().Info("created tag", "tag", tag.Value)
 		tag.ID = r[0].ID
 	}
-	_, err := upCmd.app.Client().Immich.TagAssets(ctx, tag.ID, ids)
+	_, err := upCmd.client.Immich.TagAssets(ctx, tag.ID, ids)
 	if err != nil {
 		upCmd.app.Jnl().Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
 		return tag, err
@@ -107,10 +92,10 @@ func (upCmd *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) 
 	return tag, err
 }
 
-func (UpCmd *UpCmd) pauseJobs(ctx context.Context, app *app.Application) error {
+func (UpCmd *UpCmd) pauseJobs(ctx context.Context) error {
 	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
 	for _, name := range jobs {
-		_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "pause", true)
+		_, err := UpCmd.client.AdminImmich.SendJobCommand(ctx, name, "pause", true)
 		if err != nil {
 			UpCmd.app.Jnl().Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
 			return err
@@ -120,13 +105,13 @@ func (UpCmd *UpCmd) pauseJobs(ctx context.Context, app *app.Application) error {
 	return nil
 }
 
-func (UpCmd *UpCmd) resumeJobs(_ context.Context, app *app.Application) error {
+func (UpCmd *UpCmd) resumeJobs(_ context.Context) error {
 	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
 
 	// Start with a context not yet cancelled
 	ctx := context.Background() //nolint
 	for _, name := range jobs {
-		_, err := app.Client().AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
+		_, err := UpCmd.client.AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
 		if err != nil {
 			UpCmd.app.Jnl().Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
 			return err
@@ -136,7 +121,7 @@ func (UpCmd *UpCmd) resumeJobs(_ context.Context, app *app.Application) error {
 	return nil
 }
 
-func (UpCmd *UpCmd) finishing(ctx context.Context, app *app.Application) error {
+func (UpCmd *UpCmd) finishing(ctx context.Context) error {
 	if UpCmd.finished {
 		return nil
 	}
@@ -146,37 +131,37 @@ func (UpCmd *UpCmd) finishing(ctx context.Context, app *app.Application) error {
 	UpCmd.tagsCache.Close()
 
 	// Resume immich background jobs if requested
-	err := UpCmd.resumeJobs(ctx, app)
+	err := UpCmd.resumeJobs(ctx)
 	if err != nil {
 		return err
 	}
 	// Log the journal report
-	report := app.Jnl().Report()
+	report := UpCmd.app.Jnl().Report()
 
 	if len(report) > 0 {
 		lines := strings.Split(report, "\n")
 		for _, s := range lines {
-			app.Jnl().Log().Info(s)
+			UpCmd.app.Jnl().Log().Info(s)
 		}
 	}
 
 	return nil
 }
 
-func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.Application, fsys []fs.FS) error {
+func (upCmd *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	// Stop immich background jobs if requested
 	// will be resumed with a call to finishing()
-	if app.Client().PauseImmichBackgroundJobs {
-		err := upCmd.pauseJobs(ctx, app)
+	if upCmd.client.PauseImmichBackgroundJobs {
+		err := upCmd.pauseJobs(ctx)
 		if err != nil {
 			return fmt.Errorf("can't pause immich background jobs: pass an administrator key with the flag --admin-api-key or disable the jobs pausing with the flag --pause-immich-jobs=FALSE\n%w", err)
 		}
 	}
-	defer func() { _ = upCmd.finishing(ctx, app) }()
+	defer func() { _ = upCmd.finishing(ctx) }()
 	defer func() {
-		fmt.Println(app.Jnl().Report())
+		fmt.Println(upCmd.app.Jnl().Report())
 	}()
 	upCmd.albumsCache = cache.NewCollectionCache(50, func(album assets.Album, ids []string) (assets.Album, error) {
 		return upCmd.saveAlbum(ctx, album, ids)
@@ -199,16 +184,14 @@ func (upCmd *UpCmd) run(ctx context.Context, adapter adapters.Reader, app *app.A
 		fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
 		runner = upCmd.runNoUI
 	}
-	err = runner(ctx, app)
-
-	err = errors.Join(err, fshelper.CloseFSs(fsys))
+	err = runner(ctx, upCmd.app)
 
 	return err
 }
 
 func (upCmd *UpCmd) getImmichAlbums(ctx context.Context) error {
 	// Get the album list from the server, but without assets.
-	serverAlbums, err := upCmd.app.Client().Immich.GetAllAlbums(ctx)
+	serverAlbums, err := upCmd.client.Immich.GetAllAlbums(ctx)
 	if err != nil {
 		return fmt.Errorf("can't get the album list from the server: %w", err)
 	}
@@ -224,7 +207,7 @@ func (upCmd *UpCmd) getImmichAlbums(ctx context.Context) error {
 				return ctx.Err()
 			default:
 				// Get the album info from the server, with assets.
-				r, err := upCmd.app.Client().Immich.GetAlbumInfo(ctx, a.ID, false)
+				r, err := upCmd.client.Immich.GetAlbumInfo(ctx, a.ID, false)
 				if err != nil {
 					upCmd.app.Log().Error("can't get the album info from the server", "album", a.AlbumName, "err", err)
 					continue
@@ -255,14 +238,14 @@ func (upCmd *UpCmd) getImmichAlbums(ctx context.Context) error {
 
 func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate) error {
 	defer close(upCmd.immichAssetsReady)
-	statistics, err := upCmd.app.Client().Immich.GetAssetStatistics(ctx)
+	statistics, err := upCmd.client.Immich.GetAssetStatistics(ctx)
 	if err != nil {
 		return err
 	}
 	totalOnImmich := statistics.Total
 	received := 0
 
-	err = upCmd.app.Client().Immich.GetAllAssets(ctx, func(a *immich.Asset) error {
+	err = upCmd.client.Immich.GetAllAssets(ctx, func(a *immich.Asset) error {
 		if updateFn != nil {
 			defer func() {
 				updateFn(received, totalOnImmich)
@@ -273,8 +256,8 @@ func (upCmd *UpCmd) getImmichAssets(ctx context.Context, updateFn progressUpdate
 			return ctx.Err()
 		default:
 			received++
-			if a.OwnerID != upCmd.app.Client().User.ID {
-				upCmd.app.Log().Debug("Skipping asset with different owner", "assetOwnerID", a.OwnerID, "clientUserID", upCmd.app.Client().User.ID, "ID", a.ID, "FileName", a.OriginalFileName, "Capture date", a.ExifInfo.DateTimeOriginal, "CheckSum", a.Checksum, "FileSize", a.ExifInfo.FileSizeInByte, "DeviceAssetID", a.DeviceAssetID, "OwnerID", a.OwnerID, "IsTrashed", a.IsTrashed, "IsArchived", a.IsArchived)
+			if a.OwnerID != upCmd.client.User.ID {
+				upCmd.app.Log().Debug("Skipping asset with different owner", "assetOwnerID", a.OwnerID, "clientUserID", upCmd.client.User.ID, "ID", a.ID, "FileName", a.OriginalFileName, "Capture date", a.ExifInfo.DateTimeOriginal, "CheckSum", a.Checksum, "FileSize", a.ExifInfo.FileSizeInByte, "DeviceAssetID", a.DeviceAssetID, "OwnerID", a.OwnerID, "IsTrashed", a.IsTrashed, "IsArchived", a.IsArchived)
 				return nil
 			}
 			if a.LibraryID != "" {
@@ -365,7 +348,7 @@ func (upCmd *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	// after the filtering and the upload, we can stack the assets
 
 	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
-		client := upCmd.app.Client().Immich.(immich.ImmichStackInterface)
+		client := upCmd.client.Immich.(immich.ImmichStackInterface)
 		ids := []string{g.Assets[g.CoverIndex].ID}
 		for i, a := range g.Assets {
 			upCmd.app.Jnl().Record(ctx, fileevent.Stacked, g.Assets[i].File)
@@ -463,7 +446,7 @@ func (upCmd *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 // return the duplicate condition and error.
 func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, error) {
 	defer upCmd.app.Log().Debug("", "file", a)
-	ar, err := upCmd.app.Client().Immich.AssetUpload(ctx, a)
+	ar, err := upCmd.client.Immich.AssetUpload(ctx, a)
 	if err != nil {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a, "error", err.Error())
 		return "", err // Must signal the error to the caller
@@ -491,7 +474,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 		// metadata from application (immich or google photos) are forced.
 		// if a.Description != "" || (a.Latitude != 0 && a.Longitude != 0) || a.Rating != 0 || !a.CaptureDate.IsZero() {
 		a.UseMetadata(a.FromApplication)
-		_, err := upCmd.app.Client().Immich.UpdateAsset(ctx, a.ID, immich.UpdAssetField{
+		_, err := upCmd.client.Immich.UpdateAsset(ctx, a.ID, immich.UpdAssetField{
 			Description:      a.Description,
 			Latitude:         a.Latitude,
 			Longitude:        a.Longitude,
@@ -509,7 +492,7 @@ func (upCmd *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, e
 
 func (upCmd *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.Asset) (string, error) {
 	defer upCmd.app.Log().Debug("replaced by", "ID", ID, "file", a)
-	ar, err := upCmd.app.Client().Immich.ReplaceAsset(ctx, ID, a)
+	ar, err := upCmd.client.Immich.ReplaceAsset(ctx, ID, a)
 	if err != nil {
 		upCmd.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
 		return "", err // Must signal the error to the caller
@@ -568,7 +551,7 @@ func (upCmd *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 
 func (upCmd *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 	upCmd.app.Log().Message("%d server assets to delete.", len(ids))
-	return upCmd.app.Client().Immich.DeleteAssets(ctx, ids, false)
+	return upCmd.client.Immich.DeleteAssets(ctx, ids, false)
 }
 
 func (upCmd *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset, serverStatus string) {
