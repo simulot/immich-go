@@ -56,12 +56,12 @@ type UpCmd struct {
 
 	shared.StackOptions
 	client            app.Client
-	NoUI              bool     // Disable UI
-	Overwrite         bool     // Always overwrite files on the server with local versions
-	ConcurrentUploads int      // Number of concurrent upload workers TODO: takes the global value
-	Tags              []string `mapstructure:"tag" yaml:"tag" json:"tag" toml:"tag"`
-	SessionTag        bool     `mapstructure:"session-tag" yaml:"session-tag" json:"session-tag" toml:"session-tag"`
-	session           string   // Session tag value
+	NoUI              bool // Disable UI
+	Overwrite         bool // Always overwrite files on the server with local versions
+	ConcurrentUploads int  // Number of concurrent upload workers TODO: takes the global value
+	Tags              []string
+	SessionTag        bool
+	session           string // Session tag value
 
 	// Upload command state
 	Filters           []filters.Filter

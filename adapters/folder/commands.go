@@ -17,39 +17,19 @@ import (
 
 // ImportFolderOptions represents the flags used for importing assets from a file system.
 type ImportFolderOptions struct {
-	// UsePathAsAlbumName determines whether to create albums based on the full path to the asset.
-	UsePathAsAlbumName AlbumFolderMode `mapstructure:"folder-as-album" yaml:"folder-as-album" json:"folder-as-album" toml:"folder-as-album"`
-
-	// AlbumNamePathSeparator specifies how multiple (sub) folders are joined when creating album names.
-	AlbumNamePathSeparator string `mapstructure:"album-path-joiner" yaml:"album-path-joiner" json:"album-path-joiner" toml:"album-path-joiner"`
-
-	// ImportIntoAlbum is the name of the album where all assets will be added.
-	ImportIntoAlbum string `mapstructure:"into-album" yaml:"into-album" json:"into-album" toml:"into-album"`
-
-	// BannedFiles is a list of file name patterns to be excluded from the import process.
-	BannedFiles namematcher.List `mapstructure:"ban-file" yaml:"ban-file" json:"ban-file" toml:"ban-file"`
-
-	// Recursive indicates whether to explore the folder and all its sub-folders.
-	Recursive bool `mapstructure:"recursive" yaml:"recursive" json:"recursive" toml:"recursive"`
-
-	// InclusionFlags controls the file extensions to be included in the import process.
-	InclusionFlags cliflags.InclusionFlags `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
-
-	// IgnoreSideCarFiles indicates whether to ignore XMP files during the import process.
-	IgnoreSideCarFiles bool `mapstructure:"ignore-sidecar-files" yaml:"ignore-sidecar-files" json:"ignore-sidecar-files" toml:"ignore-sidecar-files"`
-
-	// Folder as tags
-	FolderAsTags bool `mapstructure:"folder-as-tags" yaml:"folder-as-tags" json:"folder-as-tags" toml:"folder-as-tags"`
-
-	// TakeDateFromFilename indicates whether to take the date from the filename if the date isn't available in the image.
-	TakeDateFromFilename bool `mapstructure:"date-from-name" yaml:"date-from-name" json:"date-from-name" toml:"date-from-name"`
-
-	// Use picasa albums
-	PicasaAlbum bool `mapstructure:"album-picasa" yaml:"album-picasa" json:"album-picasa" toml:"album-picasa"`
-
-	// Use icloud takeout metadata (albums & creation date)
-	ICloudTakeout          bool `mapstructure:"icloud-takeout" yaml:"icloud-takeout" json:"icloud-takeout" toml:"icloud-takeout"`
-	ICloudMemoriesAsAlbums bool `mapstructure:"memories" yaml:"memories" json:"memories" toml:"memories"`
+	// CLI flags
+	UsePathAsAlbumName     AlbumFolderMode
+	AlbumNamePathSeparator string
+	ImportIntoAlbum        string
+	BannedFiles            namematcher.List
+	Recursive              bool
+	InclusionFlags         cliflags.InclusionFlags
+	IgnoreSideCarFiles     bool
+	FolderAsTags           bool
+	TakeDateFromFilename   bool
+	PicasaAlbum            bool
+	ICloudTakeout          bool
+	ICloudMemoriesAsAlbums bool
 
 	Client         app.Client
 	TZ             *time.Location
@@ -68,7 +48,6 @@ func (o *ImportFolderOptions) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Com
 	flags.Var(&o.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
 	flags.StringVar(&o.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
 	flags.BoolVar(&o.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
-	flags.Var(&o.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	flags.BoolVar(&o.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")
 	flags.BoolVar(&o.FolderAsTags, "folder-as-tags", false, "Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)")
 	flags.BoolVar(&o.TakeDateFromFilename, "date-from-name", true, "Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov)")

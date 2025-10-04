@@ -10,6 +10,7 @@ import (
 	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // Application holds configuration used by all commands
@@ -20,9 +21,9 @@ import (
 // - the configuration file
 
 type Application struct {
-	DryRun     bool                  `mapstructure:"dry-run" yaml:"dry-run" json:"dry-run" toml:"dry-run"`
-	OnErrors   cliflags.OnErrorsFlag `mapstructure:"on-errors" yaml:"on-errors" json:"on-errors" toml:"on-errors"`
-	SaveConfig bool                  `mapstructure:"sauve-config" yaml:"sauve-config" json:"sauve-config" toml:"sauve-config"`
+	DryRun     bool                  //`mapstructure:"dry-run" yaml:"dry-run" json:"dry-run" toml:"dry-run"`
+	OnErrors   cliflags.OnErrorsFlag //`mapstructure:"on-errors" yaml:"on-errors" json:"on-errors" toml:"on-errors"`
+	SaveConfig bool                  //`mapstructure:"sauve-config" yaml:"sauve-config" json:"sauve-config" toml:"sauve-config"`
 
 	CfgFile string
 	log     *Log
@@ -31,6 +32,13 @@ type Application struct {
 	Config  *config.ConfigurationManager
 
 	numErrors atomic.Int64 // count the errors occurred during the run
+}
+
+func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&app.CfgFile, "config", "", "config file (default is ./immich-go.yaml)")
+	flags.BoolVar(&app.DryRun, "dry-run", false, "dry run")
+	flags.BoolVar(&app.SaveConfig, "save-config", false, "Save the configuration to immich-go.yaml")
+	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")
 }
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {

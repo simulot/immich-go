@@ -46,8 +46,13 @@ type Client struct {
 func (client *Client) RegisterFlags(flags *pflag.FlagSet, prefix string) {
 	client.DeviceUUID, _ = os.Hostname()
 
-	flags.StringVarP(&client.Server, prefix+"server", "s", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
-	flags.StringVarP(&client.APIKey, prefix+"api-key", "k", "", "API Key")
+	if prefix == "" {
+		flags.StringVarP(&client.Server, prefix+"server", "s", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
+		flags.StringVarP(&client.APIKey, prefix+"api-key", "k", "", "API Key")
+	} else {
+		flags.StringVar(&client.Server, prefix+"server", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
+		flags.StringVar(&client.APIKey, prefix+"api-key", "", "API Key")
+	}
 	flags.StringVar(&client.AdminAPIKey, prefix+"admin-api-key", "", "Admin's API Key for managing server's jobs")
 	flags.BoolVar(&client.APITrace, prefix+"api-trace", false, "Enable trace of api calls")
 	flags.BoolVar(&client.PauseImmichBackgroundJobs, prefix+"pause-immich-jobs", true, "Pause Immich background jobs during upload operations")

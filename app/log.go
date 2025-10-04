@@ -37,7 +37,7 @@ type Log struct {
 	apiTraceName   string
 }
 
-func (log *Log) AddLogFlags(ctx context.Context, flags pflag.FlagSet, app *Application) {
+func (log *Log) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&log.Level, "log-level", "INFO", "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
 	flags.StringVarP(&log.File, "log-file", "l", "", "Write log messages into the file")
 	flags.StringVar(&log.Type, "log-type", "text", "Log formatted  as text of JSON file")

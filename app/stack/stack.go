@@ -28,20 +28,18 @@ TODO
 - [X] Take sub second exif time into account
 */
 type StackCmd struct {
+	// CLI flags
 	StackOptions shared.StackOptions
-	// Set capture date range
-	DateRange cliflags.DateRange `mapstructure:"date_range" json:"date_range" toml:"date_range" yaml:"date_range"`
+	DateRange    cliflags.DateRange
 
-	// SupportedMedia is the server's actual list of supported media types.
+	// internal state
 	SupportedMedia filetypes.SupportedMedia
-	// InfoCollector is used to extract information from the file name.
-	InfoCollector *filenames.InfoCollector
-
-	TZ       *time.Location
-	assets   []*assets.Asset
-	client   app.Client
-	groupers []groups.Grouper // groups are used to group assets
-	filters  []filters.Filter // filters are used to filter assets in groups
+	InfoCollector  *filenames.InfoCollector
+	TZ             *time.Location
+	assets         []*assets.Asset
+	client         app.Client
+	groupers       []groups.Grouper // groups are used to group assets
+	filters        []filters.Filter // filters are used to filter assets in groups
 }
 
 func (sc *StackCmd) RegisterFlags(flags *pflag.FlagSet) {

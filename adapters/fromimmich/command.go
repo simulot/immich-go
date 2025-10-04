@@ -24,21 +24,21 @@ import (
 type FromImmichCmd struct {
 	// CLI flags
 	client          app.Client
-	Albums          []string                `mapstructure:"from-albums" yaml:"from-albums" json:"from-albums" toml:"from-albums"`                                 // get assets only from those albums
-	Tags            []string                `mapstructure:"from-tags" yaml:"from-tags" json:"from-tags" toml:"from-tags"`                                         // get assets only with those tags
-	People          []string                `mapstructure:"from-people" yaml:"from-people" json:"from-people" toml:"from-people"`                                 // get assets only with those people
-	IncludePartners bool                    `mapstructure:"from-partners" yaml:"from-partners" json:"from-partners" toml:"from-partners"`                         // get partner's assets as well
-	OnlyArchived    bool                    `mapstructure:"from-archived" yaml:"from-archived" json:"from-archived" toml:"from-archived"`                         // get only archived assets
-	OnlyTrashed     bool                    `mapstructure:"from-trash" yaml:"from-trash" json:"from-trash" toml:"from-trash"`                                     // get only trashed assets
-	OnlyFavorite    bool                    `mapstructure:"from-favorite" yaml:"from-favorite" json:"from-favorite" toml:"from-favorite"`                         // get only favorite assets
-	OnlyNoAlbum     bool                    `mapstructure:"from-no-album" yaml:"from-no-album" json:"from-no-album" toml:"from-no-album"`                         // get only assets that are not in any album
-	MinimalRating   int                     `mapstructure:"from-minimal-rating" yaml:"from-minimal-rating" json:"from-minimal-rating" toml:"from-minimal-rating"` // get only assets with a rating greater or equal to this value
-	Make            string                  `mapstructure:"from-make" yaml:"from-make" json:"from-make" toml:"from-make"`                                         // get only assets with this make
-	Model           string                  `mapstructure:"from-model" yaml:"from-model" json:"from-model" toml:"from-model"`                                     // get only assets with this model
-	Country         string                  `mapstructure:"from-country" yaml:"from-country" json:"from-country" toml:"from-country"`                             // get only assets from the country
-	State           string                  `mapstructure:"from-state" yaml:"from-state" json:"from-state" toml:"from-state"`                                     // get only assets from this state
-	City            string                  `mapstructure:"from-city" yaml:"from-city" json:"from-city" toml:"from-city"`                                         // get only assets from this city
-	InclusionFlags  cliflags.InclusionFlags `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`                                                 // controls the file extensions to be included in the import process.
+	Albums          []string
+	Tags            []string
+	People          []string
+	IncludePartners bool
+	OnlyArchived    bool
+	OnlyTrashed     bool
+	OnlyFavorite    bool
+	OnlyNoAlbum     bool
+	MinimalRating   int
+	Make            string
+	Model           string
+	Country         string
+	State           string
+	City            string
+	InclusionFlags  cliflags.InclusionFlags
 
 	// internal fields
 	albumIDs  []string
@@ -64,11 +64,6 @@ func (fic *FromImmichCmd) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&fic.OnlyFavorite, "from-favorite", false, "Get only favorite assets")
 	flags.BoolVar(&fic.OnlyNoAlbum, "from-no-album", false, "Get only assets that are not in any album")
 	flags.IntVar(&fic.MinimalRating, "from-minimal-rating", 0, "Get only assets with a rating greater or equal to this value")
-	flags.StringVar(&fic.client.Server, "from-server", fic.client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
-	flags.StringVar(&fic.client.APIKey, "from-api-key", "", "API Key")
-	flags.BoolVar(&fic.client.APITrace, "from-api-trace", false, "Enable trace of api calls")
-	flags.BoolVar(&fic.client.SkipSSL, "from-skip-verify-ssl", false, "Skip SSL verification")
-	flags.DurationVar(&fic.client.ClientTimeout, "from-client-timeout", 20*time.Minute, "Set server calls timeout")
 	fic.InclusionFlags.RegisterFlags(flags, "from-")
 	fic.client.RegisterFlags(flags, "from-")
 }

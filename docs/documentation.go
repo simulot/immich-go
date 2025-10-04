@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
-	"github.com/simulot/immich-go/app/cmd"
+	"github.com/simulot/immich-go/app/root"
 	"github.com/simulot/immich-go/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -256,7 +256,7 @@ func setDateRanges(m map[string]interface{}, value string) {
 // main generates documentation for environment variables and configuration files
 func main() {
 	p := path.Base(path.Dir(os.Args[0]))
-	rootCmd, _ := cmd.RootImmichGoCommand(context.Background())
+	rootCmd, _ := root.RootImmichGoCommand(context.Background())
 
 	if p == "docs" {
 		p = "."
