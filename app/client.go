@@ -26,6 +26,8 @@ type Client struct {
 	APITrace                  bool                        // Enable API call traces
 	SkipSSL                   bool                        // Skip SSL Verification
 	ClientTimeout             time.Duration               // Set the client request timeout
+	Retries                   int                         // Number of retry attempts for server errors
+	RetryDelay                time.Duration               // Base delay between retries
 	DeviceUUID                string                      // Set a device UUID
 	DryRun                    bool                        // Protect the server from changes
 	TimeZone                  string                      // Override default TZ
@@ -53,6 +55,8 @@ func AddClientFlags(ctx context.Context, cmd *cobra.Command, app *Application, d
 	cmd.PersistentFlags().BoolVar(&client.PauseImmichBackgroundJobs, "pause-immich-jobs", true, "Pause Immich background jobs during upload operations")
 	cmd.PersistentFlags().BoolVar(&client.SkipSSL, "skip-verify-ssl", false, "Skip SSL verification")
 	cmd.PersistentFlags().DurationVar(&client.ClientTimeout, "client-timeout", 20*time.Minute, "Set server calls timeout")
+	cmd.PersistentFlags().IntVar(&client.Retries, "retry-count", 3, "Number of retry attempts for server errors (5xx, 429)")
+	cmd.PersistentFlags().DurationVar(&client.RetryDelay, "retry-delay", time.Second, "Base delay between retries (exponential backoff)")
 	cmd.PersistentFlags().StringVar(&client.DeviceUUID, "device-uuid", client.DeviceUUID, "Set a device UUID")
 	cmd.PersistentFlags().BoolVar(&client.DryRun, "dry-run", dryRun, "Simulate all actions")
 	cmd.PersistentFlags().StringVar(&client.TimeZone, "time-zone", client.TimeZone, "Override the system time zone")
@@ -174,6 +178,7 @@ func (client *Client) Open(ctx context.Context) error {
 		immich.OptionVerifySSL(client.SkipSSL),
 		immich.OptionConnectionTimeout(client.ClientTimeout),
 		immich.OptionDryRun(client.DryRun),
+		immich.OptionRetries(client.Retries, client.RetryDelay),
 	)
 	if err != nil {
 		return err
@@ -185,6 +190,7 @@ func (client *Client) Open(ctx context.Context) error {
 		client.AdminAPIKey,
 		immich.OptionVerifySSL(client.SkipSSL),
 		immich.OptionConnectionTimeout(adminTime),
+		immich.OptionRetries(client.Retries, client.RetryDelay),
 	)
 	if err != nil {
 		return err

@@ -77,6 +77,17 @@ func OptionDryRun(dryRun bool) clientOption {
 	}
 }
 
+func OptionRetries(retries int, delay time.Duration) clientOption {
+	return func(ic *ImmichClient) error {
+		if retries < 1 {
+			retries = 1
+		}
+		ic.Retries = retries
+		ic.RetriesDelay = delay
+		return nil
+	}
+}
+
 // Create a new ImmichClient
 func NewImmichClient(endPoint string, key string, options ...clientOption) (*ImmichClient, error) {
 	var err error
