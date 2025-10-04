@@ -99,10 +99,24 @@ skip-verify-ssl = false
 time-zone = ''
 
 [upload]
+admin-api-key = ''
 api-key = 'YOUR-API-KEY'
+api-trace = false
 client-timeout = '20m'
+concurrent-uploads = 12
 device-uuid = 'HOSTNAME'
+dry-run = false
+manage-burst = 'NoStack'
+manage-epson-fastfoto = false
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
+no-ui = false
+overwrite = false
+pause-immich-jobs = true
 server = 'https://immich.app'
+session-tag = false
+skip-verify-ssl = false
+time-zone = ''
 
 [upload.from-folder]
 album-path-joiner = ' / '
@@ -201,6 +215,8 @@ into-album = ''
 recursive = true
 
 [upload.from-picasa.ban-file]
+
+[upload.tag]
 ```
 
 </details>
@@ -290,9 +306,13 @@ stack:
   skip-verify-ssl: false
   time-zone: ""
 upload:
+  admin-api-key: ""
   api-key: YOUR-API-KEY
+  api-trace: false
   client-timeout: 20m
+  concurrent-uploads: 12
   device-uuid: HOSTNAME
+  dry-run: false
   from-folder:
     album-path-joiner: ' / '
     ban-file: {}
@@ -379,7 +399,18 @@ upload:
     include-type: ""
     into-album: ""
     recursive: true
+  manage-burst: NoStack
+  manage-epson-fastfoto: false
+  manage-heic-jpeg: NoStack
+  manage-raw-jpeg: NoStack
+  no-ui: false
+  overwrite: false
+  pause-immich-jobs: true
   server: https://immich.app
+  session-tag: false
+  skip-verify-ssl: false
+  tag: {}
+  time-zone: ""
 ```
 
 </details>
@@ -476,9 +507,13 @@ upload:
     "time-zone": ""
   },
   "upload": {
+    "admin-api-key": "",
     "api-key": "YOUR-API-KEY",
+    "api-trace": false,
     "client-timeout": "20m",
+    "concurrent-uploads": 12,
     "device-uuid": "HOSTNAME",
+    "dry-run": false,
     "from-folder": {
       "album-path-joiner": " / ",
       "ban-file": {},
@@ -570,7 +605,18 @@ upload:
       "into-album": "",
       "recursive": true
     },
-    "server": "https://immich.app"
+    "manage-burst": "NoStack",
+    "manage-epson-fastfoto": false,
+    "manage-heic-jpeg": "NoStack",
+    "manage-raw-jpeg": "NoStack",
+    "no-ui": false,
+    "overwrite": false,
+    "pause-immich-jobs": true,
+    "server": "https://immich.app",
+    "session-tag": false,
+    "skip-verify-ssl": false,
+    "tag": {},
+    "time-zone": ""
   }
 }
 ```
