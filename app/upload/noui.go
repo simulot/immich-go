@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
+func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	lock := sync.RWMutex{}
 	defer cancel(nil)
@@ -81,18 +81,18 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 
 		processGrp.Go(func() error {
 			// Get immich asset
-			err := upCmd.getImmichAssets(ctx, immichUpdate)
+			err := uc.getImmichAssets(ctx, immichUpdate)
 			if err != nil {
 				cancel(err)
 			}
 			return err
 		})
 		processGrp.Go(func() error {
-			return upCmd.getImmichAlbums(ctx)
+			return uc.getImmichAlbums(ctx)
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
-			groupChan = upCmd.adapter.Browse(ctx)
+			groupChan = uc.adapter.Browse(ctx)
 			return err
 		})
 		err = processGrp.Wait()
@@ -104,7 +104,7 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 			}
 		}
 		preparationDone.Store(true)
-		err = upCmd.uploadLoop(ctx, groupChan)
+		err = uc.uploadLoop(ctx, groupChan)
 		if err != nil {
 			cancel(err)
 		}
@@ -118,7 +118,7 @@ func (upCmd *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		if messages.Len() > 0 {
 			cancel(errors.New(messages.String()))
 		}
-		err = errors.Join(err, upCmd.finishing(ctx, app))
+		err = errors.Join(err, uc.finishing(ctx))
 		close(stopProgress)
 		return err
 	})

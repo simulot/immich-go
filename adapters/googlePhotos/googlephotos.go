@@ -3,7 +3,6 @@ package gp
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"path"
@@ -16,13 +15,9 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
-	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/groups"
-	"github.com/simulot/immich-go/internal/groups/burst"
-	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
-	"github.com/simulot/immich-go/internal/groups/series"
 )
 
 type Takeout struct {
@@ -99,18 +94,6 @@ func NewTakeout(ctx context.Context, l *fileevent.Recorder, flags *ImportFlags, 
 	// 		return nil, err
 	// 	}
 	// }
-	if flags.SessionTag {
-		flags.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
-	}
-
-	if flags.ManageEpsonFastFoto {
-		g := epsonfastfoto.Group{}
-		to.groupers = append(to.groupers, g.Group)
-	}
-	if flags.ManageBurst != filters.BurstNothing {
-		to.groupers = append(to.groupers, burst.Group)
-	}
-	to.groupers = append(to.groupers, series.Group)
 
 	return &to, nil
 }
@@ -487,14 +470,7 @@ func (to *Takeout) handleDir(ctx context.Context, dir string, gOut chan *assets.
 					}
 				}
 			}
-			if to.flags.SessionTag {
-				a.AddTag(to.flags.session)
-			}
-			if to.flags.Tags != nil {
-				for _, tag := range to.flags.Tags {
-					a.AddTag(tag)
-				}
-			}
+
 			if to.flags.TakeoutTag {
 				a.AddTag(to.flags.TakeoutName)
 			}

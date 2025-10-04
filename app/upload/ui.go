@@ -49,10 +49,10 @@ func (ui *uiPage) restoreLogger(app *app.Application) {
 	app.Jnl().SetLogger(app.Log().SetLogWriter(nil))
 }
 
-func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
+func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	uiApp := tview.NewApplication()
-	ui := upCmd.newUI(ctx, app)
+	ui := uc.newUI(ctx, app)
 
 	defer cancel(nil)
 	pages := tview.NewPages()
@@ -97,7 +97,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 					tick.Stop()
 					return
 				case <-tick.C:
-					jobs, err := upCmd.app.Client().AdminImmich.GetJobs(ctx)
+					jobs, err := uc.client.AdminImmich.GetJobs(ctx)
 					if err == nil {
 						jobCount := 0
 						jobWaiting := 0
@@ -135,14 +135,14 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 					for c := range ui.counts {
 						ui.getCountView(c, counts[c])
 					}
-					if upCmd.Mode == UpModeGoogleTakeout {
+					if uc.Mode == UpModeGoogleTakeout {
 						ui.immichPrepare.SetMaxValue(int(app.Jnl().TotalAssets()))
 						ui.immichPrepare.SetValue(int(app.Jnl().TotalProcessedGP()))
 
 						if preparationDone.Load() {
 							ui.immichUpload.SetMaxValue(int(app.Jnl().TotalAssets()))
 						}
-						ui.immichUpload.SetValue(int(app.Jnl().TotalProcessed(upCmd.takeoutOptions.KeepJSONLess)))
+						// ui.immichUpload.SetValue(int(app.Jnl().TotalProcessed(uc.takeoutOptions.KeepJSONLess)))
 					}
 				})
 			}
@@ -169,14 +169,14 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		processGrp := errgroup.Group{}
 		processGrp.Go(func() error {
 			// Get immich asset
-			err = upCmd.getImmichAssets(ctx, ui.updateImmichReading)
+			err = uc.getImmichAssets(ctx, ui.updateImmichReading)
 			if err != nil {
 				stopUI(err)
 			}
 			return err
 		})
 		processGrp.Go(func() error {
-			err = upCmd.getImmichAlbums(ctx)
+			err = uc.getImmichAlbums(ctx)
 			if err != nil {
 				stopUI(err)
 			}
@@ -184,7 +184,7 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		})
 		processGrp.Go(func() error {
 			// Run Prepare
-			groupChan = upCmd.adapter.Browse(ctx)
+			groupChan = uc.adapter.Browse(ctx)
 			return nil
 		})
 
@@ -196,12 +196,12 @@ func (upCmd *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		preparationDone.Store(true)
 
 		// we can upload assets
-		err = upCmd.uploadLoop(ctx, groupChan)
+		err = uc.uploadLoop(ctx, groupChan)
 		// if err != nil {
 		// 	return context.Cause(ctx)
 		// }
 
-		err = errors.Join(err, upCmd.finishing(ctx, app))
+		err = errors.Join(err, uc.finishing(ctx))
 
 		uploadDone.Store(true)
 		counts := app.Jnl().GetCounts()
@@ -252,7 +252,7 @@ func newModal(message string) tview.Primitive {
 	return modal(text, 80, 2+lines)
 }
 
-func (upCmd *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
+func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui := &uiPage{
 		counts: map[fileevent.Code]*tview.TextView{},
 	}
@@ -286,7 +286,7 @@ func (upCmd *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 
-	if _, err := a.Client().AdminImmich.GetJobs(ctx); err == nil {
+	if _, err := uc.client.AdminImmich.GetJobs(ctx); err == nil {
 		ui.watchJobs = true
 
 		ui.serverJobs = tvxwidgets.NewSparkline()
@@ -333,7 +333,7 @@ func (upCmd *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui.footer = tview.NewGrid()
 	ui.footer.AddItem(tview.NewTextView().SetText("Immich content:").SetTextAlign(tview.AlignCenter), 0, 0, 1, 1, 0, 0, false).AddItem(ui.immichReading, 0, 1, 1, 1, 0, 0, false)
 
-	if upCmd.Mode == UpModeGoogleTakeout {
+	if uc.Mode == UpModeGoogleTakeout {
 		ui.footer.AddItem(tview.NewTextView().SetText("Google Photo puzzle:").SetTextAlign(tview.AlignCenter), 0, 2, 1, 1, 0, 0, false).AddItem(ui.immichPrepare, 0, 3, 1, 1, 0, 0, false)
 		ui.footer.AddItem(tview.NewTextView().SetText("Uploading:").SetTextAlign(tview.AlignCenter), 0, 4, 1, 1, 0, 0, false).AddItem(ui.immichUpload, 0, 5, 1, 1, 0, 0, false)
 		ui.footer.SetColumns(25, 0, 25, 0, 25, 0)

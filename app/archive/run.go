@@ -1,16 +1,38 @@
 package archive
 
 import (
-	"context"
 	"errors"
+	"os"
 
 	"github.com/simulot/immich-go/adapters"
-	"github.com/simulot/immich-go/app"
+	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fshelper/osfs"
+	"github.com/spf13/cobra"
 )
 
-func run(ctx context.Context, jnl *fileevent.Recorder, _ *app.Application, source adapters.Reader, dest adapters.AssetWriter) error {
-	gChan := source.Browse(ctx)
+func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
+	// ready to run
+	ctx := cmd.Context()
+	if ac.app.Jnl() == nil {
+		ac.app.SetJnl(fileevent.NewRecorder(ac.app.Log().Logger))
+		ac.app.Jnl().SetLogger(ac.app.Log().SetLogWriter(os.Stdout))
+	}
+	jnl := ac.app.Jnl()
+
+	p := ac.ArchivePath
+	err := os.MkdirAll(p, 0o755)
+	if err != nil {
+		return err
+	}
+
+	destFS := osfs.DirFS(p)
+	ac.dest, err = folder.NewLocalAssetWriter(destFS, ".")
+	if err != nil {
+		return err
+	}
+
+	gChan := adapter.Browse(ctx)
 	errCount := 0
 	for {
 		select {
@@ -21,7 +43,7 @@ func run(ctx context.Context, jnl *fileevent.Recorder, _ *app.Application, sourc
 				return nil
 			}
 			for _, a := range g.Assets {
-				err := dest.WriteAsset(ctx, a)
+				err := ac.dest.WriteAsset(ctx, a)
 				if err == nil {
 					err = a.Close()
 				}

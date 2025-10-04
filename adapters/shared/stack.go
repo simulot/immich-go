@@ -2,6 +2,7 @@ package shared
 
 import (
 	"github.com/simulot/immich-go/internal/filters"
+	"github.com/simulot/immich-go/internal/groups"
 	"github.com/spf13/pflag"
 )
 
@@ -18,7 +19,8 @@ type StackOptions struct {
 	// ManageEpsonFastFoto enables the management of Epson FastFoto files.
 	ManageEpsonFastFoto bool `mapstructure:"manage_epson_fast_foto" json:"manage_epson_fast_foto" toml:"manage_epson_fast_foto" yaml:"manage_epson_fast_foto"`
 
-	Filters []filters.Filter
+	Filters  []filters.Filter
+	Groupers []groups.Grouper
 }
 
 func (so *StackOptions) RegisterFlags(flags *pflag.FlagSet) {

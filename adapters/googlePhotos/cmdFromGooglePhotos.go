@@ -139,6 +139,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 			return err
 		}
 
+		// callback the caller
 		err = runner.Run(cmd, adapter)
 		return err
 	}
