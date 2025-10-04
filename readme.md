@@ -26,12 +26,14 @@
   * **Upload Large Google Photos Takeouts:** Users have reported successfully uploading archives of over 100,000 photos. Read the [best practices](#google-photos-best-practices) below for more information.
   * **Upload Collections:** You can upload photos directly from your computer folders, folder trees, and compressed ZIP archives.
   * **Is Duplicate-aware:** Immich-Go identifies and discards duplicate photos, keeping only the highest-quality version on the server.
+  * **Robust Error Handling:** Automatic retry functionality with exponential backoff handles temporary network issues and server overload during large uploads.
   * **Archive Your Immich Server:** Write the content of your Immich server to a folder tree, ready to be archived or migrated to another server.
 
 ### Has Many Options:
 * Stack burst photos
 * Manage coupled RAW and JPEG files, HEIC and JPEG files
 * Use tags
+* Automatic retry with exponential backoff for robust uploads
 * ... and much more
 
 ### Runs on Any Platform:
@@ -282,6 +284,8 @@ The **upload** command need the following options to manage the connection with 
 | --tag strings        |                   | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')        |
 | --on-server-errors   |      `stop`       | Action to take on server errors, (stop,continue,\<n\> to stop after n errors)                                                             |
 | --pause-immich-jobs  |      `TRUE`       | Pause Immich server jobs during the upload process                                                                                        |
+| --retry-count        |        `3`        | Number of retry attempts for server errors (5xx, 429)                                                                                     |
+| --retry-delay        |       `1s`        | Base delay between retries (exponential backoff)                                                                                          |
 | --concurrent-uploads |        Your number of cores        | Number of concurrent upload workers (1-20)                                                                                                |
 
 
@@ -292,8 +296,40 @@ Increase the **--client-timeout** when you have some timeout issues with the ser
 Thanks to the **--session-tag** option, it's easy to identify all photos uploaded during a session, and remove them if needed.
 This tag is formatted as `{immich-go}/YYYY-MM-DD HH-MM-SS`. The tag can be deleted without removing the photos.
 
+## **--retry-count** and **--retry-delay**
+Immich-Go includes automatic retry functionality to handle transient server errors during uploads. When uploading large photo collections, temporary network issues or server overload can cause uploads to fail.
+
+The `--retry-count` option specifies how many times Immich-Go will retry a failed upload before giving up. The `--retry-delay` option sets the base delay between retry attempts, with exponential backoff applied.
+
+**Retry Behavior:**
+- **Server errors (5xx)**: Automatically retried (temporary server issues)
+- **Rate limiting (429)**: Automatically retried (server temporarily overloaded)
+- **Client errors (4xx)**: Not retried (permanent errors like authentication issues)
+- **Network errors**: Retried (connection issues)
+- **Context cancellation**: Not retried (user interrupted)
+
+**Exponential Backoff:**
+- 1st retry: `--retry-delay` (e.g., 1s)
+- 2nd retry: `--retry-delay * 2` (e.g., 2s)
+- 3rd retry: `--retry-delay * 3` (e.g., 3s)
+
+**Recommended Settings:**
+- **Default (3 retries, 1s delay)**: Good balance for most scenarios
+- **Slow/unreliable connections**: Increase `--retry-count` to 5, `--retry-delay` to 2s
+- **Fast/reliable connections**: Keep defaults or reduce `--retry-count` to 2
+- **Disable retries**: Set `--retry-count` to 1
+
+Example:
+```bash
+# More aggressive retry for unreliable connections
+immich-go upload from-folder --retry-count=5 --retry-delay=2s /path/to/photos
+
+# Disable retries completely
+immich-go upload from-folder --retry-count=1 /path/to/photos
+```
+
 ## **--concurrent-uploads**
-The `--concurrent-uploads` option controls how many files are uploaded simultaneously to your Immich server. The default value is set to the number of CPU cores on your machine, but you can adjust it based on your network and server capabilities. This allows for optimal use of available resources, providing a good balance between upload speed and server load. 
+The `--concurrent-uploads` option controls how many files are uploaded simultaneously to your Immich server. The default value is set to the number of CPU cores on your machine, but you can adjust it based on your network and server capabilities. This allows for optimal use of available resources, providing a good balance between upload speed and server load.
 
 
 - **Lower values (1-2)**: More conservative, reduces server load, better for slower connections
@@ -454,6 +490,7 @@ The **from-google-photos** sub-command processes a Google Photos takeout archive
   * For **.tgz** files (compressed tar archives), you'll need to decompress all the files into a single folder before importing. Then use the command `immich-go upload from-google-photos /path/to/your/files`.  
   * You can remove any unwanted files or folders from your takeout before importing.
   * Restarting an interrupted import won't cause any problems and will resume where it left off.
+  * For large takeouts or unreliable connections, consider increasing retry settings: `--retry-count=5 --retry-delay=2s` to handle temporary network issues.
 
 * **What if many of my files are not imported?**
   * Verify if all takeout parts have been included in the processing. Have you used the `takeout-*.zip` file name pattern?
