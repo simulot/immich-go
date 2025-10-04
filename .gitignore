@@ -23,3 +23,6 @@ __debug_*
 
 # macOS system files
 .DS_Store
+
+# asdf configuration file
+.tool-versions
