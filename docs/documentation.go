@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
-	"github.com/simulot/immich-go/app/cmd"
+	"github.com/simulot/immich-go/app/root"
 	"github.com/simulot/immich-go/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -24,16 +24,16 @@ const (
 )
 
 type EnvVarInfo struct {
-	Path  string
-	Flag  string
-	Usage string
+	Path    string
+	Flag    string
+	Usage   string
+	Default pflag.Value
 }
 
 // collectEnvVars recursively collects environment variable information from cobra commands
 func collectEnvVars(cmd *cobra.Command, envVars map[string]EnvVarInfo) {
 	config.TraverseCommands(cmd, []string{}, func(cmd *cobra.Command, path []string) map[string]any {
-		// Process local flags for this command
-		cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		visitor := func(f *pflag.Flag) {
 			if f.Name != "config" && f.Name != "help" {
 				varName := "IMMICH_GO_"
 				if len(path) > 0 {
@@ -43,29 +43,19 @@ func collectEnvVars(cmd *cobra.Command, envVars map[string]EnvVarInfo) {
 				current, ok := envVars[varName]
 				if !ok || len(current.Path) > len(strings.Join(path, " ")) {
 					envVars[varName] = EnvVarInfo{
-						Path:  strings.Join(path, " "),
-						Flag:  f.Name,
-						Usage: f.Usage,
+						Path:    strings.Join(path, " "),
+						Flag:    f.Name,
+						Usage:   f.Usage,
+						Default: f.Value,
 					}
 				}
 			}
-		})
+		}
+		// Process local flags for this command
+		cmd.Flags().VisitAll(visitor)
 
-		// Process persistent flags only at the root level (when path is empty)
-		if len(path) == 0 && cmd.HasPersistentFlags() {
-			cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
-				if f.Name != "config" && f.Name != "help" {
-					varName := "IMMICH_GO_" + strings.ToUpper(strings.ReplaceAll(f.Name, "-", "_"))
-					current, ok := envVars[varName]
-					if !ok || len(current.Path) > len("Global") {
-						envVars[varName] = EnvVarInfo{
-							Path:  "Global",
-							Flag:  f.Name,
-							Usage: f.Usage,
-						}
-					}
-				}
-			})
+		if cmd.HasPersistentFlags() {
+			cmd.PersistentFlags().VisitAll(visitor)
 		}
 		return map[string]any{}
 	})
@@ -126,10 +116,15 @@ func generateEnvVarsDoc(rootCmd *cobra.Command, p string) {
 
 	for _, p := range paths {
 		fmt.Fprintf(f, "## %s\n\n", p)
-		fmt.Fprintln(f, "| Variable | Flag | Description |")
-		fmt.Fprintln(f, "|----------|------|-------------|")
+		fmt.Fprintln(f, "| Variable | Flag | Default | Description |")
+		fmt.Fprintln(f, "|----------|------|---------|-------------|")
 		for _, v := range varsByPath[p] {
-			fmt.Fprintf(f, "| `%s` | `--%s` | %s |\n", v.Name, v.Info.Flag, v.Info.Usage)
+			defaultValue := v.Info.Default.String()
+			if defaultValue != "" {
+				defaultValue = "`" + defaultValue + "`"
+			}
+
+			fmt.Fprintf(f, "| `%s` | `--%s` | %s | %s |\n", v.Name, v.Info.Flag, defaultValue, v.Info.Usage)
 		}
 		fmt.Fprintln(f, "")
 	}
@@ -256,7 +251,7 @@ func setDateRanges(m map[string]interface{}, value string) {
 // main generates documentation for environment variables and configuration files
 func main() {
 	p := path.Base(path.Dir(os.Args[0]))
-	rootCmd, _ := cmd.RootImmichGoCommand(context.Background())
+	rootCmd, _ := root.RootImmichGoCommand(context.Background())
 
 	if p == "docs" {
 		p = "."

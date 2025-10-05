@@ -23,15 +23,13 @@ import (
 )
 
 type Log struct {
-	*slog.Logger // Logger
+	Type  string `mapstructure:"type" json:"type" toml:"type" yaml:"type"`     // Log format : text|json
+	File  string `mapstructure:"file" json:"file" toml:"file" yaml:"file"`     // Log file name
+	Level string `mapstructure:"level" json:"level" toml:"level" yaml:"level"` // Indicate the log level (string)
 
-	Type  string // Log format : text|json
-	File  string // Log file name
-	Level string // Indicate the log level (string)
-
-	sLevel slog.Level // the log level value
-
-	mainWriter    io.Writer // the log writer to file
+	*slog.Logger             // Logger
+	sLevel        slog.Level // the log level value
+	mainWriter    io.Writer  // the log writer to file
 	consoleWriter io.Writer
 
 	apiTracer      *httptrace.Tracer
@@ -39,14 +37,10 @@ type Log struct {
 	apiTraceName   string
 }
 
-func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
-	log := app.Log()
-	cmd.PersistentFlags().StringVar(&log.Level, "log-level", "INFO", "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
-	cmd.PersistentFlags().StringVarP(&log.File, "log-file", "l", "", "Write log messages into the file")
-	cmd.PersistentFlags().StringVar(&log.Type, "log-type", "text", "Log formatted  as text of JSON file")
-
-	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, log.Open, ctx, cmd, app)
-	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, log.Close, ctx, cmd, app)
+func (log *Log) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&log.Level, "log-level", "INFO", "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
+	flags.StringVarP(&log.File, "log-file", "l", "", "Write log messages into the file")
+	flags.StringVar(&log.Type, "log-type", "text", "Log formatted  as text of JSON file")
 }
 
 // DefaultLogFile returns the default log file path
@@ -91,9 +85,12 @@ func (log *Log) OpenLogFile() error {
 
 func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) error {
 	for c := cmd; c != nil; c = c.Parent() {
+		// no log, nor banner for those commands
 		switch c.Name() {
 		case "version", "completion":
-			// no log, nor banner for those commands
+			return nil
+		}
+		if cmd.Flags().Changed("--help") {
 			return nil
 		}
 	}

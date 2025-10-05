@@ -6,12 +6,10 @@ require (
 	github.com/gdamore/tcell/v2 v2.9.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/kr/pretty v0.3.1
 	github.com/melbahja/goph v1.4.0
 	github.com/navidys/tvxwidgets v0.11.3
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/phsym/console-slog v0.3.1
-	github.com/psanford/memfs v0.0.0-20230130182539-4dbf7e3e865e
 	github.com/rivo/tview v0.42.0
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	github.com/samber/slog-multi v1.5.0
@@ -43,13 +41,11 @@ require (
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.9 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.42.0 // indirect

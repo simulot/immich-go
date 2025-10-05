@@ -3,54 +3,64 @@ package app
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync/atomic"
 	"time"
 
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-type (
-	RunE        func(cmd *cobra.Command, args []string) error
-	RunEAdaptor func(ctx context.Context, cmd *cobra.Command, app *Application) error
-)
+// Application holds configuration used by all commands
+// It manages global settings like:
+// - the log and the log-level
+// - application counters
+// - the concurrency
+// - the configuration file
 
-// Application holds configuration used by commands
 type Application struct {
-	client Client
+	// CLI flags
+	DryRun         bool
+	OnErrors       cliflags.OnErrorsFlag
+	SaveConfig     bool
+	ConcurrentTask int
+	CfgFile        string
+
+	// Internal state
 	log    *Log
 	jnl    *fileevent.Recorder
 	tz     *time.Location
 	Config *config.ConfigurationManager
-	CommonFlags
+
+	sm filetypes.SupportedMedia
 
 	numErrors atomic.Int64 // count the errors occurred during the run
 }
 
-type CommonFlags struct {
-	DryRun   bool                  `mapstructure:"dry-run" yaml:"dry-run" json:"dry-run" toml:"dry-run"`
-	OnErrors cliflags.OnErrorsFlag `mapstructure:"on-errors" yaml:"on-errors" json:"on-errors" toml:"on-errors"`
+func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&app.CfgFile, "config", "", "config file (default is ./immich-go.yaml)")
+	flags.BoolVar(&app.DryRun, "dry-run", false, "dry run")
+	flags.BoolVar(&app.SaveConfig, "save-config", false, "Save the configuration to immich-go.yaml")
+	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")
+	flags.IntVar(&app.ConcurrentTask, "concurrent-tasks", runtime.NumCPU(), "Number of concurrent tasks (1-20)")
 }
 
-func (cf *CommonFlags) RegisterFlags(flags *pflag.FlagSet) {
-	_ = cf.OnErrors.Set("stop")
-	cf.OnErrors.RegisterFlags(flags, "")
-	flags.BoolVar(&cf.DryRun, "dry-run", false, "dry run")
-}
-
-func New(ctx context.Context, cmd *cobra.Command, cm *config.ConfigurationManager) *Application {
+func New(ctx context.Context, cmd *cobra.Command) *Application {
 	// application's context
-	app := &Application{
+	a := &Application{
 		log:    &Log{},
 		tz:     time.Local,
-		Config: cm,
+		Config: config.New(),
 	}
-	app.RegisterFlags(cmd.PersistentFlags())
-	AddLogFlags(ctx, cmd, app)
-	return app
+	return a
+}
+
+func (app *Application) Log() *Log {
+	return app.log
 }
 
 func (app *Application) GetTZ() *time.Location {
@@ -64,10 +74,6 @@ func (app *Application) SetTZ(tz *time.Location) {
 	app.tz = tz
 }
 
-func (app *Application) Client() *Client {
-	return &app.client
-}
-
 func (app *Application) Jnl() *fileevent.Recorder {
 	return app.jnl
 }
@@ -76,29 +82,19 @@ func (app *Application) SetJnl(jnl *fileevent.Recorder) {
 	app.jnl = jnl
 }
 
-func (app *Application) Log() *Log {
-	return app.log
-}
-
 func (app *Application) SetLog(log *Log) {
 	app.log = log
 }
 
-func ChainRunEFunctions(prev RunE, fn RunEAdaptor, ctx context.Context, cmd *cobra.Command, app *Application) RunE {
-	if prev == nil {
-		return func(cmd *cobra.Command, args []string) error {
-			return fn(ctx, cmd, app)
-		}
+func (app *Application) GetSupportedMedia() filetypes.SupportedMedia {
+	if app.sm == nil {
+		return filetypes.DefaultSupportedMedia
 	}
-	return func(cmd *cobra.Command, args []string) error {
-		if prev != nil {
-			err := prev(cmd, args)
-			if err != nil {
-				return err
-			}
-		}
-		return fn(ctx, cmd, app)
-	}
+	return app.sm
+}
+
+func (app *Application) SetSupportedMedia(sm filetypes.SupportedMedia) {
+	app.sm = sm
 }
 
 func (app *Application) ProcessError(err error) error {

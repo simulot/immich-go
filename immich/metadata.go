@@ -30,6 +30,7 @@ type searchOptions struct {
 	withOnlyCountry  string             // got only assets taken in this country
 	withOnlyState    string             // got only assets taken in this state
 	withOnlyCity     string             // got only assets taken in this city
+	withOrder        string             // sort order: "asc (oldest first)" or "desc(newest first)"
 
 	// following filters are resolved as ID
 	withAlbums []string // album ids
@@ -45,7 +46,9 @@ type searchOptions struct {
 }
 
 func SearchOptions() *searchOptions {
-	return &searchOptions{}
+	return &searchOptions{
+		withOrder: "asc",
+	}
 }
 
 // set WithExif
@@ -167,6 +170,12 @@ func (so *searchOptions) WithOnlyCity(city string) *searchOptions {
 	return so
 }
 
+// to set the sort order
+func (so *searchOptions) WithOrder(order string) *searchOptions {
+	so.withOrder = order
+	return so
+}
+
 func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQuery {
 	base := SearchMetadataQuery{
 		WithExif:     so.withExif,
@@ -180,6 +189,7 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 		AlbumIds:     so.withAlbums,
 		TagIds:       so.withTags,
 		PersonIds:    so.withPeople,
+		Order:        so.withOrder,
 	}
 
 	if !so.takenRange.Before.IsZero() {
@@ -280,6 +290,7 @@ type SearchMetadataQuery struct {
 	OriginalFileName string            `json:"originalFileName,omitempty"`
 	Rating           int               `json:"rating,omitzero"`
 	Visibility       assets.Visibility `json:"visibility,omitempty"`
+	Order            string            `json:"order,omitempty"`
 }
 
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {

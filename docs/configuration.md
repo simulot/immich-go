@@ -8,6 +8,7 @@ The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immi
 <summary>TOML</summary>
 
 ```toml
+concurrent-tasks = 12
 dry-run = false
 log-file = ''
 log-level = 'INFO'
@@ -18,22 +19,18 @@ save-config = false
 [archive]
 [archive.from-folder]
 album-path-joiner = ' / '
-album-picasa = false
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = ''
+folder-as-album = 'none'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
 into-album = ''
 recursive = true
-session-tag = false
 
 [archive.from-folder.ban-file]
-
-[archive.from-folder.tag]
 
 [archive.from-google-photos]
 date-range = '2024-01-15,2024-03-31'
@@ -48,58 +45,13 @@ include-unmatched = false
 include-untitled-albums = false
 partner-shared-album = ''
 people-tag = true
-session-tag = false
 sync-albums = true
 takeout-tag = true
 
 [archive.from-google-photos.ban-file]
 
-[archive.from-google-photos.tag]
-
-[archive.from-immich]
-from-api-key = 'OLD-API-KEY'
-from-api-trace = false
-from-archived = false
-from-city = ''
-from-client-timeout = '20m'
-from-country = ''
-from-favorite = false
-from-make = ''
-from-minimal-rating = 0
-from-model = ''
-from-no-album = false
-from-partners = false
-from-server = 'https://old.immich.app'
-from-skip-verify-ssl = false
-from-state = ''
-from-trash = false
-
-[archive.from-immich.from-albums]
-
-[archive.from-immich.from-people]
-
-[archive.from-immich.from-tags]
-
-[stack]
-api-key = 'YOUR-API-KEY'
-client-timeout = '20m'
-date-range = '2024-01-15,2024-03-31'
-device-uuid = 'HOSTNAME'
-manage-burst = 'NoStack'
-manage-epson-fastfoto = false
-manage-heic-jpeg = 'NoStack'
-manage-raw-jpeg = 'NoStack'
-server = 'https://immich.app'
-
-[upload]
-api-key = 'YOUR-API-KEY'
-client-timeout = '20m'
-device-uuid = 'HOSTNAME'
-server = 'https://immich.app'
-
-[upload.from-folder]
+[archive.from-icloud]
 album-path-joiner = ' / '
-album-picasa = false
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
@@ -109,16 +61,110 @@ ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
 into-album = ''
+memories = false
+recursive = true
+
+[archive.from-icloud.ban-file]
+
+[archive.from-immich]
+from-admin-api-key = ''
+from-api-key = 'OLD-API-KEY'
+from-api-trace = false
+from-archived = false
+from-city = ''
+from-client-timeout = '20m'
+from-country = ''
+from-date-range = '2024-01-15,2024-03-31'
+from-device-uuid = 'gl65'
+from-dry-run = false
+from-exclude-extensions = []
+from-favorite = false
+from-include-extensions = []
+from-include-type = ''
+from-make = ''
+from-minimal-rating = 0
+from-model = ''
+from-no-album = false
+from-partners = false
+from-pause-immich-jobs = true
+from-server = 'https://old.immich.app'
+from-skip-verify-ssl = false
+from-state = ''
+from-time-zone = ''
+from-trash = false
+
+[archive.from-immich.from-albums]
+
+[archive.from-immich.from-people]
+
+[archive.from-immich.from-tags]
+
+[archive.from-picasa]
+album-path-joiner = ' / '
+album-picasa = true
+date-from-name = true
+date-range = '2024-01-15,2024-03-31'
+exclude-extensions = []
+folder-as-album = 'none'
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = []
+include-type = ''
+into-album = ''
+recursive = true
+
+[archive.from-picasa.ban-file]
+
+[stack]
+admin-api-key = ''
+api-key = 'YOUR-API-KEY'
+api-trace = false
+client-timeout = '20m'
+date-range = '2024-01-15,2024-03-31'
+device-uuid = 'HOSTNAME'
+dry-run = false
 manage-burst = 'NoStack'
 manage-epson-fastfoto = false
 manage-heic-jpeg = 'NoStack'
 manage-raw-jpeg = 'NoStack'
-recursive = true
+pause-immich-jobs = true
+server = 'https://immich.app'
+skip-verify-ssl = false
+time-zone = ''
+
+[upload]
+admin-api-key = ''
+api-key = 'YOUR-API-KEY'
+api-trace = false
+client-timeout = '20m'
+device-uuid = 'HOSTNAME'
+dry-run = false
+manage-burst = 'NoStack'
+manage-epson-fastfoto = false
+manage-heic-jpeg = 'NoStack'
+manage-raw-jpeg = 'NoStack'
+no-ui = false
+overwrite = false
+pause-immich-jobs = true
+server = 'https://immich.app'
 session-tag = false
+skip-verify-ssl = false
+time-zone = ''
+
+[upload.from-folder]
+album-path-joiner = ' / '
+date-from-name = true
+date-range = '2024-01-15,2024-03-31'
+exclude-extensions = []
+folder-as-album = 'none'
+folder-as-tags = false
+ignore-sidecar-files = false
+include-extensions = []
+include-type = ''
+into-album = ''
+recursive = true
 
 [upload.from-folder.ban-file]
-
-[upload.from-folder.tag]
 
 [upload.from-google-photos]
 date-range = '2024-01-15,2024-03-31'
@@ -131,45 +177,31 @@ include-trashed = false
 include-type = ''
 include-unmatched = false
 include-untitled-albums = false
-manage-burst = 'NoStack'
-manage-epson-fastfoto = false
-manage-heic-jpeg = 'NoStack'
-manage-raw-jpeg = 'NoStack'
 partner-shared-album = ''
 people-tag = true
-session-tag = false
 sync-albums = true
 takeout-tag = true
 
 [upload.from-google-photos.ban-file]
 
-[upload.from-google-photos.tag]
-
 [upload.from-icloud]
 album-path-joiner = ' / '
-album-picasa = false
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = 'NONE'
+folder-as-album = 'none'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
 into-album = ''
-manage-burst = 'NoStack'
-manage-epson-fastfoto = false
-manage-heic-jpeg = 'NoStack'
-manage-raw-jpeg = 'NoStack'
 memories = false
 recursive = true
-session-tag = false
 
 [upload.from-icloud.ban-file]
 
-[upload.from-icloud.tag]
-
 [upload.from-immich]
+from-admin-api-key = ''
 from-api-key = 'OLD-API-KEY'
 from-api-trace = false
 from-archived = false
@@ -177,6 +209,8 @@ from-city = ''
 from-client-timeout = '20m'
 from-country = ''
 from-date-range = '2024-01-15,2024-03-31'
+from-device-uuid = 'gl65'
+from-dry-run = false
 from-exclude-extensions = []
 from-favorite = false
 from-include-extensions = []
@@ -186,9 +220,11 @@ from-minimal-rating = 0
 from-model = ''
 from-no-album = false
 from-partners = false
+from-pause-immich-jobs = true
 from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
 from-state = ''
+from-time-zone = ''
 from-trash = false
 
 [upload.from-immich.from-albums]
@@ -199,26 +235,21 @@ from-trash = false
 
 [upload.from-picasa]
 album-path-joiner = ' / '
-album-picasa = false
+album-picasa = true
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = 'NONE'
+folder-as-album = 'none'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
 into-album = ''
-manage-burst = 'NoStack'
-manage-epson-fastfoto = false
-manage-heic-jpeg = 'NoStack'
-manage-raw-jpeg = 'NoStack'
 recursive = true
-session-tag = false
 
 [upload.from-picasa.ban-file]
 
-[upload.from-picasa.tag]
+[upload.tag]
 ```
 
 </details>
@@ -230,81 +261,6 @@ session-tag = false
 archive:
   from-folder:
     album-path-joiner: ' / '
-    album-picasa: false
-    ban-file: {}
-    date-from-name: true
-    date-range: 2024-01-15,2024-03-31
-    exclude-extensions: []
-    folder-as-album: ""
-    folder-as-tags: false
-    ignore-sidecar-files: false
-    include-extensions: []
-    include-type: ""
-    into-album: ""
-    recursive: true
-    session-tag: false
-    tag: {}
-  from-google-photos:
-    ban-file: {}
-    date-range: 2024-01-15,2024-03-31
-    exclude-extensions: []
-    from-album-name: ""
-    include-archived: true
-    include-extensions: []
-    include-partner: true
-    include-trashed: false
-    include-type: ""
-    include-unmatched: false
-    include-untitled-albums: false
-    partner-shared-album: ""
-    people-tag: true
-    session-tag: false
-    sync-albums: true
-    tag: {}
-    takeout-tag: true
-  from-immich:
-    from-albums: {}
-    from-api-key: OLD-API-KEY
-    from-api-trace: false
-    from-archived: false
-    from-city: ""
-    from-client-timeout: 20m
-    from-country: ""
-    from-favorite: false
-    from-make: ""
-    from-minimal-rating: 0
-    from-model: ""
-    from-no-album: false
-    from-partners: false
-    from-people: {}
-    from-server: https://old.immich.app
-    from-skip-verify-ssl: false
-    from-state: ""
-    from-tags: {}
-    from-trash: false
-dry-run: false
-log-file: ""
-log-level: INFO
-log-type: text
-on-errors: stop
-save-config: false
-stack:
-  api-key: YOUR-API-KEY
-  client-timeout: 20m
-  date-range: 2024-01-15,2024-03-31
-  device-uuid: HOSTNAME
-  manage-burst: NoStack
-  manage-epson-fastfoto: false
-  manage-heic-jpeg: NoStack
-  manage-raw-jpeg: NoStack
-  server: https://immich.app
-upload:
-  api-key: YOUR-API-KEY
-  client-timeout: 20m
-  device-uuid: HOSTNAME
-  from-folder:
-    album-path-joiner: ' / '
-    album-picasa: false
     ban-file: {}
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
@@ -315,13 +271,7 @@ upload:
     include-extensions: []
     include-type: ""
     into-album: ""
-    manage-burst: NoStack
-    manage-epson-fastfoto: false
-    manage-heic-jpeg: NoStack
-    manage-raw-jpeg: NoStack
     recursive: true
-    session-tag: false
-    tag: {}
   from-google-photos:
     ban-file: {}
     date-range: 2024-01-15,2024-03-31
@@ -334,38 +284,26 @@ upload:
     include-type: ""
     include-unmatched: false
     include-untitled-albums: false
-    manage-burst: NoStack
-    manage-epson-fastfoto: false
-    manage-heic-jpeg: NoStack
-    manage-raw-jpeg: NoStack
     partner-shared-album: ""
     people-tag: true
-    session-tag: false
     sync-albums: true
-    tag: {}
     takeout-tag: true
   from-icloud:
     album-path-joiner: ' / '
-    album-picasa: false
     ban-file: {}
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
-    folder-as-album: NONE
+    folder-as-album: none
     folder-as-tags: false
     ignore-sidecar-files: false
     include-extensions: []
     include-type: ""
     into-album: ""
-    manage-burst: NoStack
-    manage-epson-fastfoto: false
-    manage-heic-jpeg: NoStack
-    manage-raw-jpeg: NoStack
     memories: false
     recursive: true
-    session-tag: false
-    tag: {}
   from-immich:
+    from-admin-api-key: ""
     from-albums: {}
     from-api-key: OLD-API-KEY
     from-api-trace: false
@@ -374,6 +312,8 @@ upload:
     from-client-timeout: 20m
     from-country: ""
     from-date-range: 2024-01-15,2024-03-31
+    from-device-uuid: gl65
+    from-dry-run: false
     from-exclude-extensions: []
     from-favorite: false
     from-include-extensions: []
@@ -383,33 +323,156 @@ upload:
     from-model: ""
     from-no-album: false
     from-partners: false
+    from-pause-immich-jobs: true
     from-people: {}
     from-server: https://old.immich.app
     from-skip-verify-ssl: false
     from-state: ""
     from-tags: {}
+    from-time-zone: ""
     from-trash: false
   from-picasa:
     album-path-joiner: ' / '
-    album-picasa: false
+    album-picasa: true
     ban-file: {}
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
-    folder-as-album: NONE
+    folder-as-album: none
     folder-as-tags: false
     ignore-sidecar-files: false
     include-extensions: []
     include-type: ""
     into-album: ""
-    manage-burst: NoStack
-    manage-epson-fastfoto: false
-    manage-heic-jpeg: NoStack
-    manage-raw-jpeg: NoStack
     recursive: true
-    session-tag: false
-    tag: {}
+concurrent-tasks: 12
+dry-run: false
+log-file: ""
+log-level: INFO
+log-type: text
+on-errors: stop
+save-config: false
+stack:
+  admin-api-key: ""
+  api-key: YOUR-API-KEY
+  api-trace: false
+  client-timeout: 20m
+  date-range: 2024-01-15,2024-03-31
+  device-uuid: HOSTNAME
+  dry-run: false
+  manage-burst: NoStack
+  manage-epson-fastfoto: false
+  manage-heic-jpeg: NoStack
+  manage-raw-jpeg: NoStack
+  pause-immich-jobs: true
   server: https://immich.app
+  skip-verify-ssl: false
+  time-zone: ""
+upload:
+  admin-api-key: ""
+  api-key: YOUR-API-KEY
+  api-trace: false
+  client-timeout: 20m
+  device-uuid: HOSTNAME
+  dry-run: false
+  from-folder:
+    album-path-joiner: ' / '
+    ban-file: {}
+    date-from-name: true
+    date-range: 2024-01-15,2024-03-31
+    exclude-extensions: []
+    folder-as-album: none
+    folder-as-tags: false
+    ignore-sidecar-files: false
+    include-extensions: []
+    include-type: ""
+    into-album: ""
+    recursive: true
+  from-google-photos:
+    ban-file: {}
+    date-range: 2024-01-15,2024-03-31
+    exclude-extensions: []
+    from-album-name: ""
+    include-archived: true
+    include-extensions: []
+    include-partner: true
+    include-trashed: false
+    include-type: ""
+    include-unmatched: false
+    include-untitled-albums: false
+    partner-shared-album: ""
+    people-tag: true
+    sync-albums: true
+    takeout-tag: true
+  from-icloud:
+    album-path-joiner: ' / '
+    ban-file: {}
+    date-from-name: true
+    date-range: 2024-01-15,2024-03-31
+    exclude-extensions: []
+    folder-as-album: none
+    folder-as-tags: false
+    ignore-sidecar-files: false
+    include-extensions: []
+    include-type: ""
+    into-album: ""
+    memories: false
+    recursive: true
+  from-immich:
+    from-admin-api-key: ""
+    from-albums: {}
+    from-api-key: OLD-API-KEY
+    from-api-trace: false
+    from-archived: false
+    from-city: ""
+    from-client-timeout: 20m
+    from-country: ""
+    from-date-range: 2024-01-15,2024-03-31
+    from-device-uuid: gl65
+    from-dry-run: false
+    from-exclude-extensions: []
+    from-favorite: false
+    from-include-extensions: []
+    from-include-type: ""
+    from-make: ""
+    from-minimal-rating: 0
+    from-model: ""
+    from-no-album: false
+    from-partners: false
+    from-pause-immich-jobs: true
+    from-people: {}
+    from-server: https://old.immich.app
+    from-skip-verify-ssl: false
+    from-state: ""
+    from-tags: {}
+    from-time-zone: ""
+    from-trash: false
+  from-picasa:
+    album-path-joiner: ' / '
+    album-picasa: true
+    ban-file: {}
+    date-from-name: true
+    date-range: 2024-01-15,2024-03-31
+    exclude-extensions: []
+    folder-as-album: none
+    folder-as-tags: false
+    ignore-sidecar-files: false
+    include-extensions: []
+    include-type: ""
+    into-album: ""
+    recursive: true
+  manage-burst: NoStack
+  manage-epson-fastfoto: false
+  manage-heic-jpeg: NoStack
+  manage-raw-jpeg: NoStack
+  no-ui: false
+  overwrite: false
+  pause-immich-jobs: true
+  server: https://immich.app
+  session-tag: false
+  skip-verify-ssl: false
+  tag: {}
+  time-zone: ""
 ```
 
 </details>
@@ -422,86 +485,6 @@ upload:
   "archive": {
     "from-folder": {
       "album-path-joiner": " / ",
-      "album-picasa": false,
-      "ban-file": {},
-      "date-from-name": true,
-      "date-range": "2024-01-15,2024-03-31",
-      "exclude-extensions": null,
-      "folder-as-album": "",
-      "folder-as-tags": false,
-      "ignore-sidecar-files": false,
-      "include-extensions": null,
-      "include-type": "",
-      "into-album": "",
-      "recursive": true,
-      "session-tag": false,
-      "tag": {}
-    },
-    "from-google-photos": {
-      "ban-file": {},
-      "date-range": "2024-01-15,2024-03-31",
-      "exclude-extensions": null,
-      "from-album-name": "",
-      "include-archived": true,
-      "include-extensions": null,
-      "include-partner": true,
-      "include-trashed": false,
-      "include-type": "",
-      "include-unmatched": false,
-      "include-untitled-albums": false,
-      "partner-shared-album": "",
-      "people-tag": true,
-      "session-tag": false,
-      "sync-albums": true,
-      "tag": {},
-      "takeout-tag": true
-    },
-    "from-immich": {
-      "from-albums": {},
-      "from-api-key": "OLD-API-KEY",
-      "from-api-trace": false,
-      "from-archived": false,
-      "from-city": "",
-      "from-client-timeout": "20m",
-      "from-country": "",
-      "from-favorite": false,
-      "from-make": "",
-      "from-minimal-rating": 0,
-      "from-model": "",
-      "from-no-album": false,
-      "from-partners": false,
-      "from-people": {},
-      "from-server": "https://old.immich.app",
-      "from-skip-verify-ssl": false,
-      "from-state": "",
-      "from-tags": {},
-      "from-trash": false
-    }
-  },
-  "dry-run": false,
-  "log-file": "",
-  "log-level": "INFO",
-  "log-type": "text",
-  "on-errors": "stop",
-  "save-config": false,
-  "stack": {
-    "api-key": "YOUR-API-KEY",
-    "client-timeout": "20m",
-    "date-range": "2024-01-15,2024-03-31",
-    "device-uuid": "HOSTNAME",
-    "manage-burst": "NoStack",
-    "manage-epson-fastfoto": false,
-    "manage-heic-jpeg": "NoStack",
-    "manage-raw-jpeg": "NoStack",
-    "server": "https://immich.app"
-  },
-  "upload": {
-    "api-key": "YOUR-API-KEY",
-    "client-timeout": "20m",
-    "device-uuid": "HOSTNAME",
-    "from-folder": {
-      "album-path-joiner": " / ",
-      "album-picasa": false,
       "ban-file": {},
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
@@ -512,13 +495,7 @@ upload:
       "include-extensions": null,
       "include-type": "",
       "into-album": "",
-      "manage-burst": "NoStack",
-      "manage-epson-fastfoto": false,
-      "manage-heic-jpeg": "NoStack",
-      "manage-raw-jpeg": "NoStack",
-      "recursive": true,
-      "session-tag": false,
-      "tag": {}
+      "recursive": true
     },
     "from-google-photos": {
       "ban-file": {},
@@ -532,40 +509,28 @@ upload:
       "include-type": "",
       "include-unmatched": false,
       "include-untitled-albums": false,
-      "manage-burst": "NoStack",
-      "manage-epson-fastfoto": false,
-      "manage-heic-jpeg": "NoStack",
-      "manage-raw-jpeg": "NoStack",
       "partner-shared-album": "",
       "people-tag": true,
-      "session-tag": false,
       "sync-albums": true,
-      "tag": {},
       "takeout-tag": true
     },
     "from-icloud": {
       "album-path-joiner": " / ",
-      "album-picasa": false,
       "ban-file": {},
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
-      "folder-as-album": "NONE",
+      "folder-as-album": "none",
       "folder-as-tags": false,
       "ignore-sidecar-files": false,
       "include-extensions": null,
       "include-type": "",
       "into-album": "",
-      "manage-burst": "NoStack",
-      "manage-epson-fastfoto": false,
-      "manage-heic-jpeg": "NoStack",
-      "manage-raw-jpeg": "NoStack",
       "memories": false,
-      "recursive": true,
-      "session-tag": false,
-      "tag": {}
+      "recursive": true
     },
     "from-immich": {
+      "from-admin-api-key": "",
       "from-albums": {},
       "from-api-key": "OLD-API-KEY",
       "from-api-trace": false,
@@ -574,6 +539,8 @@ upload:
       "from-client-timeout": "20m",
       "from-country": "",
       "from-date-range": "2024-01-15,2024-03-31",
+      "from-device-uuid": "gl65",
+      "from-dry-run": false,
       "from-exclude-extensions": null,
       "from-favorite": false,
       "from-include-extensions": null,
@@ -583,35 +550,165 @@ upload:
       "from-model": "",
       "from-no-album": false,
       "from-partners": false,
+      "from-pause-immich-jobs": true,
       "from-people": {},
       "from-server": "https://old.immich.app",
       "from-skip-verify-ssl": false,
       "from-state": "",
       "from-tags": {},
+      "from-time-zone": "",
       "from-trash": false
     },
     "from-picasa": {
       "album-path-joiner": " / ",
-      "album-picasa": false,
+      "album-picasa": true,
       "ban-file": {},
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
-      "folder-as-album": "NONE",
+      "folder-as-album": "none",
       "folder-as-tags": false,
       "ignore-sidecar-files": false,
       "include-extensions": null,
       "include-type": "",
       "into-album": "",
-      "manage-burst": "NoStack",
-      "manage-epson-fastfoto": false,
-      "manage-heic-jpeg": "NoStack",
-      "manage-raw-jpeg": "NoStack",
-      "recursive": true,
-      "session-tag": false,
-      "tag": {}
+      "recursive": true
+    }
+  },
+  "concurrent-tasks": 12,
+  "dry-run": false,
+  "log-file": "",
+  "log-level": "INFO",
+  "log-type": "text",
+  "on-errors": "stop",
+  "save-config": false,
+  "stack": {
+    "admin-api-key": "",
+    "api-key": "YOUR-API-KEY",
+    "api-trace": false,
+    "client-timeout": "20m",
+    "date-range": "2024-01-15,2024-03-31",
+    "device-uuid": "HOSTNAME",
+    "dry-run": false,
+    "manage-burst": "NoStack",
+    "manage-epson-fastfoto": false,
+    "manage-heic-jpeg": "NoStack",
+    "manage-raw-jpeg": "NoStack",
+    "pause-immich-jobs": true,
+    "server": "https://immich.app",
+    "skip-verify-ssl": false,
+    "time-zone": ""
+  },
+  "upload": {
+    "admin-api-key": "",
+    "api-key": "YOUR-API-KEY",
+    "api-trace": false,
+    "client-timeout": "20m",
+    "device-uuid": "HOSTNAME",
+    "dry-run": false,
+    "from-folder": {
+      "album-path-joiner": " / ",
+      "ban-file": {},
+      "date-from-name": true,
+      "date-range": "2024-01-15,2024-03-31",
+      "exclude-extensions": null,
+      "folder-as-album": "none",
+      "folder-as-tags": false,
+      "ignore-sidecar-files": false,
+      "include-extensions": null,
+      "include-type": "",
+      "into-album": "",
+      "recursive": true
     },
-    "server": "https://immich.app"
+    "from-google-photos": {
+      "ban-file": {},
+      "date-range": "2024-01-15,2024-03-31",
+      "exclude-extensions": null,
+      "from-album-name": "",
+      "include-archived": true,
+      "include-extensions": null,
+      "include-partner": true,
+      "include-trashed": false,
+      "include-type": "",
+      "include-unmatched": false,
+      "include-untitled-albums": false,
+      "partner-shared-album": "",
+      "people-tag": true,
+      "sync-albums": true,
+      "takeout-tag": true
+    },
+    "from-icloud": {
+      "album-path-joiner": " / ",
+      "ban-file": {},
+      "date-from-name": true,
+      "date-range": "2024-01-15,2024-03-31",
+      "exclude-extensions": null,
+      "folder-as-album": "none",
+      "folder-as-tags": false,
+      "ignore-sidecar-files": false,
+      "include-extensions": null,
+      "include-type": "",
+      "into-album": "",
+      "memories": false,
+      "recursive": true
+    },
+    "from-immich": {
+      "from-admin-api-key": "",
+      "from-albums": {},
+      "from-api-key": "OLD-API-KEY",
+      "from-api-trace": false,
+      "from-archived": false,
+      "from-city": "",
+      "from-client-timeout": "20m",
+      "from-country": "",
+      "from-date-range": "2024-01-15,2024-03-31",
+      "from-device-uuid": "gl65",
+      "from-dry-run": false,
+      "from-exclude-extensions": null,
+      "from-favorite": false,
+      "from-include-extensions": null,
+      "from-include-type": "",
+      "from-make": "",
+      "from-minimal-rating": 0,
+      "from-model": "",
+      "from-no-album": false,
+      "from-partners": false,
+      "from-pause-immich-jobs": true,
+      "from-people": {},
+      "from-server": "https://old.immich.app",
+      "from-skip-verify-ssl": false,
+      "from-state": "",
+      "from-tags": {},
+      "from-time-zone": "",
+      "from-trash": false
+    },
+    "from-picasa": {
+      "album-path-joiner": " / ",
+      "album-picasa": true,
+      "ban-file": {},
+      "date-from-name": true,
+      "date-range": "2024-01-15,2024-03-31",
+      "exclude-extensions": null,
+      "folder-as-album": "none",
+      "folder-as-tags": false,
+      "ignore-sidecar-files": false,
+      "include-extensions": null,
+      "include-type": "",
+      "into-album": "",
+      "recursive": true
+    },
+    "manage-burst": "NoStack",
+    "manage-epson-fastfoto": false,
+    "manage-heic-jpeg": "NoStack",
+    "manage-raw-jpeg": "NoStack",
+    "no-ui": false,
+    "overwrite": false,
+    "pause-immich-jobs": true,
+    "server": "https://immich.app",
+    "session-tag": false,
+    "skip-verify-ssl": false,
+    "tag": {},
+    "time-zone": ""
   }
 }
 ```

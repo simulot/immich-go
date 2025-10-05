@@ -1,12 +1,9 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"runtime/debug"
 	"strings"
-
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -17,6 +14,8 @@ var (
 
 // initialize version and commit at the runtime
 func init() {
+	fmt.Print("TODO: check version path  in the tool chain")
+
 	dirty := false
 	buildvcs := false
 
@@ -73,18 +72,4 @@ func Banner() string {
 
 func GetVersion() string {
 	return fmt.Sprintf("immich-go version:%s,  commit:%s, date:%s", Version, Commit, Date)
-}
-
-// NewUploadCommand adds the Upload command
-func NewVersionCommand(ctx context.Context, app *Application) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "Give immich-go version",
-	}
-
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		fmt.Println(GetVersion())
-		return nil
-	}
-	return cmd
 }

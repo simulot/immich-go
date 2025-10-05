@@ -27,7 +27,7 @@ func TraverseCommands(cmd *cobra.Command, path []string, visitor CommandVisitor)
 func ToMap(cmd *cobra.Command) map[string]any {
 	return TraverseCommands(cmd, []string{}, func(cmd *cobra.Command, path []string) map[string]any {
 		m := map[string]any{}
-		if len(path) == 0 && cmd.HasPersistentFlags() {
+		if cmd.HasPersistentFlags() {
 			fs := cmd.PersistentFlags()
 			fs.VisitAll(func(f *pflag.Flag) {
 				if f.Name != "config" && f.Name != "help" {
