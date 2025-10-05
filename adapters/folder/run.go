@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/app"
@@ -20,6 +19,7 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/groups"
@@ -27,18 +27,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (o *ImportFolderOptions) run(cmd *cobra.Command, args []string, app *app.Application, runner adapters.Runner) error {
-	o.app = app
+func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Application, runner adapters.Runner) error {
+	if ifc.ImportIntoAlbum != "" && ifc.UsePathAsAlbumName != FolderModeNone {
+		return errors.New("cannot use both --into-album and --folder-as-album flags")
+	}
+
+	ifc.app = app
 	ctx := cmd.Context()
 	log := app.Log()
-	err := o.Client.Open(ctx, app)
+	err := ifc.client.Open(ctx, app)
 	if err != nil {
 		return nil
 	}
-	o.TZ = app.GetTZ()
-	o.InclusionFlags.SetIncludeTypeExtensions()
+	ifc.tz = app.GetTZ()
+	ifc.InclusionFlags.SetIncludeTypeExtensions()
 
-	// parse arguments
+	// parse arguments and generate a fs.FS per argument
 	fsyss, err := fshelper.ParsePath(args)
 	if err != nil {
 		return err
@@ -49,110 +53,73 @@ func (o *ImportFolderOptions) run(cmd *cobra.Command, args []string, app *app.Ap
 	}
 	defer fshelper.CloseFSs(fsyss)
 
-	// create the adapter for folders
-	o.SupportedMedia = o.Client.Immich.SupportedMedia()
+	// Start the workers
+	ifc.pool = worker.NewPool(ifc.app.ConcurrentTask)
 
-	adapter, err := NewLocalFiles(ctx, app.Jnl(), o, fsyss...)
-	if err != nil {
-		return err
+	// create the adapter for folders
+	ifc.supportedMedia = ifc.client.Immich.SupportedMedia()
+
+	ifc.requiresDateInformation = ifc.InclusionFlags.DateRange.IsSet() ||
+		ifc.TakeDateFromFilename || ifc.ManageBurst != filters.BurstNothing ||
+		ifc.ManageHEICJPG != filters.HeicJpgNothing || ifc.ManageRawJPG != filters.RawJPGNothing
+
+	if ifc.PicasaAlbum {
+		ifc.picasaAlbums = gen.NewSyncMap[string, PicasaAlbum]() // make(map[string]PicasaAlbum)
+	}
+	if ifc.ICloudTakeout {
+		ifc.icloudMetas = gen.NewSyncMap[string, iCloudMeta]()
+		ifc.icloudMetaPass = true
+	}
+
+	if ifc.infoCollector == nil {
+		ifc.infoCollector = filenames.NewInfoCollector(ifc.tz, ifc.supportedMedia)
+	}
+
+	if ifc.InclusionFlags.DateRange.IsSet() {
+		ifc.InclusionFlags.DateRange.SetTZ(ifc.tz)
 	}
 	// callback the caller
-
-	err = runner.Run(cmd, adapter)
+	err = runner.Run(cmd, ifc)
 	return err
 }
 
 const icloudMetadataExt = ".csv"
 
-type LocalAssetBrowser struct {
-	fsyss                   []fs.FS
-	log                     *fileevent.Recorder
-	flags                   *ImportFolderOptions
-	pool                    *worker.Pool
-	wg                      sync.WaitGroup
-	groupers                []groups.Grouper
-	requiresDateInformation bool                              // true if we need to read the date from the file for the options
-	picasaAlbums            *gen.SyncMap[string, PicasaAlbum] // ap[string]PicasaAlbum
-	icloudMetas             *gen.SyncMap[string, iCloudMeta]
-	icloudMetaPass          bool
-}
-
-func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFolderOptions, fsyss ...fs.FS) (*LocalAssetBrowser, error) {
-	if flags.ImportIntoAlbum != "" && flags.UsePathAsAlbumName != FolderModeNone {
-		return nil, errors.New("cannot use both --into-album and --folder-as-album")
-	}
-
-	la := LocalAssetBrowser{
-		fsyss:                   fsyss,
-		flags:                   flags,
-		log:                     l,
-		pool:                    worker.NewPool(flags.app.ConcurrentJobs),
-		requiresDateInformation: true, // flags.InclusionFlags.DateRange.IsSet() ||
-		// 	flags.TakeDateFromFilename || flags.StackBurstPhotos ||
-		// 	flags.ManageHEICJPG != fi	lters.HeicJpgNothing || flags.ManageRawJPG != filters.RawJPGNothing,
-	}
-
-	if flags.PicasaAlbum {
-		la.picasaAlbums = gen.NewSyncMap[string, PicasaAlbum]() // make(map[string]PicasaAlbum)
-	}
-	if flags.ICloudTakeout {
-		la.icloudMetas = gen.NewSyncMap[string, iCloudMeta]()
-		la.icloudMetaPass = true
-	}
-
-	if flags.InfoCollector == nil {
-		flags.InfoCollector = filenames.NewInfoCollector(flags.TZ, flags.SupportedMedia)
-	}
-
-	if flags.InclusionFlags.DateRange.IsSet() {
-		flags.InclusionFlags.DateRange.SetTZ(flags.TZ)
-	}
-
-	// if flags.ExifToolFlags.UseExifTool {
-	// 	err := exif.NewExifTool(&flags.ExifToolFlags)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
-	return &la, nil
-}
-
-func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *assets.Group {
+func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
 	gOut := make(chan *assets.Group)
 	go func() {
 		defer close(gOut)
 		// two passes for icloud takouts
-		if la.icloudMetaPass {
-			for _, fsys := range la.fsyss {
-				la.concurrentParseDir(ctx, fsys, ".", gOut)
+		if ifc.icloudMetaPass {
+			for _, fsys := range ifc.fsyss {
+				ifc.concurrentParseDir(ctx, fsys, ".", gOut)
 			}
-			la.wg.Wait()
-			la.icloudMetaPass = false
+			ifc.wg.Wait()
+			ifc.icloudMetaPass = false
 		}
-		for _, fsys := range la.fsyss {
-			la.concurrentParseDir(ctx, fsys, ".", gOut)
+		for _, fsys := range ifc.fsyss {
+			ifc.concurrentParseDir(ctx, fsys, ".", gOut)
 		}
-		la.wg.Wait()
-		la.pool.Stop()
+		ifc.wg.Wait()
+		ifc.pool.Stop()
 	}()
 	return gOut
 }
 
-func (la *LocalAssetBrowser) concurrentParseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) {
-	la.wg.Add(1)
+func (ifc *ImportFolderCmd) concurrentParseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) {
+	ifc.wg.Add(1)
 	ctx, cancel := context.WithCancelCause(ctx)
-	go la.pool.Submit(func() {
-		defer la.wg.Done()
-		err := la.parseDir(ctx, fsys, dir, gOut)
+	go ifc.pool.Submit(func() {
+		defer ifc.wg.Done()
+		err := ifc.parseDir(ctx, fsys, dir, gOut)
 		if err != nil {
-			la.log.Log().Error(err.Error())
+			ifc.log.Log().Error(err.Error())
 			cancel(err)
 		}
 	})
 }
 
-func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) error {
+func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) error {
 	fsName := ""
 	if fsys, ok := fsys.(interface{ Name() string }); ok {
 		fsName = fsys.Name()
@@ -182,99 +149,99 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 
 		// process csv files on icloud meta pass
-		if la.icloudMetaPass && ext == icloudMetadataExt {
+		if ifc.icloudMetaPass && ext == icloudMetadataExt {
 			if strings.HasSuffix(strings.ToLower(dir), "albums") {
-				a, err := UseICloudAlbum(la.icloudMetas, fsys, name)
+				a, err := UseICloudAlbum(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+					ifc.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 				} else {
-					la.log.Log().Info("iCloud album detected", "file", fshelper.FSName(fsys, name), "album", a)
+					ifc.log.Log().Info("iCloud album detected", "file", fshelper.FSName(fsys, name), "album", a)
 				}
 				continue
 			}
-			if la.flags.ICloudMemoriesAsAlbums && strings.HasSuffix(strings.ToLower(dir), "memories") {
-				a, err := UseICloudMemory(la.icloudMetas, fsys, name)
+			if ifc.ICloudMemoriesAsAlbums && strings.HasSuffix(strings.ToLower(dir), "memories") {
+				a, err := UseICloudMemory(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+					ifc.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 				} else {
-					la.log.Log().Info("iCloud memory detected", "file", fshelper.FSName(fsys, name), "album", a)
+					ifc.log.Log().Info("iCloud memory detected", "file", fshelper.FSName(fsys, name), "album", a)
 				}
 				continue
 			}
 			// iCloud photo details (csv). File name pattern: "Photo Details.csv"
 			if strings.HasPrefix(strings.ToLower(base), "photo details") {
-				err := UseICloudPhotoDetails(la.icloudMetas, fsys, name)
+				err := UseICloudPhotoDetails(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+					ifc.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 				} else {
-					la.log.Log().Info("iCloud photo details detected", "file", fshelper.FSName(fsys, name))
+					ifc.log.Log().Info("iCloud photo details detected", "file", fshelper.FSName(fsys, name))
 				}
 				continue
 			}
 		}
 
 		// skip all other files in icloud meta pass
-		if la.icloudMetaPass {
+		if ifc.icloudMetaPass {
 			continue
 		}
 
 		// silently ignore .csv files after icloud meta pass
-		if la.flags.ICloudTakeout && !la.icloudMetaPass && ext == icloudMetadataExt {
+		if ifc.ICloudTakeout && !ifc.icloudMetaPass && ext == icloudMetadataExt {
 			continue
 		}
 
-		if la.flags.BannedFiles.Match(name) {
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, entry.Name()), "reason", "banned file")
+		if ifc.BannedFiles.Match(name) {
+			ifc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, entry.Name()), "reason", "banned file")
 			continue
 		}
 
-		if la.flags.SupportedMedia.IsUseLess(name) {
-			la.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, entry.Name()))
+		if ifc.supportedMedia.IsUseLess(name) {
+			ifc.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, entry.Name()))
 			continue
 		}
 
-		if la.flags.PicasaAlbum && (strings.ToLower(base) == ".picasa.ini" || strings.ToLower(base) == "picasa.ini") {
+		if ifc.PicasaAlbum && (strings.ToLower(base) == ".picasa.ini" || strings.ToLower(base) == "picasa.ini") {
 			a, err := ReadPicasaIni(fsys, name)
 			if err != nil {
-				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+				ifc.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 			} else {
-				la.picasaAlbums.Store(dir, a) // la.picasaAlbums[dir] = a
-				la.log.Log().Info("Picasa album detected", "file", fshelper.FSName(fsys, path.Join(dir, name)), "album", a.Name)
+				ifc.picasaAlbums.Store(dir, a) // la.picasaAlbums[dir] = a
+				ifc.log.Log().Info("Picasa album detected", "file", fshelper.FSName(fsys, path.Join(dir, name)), "album", a.Name)
 			}
 			continue
 		}
 
-		mediaType := la.flags.SupportedMedia.TypeFromExt(ext)
+		mediaType := ifc.supportedMedia.TypeFromExt(ext)
 
 		if mediaType == filetypes.TypeUnknown {
-			la.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(fsys, name), "reason", "unsupported file type")
+			ifc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(fsys, name), "reason", "unsupported file type")
 			continue
 		}
 
 		switch mediaType {
 		case filetypes.TypeUseless:
-			la.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, name))
+			ifc.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(fsys, name))
 			continue
 		case filetypes.TypeImage:
-			la.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(fsys, name))
+			ifc.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(fsys, name))
 		case filetypes.TypeVideo:
-			la.log.Record(ctx, fileevent.DiscoveredVideo, fshelper.FSName(fsys, name))
+			ifc.log.Record(ctx, fileevent.DiscoveredVideo, fshelper.FSName(fsys, name))
 		case filetypes.TypeSidecar:
-			if la.flags.IgnoreSideCarFiles {
-				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "sidecar file ignored")
+			if ifc.IgnoreSideCarFiles {
+				ifc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "sidecar file ignored")
 				continue
 			}
-			la.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(fsys, name))
+			ifc.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(fsys, name))
 			continue
 		}
 
-		if !la.flags.InclusionFlags.IncludedExtensions.Include(ext) {
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "extension not included")
+		if !ifc.InclusionFlags.IncludedExtensions.Include(ext) {
+			ifc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "extension not included")
 			continue
 		}
 
-		if la.flags.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-			la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "extension excluded")
+		if ifc.InclusionFlags.ExcludedExtensions.Exclude(ext) {
+			ifc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "extension excluded")
 			continue
 		}
 
@@ -283,9 +250,9 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			return ctx.Err()
 		default:
 			// we have a file to process
-			a, err := la.assetFromFile(ctx, fsys, name)
+			a, err := ifc.assetFromFile(ctx, fsys, name)
 			if err != nil {
-				la.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
+				ifc.log.Record(ctx, fileevent.Error, fshelper.FSName(fsys, name), "error", err.Error())
 				return err
 			}
 			if a != nil {
@@ -299,12 +266,12 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		base := entry.Name()
 		name := path.Join(dir, base)
 		if entry.IsDir() {
-			if la.flags.BannedFiles.Match(name) {
-				la.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "banned folder")
+			if ifc.BannedFiles.Match(name) {
+				ifc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(fsys, name), "reason", "banned folder")
 				continue // Skip this folder, no error
 			}
-			if la.flags.Recursive && entry.Name() != "." {
-				la.concurrentParseDir(ctx, fsys, name, gOut)
+			if ifc.Recursive && entry.Name() != "." {
+				ifc.concurrentParseDir(ctx, fsys, name, gOut)
 			}
 			continue
 		}
@@ -331,20 +298,20 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			if err == nil && jsonName != "" {
 				buf, err := fs.ReadFile(fsys, jsonName)
 				if err != nil {
-					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+					ifc.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 				} else {
 					if bytes.Contains(buf, []byte("immich-go version")) {
 						md := &assets.Metadata{}
 						err = jsonsidecar.Read(bytes.NewReader(buf), md)
 						if err != nil {
-							la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+							ifc.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 						} else {
 							md.File = fshelper.FSName(fsys, jsonName)
 							a.FromApplication = a.UseMetadata(md) // Force the use of the metadata coming from immich export
 							a.OriginalFileName = md.FileName      // Force the name of the file to be the one from the JSON file
 						}
 					} else {
-						la.log.Log().Warn("JSON file detected but not from immich-go", "file", fshelper.FSName(fsys, jsonName))
+						ifc.log.Log().Warn("JSON file detected but not from immich-go", "file", fshelper.FSName(fsys, jsonName))
 					}
 				}
 			}
@@ -353,12 +320,12 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			if err == nil && xmpName != "" {
 				buf, err := fs.ReadFile(fsys, xmpName)
 				if err != nil {
-					la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+					ifc.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 				} else {
 					md := &assets.Metadata{}
 					err = xmpsidecar.ReadXMP(bytes.NewReader(buf), md)
 					if err != nil {
-						la.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
+						ifc.log.Record(ctx, fileevent.Error, nil, "error", err.Error())
 					} else {
 						md.File = fshelper.FSName(fsys, xmpName)
 						a.FromSideCar = a.UseMetadata(md)
@@ -367,10 +334,10 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 
 			// Read metadata from the file only id needed (date range or take date from filename)
-			if la.requiresDateInformation {
+			if ifc.requiresDateInformation {
 				// try to get date from icloud takeout meta
-				if a.CaptureDate.IsZero() && la.flags.ICloudTakeout {
-					meta, ok := la.icloudMetas.Load(a.OriginalFileName)
+				if a.CaptureDate.IsZero() && ifc.ICloudTakeout {
+					meta, ok := ifc.icloudMetas.Load(a.OriginalFileName)
 					if ok {
 						a.FromApplication = &assets.Metadata{
 							DateTaken: meta.originalCreationDate,
@@ -382,13 +349,13 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 					// no date in XMP, JSON, try reading the metadata
 					f, err := a.OpenFile()
 					if err == nil {
-						md, err := exif.GetMetaData(f, a.Ext, la.flags.TZ)
+						md, err := exif.GetMetaData(f, a.Ext, ifc.tz)
 						if err != nil {
-							la.log.Record(ctx, fileevent.INFO, a.File, "warning", err.Error())
+							ifc.log.Record(ctx, fileevent.INFO, a.File, "warning", err.Error())
 						} else {
 							a.FromSourceFile = a.UseMetadata(md)
 						}
-						if (md == nil || md.DateTaken.IsZero()) && !a.Taken.IsZero() && la.flags.TakeDateFromFilename {
+						if (md == nil || md.DateTaken.IsZero()) && !a.Taken.IsZero() && ifc.TakeDateFromFilename {
 							// no exif, but we have a date in the filename and the TakeDateFromFilename is set
 							a.FromApplication = &assets.Metadata{
 								DateTaken: a.Taken,
@@ -400,14 +367,14 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 				}
 			}
 
-			if !la.flags.InclusionFlags.DateRange.InRange(a.CaptureDate) {
+			if !ifc.InclusionFlags.DateRange.InRange(a.CaptureDate) {
 				a.Close()
-				la.log.Record(ctx, fileevent.DiscoveredDiscarded, a.File, "reason", "asset outside date range")
+				ifc.log.Record(ctx, fileevent.DiscoveredDiscarded, a.File, "reason", "asset outside date range")
 				continue
 			}
 
 			// Add folder as tags
-			if la.flags.FolderAsTags {
+			if ifc.FolderAsTags {
 				t := fsName
 				if dir != "." {
 					t = path.Join(t, dir)
@@ -418,25 +385,25 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 			}
 
 			// Manage albums
-			if la.flags.ImportIntoAlbum != "" {
-				a.Albums = []assets.Album{{Title: la.flags.ImportIntoAlbum}}
+			if ifc.ImportIntoAlbum != "" {
+				a.Albums = []assets.Album{{Title: ifc.ImportIntoAlbum}}
 			} else {
 				done := false
-				if la.flags.PicasaAlbum {
-					if album, ok := la.picasaAlbums.Load(dir); ok {
+				if ifc.PicasaAlbum {
+					if album, ok := ifc.picasaAlbums.Load(dir); ok {
 						a.Albums = []assets.Album{{Title: album.Name, Description: album.Description}}
 						done = true
 					}
 				}
-				if la.flags.ICloudTakeout {
-					if meta, ok := la.icloudMetas.Load(a.OriginalFileName); ok {
+				if ifc.ICloudTakeout {
+					if meta, ok := ifc.icloudMetas.Load(a.OriginalFileName); ok {
 						a.Albums = meta.albums
 						done = true
 					}
 				}
-				if !done && la.flags.UsePathAsAlbumName != FolderModeNone && la.flags.UsePathAsAlbumName != "" {
+				if !done && ifc.UsePathAsAlbumName != FolderModeNone && ifc.UsePathAsAlbumName != "" {
 					Album := ""
-					switch la.flags.UsePathAsAlbumName {
+					switch ifc.UsePathAsAlbumName {
 					case FolderModeFolder:
 						if dir == "." {
 							Album = fsName
@@ -451,7 +418,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 						if dir != "." {
 							parts = append(parts, strings.Split(dir, "/")...)
 						}
-						Album = strings.Join(parts, la.flags.AlbumNamePathSeparator)
+						Album = strings.Join(parts, ifc.AlbumNamePathSeparator)
 					}
 					a.Albums = []assets.Album{{Title: Album}}
 				}
@@ -465,7 +432,7 @@ func (la *LocalAssetBrowser) parseDir(ctx context.Context, fsys fs.FS, dir strin
 		}
 	}()
 
-	gs := groups.NewGrouperPipeline(ctx, la.groupers...).PipeGrouper(ctx, in)
+	gs := groups.NewGrouperPipeline(ctx, ifc.groupers...).PipeGrouper(ctx, in)
 	for g := range gs {
 		select {
 		case gOut <- g:
@@ -511,7 +478,7 @@ func checkExistSideCar(fsys fs.FS, name string, ext string) (string, error) {
 	return "", nil
 }
 
-func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {
+func (ifc *ImportFolderCmd) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {
 	a := &assets.Asset{
 		File:             fshelper.FSName(fsys, name),
 		OriginalFileName: filepath.Base(name),
@@ -529,6 +496,6 @@ func (la *LocalAssetBrowser) assetFromFile(_ context.Context, fsys fs.FS, name s
 		n = path.Join(fsys.Name(), n)
 	}
 
-	a.SetNameInfo(la.flags.InfoCollector.GetInfo(n))
+	a.SetNameInfo(ifc.infoCollector.GetInfo(n))
 	return a, nil
 }
