@@ -43,7 +43,6 @@ type ImportFolderCmd struct {
 	app                     *app.Application
 	log                     *fileevent.Recorder
 	fsyss                   []fs.FS
-	client                  app.Client
 	tz                      *time.Location
 	supportedMedia          filetypes.SupportedMedia
 	infoCollector           *filenames.InfoCollector

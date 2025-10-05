@@ -59,7 +59,7 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 		}
 
 		// clip the number of concurrent tasks
-		a.ConcurrentJobs = min(max(a.ConcurrentJobs, 1), 20)
+		a.ConcurrentTask = min(max(a.ConcurrentTask, 1), 20)
 
 		// Save configuration if the --save-config flag is set
 		if save, _ := cmd.Flags().GetBool("save-config"); save {

@@ -33,12 +33,7 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 	}
 
 	ifc.app = app
-	ctx := cmd.Context()
 	log := app.Log()
-	err := ifc.client.Open(ctx, app)
-	if err != nil {
-		return nil
-	}
 	ifc.tz = app.GetTZ()
 	ifc.InclusionFlags.SetIncludeTypeExtensions()
 
@@ -57,7 +52,7 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 	ifc.pool = worker.NewPool(ifc.app.ConcurrentTask)
 
 	// create the adapter for folders
-	ifc.supportedMedia = ifc.client.Immich.SupportedMedia()
+	ifc.supportedMedia = ifc.app.GetSupportedMedia()
 
 	ifc.requiresDateInformation = ifc.InclusionFlags.DateRange.IsSet() ||
 		ifc.TakeDateFromFilename || ifc.ManageBurst != filters.BurstNothing ||

@@ -16,7 +16,6 @@ import (
 	"github.com/simulot/immich-go/internal/assets/cache"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/gen/syncset"
 	"github.com/simulot/immich-go/internal/groups/burst"
@@ -62,8 +61,8 @@ type UpCmd struct {
 	session    string // Session tag value
 
 	// Upload command state
-	Filters           []filters.Filter
-	TZ                *time.Location
+	// Filters           []filters.Filter
+	tz                *time.Location
 	Mode              UpLoadMode
 	app               *app.Application
 	assetIndex        *immichIndex                         // List of assets present on the server
@@ -75,8 +74,7 @@ type UpCmd struct {
 	albumsCache       *cache.CollectionCache[assets.Album] // List of albums present on the server
 	tagsCache         *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 	finished          bool                                 // the finish task has been run
-	SupportedMedia    filetypes.SupportedMedia             // List of supported media types
-	InfoCollector     *filenames.InfoCollector             // Collects information about the files being processed
+	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -142,7 +140,8 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	if err != nil {
 		return nil
 	}
-	uc.TZ = uc.app.GetTZ()
+	uc.tz = uc.app.GetTZ()
+	uc.app.SetSupportedMedia(uc.client.Immich.SupportedMedia())
 
 	// Initialize the Journal
 	if uc.app.Jnl() == nil {
@@ -161,12 +160,8 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 		uc.Groupers = append(uc.Groupers, burst.Group)
 	}
 	uc.Groupers = append(uc.Groupers, series.Group)
-
-	// create the adapter for folders
-	uc.SupportedMedia = uc.client.Immich.SupportedMedia()
 	uc.Filters = append(uc.Filters, uc.ManageBurst.GroupFilter(), uc.ManageRawJPG.GroupFilter(), uc.ManageHEICJPG.GroupFilter())
-
-	uc.InfoCollector = filenames.NewInfoCollector(uc.TZ, uc.SupportedMedia)
+	uc.infoCollector = filenames.NewInfoCollector(uc.tz, uc.app.GetSupportedMedia())
 
 	return uc.upload(ctx, adapter)
 }

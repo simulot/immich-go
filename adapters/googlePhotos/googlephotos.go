@@ -68,31 +68,31 @@ func (af assetFile) LogValue() slog.Value {
 // metadata files content is read and kept
 // return a channel of asset groups after the puzzle is solved
 
-func (toC *TakeoutCmd) Browse(ctx context.Context) chan *assets.Group {
+func (toc *TakeoutCmd) Browse(ctx context.Context) chan *assets.Group {
 	ctx, cancel := context.WithCancelCause(ctx)
 	gOut := make(chan *assets.Group)
 	go func() {
 		defer close(gOut)
 
-		for _, w := range toC.fsyss {
-			err := toC.passOneFsWalk(ctx, w)
+		for _, w := range toc.fsyss {
+			err := toc.passOneFsWalk(ctx, w)
 			if err != nil {
 				cancel(err)
 				return
 			}
 		}
-		err := toC.solvePuzzle(ctx)
+		err := toc.solvePuzzle(ctx)
 		if err != nil {
 			cancel(err)
 			return
 		}
-		err = toC.passTwo(ctx, gOut)
+		err = toc.passTwo(ctx, gOut)
 		cancel(err)
 	}()
 	return gOut
 }
 
-func (toC *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
+func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 	err := fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -111,26 +111,26 @@ func (toC *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			ext := strings.ToLower(path.Ext(base))
 
 			// Exclude files to be ignored before processing
-			if toC.BannedFiles.Match(name) {
-				toC.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "banned file")
+			if toc.BannedFiles.Match(name) {
+				toc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "banned file")
 				return nil
 			}
 
-			if toC.SupportedMedia.IsUseLess(name) {
-				toC.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(w, name))
+			if toc.supportedMedia.IsUseLess(name) {
+				toc.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(w, name))
 				return nil
 			}
 
-			if !toC.InclusionFlags.IncludedExtensions.Include(ext) {
-				toC.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not selected")
+			if !toc.InclusionFlags.IncludedExtensions.Include(ext) {
+				toc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not selected")
 				return nil
 			}
-			if toC.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-				toC.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not allowed")
+			if toc.InclusionFlags.ExcludedExtensions.Exclude(ext) {
+				toc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not allowed")
 				return nil
 			}
 
-			dirCatalog, ok := toC.catalogs[dir]
+			dirCatalog, ok := toc.catalogs[dir]
 			if !ok {
 				dirCatalog.jsons = map[string]*assets.Metadata{}
 				dirCatalog.unMatchedFiles = map[string]*assetFile{}
@@ -138,7 +138,7 @@ func (toC *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			}
 			finfo, err := d.Info()
 			if err != nil {
-				toC.log.Record(ctx, fileevent.Error, fshelper.FSName(w, name), "error", err.Error())
+				toc.log.Record(ctx, fileevent.Error, fshelper.FSName(w, name), "error", err.Error())
 				return err
 			}
 			switch ext {
@@ -146,33 +146,34 @@ func (toC *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				var md *assets.Metadata
 				b, err := fs.ReadFile(w, name)
 				if err != nil {
-					toC.log.Record(ctx, fileevent.Error, fshelper.FSName(w, name), "error", err.Error())
-					return nil
+					err = toc.app.ProcessError(err)
+					return err
 				}
 				if bytes.Contains(b, []byte("immich-go version:")) {
 					md, err = assets.UnMarshalMetadata(b)
 					if err != nil {
-						toC.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
+						toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
+						return nil
 					}
 					md.FileName = base
-					toC.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "immich-go metadata", "title", md.FileName)
+					toc.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "immich-go metadata", "title", md.FileName)
 					md.File = fshelper.FSName(w, name)
 				} else {
 					md, err := fshelper.UnmarshalJSON[GoogleMetaData](b)
 					if err == nil {
 						switch {
 						case md.isAsset():
-							md := md.AsMetadata(fshelper.FSName(w, name), toC.PeopleTag) // Keep metadata
+							md := md.AsMetadata(fshelper.FSName(w, name), toc.PeopleTag) // Keep metadata
 							dirCatalog.jsons[base] = md
-							toC.log.Log().Debug("Asset JSON", "metadata", md)
-							toC.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)
+							toc.log.Log().Debug("Asset JSON", "metadata", md)
+							toc.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)
 						case md.isAlbum():
-							toC.log.Log().Debug("Album JSON", "metadata", md)
-							if !toC.KeepUntitled && md.Title == "" {
-								toC.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "discard untitled album")
+							toc.log.Log().Debug("Album JSON", "metadata", md)
+							if !toc.KeepUntitled && md.Title == "" {
+								toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "discard untitled album")
 								return nil
 							}
-							a := toC.albums[dir]
+							a := toc.albums[dir]
 							a.Title = md.Title
 							if a.Title == "" {
 								a.Title = filepath.Base(dir)
@@ -182,35 +183,35 @@ func (toC *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 								a.Latitude = e.Latitude
 								a.Longitude = e.Longitude
 							}
-							toC.albums[dir] = a
-							toC.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "album metadata", "title", md.Title)
+							toc.albums[dir] = a
+							toc.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "album metadata", "title", md.Title)
 						default:
-							toC.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
+							toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
 							return nil
 						}
 					} else {
-						toC.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
+						toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
 						return nil
 					}
 				}
 			default:
 
-				t := toC.SupportedMedia.TypeFromExt(ext)
+				t := toc.supportedMedia.TypeFromExt(ext)
 				switch t {
 				case filetypes.TypeUseless:
-					toC.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(w, name), "reason", "useless file")
+					toc.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(w, name), "reason", "useless file")
 					return nil
 				case filetypes.TypeUnknown:
-					toC.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unsupported file type")
+					toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unsupported file type")
 					return nil
 				case filetypes.TypeVideo:
-					toC.log.Record(ctx, fileevent.DiscoveredVideo, fshelper.FSName(w, name))
+					toc.log.Record(ctx, fileevent.DiscoveredVideo, fshelper.FSName(w, name))
 					if strings.Contains(name, "Failed Videos") {
-						toC.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "can't upload failed videos")
+						toc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "can't upload failed videos")
 						return nil
 					}
 				case filetypes.TypeImage:
-					toC.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(w, name))
+					toc.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(w, name))
 				}
 
 				key := fileKeyTracker{
@@ -219,13 +220,13 @@ func (toC *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				}
 
 				// TODO: remove debugging code
-				tracking, _ := toC.fileTracker.Load(key) // tracking := to.fileTracker[key]
+				tracking, _ := toc.fileTracker.Load(key) // tracking := to.fileTracker[key]
 				tracking.paths = append(tracking.paths, dir)
 				tracking.count++
-				toC.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
+				toc.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
 
 				if a, ok := dirCatalog.unMatchedFiles[base]; ok {
-					toC.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a, "duplicated in the directory")
+					toc.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a, "duplicated in the directory")
 					return nil
 				}
 
@@ -236,7 +237,7 @@ func (toC *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					date:   finfo.ModTime(),
 				}
 			}
-			toC.catalogs[dir] = dirCatalog
+			toc.catalogs[dir] = dirCatalog
 			return nil
 		}
 	})
@@ -284,10 +285,10 @@ var matchers = []struct {
 	{name: "matchEditedName", fn: matchEditedName},
 }
 
-func (toC *TakeoutCmd) solvePuzzle(ctx context.Context) error {
-	dirs := gen.MapKeysSorted(toC.catalogs)
+func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
+	dirs := gen.MapKeysSorted(toc.catalogs)
 	for _, dir := range dirs {
-		cat := toC.catalogs[dir]
+		cat := toc.catalogs[dir]
 		jsons := gen.MapKeysSorted(cat.jsons)
 		for _, matcher := range matchers {
 			for _, json := range jsons {
@@ -297,27 +298,27 @@ func (toC *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 					case <-ctx.Done():
 						return ctx.Err()
 					default:
-						if matcher.fn(json, f, toC.SupportedMedia) {
+						if matcher.fn(json, f, toc.supportedMedia) {
 							i := cat.unMatchedFiles[f]
 							i.md = md
-							a := toC.makeAsset(ctx, dir, i, md)
+							a := toc.makeAsset(ctx, dir, i, md)
 							cat.matchedFiles[f] = a
-							toC.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fshelper.FSName(i.fsys, path.Join(dir, i.base)), "json", json, "matcher", matcher.name)
+							toc.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fshelper.FSName(i.fsys, path.Join(dir, i.base)), "json", json, "matcher", matcher.name)
 							delete(cat.unMatchedFiles, f)
 						}
 					}
 				}
 			}
 		}
-		toC.catalogs[dir] = cat
+		toc.catalogs[dir] = cat
 		if len(cat.unMatchedFiles) > 0 {
 			files := gen.MapKeys(cat.unMatchedFiles)
 			sort.Strings(files)
 			for _, f := range files {
 				i := cat.unMatchedFiles[f]
-				toC.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, fshelper.FSName(i.fsys, path.Join(dir, i.base)))
-				if toC.KeepJSONLess {
-					a := toC.makeAsset(ctx, dir, i, nil)
+				toc.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, fshelper.FSName(i.fsys, path.Join(dir, i.base)))
+				if toc.KeepJSONLess {
+					a := toc.makeAsset(ctx, dir, i, nil)
 					cat.matchedFiles[f] = a
 					delete(cat.unMatchedFiles, f)
 				}
@@ -330,12 +331,12 @@ func (toC *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 // Browse return a channel of assets
 // Each asset is a group of files that are associated with each other
 
-func (toC *TakeoutCmd) passTwo(ctx context.Context, gOut chan *assets.Group) error {
-	dirs := gen.MapKeys(toC.catalogs)
+func (toc *TakeoutCmd) passTwo(ctx context.Context, gOut chan *assets.Group) error {
+	dirs := gen.MapKeys(toc.catalogs)
 	sort.Strings(dirs)
 	for _, dir := range dirs {
-		if len(toC.catalogs[dir].matchedFiles) > 0 {
-			err := toC.handleDir(ctx, dir, gOut)
+		if len(toc.catalogs[dir].matchedFiles) > 0 {
+			err := toc.handleDir(ctx, dir, gOut)
 			if err != nil {
 				return err
 			}
@@ -351,29 +352,31 @@ func (toC *TakeoutCmd) passTwo(ctx context.Context, gOut chan *assets.Group) err
 // 	image *assetFile
 // }
 
-func (toC *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *assets.Group) error {
-	catalog := toC.catalogs[dir]
+func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *assets.Group) error {
+	catalog := toc.catalogs[dir]
 
 	dirEntries := make([]*assets.Asset, 0, len(catalog.matchedFiles))
 
+	// Filter and sort the files
 	for name := range catalog.matchedFiles {
 		a := catalog.matchedFiles[name]
 		key := fileKeyTracker{baseName: name, size: int64(a.FileSize)}
-		track, _ := toC.fileTracker.Load(key) // track := to.fileTracker[key]
+		track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
 		if track.status == fileevent.Uploaded {
 			a.Close()
-			toC.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a.File, "local duplicate")
+			toc.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a.File, "local duplicate")
 			continue
 		}
 
 		// Filter on metadata
-		if code := toC.filterOnMetadata(ctx, a); code != fileevent.Code(0) {
+		if code := toc.filterOnMetadata(ctx, a); code != fileevent.Code(0) {
 			a.Close()
 			continue
 		}
 		dirEntries = append(dirEntries, a)
 	}
 
+	// the go routine push all asset to the in chanel for been grouped
 	in := make(chan *assets.Asset)
 	go func() {
 		defer close(in)
@@ -390,19 +393,19 @@ func (toC *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 		})
 
 		for _, a := range dirEntries {
-			if toC.CreateAlbums {
-				if toC.ImportIntoAlbum != "" {
+			if toc.CreateAlbums {
+				if toc.ImportIntoAlbum != "" {
 					// Force this album
-					a.Albums = []assets.Album{{Title: toC.ImportIntoAlbum}}
+					a.Albums = []assets.Album{{Title: toc.ImportIntoAlbum}}
 				} else {
 					// check if its duplicates are in some albums, and push them all at once
 					key := fileKeyTracker{baseName: filepath.Base(a.File.Name()), size: int64(a.FileSize)}
-					track, _ := toC.fileTracker.Load(key) // track := to.fileTracker[key]
+					track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
 					for _, p := range track.paths {
-						if album, ok := toC.albums[p]; ok {
+						if album, ok := toc.albums[p]; ok {
 							title := album.Title
 							if title == "" {
-								if !toC.KeepUntitled {
+								if !toc.KeepUntitled {
 									continue
 								}
 								title = filepath.Base(p)
@@ -418,8 +421,8 @@ func (toC *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 				}
 
 				// Force this album for partners photos
-				if toC.PartnerSharedAlbum != "" && a.FromPartner {
-					a.Albums = append(a.Albums, assets.Album{Title: toC.PartnerSharedAlbum})
+				if toc.PartnerSharedAlbum != "" && a.FromPartner {
+					a.Albums = append(a.Albums, assets.Album{Title: toc.PartnerSharedAlbum})
 				}
 				if a.FromApplication != nil {
 					a.FromApplication.Albums = a.Albums
@@ -437,8 +440,8 @@ func (toC *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 				}
 			}
 
-			if toC.TakeoutTag {
-				a.AddTag(toC.TakeoutName)
+			if toc.TakeoutTag {
+				a.AddTag(toc.TakeoutName)
 			}
 
 			select {
@@ -449,7 +452,8 @@ func (toC *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 		}
 	}()
 
-	gs := groups.NewGrouperPipeline(ctx, toC.groupers...).PipeGrouper(ctx, in)
+	// pull assets from the in chan, and pass them to the pipeline
+	gs := groups.NewGrouperPipeline(ctx, toc.groupers...).PipeGrouper(ctx, in)
 	for g := range gs {
 		select {
 		case gOut <- g:
@@ -458,9 +462,9 @@ func (toC *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 					baseName: path.Base(a.File.Name()),
 					size:     int64(a.FileSize),
 				}
-				track, _ := toC.fileTracker.Load(key) // track := to.fileTracker[key]
+				track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
 				track.status = fileevent.Uploaded
-				toC.fileTracker.Store(key, track) // to.fileTracker[key] = track
+				toc.fileTracker.Store(key, track) // to.fileTracker[key] = track
 			}
 		case <-ctx.Done():
 			return ctx.Err()
@@ -470,7 +474,7 @@ func (toC *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 }
 
 // makeAsset makes a localAssetFile based on the google metadata
-func (toC *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md *assets.Metadata) *assets.Asset {
+func (toc *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md *assets.Metadata) *assets.Asset {
 	file := path.Join(dir, f.base)
 	a := &assets.Asset{
 		File:             fshelper.FSName(f.fsys, file), // File as named in the archive
@@ -500,43 +504,43 @@ func (toC *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md
 		a.FromApplication = a.UseMetadata(md)
 		a.OriginalFileName = title
 	}
-	a.SetNameInfo(toC.InfoCollector.GetInfo(a.OriginalFileName))
+	a.SetNameInfo(toc.infoCollector.GetInfo(a.OriginalFileName))
 	return a
 }
 
-func (toC *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fileevent.Code {
-	if !toC.KeepArchived && a.Visibility == assets.VisibilityArchive {
-		toC.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding archived file")
+func (toc *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fileevent.Code {
+	if !toc.KeepArchived && a.Visibility == assets.VisibilityArchive {
+		toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding archived file")
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
-	if !toC.KeepPartner && a.FromPartner {
-		toC.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding partner file")
+	if !toc.KeepPartner && a.FromPartner {
+		toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding partner file")
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
-	if !toC.KeepTrashed && a.Trashed {
-		toC.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding trashed file")
+	if !toc.KeepTrashed && a.Trashed {
+		toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding trashed file")
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
 
-	if toC.InclusionFlags.DateRange.IsSet() && !toC.InclusionFlags.DateRange.InRange(a.CaptureDate) {
-		toC.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files out of date range")
+	if toc.InclusionFlags.DateRange.IsSet() && !toc.InclusionFlags.DateRange.InRange(a.CaptureDate) {
+		toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files out of date range")
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
-	if toC.ImportFromAlbum != "" {
+	if toc.ImportFromAlbum != "" {
 		keep := false
 		dir := path.Dir(a.File.Name())
 		if dir == "." {
 			dir = ""
 		}
-		if album, ok := toC.albums[dir]; ok {
-			keep = keep || album.Title == toC.ImportFromAlbum
+		if album, ok := toc.albums[dir]; ok {
+			keep = keep || album.Title == toc.ImportFromAlbum
 		}
 		if !keep {
-			toC.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files not in the specified album")
+			toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files not in the specified album")
 			a.Close()
 			return fileevent.DiscoveredDiscarded
 		}

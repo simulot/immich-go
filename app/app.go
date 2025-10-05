@@ -10,6 +10,7 @@ import (
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -22,16 +23,20 @@ import (
 // - the configuration file
 
 type Application struct {
+	// CLI flags
 	DryRun         bool
 	OnErrors       cliflags.OnErrorsFlag
 	SaveConfig     bool
-	ConcurrentJobs int
+	ConcurrentTask int
+	CfgFile        string
 
-	CfgFile string
-	log     *Log
-	jnl     *fileevent.Recorder
-	tz      *time.Location
-	Config  *config.ConfigurationManager
+	// Internal state
+	log    *Log
+	jnl    *fileevent.Recorder
+	tz     *time.Location
+	Config *config.ConfigurationManager
+
+	sm filetypes.SupportedMedia
 
 	numErrors atomic.Int64 // count the errors occurred during the run
 }
@@ -41,7 +46,7 @@ func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&app.DryRun, "dry-run", false, "dry run")
 	flags.BoolVar(&app.SaveConfig, "save-config", false, "Save the configuration to immich-go.yaml")
 	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")
-	flags.IntVar(&app.ConcurrentJobs, "concurrent-jobs", runtime.NumCPU(), "Number of concurrent jobs (1-20)")
+	flags.IntVar(&app.ConcurrentTask, "concurrent-tasks", runtime.NumCPU(), "Number of concurrent tasks (1-20)")
 }
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {
@@ -79,6 +84,17 @@ func (app *Application) SetJnl(jnl *fileevent.Recorder) {
 
 func (app *Application) SetLog(log *Log) {
 	app.log = log
+}
+
+func (app *Application) GetSupportedMedia() filetypes.SupportedMedia {
+	if app.sm == nil {
+		return filetypes.DefaultSupportedMedia
+	}
+	return app.sm
+}
+
+func (app *Application) SetSupportedMedia(sm filetypes.SupportedMedia) {
+	app.sm = sm
 }
 
 func (app *Application) ProcessError(err error) error {

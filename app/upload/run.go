@@ -256,7 +256,7 @@ func (uc *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) e
 	// the goroutine submits the groups, and stops when then number of error is higher than tolerated
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		workers := worker.NewPool(uc.app.ConcurrentJobs)
+		workers := worker.NewPool(uc.app.ConcurrentTask)
 		defer workers.Stop()
 		for {
 			select {
