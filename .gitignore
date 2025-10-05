@@ -27,3 +27,7 @@ __debug_*
 # API monitoring temporary files
 .github/immich-api-monitor/temp-specs.json
 immich-go.yaml
+
+# e2e test
+internal/e2eTests/resetImmich/resetImmich
+internal/e2eTests.zip
