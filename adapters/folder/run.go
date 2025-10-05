@@ -28,6 +28,7 @@ import (
 )
 
 func (o *ImportFolderOptions) run(cmd *cobra.Command, args []string, app *app.Application, runner adapters.Runner) error {
+	o.app = app
 	ctx := cmd.Context()
 	log := app.Log()
 	err := o.Client.Open(ctx, app)
@@ -85,10 +86,10 @@ func NewLocalFiles(ctx context.Context, l *fileevent.Recorder, flags *ImportFold
 		fsyss:                   fsyss,
 		flags:                   flags,
 		log:                     l,
-		pool:                    worker.NewPool(10), // TODO: Make this configurable
-		requiresDateInformation: true,               // flags.InclusionFlags.DateRange.IsSet() ||
+		pool:                    worker.NewPool(flags.app.ConcurrentJobs),
+		requiresDateInformation: true, // flags.InclusionFlags.DateRange.IsSet() ||
 		// 	flags.TakeDateFromFilename || flags.StackBurstPhotos ||
-		// 	flags.ManageHEICJPG != filters.HeicJpgNothing || flags.ManageRawJPG != filters.RawJPGNothing,
+		// 	flags.ManageHEICJPG != fi	lters.HeicJpgNothing || flags.ManageRawJPG != filters.RawJPGNothing,
 	}
 
 	if flags.PicasaAlbum {

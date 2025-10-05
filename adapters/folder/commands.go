@@ -31,10 +31,12 @@ type ImportFolderOptions struct {
 	ICloudTakeout          bool
 	ICloudMemoriesAsAlbums bool
 
+	// Internal fields
 	Client         app.Client
 	TZ             *time.Location
 	SupportedMedia filetypes.SupportedMedia
 	InfoCollector  *filenames.InfoCollector
+	app            *app.Application
 }
 
 func (o *ImportFolderOptions) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
