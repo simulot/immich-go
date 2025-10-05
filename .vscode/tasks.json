@@ -192,6 +192,22 @@
 			"type": "shell",
 			"command": "go run ./docs/documentation.go",
 			"group": "build"
+		},
+		{
+			"label": "Reset Immich",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-c",
+				"if [ \"${input:confirmReset}\" = \"yes\" ]; then go run ./internal/e2eTests/resetImmich -force; else echo \"Reset cancelled\"; fi"
+			],
+			"group": "build",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			}
 		}
 	],
 	"inputs": [
@@ -212,6 +228,16 @@
 			"description": "Pull Request Description",
 			"default": "## Changes\n\n## Testing\n- [ ] Unit tests pass\n- [ ] Manual testing completed\n\n## Documentation\n- [ ] Updated if needed",
 			"type": "promptString"
+		},
+		{
+			"id": "confirmReset",
+			"description": "Confirm the reset operation",
+			"default": "no",
+			"type": "pickString",
+			"options": [
+				"yes",
+				"no"
+			]
 		}
 	]
 }
