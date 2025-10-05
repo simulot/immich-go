@@ -3,7 +3,6 @@ package upload
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"time"
 
 	"github.com/simulot/immich-go/adapters"
@@ -55,13 +54,12 @@ type UpCmd struct {
 	// Cli flags
 
 	shared.StackOptions
-	client            app.Client
-	NoUI              bool // Disable UI
-	Overwrite         bool // Always overwrite files on the server with local versions
-	ConcurrentUploads int  // Number of concurrent upload workers TODO: takes the global value
-	Tags              []string
-	SessionTag        bool
-	session           string // Session tag value
+	client     app.Client
+	NoUI       bool // Disable UI
+	Overwrite  bool // Always overwrite files on the server with local versions
+	Tags       []string
+	SessionTag bool
+	session    string // Session tag value
 
 	// Upload command state
 	Filters           []filters.Filter
@@ -85,7 +83,6 @@ func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
 	uc.client.RegisterFlags(flags, "")
 	flags.BoolVar(&uc.NoUI, "no-ui", false, "Disable the user interface")
 	flags.BoolVar(&uc.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
-	flags.IntVar(&uc.ConcurrentUploads, "concurrent-uploads", runtime.NumCPU(), "Number of concurrent upload workers (1-20)")
 	flags.StringSliceVar(&uc.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	flags.BoolVar(&uc.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
 
@@ -115,6 +112,23 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 	cmd.AddCommand(folder.NewFromPicasaCommand(ctx, cmd, app, uc))
 	cmd.AddCommand(gp.NewFromGooglePhotosCommand(ctx, cmd, app, uc))
 	cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, uc))
+
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// Initialize the Journal
+		if app.Jnl() == nil {
+			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
+		}
+		app.SetTZ(time.Local)
+		if tz, err := cmd.Flags().GetString("time-zone"); err == nil && tz != "" {
+			if loc, err := time.LoadLocation(tz); err == nil {
+				app.SetTZ(loc)
+			}
+		} else {
+			return err
+		}
+		return nil
+	}
+
 	return cmd
 }
 
@@ -134,9 +148,6 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	if uc.app.Jnl() == nil {
 		uc.app.SetJnl(fileevent.NewRecorder(uc.app.Log().Logger))
 	}
-
-	// Validate concurrent uploads range
-	uc.ConcurrentUploads = min(max(uc.ConcurrentUploads, 1), 20)
 
 	if uc.SessionTag {
 		uc.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))

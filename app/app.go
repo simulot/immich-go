@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync/atomic"
 	"time"
 
@@ -21,9 +22,10 @@ import (
 // - the configuration file
 
 type Application struct {
-	DryRun     bool                  //`mapstructure:"dry-run" yaml:"dry-run" json:"dry-run" toml:"dry-run"`
-	OnErrors   cliflags.OnErrorsFlag //`mapstructure:"on-errors" yaml:"on-errors" json:"on-errors" toml:"on-errors"`
-	SaveConfig bool                  //`mapstructure:"sauve-config" yaml:"sauve-config" json:"sauve-config" toml:"sauve-config"`
+	DryRun         bool
+	OnErrors       cliflags.OnErrorsFlag
+	SaveConfig     bool
+	ConcurrentJobs int
 
 	CfgFile string
 	log     *Log
@@ -39,6 +41,7 @@ func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&app.DryRun, "dry-run", false, "dry run")
 	flags.BoolVar(&app.SaveConfig, "save-config", false, "Save the configuration to immich-go.yaml")
 	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")
+	flags.IntVar(&app.ConcurrentJobs, "concurrent-jobs", runtime.NumCPU(), "Number of concurrent jobs (1-20)")
 }
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {

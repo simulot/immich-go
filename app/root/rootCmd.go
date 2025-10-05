@@ -57,6 +57,10 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 		if err != nil {
 			return err
 		}
+
+		// clip the number of concurrent tasks
+		a.ConcurrentJobs = min(max(a.ConcurrentJobs, 1), 20)
+
 		// Save configuration if the --save-config flag is set
 		if save, _ := cmd.Flags().GetBool("save-config"); save {
 			if err := a.Config.Save("immich-go.yaml"); err != nil {
