@@ -66,7 +66,7 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 		}
 
 		// Start the log
-		err = a.Log().OpenLogFile()
+		err = a.Log().Open(cmd.Context(), cmd, a)
 
 		return err
 	}
