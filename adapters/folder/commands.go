@@ -13,7 +13,6 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
-	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/simulot/immich-go/internal/namematcher"
@@ -46,7 +45,6 @@ type ImportFolderCmd struct {
 	tz                      *time.Location
 	supportedMedia          filetypes.SupportedMedia
 	infoCollector           *filenames.InfoCollector
-	filters                 []filters.Filter
 	pool                    *worker.Pool
 	wg                      sync.WaitGroup
 	groupers                []groups.Grouper

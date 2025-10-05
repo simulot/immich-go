@@ -118,7 +118,12 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 			return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
 		}
 
-		defer fshelper.CloseFSs(toc.fsyss)
+		defer func() {
+			if err := fshelper.CloseFSs(toc.fsyss); err != nil {
+				// Handle the error - log it, since we can't return it
+				log.Error("error closing file systems", "error", err)
+			}
+		}()
 
 		if toc.TakeoutTag {
 			for _, fsys := range toc.fsyss {

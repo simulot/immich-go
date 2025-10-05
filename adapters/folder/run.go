@@ -46,7 +46,13 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 		log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
 		return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
 	}
-	defer fshelper.CloseFSs(fsyss)
+
+	defer func() {
+		if err := fshelper.CloseFSs(fsyss); err != nil {
+			// Handle the error - log it, since we can't return it
+			log.Error("error closing file systems", "error", err)
+		}
+	}()
 
 	// Start the workers
 	ifc.pool = worker.NewPool(ifc.app.ConcurrentTask)

@@ -8,8 +8,6 @@ import (
 	"github.com/simulot/immich-go/adapters/fromimmich"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/app"
-	rootCmd "github.com/simulot/immich-go/app"
-	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -20,7 +18,6 @@ type ArchiveCmd struct {
 
 	// internal state
 	app  *app.Application
-	jnl  *fileevent.Recorder
 	dest *folder.LocalAssetWriter
 }
 
@@ -28,7 +25,7 @@ func (ac *ArchiveCmd) RegisterFlags(flags pflag.FlagSet) {
 	flags.StringVarP(&ac.ArchivePath, "write-to-folder", "w", "", "Path where to write the archive")
 }
 
-func NewArchiveCommand(ctx context.Context, app *rootCmd.Application) *cobra.Command {
+func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "archive",
 		Short: "Archive various sources of photos to a file system",

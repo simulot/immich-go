@@ -200,5 +200,5 @@ func (client *Client) Close() error {
 		client.APITraceWriter.Close()
 		client.app.log.Message("Check the API-TRACE file: %s", client.APITraceWriterName)
 	}
-	return client.Close()
+	return nil
 }

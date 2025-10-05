@@ -45,7 +45,7 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 	)
 
 	// PersistentPreRunE is executed before any command runs, used for initialization
-	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		// Initialize configuration from the specified config file
 		err := a.Config.Init(a.CfgFile)
 		if err != nil {
