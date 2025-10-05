@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/simulot/immich-go/adapters/folder"
+	"github.com/simulot/immich-go/adapters/fromimmich"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/app"
 	rootCmd "github.com/simulot/immich-go/app"
@@ -42,6 +43,7 @@ func NewArchiveCommand(ctx context.Context, app *rootCmd.Application) *cobra.Com
 	cmd.AddCommand(folder.NewFromFolderCommand(ctx, cmd, app, ac))
 	cmd.AddCommand(folder.NewFromICloudCommand(ctx, cmd, app, ac))
 	cmd.AddCommand(folder.NewFromPicasaCommand(ctx, cmd, app, ac))
+	cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, ac))
 	cmd.AddCommand(gp.NewFromGooglePhotosCommand(ctx, cmd, app, ac))
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck

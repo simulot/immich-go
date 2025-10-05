@@ -65,6 +65,39 @@ recursive = true
 
 [archive.from-icloud.ban-file]
 
+[archive.from-immich]
+from-admin-api-key = ''
+from-api-key = 'OLD-API-KEY'
+from-api-trace = false
+from-archived = false
+from-city = ''
+from-client-timeout = '20m'
+from-country = ''
+from-date-range = '2024-01-15,2024-03-31'
+from-device-uuid = 'gl65'
+from-dry-run = false
+from-exclude-extensions = []
+from-favorite = false
+from-include-extensions = []
+from-include-type = ''
+from-make = ''
+from-minimal-rating = 0
+from-model = ''
+from-no-album = false
+from-partners = false
+from-pause-immich-jobs = true
+from-server = 'https://old.immich.app'
+from-skip-verify-ssl = false
+from-state = ''
+from-time-zone = ''
+from-trash = false
+
+[archive.from-immich.from-albums]
+
+[archive.from-immich.from-people]
+
+[archive.from-immich.from-tags]
+
 [archive.from-picasa]
 album-path-joiner = ' / '
 album-picasa = true
@@ -269,6 +302,35 @@ archive:
     into-album: ""
     memories: false
     recursive: true
+  from-immich:
+    from-admin-api-key: ""
+    from-albums: {}
+    from-api-key: OLD-API-KEY
+    from-api-trace: false
+    from-archived: false
+    from-city: ""
+    from-client-timeout: 20m
+    from-country: ""
+    from-date-range: 2024-01-15,2024-03-31
+    from-device-uuid: gl65
+    from-dry-run: false
+    from-exclude-extensions: []
+    from-favorite: false
+    from-include-extensions: []
+    from-include-type: ""
+    from-make: ""
+    from-minimal-rating: 0
+    from-model: ""
+    from-no-album: false
+    from-partners: false
+    from-pause-immich-jobs: true
+    from-people: {}
+    from-server: https://old.immich.app
+    from-skip-verify-ssl: false
+    from-state: ""
+    from-tags: {}
+    from-time-zone: ""
+    from-trash: false
   from-picasa:
     album-path-joiner: ' / '
     album-picasa: true
@@ -466,6 +528,36 @@ upload:
       "into-album": "",
       "memories": false,
       "recursive": true
+    },
+    "from-immich": {
+      "from-admin-api-key": "",
+      "from-albums": {},
+      "from-api-key": "OLD-API-KEY",
+      "from-api-trace": false,
+      "from-archived": false,
+      "from-city": "",
+      "from-client-timeout": "20m",
+      "from-country": "",
+      "from-date-range": "2024-01-15,2024-03-31",
+      "from-device-uuid": "gl65",
+      "from-dry-run": false,
+      "from-exclude-extensions": null,
+      "from-favorite": false,
+      "from-include-extensions": null,
+      "from-include-type": "",
+      "from-make": "",
+      "from-minimal-rating": 0,
+      "from-model": "",
+      "from-no-album": false,
+      "from-partners": false,
+      "from-pause-immich-jobs": true,
+      "from-people": {},
+      "from-server": "https://old.immich.app",
+      "from-skip-verify-ssl": false,
+      "from-state": "",
+      "from-tags": {},
+      "from-time-zone": "",
+      "from-trash": false
     },
     "from-picasa": {
       "album-path-joiner": " / ",

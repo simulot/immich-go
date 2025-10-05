@@ -68,6 +68,39 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums (default: false) |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
+## archive from-immich
+
+| Variable | Flag | Default | Description |
+|----------|------|---------|-------------|
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY` | `--from-admin-api-key` |  | Admin's API Key for managing server's jobs |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ALBUMS` | `--from-albums` | `[]` | Get assets only from those albums, can be used multiple times |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY` | `--from-api-key` |  | API Key |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_TRACE` | `--from-api-trace` | `false` | Enable trace of api calls |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ARCHIVED` | `--from-archived` | `false` | Get only archived assets |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_CITY` | `--from-city` |  | Get only assets from this city |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_COUNTRY` | `--from-country` |  | Get only assets from this country |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_DATE_RANGE` | `--from-date-range` | `unset` | Only import photos taken within the specified date range |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_DEVICE_UUID` | `--from-device-uuid` | `gl65` | Set a device UUID |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_DRY_RUN` | `--from-dry-run` | `false` | Simulate all actions |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_EXCLUDE_EXTENSIONS` | `--from-exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_FAVORITE` | `--from-favorite` | `false` | Get only favorite assets |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_INCLUDE_EXTENSIONS` | `--from-include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_INCLUDE_TYPE` | `--from-include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_MAKE` | `--from-make` |  | Get only assets with this make |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_MINIMAL_RATING` | `--from-minimal-rating` | `0` | Get only assets with a rating greater or equal to this value |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_MODEL` | `--from-model` |  | Get only assets with this model |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_NO_ALBUM` | `--from-no-album` | `false` | Get only assets that are not in any album |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_PARTNERS` | `--from-partners` | `false` | Get partner's assets as well |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_PAUSE_IMMICH_JOBS` | `--from-pause-immich-jobs` | `true` | Pause Immich background jobs during upload operations |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_PEOPLE` | `--from-people` | `[]` | Get assets only with those people, can be used multiple times |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER` | `--from-server` |  | Immich server address (example http://your-ip:2283 or https://your-domain) |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SKIP_VERIFY_SSL` | `--from-skip-verify-ssl` | `false` | Skip SSL verification |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_STATE` | `--from-state` |  | Get only assets from this state |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_TAGS` | `--from-tags` | `[]` | Get assets only with those tags, can be used multiple times |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_TIME_ZONE` | `--from-time-zone` |  | Override the system time zone |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_TRASH` | `--from-trash` | `false` | Get only trashed assets |
+
 ## archive from-picasa
 
 | Variable | Flag | Default | Description |
