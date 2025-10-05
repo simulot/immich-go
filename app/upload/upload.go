@@ -96,7 +96,7 @@ func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
 // It registers flags and initializes the UpCmd struct, which holds the state for uploads.
 func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "upload",
+		Use:   "upload [flags]",
 		Short: "Upload photos to an Immich server from various sources",
 		Args:  cobra.NoArgs, // This command does not accept any arguments, only subcommands
 	}

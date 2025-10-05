@@ -76,8 +76,10 @@ func NewFromImmichCommand(ctx context.Context, parent *cobra.Command, app *app.A
 		Short: "Get photos from an Immich server", // Short description
 		Args:  cobra.MaximumNArgs(0),              // No positional arguments allowed
 	}
-	cmd.SetContext(ctx)            // Set command context
-	fic := &FromImmichCmd{}        // Create command handler
+	cmd.SetContext(ctx)    // Set command context
+	fic := &FromImmichCmd{ // Create command handler
+		app: app,
+	}
 	fic.RegisterFlags(cmd.Flags()) // Register CLI flags
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		// Execute the command logic
@@ -95,15 +97,13 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 	if err != nil {
 		return err
 	}
-	ifs := immichfs.NewImmichFS(ctx, fic.client.Server, fic.client.Immich)
-	f := FromImmichCmd{
-		ifs: ifs,
-		ic:  filenames.NewInfoCollector(time.Local, fic.client.Immich.SupportedMedia()),
-		app: app,
-	}
+
+	fic.ifs = immichfs.NewImmichFS(ctx, fic.client.Server, fic.client.Immich)
+	fic.ic = filenames.NewInfoCollector(time.Local, fic.client.Immich.SupportedMedia())
+
 	// check filters values against immich suggestions
 	if fic.Make != "" {
-		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+		err = fic.checkSuggestion(ctx, immich.SearchSuggestionRequest{
 			Type: immich.SearchSuggestionTypeCameraMake,
 		}, fic.Make)
 		if err != nil {
@@ -111,7 +111,7 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 		}
 	}
 	if fic.Model != "" {
-		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+		err = fic.checkSuggestion(ctx, immich.SearchSuggestionRequest{
 			Type: immich.SearchSuggestionTypeCameraModel,
 			Make: fic.Make,
 		}, fic.Model)
@@ -120,7 +120,7 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 		}
 	}
 	if fic.Country != "" {
-		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+		err = fic.checkSuggestion(ctx, immich.SearchSuggestionRequest{
 			Type: immich.SearchSuggestionTypeCountry,
 		}, fic.Country)
 		if err != nil {
@@ -128,7 +128,7 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 		}
 	}
 	if fic.State != "" {
-		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+		err = fic.checkSuggestion(ctx, immich.SearchSuggestionRequest{
 			Type:    immich.SearchSuggestionTypeState,
 			Country: fic.Country,
 		}, fic.State)
@@ -137,7 +137,7 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 		}
 	}
 	if fic.City != "" {
-		err = f.checkSuggestion(ctx, immich.SearchSuggestionRequest{
+		err = fic.checkSuggestion(ctx, immich.SearchSuggestionRequest{
 			Type:    immich.SearchSuggestionTypeCity,
 			Country: fic.Country,
 			State:   fic.State,
@@ -162,6 +162,7 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 		return err
 	}
 
+	// call the main command back (upload, archive)
 	err = runner.Run(cmd, fic)
 
 	return err
