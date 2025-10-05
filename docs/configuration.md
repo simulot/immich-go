@@ -8,6 +8,7 @@ The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immi
 <summary>TOML</summary>
 
 ```toml
+concurrent-tasks = 12
 dry-run = false
 log-file = ''
 log-level = 'INFO'
@@ -136,7 +137,6 @@ admin-api-key = ''
 api-key = 'YOUR-API-KEY'
 api-trace = false
 client-timeout = '20m'
-concurrent-uploads = 12
 device-uuid = 'HOSTNAME'
 dry-run = false
 manage-burst = 'NoStack'
@@ -345,6 +345,7 @@ archive:
     include-type: ""
     into-album: ""
     recursive: true
+concurrent-tasks: 12
 dry-run: false
 log-file: ""
 log-level: INFO
@@ -372,7 +373,6 @@ upload:
   api-key: YOUR-API-KEY
   api-trace: false
   client-timeout: 20m
-  concurrent-uploads: 12
   device-uuid: HOSTNAME
   dry-run: false
   from-folder:
@@ -575,6 +575,7 @@ upload:
       "recursive": true
     }
   },
+  "concurrent-tasks": 12,
   "dry-run": false,
   "log-file": "",
   "log-level": "INFO",
@@ -603,7 +604,6 @@ upload:
     "api-key": "YOUR-API-KEY",
     "api-trace": false,
     "client-timeout": "20m",
-    "concurrent-uploads": 12,
     "device-uuid": "HOSTNAME",
     "dry-run": false,
     "from-folder": {

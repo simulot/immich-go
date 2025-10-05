@@ -6,6 +6,7 @@ The following environment variables can be used to configure `immich-go`.
 
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
+| `IMMICH_GO_CONCURRENT_TASKS` | `--concurrent-tasks` | `12` | Number of concurrent tasks (1-20) |
 | `IMMICH_GO_DRY_RUN` | `--dry-run` | `false` | dry run |
 | `IMMICH_GO_LOG_FILE` | `--log-file` |  | Write log messages into the file |
 | `IMMICH_GO_LOG_LEVEL` | `--log-level` | `INFO` | Log level (DEBUG|INFO|WARN|ERROR), default INFO |
@@ -65,7 +66,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
-| `IMMICH_GO_ARCHIVE_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums (default: false) |
+| `IMMICH_GO_ARCHIVE_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
 ## archive from-immich
@@ -106,7 +107,7 @@ The following environment variables can be used to configure `immich-go`.
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_ALBUM_PATH_JOINER` | `--album-path-joiner` | ` / ` | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') |
-| `IMMICH_GO_ARCHIVE_FROM_PICASA_ALBUM_PICASA` | `--album-picasa` | `true` | Use Picasa album name found in .picasa.ini file (default: false) |
+| `IMMICH_GO_ARCHIVE_FROM_PICASA_ALBUM_PICASA` | `--album-picasa` | `true` | Use Picasa album name found in .picasa.ini file |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_DATE_FROM_NAME` | `--date-from-name` | `true` | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
@@ -147,7 +148,6 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_API_KEY` | `--api-key` |  | API Key |
 | `IMMICH_GO_UPLOAD_API_TRACE` | `--api-trace` | `false` | Enable trace of api calls |
 | `IMMICH_GO_UPLOAD_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set server calls timeout |
-| `IMMICH_GO_UPLOAD_CONCURRENT_UPLOADS` | `--concurrent-uploads` | `12` | Number of concurrent upload workers (1-20) |
 | `IMMICH_GO_UPLOAD_DEVICE_UUID` | `--device-uuid` | `gl65` | Set a device UUID |
 | `IMMICH_GO_UPLOAD_DRY_RUN` | `--dry-run` | `false` | Simulate all actions |
 | `IMMICH_GO_UPLOAD_MANAGE_BURST` | `--manage-burst` | `NoStack` | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG |
@@ -215,7 +215,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
-| `IMMICH_GO_UPLOAD_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums (default: false) |
+| `IMMICH_GO_UPLOAD_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
 ## upload from-immich
@@ -256,7 +256,7 @@ The following environment variables can be used to configure `immich-go`.
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
 | `IMMICH_GO_UPLOAD_FROM_PICASA_ALBUM_PATH_JOINER` | `--album-path-joiner` | ` / ` | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') |
-| `IMMICH_GO_UPLOAD_FROM_PICASA_ALBUM_PICASA` | `--album-picasa` | `true` | Use Picasa album name found in .picasa.ini file (default: false) |
+| `IMMICH_GO_UPLOAD_FROM_PICASA_ALBUM_PICASA` | `--album-picasa` | `true` | Use Picasa album name found in .picasa.ini file |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_DATE_FROM_NAME` | `--date-from-name` | `true` | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
