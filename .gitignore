@@ -29,5 +29,5 @@ __debug_*
 immich-go.yaml
 
 # e2e test
-internal/e2eTests/resetImmich/resetImmich
-internal/e2eTests.zip
+internal/e2e/resetImmich/resetImmich
+internal/e2e.zip
