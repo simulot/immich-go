@@ -36,7 +36,7 @@ func run() error {
 		composeFile = flag.Args()[0]
 		slog.Info("path to docker compose", "file", composeFile)
 	}
-	ic, err := e2eutils.NewImmichController(composeFile)
+	ic, err := e2eutils.OpenImmichController(composeFile)
 	if err != nil {
 		return fmt.Errorf("can't create immich controller: %w", err)
 	}
