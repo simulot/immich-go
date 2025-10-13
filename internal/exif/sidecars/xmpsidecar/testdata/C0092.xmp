@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:xmpDM="http://ns.adobe.com/xmp/1.0/DynamicMedia/" xmlns:stDim="http://ns.adobe.com/xap/1.0/sType/Dimensions#" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" xmlns:exif="http://ns.adobe.com/exif/1.0/" xmlns:sonyNRT="https://example.com/ns/sonyNRT/1.0/">
+  <rdf:RDF>
+    <rdf:Description rdf:about="">
+      <xmp:ModifyDate>2025-08-28T23:31:20-07:00</xmp:ModifyDate>
+      <xmp:MetadataDate>2025-08-28T23:31:20-07:00</xmp:MetadataDate>
+      <xmp:CreateDate>2025-08-28T23:30:53-07:00</xmp:CreateDate>
+      <tiff:Make>Sony</tiff:Make>
+      <tiff:Model>ILCE-6700</tiff:Model>
+      <xmpDM:videoCompressor>AVC_1920_1080_HP@L41</xmpDM:videoCompressor>
+      <xmpDM:videoFrameSize rdf:parseType="Resource">
+        <stDim:w>1920</stDim:w>
+        <stDim:h>1080</stDim:h>
+        <stDim:unit>pixel</stDim:unit>
+      </xmpDM:videoFrameSize>
+      <xmpDM:audioChannelType>Stereo</xmpDM:audioChannelType>
+      <xmpDM:audioSampleType>16Int</xmpDM:audioSampleType>
+      <exif:GPSMapDatum>WGS-84</exif:GPSMapDatum>
+      <exif:GPSDifferential>0</exif:GPSDifferential>
+      <exif:GPSVersionID>2.2.0.0</exif:GPSVersionID>
+      <sonyNRT:LastUpdate>2025-08-28T23:31:20-07:00</sonyNRT:LastUpdate>
+      <sonyNRT:CreationDateOriginal>2025-08-28T23:30:53-07:00</sonyNRT:CreationDateOriginal>
+      <sonyNRT:Device rdf:parseType="Resource">
+        <sonyNRT:manufacturer>Sony</sonyNRT:manufacturer>
+        <sonyNRT:modelName>ILCE-6700</sonyNRT:modelName>
+      </sonyNRT:Device>
+      <sonyNRT:DurationFrames>624</sonyNRT:DurationFrames>
+      <sonyNRT:VideoFormat rdf:parseType="Resource">
+        <sonyNRT:VideoRecPort>DIRECT</sonyNRT:VideoRecPort>
+        <sonyNRT:VideoFrame rdf:parseType="Resource">
+          <sonyNRT:videoCodec>AVC_1920_1080_HP@L41</sonyNRT:videoCodec>
+          <sonyNRT:captureFps>23.98p</sonyNRT:captureFps>
+          <sonyNRT:formatFps>23.98p</sonyNRT:formatFps>
+        </sonyNRT:VideoFrame>
+        <sonyNRT:VideoLayout rdf:parseType="Resource">
+          <sonyNRT:pixel>1920</sonyNRT:pixel>
+          <sonyNRT:numOfVerticalLine>1080</sonyNRT:numOfVerticalLine>
+          <sonyNRT:aspectRatio>16:9</sonyNRT:aspectRatio>
+        </sonyNRT:VideoLayout>
+      </sonyNRT:VideoFormat>
+      <sonyNRT:AudioFormat rdf:parseType="Resource">
+        <sonyNRT:numOfChannel>2</sonyNRT:numOfChannel>
+        <sonyNRT:AudioRecPorts>
+          <rdf:Seq>
+            <rdf:li rdf:parseType="Resource">
+              <sonyNRT:port>DIRECT</sonyNRT:port>
+              <sonyNRT:audioCodec>LPCM16</sonyNRT:audioCodec>
+              <sonyNRT:trackDst>CH1</sonyNRT:trackDst>
+            </rdf:li>
+            <rdf:li rdf:parseType="Resource">
+              <sonyNRT:port>DIRECT</sonyNRT:port>
+              <sonyNRT:audioCodec>LPCM16</sonyNRT:audioCodec>
+              <sonyNRT:trackDst>CH2</sonyNRT:trackDst>
+            </rdf:li>
+          </rdf:Seq>
+        </sonyNRT:AudioRecPorts>
+      </sonyNRT:AudioFormat>
+      <sonyNRT:RecordingMode rdf:parseType="Resource">
+        <sonyNRT:type>normal</sonyNRT:type>
+        <sonyNRT:cacheRec>false</sonyNRT:cacheRec>
+      </sonyNRT:RecordingMode>
+      <sonyNRT:LtcChangeTable rdf:parseType="Resource">
+        <sonyNRT:tcFps>24</sonyNRT:tcFps>
+        <sonyNRT:halfStep>false</sonyNRT:halfStep>
+        <sonyNRT:Changes>
+          <rdf:Seq>
+            <rdf:li rdf:parseType="Resource">
+              <sonyNRT:frameCount>0</sonyNRT:frameCount>
+              <sonyNRT:value>12282823</sonyNRT:value>
+              <sonyNRT:status>increment</sonyNRT:status>
+            </rdf:li>
+            <rdf:li rdf:parseType="Resource">
+              <sonyNRT:frameCount>623</sonyNRT:frameCount>
+              <sonyNRT:value>11542823</sonyNRT:value>
+              <sonyNRT:status>end</sonyNRT:status>
+            </rdf:li>
+          </rdf:Seq>
+        </sonyNRT:Changes>
+      </sonyNRT:LtcChangeTable>
+      <sonyNRT:CameraUnit rdf:parseType="Resource">
+        <sonyNRT:CaptureGammaEquation>s-cinetone</sonyNRT:CaptureGammaEquation>
+        <sonyNRT:CaptureColorPrimaries>rec709</sonyNRT:CaptureColorPrimaries>
+        <sonyNRT:CodingEquations>rec709</sonyNRT:CodingEquations>
+      </sonyNRT:CameraUnit>
+      <sonyNRT:ExifGPS rdf:parseType="Resource">
+        <sonyNRT:VersionID>2.2.0.0</sonyNRT:VersionID>
+        <sonyNRT:Status>V</sonyNRT:Status>
+        <sonyNRT:MapDatum>WGS-84</sonyNRT:MapDatum>
+        <sonyNRT:Differential>0</sonyNRT:Differential>
+      </sonyNRT:ExifGPS>
+      <sonyNRT:ChangeTables>
+        <rdf:Seq>
+          <rdf:li rdf:parseType="Resource">
+            <sonyNRT:name>ImagerControlInformation</sonyNRT:name>
+            <sonyNRT:Events>
+              <rdf:Seq>
+                <rdf:li rdf:parseType="Resource">
+                  <sonyNRT:frameCount>0</sonyNRT:frameCount>
+                  <sonyNRT:status>start</sonyNRT:status>
+                </rdf:li>
+              </rdf:Seq>
+            </sonyNRT:Events>
+          </rdf:li>
+          <rdf:li rdf:parseType="Resource">
+            <sonyNRT:name>LensControlInformation</sonyNRT:name>
+            <sonyNRT:Events>
+              <rdf:Seq>
+                <rdf:li rdf:parseType="Resource">
+                  <sonyNRT:frameCount>0</sonyNRT:frameCount>
+                  <sonyNRT:status>start</sonyNRT:status>
+                </rdf:li>
+              </rdf:Seq>
+            </sonyNRT:Events>
+          </rdf:li>
+          <rdf:li rdf:parseType="Resource">
+            <sonyNRT:name>DistortionCorrection</sonyNRT:name>
+            <sonyNRT:Events>
+              <rdf:Seq>
+                <rdf:li rdf:parseType="Resource">
+                  <sonyNRT:frameCount>0</sonyNRT:frameCount>
+                  <sonyNRT:status>start</sonyNRT:status>
+                </rdf:li>
+              </rdf:Seq>
+            </sonyNRT:Events>
+          </rdf:li>
+          <rdf:li rdf:parseType="Resource">
+            <sonyNRT:name>Gyroscope</sonyNRT:name>
+            <sonyNRT:Events>
+              <rdf:Seq>
+                <rdf:li rdf:parseType="Resource">
+                  <sonyNRT:frameCount>0</sonyNRT:frameCount>
+                  <sonyNRT:status>start</sonyNRT:status>
+                </rdf:li>
+              </rdf:Seq>
+            </sonyNRT:Events>
+          </rdf:li>
+          <rdf:li rdf:parseType="Resource">
+            <sonyNRT:name>Accelerometor</sonyNRT:name>
+            <sonyNRT:Events>
+              <rdf:Seq>
+                <rdf:li rdf:parseType="Resource">
+                  <sonyNRT:frameCount>0</sonyNRT:frameCount>
+                  <sonyNRT:status>start</sonyNRT:status>
+                </rdf:li>
+              </rdf:Seq>
+            </sonyNRT:Events>
+          </rdf:li>
+        </rdf:Seq>
+      </sonyNRT:ChangeTables>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>

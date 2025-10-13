@@ -2,11 +2,42 @@ package xmpsidecar
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
 )
+
+func TestReadAttributedProperties(t *testing.T) {
+	const source = `<x:xmpmeta xmlns:x="adobe:ns:meta/">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description xmlns:exif="http://ns.adobe.com/exif/1.0/"
+   xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:digiKam="http://www.digikam.org/ns/1.0/">
+   <exif:DateTimeOriginal xml:lang="x-default">2020-02-02T10:20:30Z</exif:DateTimeOriginal>
+   <xmp:Rating xml:lang="x-default">3</xmp:Rating>
+   <exif:GPSLatitude xml:lang="x-default">48,30N</exif:GPSLatitude>
+   <exif:GPSLongitude xml:lang="x-default">3,30W</exif:GPSLongitude>
+   <digiKam:TagsList><rdf:Seq>
+    <rdf:li xml:lang="x-default">one/tag</rdf:li>
+    <rdf:li xml:lang="x-default"></rdf:li>
+    <rdf:li xml:lang="x-default">two/tag</rdf:li>
+   </rdf:Seq></digiKam:TagsList>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>`
+	md := &assets.Metadata{}
+	if err := ReadXMP(strings.NewReader(source), md); err != nil {
+		t.Fatal(err)
+	}
+	if md.Rating != 3 || md.Latitude != 48.5 || md.Longitude != -3.5 ||
+		!md.DateTaken.Equal(time.Date(2020, 2, 2, 10, 20, 30, 0, time.UTC)) {
+		t.Fatalf("attributed metadata was not read: %+v", md)
+	}
+	if len(md.Tags) != 2 || md.Tags[0].Value != "one/tag" || md.Tags[1].Value != "two/tag" {
+		t.Fatalf("attributed tags were not read or empty tag was retained: %+v", md.Tags)
+	}
+}
 
 func TestRead(t *testing.T) {
 	tc := []struct {

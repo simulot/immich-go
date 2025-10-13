@@ -53,7 +53,7 @@ func filter(md *assets.Metadata, p string, value string) {
 	p = strings.TrimPrefix(p, "/xmpmeta/RDF/Description/")
 	// debug 	fmt.Printf("%s: %s\n", p, value)
 	switch p {
-	case "DateTimeOriginal":
+	case "DateTimeOriginal", "DateTimeOriginal/#text":
 		if d, err := TimeStringToTime(value, time.UTC); err == nil {
 			md.DateTaken = d
 		}
@@ -63,9 +63,9 @@ func filter(md *assets.Metadata, p string, value string) {
 		if md.Description == "" {
 			md.Description = value
 		}
-	case "Rating":
+	case "Rating", "Rating/#text":
 		md.Rating = StringToByte(value)
-	case "TagsList/Seq/li":
+	case "TagsList/Seq/li", "TagsList/Seq/li/#text":
 		if value == "" {
 			// An empty keyword, e.g. from a template that renders to nothing
 			// (osxphotos "{favorite?Favorit,}" on a non-favorite photo). The server
@@ -77,11 +77,11 @@ func filter(md *assets.Metadata, p string, value string) {
 				Name:  path.Base(value),
 				Value: value,
 			})
-	case "GPSLatitude":
+	case "GPSLatitude", "GPSLatitude/#text":
 		if f, err := GPTStringToFloat(value); err == nil {
 			md.Latitude = f
 		}
-	case "GPSLongitude":
+	case "GPSLongitude", "GPSLongitude/#text":
 		if f, err := GPTStringToFloat(value); err == nil {
 			md.Longitude = f
 		}
