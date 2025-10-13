@@ -38,25 +38,28 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 
 	ifc.app = app
 	ifc.processor = app.FileProcessor()
+	log := app.Log()
 	ifc.tz = app.GetTZ()
-	// ifc.InclusionFlags.SetIncludeTypeExtensions()
+	ifc.InclusionFlags.SetIncludeTypeExtensions()
 
 	// parse arguments and generate a fs.FS per argument
-	ifc.fsyss, err = fshelper.ParsePath(args)
+	fsyss, err := fshelper.ParsePath(args)
 	if err != nil {
 		return err
 	}
-	if len(ifc.fsyss) == 0 {
-		app.Log().Message("No file found matching the pattern: %s", strings.Join(args, ","))
+	if len(fsyss) == 0 {
+		log.Message("No file found matching the pattern: %s", strings.Join(args, ","))
 		return errors.New("No file found matching the pattern: " + strings.Join(args, ","))
 	}
 
 	defer func() {
-		if err := fshelper.CloseFSs(ifc.fsyss); err != nil {
+		if err := fshelper.CloseFSs(fsyss); err != nil {
 			// Handle the error - log it, since we can't return it
-			app.Log().Error("error closing file systems", "error", err)
+			log.Error("error closing file systems", "error", err)
 		}
 	}()
+
+	ifc.fsyss = fsyss
 
 	// Start the workers
 	ifc.pool = worker.NewPool(ifc.app.ConcurrentTask)
