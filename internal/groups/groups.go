@@ -50,6 +50,31 @@ func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset
 	gOut := make(chan *assets.Group) // output channel for groups
 	out := make(chan *assets.Asset)  // output channel for the last grouper
 
+	// Fast path: no groupers configured, just forward assets as single-item groups.
+	if len(p.groupers) == 0 {
+		go func() {
+			defer close(gOut)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case a, ok := <-in:
+					if !ok {
+						return
+					}
+					if a != nil {
+						select {
+						case <-ctx.Done():
+							return
+						case gOut <- assets.NewGroup(assets.GroupByNone, a):
+						}
+					}
+				}
+			}
+		}()
+		return gOut
+	}
+
 	inChans := make([]chan *assets.Asset, len(p.groupers))
 	outChans := make([]chan *assets.Asset, len(p.groupers))
 
