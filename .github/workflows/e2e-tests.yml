@@ -29,8 +29,8 @@ jobs:
 
             - name: Deploy Immich Test Instance
               run: |
-                  cd internal/e2e/e2eUtils/cmd/deployImlmch
-                  go run deployImmich.go ../../../../immich-test
+                  cd internal/e2e/e2eUtils/cmd/deployImmich
+                  go run deployImmich.go ../../../immich-test
               env:
                   CGO_ENABLED: 0
 
@@ -85,8 +85,8 @@ jobs:
             - name: Deploy Immich Test Instance
               shell: bash
               run: |
-                  cd internal/e2e/e2eUtils/cmd/deployImlmch
-                  go run deployImmich.go ../../../../immich-test
+                  cd internal/e2e/e2eUtils/cmd/deployImmich
+                  go run deployImmich.go ../../../immich-test
               env:
                   CGO_ENABLED: 0
 
