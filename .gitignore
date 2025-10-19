@@ -32,3 +32,4 @@ immich-go.yaml
 internal/e2e.zip
 resetImmich
 internal/e2e/immich-test
+internal/e2e/fixtures/wikimedia

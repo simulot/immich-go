@@ -40,7 +40,7 @@ type ImportFolderCmd struct {
 
 	// Internal fields
 	app                     *app.Application
-	log                     *fileevent.Recorder
+	jnl                     *fileevent.Recorder
 	fsyss                   []fs.FS
 	tz                      *time.Location
 	supportedMedia          filetypes.SupportedMedia

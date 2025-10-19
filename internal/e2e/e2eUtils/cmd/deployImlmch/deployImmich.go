@@ -79,7 +79,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	err = u.AddUserKey("e2Mminimal", minimalPermissions)
+	err = u.AddUserKey("e2eMinimal", minimalPermissions)
 
 	u, err = users.UserCreate("user2@immich.app", "user2", "user2")
 	if err != nil {
