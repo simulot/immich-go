@@ -10,8 +10,6 @@ import (
 type Keys map[string]any
 
 func KeysFromFile(path string) (Keys, error) {
-	keys := make(Keys)
-
 	// read the keys from the file
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -23,9 +21,7 @@ func KeysFromFile(path string) (Keys, error) {
 		return nil, err
 	}
 
-	keys = m
-
-	return keys, nil
+	return m, nil
 }
 
 // Get retrieves the value associated with the given key path (using "/" as a separator for nested keys).

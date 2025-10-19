@@ -80,12 +80,18 @@ func run() error {
 		return err
 	}
 	err = u.AddUserKey("e2eMinimal", minimalPermissions)
+	if err != nil {
+		return err
+	}
 
 	u, err = users.UserCreate("user2@immich.app", "user2", "user2")
 	if err != nil {
 		return err
 	}
 	err = u.AddUserKey("e2eMinimal", minimalPermissions)
+	if err != nil {
+		return err
+	}
 
 	e2eUsersName := path.Join(path.Dir(ictl.GetDockerComposeFile()), "e2eusers.yml")
 	f, err := os.Create(e2eUsersName)

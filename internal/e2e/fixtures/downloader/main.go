@@ -121,7 +121,7 @@ func getCategoryImages(client *http.Client, category string, count int) []ImageD
 	defer resp.Body.Close()
 
 	var cmResp CategoryMembersResponse
-	json.NewDecoder(resp.Body).Decode(&cmResp)
+	_ = json.NewDecoder(resp.Body).Decode(&cmResp)
 
 	for _, member := range cmResp.Query.Categorymembers {
 		if len(images) >= count {
@@ -156,7 +156,7 @@ func getImageURL(client *http.Client, title string) *ImageData {
 	defer resp.Body.Close()
 
 	var iiResp ImageInfoResponse
-	json.NewDecoder(resp.Body).Decode(&iiResp)
+	_ = json.NewDecoder(resp.Body).Decode(&iiResp)
 
 	var imgURL string
 	for _, page := range iiResp.Query.Pages {
@@ -182,7 +182,7 @@ func getImageURL(client *http.Client, title string) *ImageData {
 	defer resp2.Body.Close()
 
 	var mdResp MetadataResponse
-	json.NewDecoder(resp2.Body).Decode(&mdResp)
+	_ = json.NewDecoder(resp2.Body).Decode(&mdResp)
 
 	var metadata map[string]interface{}
 	for _, page := range mdResp.Query.Pages {
@@ -303,7 +303,8 @@ func resizeToFitSize(img image.Image, maxSize int) (image.Image, error) {
 
 		// If still too big, reduce size further
 		scale := 0.8
-		currentImg := img
+		var currentImg image.Image
+
 		for size > maxSize && scale > 0.1 {
 			newWidth := int(float64(width) * scale)
 			newHeight := int(float64(height) * scale)
