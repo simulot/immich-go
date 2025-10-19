@@ -32,7 +32,7 @@ func OpenImmichController(p string) (*ImmichController, error) {
 	}
 	if s.IsDir() {
 		p = path.Join(p, "docker-compose.yml")
-		s, err = os.Stat(p)
+		_, err = os.Stat(p)
 		if err != nil {
 			return nil, fmt.Errorf("can't get file info: %w", err)
 		}
