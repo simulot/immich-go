@@ -17,8 +17,8 @@ This guide covers all installation methods for Immich-Go across different platfo
 - **Basic Command Line Knowledge**: Immich-Go is a command-line tool
 
 ## API Permissions
-
-Your API key must have the following permissions:
+`
+Create an` immich API key for each user account you plan to use with `Immich-Go` with the following permissions:
 - `asset.read`
 - `asset.statistics` 
 - `asset.update`
@@ -28,13 +28,17 @@ Your API key must have the following permissions:
 - `album.create`
 - `album.read`
 - `albumAsset.create`
-- `job.create`
-- `job.read`
 - `server.about`
 - `stack.create`
 - `tag.asset`
 - `tag.create`
 - `user.read`
+
+Immich-Go needs to pause Immich jobs during upload operations. Create an admin-linked API key that includes the permissions listed above, plus the following additional permission:
+
+- `job.create`
+- `job.read`
+
 
 ## Installation Methods
 
