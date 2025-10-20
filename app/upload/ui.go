@@ -270,10 +270,11 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui.addCounter(ui.prepareCounts, 3, "Discarded files", fileevent.DiscoveredDiscarded)
 	ui.addCounter(ui.prepareCounts, 4, "Unsupported files", fileevent.DiscoveredUnsupported)
 	ui.addCounter(ui.prepareCounts, 5, "Duplicates in the input", fileevent.AnalysisLocalDuplicate)
-	ui.addCounter(ui.prepareCounts, 6, "Files with a sidecar", fileevent.AnalysisAssociatedMetadata)
-	ui.addCounter(ui.prepareCounts, 7, "Files without sidecar", fileevent.AnalysisMissingAssociatedMetadata)
+	ui.addCounter(ui.prepareCounts, 6, "Smaller Duplicates", fileevent.AnalysisSmallerLocalDuplicate)
+	ui.addCounter(ui.prepareCounts, 7, "Files with a sidecar", fileevent.AnalysisAssociatedMetadata)
+	ui.addCounter(ui.prepareCounts, 8, "Files without sidecar", fileevent.AnalysisMissingAssociatedMetadata)
 
-	ui.prepareCounts.SetSize(8, 2, 1, 1).SetColumns(30, 10)
+	ui.prepareCounts.SetSize(9, 2, 1, 1).SetColumns(30, 10)
 
 	ui.uploadCounts = tview.NewGrid()
 	ui.uploadCounts.SetBorder(true).SetTitle("Uploading")

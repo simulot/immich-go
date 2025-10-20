@@ -132,7 +132,7 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 
 // Run is called back by the actual asset reader
 func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
-	uc.Mode = UpModeFolder // TODO
+	uc.Mode = UpModeGoogleTakeout // TODO
 
 	// ready to run
 	ctx := cmd.Context()
