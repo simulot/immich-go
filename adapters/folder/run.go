@@ -23,6 +23,9 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/groups"
+	"github.com/simulot/immich-go/internal/groups/burst"
+	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
+	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/simulot/immich-go/internal/worker"
 	"github.com/spf13/cobra"
 )
@@ -63,6 +66,18 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 	ifc.requiresDateInformation = ifc.InclusionFlags.DateRange.IsSet() ||
 		ifc.TakeDateFromFilename || ifc.ManageBurst != filters.BurstNothing ||
 		ifc.ManageHEICJPG != filters.HeicJpgNothing || ifc.ManageRawJPG != filters.RawJPGNothing
+
+	// Configure groupers based on stack options so RAW/JPEG, HEIC/JPEG, burst,
+	// and FastFoto groupings are detected before filters run.
+	ifc.groupers = nil
+	if ifc.ManageEpsonFastFoto {
+		g := epsonfastfoto.Group{}
+		ifc.groupers = append(ifc.groupers, g.Group)
+	}
+	if ifc.ManageBurst != filters.BurstNothing {
+		ifc.groupers = append(ifc.groupers, burst.Group)
+	}
+	ifc.groupers = append(ifc.groupers, series.Group)
 
 	if ifc.PicasaAlbum {
 		ifc.picasaAlbums = gen.NewSyncMap[string, PicasaAlbum]() // make(map[string]PicasaAlbum)
