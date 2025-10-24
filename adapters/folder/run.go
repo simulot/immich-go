@@ -26,6 +26,7 @@ import (
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
+	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/simulot/immich-go/internal/worker"
 	"github.com/spf13/cobra"
 )
@@ -509,23 +510,21 @@ func checkExistSideCar(fsys fs.FS, name string, ext string) (string, error) {
 	return "", nil
 }
 
-type bannedMatcher interface {
-	Match(string) bool
-}
-
-func matchesBanned(m bannedMatcher, name string, isDir bool) bool {
-	if m.Match(name) {
+func matchesBanned(list namematcher.List, name string, isDir bool) bool {
+	trimmed := strings.TrimSuffix(name, "/")
+	if isDir {
+		if list.MatchDir(name) {
+			return true
+		}
+		if trimmed != name && list.MatchDir(trimmed) {
+			return true
+		}
+		return false
+	}
+	if list.MatchFile(name) {
 		return true
 	}
-	if trimmed := strings.TrimSuffix(name, "/"); trimmed != name {
-		if m.Match(trimmed) {
-			return true
-		}
-		if isDir && m.Match(trimmed+"/") {
-			return true
-		}
-	}
-	if isDir && !strings.HasSuffix(name, "/") && m.Match(name+"/") {
+	if trimmed != name && list.MatchFile(trimmed) {
 		return true
 	}
 	return false
