@@ -1,9 +1,8 @@
 //go:build e2e
 
-package fromfolder
+package client
 
 import (
-	"path"
 	"testing"
 
 	"github.com/simulot/immich-go/app/root"
@@ -12,14 +11,22 @@ import (
 )
 
 func Test_FromGooglePhotos(t *testing.T) {
-	keys, err := e2eutils.KeysFromFile(path.Join(immichTestPath, "e2eusers.yml"))
+	// Load user credentials
+	keys, err := e2eutils.KeysFromFile(keysFile)
 	if err != nil {
-		t.Fatalf("Can't get the keys: %s", err.Error())
+		t.Fatalf("Can't get the keys from %s: %s", keysFile, err.Error())
 	}
 
+	// Reset Immich before test
 	resetImmich(t)
+
+	// Get API keys for users
 	u1Key := keys.Get(u1KeyPath)
 	admKey := keys.Get(admKeyPath)
+
+	if u1Key == "" || admKey == "" {
+		t.Fatalf("Missing required API keys in %s", keysFile)
+	}
 
 	ctx := t.Context()
 	c, a := root.RootImmichGoCommand(ctx)

@@ -5,12 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 )
 
-const apiUrl = "http://localhost:2283/api"
-
 type Token string
+
+// getAPIURL returns the Immich API URL, checking E2E_IMMICH_URL environment variable first
+func getAPIURL() string {
+	// Check for environment variable (set by CI workflow)
+	if envURL := os.Getenv("E2E_IMMICH_URL"); envURL != "" {
+		return strings.TrimSuffix(envURL, "/") + "/api"
+	}
+	// Default for local development
+	return "http://localhost:2283/api"
+}
 
 func do(method string, url string, body any, token Token) (*http.Response, error) {
 	jsonBody, err := json.Marshal(body)
@@ -107,7 +116,7 @@ func AdminSetup(email, password, name string) error {
 		Name:     name,
 		Password: password,
 	}
-	resp, err := post(apiUrl+"/auth/admin-sign-up", &s, "")
+	resp, err := post(getAPIURL()+"/auth/admin-sign-up", &s, "")
 	if err != nil {
 		return err
 	}
@@ -143,7 +152,7 @@ func UserLogin(email, password string) (Token, error) {
 		Password: password,
 	}
 
-	resp, err := post(apiUrl+"/auth/login", &login, "")
+	resp, err := post(getAPIURL()+"/auth/login", &login, "")
 	if err != nil {
 		return "", err
 	}
@@ -169,7 +178,7 @@ func SetUserOnboarding(token Token, onboarding bool) error {
 		IsOnboarded: onboarding,
 	}
 
-	resp, err := put(apiUrl+"/users/me/onboarding", o, token)
+	resp, err := put(getAPIURL()+"/users/me/onboarding", o, token)
 	if err != nil {
 		return err
 	}
@@ -198,7 +207,7 @@ func CreateApiKey(token Token, name string, permissions []string) (string, error
 		APIKey APIKeyResponseDto `json:"apiKey"`
 		Secret string            `json:"secret"`
 	}
-	resp, err := post(apiUrl+"/api-keys", APIKeyCreateDto{
+	resp, err := post(getAPIURL()+"/api-keys", APIKeyCreateDto{
 		Name:        name,
 		Permissions: permissions,
 	}, token)
@@ -235,7 +244,7 @@ func CreateUser(adminToken Token, email string, password string, name string) er
 	}
 
 	// uResp := map[string]any
-	resp, err := post(apiUrl+"/admin/users", u, adminToken)
+	resp, err := post(getAPIURL()+"/admin/users", u, adminToken)
 	if err != nil {
 		return err
 	}

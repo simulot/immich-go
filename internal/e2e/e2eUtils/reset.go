@@ -4,13 +4,39 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"os"
 	"os/exec"
 )
+
+// getSSHHostFromURL extracts the hostname from E2E_IMMICH_URL for SSH connections
+func getSSHHostFromURL() string {
+	immichURL := os.Getenv("E2E_IMMICH_URL")
+	if immichURL == "" {
+		return "" // Local execution
+	}
+
+	parsed, err := url.Parse(immichURL)
+	if err != nil {
+		slog.Warn("failed to parse E2E_IMMICH_URL", "url", immichURL, "error", err)
+		return ""
+	}
+
+	// Return just the hostname (without port)
+	return parsed.Hostname()
+}
 
 func (ictlr *ImmichController) ResetImmich(ctx context.Context) error {
 	// Reset immich's database
 	// https://github.com/immich-app/immich/blob/main/e2e/src/utils.ts
-	//
+
+	// Check if we need to configure SSH for remote access
+	sshHost := getSSHHostFromURL()
+	if sshHost != "" && !ictlr.IsRemote() {
+		// Configure SSH for remote execution
+		ictlr.WithSSH("root@"+sshHost, "22", "")
+		slog.Info("configured for remote execution", "host", sshHost)
+	}
 
 	if ictlr.PingAPI(ctx) == nil {
 		err := ictlr.PauseImmichServer(ctx)
@@ -18,34 +44,54 @@ func (ictlr *ImmichController) ResetImmich(ctx context.Context) error {
 			return fmt.Errorf("can't stop immich: %w", err)
 		}
 	}
+
+	sqlCmd := `
+        delete from stack CASCADE;
+        delete from library CASCADE;
+        delete from shared_link CASCADE;
+        delete from person CASCADE;
+        delete from album CASCADE;
+        delete from asset CASCADE;
+        delete from asset_face CASCADE;
+        delete from activity CASCADE;
+        delete from tag CASCADE;
+        -- delete from session CASCADE;
+        -- delete from api_key CASCADE;
+        -- delete from user CASCADE;
+        -- delete from system_metadata where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
+	`
+
 	args := []string{
 		"exec", "-i", "immich_postgres", "psql", "--dbname=immich", "--username=postgres", "-c",
-		`
-        delete from stack CASACDE;
-        delete from library CASACDE;
-        delete from shared_link CASACDE;
-        delete from person CASACDE;
-        delete from album CASACDE;
-        delete from asset CASACDE;
-        delete from asset_face CASACDE;
-        delete from activity CASACDE;
-        delete from tag CASACDE;
-        -- delete from session CASACDE;
-        -- delete from api_key CASACDE;
-        -- delete from user CASACDE;
-        -- delete from system_metadata where "key" NOT IN ('reverse-geocoding-state', 'system-flags');
-		`,
+		sqlCmd,
 	}
+
 	slog.Info("exec", "command", "docker", "args", args[:4])
-	c := exec.CommandContext(ctx, "docker", args...)
-	out, err := c.CombinedOutput()
+
+	var err error
+	var out []byte
+
+	if ictlr.IsRemote() {
+		// For remote execution via SSH
+		err = ictlr.execCommand(ctx, timeout, "docker", args...)
+	} else {
+		// For local execution
+		c := exec.CommandContext(ctx, "docker", args...)
+		out, err = c.CombinedOutput()
+	}
+
 	if err != nil {
-		return fmt.Errorf("can't reset immich: %w\n%s", err, string(out))
+		if len(out) > 0 {
+			return fmt.Errorf("can't reset immich: %w\n%s", err, string(out))
+		}
+		return fmt.Errorf("can't reset immich: %w", err)
 	}
 
 	if err := ictlr.ResumeImmichServer(ctx); err != nil {
-		err = fmt.Errorf("can't reset immich: %w\n%s", err, string(out))
-		return err
+		if len(out) > 0 {
+			return fmt.Errorf("can't resume immich: %w\n%s", err, string(out))
+		}
+		return fmt.Errorf("can't resume immich: %w", err)
 	}
-	return err
+	return nil
 }

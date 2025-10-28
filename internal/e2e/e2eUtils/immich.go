@@ -20,8 +20,27 @@ import (
 const timeout = 1 * time.Minute
 
 type ImmichController struct {
-	dcPath string // path to the docker compose directory
-	dcFile string // path to the docker compose file
+	dcPath     string // path to the docker compose directory
+	dcFile     string // path to the docker compose file
+	sshHost    string // SSH host for remote server (optional, e.g., "user@hostname")
+	sshPort    string // SSH port (optional, defaults to 22)
+	sshKeyPath string // SSH key path (optional)
+}
+
+// WithSSH configures the controller to use SSH for remote operations
+func (ictlr *ImmichController) WithSSH(host, port, keyPath string) *ImmichController {
+	ictlr.sshHost = host
+	ictlr.sshPort = port
+	if ictlr.sshPort == "" {
+		ictlr.sshPort = "22"
+	}
+	ictlr.sshKeyPath = keyPath
+	return ictlr
+}
+
+// IsRemote returns true if the controller is configured for remote SSH access
+func (ictlr *ImmichController) IsRemote() bool {
+	return ictlr.sshHost != ""
 }
 
 // OpenImmichController opens a new ImmichController instance with the specified docker-compose file path
@@ -82,7 +101,37 @@ func (ictlr *ImmichController) dockerCompose(ctx context.Context, args ...string
 		cmdArgs = append(cmdArgs, "-f", ictlr.GetDockerComposeFile())
 	}
 	cmdArgs = append(cmdArgs, args...)
-	return ExecWithTimeout(ctx, timeout, "docker", cmdArgs...)
+	return ictlr.execCommand(ctx, timeout, "docker", cmdArgs...)
+}
+
+// execCommand executes a command either locally or via SSH depending on configuration
+func (ictlr *ImmichController) execCommand(ctx context.Context, timeout time.Duration, command string, args ...string) error {
+	if !ictlr.IsRemote() {
+		return ExecWithTimeout(ctx, timeout, command, args...)
+	}
+
+	// Build SSH command
+	sshArgs := []string{}
+	if ictlr.sshPort != "" && ictlr.sshPort != "22" {
+		sshArgs = append(sshArgs, "-p", ictlr.sshPort)
+	}
+	if ictlr.sshKeyPath != "" {
+		sshArgs = append(sshArgs, "-i", ictlr.sshKeyPath)
+	}
+	sshArgs = append(sshArgs, ictlr.sshHost)
+
+	// Build the remote command
+	remoteCmd := command
+	for _, arg := range args {
+		// Properly escape arguments for SSH
+		if strings.Contains(arg, " ") || strings.Contains(arg, "\n") || strings.Contains(arg, "'") {
+			arg = fmt.Sprintf("'%s'", strings.ReplaceAll(arg, "'", "'\\''"))
+		}
+		remoteCmd += " " + arg
+	}
+	sshArgs = append(sshArgs, remoteCmd)
+
+	return ExecWithTimeout(ctx, timeout, "ssh", sshArgs...)
 }
 
 // DeployImmich downloads Immich configuration files and prepares the Docker environment
@@ -241,7 +290,19 @@ func (ictlr *ImmichController) PingAPI(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:2283/api/server/ping", nil)
+	// Get the Immich URL from environment variable (set by CI workflow)
+	pingURL := os.Getenv("E2E_IMMICH_URL")
+	if pingURL != "" {
+		// Use the full URL from environment (e.g., http://100.x.x.x:2283)
+		pingURL = pingURL + "/api/server/ping"
+	} else {
+		// Fallback to localhost for local development
+		host := "localhost"
+		port := "2283"
+		pingURL = fmt.Sprintf("http://%s:%s/api/server/ping", host, port)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, nil)
 	if err != nil {
 		return err
 	}
