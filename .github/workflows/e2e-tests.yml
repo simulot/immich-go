@@ -20,12 +20,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v5
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: "go.mod"
-          cache-dependency-path: "go.sum"
-
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
         with:
@@ -42,6 +36,7 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci-immich-go
           ping: immich-server.taileff926.ts.net
+          args: --tun=userspace-networking
 
       - name: Get Tailscale IP
         id: tailscale-ip
@@ -56,6 +51,13 @@ jobs:
           go run deployImmich.go ../../../immich-test
         env:
           CGO_ENABLED: 0
+
+      # deploy GO while waiting for Immich to be ready
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
 
       - name: Wait for Immich API
         run: |
