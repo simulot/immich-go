@@ -37,6 +37,7 @@ jobs:
           tags: tag:ci-immich-go
           ping: immich-server.taileff926.ts.net
           args: --tun=userspace-networking
+          skip-install: true
 
       - name: Get Tailscale IP
         id: tailscale-ip
