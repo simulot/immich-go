@@ -30,14 +30,7 @@ jobs:
           args: --ssh
 
       - name: Tailscale ping
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci-immich-go
-          ping: immich-server.taileff926.ts.net
-          args: --tun=userspace-networking
-          skip-install: true
+        run: tailscale ping immich-server.taileff926.ts.net
 
       - name: Get Tailscale IP
         id: tailscale-ip
