@@ -81,9 +81,16 @@ jobs:
         run: |
           echo "Server is running and accessible via Tailscale"
           echo "Waiting for client tests to complete..."
-          # Keep the server running for 45 minutes (enough for test execution)
-          # The workflow will continue even if this times out
-          sleep 2700
+          # Wait for up to 45 minutes checking for test completion
+          max_wait=2700  # 45 minutes
+          elapsed=0
+          while [ $elapsed -lt $max_wait ]; do
+            # Check if e2e-linux job has completed by checking workflow status
+            sleep 30
+            elapsed=$((elapsed + 30))
+            echo "Waited ${elapsed}s / ${max_wait}s for tests..."
+          done
+          echo "Maximum wait time reached, shutting down server"
 
       - name: Show Immich logs on failure
         if: failure()
@@ -103,7 +110,6 @@ jobs:
   e2e-linux:
     name: E2E Tests (Linux Client)
     runs-on: ubuntu-latest
-    needs: immich-server
 
     steps:
       - name: Checkout Code
@@ -120,7 +126,29 @@ jobs:
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:immich-go-ci
+          tags: tag:ci-immich-go
+
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for server info artifact to be available..."
+          max_attempts=60
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            if gh run download ${{ github.run_id }} -n e2e-config 2>/dev/null; then
+              echo "✅ Server info downloaded"
+              break
+            fi
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts - waiting for server..."
+            sleep 5
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "❌ Timeout waiting for server to be ready"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Download e2e configuration
         uses: actions/download-artifact@v4
@@ -158,3 +186,14 @@ jobs:
           CGO_ENABLED: 0
           E2E_IMMICH_URL: ${{ steps.e2e-setup.outputs.url }}
           # E2E_KEYS_FILE is auto-discovered by findE2EUsersFile()
+
+      - name: Notify server that tests are complete
+        if: always()
+        run: |
+          # Create a completion marker file
+          echo "Tests completed at $(date)" > tests-complete.txt
+          gh run download ${{ github.run_id }} -n e2e-config || true
+          # Upload completion marker
+          echo "Tests finished" > tests-complete.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
