@@ -13,6 +13,7 @@ permissions:
 env:
   project_dir: /home/runner/work/immich-go/immich-go
   e2e_immich: /home/runner/work/immich-go/immich-go/e2e-immich
+  e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.yml
   runner_timeout: 900
 
 jobs:
@@ -25,7 +26,7 @@ jobs:
       - name: Prepare the server environment
         run: |
           mkdir -p ${{ env.e2e_immich}}
-          touch ${GITHUB_ENV}/e2e-immich/e2eusers.yml
+          touch ${{ env.e2e_users}}/e2e-immich/e2eusers.yml
 
       - name: Setup Go
         uses: actions/setup-go@v6
