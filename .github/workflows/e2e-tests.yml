@@ -118,7 +118,7 @@ jobs:
       - name: Wait for Tailscale connection
         run: |
           echo "Waiting for Tailscale network to be ready..."
-          max_attempts=36  # 180 seconds / 5 seconds per attempt
+          max_attempts=180  # 180 seconds / 5 seconds per attempt
           attempt=0
 
           while [ $attempt -lt $max_attempts ]; do
