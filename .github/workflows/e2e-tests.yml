@@ -232,7 +232,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "touch ${{ env.e2e_folder }}/done"
           echo "✅ Done marker created"
 
-      - name: Kill immich runner
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "docker compose -f ${{ env.e2e_folder }}/docker-compose.yml down --volumes --remove-orphans"
-          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "sudo shutdown now"
+      # - name: Kill immich runner
+      #   run: |
+      #     ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "docker compose -f ${{ env.e2e_folder }}/docker-compose.yml down --volumes --remove-orphans"
+      #     ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "sudo shutdown now"
