@@ -15,7 +15,8 @@ env:
   e2e_folder: /home/runner/work/immich-go/immich-go/e2e-immich
   e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.yml
   e2e_compose: /home/runner/work/immich-go/immich-go/e2e-immich/docker-compose.yml
-  e2e_server: http://e2e-immich-${{ github.run_id }}:2283
+  e2e_server: e2e-immich-${{ github.run_id }}
+  e2e_url: http://e2e-immich-${{ github.run_id }}:2283
   e2e_ssh: root@e2e-immich-${{ github.run_id }}
   runner_timeout: 900
 
@@ -131,7 +132,7 @@ jobs:
       - name: Wait for Immich API and copy e2eusers.yml
         run: |
           echo "Waiting for Immich API to be ready..."
-          timeout 180 bash -c 'until curl -sf ${{ env.e2e_server }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
+          timeout 180 bash -c 'until curl -sf ${{ env.e2e_url }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
           echo "✅ Immich API is ready!"
 
           echo "Waiting for e2eusers.yml file to be created on server..."
@@ -166,14 +167,13 @@ jobs:
         run: |
           cd ${{ env.project_dir}}/internal/e2e/client
           E2E_USERS=${{env.e2e_folder}}
-          E2E_SERVER=${{env.e2e_server}}
+          E2E_URL=${{env.e2e_url}}
           E2E_SSH=${{env.e2e_ssh}}
           E2E_FOLDER=${{env.e2e_folder}}
           E2E_COMPOSE=${{env.e2e_compose}}
           go test -v -tags=e2e -timeout=30m ./...
         env:
           CGO_ENABLED: 0
-          E2E_folder_URL: ${{ env.e2e_server }}.taileff926.ts.net:2283
 
   clean-up:
     name: Cleanup Immich Instance after tests
@@ -197,7 +197,7 @@ jobs:
 
           while [ $attempt -lt $max_attempts ]; do
             tailscale status
-            if ping -c 1 ${{ env.e2e_server }} > /dev/null 2>&1; then
+            if ping -c 1 ${{ env.e2e_url }} > /dev/null 2>&1; then
               echo "✅ Tailscale connection established!"
               break
             fi
@@ -216,7 +216,7 @@ jobs:
       - name: Wait for Immich API
         run: |
           echo "Waiting for Immich API to be ready..."
-          timeout 180 bash -c 'until curl -sf ${{ env.e2e_server }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
+          timeout 180 bash -c 'until curl -sf ${{ env.e2e_url }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
           echo "Immich API is ready!"
 
       - name: Check users

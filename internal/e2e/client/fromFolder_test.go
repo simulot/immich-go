@@ -14,7 +14,7 @@ import (
 
 // Configuration from environment variables
 var (
-	immichURL    = getEnv("E2E_SERVER", "http://localhost:2283")
+	immichURL    = getEnv("E2E_URL", "http://localhost:2283")
 	keysFile     = getEnv("E2E_USERS", findE2EUsersFile())
 	sshHost      = getEnv("E2E_SSH", "")
 	immichFolder = getEnv("E2E_FOLDER", findE2EImmichDir())
