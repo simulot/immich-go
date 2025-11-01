@@ -28,14 +28,14 @@ jobs:
           mkdir -p ${{ env.e2e_immich}}
           touch ${{ env.e2e_users}}
 
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
           cache-dependency-path: "go.sum"
-
-      - name: Checkout Code
-        uses: actions/checkout@v5
 
       - name: Deploy Immich and get user's key
         run: |
