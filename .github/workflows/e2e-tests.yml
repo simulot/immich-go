@@ -71,15 +71,9 @@ jobs:
       - name: Tailscale ping
         run: tailscale ping immich-server.taileff926.ts.net
 
-      - name: Wait for Immich API
-        run: |
-          echo "Waiting for Immich API to be ready..."
-          timeout 180 bash -c 'until curl -sf http://immich-server:2283/api/server/ping > /dev/null 2>&1; do sleep 2; done'
-          echo "Immich API is ready!"
-
       - name: Show Immich containers status
         run: |
-          docker compose -f internal/e2e/immich-test/docker-compose.yml ps
+          docker compose -f ${{env.e2e_immich}}/docker-compose.yml ps
 
       - name: Keep server running for tests
         run: |
@@ -121,8 +115,29 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci-immich-go
 
-      - name: Tailscale ping
-        run: tailscale ping immich-server.taileff926.ts.net
+      - name: Wait for Tailscale connection
+        run: |
+          echo "Waiting for Tailscale network to be ready..."
+          max_attempts=36  # 180 seconds / 5 seconds per attempt
+          attempt=0
+
+          while [ $attempt -lt $max_attempts ]; do
+            if tailscale ping -c 1 immich-server.taileff926.ts.net > /dev/null 2>&1; then
+              echo "✅ Tailscale connection established!"
+              tailscale ping -c 3 immich-server.taileff926.ts.net
+              break
+            fi
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts - waiting for Tailscale..."
+            sleep 5
+          done
+
+          if [ $attempt -eq $max_attempts ]; then
+            echo "❌ Timeout: Could not establish Tailscale connection after 180 seconds"
+            echo "Tailscale status:"
+            tailscale status
+            exit 1
+          fi
 
       - name: Wait for Immich API
         run: |
@@ -164,6 +179,12 @@ jobs:
   #         oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
   #         oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
   #         tags: tag:ci-immich-go
+
+  # - name: Wait for Immich API
+  #   run: |
+  #     echo "Waiting for Immich API to be ready..."
+  #     timeout 180 bash -c 'until curl -sf http://immich-server:2283/api/server/ping > /dev/null 2>&1; do sleep 2; done'
+  #     echo "Immich API is ready!"
 
   #     - name: Wait for server to be ready
   #       run: |
