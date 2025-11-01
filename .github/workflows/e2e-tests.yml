@@ -114,17 +114,17 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci-immich-go
+          args: --ssh
 
       - name: Wait for Tailscale connection
         run: |
           echo "Waiting for Tailscale network to be ready..."
-          max_attempts=180  # 180 seconds / 5 seconds per attempt
+          max_attempts=60  # 300 seconds / 5 seconds per attempt
           attempt=0
 
           while [ $attempt -lt $max_attempts ]; do
-            if tailscale ping -c 1 immich-server.taileff926.ts.net > /dev/null 2>&1; then
+            if ping -c 1 immich-server > /dev/null 2>&1; then
               echo "✅ Tailscale connection established!"
-              tailscale ping -c 3 immich-server.taileff926.ts.net
               break
             fi
             attempt=$((attempt + 1))
