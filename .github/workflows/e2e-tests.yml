@@ -198,7 +198,7 @@ jobs:
 
           while [ $attempt -lt $max_attempts ]; do
             tailscale status
-            if ping -c 1 ${{ env.e2e_url }} > /dev/null 2>&1; then
+            if ping -c 1 ${{ env.e2e_server }} > /dev/null 2>&1; then
               echo "✅ Tailscale connection established!"
               break
             fi
