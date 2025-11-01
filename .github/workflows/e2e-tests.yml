@@ -39,7 +39,7 @@ jobs:
 
       - name: Deploy Immich and get user's key
         run: |
-          cd ${{ env.project_dir }}/internal/e2e/e2eUtils/cmd/deployImmich/deployImmich.go
+          cd ${{ env.project_dir }}/internal/e2e/e2eUtils/cmd/deployImmich
           go run deployImmich.go "${{env.e2e_immich}}"
 
       - name: Verify user's key generation
