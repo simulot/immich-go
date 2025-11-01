@@ -147,8 +147,8 @@ jobs:
 
       - name: Kill immich runner
         run: |
-          tailscale ssh --tailme immich-server.taileff926.ts.net "docker compose -f ${{ env.e2e_immich }}/docker-compose.yml down --volumes --remove-orphans"
-          tailscale ssh --tailme immich-server.taileff926.ts.net "sudo shutdown now"
+          ssh root@immich-server.taileff926.ts.net "docker compose -f ${{ env.e2e_immich }}/docker-compose.yml down --volumes --remove-orphans"
+          ssh root@immich-server.taileff926.ts.net "sudo shutdown now"
 
   # # Linux client runs on its own runner and connects to server via Tailscale
   # e2e-linux:
