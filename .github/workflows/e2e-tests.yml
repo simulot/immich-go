@@ -12,9 +12,11 @@ permissions:
 
 env:
   project_dir: /home/runner/work/immich-go/immich-go
-  e2e_immich: /home/runner/work/immich-go/immich-go/e2e-immich
+  e2e_folder: /home/runner/work/immich-go/immich-go/e2e-immich
   e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.yml
-  e2e_server: e2e-immich-${{ github.run_id }}
+  e2e_compose: /home/runner/work/immich-go/immich-go/e2e-immich/docker-compose.yml
+  e2e_server: http://e2e-immich-${{ github.run_id }}:2283
+  e2e_ssh: root@e2e-immich-${{ github.run_id }}
   runner_timeout: 900
 
 jobs:
@@ -35,7 +37,7 @@ jobs:
 
       - name: Prepare the server environment
         run: |
-          mkdir -p ${{ env.e2e_immich}}
+          mkdir -p ${{ env.e2e_folder}}
           touch ${{ env.e2e_users}}
 
       - name: Checkout Code
@@ -50,20 +52,20 @@ jobs:
       - name: Deploy Immich and get user's key
         run: |
           cd ${{ env.project_dir }}/internal/e2e/e2eUtils/cmd/deployImmich
-          go run deployImmich.go "${{env.e2e_immich}}"
+          go run deployImmich.go "${{env.e2e_folder}}"
 
       - name: Verify user's key generation
         run: |
-          if [ ! -f "${{env.e2e_immich}}/e2eusers.yml" ]; then
+          if [ ! -f "${{env.e2e_folder}}/e2eusers.yml" ]; then
             echo "❌ User's key not found"
             exit 1
           fi
           echo "✅ User keys found"
-          cat "${{env.e2e_immich}}/e2eusers.yml"
+          cat "${{env.e2e_folder}}/e2eusers.yml"
 
       - name: Show Immich containers status
         run: |
-          docker compose -f ${{env.e2e_immich}}/docker-compose.yml ps
+          docker compose -f ${{env.e2e_folder}}/docker-compose.yml ps
 
       - name: Keep server running for tests
         run: |
@@ -71,7 +73,7 @@ jobs:
           echo "Waiting for client tests to complete..."
           max_wait=${{ env.runner_timeout}}
           elapsed=0
-          done_marker="${{ env.e2e_immich }}/done"
+          done_marker="${{ env.e2e_folder }}/done"
 
           while [ $elapsed -lt $max_wait ]; do
             # Check if done marker file exists
@@ -94,14 +96,14 @@ jobs:
         if: failure()
         run: |
           echo "=== Immich Server Logs ==="
-          docker compose -f internal/e2e/immich-test/docker-compose.yml logs ${{ env.e2e_server }}
+          docker compose -f ${{env.e2e_folder}} logs ${{ env.e2e_server }}
           echo "=== All Container Status ==="
-          docker compose -f internal/e2e/immich-test/docker-compose.yml ps
+          docker compose -f ${{env.e2e_folder}} ps
 
       - name: Cleanup Immich Instance
         if: always()
         run: |
-          docker compose -f internal/e2e/immich-test/docker-compose.yml down --volumes --remove-orphans || true
+          docker compose -f ${{env.e2e_folder}} down --volumes --remove-orphans || true
           docker system prune -f || true
 
   # Linux client runs on its own runner and connects to server via Tailscale
@@ -129,7 +131,7 @@ jobs:
       - name: Wait for Immich API and copy e2eusers.yml
         run: |
           echo "Waiting for Immich API to be ready..."
-          timeout 180 bash -c 'until curl -sf http://${{ env.e2e_server }}:2283/api/server/ping > /dev/null 2>&1; do sleep 2; done'
+          timeout 180 bash -c 'until curl -sf ${{ env.e2e_server }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
           echo "✅ Immich API is ready!"
 
           echo "Waiting for e2eusers.yml file to be created on server..."
@@ -137,7 +139,7 @@ jobs:
           attempt=0
 
           while [ $attempt -lt $max_attempts ]; do
-            if ssh -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net "test -f ${{ env.e2e_immich }}/e2eusers.yml"; then
+            if ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "test -f ${{ env.e2e_folder }}/e2eusers.yml"; then
               echo "✅ e2eusers.yml file found on server!"
               break
             fi
@@ -152,21 +154,26 @@ jobs:
           fi
 
           # Create local directory and copy file from server
-          mkdir -p ${{ env.e2e_immich }}
+          mkdir -p ${{ env.e2e_folder }}
           echo "Copying e2eusers.yml from server..."
-          scp -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net:${{ env.e2e_immich }}/e2eusers.yml ${{ env.e2e_immich }}/e2eusers.yml
+          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_folder }}/e2eusers.yml ${{ env.e2e_folder }}/e2eusers.yml
 
           echo "✅ e2eusers.yml copied successfully!"
           echo "=== E2E Users Configuration ==="
-          cat ${{ env.e2e_immich }}/e2eusers.yml
+          cat ${{ env.e2e_folder }}/e2eusers.yml
 
       - name: Run E2E Tests on Linux
         run: |
           cd ${{ env.project_dir}}/internal/e2e/client
+          E2E_USERS=${{env.e2e_folder}}
+          E2E_SERVER=${{env.e2e_server}}
+          E2E_SSH=${{env.e2e_ssh}}
+          E2E_FOLDER=${{env.e2e_folder}}
+          E2E_COMPOSE=${{env.e2e_compose}}
           go test -v -tags=e2e -timeout=30m ./...
         env:
           CGO_ENABLED: 0
-          E2E_IMMICH_URL: ${{ env.e2e_server }}.taileff926.ts.net:2283
+          E2E_folder_URL: ${{ env.e2e_server }}.taileff926.ts.net:2283
 
   clean-up:
     name: Cleanup Immich Instance after tests
@@ -209,21 +216,21 @@ jobs:
       - name: Wait for Immich API
         run: |
           echo "Waiting for Immich API to be ready..."
-          timeout 180 bash -c 'until curl -sf http://${{ env.e2e_server }}:2283/api/server/ping > /dev/null 2>&1; do sleep 2; done'
+          timeout 180 bash -c 'until curl -sf ${{ env.e2e_server }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
           echo "Immich API is ready!"
 
       - name: Check users
         run: |
           echo "=== E2E Users Configuration from Server ==="
-          ssh -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net "cat ${{ env.e2e_immich }}/e2eusers.yml"
+          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "cat ${{ env.e2e_folder }}/e2eusers.yml"
 
       - name: Create done marker file
         run: |
           echo "Creating done marker file on server..."
-          ssh -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net "touch ${{ env.e2e_immich }}/done"
+          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "touch ${{ env.e2e_folder }}/done"
           echo "✅ Done marker created"
 
       - name: Kill immich runner
         run: |
-          ssh -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net "docker compose -f ${{ env.e2e_immich }}/docker-compose.yml down --volumes --remove-orphans"
-          ssh -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net "sudo shutdown now"
+          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "docker compose -f ${{ env.e2e_folder }}/docker-compose.yml down --volumes --remove-orphans"
+          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "sudo shutdown now"
