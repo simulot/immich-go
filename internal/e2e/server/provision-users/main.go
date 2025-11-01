@@ -25,7 +25,7 @@ func main() {
 	outputFile := os.Args[2]
 
 	// Set the Immich URL as environment variable for the utilities
-	os.Setenv("E2E_IMMICH_URL", immichURL)
+	os.Setenv("E2E_SERVER", immichURL)
 
 	if err := provisionUsers(outputFile); err != nil {
 		slog.Error("failed to provision users", "error", err)

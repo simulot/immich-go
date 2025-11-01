@@ -4,6 +4,7 @@ package client
 
 import (
 	"os"
+	"path"
 	"testing"
 
 	"github.com/simulot/immich-go/app/root"
@@ -13,10 +14,13 @@ import (
 
 // Configuration from environment variables
 var (
-	immichURL  = getEnv("E2E_IMMICH_URL", "http://localhost:2283")
-	keysFile   = getEnv("E2E_KEYS_FILE", findE2EUsersFile())
-	u1KeyPath  = "users/user1@immich.app/keys/e2eMinimal"
-	admKeyPath = "users/admin@immich.app/keys/e2eAll"
+	immichURL    = getEnv("E2E_SERVER", "http://localhost:2283")
+	keysFile     = getEnv("E2E_USERS", findE2EUsersFile())
+	sshHost      = getEnv("E2E_SSH", "")
+	immichFolder = getEnv("E2E_FOLDER", findE2EImmichDir())
+	dcPath       = getEnv("E2E_COMPOSE", path.Join(findE2EImmichDir(), "docker-compose.yml"))
+	u1KeyPath    = "users/user1@immich.app/keys/e2eMinimal"
+	admKeyPath   = "users/admin@immich.app/keys/e2eAll"
 )
 
 // getEnv returns environment variable value or default
@@ -30,6 +34,7 @@ func getEnv(key, defaultValue string) string {
 // findE2EUsersFile searches for e2eusers.yml in multiple possible locations
 func findE2EUsersFile() string {
 	// Possible locations to check (in order of preference)
+
 	candidates := []string{
 		// CI environment - artifact downloaded to workspace root
 		"e2e-immich/e2eusers.yml",
@@ -53,20 +58,23 @@ func findE2EUsersFile() string {
 
 // resetImmich resets the Immich database between tests
 func resetImmich(t *testing.T) {
-	// Get the install directory from environment or search for it
-	installDir := getEnv("E2E_IMMICH_INSTALL_DIR", findE2EImmichDir())
-
-	// Create or open ImmichController
-	ictlr, err := e2eutils.OpenImmichController(installDir)
-	if err != nil {
-		// If we can't open the local controller, we're likely in CI with remote server
-		// Create a minimal controller for remote operations
-		ictlr = &e2eutils.ImmichController{}
-		t.Logf("Using remote Immich instance for reset")
+	var ictlr *e2eutils.ImmichController
+	var err error
+	if sshHost != "" {
+		// Create a remote ImmichController
+		ictlr, err = e2eutils.OpenImmichController(t.Context(), e2eutils.Remote(sshHost, immichFolder))
+		if err != nil {
+			t.Fatalf("can't open the immich controller: %s", err.Error())
+		}
+		t.Logf("remote immich controller created, host:%s", sshHost)
 	} else {
-		t.Logf("Using local Immich instance at: %s", installDir)
+		// Create a local ImmichController
+		ictlr, err = e2eutils.OpenImmichController(t.Context(), e2eutils.Local(immichFolder))
+		if err != nil {
+			t.Fatalf("can't open the immich controller: %s", err.Error())
+		}
+		t.Logf("local immich controller created, path:%s", immichFolder)
 	}
-
 	// Reset Immich using the controller (handles both local and remote)
 	err = ictlr.ResetImmich(t.Context())
 	if err != nil {

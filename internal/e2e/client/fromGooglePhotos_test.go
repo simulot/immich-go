@@ -36,7 +36,7 @@ func Test_FromGooglePhotos(t *testing.T) {
 		"--api-key=" + u1Key,
 		"--admin-api-key=" + admKey,
 		"--no-ui",
-		"--api-trace",
+		// "--api-trace",
 		"--log-level=debug",
 		"DATA/fromGooglePhotos/gophers",
 	})

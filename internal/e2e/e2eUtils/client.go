@@ -11,10 +11,10 @@ import (
 
 type Token string
 
-// getAPIURL returns the Immich API URL, checking E2E_IMMICH_URL environment variable first
+// getAPIURL returns the Immich API URL, checking E2E_SERVER environment variable first
 func getAPIURL() string {
 	// Check for environment variable (set by CI workflow)
-	if envURL := os.Getenv("E2E_IMMICH_URL"); envURL != "" {
+	if envURL := os.Getenv("E2E_SERVER"); envURL != "" {
 		return strings.TrimSuffix(envURL, "/") + "/api"
 	}
 	// Default for local development

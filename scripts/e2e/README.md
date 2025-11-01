@@ -121,8 +121,8 @@ Complete cleanup of Immich e2e test instance (including root-owned volumes).
 ./scripts/e2e/immich-provision-users.sh http://localhost:2283 ./e2e-immich/e2eusers.yml
 
 # 3. Run tests (explicitly setting env vars)
-E2E_IMMICH_URL=http://localhost:2283 \
-E2E_KEYS_FILE=./e2e-immich/e2eusers.yml \
+E2E_SERVER=http://localhost:2283 \
+E2E_USERS=./e2e-immich/e2eusers.yml \
 go test -v -tags=e2e ./internal/e2e/client/...
 
 # Or simply use defaults (same as above):

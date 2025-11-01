@@ -17,25 +17,32 @@ import (
 	"time"
 )
 
-const timeout = 1 * time.Minute
+const timeout = 5 * time.Minute
 
 type ImmichController struct {
-	dcPath     string // path to the docker compose directory
-	dcFile     string // path to the docker compose file
-	sshHost    string // SSH host for remote server (optional, e.g., "user@hostname")
-	sshPort    string // SSH port (optional, defaults to 22)
-	sshKeyPath string // SSH key path (optional)
+	dcPath  string // path to the docker compose directory
+	sshHost string // SSH host for remote server (optional, e.g., "user@hostname:22")
+	url     string // immich URL (http://hostname:2283)
 }
 
-// WithSSH configures the controller to use SSH for remote operations
-func (ictlr *ImmichController) WithSSH(host, port, keyPath string) *ImmichController {
-	ictlr.sshHost = host
-	ictlr.sshPort = port
-	if ictlr.sshPort == "" {
-		ictlr.sshPort = "22"
+// Remote configures the controller to use SSH for remote operations
+func Remote(host, p string) func(ctx context.Context, ictlr *ImmichController) error {
+	return func(ctx context.Context, ictlr *ImmichController) error {
+		ictlr.sshHost = host
+		ictlr.dcPath = p
+		err := ExecWithTimeout(ctx, timeout,
+			"ssh", "-o", "StrictHostKeyChecking=no", host, "test", "-f", ictlr.GetDockerComposeFile())
+		return err
 	}
-	ictlr.sshKeyPath = keyPath
-	return ictlr
+}
+
+// Local configures the control on the host machine
+func Local(p string) func(ctx context.Context, ictlr *ImmichController) error {
+	return func(_ context.Context, ictlr *ImmichController) error {
+		ictlr.dcPath = p
+		_, err := os.Stat(ictlr.GetDockerComposeFile())
+		return err
+	}
 }
 
 // IsRemote returns true if the controller is configured for remote SSH access
@@ -44,20 +51,13 @@ func (ictlr *ImmichController) IsRemote() bool {
 }
 
 // OpenImmichController opens a new ImmichController instance with the specified docker-compose file path
-func OpenImmichController(p string) (*ImmichController, error) {
-	s, err := os.Stat(p)
+func OpenImmichController(ctx context.Context, initializer func(ctx context.Context, ictlr *ImmichController) error) (*ImmichController, error) {
+	ictlr := &ImmichController{}
+	err := initializer(ctx, ictlr)
 	if err != nil {
-		return nil, fmt.Errorf("can't get file info: %w", err)
+		return nil, err
 	}
-	if s.IsDir() {
-		p = path.Join(p, "docker-compose.yml")
-		_, err = os.Stat(p)
-		if err != nil {
-			return nil, fmt.Errorf("can't get file info: %w", err)
-		}
-	}
-	d, f := path.Split(p)
-	return &ImmichController{dcFile: f, dcPath: d}, nil
+	return ictlr, nil
 }
 
 // NewImmichController creates a new controller with the specified path
@@ -66,11 +66,11 @@ func NewImmichController(p string) (*ImmichController, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can't make the directory: %w", err)
 	}
-	return &ImmichController{dcFile: "docker-compose.yml", dcPath: p}, nil
+	return &ImmichController{dcPath: p}, nil
 }
 
 func (ictlr *ImmichController) GetDockerComposeFile() string {
-	return path.Join(ictlr.dcPath, ictlr.dcFile)
+	return path.Join(ictlr.dcPath, "docker-compose.yml")
 }
 
 // ImmichGet performs a complete Immich setup: downloads configuration files, starts services, and waits for API readiness
@@ -96,10 +96,7 @@ func (ictlr *ImmichController) ImmichGet(ctx context.Context) error {
 // dockerCompose executes docker compose commands with the controller's docker-compose file
 func (ictlr *ImmichController) dockerCompose(ctx context.Context, args ...string) error {
 	// Prepend the docker compose file argument if we have a specific file
-	cmdArgs := []string{"compose"}
-	if ictlr.dcFile != "" {
-		cmdArgs = append(cmdArgs, "-f", ictlr.GetDockerComposeFile())
-	}
+	cmdArgs := []string{"compose", "-f", ictlr.GetDockerComposeFile()}
 	cmdArgs = append(cmdArgs, args...)
 	return ictlr.execCommand(ctx, timeout, "docker", cmdArgs...)
 }
@@ -111,14 +108,7 @@ func (ictlr *ImmichController) execCommand(ctx context.Context, timeout time.Dur
 	}
 
 	// Build SSH command
-	sshArgs := []string{}
-	if ictlr.sshPort != "" && ictlr.sshPort != "22" {
-		sshArgs = append(sshArgs, "-p", ictlr.sshPort)
-	}
-	if ictlr.sshKeyPath != "" {
-		sshArgs = append(sshArgs, "-i", ictlr.sshKeyPath)
-	}
-	sshArgs = append(sshArgs, ictlr.sshHost)
+	sshArgs := []string{"-o", "StrictHostKeyChecking=no", ictlr.sshHost}
 
 	// Build the remote command
 	remoteCmd := command
@@ -134,8 +124,12 @@ func (ictlr *ImmichController) execCommand(ctx context.Context, timeout time.Dur
 	return ExecWithTimeout(ctx, timeout, "ssh", sshArgs...)
 }
 
-// DeployImmich downloads Immich configuration files and prepares the Docker environment
+// DeployImmich downloads Immich configuration files from the application web page
+// and prepares the Docker environment
 func (ictlr *ImmichController) DeployImmich(ctx context.Context) error {
+	if ictlr.IsRemote() {
+		return errors.New("can't deploy on a remote host")
+	}
 	err := os.MkdirAll(ictlr.dcPath, 0o755)
 	if err != nil {
 		return err
@@ -166,7 +160,7 @@ func (ictlr *ImmichController) DeployImmich(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("can't get immich: %w", err)
 	}
-	err = os.WriteFile(path.Join(ictlr.dcPath, ictlr.dcFile), df, 0o755)
+	err = os.WriteFile(ictlr.GetDockerComposeFile(), df, 0o755)
 	if err != nil {
 		return fmt.Errorf("can't get immich: %w", err)
 	}
@@ -219,7 +213,7 @@ func GetAndTransformDockerFile(ctx context.Context, url string) ([]byte, error) 
 
 	for l := range strings.Lines(string(df)) {
 		if strings.Contains(l, "_LOCATION}") {
-			_, _ = io.WriteString(out, "      # immicch-go e2eTests: keep everything inside the container\n")
+			_, _ = io.WriteString(out, "      # immich-go e2eTests: keep everything inside the container\n")
 			l = re.ReplaceAllString(l, "local-volume")
 		}
 		_, _ = io.WriteString(out, l)
@@ -261,7 +255,7 @@ func (ictlr *ImmichController) ResumeImmichServer(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("can't spin up immich: %w", err)
 	}
-	return nil
+	return ictlr.WaitAPI(ctx)
 }
 
 // WaitAPI waits for the Immich API to become available by polling the ping endpoint
@@ -291,7 +285,7 @@ func (ictlr *ImmichController) PingAPI(ctx context.Context) error {
 	defer cancel()
 
 	// Get the Immich URL from environment variable (set by CI workflow)
-	pingURL := os.Getenv("E2E_IMMICH_URL")
+	pingURL := os.Getenv("E2E_SERVER")
 	if pingURL != "" {
 		// Use the full URL from environment (e.g., http://100.x.x.x:2283)
 		pingURL = pingURL + "/api/server/ping"

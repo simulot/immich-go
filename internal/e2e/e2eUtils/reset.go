@@ -6,19 +6,18 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
-	"os/exec"
 )
 
-// getSSHHostFromURL extracts the hostname from E2E_IMMICH_URL for SSH connections
+// getSSHHostFromURL extracts the hostname from E2E_SERVER for SSH connections
 func getSSHHostFromURL() string {
-	immichURL := os.Getenv("E2E_IMMICH_URL")
+	immichURL := os.Getenv("E2E_SERVER")
 	if immichURL == "" {
 		return "" // Local execution
 	}
 
 	parsed, err := url.Parse(immichURL)
 	if err != nil {
-		slog.Warn("failed to parse E2E_IMMICH_URL", "url", immichURL, "error", err)
+		slog.Warn("failed to parse E2E_SERVER", "url", immichURL, "error", err)
 		return ""
 	}
 
@@ -29,14 +28,6 @@ func getSSHHostFromURL() string {
 func (ictlr *ImmichController) ResetImmich(ctx context.Context) error {
 	// Reset immich's database
 	// https://github.com/immich-app/immich/blob/main/e2e/src/utils.ts
-
-	// Check if we need to configure SSH for remote access
-	sshHost := getSSHHostFromURL()
-	if sshHost != "" && !ictlr.IsRemote() {
-		// Configure SSH for remote execution
-		ictlr.WithSSH("root@"+sshHost, "22", "")
-		slog.Info("configured for remote execution", "host", sshHost)
-	}
 
 	if ictlr.PingAPI(ctx) == nil {
 		err := ictlr.PauseImmichServer(ctx)
@@ -66,31 +57,12 @@ func (ictlr *ImmichController) ResetImmich(ctx context.Context) error {
 		sqlCmd,
 	}
 
-	slog.Info("exec", "command", "docker", "args", args[:4])
-
-	var err error
-	var out []byte
-
-	if ictlr.IsRemote() {
-		// For remote execution via SSH
-		err = ictlr.execCommand(ctx, timeout, "docker", args...)
-	} else {
-		// For local execution
-		c := exec.CommandContext(ctx, "docker", args...)
-		out, err = c.CombinedOutput()
-	}
-
+	err := ictlr.execCommand(ctx, timeout, "docker", args...)
 	if err != nil {
-		if len(out) > 0 {
-			return fmt.Errorf("can't reset immich: %w\n%s", err, string(out))
-		}
-		return fmt.Errorf("can't reset immich: %w", err)
+		return fmt.Errorf("can't reset immich: %w\n", err)
 	}
 
-	if err := ictlr.ResumeImmichServer(ctx); err != nil {
-		if len(out) > 0 {
-			return fmt.Errorf("can't resume immich: %w\n%s", err, string(out))
-		}
+	if err = ictlr.ResumeImmichServer(ctx); err != nil {
 		return fmt.Errorf("can't resume immich: %w", err)
 	}
 	return nil
