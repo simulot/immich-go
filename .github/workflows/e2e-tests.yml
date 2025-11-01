@@ -55,9 +55,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-config
-          path: |
-            "${{env.e2e_immich}}/e2eusers.yml"
+          path: ${{env.e2e_immich}}/e2eusers.yml
           retention-days: 1
+          overwrite: true
 
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
