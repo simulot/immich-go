@@ -84,7 +84,6 @@ jobs:
               exit 0
             fi
             
-            tailscale status
             sleep 30
             elapsed=$((elapsed + 30))
             echo "Waited ${elapsed}s / ${max_wait}s for tests..."
