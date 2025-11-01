@@ -84,8 +84,8 @@ jobs:
               exit 0
             fi
             
-            sleep 30
-            elapsed=$((elapsed + 30))
+            sleep 5
+            elapsed=$((elapsed + 5))
             echo "Waited ${elapsed}s / ${max_wait}s for tests..."
           done
 
