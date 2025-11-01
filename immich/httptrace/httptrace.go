@@ -36,5 +36,5 @@ func (drt *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, erro
 		resp.Body = rt.resp.body
 	}
 	rt.Dump()
-	return resp, nil
+	return resp, err
 }
