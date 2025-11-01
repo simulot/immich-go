@@ -61,14 +61,6 @@ jobs:
           echo "✅ User keys found"
           cat "${{env.e2e_immich}}/e2eusers.yml"
 
-      # - name: Upload server info and e2e users
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: e2e-config
-      #     path: ${{env.e2e_immich}}/e2eusers.yml
-      #     retention-days: 1
-      #     overwrite: true
-
       - name: Show Immich containers status
         run: |
           docker compose -f ${{env.e2e_immich}}/docker-compose.yml ps
@@ -112,9 +104,74 @@ jobs:
           docker compose -f internal/e2e/immich-test/docker-compose.yml down --volumes --remove-orphans || true
           docker system prune -f || true
 
+  # Linux client runs on its own runner and connects to server via Tailscale
+  e2e-linux:
+    name: E2E Tests (Linux Client)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+
+      - name: Wait for Immich API and copy e2eusers.yml
+        run: |
+          echo "Waiting for Immich API to be ready..."
+          timeout 180 bash -c 'until curl -sf http://${{ env.e2e_server }}:2283/api/server/ping > /dev/null 2>&1; do sleep 2; done'
+          echo "✅ Immich API is ready!"
+
+          echo "Waiting for e2eusers.yml file to be created on server..."
+          max_attempts=60
+          attempt=0
+
+          while [ $attempt -lt $max_attempts ]; do
+            if ssh -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net "test -f ${{ env.e2e_immich }}/e2eusers.yml"; then
+              echo "✅ e2eusers.yml file found on server!"
+              break
+            fi
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts - waiting for e2eusers.yml..."
+            sleep 2
+          done
+
+          if [ $attempt -eq $max_attempts ]; then
+            echo "❌ Timeout: e2eusers.yml not found on server"
+            exit 1
+          fi
+
+          # Create local directory and copy file from server
+          mkdir -p ${{ env.e2e_immich }}
+          echo "Copying e2eusers.yml from server..."
+          scp -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net:${{ env.e2e_immich }}/e2eusers.yml ${{ env.e2e_immich }}/e2eusers.yml
+
+          echo "✅ e2eusers.yml copied successfully!"
+          echo "=== E2E Users Configuration ==="
+          cat ${{ env.e2e_immich }}/e2eusers.yml
+
+      - name: Run E2E Tests on Linux
+        run: |
+          cd ${{ env.project_dir}}/internal/e2e/client
+          go test -v -tags=e2e -timeout=30m ./...
+        env:
+          CGO_ENABLED: 0
+          E2E_IMMICH_URL: ${{ env.e2e_server }}.taileff926.ts.net:2283
+
   clean-up:
     name: Cleanup Immich Instance after tests
     runs-on: ubuntu-latest
+    needs: [e2e-linux]
 
     steps:
       - name: Connect to Tailscale
@@ -170,109 +227,3 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net "docker compose -f ${{ env.e2e_immich }}/docker-compose.yml down --volumes --remove-orphans"
           ssh -o StrictHostKeyChecking=no root@${{ env.e2e_server }}.taileff926.ts.net "sudo shutdown now"
-
-  # # Linux client runs on its own runner and connects to server via Tailscale
-  # e2e-linux:
-  #   name: E2E Tests (Linux Client)
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - name: Checkout Code
-  #       uses: actions/checkout@v5
-
-  #     - name: Setup Go
-  #       uses: actions/setup-go@v6
-  #       with:
-  #         go-version-file: "go.mod"
-  #         cache-dependency-path: "go.sum"
-
-  #     # run the test suite
-  #     - name: Deploy Immich Test Instance
-  #       run: |
-  #         cd /home/runner/work/immich-go/immich-go
-  #         go test ./...
-  #       env:
-  #         CGO_ENABLED: 0
-
-  #     - name: Connect to Tailscale
-  #       uses: tailscale/github-action@v4
-  #       with:
-  #         oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-  #         oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-  #         tags: tag:ci-immich-go
-
-  # - name: Wait for Immich API
-  #   run: |
-  #     echo "Waiting for Immich API to be ready..."
-  #     timeout 180 bash -c 'until curl -sf http://${{ env.e2e_server }}:2283/api/server/ping > /dev/null 2>&1; do sleep 2; done'
-  #     echo "Immich API is ready!"
-
-  #     - name: Wait for server to be ready
-  #       run: |
-  #         echo "Waiting for server info artifact to be available..."
-  #         max_attempts=60
-  #         attempt=0
-  #         while [ $attempt -lt $max_attempts ]; do
-  #           if gh run download ${{ github.run_id }} -n e2e-config 2>/dev/null; then
-  #             echo "✅ Server info downloaded"
-  #             break
-  #           fi
-  #           attempt=$((attempt + 1))
-  #           echo "Attempt $attempt/$max_attempts - waiting for server..."
-  #           sleep 5
-  #         done
-
-  #         if [ $attempt -eq $max_attempts ]; then
-  #           echo "❌ Timeout waiting for server to be ready"
-  #           exit 1
-  #         fi
-  #       env:
-  #         GH_TOKEN: ${{ github.token }}
-
-  #     - name: Download e2e configuration
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: e2e-config
-
-  #     - name: Setup e2e environment
-  #       id: e2e-setup
-  #       run: |
-  #         # Get server URL from artifact
-  #         source server-info.txt
-  #         echo "url=$IMMICH_URL" >> $GITHUB_OUTPUT
-  #         echo "Connecting to server at: $IMMICH_URL"
-
-  #         # Create directory for e2e users file
-  #         mkdir -p e2e-immich
-  #         mv e2eusers.yml e2e-immich/e2eusers.yml
-  #         echo "E2E users file ready at: e2e-immich/e2eusers.yml"
-
-  #         # Display users file content (for debugging)
-  #         echo "=== E2E Users Configuration ==="
-  #         cat e2e-immich/e2eusers.yml
-
-  #     - name: Wait for Immich API via Tailscale
-  #       run: |
-  #         echo "Waiting for Immich API to be accessible via Tailscale..."
-  #         timeout 180 bash -c 'until curl -sf ${{ steps.e2e-setup.outputs.url }}/api/server/ping > /dev/null 2>&1; do echo "Waiting..."; sleep 5; done'
-  #         echo "Immich API is ready via Tailscale!"
-
-  #     - name: Run E2E Tests on Linux
-  #       run: |
-  #         cd internal/e2e/client
-  #         go test -v -tags=e2e -timeout=30m ./...
-  #       env:
-  #         CGO_ENABLED: 0
-  #         E2E_IMMICH_URL: ${{ steps.e2e-setup.outputs.url }}
-  #         # E2E_KEYS_FILE is auto-discovered by findE2EUsersFile()
-
-  #     - name: Notify server that tests are complete
-  #       if: always()
-  #       run: |
-  #         # Create a completion marker file
-  #         echo "Tests completed at $(date)" > tests-complete.txt
-  #         gh run download ${{ github.run_id }} -n e2e-config || true
-  #         # Upload completion marker
-  #         echo "Tests finished" > tests-complete.txt
-  #       env:
-  #         GH_TOKEN: ${{ github.token }}
