@@ -1,21 +1,7 @@
 name: E2E Tests
 
 on:
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - "app/**"
-      - "adapters/**"
-      - "immich/**"
-      - "internal/**"
-      - "main.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/e2e-tests.yml"
-      - "e2e-immich/**"
-  workflow_dispatch:
+  # E2E tests run after Fast Feedback CI completes successfully
   workflow_run:
     workflows: ["Fast Feedback CI"]
     types:
@@ -23,6 +9,8 @@ on:
     branches:
       - main
       - develop
+  # Manual trigger always available
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -47,9 +35,16 @@ jobs:
   should-run:
     name: Check if E2E tests should run
     runs-on: ubuntu-latest
+    # Always run this check job to determine if we should proceed
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     outputs:
       run-tests: ${{ steps.check.outputs.run-tests }}
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Check conditions
         id: check
         run: |
@@ -60,21 +55,36 @@ jobs:
             exit 0
           fi
 
-          # For workflow_run, only run if previous workflow succeeded
+          # For workflow_run, we already know it succeeded (checked in job if condition)
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            if [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+            echo "✅ Fast Feedback CI passed - checking changed files..."
+            
+            # Get the list of changed files from the PR
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.workflow_run.head_sha }}^..${{ github.event.workflow_run.head_sha }} 2>/dev/null || echo "")
+            
+            if [[ -z "$CHANGED_FILES" ]]; then
+              echo "⚠️ Could not determine changed files, running E2E to be safe"
               echo "run-tests=true" >> $GITHUB_OUTPUT
-              echo "✅ Fast Feedback CI passed - E2E tests will run"
+              exit 0
+            fi
+            
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+            
+            # Check if any changed files match our E2E paths
+            if echo "$CHANGED_FILES" | grep -qE '^(app|adapters|immich|internal)/.*\.(go|mod|sum)$|^main\.go$|^go\.(mod|sum)$|^e2e-immich/|^\.github/workflows/e2e-tests\.yml$'; then
+              echo "run-tests=true" >> $GITHUB_OUTPUT
+              echo "✅ Relevant code changes detected - E2E tests will run"
             else
               echo "run-tests=false" >> $GITHUB_OUTPUT
-              echo "⏭️ Fast Feedback CI did not pass - E2E tests skipped"
+              echo "⏭️ No relevant code changes - E2E tests skipped"
             fi
             exit 0
           fi
 
-          # For pull_request with matching paths, run the tests
-          echo "run-tests=true" >> $GITHUB_OUTPUT
-          echo "✅ PR with code changes - E2E tests will run"
+          # Fallback: don't run
+          echo "run-tests=false" >> $GITHUB_OUTPUT
+          echo "⏭️ Unknown trigger condition - E2E tests skipped"
 
   # Immich server runs on its own runner and connects to Tailscale
   e2e_server:

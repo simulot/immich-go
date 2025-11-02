@@ -28,19 +28,28 @@ validate (lint) ──┬→ test-linux ───┐
 
 **When it runs:**
 - ✅ Manual trigger (always)
-- ✅ After Fast Feedback passes (auto)
-- ✅ PRs with app/immich/internal changes
-- ⏭️ Skips if Fast Feedback fails
-- ⏭️ Skips docs-only changes
+- ✅ After Fast Feedback **succeeds** AND relevant files changed
+- ❌ Never if Fast Feedback fails
+- ⏭️ Skips if only docs changed
+- ⏭️ Skips if no relevant code paths changed
 
 **What it does:**
 ```
+Fast Feedback CI succeeds ──→ should-run (checks files) ──→ run tests
+                                      │
+                                      └──→ skip (if no relevant changes)
+
 should-run ──┬→ e2e_server (stays running)
              └→ e2e-linux ──→ e2e-windows ──→ clean-up
                                                    │
                     └──────────────────────────────┘
                     (creates done marker for server)
 ```
+
+**Relevant paths for E2E:**
+- `app/`, `adapters/`, `immich/`, `internal/`
+- `main.go`, `go.mod`, `go.sum`
+- `e2e-immich/`, `.github/workflows/e2e-tests.yml`
 
 **Time:** ~12-15 minutes  
 **Cost:** ~$0.10
