@@ -129,7 +129,7 @@ jobs:
           echo -e "${YELLOW}👥 Creating test users...${NC}"
           #  Create a few test users 
           cd ${PROJECT_DIR}/internal/e2e/e2eUtils/cmd/createUser
-          go run createUser.go - <<EOF > "${INSTALL_DIR}/e2eusers.env"
+          go run createUser.go - <<EOF > "${e2e_folder}/e2eusers.env"
           create-admin
           create-user user1@immich.app user1
           create-user user2@immich.app user2
