@@ -253,6 +253,7 @@ jobs:
       e2e_folder: d:\a\immich-go\immich-go\e2e-immich
       e2e_users: d:\a\immich-go\immich-go\e2e-immich\e2eusers.env
       e2e_compose: d:\a\immich-go\immich-go\e2e-immich\docker-compose.yml
+      e2e_users_server: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
 
     steps:
       - name: Checkout Code
@@ -322,7 +323,7 @@ jobs:
         run: |
           Write-Host "Copying e2eusers.env from the server..." -ForegroundColor Yellow
           New-Item -Path "${{ env.e2e_folder }}" -ItemType Directory -Force | Out-Null
-          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_folder }}\e2eusers.env ${{ env.e2e_folder }}\e2eusers.env
+          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_users_server }} ${{ env.e2e_folder }}\e2eusers.env
           Get-Content "${{ env.e2e_folder }}\e2eusers.env"
 
       - name: Run E2E Tests on Windows
