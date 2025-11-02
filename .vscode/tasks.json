@@ -99,7 +99,10 @@
 			"command": "go",
 			"args": [
 				"test",
-				"./..."
+				"./app/...",
+				"./adapters/...",
+				"./internal/...",
+				"./immich/..."
 			],
 			"group": "test",
 			"presentation": {
