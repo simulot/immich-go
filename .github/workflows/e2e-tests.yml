@@ -13,7 +13,7 @@ permissions:
 env:
   project_dir: /home/runner/work/immich-go/immich-go
   e2e_folder: /home/runner/work/immich-go/immich-go/e2e-immich
-  e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.yml
+  e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
   e2e_compose: /home/runner/work/immich-go/immich-go/e2e-immich/docker-compose.yml
   e2e_server: e2e-immich-${{ github.run_id }}
   e2e_url: http://e2e-immich-${{ github.run_id }}:2283
