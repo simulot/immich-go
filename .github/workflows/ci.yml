@@ -32,16 +32,10 @@ env:
   project_dir: /home/runner/work/immich-go/immich-go
   e2e_folder: /home/runner/work/immich-go/immich-go/e2e-immich
   e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
-  e2e_compose: /home/runner/work/immich-go/immich-go/e2e-immich/docker-compose.yml
   e2e_server: e2e-immich-${{ github.run_id }}
   e2e_url: http://e2e-immich-${{ github.run_id }}:2283
   e2e_ssh: root@e2e-immich-${{ github.run_id }}
   runner_timeout: 900
-  RED: \033[0;31m
-  GREEN: \033[0;32m
-  YELLOW: \033[1;33m
-  BLUE: \033[0;34m
-  NC: \033[0m
 
 jobs:
   validate-branch:
@@ -80,7 +74,7 @@ jobs:
           echo "✅ Branch rules validated successfully."
 
   validate:
-    name: Validate Code Quality
+    name: Code Quality & Tests
     runs-on: ubuntu-latest
     needs: validate-branch
     if: always() && (needs.validate-branch.result == 'success' || needs.validate-branch.result == 'skipped')
@@ -94,59 +88,27 @@ jobs:
           go-version-file: "go.mod"
           cache-dependency-path: "go.sum"
 
-      - name: golangci-lint
+      - name: Lint
         uses: golangci/golangci-lint-action@v8
         with:
           version: latest
 
-  test-linux:
-    name: Unit Tests (Linux)
-    runs-on: ubuntu-latest
-    needs: validate
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5
+      - name: Unit Tests
+        run: go test -race -v -count=1 -coverprofile=coverage.out ./...
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: "go.mod"
-          cache-dependency-path: "go.sum"
+      - name: Coverage Report
+        run: go tool cover -func=coverage.out
 
-      - name: Run tests with coverage
-        run: |
-          go test -race -v -count=1 -coverprofile=coverage.out ./...
+      - name: Build Check
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o immich-linux-amd64 -ldflags="-s -w -extldflags=-static" main.go
 
-      - name: Generate coverage report
-        run: |
-          go tool cover -func=coverage.out
-
-  build-check:
-    name: Build Validation
-    runs-on: ubuntu-latest
-    needs: validate
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: "go.mod"
-          cache-dependency-path: "go.sum"
-
-      - name: Build primary binary
-        run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o immich-linux-amd64 -ldflags="-s -w -extldflags=-static" main.go
-
-      - name: Verify binary
-        run: |
-          ./immich-linux-amd64 version || echo "Binary built successfully"
+      - name: Verify Binary
+        run: ./immich-linux-amd64 version || echo "✅ Binary built successfully"
 
   fast-feedback-complete:
     name: Fast Feedback Complete
     runs-on: ubuntu-latest
-    needs: [validate, test-linux, build-check]
+    needs: validate
     outputs:
       should-run-e2e: ${{ steps.check-e2e.outputs.run-e2e }}
     steps:
@@ -208,42 +170,22 @@ jobs:
 
       - name: Deploy Immich
         run: |
-          echo -e "--"
-          echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-          echo -e "${BLUE}  Immich E2E Provisioning${NC}"
-          echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-          echo ""
-          echo -e "  ${BLUE}Installation Directory:${NC} ${e2e_folder}"
-          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  Immich E2E Provisioning"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
           mkdir -p "${e2e_folder}"
           cd "${e2e_folder}"
 
-          echo -e "${YELLOW}📥 Downloading docker-compose.yml...${NC}"
-          if ! curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml" -o docker-compose.yml; then
-              echo -e "${RED}❌ Failed to download docker-compose.yml${NC}"
-              exit 1
-          fi
+          echo "📥 Downloading docker-compose.yml..."
+          curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml" -o docker-compose.yml
+          curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/example.env" -o .env
 
-          echo -e "📥 Downloading .env file..."
-          if ! curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/example.env" -o .env; then
-              echo -e "❌ Failed to download .env file"
-              exit 1
-          fi
+          echo "📥 Pulling Immich images..."
+          docker compose pull -q
 
-          echo -e "${YELLOW}📥 Pull Immich images...${NC}"
-          if ! docker compose pull -q; then
-              echo -e "${RED}❌ Failed to pull Immich images${NC}"
-              docker compose logs
-              exit 1
-          fi
-
-          echo -e "${YELLOW}🚀 Starting Immich services...${NC}"
-          if ! docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
-              echo -e "${RED}❌ Failed to start Immich services${NC}"
-              docker compose logs
-              exit 1
-          fi
+          echo "🚀 Starting Immich services..."
+          docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans
 
       - name: Show Immich containers status
         run: |
@@ -251,34 +193,23 @@ jobs:
 
       - name: Wait for Immich API to be ready
         run: |
-          echo -e "${YELLOW}⏳ Waiting for Immich API to be ready...${NC}"
+          echo "⏳ Waiting for Immich API to be ready..."
           TIMEOUT=180
           ELAPSED=0
-          READY=false
 
           while [ $ELAPSED -lt $TIMEOUT ]; do
             if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
-              READY=true
-              break
+              echo "✅ API is ready (took ${ELAPSED}s)"
+              exit 0
             fi
-            echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
             sleep 2
             ELAPSED=$((ELAPSED + 2))
           done
 
-          if [ "$READY" = false ]; then
-            echo -e "${RED}❌ Immich API did not become ready within ${TIMEOUT} seconds${NC}"
-            echo ""
-            echo -e "${YELLOW}Container status:${NC}"
-            docker compose -f ${{env.e2e_folder}}/docker-compose.yml ps
-            echo ""
-            echo -e "${YELLOW}Recent logs:${NC}"
-            docker compose -f ${{env.e2e_folder}}/docker-compose.yml logs --tail=50 immich-server
-            exit 1
-          fi
-
-          sleep 1
-          echo -e "${GREEN}✅ API is ready${NC}"
+          echo "❌ Immich API did not become ready within ${TIMEOUT} seconds"
+          docker compose -f ${{env.e2e_folder}}/docker-compose.yml ps
+          docker compose -f ${{env.e2e_folder}}/docker-compose.yml logs --tail=50 immich-server
+          exit 1
 
       - name: Keep server running for tests
         run: |
@@ -344,25 +275,26 @@ jobs:
 
       - name: Wait for Immich API to be ready
         run: |
-          echo -e "${YELLOW}⏳ Waiting for Immich API to be ready...${NC}"
+          echo "⏳ Waiting for Immich API..."
           TIMEOUT=180
           ELAPSED=0
-          READY=false
 
           while [ $ELAPSED -lt $TIMEOUT ]; do
             if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
-              READY=true
-              break
+              echo "✅ API ready (${ELAPSED}s)"
+              exit 0
             fi
-            echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
             sleep 2
             ELAPSED=$((ELAPSED + 2))
           done
 
-      - name: Provision of the admin user
+          echo "❌ API timeout after ${TIMEOUT}s"
+          exit 1
+
+      - name: Create admin user
         run: |
           mkdir -p "${e2e_folder}"
-          echo -e "${YELLOW}👥 Creating test users...${NC}"
+          echo "👥 Creating admin user..."
           cd ${{env.project_dir}}/internal/e2e/e2eUtils/cmd/createUser
           go run createUser.go create-admin > "${e2e_folder}/e2eusers.env"
           cat "${e2e_folder}/e2eusers.env"
