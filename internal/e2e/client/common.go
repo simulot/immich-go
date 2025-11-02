@@ -2,6 +2,7 @@ package client
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
@@ -9,10 +10,10 @@ import (
 
 // Configuration from environment variables
 var (
-	immichURL    = getEnv("E2E_URL", "http://localhost:2283")
-	keysFile     = getEnv("E2E_USERS", findE2EUsersFile())
-	sshHost      = getEnv("E2E_SSH", "")
-	immichFolder = getEnv("E2E_FOLDER", findE2EImmichDir())
+	immichURL    = getEnv("e2e_url", "http://localhost:2283")
+	keysFile     = getEnv("e2e_users", findE2EUsersFile())
+	sshHost      = getEnv("e2e_ssh", "")
+	immichFolder = getEnv("e2e_folder", findE2EImmichDir())
 	// dcPath       = getEnv("E2E_COMPOSE", path.Join(findE2EImmichDir(), "docker-compose.yml"))
 	u1KeyPath  = "users/user1@immich.app/keys/e2eMinimal"
 	admKeyPath = "users/admin@immich.app/keys/e2eAll"
@@ -21,9 +22,9 @@ var (
 func debug(t *testing.T) {
 	e := os.Environ()
 	for _, v := range e {
-		// if strings.HasPrefix(v, "E2E") {
-		t.Logf("Env: %s", v)
-		// }
+		if strings.HasPrefix(v, "e2e") {
+			t.Logf("Env: %s", v)
+		}
 	}
 }
 
