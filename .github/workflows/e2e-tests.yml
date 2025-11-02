@@ -223,6 +223,7 @@ jobs:
 
       - name: Provision a few users
         run: |
+          set -x
           mkdir -p "${e2e_folder}"
           echo -e "${YELLOW}👥 Creating test users...${NC}"
           #  Create a few test users 
