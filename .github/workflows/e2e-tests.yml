@@ -72,7 +72,7 @@ jobs:
 
           # Start Immich services
           echo -e "${YELLOW}🚀 Starting Immich services...${NC}"
-          if ! docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
+          if ! docker compose up -q -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
               echo -e "${RED}❌ Failed to start Immich services${NC}"
               docker compose logs
               exit 1
