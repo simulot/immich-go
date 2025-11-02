@@ -248,6 +248,12 @@ jobs:
     runs-on: windows-latest
     needs: [e2e-linux]
     timeout-minutes: 10
+    env:
+      project_dir: d:\a\immich-go\immich-go
+      e2e_folder: d:\a\immich-go\immich-go\e2e-immich
+      e2e_users: d:\a\immich-go\immich-go\e2e-immich\e2eusers.env
+      e2e_compose: d:\a\immich-go\immich-go\e2e-immich\docker-compose.yml
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
