@@ -2,7 +2,6 @@ package client
 
 import (
 	"os"
-	"strings"
 	"testing"
 
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
@@ -22,9 +21,9 @@ var (
 func debug(t *testing.T) {
 	e := os.Environ()
 	for _, v := range e {
-		if strings.HasPrefix(v, "E2E") {
-			t.Logf("Env: %s", v)
-		}
+		// if strings.HasPrefix(v, "E2E") {
+		t.Logf("Env: %s", v)
+		// }
 	}
 }
 
