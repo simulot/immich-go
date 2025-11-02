@@ -88,7 +88,7 @@ func (ictlr *ImmichController) ImmichGet(ctx context.Context) error {
 	}
 
 	// Wait for API to be ready
-	if err := ictlr.WaitAPI(ctx); err != nil {
+	if err := ictlr.WaitAPI(ctx, 3*time.Minute); err != nil {
 		return fmt.Errorf("failed to wait for immich API: %w", err)
 	}
 
@@ -177,7 +177,7 @@ func (ictlr *ImmichController) DeployImmich(ctx context.Context) error {
 		return fmt.Errorf("can't get immich: %w", err)
 	}
 
-	err = ictlr.WaitAPI(ctx)
+	err = ictlr.WaitAPI(ctx, 3*time.Minute)
 	return err
 }
 
@@ -257,12 +257,12 @@ func (ictlr *ImmichController) ResumeImmichServer(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("can't spin up immich: %w", err)
 	}
-	return ictlr.WaitAPI(ctx)
+	return ictlr.WaitAPI(ctx, 30*time.Second)
 }
 
 // WaitAPI waits for the Immich API to become available by polling the ping endpoint during 30 seconds
-func (ictlr *ImmichController) WaitAPI(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+func (ictlr *ImmichController) WaitAPI(ctx context.Context, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	for {

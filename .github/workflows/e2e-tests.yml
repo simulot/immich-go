@@ -167,11 +167,6 @@ jobs:
       - name: Run E2E Tests on Linux
         run: |
           cd ${{ env.project_dir}}/internal/e2e/client
-          # E2E_USERS=${{env.e2e_folder}}/e2eusers.yml
-          # E2E_URL=${{env.e2e_url}}
-          # E2E_SSH=${{env.e2e_ssh}}
-          # E2E_FOLDER=${{env.e2e_folder}}
-          # E2E_COMPOSE=${{env.e2e_compose}}
           go test -v -tags=e2e -timeout=30m ./...
         env:
           CGO_ENABLED: 0
