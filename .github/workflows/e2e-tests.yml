@@ -128,6 +128,7 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci-immich-go
           hostname: e2e-linux-${{ github.run_id }}
+          args: --ssh
 
       - name: Wait for Immich API and copy e2eusers.yml
         run: |
