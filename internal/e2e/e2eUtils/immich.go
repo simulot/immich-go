@@ -20,18 +20,19 @@ import (
 const timeout = 5 * time.Minute
 
 type ImmichController struct {
-	dcPath  string // path to the docker compose directory
-	sshHost string // SSH host for remote server (optional, e.g., "user@hostname:22")
-	url     string // immich URL (http://hostname:2283)
+	dcPath    string // path to the docker compose directory
+	sshHost   string // SSH host for remote server (optional, e.g., "user@hostname:22")
+	immichUrl string // immich URL (http://hostname:2283)
 }
 
 // Remote configures the controller to use SSH for remote operations
-func Remote(host, p string) func(ctx context.Context, ictlr *ImmichController) error {
+func Remote(sshhost, immichUrl, dcPath string) func(ctx context.Context, ictlr *ImmichController) error {
 	return func(ctx context.Context, ictlr *ImmichController) error {
-		ictlr.sshHost = host
-		ictlr.dcPath = p
+		ictlr.sshHost = sshhost
+		ictlr.dcPath = dcPath
+		ictlr.immichUrl = immichUrl
 		err := ExecWithTimeout(ctx, timeout,
-			"ssh", "-o", "StrictHostKeyChecking=no", host, "test", "-f", ictlr.GetDockerComposeFile())
+			"ssh", "-o", "StrictHostKeyChecking=no", sshhost, "test", "-f", ictlr.GetDockerComposeFile())
 		return err
 	}
 }
@@ -40,6 +41,7 @@ func Remote(host, p string) func(ctx context.Context, ictlr *ImmichController) e
 func Local(p string) func(ctx context.Context, ictlr *ImmichController) error {
 	return func(_ context.Context, ictlr *ImmichController) error {
 		ictlr.dcPath = p
+		ictlr.immichUrl = "http://localhost:2283"
 		_, err := os.Stat(ictlr.GetDockerComposeFile())
 		return err
 	}
@@ -258,25 +260,30 @@ func (ictlr *ImmichController) ResumeImmichServer(ctx context.Context) error {
 	return ictlr.WaitAPI(ctx)
 }
 
-// WaitAPI waits for the Immich API to become available by polling the ping endpoint
+// WaitAPI waits for the Immich API to become available by polling the ping endpoint during 30 seconds
 func (ictlr *ImmichController) WaitAPI(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	for {
-		slog.Info("pinging the immich API...")
-		err := ictlr.PingAPI(ctx)
-		if err == context.DeadlineExceeded {
-			slog.Error("immich API is not ready")
-			return err
+		select {
+		case <-ctx.Done():
+			err := ctx.Err()
+			if err == context.DeadlineExceeded {
+				slog.Error("immich API is not ready")
+				return err
+			}
+			return ctx.Err()
+		default:
+			slog.Info("pinging the immich API...")
+			err := ictlr.PingAPI(ctx)
+			if err == nil {
+				slog.Info("immich API is ready")
+				return nil
+			}
 		}
-		if err == nil {
-			break
-		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
-	slog.Info("immich API is ready")
-	return nil
 }
 
 // PingAPI performs a quick health check on the Immich API server
@@ -284,19 +291,7 @@ func (ictlr *ImmichController) PingAPI(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer cancel()
 
-	// Get the Immich URL from environment variable (set by CI workflow)
-	pingURL := os.Getenv("E2E_SERVER")
-	if pingURL != "" {
-		// Use the full URL from environment (e.g., http://100.x.x.x:2283)
-		pingURL = pingURL + "/api/server/ping"
-	} else {
-		// Fallback to localhost for local development
-		host := "localhost"
-		port := "2283"
-		pingURL = fmt.Sprintf("http://%s:%s/api/server/ping", host, port)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pingURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ictlr.immichUrl+"/api/server/ping", nil)
 	if err != nil {
 		return err
 	}

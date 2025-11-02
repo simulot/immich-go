@@ -61,24 +61,27 @@ func findE2EUsersFile() string {
 	return "./e2e-immich/e2eusers.yml"
 }
 
+var ictlr *e2eutils.ImmichController
+
 // resetImmich resets the Immich database between tests
 func resetImmich(t *testing.T) {
-	var ictlr *e2eutils.ImmichController
 	var err error
-	if sshHost != "" {
-		// Create a remote ImmichController
-		ictlr, err = e2eutils.OpenImmichController(t.Context(), e2eutils.Remote(sshHost, immichFolder))
-		if err != nil {
-			t.Fatalf("can't open the immich controller: %s", err.Error())
+	if ictlr == nil {
+		if sshHost != "" {
+			// Create a remote ImmichController
+			ictlr, err = e2eutils.OpenImmichController(t.Context(), e2eutils.Remote(sshHost, immichURL, immichFolder))
+			if err != nil {
+				t.Fatalf("can't open the immich controller: %s", err.Error())
+			}
+			t.Logf("remote immich controller created, host:%s", sshHost)
+		} else {
+			// Create a local ImmichController
+			ictlr, err = e2eutils.OpenImmichController(t.Context(), e2eutils.Local(immichFolder))
+			if err != nil {
+				t.Fatalf("can't open the immich controller: %s", err.Error())
+			}
+			t.Logf("local immich controller created, path:%s", immichFolder)
 		}
-		t.Logf("remote immich controller created, host:%s", sshHost)
-	} else {
-		// Create a local ImmichController
-		ictlr, err = e2eutils.OpenImmichController(t.Context(), e2eutils.Local(immichFolder))
-		if err != nil {
-			t.Fatalf("can't open the immich controller: %s", err.Error())
-		}
-		t.Logf("local immich controller created, path:%s", immichFolder)
 	}
 	// Reset Immich using the controller (handles both local and remote)
 	err = ictlr.ResetImmich(t.Context())
