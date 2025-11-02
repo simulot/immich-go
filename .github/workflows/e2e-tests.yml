@@ -57,27 +57,50 @@ jobs:
 
           # For workflow_run, we already know it succeeded (checked in job if condition)
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            echo "✅ Fast Feedback CI passed - checking changed files..."
+            echo "✅ Fast Feedback CI passed"
+            echo "Event info:"
+            echo "  Head SHA: ${{ github.event.workflow_run.head_sha }}"
+            echo "  Head Branch: ${{ github.event.workflow_run.head_branch }}"
+            echo "  Conclusion: ${{ github.event.workflow_run.conclusion }}"
             
-            # Get the list of changed files from the PR
+            # Fetch the branch to get proper git history
+            git fetch origin ${{ github.event.workflow_run.head_branch }} --depth=10
+            
+            # Try multiple approaches to get changed files
+            echo "Attempting to detect changed files..."
+            
+            # Method 1: Direct diff with head_sha
             CHANGED_FILES=$(git diff --name-only ${{ github.event.workflow_run.head_sha }}^..${{ github.event.workflow_run.head_sha }} 2>/dev/null || echo "")
             
+            # Method 2: If method 1 fails, try with FETCH_HEAD
             if [[ -z "$CHANGED_FILES" ]]; then
-              echo "⚠️ Could not determine changed files, running E2E to be safe"
+              echo "Method 1 failed, trying with FETCH_HEAD..."
+              CHANGED_FILES=$(git diff --name-only FETCH_HEAD^..FETCH_HEAD 2>/dev/null || echo "")
+            fi
+            
+            # Method 3: Get all .go files as fallback (be safe)
+            if [[ -z "$CHANGED_FILES" ]]; then
+              echo "⚠️ Could not determine changed files reliably"
+              echo "Default behavior: Running E2E tests to be safe"
               echo "run-tests=true" >> $GITHUB_OUTPUT
               exit 0
             fi
             
-            echo "Changed files:"
+            echo ""
+            echo "Changed files detected:"
             echo "$CHANGED_FILES"
+            echo ""
             
             # Check if any changed files match our E2E paths
-            if echo "$CHANGED_FILES" | grep -qE '^(app|adapters|immich|internal)/.*\.(go|mod|sum)$|^main\.go$|^go\.(mod|sum)$|^e2e-immich/|^\.github/workflows/e2e-tests\.yml$'; then
+            # We look for changes in: app/, adapters/, immich/, internal/, main.go, go.mod/sum, e2e-immich/
+            if echo "$CHANGED_FILES" | grep -qE '(^app/|^adapters/|^immich/|^internal/|^main\.go$|^go\.mod$|^go\.sum$|^e2e-immich/|^\.github/workflows/e2e-tests\.yml$)'; then
               echo "run-tests=true" >> $GITHUB_OUTPUT
               echo "✅ Relevant code changes detected - E2E tests will run"
             else
               echo "run-tests=false" >> $GITHUB_OUTPUT
-              echo "⏭️ No relevant code changes - E2E tests skipped"
+              echo "⏭️ No relevant code changes detected - E2E tests skipped"
+              echo "Changed files:"
+              echo "$CHANGED_FILES"
             fi
             exit 0
           fi
