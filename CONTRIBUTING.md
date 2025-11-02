@@ -136,6 +136,74 @@ You can run the linter locally before submitting your PR:
 golangci-lint run
 ```
 
+## CI/CD Workflows
+
+Our repository uses several automated workflows to ensure code quality:
+
+### Fast Feedback CI (Primary)
+**Workflow:** `.github/workflows/fast-feedback.yml`
+
+This is our primary CI workflow that runs on every pull request with code changes:
+
+- **Triggers:** Pull requests and pushes to `main`/`develop` (only for Go code changes)
+- **Jobs:**
+  - **Validate:** Runs golangci-lint for code quality checks
+  - **Test (Linux):** Runs unit tests with race detection and coverage
+  - **Test (Windows):** Runs unit tests on Windows
+  - **Build Check:** Validates that the project builds successfully
+- **Runtime:** ~3-5 minutes
+- **Path Filtering:** Automatically skips for documentation-only changes
+
+### E2E Tests (Conditional)
+**Workflow:** `.github/workflows/e2e-tests.yml`
+
+End-to-end integration tests that run conditionally:
+
+- **Triggers:** 
+  - Manual dispatch (via GitHub Actions UI)
+  - Automatically after Fast Feedback CI passes (for relevant code paths)
+  - Pull requests that modify core application code
+- **Infrastructure:** Uses Tailscale to connect test runners with a live Immich server
+- **Runtime:** ~12-15 minutes
+- **Path Filtering:** Only runs when `app/`, `adapters/`, `immich/`, or `internal/` directories change
+
+### Running CI Locally
+
+Before pushing your changes, you can run the same checks locally:
+
+```sh
+# Run linting (same as CI)
+golangci-lint run ./...
+
+# Run unit tests (same as CI)
+go test -race -v -count=1 ./...
+
+# Build check
+go build -o immich-go main.go
+```
+
+### Understanding CI Failures
+
+- **Lint failures:** Code style or quality issues. Run `golangci-lint run` locally to see details
+- **Test failures:** Unit tests failed. Run `go test -v ./...` locally to debug
+- **Build failures:** Code doesn't compile. Check the error messages in the workflow logs
+- **E2E failures:** Integration tests failed. These typically require manual review
+
+### When E2E Tests Run
+
+E2E tests are expensive (time and resources), so they run conditionally:
+
+- ✅ **Always run:** Manual trigger via GitHub Actions
+- ✅ **Auto run:** PRs that change application code (`app/`, `immich/`, `internal/`)
+- ⏭️ **Skipped:** PRs with only documentation changes
+- ⏭️ **Skipped:** If Fast Feedback CI fails (no point testing broken code)
+
+You can manually trigger E2E tests on any branch:
+1. Go to the **Actions** tab in GitHub
+2. Select **E2E Tests** workflow
+3. Click **Run workflow**
+4. Choose your branch
+
 ## Our Git Branching Model
 
 Our repository uses a structured branching model to manage development and releases effectively.

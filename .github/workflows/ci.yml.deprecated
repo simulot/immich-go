@@ -1,27 +1,34 @@
-name: CI Pipeline
+# ⚠️ DEPRECATED - This workflow has been replaced by fast-feedback.yml
+#
+# This file is kept for reference only and is no longer active.
+# 
+# Migration:
+#   - Old workflow: ci.yml (duplicated work with e2e-tests.yml)
+#   - New workflow: fast-feedback.yml (optimized, no duplication)
+#
+# Benefits of new workflow:
+#   - 50-70% faster feedback (3-5 min vs 10-15 min)
+#   - Better job organization (clear dependencies)
+#   - Path filtering (skips docs-only changes)
+#   - No duplication with E2E tests
+#
+# Date deprecated: November 2, 2025
+# Replaced by: .github/workflows/fast-feedback.yml
+#
+# DO NOT RE-ENABLE THIS WORKFLOW
+# ⚠️ END DEPRECATION NOTICE
+
+name: CI Pipeline (DEPRECATED - Use fast-feedback.yml)
 
 on:
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - "**.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/ci.yml"
-      - "main.go"
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - "**.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/ci.yml"
-      - "main.go"
+  # Disabled - workflow will not trigger
   workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run deprecated workflow (not recommended)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
