@@ -82,6 +82,50 @@ jobs:
         run: |
           docker compose -f ${{env.e2e_folder}}/docker-compose.yml ps
 
+      - name: Wait for Immich API to be ready
+        run: |
+          echo -e "${YELLOW}⏳ Waiting for Immich API to be ready...${NC}"
+          TIMEOUT=180
+          ELAPSED=0
+          READY=false
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
+              READY=true
+              break
+            fi
+            echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
+
+          if [ "$READY" = false ]; then
+            echo -e "${RED}❌ Immich API did not become ready within ${TIMEOUT} seconds${NC}"
+            echo ""
+            echo -e "${YELLOW}Container status:${NC}"
+            docker compose -f ${{env.e2e_folder}}/docker-compose.yml ps
+            echo ""
+            echo -e "${YELLOW}Recent logs:${NC}"
+            docker compose -f ${{env.e2e_folder}}/docker-compose.yml logs --tail=50 immich-server
+            exit 1
+          fi
+
+          echo -e "${GREEN}✅ API is ready${NC}"
+          echo -e "${YELLOW}⏳ Waiting a few seconds for API to stabilize before creating users...${NC}"
+          sleep 5
+
+      - name: Provision a few users
+        run: |
+          echo -e "${YELLOW}👥 Creating test users...${NC}"
+          #  Create a few test users 
+          cd ${PROJECT_DIR}/internal/e2e/e2eUtils/cmd/createUser
+          go run createUser.go - <<EOF > "${INSTALL_DIR}/e2eusers.env"
+          create-admin
+          create-user user1@immich.app user1
+          create-user user2@immich.app user2
+          create-user user3@immich.app user3
+          EOF
+
       - name: Keep server running for tests
         run: |
           echo "Server is running and accessible via Tailscale"
