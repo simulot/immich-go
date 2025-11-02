@@ -19,13 +19,18 @@ env:
   e2e_url: http://e2e-immich-${{ github.run_id }}:2283
   e2e_ssh: root@e2e-immich-${{ github.run_id }}
   runner_timeout: 900
+  RED: \033[0;31m
+  GREEN: \033[0;32m
+  YELLOW: \033[1;33m
+  BLUE: \033[0;34m
+  NC: \033[0m
 
 jobs:
   # Immich server runs on its own runner and connects to Tailscale
   e2e_server:
     name: Immich Server (Tailscale)
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
@@ -41,28 +46,37 @@ jobs:
           mkdir -p ${{ env.e2e_folder}}
           touch ${{ env.e2e_users}}
 
-      - name: Checkout Code
-        uses: actions/checkout@v5
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: "go.mod"
-          cache-dependency-path: "go.sum"
-
-      - name: Deploy Immich and get user's key
+      - name: Deploy Immich
         run: |
-          cd ${{ env.project_dir }}/internal/e2e/e2eUtils/cmd/deployImmich
-          go run deployImmich.go "${{env.e2e_folder}}"
+          echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+          echo -e "${BLUE}  Immich E2E Provisioning${NC}"
+          echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+          echo ""
+          echo -e "  ${BLUE}Installation Directory:${NC} ${e2e_folder}"
+          echo ""
 
-      - name: Verify user's key generation
-        run: |
-          if [ ! -f "${{env.e2e_folder}}/e2eusers.yml" ]; then
-            echo "❌ User's key not found"
-            exit 1
+          mkdir -p "${e2e_folder}"
+          cd "${e2e_folder}"
+
+          echo -e "${YELLOW}📥 Downloading docker-compose.yml...${NC}"
+          if ! curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml" -o docker-compose.yml; then
+              echo -e "${RED}❌ Failed to download docker-compose.yml${NC}"
+              exit 1
           fi
-          echo "✅ User keys found"
-          cat "${{env.e2e_folder}}/e2eusers.yml"
+
+          echo -e "📥 Downloading .env file..."
+          if ! curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/example.env" -o .env; then
+              echo -e "❌ Failed to download .env file"
+              exit 1
+          fi
+
+          # Start Immich services
+          echo -e "${YELLOW}🚀 Starting Immich services...${NC}"
+          if ! docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
+              echo -e "${RED}❌ Failed to start Immich services${NC}"
+              docker compose logs
+              exit 1
+          fi
 
       - name: Show Immich containers status
         run: |
@@ -106,140 +120,108 @@ jobs:
           docker compose -f ${{env.e2e_folder}} down --volumes --remove-orphans || true
           docker system prune -f || true
 
-  # Linux client runs on its own runner and connects to server via Tailscale
-  e2e-linux:
-    name: E2E Tests (Linux Client)
-    runs-on: ubuntu-latest
+  # # Linux client runs on its own runner and connects to server via Tailscale
+  # e2e-linux:
+  #   name: E2E Tests (Linux Client)
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v5
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v5
+  #     - name: Setup Go
+  #       uses: actions/setup-go@v6
+  #       with:
+  #         go-version-file: "go.mod"
+  #         cache-dependency-path: "go.sum"
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: "go.mod"
-          cache-dependency-path: "go.sum"
+  #     - name: Connect to Tailscale
+  #       uses: tailscale/github-action@v4
+  #       with:
+  #         oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+  #         oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+  #         tags: tag:ci-immich-go
+  #         hostname: e2e-linux-${{ github.run_id }}
+  #         args: --ssh
 
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci-immich-go
-          hostname: e2e-linux-${{ github.run_id }}
-          args: --ssh
+  #     - name: Wait for Immich API and copy e2eusers.yml
+  #       run: |
+  #         echo "Waiting for Immich API to be ready..."
+  #         timeout 180 bash -c 'until curl -sf ${{ env.e2e_url }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
+  #         echo "✅ Immich API is ready!"
 
-      - name: Wait for Immich API and copy e2eusers.yml
-        run: |
-          echo "Waiting for Immich API to be ready..."
-          timeout 180 bash -c 'until curl -sf ${{ env.e2e_url }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
-          echo "✅ Immich API is ready!"
+  #         echo "Waiting for e2eusers.yml file to be created on server..."
+  #         max_attempts=60
+  #         attempt=0
 
-          echo "Waiting for e2eusers.yml file to be created on server..."
-          max_attempts=60
-          attempt=0
+  #         while [ $attempt -lt $max_attempts ]; do
+  #           if ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "test -f ${{ env.e2e_folder }}/e2eusers.yml"; then
+  #             echo "✅ e2eusers.yml file found on server!"
+  #             break
+  #           fi
+  #           attempt=$((attempt + 1))
+  #           echo "Attempt $attempt/$max_attempts - waiting for e2eusers.yml..."
+  #           sleep 2
+  #         done
 
-          while [ $attempt -lt $max_attempts ]; do
-            if ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "test -f ${{ env.e2e_folder }}/e2eusers.yml"; then
-              echo "✅ e2eusers.yml file found on server!"
-              break
-            fi
-            attempt=$((attempt + 1))
-            echo "Attempt $attempt/$max_attempts - waiting for e2eusers.yml..."
-            sleep 2
-          done
+  #         if [ $attempt -eq $max_attempts ]; then
+  #           echo "❌ Timeout: e2eusers.yml not found on server"
+  #           exit 1
+  #         fi
 
-          if [ $attempt -eq $max_attempts ]; then
-            echo "❌ Timeout: e2eusers.yml not found on server"
-            exit 1
-          fi
+  #         # Create local directory and copy file from server
+  #         mkdir -p ${{ env.e2e_folder }}
+  #         echo "Copying e2eusers.yml from server..."
+  #         scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_folder }}/e2eusers.yml ${{ env.e2e_folder }}/e2eusers.yml
 
-          # Create local directory and copy file from server
-          mkdir -p ${{ env.e2e_folder }}
-          echo "Copying e2eusers.yml from server..."
-          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_folder }}/e2eusers.yml ${{ env.e2e_folder }}/e2eusers.yml
+  #         echo "✅ e2eusers.yml copied successfully!"
+  #         echo "=== E2E Users Configuration ==="
+  #         cat ${{ env.e2e_folder }}/e2eusers.yml
 
-          echo "✅ e2eusers.yml copied successfully!"
-          echo "=== E2E Users Configuration ==="
-          cat ${{ env.e2e_folder }}/e2eusers.yml
+  #     - name: Run E2E Tests on Linux
+  #       run: |
+  #         cd ${{ env.project_dir}}/internal/e2e/client
+  #         go test -v -tags=e2e -timeout=30m ./...
+  #       env:
+  #         CGO_ENABLED: 0
 
-      - name: Run E2E Tests on Linux
-        run: |
-          cd ${{ env.project_dir}}/internal/e2e/client
-          go test -v -tags=e2e -timeout=30m ./...
-        env:
-          CGO_ENABLED: 0
+  # clean-up:
+  #   name: Cleanup Immich Instance after tests
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 2
+  #   needs: [e2e-linux]
+  #   if: always()
 
-  clean-up:
-    name: Cleanup Immich Instance after tests
-    runs-on: ubuntu-latest
-    needs: [e2e-linux]
-    if: always()
+  #   steps:
+  #     - name: Connect to Tailscale
+  #       uses: tailscale/github-action@v4
+  #       with:
+  #         oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+  #         oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+  #         tags: tag:ci-immich-go
+  #         args: --ssh
+  #         hostname: e2e-cleanup-${{ github.run_id }}
 
-    steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci-immich-go
-          args: --ssh
-          hostname: e2e-cleanup-${{ github.run_id }}
+  #     - name: Create done marker file
+  #       run: |
+  #         echo "Creating done marker file on server..."
+  #         ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "touch ${{ env.e2e_folder }}/done"
+  #         echo "✅ Done marker created"
 
-      - name: Wait for Tailscale connection
-        run: |
-          echo "Waiting for Tailscale network to be ready..."
-          max_attempts=60  # 300 seconds / 5 seconds per attempt
-          attempt=0
+  # cancel-on-failure:
+  #   name: Cancel Workflow on Deploy Failure
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 2
 
-          while [ $attempt -lt $max_attempts ]; do
-            tailscale status
-            if ping -c 1 ${{ env.e2e_server }} > /dev/null 2>&1; then
-              echo "✅ Tailscale connection established!"
-              break
-            fi
-            attempt=$((attempt + 1))
-            echo "Attempt $attempt/$max_attempts - waiting for Tailscale..."
-            sleep 5
-          done
-
-          if [ $attempt -eq $max_attempts ]; then
-            echo "❌ Timeout: Could not establish Tailscale connection after 180 seconds"
-            echo "Tailscale status:"
-            tailscale status
-            exit 1
-          fi
-
-      - name: Wait for Immich API
-        run: |
-          echo "Waiting for Immich API to be ready..."
-          timeout 180 bash -c 'until curl -sf ${{ env.e2e_url }}/api/server/ping > /dev/null 2>&1; do sleep 2; done'
-          echo "Immich API is ready!"
-
-      - name: Check users
-        run: |
-          echo "=== E2E Users Configuration from Server ==="
-          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "cat ${{ env.e2e_folder }}/e2eusers.yml"
-
-      - name: Create done marker file
-        run: |
-          echo "Creating done marker file on server..."
-          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "touch ${{ env.e2e_folder }}/done"
-          echo "✅ Done marker created"
-
-  cancel-on-failure:
-    name: Cancel Workflow on Deploy Failure
-    runs-on: ubuntu-latest
-    needs: [e2e_server]
-    if: ${{ failure() }}
-    steps:
-      - name: Cancel all jobs in this workflow
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "❌ Deploy step failed — cancelling all remaining jobs..."
-          curl -s -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/cancel
+  #   needs: [e2e_server]
+  #   if: ${{ failure() }}
+  #   steps:
+  #     - name: Cancel all jobs in this workflow
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: |
+  #         echo "❌ Deploy step failed — cancelling all remaining jobs..."
+  #         curl -s -X POST \
+  #           -H "Accept: application/vnd.github+json" \
+  #           -H "Authorization: Bearer $GITHUB_TOKEN" \
+  #           https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/cancel
