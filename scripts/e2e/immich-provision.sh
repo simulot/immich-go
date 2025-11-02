@@ -40,58 +40,17 @@ if [ -f "docker-compose.yml" ]; then
     echo -e "${YELLOW}🧹 Cleaning up existing instance...${NC}"
     docker compose down --volumes --remove-orphans 2>/dev/null || true
     docker system prune -f 2>/dev/null || true
+    sudo rm -rf "${INSTALL_DIR}/*"
 fi
+
+mkdir -p "${INSTALL_DIR}"
 
 # Download docker-compose.yml
 echo -e "${YELLOW}📥 Downloading docker-compose.yml...${NC}"
-if ! curl -fsSL "${COMPOSE_URL}" -o docker-compose.yml.tmp; then
+if ! curl -fsSL "${COMPOSE_URL}" -o docker-compose.yml; then
     echo -e "${RED}❌ Failed to download docker-compose.yml${NC}"
     exit 1
 fi
-
-# Transform docker-compose.yml to use internal volumes
-echo -e "${YELLOW}🔧 Transforming docker-compose.yml...${NC}"
-python3 - <<'PYTHON_SCRIPT' || sed -E 's|\$\{[^}]*LOCATION\}|local-volume|g; /local-volume:/a\  local-volume:' docker-compose.yml.tmp > docker-compose.yml
-import sys
-import re
-
-try:
-    with open('docker-compose.yml.tmp', 'r') as f:
-        content = f.read()
-    
-    # Replace all *_LOCATION variables with internal volume
-    pattern = r'\$\{[^}]*LOCATION\}'
-    lines = content.split('\n')
-    output_lines = []
-    
-    for line in lines:
-        if '_LOCATION}' in line:
-            # Add comment
-            indent = len(line) - len(line.lstrip())
-            output_lines.append(' ' * indent + '# immich-go e2e: using internal volume')
-            line = re.sub(pattern, 'local-volume', line)
-        output_lines.append(line)
-    
-    # Add volume definition if not present
-    if 'volumes:' in content and 'local-volume:' not in content:
-        output_lines.append('  local-volume:')
-    
-    with open('docker-compose.yml', 'w') as f:
-        f.write('\n'.join(output_lines))
-    
-    print("docker-compose.yml transformed successfully", file=sys.stderr)
-except Exception as e:
-    print(f"Python transformation failed: {e}, falling back to sed", file=sys.stderr)
-    sys.exit(1)
-PYTHON_SCRIPT
-
-# Verify transformation worked
-if [ ! -f "docker-compose.yml" ] || [ ! -s "docker-compose.yml" ]; then
-    echo -e "${RED}❌ docker-compose.yml transformation failed${NC}"
-    exit 1
-fi
-
-rm -f docker-compose.yml.tmp
 
 # Download .env file
 echo -e "${YELLOW}📥 Downloading .env file...${NC}"
@@ -106,16 +65,38 @@ if [ "${IMMICH_PORT}" != "2283" ]; then
     echo "IMMICH_PORT=${IMMICH_PORT}" >> .env
 fi
 
+# Create pgAdmin docker-compose file
+echo -e "${YELLOW}📝 Creating pgAdmin docker-compose file...${NC}"
+cat > docker-compose-pgadmin.yml << 'EOF'
+name: immich
+
+services:
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4_container
+    restart: always
+    ports:
+      - "8888:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@immich.app
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  pgadmin-data:
+EOF
+
 # Pull Docker images
 echo -e "${YELLOW}🐳 Pulling Docker images...${NC}"
-if ! docker compose pull -q; then
+if ! docker compose -f docker-compose.yml -f docker-compose-pgadmin.yml pull -q; then
     echo -e "${RED}❌ Failed to pull Docker images${NC}"
     exit 1
 fi
 
 # Start Immich services
 echo -e "${YELLOW}🚀 Starting Immich services...${NC}"
-if ! docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
+if ! docker compose -f docker-compose.yml -f docker-compose-pgadmin.yml up -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
     echo -e "${RED}❌ Failed to start Immich services${NC}"
     docker compose logs
     exit 1
@@ -161,6 +142,8 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo -e "  ${BLUE}Immich URL:${NC} ${IMMICH_URL}"
 echo -e "  ${BLUE}Installation Directory:${NC} $(pwd)"
+echo -e "  ${BLUE}Database access: http://localhost:8888   admin@immich.app / admin$(pwd)${NC}"
+echo -e "  ${BLUE}  Check the page https://docs.immich.app/guides/database-gui"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo -e "  1. Provision users: ${BLUE}./scripts/e2e/immich-provision-users.sh ${IMMICH_URL} ${INSTALL_DIR}/e2eusers.yml${NC}"
