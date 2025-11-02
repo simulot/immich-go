@@ -271,7 +271,6 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci-immich-go
           hostname: e2e-windows-${{ github.run_id }}
-          args: --ssh
 
       # Run unit tests while the server is spinning up
       - name: Run tests
