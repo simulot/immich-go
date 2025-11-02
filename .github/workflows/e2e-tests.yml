@@ -48,6 +48,7 @@ jobs:
 
       - name: Deploy Immich
         run: |
+          echo -e "--"
           echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
           echo -e "${BLUE}  Immich E2E Provisioning${NC}"
           echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -70,9 +71,18 @@ jobs:
               exit 1
           fi
 
+          # Pull Immich images
+          echo -e "${YELLOW}🚀 Starting Immich services...${NC}"
+          if ! docker compose pull -q; then
+              echo -e "${RED}❌ Failed to pull Immich images${NC}"
+              docker compose logs
+              exit 1
+          fi
+
+
           # Start Immich services
           echo -e "${YELLOW}🚀 Starting Immich services...${NC}"
-          if ! docker compose up -q -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
+          if ! docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
               echo -e "${RED}❌ Failed to start Immich services${NC}"
               docker compose logs
               exit 1
