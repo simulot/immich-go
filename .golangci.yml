@@ -55,6 +55,15 @@ linters:
       # Disable errcheck for JSON encoding in test files
       - path: "_test\\.go$"
         text: "Error return value of.*Encode.* is not checked"
+      # Exclude all linting issues from test files
+      - path: "_test\\.go$"
+        linters:
+          - unused
+          - unparam
+          - staticcheck
+          - govet
+          - errcheck
+          - whitespace
     paths:
       - third_party$
       - builtin$

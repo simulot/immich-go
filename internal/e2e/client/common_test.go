@@ -17,8 +17,8 @@ import (
 
 // Configuration from environment variables
 var (
-	projectDir = getEnv("project_dir", getProjectDir())
-	immichURL  = getEnv("e2e_url", "http://localhost:2283")
+	ProjectDir = getEnv("project_dir", getProjectDir())
+	ImmichURL  = getEnv("e2e_url", "http://localhost:2283")
 	// sshHost    = getEnv("e2e_ssh", "")
 )
 
@@ -60,7 +60,7 @@ var (
 
 func readUsers() (map[string]user, error) {
 	onceUsers.Do(func() {
-		f, err := os.ReadFile(path.Join(projectDir, "e2e-immich", "e2eusers.env"))
+		f, err := os.ReadFile(path.Join(ProjectDir, "e2e-immich", "e2eusers.env"))
 		if err != nil {
 			userErr = err
 			return

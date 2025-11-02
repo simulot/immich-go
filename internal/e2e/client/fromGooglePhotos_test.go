@@ -25,7 +25,7 @@ func Test_FromGooglePhotos(t *testing.T) {
 	c, a := root.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"upload", "from-google-photos",
-		"--server=" + immichURL,
+		"--server=" + ImmichURL,
 		"--api-key=" + u1.APIKey,
 		"--admin-api-key=" + adm.APIKey,
 		"--no-ui",

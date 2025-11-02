@@ -31,7 +31,6 @@ func main() {
 			}
 		}
 	} else {
-
 		err := run(os.Args[1:])
 		if err != nil {
 			fmt.Println("ERROR:", err.Error())
@@ -58,9 +57,7 @@ func run(args []string) error {
 		email := args[1]
 		password := args[2]
 		return createUser(email, password, "minimal")
-
 	}
-
 	return fmt.Errorf("unknown command: %s", cmd)
 }
 

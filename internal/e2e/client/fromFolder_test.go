@@ -27,7 +27,7 @@ func Test_FromFolder(t *testing.T) {
 	c, a := root.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
 		"upload", "from-folder",
-		"--server=" + immichURL,
+		"--server=" + ImmichURL,
 		"--api-key=" + u1.APIKey,
 		"--admin-api-key=" + adm.APIKey,
 		"--no-ui",
