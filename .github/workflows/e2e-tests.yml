@@ -278,39 +278,56 @@ jobs:
           go test -race -v -count=1 -coverprofile="coverage.out" ./...
 
       - name: Wait for Immich API to be ready
+        shell: pwsh
         run: |
-          echo -e "${YELLOW}⏳ Waiting for Immich API to be ready...${NC}"
-          TIMEOUT=180
-          ELAPSED=0
-          READY=false
+          Write-Host "⏳ Waiting for Immich API to be ready..." -ForegroundColor Yellow
+          $TIMEOUT = 180
+          $ELAPSED = 0
+          $READY = $false
 
-          while [ $ELAPSED -lt $TIMEOUT ]; do
-            if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
-              READY=true
-              break
-            fi
-            echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
-            sleep 2
-            ELAPSED=$((ELAPSED + 2))
-          done
+          while ($ELAPSED -lt $TIMEOUT) {
+            try {
+              $response = Invoke-WebRequest -Uri "${{ env.e2e_url }}/api/server/ping" -Method Get -UseBasicParsing -ErrorAction SilentlyContinue
+              if ($response.StatusCode -eq 200) {
+                $READY = $true
+                break
+              }
+            }
+            catch {
+              # API not ready yet, continue waiting
+            }
+            Write-Host "  ⏱  Still waiting... ($ELAPSED`s / $TIMEOUT`s)" -ForegroundColor Blue
+            Start-Sleep -Seconds 2
+            $ELAPSED += 2
+          }
 
-      - name: Provision of the admin user
-        run: |
-          mkdir -p "${e2e_folder}"
-          echo -e "${YELLOW}👥 Creating test users...${NC}"
-          #  Create a few test users 
-          cd ${{env.project_dir}}/internal/e2e/e2eUtils/cmd/createUser
-          go run createUser.go create-admin > "${e2e_folder}/e2eusers.env"
+          if (-not $READY) {
+            Write-Host "❌ Immich API did not become ready within $TIMEOUT seconds" -ForegroundColor Red
+            exit 1
+          }
+
+          Write-Host "✅ API is ready" -ForegroundColor Green
+
+      # - name: Provision of the admin user
+      #   shell: pwsh
+      #   run: |
+      #     New-Item -Path "${{ env.e2e_folder }}" -ItemType Directory -Force | Out-Null
+      #     Write-Host "👥 Creating test users..." -ForegroundColor Yellow
+      #     # Create a few test users
+      #     Set-Location -Path "${{ env.project_dir }}/internal/e2e/e2eUtils/cmd/createUser"
+      #     go run createUser.go create-admin | Out-File -FilePath "${{ env.e2e_folder }}/e2eusers.env" -Encoding utf8
 
       - name: Copy the e2eusers.env from the server for later use
+        shell: pwsh
         run: |
-          echo "Copying e2eusers.env from the server..."
+          Write-Host "Copying e2eusers.env from the server..." -ForegroundColor Yellow
           scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_folder }}/e2eusers.env ${{ env.e2e_folder }}/e2eusers.env
-          cat "${{ env.e2e_folder }}/e2eusers.env"
+          Get-Content "${{ env.e2e_folder }}/e2eusers.env"
 
-      - name: Run E2E Tests on Linux
+      - name: Run E2E Tests on Windows
+        shell: pwsh
         run: |
-          cd ${{ env.project_dir}}/internal/e2e/client
+          Set-Location -Path "${{ env.project_dir }}/internal/e2e/client"
           go test -v -tags=e2e -timeout=30m ./...
         env:
           CGO_ENABLED: 0
