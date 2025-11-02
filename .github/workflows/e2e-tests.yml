@@ -242,11 +242,79 @@ jobs:
         env:
           CGO_ENABLED: 0
 
+  # Linux client runs on its own runner and connects to server via Tailscale
+  e2e-windows:
+    name: E2E Tests (windows Client)
+    runs-on: windows-latest
+    needs: [e2e-linux]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          hostname: e2e-windows-${{ github.run_id }}
+          args: --ssh
+
+      # Run unit tests while the server is spinning up
+      - name: Run tests
+        run: |
+          go test -race -v -count=1 -coverprofile=coverage.out ./...
+
+      - name: Wait for Immich API to be ready
+        run: |
+          echo -e "${YELLOW}⏳ Waiting for Immich API to be ready...${NC}"
+          TIMEOUT=180
+          ELAPSED=0
+          READY=false
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
+              READY=true
+              break
+            fi
+            echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
+
+      - name: Provision of the admin user
+        run: |
+          mkdir -p "${e2e_folder}"
+          echo -e "${YELLOW}👥 Creating test users...${NC}"
+          #  Create a few test users 
+          cd ${{env.project_dir}}/internal/e2e/e2eUtils/cmd/createUser
+          go run createUser.go create-admin > "${e2e_folder}/e2eusers.env"
+
+      - name: Copy the e2eusers.env from the server for later use
+        run: |
+          echo "Copying e2eusers.env from the server..."
+          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_folder }}/e2eusers.env ${{ env.e2e_folder }}/e2eusers.env
+          cat "${{ env.e2e_folder }}/e2eusers.env"
+
+      - name: Run E2E Tests on Linux
+        run: |
+          cd ${{ env.project_dir}}/internal/e2e/client
+          go test -v -tags=e2e -timeout=30m ./...
+        env:
+          CGO_ENABLED: 0
+
   clean-up:
     name: Cleanup Immich Instance after tests
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [e2e-linux]
+    needs: [e2e-linux, e2e-windows]
     if: always()
 
     steps:
