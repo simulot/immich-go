@@ -1,13 +1,6 @@
 package e2eutils
 
-import (
-	"context"
-	"fmt"
-	"log/slog"
-	"net/url"
-	"os"
-)
-
+/*
 // getSSHHostFromURL extracts the hostname from E2E_SERVER for SSH connections
 func getSSHHostFromURL() string {
 	immichURL := os.Getenv("E2E_SERVER")
@@ -59,7 +52,7 @@ func (ictlr *ImmichController) ResetImmich(ctx context.Context) error {
 
 	err := ictlr.execCommand(ctx, timeout, "docker", args...)
 	if err != nil {
-		return fmt.Errorf("can't reset immich: %w\n", err)
+		return fmt.Errorf("can't reset immich: %w", err)
 	}
 
 	if err = ictlr.ResumeImmichServer(ctx); err != nil {
@@ -67,3 +60,5 @@ func (ictlr *ImmichController) ResetImmich(ctx context.Context) error {
 	}
 	return nil
 }
+
+*/

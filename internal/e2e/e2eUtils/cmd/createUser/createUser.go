@@ -77,7 +77,7 @@ func createAdmin(email, password, keyName string) error {
 	if err != nil {
 		return err
 	}
-	key, err := createAPIKey(tk, "all")
+	key, err := createAPIKey(tk, keyName)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func createUser(email, password, keyName string) error {
 	if err != nil {
 		return err
 	}
-	key, err := createAPIKey(tk, "minimal")
+	key, err := createAPIKey(tk, keyName)
 	if err != nil {
 		return err
 	}

@@ -11,21 +11,14 @@ import (
 )
 
 func Test_FromGooglePhotos(t *testing.T) {
-	// Load user credentials
-	keys, err := e2eutils.KeysFromFile(keysFile)
+	adm, err := getUser("admin@immich.app")
 	if err != nil {
-		t.Fatalf("Can't get the keys from %s: %s", keysFile, err.Error())
+		t.Fatalf("can't get admin user: %v", err)
 	}
-
-	// Reset Immich before test
-	resetImmich(t)
-
-	// Get API keys for users
-	u1Key := keys.Get(u1KeyPath)
-	admKey := keys.Get(admKeyPath)
-
-	if u1Key == "" || admKey == "" {
-		t.Fatalf("Missing required API keys in %s", keysFile)
+	// A fresh user for a new test
+	u1, err := createUser("minimal")
+	if err != nil {
+		t.Fatalf("can't create user: %v", err)
 	}
 
 	ctx := t.Context()
@@ -33,8 +26,8 @@ func Test_FromGooglePhotos(t *testing.T) {
 	c.SetArgs([]string{
 		"upload", "from-google-photos",
 		"--server=" + immichURL,
-		"--api-key=" + u1Key,
-		"--admin-api-key=" + admKey,
+		"--api-key=" + u1.APIKey,
+		"--admin-api-key=" + adm.APIKey,
 		"--no-ui",
 		// "--api-trace",
 		"--log-level=debug",

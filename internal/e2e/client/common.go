@@ -1,8 +1,15 @@
 package client
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
+	"math/rand"
 	"os"
+	"os/exec"
+	"path"
 	"strings"
+	"sync"
 	"testing"
 
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
@@ -10,13 +17,9 @@ import (
 
 // Configuration from environment variables
 var (
-	immichURL    = getEnv("e2e_url", "http://localhost:2283")
-	keysFile     = getEnv("e2e_users", findE2EUsersFile())
-	sshHost      = getEnv("e2e_ssh", "")
-	immichFolder = getEnv("e2e_folder", findE2EImmichDir())
-	// dcPath       = getEnv("E2E_COMPOSE", path.Join(findE2EImmichDir(), "docker-compose.yml"))
-	u1KeyPath  = "users/user1@immich.app/keys/e2eMinimal"
-	admKeyPath = "users/admin@immich.app/keys/e2eAll"
+	projectDir = getEnv("project_dir", getProjectDir())
+	immichURL  = getEnv("e2e_url", "http://localhost:2283")
+	// sshHost    = getEnv("e2e_ssh", "")
 )
 
 func debug(t *testing.T) {
@@ -36,74 +39,156 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// findE2EUsersFile searches for e2eusers.yml in multiple possible locations
-func findE2EUsersFile() string {
-	// Possible locations to check (in order of preference)
-
-	candidates := []string{
-		// CI environment - artifact downloaded to workspace root
-		"e2e-immich/e2eusers.yml",
-		// Local development - from test directory
-		"../../../e2e-immich/e2eusers.yml",
-		// Local development - from workspace root
-		"./e2e-immich/e2eusers.yml",
-		// Local development - from internal/e2e
-		"../../e2e-immich/e2eusers.yml",
-	}
-
-	for _, path := range candidates {
-		if _, err := os.Stat(path); err == nil {
-			return path
-		}
-	}
-
-	// Default fallback
-	return "./e2e-immich/e2eusers.yml"
-}
-
-var ictlr *e2eutils.ImmichController
-
-// resetImmich resets the Immich database between tests
-func resetImmich(t *testing.T) {
-	var err error
-	if ictlr == nil {
-		if sshHost != "" {
-			// Create a remote ImmichController
-			ictlr, err = e2eutils.OpenImmichController(t.Context(), e2eutils.Remote(sshHost, immichURL, immichFolder))
-			if err != nil {
-				t.Fatalf("can't open the immich controller: %s", err.Error())
-			}
-			t.Logf("remote immich controller created, host:%s", sshHost)
-		} else {
-			// Create a local ImmichController
-			ictlr, err = e2eutils.OpenImmichController(t.Context(), e2eutils.Local(immichFolder))
-			if err != nil {
-				t.Fatalf("can't open the immich controller: %s", err.Error())
-			}
-			t.Logf("local immich controller created, path:%s", immichFolder)
-		}
-	}
-	// Reset Immich using the controller (handles both local and remote)
-	err = ictlr.ResetImmich(t.Context())
+func getProjectDir() string {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	o, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("failed to reset immich: %s", err.Error())
+		return ""
 	}
-	t.Logf("Immich reset successful")
+	return strings.TrimSpace(string(o))
 }
 
-// findE2EImmichDir searches for the e2e-immich directory
-func findE2EImmichDir() string {
-	candidates := []string{
-		"../../../e2e-immich",
-		"./e2e-immich",
-		"../../e2e-immich",
-	}
+type user struct {
+	Password, APIKey string
+}
 
-	for _, path := range candidates {
-		if stat, err := os.Stat(path); err == nil && stat.IsDir() {
-			return path
+var (
+	users     = map[string]user{}
+	userErr   error
+	onceUsers sync.Once
+)
+
+func readUsers() (map[string]user, error) {
+	onceUsers.Do(func() {
+		f, err := os.ReadFile(path.Join(projectDir, "e2e-immich", "e2eusers.env"))
+		if err != nil {
+			userErr = err
+			return
 		}
+		for l := range bytes.Lines(f) {
+			parts := strings.SplitN(string(l), "=", 2)
+			if len(parts) != 2 {
+				userErr = fmt.Errorf("malformed user line : %s", l)
+				return
+			}
+			parts[0] = strings.TrimPrefix(parts[0], "E2E_")
+
+			parts[1] = strings.TrimSuffix(parts[1], "\n")
+			parts[1] = strings.TrimSuffix(parts[1], "\r")
+
+			emailAndType := strings.Split(parts[0], "_")
+			if len(emailAndType) != 2 {
+				userErr = fmt.Errorf("unexpected format for : %s", parts[0])
+				return
+			}
+			u := users[emailAndType[0]]
+			switch emailAndType[1] {
+			case "PASSWORD":
+				u.Password = parts[1]
+			case "APIKEY":
+				u.APIKey = parts[1]
+			default:
+				return
+			}
+			users[emailAndType[0]] = u
+		}
+	})
+	return users, userErr
+}
+
+func getUser(email string) (user, error) {
+	us, err := readUsers()
+	if err != nil {
+		return user{}, err
+	}
+	if u, ok := us[email]; ok {
+		return u, nil
+	}
+	return user{}, errors.New("not found")
+}
+
+func createUser(keyName string) (user, error) {
+	adm, err := getUser("admin@immich.app")
+	if err != nil {
+		return user{}, err
+	}
+	admtk, err := e2eutils.UserLogin("admin@immich.app", adm.Password)
+	if err != nil {
+		return user{}, err
+	}
+	name := randomString(8)
+	email := name + "@immich.app"
+	password := name
+	u := user{Password: password}
+
+	err = e2eutils.CreateUser(admtk, email, password, email)
+	if err != nil {
+		return u, err
+	}
+	tk, err := e2eutils.UserLogin(email, password)
+	if err != nil {
+		return u, err
+	}
+	err = e2eutils.SetUserOnboarding(tk, true)
+	if err != nil {
+		return u, err
+	}
+	key, err := createAPIKey(tk, keyName)
+	if err != nil {
+		return u, err
+	}
+	u.APIKey = key
+	users[email] = u
+
+	fmt.Printf("E2E_%s_PASSWORD=%s\n", email, password)
+	fmt.Printf("E2E_%s_APIKEY=%s\n", email, key)
+	return u, err
+}
+
+func createAPIKey(tk e2eutils.Token, keyName string) (string, error) {
+	p := permissions[keyName]
+	if p == nil {
+		return "", fmt.Errorf("unknown key name: %s", keyName)
 	}
 
-	return "./e2e-immich"
+	key, err := e2eutils.CreateApiKey(tk, keyName, p)
+	if err != nil {
+		return "", err
+	}
+	return key, nil
+}
+
+var permissions map[string][]string = map[string][]string{
+	"minimal": {
+		`asset.read`,
+		`asset.statistics`,
+		`asset.update`,
+		`asset.upload`,
+		`asset.replace`,
+		`asset.download`,
+		`album.create`,
+		`album.read`,
+		`albumAsset.create`,
+		`job.create`,
+		`job.read`,
+		`server.about`,
+		`stack.create`,
+		`tag.asset`,
+		`tag.create`,
+		`user.read`,
+	},
+	"all": {
+		"all",
+	},
+}
+
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func randomString(n int) string {
+	sb := strings.Builder{}
+	sb.Grow(n)
+	for i := 0; i < n; i++ {
+		sb.WriteByte(charset[rand.Intn(len(charset))])
+	}
+	return sb.String()
 }
