@@ -317,17 +317,18 @@ jobs:
       #     Set-Location -Path "${{ env.project_dir }}/internal/e2e/e2eUtils/cmd/createUser"
       #     go run createUser.go create-admin | Out-File -FilePath "${{ env.e2e_folder }}/e2eusers.env" -Encoding utf8
 
-      - name: Copy the e2eusers.env from the server for later use
+      - name: Copy the e2eusers.env from the server
         shell: pwsh
         run: |
           Write-Host "Copying e2eusers.env from the server..." -ForegroundColor Yellow
-          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_folder }}/e2eusers.env ${{ env.e2e_folder }}/e2eusers.env
-          Get-Content "${{ env.e2e_folder }}/e2eusers.env"
+          New-Item -Path "${{ env.e2e_folder }}" -ItemType Directory -Force | Out-Null
+          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_folder }}\e2eusers.env ${{ env.e2e_folder }}\e2eusers.env
+          Get-Content "${{ env.e2e_folder }}\e2eusers.env"
 
       - name: Run E2E Tests on Windows
         shell: pwsh
         run: |
-          Set-Location -Path "${{ env.project_dir }}/internal/e2e/client"
+          Set-Location -Path "${{ env.project_dir }}\internal\e2e\client"
           go test -v -tags=e2e -timeout=30m ./...
         env:
           CGO_ENABLED: 0
