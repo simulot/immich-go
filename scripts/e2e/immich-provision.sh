@@ -16,7 +16,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-INSTALL_DIR="${1:-./e2e-immich}"
+PROJECT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]:-$0}")/../..")"
+INSTALL_DIR="${1:-${PROJECT_DIR}/e2e-immich}"
 IMMICH_PORT="${2:-2283}"
 COMPOSE_URL="https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml"
 ENV_URL="https://github.com/immich-app/immich/releases/latest/download/example.env"
@@ -30,20 +31,20 @@ echo -e "  ${BLUE}Installation Directory:${NC} ${INSTALL_DIR}"
 echo -e "  ${BLUE}Port:${NC} ${IMMICH_PORT}"
 echo ""
 
+
+# Clean up any existing instance
+if [ -f "${INSTALL_DIR}/docker-compose.yml" ]; then
+    cd "${INSTALL_DIR}"
+    echo -e "${YELLOW}🧹 Cleaning up existing instance...${NC}"
+    docker compose down --volumes --remove-orphans >/dev/null 2>&1|| true
+    docker system prune -f >/dev/null 2>&1 || true
+    sudo rm -rf "${INSTALL_DIR}" >/dev/null 2>&1
+fi
+
 # Create installation directory
 echo -e "${YELLOW}📁 Creating installation directory...${NC}"
 mkdir -p "${INSTALL_DIR}"
 cd "${INSTALL_DIR}"
-
-# Clean up any existing instance
-if [ -f "docker-compose.yml" ]; then
-    echo -e "${YELLOW}🧹 Cleaning up existing instance...${NC}"
-    docker compose down --volumes --remove-orphans 2>/dev/null || true
-    docker system prune -f 2>/dev/null || true
-    sudo rm -rf "${INSTALL_DIR}/*"
-fi
-
-mkdir -p "${INSTALL_DIR}"
 
 # Download docker-compose.yml
 echo -e "${YELLOW}📥 Downloading docker-compose.yml...${NC}"
@@ -112,12 +113,8 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     if curl -sf "${IMMICH_URL}/api/server/ping" > /dev/null 2>&1; then
         READY=true
         break
-    fi
-    
-    # Show progress every 5 seconds
-    if [ $((ELAPSED % 5)) -eq 0 ]; then
-        echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
-    fi
+    fi    
+    echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
     
     sleep 2
     ELAPSED=$((ELAPSED + 2))
@@ -134,18 +131,30 @@ if [ "$READY" = false ]; then
     exit 1
 fi
 
+#  Create a few test users 
+cd ${PROJECT_DIR}/internal/e2e/e2eUtils/cmd/createUser
+go run createUser.go - <<EOF > "${INSTALL_DIR}/e2eusers.env"
+create-admin
+create-user user1@immich.app user1
+create-user user2@immich.app user2
+create-user user3@immich.app user3
+EOF
+
 # Success!
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}✅ Immich provisioned successfully!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
+
 echo -e "  ${BLUE}Immich URL:${NC} ${IMMICH_URL}"
-echo -e "  ${BLUE}Installation Directory:${NC} $(pwd)"
-echo -e "  ${BLUE}Database access: http://localhost:8888   admin@immich.app / admin$(pwd)${NC}"
-echo -e "  ${BLUE}  Check the page https://docs.immich.app/guides/database-gui"
+echo -e "  ${BLUE}Installation Directory:${NC} ${INSTALL_DIR}"
+echo -e "  ${BLUE}Database access:${NC} http://localhost:8888 (admin@immich.app / admin)"
+echo -e "  ${BLUE}  Check the page${NC} https://docs.immich.app/guides/database-gui"
 echo ""
-echo -e "${YELLOW}Next steps:${NC}"
-echo -e "  1. Provision users: ${BLUE}./scripts/e2e/immich-provision-users.sh ${IMMICH_URL} ${INSTALL_DIR}/e2eusers.yml${NC}"
-echo -e "  2. Run tests with: ${BLUE}E2E_SERVER=${IMMICH_URL} E2E_USERS=${INSTALL_DIR}/e2eusers.yml${NC}"
+echo -e "${YELLOW}Created users:${NC}"
+grep "E2E_.*_PASSWORD" "${INSTALL_DIR}/e2eusers.env" | while IFS='=' read -r key value; do
+    email=$(echo "$key" | sed 's/E2E_//;s/_PASSWORD//')
+    echo -e "  ${BLUE}•${NC} $email / $value"
+done
 echo ""
