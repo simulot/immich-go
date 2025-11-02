@@ -1,2 +1,2 @@
-write your reeasoning documents in the folder scratchpad at project root
+write reasoning documents only if explicitly requested. otherwise, just write the code.
 

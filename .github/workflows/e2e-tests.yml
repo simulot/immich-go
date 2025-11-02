@@ -217,7 +217,7 @@ jobs:
   e2e-linux:
     name: E2E Tests (Linux Client)
     runs-on: ubuntu-latest
-    needs: [should-run, e2e_server]
+    needs: should-run
     if: needs.should-run.outputs.run-tests == 'true'
     timeout-minutes: 10
     steps:
