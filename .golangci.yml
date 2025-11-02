@@ -59,6 +59,7 @@ linters:
       - third_party$
       - builtin$
       - examples$
+      - e2e-immich
 issues:
   max-issues-per-linter: 100
   max-same-issues: 100
@@ -74,3 +75,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - e2e-immich
