@@ -139,6 +139,15 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
+          # Check if only documentation files were changed
+          NON_DOC_FILES=$(echo "$CHANGED_FILES" | grep -vE '\.md$|^docs/|^README|^CONTRIBUTING|^LICENSE')
+
+          if [[ -z "$NON_DOC_FILES" ]]; then
+            echo "⏭️ Only documentation files changed - skipping E2E tests"
+            echo "run-e2e=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           if echo "$CHANGED_FILES" | grep -qE '^(app|adapters|immich|internal)/|^main\.go$|^go\.(mod|sum)$|^e2e-immich/'; then
             echo "✅ E2E-relevant changes detected - will run E2E tests"
             echo "run-e2e=true" >> $GITHUB_OUTPUT
