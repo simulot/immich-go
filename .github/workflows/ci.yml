@@ -1,64 +1,75 @@
 name: CI Pipeline
 
 on:
- pull_request:
-   branches:
-     - main
-     - develop
- push:
-   branches:
-     - main
-     - develop
- workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/ci.yml"
+      - "main.go"
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/ci.yml"
+      - "main.go"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
- ci:
-   name: Continuous Integration
-   runs-on: ubuntu-latest
+  ci:
+    name: Continuous Integration
+    runs-on: ubuntu-latest
 
-   steps:
-     - name: Checkout Code
-       uses: actions/checkout@v5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
 
-     - name: Setup Go
-       uses: actions/setup-go@v6
-       with:
-         go-version-file: "go.mod"
-         cache-dependency-path: "go.sum"
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
 
-     - name: golangci-lint
-       uses: golangci/golangci-lint-action@v8
-       with:
-         version: latest
+      - name: Build binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o immich-linux-amd64 -ldflags="-s -w -extldflags=-static" main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o immich-linux-arm64 -ldflags="-s -w -extldflags=-static" main.go
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o immich-windows-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o immich-darwin-amd64 -ldflags="-s -w -extldflags=-static" main.go
 
-     - name: Build binary
-       run: |
-         CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o immich-linux-amd64 -ldflags="-s -w -extldflags=-static" main.go
-         CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o immich-linux-arm64 -ldflags="-s -w -extldflags=-static" main.go
-         CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o immich-windows-amd64.exe -ldflags="-s -w -extldflags=-static" main.go
-         CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o immich-darwin-amd64 -ldflags="-s -w -extldflags=-static" main.go
+      - name: Run tests
+        run: |
+          go test -race -v -count=1 -coverprofile=coverage.out ./...
+  ci-windows:
+    name: Continuous Integration (Windows)
+    runs-on: windows-latest
 
-     - name: Run tests
-       run: |
-         go test -race -v -count=1 -coverprofile=coverage.out ./...
- ci-windows:
-   name: Continuous Integration (Windows)
-   runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
 
-   steps:
-     - name: Checkout Code
-       uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
 
-     - name: Setup Go
-       uses: actions/setup-go@v6
-       with:
-         go-version-file: "go.mod"
-         cache-dependency-path: "go.sum"
-
-     - name: Run tests
-       run: |
-         go test -v -count=1 ./...
+      - name: Run tests
+        run: |
+          go test -v -count=1 ./...
