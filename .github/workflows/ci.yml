@@ -22,7 +22,7 @@ on:
       - "go.sum"
       - ".github/workflows/ci.yml"
       - "main.go"
-      - "e2e-immich/**"
+      - "internal/e2e/testdata/immich-server/**"
   workflow_dispatch:
 
 permissions:

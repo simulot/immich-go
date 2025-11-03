@@ -54,6 +54,7 @@ linters:
       - builtin$
       - examples$
       - internal/e2e/testdata/immich-server
+      - "_test\\.go$"
 issues:
   max-issues-per-linter: 100
   max-same-issues: 100

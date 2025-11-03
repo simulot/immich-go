@@ -99,10 +99,7 @@
 			"command": "go",
 			"args": [
 				"test",
-				"./app/...",
-				"./adapters/...",
-				"./internal/...",
-				"./immich/..."
+				"./..."
 			],
 			"group": "test",
 			"presentation": {
@@ -118,10 +115,7 @@
 			"command": "/home/jfcassan/go/bin/golangci-lint",
 			"args": [
 				"run",
-				"./app/...",
-				"./adapters/...",
-				"./internal/...",
-				"./immich/..."
+				"./..."
 			],
 			"group": "test",
 			"presentation": {
