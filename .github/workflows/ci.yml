@@ -11,7 +11,7 @@ on:
       - "go.sum"
       - ".github/workflows/ci.yml"
       - "main.go"
-      - "e2e-immich/**"
+      - "internal/e2e/testdata/immich-server/**"
   push:
     branches:
       - main
@@ -30,8 +30,8 @@ permissions:
 
 env:
   project_dir: /home/runner/work/immich-go/immich-go
-  e2e_folder: /home/runner/work/immich-go/immich-go/e2e-immich
-  e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
+  e2e_folder: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server
+  e2e_users: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
   e2e_server: e2e-immich-${{ github.run_id }}
   e2e_url: http://e2e-immich-${{ github.run_id }}:2283
   e2e_ssh: root@e2e-immich-${{ github.run_id }}
@@ -148,7 +148,7 @@ jobs:
             exit 0
           fi
 
-          if echo "$CHANGED_FILES" | grep -qE '^(app|adapters|immich|internal)/|^main\.go$|^go\.(mod|sum)$|^e2e-immich/'; then
+          if echo "$CHANGED_FILES" | grep -qE '^(app|adapters|immich|internal)/|^main\.go$|^go\.(mod|sum)$|^internal/e2e/testdata/immich-server/'; then
             echo "✅ E2E-relevant changes detected - will run E2E tests"
             echo "run-e2e=true" >> $GITHUB_OUTPUT
           else

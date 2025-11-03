@@ -17,7 +17,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]:-$0}")/../..")"
-INSTALL_DIR="${1:-${PROJECT_DIR}/e2e-immich}"
+INSTALL_DIR="${1:-${PROJECT_DIR}/internal/e2e/testdata/immich-server}"
 IMMICH_PORT="${2:-2283}"
 COMPOSE_URL="https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml"
 ENV_URL="https://github.com/immich-app/immich/releases/latest/download/example.env"

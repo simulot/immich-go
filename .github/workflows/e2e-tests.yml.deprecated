@@ -2,19 +2,7 @@ name: E2E Tests
 
 on:
   # E2E tests run on pull requests and pushes
-  pull_request:
-    branches:
-      - main
-      - develop
-    paths:
-      - "app/**"
-      - "adapters/**"
-      - "immich/**"
-      - "internal/**"
-      - "main.go"
-      - "go.mod"
-      - "go.sum"
-      - "e2e-immich/**"
+      - "internal/e2e/testdata/immich-server/**"
       - ".github/workflows/e2e-tests.yml"
   push:
     branches:
@@ -38,9 +26,9 @@ permissions:
 
 env:
   project_dir: /home/runner/work/immich-go/immich-go
-  e2e_folder: /home/runner/work/immich-go/immich-go/e2e-immich
-  e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
-  e2e_compose: /home/runner/work/immich-go/immich-go/e2e-immich/docker-compose.yml
+  e2e_folder: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server
+  e2e_users: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
+  e2e_compose: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/docker-compose.yml
   e2e_server: e2e-immich-${{ github.run_id }}
   e2e_url: http://e2e-immich-${{ github.run_id }}:2283
   e2e_ssh: root@e2e-immich-${{ github.run_id }}
@@ -285,10 +273,10 @@ jobs:
     timeout-minutes: 10
     env:
       project_dir: d:\a\immich-go\immich-go
-      e2e_folder: d:\a\immich-go\immich-go\e2e-immich
-      e2e_users: d:\a\immich-go\immich-go\e2e-immich\e2eusers.env
-      e2e_compose: d:\a\immich-go\immich-go\e2e-immich\docker-compose.yml
-      e2e_users_server: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
+      e2e_folder: d:\a\immich-go\immich-go\internal\e2e\testdata\immich-server
+      e2e_users: d:\a\immich-go\immich-go\internal\e2e\testdata\immich-server\e2eusers.env
+      e2e_compose: d:\a\immich-go\immich-go\internal\e2e\testdata\immich-server\docker-compose.yml
+      e2e_users_server: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
 
     steps:
       - name: Checkout Code
