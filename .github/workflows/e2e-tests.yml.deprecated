@@ -1,0 +1,405 @@
+name: E2E Tests
+
+on:
+  # E2E tests run on pull requests and pushes
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - "app/**"
+      - "adapters/**"
+      - "immich/**"
+      - "internal/**"
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
+      - "e2e-immich/**"
+      - ".github/workflows/e2e-tests.yml"
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "app/**"
+      - "adapters/**"
+      - "immich/**"
+      - "internal/**"
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
+      - "e2e-immich/**"
+      - ".github/workflows/e2e-tests.yml"
+  # Manual trigger always available
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  project_dir: /home/runner/work/immich-go/immich-go
+  e2e_folder: /home/runner/work/immich-go/immich-go/e2e-immich
+  e2e_users: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
+  e2e_compose: /home/runner/work/immich-go/immich-go/e2e-immich/docker-compose.yml
+  e2e_server: e2e-immich-${{ github.run_id }}
+  e2e_url: http://e2e-immich-${{ github.run_id }}:2283
+  e2e_ssh: root@e2e-immich-${{ github.run_id }}
+  runner_timeout: 900
+  RED: \033[0;31m
+  GREEN: \033[0;32m
+  YELLOW: \033[1;33m
+  BLUE: \033[0;34m
+  NC: \033[0m
+
+jobs:
+  # Check if we should run E2E tests (waits for Fast Feedback to pass)
+  should-run:
+    name: Wait for Fast Feedback CI
+    runs-on: ubuntu-latest
+    outputs:
+      run-tests: ${{ steps.check.outputs.run-tests }}
+    steps:
+      - name: Wait for Fast Feedback CI to complete
+        if: github.event_name != 'workflow_dispatch'
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          check-name: "All Checks Passed"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+          allowed-conclusions: success
+
+      - name: Set run-tests output
+        id: check
+        run: |
+          echo "run-tests=true" >> $GITHUB_OUTPUT
+          echo "✅ Ready to run E2E tests"
+
+  # Immich server runs on its own runner and connects to Tailscale
+  e2e_server:
+    name: Immich Server (Tailscale)
+    runs-on: ubuntu-latest
+    needs: should-run
+    if: needs.should-run.outputs.run-tests == 'true'
+    timeout-minutes: 10
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          hostname: ${{ env.e2e_server }}
+          args: --ssh
+
+      - name: Prepare the server environment
+        run: |
+          mkdir -p ${{ env.e2e_folder}}
+          touch ${{ env.e2e_users}}
+
+      - name: Deploy Immich
+        run: |
+          echo -e "--"
+          echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+          echo -e "${BLUE}  Immich E2E Provisioning${NC}"
+          echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+          echo ""
+          echo -e "  ${BLUE}Installation Directory:${NC} ${e2e_folder}"
+          echo ""
+
+          mkdir -p "${e2e_folder}"
+          cd "${e2e_folder}"
+
+          echo -e "${YELLOW}📥 Downloading docker-compose.yml...${NC}"
+          if ! curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml" -o docker-compose.yml; then
+              echo -e "${RED}❌ Failed to download docker-compose.yml${NC}"
+              exit 1
+          fi
+
+          echo -e "📥 Downloading .env file..."
+          if ! curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/example.env" -o .env; then
+              echo -e "❌ Failed to download .env file"
+              exit 1
+          fi
+
+          # Pull Immich images
+          echo -e "${YELLOW}📥 Pull Immich images...${NC}"
+          if ! docker compose pull -q; then
+              echo -e "${RED}❌ Failed to pull Immich images${NC}"
+              docker compose logs
+              exit 1
+          fi
+
+
+          # Start Immich services
+          echo -e "${YELLOW}🚀 Starting Immich services...${NC}"
+          if ! docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans; then
+              echo -e "${RED}❌ Failed to start Immich services${NC}"
+              docker compose logs
+              exit 1
+          fi
+
+      - name: Show Immich containers status
+        run: |
+          docker compose -f ${{env.e2e_folder}}/docker-compose.yml ps
+
+      - name: Wait for Immich API to be ready
+        run: |
+          echo -e "${YELLOW}⏳ Waiting for Immich API to be ready...${NC}"
+          TIMEOUT=180
+          ELAPSED=0
+          READY=false
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
+              READY=true
+              break
+            fi
+            echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
+
+          if [ "$READY" = false ]; then
+            echo -e "${RED}❌ Immich API did not become ready within ${TIMEOUT} seconds${NC}"
+            echo ""
+            echo -e "${YELLOW}Container status:${NC}"
+            docker compose -f ${{env.e2e_folder}}/docker-compose.yml ps
+            echo ""
+            echo -e "${YELLOW}Recent logs:${NC}"
+            docker compose -f ${{env.e2e_folder}}/docker-compose.yml logs --tail=50 immich-server
+            exit 1
+          fi
+
+          sleep 1
+          echo -e "${GREEN}✅ API is ready${NC}"
+
+      - name: Keep server running for tests
+        run: |
+          echo "Server is running and accessible via Tailscale"
+          echo "Waiting for client tests to complete..."
+          max_wait=${{ env.runner_timeout}}
+          elapsed=0
+          done_marker="${{ env.e2e_folder }}/done"
+
+          while [ $elapsed -lt $max_wait ]; do
+            # Check if done marker file exists
+            if [ -f "$done_marker" ]; then
+              echo "✅ Done marker found! Tests completed."
+              echo "Server ran for ${elapsed}s"
+              exit 0
+            fi
+            
+            sleep 5
+            elapsed=$((elapsed + 5))
+            echo "Waited ${elapsed}s / ${max_wait}s for tests..."
+          done
+
+          echo "⚠️ Maximum wait time reached without done marker, shutting down server"
+          exit 1
+
+      - name: Show Immich logs on failure
+        if: failure()
+        run: |
+          echo "=== Immich Server Logs ==="
+          docker compose -f ${{env.e2e_folder}} logs ${{ env.e2e_server }}
+          echo "=== All Container Status ==="
+          docker compose -f ${{env.e2e_folder}} ps
+
+      - name: Cleanup Immich Instance
+        if: always()
+        run: |
+          docker compose -f ${{env.e2e_folder}} down --volumes --remove-orphans || true
+          docker system prune -f || true
+
+  # Linux client runs on its own runner and connects to server via Tailscale
+  e2e-linux:
+    name: E2E Tests (Linux Client)
+    runs-on: ubuntu-latest
+    needs: should-run
+    if: needs.should-run.outputs.run-tests == 'true'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          hostname: e2e-linux-${{ github.run_id }}
+          args: --ssh
+
+      - name: Wait for Immich API to be ready
+        run: |
+          echo -e "${YELLOW}⏳ Waiting for Immich API to be ready...${NC}"
+          TIMEOUT=180
+          ELAPSED=0
+          READY=false
+
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
+              READY=true
+              break
+            fi
+            echo -e "  ${BLUE}⏱${NC}  Still waiting... (${ELAPSED}s / ${TIMEOUT}s)"
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
+
+      - name: Provision of the amdin user
+        run: |
+          mkdir -p "${e2e_folder}"
+          echo -e "${YELLOW}👥 Creating test users...${NC}"
+          #  Create a few test users 
+          cd ${{env.project_dir}}/internal/e2e/e2eUtils/cmd/createUser
+          go run createUser.go create-admin > "${e2e_folder}/e2eusers.env"
+          cat "${e2e_folder}/e2eusers.env"
+
+      - name: Copy the e2eusers.env to the server for later use
+        run: |
+          echo "Copying e2eusers.env to the server..."
+          scp -o StrictHostKeyChecking=no ${{ env.e2e_folder }}/e2eusers.env ${{ env.e2e_ssh }}:${{ env.e2e_folder }}/e2eusers.env
+
+      - name: Run E2E Tests on Linux
+        run: |
+          cd ${{ env.project_dir}}/internal/e2e/client
+          go test -v -tags=e2e -timeout=30m ./...
+        env:
+          CGO_ENABLED: 0
+
+  # Linux client runs on its own runner and connects to server via Tailscale
+  e2e-windows:
+    name: E2E Tests (windows Client)
+    runs-on: windows-latest
+    needs: [should-run, e2e-linux]
+    if: needs.should-run.outputs.run-tests == 'true'
+    timeout-minutes: 10
+    env:
+      project_dir: d:\a\immich-go\immich-go
+      e2e_folder: d:\a\immich-go\immich-go\e2e-immich
+      e2e_users: d:\a\immich-go\immich-go\e2e-immich\e2eusers.env
+      e2e_compose: d:\a\immich-go\immich-go\e2e-immich\docker-compose.yml
+      e2e_users_server: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          hostname: e2e-windows-${{ github.run_id }}
+
+      - name: Wait for Immich API to be ready
+        shell: pwsh
+        run: |
+          Write-Host "⏳ Waiting for Immich API to be ready..." -ForegroundColor Yellow
+          $TIMEOUT = 180
+          $ELAPSED = 0
+          $READY = $false
+
+          while ($ELAPSED -lt $TIMEOUT) {
+            try {
+              $response = Invoke-WebRequest -Uri "${{ env.e2e_url }}/api/server/ping" -Method Get -UseBasicParsing -ErrorAction SilentlyContinue
+              if ($response.StatusCode -eq 200) {
+                $READY = $true
+                break
+              }
+            }
+            catch {
+              # API not ready yet, continue waiting
+            }
+            Write-Host "  ⏱  Still waiting... ($ELAPSED`s / $TIMEOUT`s)" -ForegroundColor Blue
+            Start-Sleep -Seconds 2
+            $ELAPSED += 2
+          }
+
+          if (-not $READY) {
+            Write-Host "❌ Immich API did not become ready within $TIMEOUT seconds" -ForegroundColor Red
+            exit 1
+          }
+
+          Write-Host "✅ API is ready" -ForegroundColor Green
+
+      # - name: Provision of the admin user
+      #   shell: pwsh
+      #   run: |
+      #     New-Item -Path "${{ env.e2e_folder }}" -ItemType Directory -Force | Out-Null
+      #     Write-Host "👥 Creating test users..." -ForegroundColor Yellow
+      #     # Create a few test users
+      #     Set-Location -Path "${{ env.project_dir }}/internal/e2e/e2eUtils/cmd/createUser"
+      #     go run createUser.go create-admin | Out-File -FilePath "${{ env.e2e_folder }}/e2eusers.env" -Encoding utf8
+
+      - name: Copy the e2eusers.env from the server
+        shell: pwsh
+        run: |
+          Write-Host "Copying e2eusers.env from the server..." -ForegroundColor Yellow
+          New-Item -Path "${{ env.e2e_folder }}" -ItemType Directory -Force | Out-Null
+          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_users_server }} ${{ env.e2e_folder }}\e2eusers.env
+          Get-Content "${{ env.e2e_folder }}\e2eusers.env"
+
+      - name: Run E2E Tests on Windows
+        shell: pwsh
+        run: |
+          Set-Location -Path "${{ env.project_dir }}\internal\e2e\client"
+          go test -v -tags=e2e -timeout=30m ./...
+        env:
+          CGO_ENABLED: 0
+
+  clean-up:
+    name: Cleanup Immich Instance after tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [should-run, e2e-linux, e2e-windows]
+    if: always() && needs.should-run.outputs.run-tests == 'true'
+
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          args: --ssh
+          hostname: e2e-cleanup-${{ github.run_id }}
+
+      - name: Create done marker file
+        run: |
+          echo "Creating done marker file on server..."
+          ssh -o StrictHostKeyChecking=no ${{ env.e2e_ssh }} "touch ${{ env.e2e_folder }}/done"
+          echo "✅ Done marker created"
+
+  cancel-on-failure:
+    name: Cancel Workflow on Deploy Failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [should-run, e2e_server]
+    if: failure() && needs.should-run.outputs.run-tests == 'true'
+    steps:
+      - name: Cancel all jobs in this workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "❌ Deploy step failed — cancelling all remaining jobs..."
+          curl -s -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/cancel

@@ -138,7 +138,7 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	ctx := cmd.Context()
 	err := uc.client.Open(ctx, uc.app)
 	if err != nil {
-		return nil
+		return err
 	}
 	uc.tz = uc.app.GetTZ()
 	uc.app.SetSupportedMedia(uc.client.Immich.SupportedMedia())

@@ -136,6 +136,72 @@ You can run the linter locally before submitting your PR:
 golangci-lint run
 ```
 
+## CI/CD Workflows
+
+Our repository uses a unified CI workflow that provides fast feedback and conditional E2E testing:
+
+### Unified CI Workflow
+**Workflow:** `.github/workflows/ci.yml`
+
+This single workflow handles all CI needs - from quick code quality checks to comprehensive E2E tests:
+
+#### Phase 1: Fast Feedback (~3-5 minutes)
+
+Runs on every pull request and push with code changes:
+
+- **Validate:** golangci-lint for code quality
+- **Test (Linux):** Unit tests with race detection and coverage  
+- **Build Check:** Validates successful compilation
+
+#### Phase 2: E2E Tests (~12-15 minutes, conditional)
+
+Automatically runs **only if**:
+- ✅ Fast Feedback phase passes
+- ✅ Changes affect core code: `app/`, `adapters/`, `immich/`, `internal/`, `main.go`, `go.mod/sum`, or `e2e-immich/`
+
+E2E infrastructure:
+- **Server:** Ubuntu runner with Immich in Docker (via Tailscale)
+- **Clients:** Parallel Linux and Windows test runners
+- **Communication:** Tailscale VPN for secure multi-runner networking
+
+#### Triggers
+
+- **Automatic:** Pull requests and pushes to `main`/`develop`
+- **Manual:** Via GitHub Actions UI (always runs E2E tests)
+- **Path Filtering:** Skips for documentation-only changes
+
+### Running CI Locally
+
+Before pushing your changes, you can run the same checks locally:
+
+```sh
+# Run linting (same as CI)
+golangci-lint run ./...
+
+# Run unit tests (same as CI)
+go test -race -v -count=1 ./...
+
+# Build check
+go build -o immich-go main.go
+```
+
+### Understanding CI Failures
+
+- **Lint failures:** Code style or quality issues. Run `golangci-lint run` locally to see details
+- **Test failures:** Unit tests failed. Run `go test -v ./...` locally to debug
+- **Build failures:** Code doesn't compile. Check the error messages in the workflow logs
+- **E2E failures:** Integration tests failed. These typically require manual review
+
+### Manual E2E Testing
+
+You can manually trigger the full CI workflow (including E2E tests) on any branch:
+
+1. Go to the **Actions** tab in GitHub
+2. Select **CI** workflow
+3. Click **Run workflow**
+4. Choose your branch
+5. E2E tests will always run for manual triggers
+
 ## Our Git Branching Model
 
 Our repository uses a structured branching model to manage development and releases effectively.

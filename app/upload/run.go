@@ -148,15 +148,15 @@ func (uc *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
 
 	if uc.NoUI {
 		runner = uc.runNoUI
+	} else {
+		_, err := tcell.NewScreen()
+		if err != nil {
+			uc.app.Log().Warn("can't initialize the screen for the UI mode. Falling back to no-gui mode", "err", err)
+			fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
+			runner = uc.runNoUI
+		}
 	}
-	_, err := tcell.NewScreen()
-	if err != nil {
-		uc.app.Log().Warn("can't initialize the screen for the UI mode. Falling back to no-gui mode", "err", err)
-		fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
-		runner = uc.runNoUI
-	}
-	err = runner(ctx, uc.app)
-
+	err := runner(ctx, uc.app)
 	return err
 }
 

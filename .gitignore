@@ -29,5 +29,9 @@ __debug_*
 immich-go.yaml
 
 # e2e test
-internal/e2eTests/resetImmich/resetImmich
-internal/e2eTests.zip
+internal/e2e.zip
+resetImmich
+internal/e2e/immich-test
+internal/e2e/fixtures/wikimedia
+e2e-immich
+scratchpad/

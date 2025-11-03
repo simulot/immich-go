@@ -42,6 +42,12 @@ const (
 	EndPointGetAboutInfo           = "GetAboutInfo"
 	EndPointGetSearchSuggestions   = "GetSearchSuggestions"
 	EndPointGetAllPeople           = "GetAllPeople"
+	EndPointSignUpAdmin            = "SignUpAdmin"
+	EndPointAdminLogin             = "AdminLogin"
+	EndPointLogin                  = "Login"
+	EndPointGetUserInfo            = "GetUserInfo"
+	EndPointUpdateAdminOnboarding  = "UpdateAdminOnboarding"
+	EndPointCreateApiKey           = "CreateApiKey"
 )
 
 type TooManyInternalError struct {
