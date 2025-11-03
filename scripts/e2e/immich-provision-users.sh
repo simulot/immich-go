@@ -17,7 +17,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 IMMICH_URL="${1:-http://localhost:2283}"
-OUTPUT_FILE="${2:-./e2e-immich/e2eusers.yml}"
+OUTPUT_FILE="${2:-./internal/e2e/testdata/immich-server/e2eusers.yml}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 

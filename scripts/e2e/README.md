@@ -13,7 +13,7 @@ Provisions a fresh Immich instance for e2e testing.
 ```
 
 **Arguments:**
-- `INSTALL_DIR`: Directory for Immich installation (default: `./e2e-immich`)
+- `INSTALL_DIR`: Directory for Immich installation (default: `./internal/e2e/testdata/immich-server`)
 - `PORT`: Port for Immich server (default: `2283`)
 
 **What it does:**
@@ -27,7 +27,7 @@ Provisions a fresh Immich instance for e2e testing.
 
 **Example:**
 ```bash
-./scripts/e2e/immich-provision.sh ./my-immich 3000
+./scripts/e2e/immich-provision.sh ./internal/e2e/testdata/immich-server 3000
 ```
 
 ---
@@ -42,7 +42,7 @@ Provisions test users and API keys in an Immich instance.
 
 **Arguments:**
 - `IMMICH_URL`: Immich server URL (default: `http://localhost:2283`)
-- `OUTPUT_FILE`: Output file for credentials (default: `./e2e-immich/e2eusers.yml`)
+- `OUTPUT_FILE`: Output file for credentials (default: `./internal/e2e/testdata/immich-server/e2eusers.yml`)
 
 **What it does:**
 1. Verifies Immich is accessible
@@ -56,21 +56,12 @@ Provisions test users and API keys in an Immich instance.
 
 **Example:**
 ```bash
-./scripts/e2e/immich-provision-users.sh http://localhost:2283 ./e2e-immich/e2eusers.yml
+./scripts/e2e/immich-provision-users.sh http://localhost:2283 ./internal/e2e/testdata/immich-server/e2eusers.yml
 ```
 
 ---
 
-### immich-reset.sh
-Resets Immich database between e2e tests (preserves users and API keys).
-
-**Usage:**
-```bash
-./scripts/e2e/immich-reset.sh [INSTALL_DIR]
-```
-
-**Arguments:**
-- `INSTALL_DIR`: Immich installation directory (default: `./e2e-immich`)
+- `INSTALL_DIR`: Immich installation directory (default: `./internal/e2e/testdata/immich-server`)
 
 **What it does:**
 1. Stops Immich server container
@@ -80,8 +71,7 @@ Resets Immich database between e2e tests (preserves users and API keys).
 5. Waits for API to become ready
 
 **Example:**
-```bash
-./scripts/e2e/immich-reset.sh ./e2e-immich
+./scripts/e2e/immich-reset.sh ./internal/e2e/testdata/immich-server
 ```
 
 ---
@@ -95,7 +85,7 @@ Complete cleanup of Immich e2e test instance (including root-owned volumes).
 ```
 
 **Arguments:**
-- `INSTALL_DIR`: Immich installation directory (default: `./e2e-immich`)
+- `INSTALL_DIR`: Immich installation directory (default: `./internal/e2e/testdata/immich-server`)
 
 **What it does:**
 1. Stops and removes all containers
@@ -105,7 +95,7 @@ Complete cleanup of Immich e2e test instance (including root-owned volumes).
 
 **Example:**
 ```bash
-./scripts/e2e/immich-cleanup.sh ./e2e-immich
+./scripts/e2e/immich-cleanup.sh ./internal/e2e/testdata/immich-server
 ```
 
 ---
@@ -115,24 +105,24 @@ Complete cleanup of Immich e2e test instance (including root-owned volumes).
 ### Local Development
 ```bash
 # 1. Provision Immich
-./scripts/e2e/immich-provision.sh ./e2e-immich 2283
+./scripts/e2e/immich-provision.sh ./internal/e2e/testdata/immich-server 2283
 
 # 2. Create users
-./scripts/e2e/immich-provision-users.sh http://localhost:2283 ./e2e-immich/e2eusers.yml
+./scripts/e2e/immich-provision-users.sh http://localhost:2283 ./internal/e2e/testdata/immich-server/e2eusers.yml
 
 # 3. Run tests (explicitly setting env vars)
 E2E_SERVER=http://localhost:2283 \
-E2E_USERS=./e2e-immich/e2eusers.yml \
+E2E_USERS=./internal/e2e/testdata/immich-server/e2eusers.yml \
 go test -v -tags=e2e ./internal/e2e/client/...
 
 # Or simply use defaults (same as above):
 go test -v -tags=e2e ./internal/e2e/client/...
 
 # 4. Reset between test runs
-./scripts/e2e/immich-reset.sh ./e2e-immich
+./scripts/e2e/immich-reset.sh ./internal/e2e/testdata/immich-server
 
 # 5. Cleanup when done
-./scripts/e2e/immich-cleanup.sh ./e2e-immich
+./scripts/e2e/immich-cleanup.sh ./internal/e2e/testdata/immich-server
 ```
 
 ### GitHub Actions
@@ -162,19 +152,19 @@ chmod +x scripts/e2e/*.sh
 ### Docker volumes can't be removed
 The cleanup script will attempt to use sudo. If it fails:
 ```bash
-sudo rm -rf ./e2e-immich
+sudo rm -rf ./internal/e2e/testdata/immich-server
 ```
 
 ### Immich API doesn't become ready
 Check container logs:
 ```bash
-docker compose -f ./e2e-immich/docker-compose.yml logs immich-server
+docker compose -f ./internal/e2e/testdata/immich-server/docker-compose.yml logs immich-server
 ```
 
 ### Port already in use
 Use a different port:
 ```bash
-./scripts/e2e/immich-provision.sh ./e2e-immich 3000
+./scripts/e2e/immich-provision.sh ./internal/e2e/testdata/immich-server 3000
 ```
 
 ### Windows: bash not found

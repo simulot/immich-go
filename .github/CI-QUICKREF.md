@@ -49,7 +49,7 @@ should-run ──┬→ e2e_server (stays running)
 **Relevant paths for E2E:**
 - `app/`, `adapters/`, `immich/`, `internal/`
 - `main.go`, `go.mod`, `go.sum`
-- `e2e-immich/`, `.github/workflows/e2e-tests.yml`
+- `internal/e2e/testdata/immich-server/`, `.github/workflows/e2e-tests.yml`
 
 **Time:** ~12-15 minutes  
 **Cost:** ~$0.10
@@ -182,7 +182,7 @@ Changed files match:
   - main.go        # Entry point
   - go.mod         # Dependencies
   - go.sum         # Dependency checksums
-  - e2e-immich/**  # E2E infrastructure
+  - internal/e2e/testdata/immich-server/**  # E2E infrastructure
   - .github/workflows/e2e-tests.yml  # Workflow itself
 ```
 

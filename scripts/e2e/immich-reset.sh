@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-INSTALL_DIR="${1:-./e2e-immich}"
+INSTALL_DIR="${1:-./internal/e2e/testdata/immich-server}"
 TIMEOUT=60  # seconds to wait for API after restart
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

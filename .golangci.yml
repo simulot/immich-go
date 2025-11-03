@@ -49,26 +49,12 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
-    rules:
-      - path: (.+)\.go$
-        text: "Added to album: "
-      # Disable errcheck for JSON encoding in test files
-      - path: "_test\\.go$"
-        text: "Error return value of.*Encode.* is not checked"
-      # Exclude all linting issues from test files
-      - path: "_test\\.go$"
-        linters:
-          - unused
-          - unparam
-          - staticcheck
-          - govet
-          - errcheck
-          - whitespace
     paths:
       - third_party$
       - builtin$
       - examples$
-      - e2e-immich
+      - internal/e2e/testdata/immich-server
+      - "_test\\.go$"
 issues:
   max-issues-per-linter: 100
   max-same-issues: 100
@@ -84,4 +70,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
-      - e2e-immich
+      - internal/e2e/testdata/immich-server
