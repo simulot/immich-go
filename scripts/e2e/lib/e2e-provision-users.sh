@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 IMMICH_URL="${1:-http://localhost:2283}"
 OUTPUT_FILE="${2:-./internal/e2e/testdata/immich-server/e2eusers.yml}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}  Immich User Provisioning${NC}"
