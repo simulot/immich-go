@@ -41,9 +41,9 @@ echo -e "${GREEN}✅ Immich is accessible${NC}"
 echo ""
 
 # Check if Go program exists
-PROVISION_TOOL="${PROJECT_ROOT}/internal/e2e/server/provision-users"
-if [ ! -f "${PROVISION_TOOL}/main.go" ]; then
-    echo -e "${RED}❌ User provisioning tool not found at ${PROVISION_TOOL}${NC}"
+CREATE_USER_TOOL="${PROJECT_ROOT}/internal/e2e/e2eUtils/cmd/createUser"
+if [ ! -f "${CREATE_USER_TOOL}/createUser.go" ]; then
+    echo -e "${RED}❌ User creation tool not found at ${CREATE_USER_TOOL}${NC}"
     exit 1
 fi
 
@@ -52,14 +52,17 @@ if [[ ! "${OUTPUT_FILE}" = /* ]]; then
     OUTPUT_FILE="$(pwd)/${OUTPUT_FILE}"
 fi
 
-# Run the Go program to provision users
-echo -e "${YELLOW}👥 Creating users and API keys...${NC}"
-cd "${PROVISION_TOOL}"
+# Run the Go program to create admin user
+echo -e "${YELLOW}👥 Creating admin user...${NC}"
+cd "${CREATE_USER_TOOL}"
 
-if ! go run main.go "${IMMICH_URL}" "${OUTPUT_FILE}"; then
-    echo -e "${RED}❌ Failed to provision users${NC}"
+if ! go run createUser.go create-admin > "${OUTPUT_FILE}"; then
+    echo -e "${RED}❌ Failed to create admin user${NC}"
     exit 1
 fi
+
+# Display the created credentials
+cat "${OUTPUT_FILE}"
 
 # Verify output file was created
 if [ ! -f "${OUTPUT_FILE}" ]; then
@@ -70,16 +73,14 @@ fi
 # Success!
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✅ Users provisioned successfully!${NC}"
+echo -e "${GREEN}✅ Admin user created successfully!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${BLUE}Credentials file:${NC} ${OUTPUT_FILE}"
 echo ""
-echo -e "${YELLOW}Created users:${NC}"
+echo -e "${YELLOW}Created user:${NC}"
 echo -e "  • ${BLUE}admin@immich.app${NC} (admin, all permissions)"
-echo -e "  • ${BLUE}user1@immich.app${NC} (minimal permissions)"
-echo -e "  • ${BLUE}user2@immich.app${NC} (minimal permissions)"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo -e "  1. Run tests with: ${BLUE}E2E_USERS=${OUTPUT_FILE}${NC}"
+echo -e "  1. Run tests with credentials from: ${BLUE}${OUTPUT_FILE}${NC}"
 echo ""

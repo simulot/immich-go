@@ -60,7 +60,7 @@ var (
 
 func readUsers() (map[string]user, error) {
 	onceUsers.Do(func() {
-		f, err := os.ReadFile(path.Join(ProjectDir, "e2e-immich", "e2eusers.env"))
+		f, err := os.ReadFile(path.Join(ProjectDir, "internal", "e2e", "testdata", "immich-server", "e2eusers.env"))
 		if err != nil {
 			userErr = err
 			return
