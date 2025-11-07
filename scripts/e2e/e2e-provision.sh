@@ -131,14 +131,11 @@ if [ "$READY" = false ]; then
     exit 1
 fi
 
+# Determine the directory of the current script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 #  Create a few test users 
-cd ${PROJECT_DIR}/internal/e2e/e2eUtils/cmd/createUser
-go run createUser.go - <<EOF > "${INSTALL_DIR}/e2eusers.env"
-create-admin
-create-user user1@immich.app user1
-create-user user2@immich.app user2
-create-user user3@immich.app user3
-EOF
+"${SCRIPT_DIR}/lib/e2e-provision-users.sh" "${IMMICH_URL}" "${INSTALL_DIR}/e2eusers.env" 
 
 # Success!
 echo ""
