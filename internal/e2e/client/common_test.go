@@ -49,6 +49,7 @@ func getProjectDir() string {
 }
 
 type user struct {
+	Email,
 	Password, APIKey string
 }
 
@@ -96,6 +97,24 @@ func readUsers() (map[string]user, error) {
 	return users, userErr
 }
 
+func writeUsers(users map[string]user) error {
+	f, err := os.Create(path.Join(ProjectDir, "internal", "e2e", "testdata", "immich-server", "e2eusers.env"))
+	if err != nil {
+		return err
+	}
+	for email, u := range users {
+		_, err := f.WriteString(fmt.Sprintf("E2E_%s_PASSWORD=%s\n", email, u.Password))
+		if err != nil {
+			return err
+		}
+		_, err = f.WriteString(fmt.Sprintf("E2E_%s_APIKEY=%s\n", email, u.APIKey))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func getUser(email string) (user, error) {
 	us, err := readUsers()
 	if err != nil {
@@ -119,7 +138,7 @@ func createUser(keyName string) (user, error) {
 	name := randomString(8)
 	email := name + "@immich.app"
 	password := name
-	u := user{Password: password}
+	u := user{Password: password, Email: email}
 
 	err = e2eutils.CreateUser(admtk, email, password, email)
 	if err != nil {
@@ -139,9 +158,7 @@ func createUser(keyName string) (user, error) {
 	}
 	u.APIKey = key
 	users[email] = u
-
-	fmt.Printf("E2E_%s_PASSWORD=%s\n", email, password)
-	fmt.Printf("E2E_%s_APIKEY=%s\n", email, key)
+	err = writeUsers(users)
 	return u, err
 }
 
@@ -164,7 +181,9 @@ var permissions map[string][]string = map[string][]string{
 		`asset.statistics`,
 		`asset.update`,
 		`asset.upload`,
+		`asset.copy`,
 		`asset.replace`,
+		`asset.delete`,
 		`asset.download`,
 		`album.create`,
 		`album.read`,
