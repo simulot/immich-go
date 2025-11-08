@@ -14,8 +14,6 @@ var (
 
 // initialize version and commit at the runtime
 func init() {
-	fmt.Print("TODO: check version path  in the tool chain")
-
 	dirty := false
 	buildvcs := false
 
