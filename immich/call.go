@@ -39,6 +39,7 @@ const (
 	EndPointGetAllTags             = "GetAllTags"
 	EndPointAssetUpload            = "AssetUpload"
 	EndPointAssetReplace           = "AssetReplace"
+	EndPointCopyAsset              = "CopyAsset"
 	EndPointGetAboutInfo           = "GetAboutInfo"
 	EndPointGetSearchSuggestions   = "GetSearchSuggestions"
 	EndPointGetAllPeople           = "GetAllPeople"
@@ -61,10 +62,11 @@ func (e TooManyInternalError) Is(target error) bool {
 
 // serverCall permit to decorate request and responses in one line
 type serverCall struct {
-	endPoint string
-	ic       *ImmichClient
-	err      error
-	ctx      context.Context
+	endPoint           string
+	ic                 *ImmichClient
+	err                error
+	ctx                context.Context
+	hasResponseHandler bool
 }
 
 // callError represents errors returned by the server
@@ -253,6 +255,10 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 			_ = sc.joinError(opt(sc, resp))
 		}
 	}
+	if !sc.hasResponseHandler && resp.Body != nil {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
 	if sc.err != nil {
 		return sc.Err(req, resp, nil)
 	}
@@ -337,6 +343,7 @@ type serverResponseOption func(sc *serverCall, resp *http.Response) error
 
 func responseJSON[T any](object *T) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
+		sc.hasResponseHandler = true
 		if resp != nil {
 			if resp.Body != nil {
 				defer resp.Body.Close()
@@ -356,6 +363,7 @@ func responseJSON[T any](object *T) serverResponseOption {
 
 func responseCopy(buffer *bytes.Buffer) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
+		sc.hasResponseHandler = true
 		if resp != nil {
 			if resp.Body != nil {
 				newBody := fshelper.TeeReadCloser(resp.Body, buffer)
@@ -369,6 +377,7 @@ func responseCopy(buffer *bytes.Buffer) serverResponseOption {
 
 func responseOctetStream(rc *io.ReadCloser) serverResponseOption {
 	return func(sc *serverCall, resp *http.Response) error {
+		sc.hasResponseHandler = true
 		if resp != nil {
 			if resp.Body != nil {
 				*rc = resp.Body

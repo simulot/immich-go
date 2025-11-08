@@ -50,6 +50,7 @@ fi
 echo -e "${YELLOW}🗑️  Resetting database...${NC}"
 
 # SQL to reset the database (preserves users, API keys, sessions)
+# Based on Immich utils.ts https://github.com/immich-app/immich/blob/853d19dc2dcfb871edc03860ecc94aadad3b478a/e2e/src/utils.ts#L147-L187
 RESET_SQL='
 DELETE FROM "stack" CASCADE;
 DELETE FROM "library" CASCADE;
@@ -57,7 +58,7 @@ DELETE FROM "shared_link" CASCADE;
 DELETE FROM "person" CASCADE;
 DELETE FROM "album" CASCADE;
 DELETE FROM "asset" CASCADE;
-DELETE FROM "asset_faces" CASCADE;
+DELETE FROM "asset_face" CASCADE;
 DELETE FROM "activity" CASCADE;
 DELETE FROM "tag" CASCADE;
 '

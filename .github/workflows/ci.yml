@@ -329,9 +329,10 @@ jobs:
     env:
       project_dir: d:\a\immich-go\immich-go
       e2e_folder: d:\a\immich-go\immich-go\e2e-immich
-      e2e_users: d:\a\immich-go\immich-go\e2e-immich\e2eusers.env
-      e2e_compose: d:\a\immich-go\immich-go\e2e-immich\docker-compose.yml
-      e2e_users_server: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
+      #e2e_compose: d:\a\immich-go\immich-go\e2e-immich\docker-compose.yml
+      e2e_users_folder: d:\a\immich-go\immich-go\internal\e2e\testdata\immich-server
+      e2e_users: d:\a\immich-go\immich-go\internal\e2e\testdata\immich-server\e2eusers.env
+      e2e_users_server: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
 
     steps:
       - name: Checkout Code
@@ -386,9 +387,9 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Copying e2eusers.env from the server..." -ForegroundColor Yellow
-          New-Item -Path "${{ env.e2e_folder }}" -ItemType Directory -Force | Out-Null
-          scp -o StrictHostKeyChecking=no ${{ env.e2e_ssh }}:${{ env.e2e_users_server }} ${{ env.e2e_folder }}\e2eusers.env
-          Get-Content "${{ env.e2e_folder }}\e2eusers.env"
+          New-Item -Path "${{ env.e2e_users_folder }}" -ItemType Directory -Force | Out-Null
+          scp -o StrictHostKeyChecking=no "${{ env.e2e_ssh }}:${{ env.e2e_users_server }}" "${{ env.e2e_users }}"
+          Get-Content "${{ env.e2e_users }}"
 
       - name: Run E2E Tests on Windows
         shell: pwsh

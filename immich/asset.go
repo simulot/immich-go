@@ -3,6 +3,7 @@ package immich
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -150,8 +151,10 @@ func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (Asse
 	return ic.uploadAsset(ctx, la, EndPointAssetUpload, "")
 }
 
+// ReplaceAsset is deprecated, use CopyAsset
 func (ic *ImmichClient) ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) {
-	return ic.uploadAsset(ctx, la, EndPointAssetReplace, ID)
+	return AssetResponse{}, errors.New("ReplaceAsset end point is deprecated, use CopyAsset")
+	// return ic.uploadAsset(ctx, la, EndPointAssetReplace, ID)
 }
 
 type GetAssetOptions struct {
@@ -280,4 +283,35 @@ func (ic *ImmichClient) DownloadAsset(ctx context.Context, id string) (io.ReadCl
 
 	err := ic.newServerCall(ctx, "DownloadAsset").do(getRequest(fmt.Sprintf("/assets/%s/original", id), setOctetStream()), responseOctetStream(&rc))
 	return rc, err
+}
+
+// CopyAsset copy metadata from the sourceID to targeID
+func (ic *ImmichClient) CopyAsset(ctx context.Context, sourceID string, targetID string) error {
+	if ic.dryRun {
+		return nil
+	}
+
+	type AssetCopyDto struct {
+		SourceID    string `json:"sourceId"`
+		TargetID    string `json:"targetId"`
+		Albums      bool   `json:"albums"`
+		Favorite    bool   `json:"favorite"`
+		SharedLinks bool   `json:"sharedLinks"`
+		Sidecar     bool   `json:"sidecar"`
+		Stack       bool   `json:"stack"`
+	}
+
+	req := AssetCopyDto{
+		SourceID:    sourceID,
+		TargetID:    targetID,
+		Albums:      true,
+		Favorite:    true,
+		SharedLinks: true,
+		Sidecar:     true,
+		Stack:       true,
+	}
+
+	return ic.newServerCall(ctx, EndPointCopyAsset).do(
+		putRequest("/assets/copy", setJSONBody(&req)),
+	)
 }

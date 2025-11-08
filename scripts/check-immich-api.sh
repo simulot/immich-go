@@ -2,7 +2,7 @@
 
 # Immich API Monitor Script
 # This script checks for changes in the Immich OpenAPI specifications
-# and can be run manually or as part of development workflow
+# and can be run manually or as part of a development workflow
 
 set -e
 
@@ -79,15 +79,98 @@ echo "  Current Immich commit: ${CURRENT_COMMIT:0:7}"
 echo "  Last checked commit: ${LAST_COMMIT:0:7}"
 echo ""
 
+# --- function to display changed endpoints ---
+view_changed_endpoints() {
+    echo -e "${BLUE}🔎 Analyzing API endpoint changes...${NC}"
+    
+    # Extract paths from both files
+    mapfile -t old_paths < <(jq -r '.paths | keys[]' "$BASELINE_FILE")
+    mapfile -t new_paths < <(jq -r '.paths | keys[]' "$TEMP_FILE")
+
+    # Find added, removed and common paths
+    added_paths=()
+    removed_paths=()
+    common_paths=()
+
+    for path in "${new_paths[@]}"; do
+        found=0
+        for old_path in "${old_paths[@]}"; do
+            if [[ "$path" == "$old_path" ]]; then
+                found=1
+                common_paths+=("$path")
+                break
+            fi
+        done
+        if [[ $found -eq 0 ]]; then
+            added_paths+=("$path")
+        fi
+    done
+
+    for old_path in "${old_paths[@]}"; do
+        found=0
+        for path in "${new_paths[@]}"; do
+            if [[ "$old_path" == "$path" ]]; then
+                found=1
+                break
+            fi
+        done
+        if [[ $found -eq 0 ]]; then
+            removed_paths+=("$old_path")
+        fi
+    done
+
+    # Find newly deprecated endpoints
+    deprecated_paths=()
+    for path in "${common_paths[@]}"; do
+        mapfile -t methods < <(jq -r ".paths[\"$path\"] | keys[]" "$TEMP_FILE")
+        for method in "${methods[@]}"; do
+            new_deprecated=$(jq -r ".paths[\"$path\"].\"$method\".deprecated" "$TEMP_FILE")
+            old_deprecated=$(jq -r ".paths[\"$path\"].\"$method\".deprecated" "$BASELINE_FILE")
+            if [[ "$new_deprecated" == "true" && "$old_deprecated" != "true" ]]; then
+                deprecated_paths+=("$method: $path")
+            fi
+        done
+    done
+
+
+    if [ ${#added_paths[@]} -gt 0 ]; then
+        echo -e "${GREEN}✨ Added endpoints:${NC}"
+        for path in "${added_paths[@]}"; do
+            echo "  - $path"
+        done
+    fi
+
+    if [ ${#removed_paths[@]} -gt 0 ]; then
+        echo -e "${RED}🗑️ Removed endpoints:${NC}"
+        for path in "${removed_paths[@]}"; do
+            echo "  - $path"
+        done
+    fi
+
+    if [ ${#deprecated_paths[@]} -gt 0 ]; then
+        echo -e "${YELLOW}⚠️ Newly deprecated endpoints:${NC}"
+        for path in "${deprecated_paths[@]}"; do
+            echo "  - $path"
+        done
+    fi
+
+    if [ ${#added_paths[@]} -eq 0 ] && [ ${#removed_paths[@]} -eq 0 ] && [ ${#deprecated_paths[@]} -eq 0 ]; then
+        echo -e "${YELLOW}Endpoints are the same, but their content may have changed.${NC}"
+    fi
+    echo ""
+}
+
+
 # Prompt for action
 echo -e "${YELLOW}What would you like to do?${NC}"
 echo "1) View detailed diff"
-echo "2) Update baseline (accept changes)"
-echo "3) View OpenAPI spec in browser"
-echo "4) Exit without updating"
+echo "2) View changed endpoints"
+echo "3) Update baseline (accept changes)"
+echo "4) View OpenAPI spec in browser"
+echo "5) Exit without updating"
 echo ""
 
-read -p "Enter your choice (1-4): " choice
+read -p "Enter your choice (1-5): " choice
 
 case $choice in
     1)
@@ -111,11 +194,14 @@ case $choice in
         fi
         ;;
     2)
+        view_changed_endpoints
+        ;;
+    3)
         cp "$TEMP_FILE" "$BASELINE_FILE"
         echo "$CURRENT_COMMIT" > "$COMMIT_FILE"
         echo -e "${GREEN}✅ Baseline updated${NC}"
         ;;
-    3)
+    4)
         echo -e "${BLUE}🌐 Opening Immich OpenAPI specs in browser...${NC}"
         if command -v xdg-open >/dev/null 2>&1; then
             xdg-open "https://github.com/immich-app/immich/blob/main/open-api/immich-openapi-specs.json"
@@ -125,7 +211,7 @@ case $choice in
             echo "Please visit: https://github.com/immich-app/immich/blob/main/open-api/immich-openapi-specs.json"
         fi
         ;;
-    4)
+    5)
         echo -e "${YELLOW}👋 Exiting without updating baseline${NC}"
         ;;
     *)

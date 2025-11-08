@@ -365,7 +365,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 		// Upload the superior asset
-		serverStatus, err := uc.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
+		serverStatus, err := uc.replaceAsset(ctx, a, advice.ServerAsset)
 		if err != nil {
 			return err
 		}
@@ -397,7 +397,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 			a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 			// Upload the superior asset
-			serverStatus, err = uc.replaceAsset(ctx, advice.ServerAsset.ID, a, advice.ServerAsset)
+			serverStatus, err = uc.replaceAsset(ctx, a, advice.ServerAsset)
 		} else {
 			serverStatus, err = uc.uploadAsset(ctx, a)
 		}
@@ -416,7 +416,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 // set the server's asset ID to the asset.
 // return the duplicate condition and error.
 func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, error) {
-	defer uc.app.Log().Debug("upli", "file", a)
+	defer uc.app.Log().Debug("upload asset", "file", a)
 
 	if uc.SessionTag {
 		a.AddTag(uc.session)
@@ -469,30 +469,42 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 	return ar.Status, nil
 }
 
-func (uc *UpCmd) replaceAsset(ctx context.Context, ID string, a, old *assets.Asset) (string, error) {
-	defer uc.app.Log().Debug("replaced by", "ID", ID, "file", a)
-	ar, err := uc.client.Immich.ReplaceAsset(ctx, ID, a)
+// replaceAsset replaces an asset on the server. It uploads the new asset, copies the metadata from the old one and deletes the old one.
+// https://github.com/immich-app/immich/pull/23172#issue-3542430029
+func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.Asset) (string, error) {
+	// 1. Upload the new asset
+	ar, err := uc.client.Immich.AssetUpload(ctx, newAsset)
 	if err != nil {
-		uc.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
+		uc.app.Jnl().Record(ctx, fileevent.UploadServerError, newAsset, "error", err.Error())
 		return "", err // Must signal the error to the caller
 	}
+	newAsset.ID = ar.ID
 	if ar.Status == immich.UploadDuplicate {
 		originalName := "unknown"
 		original := uc.assetIndex.getByID(ar.ID)
 		if original != nil {
 			originalName = original.OriginalFileName
 		}
-		if a.ID == "" {
-			uc.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", originalName)
-		} else {
-			uc.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", "the server already has this file", "original name", originalName)
-		}
-	} else {
-		a.ID = ID
-		uc.app.Jnl().Record(ctx, fileevent.UploadUpgraded, a.File)
-		uc.assetIndex.replaceAsset(a, old)
+		uc.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, newAsset, "reason", "the server already has this file", "original name", originalName)
+		return immich.UploadDuplicate, nil
 	}
-	return ar.Status, nil
+
+	// 2. copy metadata from existing asset to the new asset
+	err = uc.client.Immich.CopyAsset(ctx, oldAsset.ID, ar.ID)
+	if err != nil {
+		uc.app.Jnl().Record(ctx, fileevent.UploadServerError, newAsset, "error", err.Error())
+		return "", err // Must signal the error to the caller
+	}
+
+	// 3. Delete the existing asset
+	err = uc.client.Immich.DeleteAssets(ctx, []string{oldAsset.ID}, true)
+	if err != nil {
+		uc.app.Jnl().Record(ctx, fileevent.UploadServerError, newAsset, "error", err.Error())
+		return "", err // Must signal the error to the caller
+	}
+	uc.assetIndex.replaceAsset(newAsset, oldAsset)
+	uc.app.Jnl().Record(ctx, fileevent.UploadUpgraded, newAsset, "reason", "the file from the source is better than the file on the server")
+	return "", nil
 }
 
 // manageAssetAlbums add the assets to the albums listed.

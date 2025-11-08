@@ -67,7 +67,7 @@ func (rt *roundTripTrace) Request(req *http.Request) io.ReadCloser {
 	return req.Body
 }
 
-func (rt *roundTripTrace) Dump() {
+func dump(rt *roundTripTrace) {
 	go func() {
 		if rt.req.body != nil {
 			// Wait for the request body to be closed...
