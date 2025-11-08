@@ -305,7 +305,7 @@ jobs:
           mkdir -p "${e2e_folder}"
           echo "👥 Creating admin user..."
           cd ${{env.project_dir}}/internal/e2e/e2eUtils/cmd/createUser
-          go run createUser.go create-admin > "${e2e_folder}/e2eusers.env"
+          go run createUser.go create-admin
           cat "${e2e_folder}/e2eusers.env"
 
       - name: Copy the e2eusers.env to the server for later use
