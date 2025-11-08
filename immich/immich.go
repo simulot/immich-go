@@ -28,7 +28,8 @@ type ImmichAssetInterface interface {
 	GetAssetInfo(ctx context.Context, id string) (*Asset, error)
 	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
-	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error)
+	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) // Deprecated
+	CopyAsset(ctx context.Context, sourceID string, targetID string) error
 	GetAllAssets(ctx context.Context, fn func(*Asset) error) error
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(
@@ -47,7 +48,7 @@ type ImmichAssetInterface interface {
 	GetAssetsByImageName(ctx context.Context, name string) ([]*Asset, error)
 
 	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
-	DeleteAssets(context.Context, []string, bool) error
+	DeleteAssets(ctx context.Context, IDs []string, force bool) error
 }
 
 // ImmichGetSuggestion is not a part of the immich client interface to simplify the client mokes
