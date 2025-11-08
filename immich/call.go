@@ -256,7 +256,7 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 		}
 	}
 	if !sc.hasResponseHandler && resp.Body != nil {
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}
 	if sc.err != nil {

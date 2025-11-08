@@ -486,7 +486,7 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 			originalName = original.OriginalFileName
 		}
 		uc.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, newAsset, "reason", "the server already has this file", "original name", originalName)
-		return "", nil
+		return immich.UploadDuplicate, nil
 	}
 
 	// 2. copy metadata from existing asset to the new asset
