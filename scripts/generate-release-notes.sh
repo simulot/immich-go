@@ -10,9 +10,13 @@
 #   - ChatGPT or Claude web interfaces
 #   - Any other AI assistant
 #
-# Usage: ./scripts/generate-release-notes.sh
+# Usage: ./scripts/generate-release-notes.sh [version]
+# Arguments:
+#   version - Optional. Version number for the release (e.g., v0.30.0)
+#             If not provided, will try to detect from branch name or use 'NEXT'
 # Output: release-notes-prompt.txt (to be used with AI)
 #         release-notes-draft.md (if API is available)
+#         docs/releases/release-notes-VERSION.md (where to save final notes)
 
 set -e
 
@@ -58,6 +62,21 @@ if [ -z "$LAST_STABLE_TAG" ]; then
 fi
 
 print_info "Last stable release: $LAST_STABLE_TAG"
+
+# Determine next version (you can modify this logic as needed)
+# For now, we'll use the current date or ask for input
+NEXT_VERSION="${1:-}"
+if [ -z "$NEXT_VERSION" ]; then
+    # Try to determine next version from branch name or use a placeholder
+    if [[ "$CURRENT_REF" =~ ^release/v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+        NEXT_VERSION="${BASH_REMATCH[1]}"
+    else
+        # Use placeholder - user can provide version as argument
+        NEXT_VERSION="NEXT"
+    fi
+fi
+
+print_info "Next version: $NEXT_VERSION"
 
 # Get current branch/commit
 CURRENT_REF=$(git rev-parse --abbrev-ref HEAD)
@@ -115,6 +134,11 @@ sed -i "/COMMIT_LIST/d" "$TEMP_PROMPT"
 # Output file
 OUTPUT_FILE="release-notes-draft.md"
 PROMPT_FILE="release-notes-prompt.txt"
+RELEASES_DIR="docs/releases"
+VERSION_FILE="${RELEASES_DIR}/release-notes-${NEXT_VERSION}.md"
+
+# Create releases directory if it doesn't exist
+mkdir -p "$RELEASES_DIR"
 
 print_info "Generating release notes prompt..."
 
@@ -122,80 +146,27 @@ print_info "Generating release notes prompt..."
 cp "$TEMP_PROMPT" "$PROMPT_FILE"
 print_info "✓ Prompt saved to $PROMPT_FILE"
 
-# Try to use GitHub API if available (experimental)
-# Note: GitHub's Copilot Chat API may not be available via gh api
-print_info "Attempting automatic generation via GitHub API..."
-
-# Read the prompt
-PROMPT_CONTENT=$(cat "$TEMP_PROMPT")
-
-if command -v jq &> /dev/null; then
-    # Create a JSON payload for the API
-    JSON_PAYLOAD=$(jq -n \
-        --arg prompt "$PROMPT_CONTENT" \
-        '{
-            model: "gpt-4",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are an expert technical writer specializing in software release notes."
-                },
-                {
-                    role: "user",
-                    content: $prompt
-                }
-            ],
-            max_tokens: 4000,
-            temperature: 0.7
-        }')
-
-    # Make API call using gh api (this may not work as the endpoint is not public)
-    RESPONSE=$(gh api \
-        -X POST \
-        -H "Accept: application/vnd.github+json" \
-        /copilot/chat/completions \
-        --input - <<< "$JSON_PAYLOAD" 2>&1) && {
-        
-        # Extract the generated content
-        GENERATED_NOTES=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
-        
-        if [ -n "$GENERATED_NOTES" ]; then
-            echo "$GENERATED_NOTES" > "$OUTPUT_FILE"
-            print_info "✓ Release notes automatically generated: $OUTPUT_FILE"
-        fi
-    } || {
-        print_info "API generation not available (expected)"
-    }
-fi
-
 # Clean up temp file
 rm "$TEMP_PROMPT"
 
 # Provide instructions
 echo ""
 print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-print_info "NEXT STEPS: Generate release notes using AI"
+print_info "NEXT STEP: Process the prompt with GitHub Copilot"
 print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-print_info "The prompt has been saved to: $PROMPT_FILE"
+print_info "Prompt file created: $PROMPT_FILE"
+print_info "Target output file: $VERSION_FILE"
 echo ""
-print_info "Option 1 (Recommended): Use GitHub Copilot Chat in VS Code"
-print_info "  1. Open the prompt file: code $PROMPT_FILE"
-print_info "  2. Select all content (Ctrl+A)"
-print_info "  3. Open Copilot Chat (Ctrl+Shift+I)"
-print_info "  4. Paste and send the prompt"
-print_info "  5. Save the response to $OUTPUT_FILE"
-echo ""
-print_info "Option 2: Use ChatGPT or Claude"
-print_info "  1. Copy the content from: $PROMPT_FILE"
-print_info "  2. Paste it into ChatGPT/Claude"
-print_info "  3. Save the response to $OUTPUT_FILE"
-echo ""
-print_info "Option 3: Use with @workspace in Copilot Chat"
-print_info "  In VS Code Copilot Chat, type:"
-print_info "  @workspace Generate release notes from the commits in $PROMPT_FILE"
+print_info "In GitHub Copilot Chat, type: generate the release note for the version $NEXT_VERSION"
+print_info "and it will generate the release notes following the project guidelines."
 echo ""
 print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+if [ "$NEXT_VERSION" = "NEXT" ]; then
+    print_warning "Version is set to 'NEXT'. Run with version number:"
+    print_info "  ./scripts/generate-release-notes.sh v0.30.0"
+fi
 
 print_info "Release notes prompt generated successfully!"
 print_info "Commits processed: $COMMIT_COUNT"

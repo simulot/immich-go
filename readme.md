@@ -46,6 +46,7 @@ immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-ke
 | [Examples](docs/examples.md) | Common use cases and practical examples |
 | [Best Practices](docs/best-practices.md) | Tips for optimal performance and reliability |
 | [Technical Details](docs/technical.md) | File processing, metadata handling, and advanced features |
+| [Release Notes](docs/releases/) | Version history and release notes |
 
 ## 🎯 Popular Use Cases
 
