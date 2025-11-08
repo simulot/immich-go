@@ -34,6 +34,8 @@ immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-ke
 - A running Immich server with API access
 - API key with appropriate permissions ([see full list](docs/installation.md#api-permissions))
 
+> ⚠️ **Breaking Change**: API keys must now include the `asset.copy` and `asset.delete` permissions in addition to previously required permissions. Please update your API keys accordingly.
+
 ## 📚 Documentation
 
 | Topic | Description |

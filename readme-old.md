@@ -46,7 +46,9 @@
     * `asset.statistics`
     * `asset.update`
     * `asset.upload`
+    * `asset.copy`
     * `asset.replace`
+    * `asset.delete`
     * `asset.download`
     * `album.create`
     * `album.read`

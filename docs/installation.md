@@ -23,7 +23,9 @@ Create an` immich API key for each user account you plan to use with `Immich-Go`
 - `asset.statistics` 
 - `asset.update`
 - `asset.upload`
+- `asset.copy`
 - `asset.replace`
+- `asset.delete`
 - `asset.download`
 - `album.create`
 - `album.read`
