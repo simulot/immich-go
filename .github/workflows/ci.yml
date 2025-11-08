@@ -329,9 +329,9 @@ jobs:
     env:
       project_dir: d:\a\immich-go\immich-go
       e2e_folder: d:\a\immich-go\immich-go\e2e-immich
-      e2e_users: d:\a\immich-go\immich-go\e2e-immich\e2eusers.env
+      e2e_users: d:\a\immich-go\immich-go\internal\e2e\testdata\immich-server\e2eusers.env
       e2e_compose: d:\a\immich-go\immich-go\e2e-immich\docker-compose.yml
-      e2e_users_server: /home/runner/work/immich-go/immich-go/e2e-immich/e2eusers.env
+      e2e_users_server: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
 
     steps:
       - name: Checkout Code
