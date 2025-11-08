@@ -14,7 +14,7 @@ import (
 
 	"github.com/simulot/immich-go/app/root"
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
-	"github.comcom/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fileevent"
 )
 
 // getSHA1ByFilename reads all files in the given folder and returns a map
