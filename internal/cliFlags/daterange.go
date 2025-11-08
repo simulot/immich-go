@@ -43,6 +43,44 @@ func (dr DateRange) String() string {
 	}
 }
 
+// MarshalJSON implements json.Marshaler
+func (dr DateRange) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + dr.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (dr *DateRange) UnmarshalJSON(data []byte) error {
+	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
+		return fmt.Errorf("invalid JSON string for DateRange")
+	}
+	s := string(data[1 : len(data)-1])
+	return dr.Set(s)
+}
+
+// MarshalYAML implements yaml.Marshaler
+func (dr DateRange) MarshalYAML() (interface{}, error) {
+	return dr.String(), nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler
+func (dr *DateRange) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	return dr.Set(s)
+}
+
+// MarshalText implements encoding.TextMarshaler
+func (dr DateRange) MarshalText() ([]byte, error) {
+	return []byte(dr.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (dr *DateRange) UnmarshalText(data []byte) error {
+	return dr.Set(string(data))
+}
+
 func (dr *DateRange) SetTZ(tz *time.Location) {
 	dr.tz = tz
 	if dr.set {
@@ -92,6 +130,11 @@ func (dr *DateRange) Set(s string) (err error) {
 		}
 		dr.Before = dr.Before.AddDate(0, 0, 1)
 	default:
+		dr.set = false
+		return fmt.Errorf("invalid date range:%s", s)
+	}
+
+	if dr.Before.Before(dr.After) {
 		dr.set = false
 		return fmt.Errorf("invalid date range:%s", s)
 	}

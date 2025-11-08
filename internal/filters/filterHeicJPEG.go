@@ -159,3 +159,41 @@ func (h HeicJpgFlag) String() string {
 func (h HeicJpgFlag) Type() string {
 	return "HeicJpgFlag"
 }
+
+// MarshalJSON implements json.Marshaler
+func (h HeicJpgFlag) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + h.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (h *HeicJpgFlag) UnmarshalJSON(data []byte) error {
+	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
+		return fmt.Errorf("invalid JSON string for HeicJpgFlag")
+	}
+	s := string(data[1 : len(data)-1])
+	return h.Set(s)
+}
+
+// MarshalYAML implements yaml.Marshaler
+func (h HeicJpgFlag) MarshalYAML() (interface{}, error) {
+	return h.String(), nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler
+func (h *HeicJpgFlag) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	return h.Set(s)
+}
+
+// MarshalText implements encoding.TextMarshaler
+func (h HeicJpgFlag) MarshalText() ([]byte, error) {
+	return []byte(h.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (h *HeicJpgFlag) UnmarshalText(data []byte) error {
+	return h.Set(string(data))
+}

@@ -23,3 +23,15 @@ __debug_*
 
 # macOS system files
 .DS_Store
+
+# API monitoring temporary files
+.github/immich-api-monitor/temp-specs.json
+immich-go.yaml
+
+# e2e test
+internal/e2e.zip
+resetImmich
+internal/e2e/immich-test
+internal/e2e/fixtures/wikimedia
+scratchpad/
+internal/e2e/testdata

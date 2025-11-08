@@ -49,13 +49,12 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
-    rules:
-      - path: (.+)\.go$
-        text: 'Added to album: '
     paths:
       - third_party$
       - builtin$
       - examples$
+      - internal/e2e/testdata/immich-server
+      - "_test\\.go$"
 issues:
   max-issues-per-linter: 100
   max-same-issues: 100
@@ -71,3 +70,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - internal/e2e/testdata/immich-server

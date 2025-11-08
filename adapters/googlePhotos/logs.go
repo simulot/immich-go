@@ -13,24 +13,24 @@ import (
 )
 
 // logMessage for the photo and the movie attached to the photo
-func (to *Takeout) logMessage(ctx context.Context, code fileevent.Code, a slog.LogValuer, reason string) {
+func (toc *TakeoutCmd) logMessage(ctx context.Context, code fileevent.Code, a slog.LogValuer, reason string) {
 	t := "reason"
 	if code == fileevent.Error {
 		t = "error"
 	}
-	to.log.Record(ctx, code, a, t, reason)
+	toc.log.Record(ctx, code, a, t, reason)
 }
 
-func (to *Takeout) DebugFileTracker(w io.Writer) {
+func (toc *TakeoutCmd) DebugFileTracker(w io.Writer) {
 	csv := csv.NewWriter(w)
 	_ = csv.Write([]string{"File", "Size", "Count", "Duplicated", "Uploaded", "Status", "Date", "Albums", "Paths"})
 
-	keys := to.fileTracker.Keys()
+	keys := toc.fileTracker.Keys()
 
 	slices.SortFunc(keys, trackerKeySortFunc)
 	line := make([]string, 9)
 	for _, k := range keys {
-		track, _ := to.fileTracker.Load(k)
+		track, _ := toc.fileTracker.Load(k)
 		line[0] = k.baseName
 		line[1] = strconv.Itoa(int(k.size))     // Size
 		line[2] = strconv.Itoa(track.count)     // Count

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/spf13/cobra"
 )
 
 type Reader interface {
@@ -13,4 +14,8 @@ type Reader interface {
 type AssetWriter interface {
 	WriteAsset(context.Context, *assets.Asset) error
 	// WriteGroup(ctx context.Context, group *assets.Group) error
+}
+
+type Runner interface {
+	Run(cmd *cobra.Command, adapter Reader) error
 }

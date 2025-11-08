@@ -9,9 +9,10 @@ type Task func()
 
 // Pool manages a pool of worker goroutines.
 type Pool struct {
-	tasks chan Task
-	wg    sync.WaitGroup
-	quit  chan struct{}
+	tasks  chan Task
+	wg     sync.WaitGroup
+	quit   chan struct{}
+	closed bool
 }
 
 // NewPool creates a new Pool with a specified number of workers.
@@ -49,7 +50,10 @@ func (p *Pool) Submit(task Task) {
 
 // Stop stops all the workers and waits for them to finish.
 func (p *Pool) Stop() {
-	close(p.quit)
-	p.wg.Wait()
-	close(p.tasks)
+	if !p.closed {
+		close(p.quit)
+		p.wg.Wait()
+		close(p.tasks)
+		p.closed = true
+	}
 }

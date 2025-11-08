@@ -26,6 +26,16 @@ import (
 
 */
 
+type Visibility string
+
+const (
+	VisibilityArchive  Visibility = "archive"
+	VisibilityTimeline Visibility = "timeline"
+	VisibilityHidden   Visibility = "hidden"
+	VisibilityLocked   Visibility = "locked"
+	VisibilityUnknown  Visibility = ""
+)
+
 type Asset struct {
 	// File system and file name
 	File     fshelper.FSAndName
@@ -39,14 +49,15 @@ type Asset struct {
 	FileSize         int    // File size in bytes
 
 	// Metadata for the process and the upload to Immich
-	CaptureDate time.Time // Date of the capture
-	Trashed     bool      // The asset is trashed
-	Archived    bool      // The asset is archived
-	FromPartner bool      // the asset comes from a partner
-	Favorite    bool      // the asset is marked as favorite
-	Rating      int       // the asset is marked with stars
-	Albums      []Album   // List of albums the asset is in
-	Tags        []Tag     // List of tags the asset is tagged with
+	CaptureDate time.Time  // Date of the capture
+	Archived    bool       // The asset is archived
+	Trashed     bool       // The asset is trashed
+	FromPartner bool       // the asset comes from a partner
+	Favorite    bool       // the asset is marked as favorite
+	Rating      int        // the asset is marked with stars
+	Albums      []Album    // List of albums the asset is in
+	Tags        []Tag      // List of tags the asset is tagged with
+	Visibility  Visibility // Immich visibility
 
 	// Information inferred from the original file name
 	NameInfo
@@ -117,12 +128,12 @@ func (a Asset) DeviceAssetID() string {
 // LogValue returns a slog.Value representing the LocalAssetFile's properties.
 func (a Asset) LogValue() slog.Value {
 	return slog.GroupValue(
+		slog.String("OriginalFileName", a.OriginalFileName),
 		slog.Any("FileName", a.File),
+		slog.String("ID", a.ID),
 		slog.Time("FileDate", a.FileDate),
 		slog.String("Description", a.Description),
-		slog.String("Title", a.OriginalFileName),
 		slog.Int("FileSize", a.FileSize),
-		slog.String("ID", a.ID),
 		slog.Time("CaptureDate", a.CaptureDate),
 		slog.Bool("Trashed", a.Trashed),
 		slog.Bool("Archived", a.Archived),

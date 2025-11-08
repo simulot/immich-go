@@ -130,3 +130,41 @@ func (b BurstFlag) String() string {
 func (b BurstFlag) Type() string {
 	return "BurstFlag"
 }
+
+// MarshalJSON implements json.Marshaler
+func (b BurstFlag) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + b.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (b *BurstFlag) UnmarshalJSON(data []byte) error {
+	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
+		return fmt.Errorf("invalid JSON string for BurstFlag")
+	}
+	s := string(data[1 : len(data)-1])
+	return b.Set(s)
+}
+
+// MarshalYAML implements yaml.Marshaler
+func (b BurstFlag) MarshalYAML() (interface{}, error) {
+	return b.String(), nil
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler
+func (b *BurstFlag) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	return b.Set(s)
+}
+
+// MarshalText implements encoding.TextMarshaler
+func (b BurstFlag) MarshalText() ([]byte, error) {
+	return []byte(b.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (b *BurstFlag) UnmarshalText(data []byte) error {
+	return b.Set(string(data))
+}

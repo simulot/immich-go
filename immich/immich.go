@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
@@ -27,8 +28,9 @@ type ImmichAssetInterface interface {
 	GetAssetInfo(ctx context.Context, id string) (*Asset, error)
 	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
-	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error)
-	GetAllAssets(ctx context.Context) ([]*Asset, error)
+	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) // Deprecated
+	CopyAsset(ctx context.Context, sourceID string, targetID string) error
+	GetAllAssets(ctx context.Context, fn func(*Asset) error) error
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
 	UpdateAssets(
 		ctx context.Context,
@@ -40,17 +42,26 @@ type ImmichAssetInterface interface {
 		removeParent bool,
 		stackParentID string,
 	) error
-	GetAllAssetsWithFilter(context.Context, *SearchMetadataQuery, func(*Asset) error) error
+	GetFilteredAssetsFn(ctx context.Context, so *searchOptions, filter func(*Asset) error) error
+	// GetAllAssetsWithFilter(context.Context, *SearchMetadataQuery, func(*Asset) error) error
 	GetAssetsByHash(ctx context.Context, hash string) ([]*Asset, error)
 	GetAssetsByImageName(ctx context.Context, name string) ([]*Asset, error)
 
 	AssetUpload(context.Context, *assets.Asset) (AssetResponse, error)
-	DeleteAssets(context.Context, []string, bool) error
+	DeleteAssets(ctx context.Context, IDs []string, force bool) error
 }
+
+// ImmichGetSuggestion is not a part of the immich client interface to simplify the client mokes
+type ImmichGetSuggestion interface {
+	GetSearchSuggestions(ctx context.Context, req SearchSuggestionRequest) (SearchSuggestions, error)
+}
+
+type RoundTripperDecorator func(rt http.RoundTripper) http.RoundTripper
 
 type ImmichClientInterface interface {
 	SetEndPoint(string)
-	EnableAppTrace(w io.Writer)
+	// EnableAppTrace by decorating the client's transport with round tripper that logs queries
+	EnableAppTrace(rtd RoundTripperDecorator)
 	SetDeviceUUID(string)
 	PingServer(ctx context.Context) error
 	ValidateConnection(ctx context.Context) (User, error)
@@ -105,6 +116,13 @@ type ImmichJobInterface interface {
 		force bool,
 	) (SendJobCommandResponse, error)
 	CreateJob(ctx context.Context, name JobName) error
+}
+
+type ImmichPeopleInterface interface {
+	GetAllPeople(ctx context.Context, opts ...GetAllPeopleOptions) (*PeopleResponseDto, error)
+	GetAllPeopleIterator(ctx context.Context, fn func(*PersonResponseDto) error, opts ...GetAllPeopleOptions) error
+	GetPersonByName(ctx context.Context, name string, opts ...GetAllPeopleOptions) (*PersonResponseDto, error)
+	GetPeopleByNames(ctx context.Context, names []string, opts ...GetAllPeopleOptions) (map[string]*PersonResponseDto, error)
 }
 
 type myBool bool

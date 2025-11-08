@@ -7,52 +7,61 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/phsym/console-slog"
 	slogmulti "github.com/samber/slog-multi"
-	"github.com/simulot/immich-go/internal/configuration"
+	"github.com/simulot/immich-go/immich/httptrace"
 	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 	"github.com/simulot/immich-go/internal/loghelper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 type Log struct {
-	*slog.Logger // Logger
+	Type  string `mapstructure:"type" json:"type" toml:"type" yaml:"type"`     // Log format : text|json
+	File  string `mapstructure:"file" json:"file" toml:"file" yaml:"file"`     // Log file name
+	Level string `mapstructure:"level" json:"level" toml:"level" yaml:"level"` // Indicate the log level (string)
 
-	Type  string // Log format : text|json
-	File  string // Log file name
-	Level string // Indicate the log level (string)
-
-	sLevel slog.Level // the log level value
-
-	mainWriter    io.Writer // the log writer to file
+	*slog.Logger             // Logger
+	sLevel        slog.Level // the log level value
+	mainWriter    io.Writer  // the log writer to file
 	consoleWriter io.Writer
+
+	apiTracer      *httptrace.Tracer
+	apiTraceWriter *os.File
+	apiTraceName   string
 }
 
-func AddLogFlags(ctx context.Context, cmd *cobra.Command, app *Application) {
-	log := app.Log()
-	cmd.PersistentFlags().StringVar(&log.Level, "log-level", "INFO", "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
-	cmd.PersistentFlags().StringVarP(&log.File, "log-file", "l", "", "Write log messages into the file")
-	cmd.PersistentFlags().StringVar(&log.Type, "log-type", "text", "Log formatted  as text of JSON file")
+func (log *Log) RegisterFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&log.Level, "log-level", "INFO", "Log level (DEBUG|INFO|WARN|ERROR), default INFO")
+	flags.StringVarP(&log.File, "log-file", "l", "", "Write log messages into the file")
+	flags.StringVar(&log.Type, "log-type", "text", "Log formatted  as text of JSON file")
+}
 
-	cmd.PersistentPreRunE = ChainRunEFunctions(cmd.PersistentPreRunE, log.Open, ctx, cmd, app)
-	cmd.PersistentPostRunE = ChainRunEFunctions(cmd.PersistentPostRunE, log.Close, ctx, cmd, app)
+// DefaultLogFile returns the default log file path
+func DefaultLogFile() string {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return time.Now().Format("immich-go_2006-01-02_15-04-05.log")
+	}
+	return filepath.Join(cacheDir, "immich-go", time.Now().Format("immich-go_2006-01-02_15-04-05.log"))
 }
 
 func (log *Log) OpenLogFile() error {
 	var w io.WriteCloser
 
 	if log.File == "" {
-		log.File = configuration.DefaultLogFile()
+		log.File = DefaultLogFile()
 	}
 	if log.File != "" {
 		if log.mainWriter == nil {
-			err := configuration.MakeDirForFile(log.File)
+			dir := filepath.Dir(log.File)
+			err := os.MkdirAll(dir, 0o700)
 			if err != nil {
 				return err
 			}
@@ -75,10 +84,17 @@ func (log *Log) OpenLogFile() error {
 }
 
 func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) error {
-	if cmd.Name() == "version" {
-		// No log for version command
-		return nil
+	for c := cmd; c != nil; c = c.Parent() {
+		// no log, nor banner for those commands
+		switch c.Name() {
+		case "version", "completion":
+			return nil
+		}
+		if cmd.Flags().Changed("--help") {
+			return nil
+		}
 	}
+
 	fmt.Println(Banner())
 	err := log.OpenLogFile()
 	if err != nil {
@@ -86,6 +102,14 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	}
 	// List flags
 	log.Info(GetVersion())
+
+	// Log configuration file if used
+	if configFile := app.Config.GetConfigFile(); configFile != "" {
+		log.Info("", "Configuration file", configFile)
+	} else {
+		log.Info("", "Configuration file", "none (using defaults)")
+	}
+
 	log.Info("Running environment:", "architecture", runtime.GOARCH, "os", runtime.GOOS)
 
 	cmdStack := []string{cmd.Name()}
@@ -95,18 +119,16 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 
 	log.Info(fmt.Sprintf("Command: %s", strings.Join(cmdStack, " ")))
 	log.Info("Flags:")
-	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+	visitFlags := func(flag *pflag.Flag) {
+		origin := app.Config.GetFlagOrigin(cmd, flag)
 		val := flag.Value.String()
-		if val == "" {
-			if v := viper.GetString(flag.Name); v != "" {
-				val = v
-			}
-		}
 		if strings.Contains(flag.Name, "api-key") && len(val) > 4 {
 			val = strings.Repeat("*", len(val)-4) + val[len(val)-4:]
 		}
-		log.Info("", "--"+flag.Name, val)
-	})
+		log.Info("", "--"+flag.Name, val, "origin", origin)
+	}
+	cmd.Flags().VisitAll(visitFlags)
+	cmd.PersistentFlags().VisitAll(visitFlags)
 
 	// List arguments
 	log.Info("Arguments:")
@@ -184,6 +206,12 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 	if log.File != "" {
 		log.Message("Check the log file: %s", log.File)
 	}
+	if log.apiTraceWriter != nil {
+		log.apiTracer.Close()
+		log.Message("Check the API-TRACE file: %s", log.apiTraceName)
+		log.apiTraceWriter.Close()
+	}
+
 	if closer, ok := log.mainWriter.(io.Closer); ok {
 		return closer.Close()
 	}
@@ -192,6 +220,24 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 
 func (log *Log) GetSLog() *slog.Logger {
 	return log.Logger
+}
+
+func (log *Log) OpenAPITrace() error {
+	if log.apiTraceWriter == nil {
+		var err error
+		log.apiTraceName = strings.TrimSuffix(log.File, path.Ext(log.File)) + ".trace.log"
+		log.apiTraceWriter, err = os.OpenFile(log.apiTraceName, os.O_CREATE|os.O_WRONLY, 0o664)
+		if err != nil {
+			return err
+		}
+		log.Message("Check the API-TRACE file: %s", log.apiTraceName)
+		log.apiTracer = httptrace.NewTracer(log.apiTraceWriter)
+	}
+	return nil
+}
+
+func (log *Log) APITracer() *httptrace.Tracer {
+	return log.apiTracer
 }
 
 // FilteredHandler filterslog messages and filters out context canceled errors

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/simulot/immich-go/internal/filetypes"
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type InclusionFlags struct {
@@ -14,6 +14,13 @@ type InclusionFlags struct {
 	IncludedExtensions ExtensionList
 	IncludedType       IncludeType
 	DateRange          DateRange
+}
+
+func (flags *InclusionFlags) RegisterFlags(fs *pflag.FlagSet, prefix string) {
+	fs.Var(&flags.DateRange, prefix+"date-range", "Only import photos taken within the specified date range")
+	fs.Var(&flags.ExcludedExtensions, prefix+"exclude-extensions", "Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)")
+	fs.Var(&flags.IncludedExtensions, prefix+"include-extensions", "Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)")
+	fs.Var(&flags.IncludedType, prefix+"include-type", "Single file type to include. (VIDEO or IMAGE) (default: all)")
 }
 
 // An IncludeType is either of the constants below which
@@ -26,16 +33,17 @@ const (
 	IncludeImage IncludeType = "IMAGE"
 )
 
-func AddInclusionFlags(cmd *cobra.Command, flags *InclusionFlags) {
-	cmd.Flags().Var(&flags.DateRange, "date-range", "Only import photos taken within the specified date range")
-	cmd.Flags().Var(&flags.ExcludedExtensions, "exclude-extensions", "Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)")
-	cmd.Flags().Var(&flags.IncludedExtensions, "include-extensions", "Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)")
-	cmd.Flags().Var(&flags.IncludedType, "include-type", "Single file type to include. (VIDEO or IMAGE) (default: all)")
-	cmd.PreRun = func(cmd *cobra.Command, args []string) {
-		if cmd.Flags().Changed("include-type") {
-			setIncludeTypeExtensions(flags)
-		}
+// SetIncludeTypeExtensions must be called once flags are parsed
+func (flags *InclusionFlags) SetIncludeTypeExtensions() {
+	mediaToExtensionsMap := filetypes.MediaToExtensions()
+
+	switch flags.IncludedType {
+	case IncludeVideo:
+		flags.IncludedExtensions = append(flags.IncludedExtensions, mediaToExtensionsMap[filetypes.TypeVideo]...)
+	case IncludeImage:
+		flags.IncludedExtensions = append(flags.IncludedExtensions, mediaToExtensionsMap[filetypes.TypeImage]...)
 	}
+	flags.IncludedExtensions = append(flags.IncludedExtensions, mediaToExtensionsMap[filetypes.TypeSidecar]...)
 }
 
 // Add the approprite extensions flags given the user inclusion flag

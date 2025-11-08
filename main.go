@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/simulot/immich-go/app/cmd"
+	"github.com/simulot/immich-go/app/root"
 )
 
 // immich-go entry point
@@ -39,7 +39,7 @@ func immichGoMain(ctx context.Context) error {
 		cancel(errors.New("Ctrl+C received")) // Cancel the context when Ctrl+C is received
 	}()
 
-	c, a := cmd.RootImmichGoCommand(ctx)
+	c, a := root.RootImmichGoCommand(ctx)
 	// let's start
 	err := c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {

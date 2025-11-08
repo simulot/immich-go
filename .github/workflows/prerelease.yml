@@ -1,0 +1,188 @@
+name: Prerelease from Develop
+
+on:
+    # Automatic triggering disabled - only manual triggering allowed
+    # push:
+    #   branches:
+    #     - develop
+    # Allow manual triggering
+    workflow_dispatch:
+        inputs:
+            force_prerelease:
+                description: "Force create prerelease even if no significant changes"
+                required: false
+                default: false
+                type: boolean
+
+permissions:
+    contents: write
+    packages: write
+
+jobs:
+    check-changes:
+        name: Check for significant changes
+        runs-on: ubuntu-latest
+        outputs:
+            should_release: ${{ steps.check.outputs.should_release }}
+            last_tag: ${{ steps.check.outputs.last_tag }}
+            next_version: ${{ steps.check.outputs.next_version }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+
+            - name: Check for significant changes
+              id: check
+              run: |
+                  # Get the latest tag
+                  LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.28.0")
+                  echo "last_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+                  # Calculate next version
+                  if [[ $LATEST_TAG =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+                    MAJOR=${BASH_REMATCH[1]}
+                    MINOR=${BASH_REMATCH[2]}
+                    PATCH=${BASH_REMATCH[3]}
+                    NEXT_MINOR=$((MINOR + 1))
+                    NEXT_VERSION="v${MAJOR}.${NEXT_MINOR}.0"
+                  else
+                    NEXT_VERSION="v0.29.0"
+                  fi
+                  echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+
+                  # Check if we should create a prerelease
+                  SHOULD_RELEASE="false"
+
+                  # Force release if manually triggered with force flag
+                  if [[ "${{ github.event.inputs.force_prerelease }}" == "true" ]]; then
+                    echo "🔧 Forced prerelease requested"
+                    SHOULD_RELEASE="true"
+                  else
+                    # Check for changes since last alpha tag for this version
+                    LAST_ALPHA=$(git tag -l "${NEXT_VERSION}-alpha*" | sort -V | tail -1)
+                    if [[ -z "$LAST_ALPHA" ]]; then
+                      # No alpha version exists, check changes since last stable tag
+                      CHANGES=$(git log --oneline ${LATEST_TAG}..HEAD | wc -l)
+                      if [[ $CHANGES -gt 0 ]]; then
+                        echo "📦 Found $CHANGES commits since last stable release"
+                        SHOULD_RELEASE="true"
+                      fi
+                    else
+                      # Check changes since last alpha
+                      CHANGES=$(git log --oneline ${LAST_ALPHA}..HEAD | wc -l)
+                      if [[ $CHANGES -gt 0 ]]; then
+                        echo "📦 Found $CHANGES commits since last alpha release"
+                        SHOULD_RELEASE="true"
+                      fi
+                    fi
+                  fi
+
+                  echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+                  echo "Should create prerelease: $SHOULD_RELEASE"
+
+    prerelease:
+        name: Create Prerelease
+        needs: check-changes
+        runs-on: ubuntu-latest
+        if: needs.check-changes.outputs.should_release == 'true'
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Setup Go
+              uses: actions/setup-go@v6
+              with:
+                  go-version-file: "go.mod"
+                  cache-dependency-path: "go.sum"
+
+            - name: Configure Git
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Generate prerelease version
+              id: version
+              run: |
+                  NEXT_VERSION="${{ needs.check-changes.outputs.next_version }}"
+                  DATE=$(date +"%Y%m%d")
+                  SHORT_COMMIT=$(git rev-parse --short HEAD)
+                  PRERELEASE_VERSION="${NEXT_VERSION}-alpha.${DATE}.${SHORT_COMMIT}"
+
+                  echo "prerelease_version=$PRERELEASE_VERSION" >> $GITHUB_OUTPUT
+                  echo "🏷️ Creating prerelease: $PRERELEASE_VERSION"
+
+            - name: Create and push tag
+              run: |
+                  PRERELEASE_VERSION="${{ steps.version.outputs.prerelease_version }}"
+                  SHORT_COMMIT=$(git rev-parse --short HEAD)
+
+                  # Create annotated tag
+                  git tag -a "$PRERELEASE_VERSION" -m "Prerelease $PRERELEASE_VERSION from develop branch
+
+                  Built from commit: ${SHORT_COMMIT}
+                  Date: $(date -u)
+
+                  This prerelease includes binaries for:
+                  - Linux AMD64
+                  - Linux ARM64  
+                  - macOS AMD64
+                  - Windows AMD64
+
+                  Changes since last release:
+                  $(git log --oneline ${{ needs.check-changes.outputs.last_tag }}..HEAD | head -10)"
+
+                  # Push tag
+                  git push origin "$PRERELEASE_VERSION"
+
+            - name: Run CI checks before release
+              run: |
+                  echo "🧪 Running tests..."
+                  go test ./...
+
+                  echo "🔍 Running linter..."
+                  go vet ./...
+
+            - name: Run GoReleaser
+              uses: goreleaser/goreleaser-action@v6
+              with:
+                  distribution: goreleaser
+                  version: "~> v2"
+                  args: release --prerelease --clean --timeout 20m
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Update prerelease summary
+              run: |
+                  PRERELEASE_VERSION="${{ steps.version.outputs.prerelease_version }}"
+                  echo "## 🚀 Prerelease Published Successfully!" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "**Version:** \`$PRERELEASE_VERSION\`" >> $GITHUB_STEP_SUMMARY
+                  echo "**Branch:** develop" >> $GITHUB_STEP_SUMMARY
+                  echo "**Commit:** \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### 📦 Available Downloads:" >> $GITHUB_STEP_SUMMARY
+                  echo "- Linux AMD64: \`immich-go_${PRERELEASE_VERSION#v}_Linux_x86_64.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+                  echo "- Linux ARM64: \`immich-go_${PRERELEASE_VERSION#v}_Linux_arm64.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+                  echo "- macOS AMD64: \`immich-go_${PRERELEASE_VERSION#v}_Darwin_x86_64.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+                  echo "- Windows AMD64: \`immich-go_${PRERELEASE_VERSION#v}_Windows_x86_64.zip\`" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "🔗 **[View Release](https://github.com/simulot/immich-go/releases/tag/$PRERELEASE_VERSION)**" >> $GITHUB_STEP_SUMMARY
+
+    notify-skip:
+        name: No prerelease needed
+        needs: check-changes
+        runs-on: ubuntu-latest
+        if: needs.check-changes.outputs.should_release == 'false'
+
+        steps:
+            - name: Skip notification
+              run: |
+                  echo "## ⏭️ Prerelease Skipped" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "No significant changes detected since the last prerelease." >> $GITHUB_STEP_SUMMARY
+                  echo "Use the 'force_prerelease' option in workflow_dispatch to create a prerelease anyway." >> $GITHUB_STEP_SUMMARY
