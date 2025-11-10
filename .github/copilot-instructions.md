@@ -14,6 +14,7 @@ When asked to generate release notes:
 2. The script will:
    - Find commits since the last stable release
    - Generate a prompt file: `release-notes-prompt.txt`
+   - if the file: `docs/releases/release-notes-[version].md` already exists, it will be used as a base
    - Create target file: `docs/releases/release-notes-[version].md`
 
 3. Process the prompt with this chat to generate the final release notes
@@ -35,5 +36,30 @@ When asked to generate release notes:
    - Skip purely internal changes unless they significantly impact users
    
 
+## commit messages generation
+  - use conventional commit style
+  - the commit title should prioritize features that affects the user experience
+  - the commit details list other changes
 
 
+
+## Development Conventions
+
+-   **Branching:** The project follows a specific branching strategy.
+    -   `feature/*` and `bugfix/*` branches should be based on and merged into `develop`.
+    -   `hotfix/*` branches should be based on and merged into `main`.
+-   **Commits:** While not strictly enforced, it's good practice to follow conventional commit message formats.
+-   **Dependencies:** Manage dependencies using Go modules (`go.mod` and `go.sum`).
+-   **Contributing:** Refer to `CONTRIBUTING.md` for more detailed contribution guidelines.
+
+
+## Working on a new feature
+
+- Storyboarding and design discussions should be documented in the `scratchpad/` directory.
+- Implementation progress and summaries should also be documented in the `scratchpad/` directory.   
+- propose unit tests for testing tricky aspects of the feature
+- propose e2e tests:
+    - explain the case to be tested: 
+    - propose a description of test data needed for the test. 
+    - I'll provide the data and files for the test
+    - ensure that the entire upload process works as expected, including file discovery, processing, and uploading to the Immich server.
