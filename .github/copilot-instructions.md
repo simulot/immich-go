@@ -41,6 +41,18 @@ When asked to generate release notes:
   - the commit title should prioritize features that affects the user experience
   - the commit details list other changes
 
+## prepare a pull-request to merge with the develop branch
+
+- if the file: `docs/releases/release-notes-[version].md` already exists, it will be used as a base
+- the pull-request should be named: `feature: [feature]`
+
+## prepare a pull-request to merge with the main branch
+
+- propose the new version using semantic versioning
+- be sure that the file `docs/releases/release-notes-[version].md` exists or generate it.
+- if the `docs/releases/release-notes-[NEXT].md` exists, it will be used as a base, and rename it with the new version number
+- the pull-request should be named: `release: [version]`
+
 
 
 ## Development Conventions
