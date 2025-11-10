@@ -48,6 +48,12 @@ jobs:
           source_branch="${{ github.head_ref }}"
           target_branch="${{ github.base_ref }}"
 
+          # Allow Dependabot PRs to bypass naming convention
+          if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+            echo "Dependabot PR is exempt from naming convention."
+            exit 0
+          fi
+
           # Allow certain system/integration branches to bypass naming convention
           if [[ "$source_branch" =~ ^(main|develop|master)$ ]]; then
             echo "System branch '$source_branch' is exempt from naming convention."
