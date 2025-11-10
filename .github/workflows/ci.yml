@@ -48,6 +48,13 @@ jobs:
           source_branch="${{ github.head_ref }}"
           target_branch="${{ github.base_ref }}"
 
+          # Allow dependency management bot PRs to bypass naming convention
+          # Matches: dependabot/*, renovate/*, etc.
+          if [[ "${{ github.actor }}" == "dependabot[bot]" ]] || [[ "${{ github.actor }}" == "renovate[bot]" ]] || [[ "$source_branch" =~ ^(dependabot|renovate)/ ]]; then
+            echo "Dependency management bot PR '$source_branch' is exempt from naming convention."
+            exit 0
+          fi
+
           # Allow certain system/integration branches to bypass naming convention
           if [[ "$source_branch" =~ ^(main|develop|master)$ ]]; then
             echo "System branch '$source_branch' is exempt from naming convention."
@@ -89,7 +96,7 @@ jobs:
           cache-dependency-path: "go.sum"
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
 
