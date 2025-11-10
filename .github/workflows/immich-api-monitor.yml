@@ -110,7 +110,7 @@ jobs:
 
             - name: Create issue for API changes
               if: steps.compare.outputs.changes_detected == 'true'
-              uses: actions/github-script@v7
+              uses: actions/github-script@v8
               with:
                   script: |
                       const fs = require('fs');
