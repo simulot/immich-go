@@ -23,7 +23,7 @@ func (m AlbumFolderMode) String() string {
 func (m *AlbumFolderMode) Set(v string) error {
 	v = strings.TrimSpace(strings.ToUpper(v))
 	switch v {
-	case string(FolderModeFolder), string(FolderModePath):
+	case string(FolderModeFolder), string(FolderModePath), string(FolderModeNone):
 		*m = AlbumFolderMode(v)
 	default:
 		return fmt.Errorf("invalid value for folder mode, expected %s, %s or %s", FolderModeFolder, FolderModePath, FolderModeNone)
