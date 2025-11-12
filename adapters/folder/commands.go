@@ -57,7 +57,7 @@ type ImportFolderCmd struct {
 func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
 	ifc.Recursive = true
 	ifc.supportedMedia = filetypes.DefaultSupportedMedia
-	ifc.UsePathAsAlbumName = "none"
+	ifc.UsePathAsAlbumName = FolderModeNone
 	ifc.BannedFiles, _ = namematcher.New(shared.DefaultBannedFiles...)
 
 	flags.Var(&ifc.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
