@@ -3,8 +3,10 @@ package gp
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/fs"
 	"log/slog"
+	"math"
 	"path"
 	"path/filepath"
 	"sort"
@@ -352,8 +354,52 @@ func (toc *TakeoutCmd) passTwo(ctx context.Context, gOut chan *assets.Group) err
 // 	image *assetFile
 // }
 
+func formatBytes(s int64) string {
+	suffixes := []string{"B", "KB", "MB", "GB"}
+	bytes := float64(s)
+	base := 1024.0
+	if bytes < base {
+		return fmt.Sprintf("%.0f %s", bytes, suffixes[0])
+	}
+	exp := int64(0)
+	for bytes >= base && exp < int64(len(suffixes)-1) {
+		bytes /= base
+		exp++
+	}
+	roundedSize := math.Round(bytes*10) / 10
+	return fmt.Sprintf("%.1f %s", roundedSize, suffixes[exp])
+}
+
+type FileInfo struct {
+	matches []struct {
+		extension string
+		size      int64
+	}
+	largestSize int64
+}
+
 func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *assets.Group) error {
 	catalog := toc.catalogs[dir]
+
+	fileSizeByExt := map[string]*FileInfo{}
+	for name, a := range catalog.matchedFiles {
+		fileName := strings.TrimSuffix(name, path.Ext(name))
+		fileInfo, ok := fileSizeByExt[fileName]
+		if !ok {
+			fileInfo = &FileInfo{}
+			fileSizeByExt[fileName] = fileInfo
+		}
+		fileInfo.matches = append(fileInfo.matches, struct {
+			extension string
+			size      int64
+		}{
+			extension: path.Ext(a.OriginalFileName),
+			size:      int64(a.FileSize),
+		})
+		if int64(a.FileSize) > fileInfo.largestSize {
+			fileInfo.largestSize = int64(a.FileSize)
+		}
+	}
 
 	dirEntries := make([]*assets.Asset, 0, len(catalog.matchedFiles))
 
@@ -362,6 +408,27 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 		a := catalog.matchedFiles[name]
 		key := fileKeyTracker{baseName: name, size: int64(a.FileSize)}
 		track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
+
+		fileName := strings.TrimSuffix(name, path.Ext(name))
+		fileInfo := fileSizeByExt[fileName]
+		if fileInfo != nil && int64(a.FileSize) < fileInfo.largestSize {
+			sortedMatches := make([]struct {
+				extension string
+				size      int64
+			}, len(fileInfo.matches))
+			copy(sortedMatches, fileInfo.matches)
+			sort.Slice(sortedMatches, func(i, j int) bool {
+				return sortedMatches[i].size > sortedMatches[j].size
+			})
+
+			var matchesInfo []string
+			for _, m := range sortedMatches {
+				matchesInfo = append(matchesInfo, fmt.Sprintf("[%s-%s]", m.extension, formatBytes(m.size)))
+			}
+
+			toc.logMessage(ctx, fileevent.AnalysisSmallerLocalDuplicate, a.File, strings.Join(matchesInfo, "; "))
+			continue
+		}
 		if track.status == fileevent.Uploaded {
 			a.Close()
 			toc.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a.File, "local duplicate")

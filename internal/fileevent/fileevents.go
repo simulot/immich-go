@@ -34,6 +34,7 @@ const (
 	AnalysisAssociatedMetadata
 	AnalysisMissingAssociatedMetadata
 	AnalysisLocalDuplicate
+	AnalysisSmallerLocalDuplicate
 
 	UploadNotSelected
 	UploadUpgraded        // = "Server's asset upgraded"
@@ -70,6 +71,7 @@ var _code = map[Code]string{
 	AnalysisAssociatedMetadata:        "associated metadata file",
 	AnalysisMissingAssociatedMetadata: "missing associated metadata file",
 	AnalysisLocalDuplicate:            "file duplicated in the input",
+	AnalysisSmallerLocalDuplicate:     "smaller duplicate",
 
 	UploadNotSelected:     "file not selected",
 	UploadUpgraded:        "server's asset upgraded with the input",
@@ -100,6 +102,7 @@ var _logLevels = map[Code]slog.Level{
 	AnalysisAssociatedMetadata:        slog.LevelInfo,
 	AnalysisMissingAssociatedMetadata: slog.LevelWarn,
 	AnalysisLocalDuplicate:            slog.LevelWarn,
+	AnalysisSmallerLocalDuplicate:     slog.LevelWarn,
 	UploadNotSelected:                 slog.LevelWarn,
 	UploadUpgraded:                    slog.LevelInfo,
 	UploadServerBetter:                slog.LevelInfo,
@@ -178,6 +181,7 @@ func (r *Recorder) Report() string {
 		DiscoveredDiscarded,
 		DiscoveredUnsupported,
 		AnalysisLocalDuplicate,
+		AnalysisSmallerLocalDuplicate,
 		AnalysisAssociatedMetadata,
 		AnalysisMissingAssociatedMetadata,
 	} {
@@ -195,6 +199,7 @@ func (r *Recorder) Report() string {
 			DiscoveredDiscarded,
 			DiscoveredUnsupported,
 			AnalysisLocalDuplicate,
+			AnalysisSmallerLocalDuplicate,
 			AnalysisAssociatedMetadata,
 			AnalysisMissingAssociatedMetadata,
 		} {
@@ -258,7 +263,8 @@ func (r *Recorder) TotalProcessed(forcedMissingJSON bool) int64 {
 		atomic.LoadInt64(&r.counts[UploadServerDuplicate]) +
 		atomic.LoadInt64(&r.counts[UploadServerBetter]) +
 		atomic.LoadInt64(&r.counts[DiscoveredDiscarded]) +
-		atomic.LoadInt64(&r.counts[AnalysisLocalDuplicate])
+		atomic.LoadInt64(&r.counts[AnalysisLocalDuplicate]) +
+		atomic.LoadInt64(&r.counts[AnalysisSmallerLocalDuplicate])
 	if !forcedMissingJSON {
 		v += atomic.LoadInt64(&r.counts[AnalysisMissingAssociatedMetadata])
 	}
