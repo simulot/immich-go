@@ -7,6 +7,7 @@ import (
 
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/adapters/folder"
+	"github.com/simulot/immich-go/adapters/fromimmich"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/adapters/shared"
 	"github.com/simulot/immich-go/app"
@@ -110,6 +111,7 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 	cmd.AddCommand(folder.NewFromICloudCommand(ctx, cmd, app, uc))
 	cmd.AddCommand(folder.NewFromPicasaCommand(ctx, cmd, app, uc))
 	cmd.AddCommand(gp.NewFromGooglePhotosCommand(ctx, cmd, app, uc))
+	cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, uc))
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// Initialize the Journal
