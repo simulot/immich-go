@@ -117,7 +117,7 @@ func Test_Replace(t *testing.T) {
 		fileevent.Uploaded:         5,
 		fileevent.UploadAddToAlbum: 0,
 		fileevent.Tagged:           0,
-	}, false, a.Jnl())
+	}, false, a.FileProcessor())
 
 	time.Sleep(2 * time.Second)
 
@@ -147,8 +147,8 @@ func Test_Replace(t *testing.T) {
 		fileevent.Uploaded:         0,
 		fileevent.UploadAddToAlbum: 0,
 		fileevent.Tagged:           0,
-		fileevent.UploadUpgraded:   5,
-	}, false, a.Jnl())
+		fileevent.UploadedUpgraded: 5,
+	}, false, a.FileProcessor())
 
 	assets, err := e2eutils.GetAllAssets(u1.Email, u1.Password)
 	if err != nil {

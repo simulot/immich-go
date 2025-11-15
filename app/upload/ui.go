@@ -205,7 +205,7 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 
 		uploadDone.Store(true)
 		counts := app.Jnl().GetCounts()
-		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
+		if counts[fileevent.Error]+counts[fileevent.ErrorServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
 
@@ -279,10 +279,10 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui.uploadCounts.SetBorder(true).SetTitle("Uploading")
 
 	ui.addCounter(ui.uploadCounts, 0, "Files uploaded", fileevent.Uploaded)
-	ui.addCounter(ui.uploadCounts, 1, "Errors during upload", fileevent.UploadServerError)
+	ui.addCounter(ui.uploadCounts, 1, "Errors during upload", fileevent.ErrorServerError)
 	ui.addCounter(ui.uploadCounts, 2, "Files not selected", fileevent.UploadNotSelected)
-	ui.addCounter(ui.uploadCounts, 3, "Server's asset upgraded", fileevent.UploadUpgraded)
-	ui.addCounter(ui.uploadCounts, 4, "Server has same quality", fileevent.UploadServerDuplicate)
+	ui.addCounter(ui.uploadCounts, 3, "Server's asset upgraded", fileevent.UploadedUpgraded)
+	ui.addCounter(ui.uploadCounts, 4, "Server has same quality", fileevent.UploadedServerDuplicate)
 	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 

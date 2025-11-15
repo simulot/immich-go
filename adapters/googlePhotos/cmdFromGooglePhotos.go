@@ -14,8 +14,8 @@ import (
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assets"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -50,7 +50,7 @@ type TakeoutCmd struct {
 
 	// internal state
 	app            *app.Application
-	log            *fileevent.Recorder
+	processor      *fileprocessor.FileProcessor
 	supportedMedia filetypes.SupportedMedia
 	infoCollector  *filenames.InfoCollector
 	tz             *time.Location
@@ -105,7 +105,7 @@ func NewFromGooglePhotosCommand(ctx context.Context, parent *cobra.Command, app 
 		var err error
 
 		log := app.Log()
-		toc.log = app.Jnl()
+		toc.processor = app.FileProcessor()
 		toc.tz = app.GetTZ()
 
 		// make an fs.FS per zip file or folder given on the CLI

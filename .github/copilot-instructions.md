@@ -1,8 +1,13 @@
+You are helping me for the design. don't update the code if not explicitly requested
+
 Don't write reasoning documentation 
     except is this is explicitly requested. Write it in the scratchpad folder.
 
 When implementing an immich end point, 
     refer to the api specifications located at .github/immich-api-monitor/immich-openapi-specs-baseline.json
+
+Never commit the code by yourself.
+   prepare the commit message and ask for confirmation before 
 
 ## Release Notes Generation
 
@@ -40,10 +45,13 @@ When asked to generate release notes:
   - use conventional commit style
   - the commit title should prioritize features that affects the user experience
   - the commit details list other changes
+  - maintain a provisional change log in the folder scratchpad
 
 ## prepare a pull-request to merge with the develop branch
 
 - if the file: `docs/releases/release-notes-[version].md` already exists, it will be used as a base
+- use the git commits messages
+- use the provisional change log in the folder scratchpad if present 
 - the pull-request should be named: `feature: [feature]`
 
 ## prepare a pull-request to merge with the main branch
