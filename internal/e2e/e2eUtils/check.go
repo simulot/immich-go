@@ -25,7 +25,6 @@ func CheckResults(t *testing.T, expectedResults map[fileevent.Code]int64, forced
 			t.Errorf("Found %d pending assets that never reached final state", counters.Pending)
 			r = false
 		}
-
 	}
 	return r
 }

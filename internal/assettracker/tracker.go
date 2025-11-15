@@ -317,8 +317,8 @@ func (at *AssetTracker) Validate() error {
 func (at *AssetTracker) GenerateReport() string {
 	counters := at.GetCounters()
 
-	report := fmt.Sprintf("\nAsset Tracking Report:\n")
-	report += fmt.Sprintf("=====================\n")
+	report := "\nAsset Tracking Report:\n"
+	report += "=====================\n"
 	report += fmt.Sprintf("Total Assets:    %7d  (%s)\n", counters.Total(), formatBytes(counters.AssetSize))
 	report += fmt.Sprintf("  Processed:     %7d  (%s)\n", counters.Processed, formatBytes(counters.ProcessedSize))
 	report += fmt.Sprintf("  Discarded:     %7d  (%s)\n", counters.Discarded, formatBytes(counters.DiscardedSize))
