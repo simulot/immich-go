@@ -109,24 +109,31 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			dir, base := path.Split(name)
 			dir = strings.TrimSuffix(dir, "/")
 			ext := strings.ToLower(path.Ext(base))
+			finfo, err := fs.Stat(w, name)
+			if err != nil {
+				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.Error, "error", err.Error())
+				return nil
+			}
 
 			// Exclude files to be ignored before processing
 			if toc.BannedFiles.Match(name) {
-				toc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "banned file")
+				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredDiscarded, "reason", "banned file")
 				return nil
 			}
 
 			if toc.supportedMedia.IsUseLess(name) {
-				toc.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(w, name))
+				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredUseless)
 				return nil
 			}
 
 			if !toc.InclusionFlags.IncludedExtensions.Include(ext) {
-				toc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not selected")
+				toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredDiscarded, "extension not included")
+
 				return nil
 			}
 			if toc.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-				toc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "file extension not allowed")
+				toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredDiscarded, "extension excluded")
+
 				return nil
 			}
 
@@ -135,11 +142,6 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				dirCatalog.jsons = map[string]*assets.Metadata{}
 				dirCatalog.unMatchedFiles = map[string]*assetFile{}
 				dirCatalog.matchedFiles = map[string]*assets.Asset{}
-			}
-			finfo, err := d.Info()
-			if err != nil {
-				toc.log.Record(ctx, fileevent.Error, fshelper.FSName(w, name), "error", err.Error())
-				return err
 			}
 			switch ext {
 			case ".json":
@@ -152,11 +154,11 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				if bytes.Contains(b, []byte("immich-go version:")) {
 					md, err = assets.UnMarshalMetadata(b)
 					if err != nil {
-						toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
+						toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
 						return nil
 					}
 					md.FileName = base
-					toc.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "immich-go metadata", "title", md.FileName)
+					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "immich-go metadata", "title", md.FileName)
 					md.File = fshelper.FSName(w, name)
 				} else {
 					md, err := fshelper.UnmarshalJSON[GoogleMetaData](b)
@@ -165,12 +167,12 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 						case md.isAsset():
 							md := md.AsMetadata(fshelper.FSName(w, name), toc.PeopleTag) // Keep metadata
 							dirCatalog.jsons[base] = md
-							toc.log.Log().Debug("Asset JSON", "metadata", md)
-							toc.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)
+							toc.app.Log().Debug("Asset JSON", "metadata", md)
+							toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)
 						case md.isAlbum():
-							toc.log.Log().Debug("Album JSON", "metadata", md)
+							toc.app.Log().Debug("Album JSON", "metadata", md)
 							if !toc.KeepUntitled && md.Title == "" {
-								toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "discard untitled album")
+								toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "discard untitled album")
 								return nil
 							}
 							a := toc.albums[dir]
@@ -184,13 +186,13 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 								a.Longitude = e.Longitude
 							}
 							toc.albums[dir] = a
-							toc.log.Record(ctx, fileevent.DiscoveredSidecar, fshelper.FSName(w, name), "type", "album metadata", "title", md.Title)
+							toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "album metadata", "title", md.Title)
 						default:
-							toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
+							toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
 							return nil
 						}
 					} else {
-						toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unknown JSONfile")
+						toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
 						return nil
 					}
 				}
@@ -199,19 +201,20 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				t := toc.supportedMedia.TypeFromExt(ext)
 				switch t {
 				case filetypes.TypeUseless:
-					toc.log.Record(ctx, fileevent.DiscoveredUseless, fshelper.FSName(w, name), "reason", "useless file")
+					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUseless, "reason", "useless file")
 					return nil
 				case filetypes.TypeUnknown:
-					toc.log.Record(ctx, fileevent.DiscoveredUnsupported, fshelper.FSName(w, name), "reason", "unsupported file type")
+					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnsupported, "reason", "unsupported file type")
 					return nil
 				case filetypes.TypeVideo:
-					toc.log.Record(ctx, fileevent.DiscoveredVideo, fshelper.FSName(w, name))
 					if strings.Contains(name, "Failed Videos") {
-						toc.log.Record(ctx, fileevent.DiscoveredDiscarded, fshelper.FSName(w, name), "reason", "can't upload failed videos")
+						toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredDiscarded, "can't upload failed videos")
 						return nil
+					} else {
+						toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredVideo)
 					}
 				case filetypes.TypeImage:
-					toc.log.Record(ctx, fileevent.DiscoveredImage, fshelper.FSName(w, name))
+					toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredImage)
 				}
 
 				key := fileKeyTracker{
@@ -225,8 +228,8 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				tracking.count++
 				toc.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
 
-				if a, ok := dirCatalog.unMatchedFiles[base]; ok {
-					toc.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a, "duplicated in the directory")
+				if _, ok := dirCatalog.unMatchedFiles[base]; ok {
+					toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.AnalysisLocalDuplicate, "duplicated in the directory")
 					return nil
 				}
 
@@ -303,7 +306,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 							i.md = md
 							a := toc.makeAsset(ctx, dir, i, md)
 							cat.matchedFiles[f] = a
-							toc.log.Record(ctx, fileevent.AnalysisAssociatedMetadata, fshelper.FSName(i.fsys, path.Join(dir, i.base)), "json", json, "matcher", matcher.name)
+							toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.AnalysisAssociatedMetadata, "json", json, "matcher", matcher.name)
 							delete(cat.unMatchedFiles, f)
 						}
 					}
@@ -316,7 +319,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 			sort.Strings(files)
 			for _, f := range files {
 				i := cat.unMatchedFiles[f]
-				toc.log.Record(ctx, fileevent.AnalysisMissingAssociatedMetadata, fshelper.FSName(i.fsys, path.Join(dir, i.base)))
+				toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.AnalysisMissingAssociatedMetadata)
 				if toc.KeepJSONLess {
 					a := toc.makeAsset(ctx, dir, i, nil)
 					cat.matchedFiles[f] = a
@@ -364,13 +367,12 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 		track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
 		if track.status == fileevent.Uploaded {
 			a.Close()
-			toc.logMessage(ctx, fileevent.AnalysisLocalDuplicate, a.File, "local duplicate")
+			toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.AnalysisLocalDuplicate, "local duplicate")
 			continue
 		}
 
 		// Filter on metadata
 		if code := toc.filterOnMetadata(ctx, a); code != fileevent.Code(0) {
-			a.Close()
 			continue
 		}
 		dirEntries = append(dirEntries, a)
@@ -508,25 +510,26 @@ func (toc *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md
 	return a
 }
 
+// filterOnMetadata, log discared files and closes the asset
 func (toc *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fileevent.Code {
 	if !toc.KeepArchived && a.Visibility == assets.VisibilityArchive {
-		toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding archived file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding archived file")
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
 	if !toc.KeepPartner && a.FromPartner {
-		toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding partner file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding partner file")
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
 	if !toc.KeepTrashed && a.Trashed {
-		toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding trashed file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding trashed file")
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
 
 	if toc.InclusionFlags.DateRange.IsSet() && !toc.InclusionFlags.DateRange.InRange(a.CaptureDate) {
-		toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files out of date range")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding files out of date range")
 		a.Close()
 		return fileevent.DiscoveredDiscarded
 	}
@@ -540,7 +543,7 @@ func (toc *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fi
 			keep = keep || album.Title == toc.ImportFromAlbum
 		}
 		if !keep {
-			toc.logMessage(ctx, fileevent.DiscoveredDiscarded, a, "discarding files not in the specified album")
+			toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding files not in the specified album")
 			a.Close()
 			return fileevent.DiscoveredDiscarded
 		}

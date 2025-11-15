@@ -4,21 +4,21 @@ import (
 	"context"
 	"encoding/csv"
 	"io"
-	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fshelper"
 )
 
 // logMessage for the photo and the movie attached to the photo
-func (toc *TakeoutCmd) logMessage(ctx context.Context, code fileevent.Code, a slog.LogValuer, reason string) {
+func (toc *TakeoutCmd) logMessage(ctx context.Context, code fileevent.Code, file fshelper.FSAndName, reason string) {
 	t := "reason"
 	if code == fileevent.Error {
 		t = "error"
 	}
-	toc.log.Record(ctx, code, a, t, reason)
+	toc.processor.RecordNonAsset(ctx, file, 0, code, t, reason)
 }
 
 func (toc *TakeoutCmd) DebugFileTracker(w io.Writer) {
