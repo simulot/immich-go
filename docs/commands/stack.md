@@ -28,7 +28,7 @@ Stacking groups related photos together for better organization:
 | Option              | Default | Description                       |
 | ------------------- | ------- | --------------------------------- |
 | `--skip-verify-ssl` | `false` | Skip SSL certificate verification |
-| `--client-timeout`  | `5m`    | Server call timeout               |
+| `--client-timeout`  | `20m`   | Server call timeout               |
 | `--api-trace`       | `false` | Enable API call tracing           |
 
 ## Behavior Options
