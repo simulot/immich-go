@@ -31,13 +31,13 @@ All upload sub-commands require these connection parameters:
 
 ## Upload Behavior Options
 
-| Option                 | Default   | Description                                                         |
-| ---------------------- | --------- | ------------------------------------------------------------------- |
-| `--dry-run`            | `false`   | Simulate upload without actual transfers                            |
-| `--concurrent-uploads` | CPU cores | Number of parallel uploads (1-20)                                   |
-| `--overwrite`          | `false`   | Replace existing files on server                                    |
-| `--pause-immich-jobs`  | `true`    | Pause server jobs during upload                                     |
-| `--on-server-errors`   | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors |
+| Option                | Default   | Description                                                         |
+| --------------------- | --------- | ------------------------------------------------------------------- |
+| `--dry-run`           | `false`   | Simulate upload without actual transfers                            |
+| `--concurrent-tasks`  | CPU cores | Number of parallel tasks (1-20)                                     |
+| `--overwrite`         | `false`   | Replace existing files on server                                    |
+| `--pause-immich-jobs` | `true`    | Pause server jobs during upload                                     |
+| `--on-errors`         | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors |
 
 ## Tagging and Organization
 
@@ -67,11 +67,11 @@ immich-go upload from-folder [options] <folder-path>
 
 ### Specific Options
 
-| Option                   | Default | Description                               |
-| ------------------------ | ------- | ----------------------------------------- |
-| `--recursive`            | `true`  | Process subfolders                        |
-| `--date-from-name`       | `true`  | Extract date from filename if no metadata |
-| `--ignore-sidecar-files` | `false` | Skip XMP sidecar files                    |
+| Option                   | Default | Description                                             |
+| ------------------------ | ------- | ------------------------------------------------------- |
+| `--recursive`            | `true`  | Process subfolders                                      |
+| `--date-from-name`       | `true`  | Extract date from filename if no metadata               |
+| `--ignore-sidecar-files` | `false` | Skip XMP sidecar files                                  |
 
 ### File Filtering
 
@@ -233,8 +233,8 @@ immich-go upload from-immich [source-options] [destination-options]
   | Option                  | Description                  |
   | ----------------------- | ---------------------------- |
   | `--from-date-range`     | Date range filter for source |
-  | `--include-archived`    | Include archived assets      |
-  | `--include-trash`       | Include trashed assets       |
+  | `--from-archived`       | Include archived assets      |
+  | `--from-trash`          | Include trashed assets       |
   | `--from-favorite`       | Include only favorite assets |
   | `--from-minimal-rating` | Minimum rating filter        |
 
@@ -261,9 +261,9 @@ immich-go upload from-immich \
 
 ## Performance Tips
 
-- **Concurrent Uploads**: Start with default (CPU cores), adjust based on network/server capacity
+- **Concurrent Tasks**: Start with default (CPU cores), adjust based on network/server capacity
 - **Large Files**: Increase `--client-timeout` for large video files
-- **Network Issues**: Use lower `--concurrent-uploads` for unstable connections
+- **Network Issues**: Use lower `--concurrent-tasks` for unstable connections
 - **Server Load**: Enable `--pause-immich-jobs` during large uploads
 
 ## See Also
