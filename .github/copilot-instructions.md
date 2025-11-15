@@ -6,6 +6,9 @@ Don't write reasoning documentation
 When implementing an immich end point, 
     refer to the api specifications located at .github/immich-api-monitor/immich-openapi-specs-baseline.json
 
+Never commit the code by yourself.
+   prepare the commit message and ask for confirmation before 
+
 ## Release Notes Generation
 
 When asked to generate release notes:
