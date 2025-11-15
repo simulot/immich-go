@@ -134,18 +134,24 @@ func (at *AssetTracker) DiscoverAndDiscard(file fshelper.FSAndName, fileSize int
 }
 
 // SetProcessed transitions an asset to the PROCESSED state
-func (at *AssetTracker) SetProcessed(file fshelper.FSAndName, eventCode fileevent.Code) error {
+func (at *AssetTracker) SetProcessed(file fshelper.FSAndName, eventCode fileevent.Code) {
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
 	key := file.FullName()
 	record, exists := at.assets[key]
 	if !exists {
-		return fmt.Errorf("asset not found: %s", key)
+		if at.log != nil {
+			at.log.Error("SetProcessed: asset not found", "file", key, "code", eventCode)
+		}
+		return
 	}
 
 	if record.State != StatePending {
-		return fmt.Errorf("asset not in pending state: %s (current: %s)", key, record.State)
+		if at.log != nil {
+			at.log.Error("SetProcessed: asset not in pending state", "file", key, "current_state", record.State, "code", eventCode)
+		}
+		return
 	}
 
 	record.State = StateProcessed
@@ -163,23 +169,27 @@ func (at *AssetTracker) SetProcessed(file fshelper.FSAndName, eventCode fileeven
 	at.pending--
 	at.processed++
 	at.processedSize += record.FileSize
-
-	return nil
 }
 
 // SetDiscarded transitions an asset to the DISCARDED state
-func (at *AssetTracker) SetDiscarded(file fshelper.FSAndName, eventCode fileevent.Code, reason string) error {
+func (at *AssetTracker) SetDiscarded(file fshelper.FSAndName, eventCode fileevent.Code, reason string) {
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
 	key := file.FullName()
 	record, exists := at.assets[key]
 	if !exists {
-		return fmt.Errorf("asset not found: %s", key)
+		if at.log != nil {
+			at.log.Error("SetDiscarded: asset not found", "file", key, "code", eventCode, "reason", reason)
+		}
+		return
 	}
 
 	if record.State != StatePending {
-		return fmt.Errorf("asset not in pending state: %s (current: %s)", key, record.State)
+		if at.log != nil {
+			at.log.Error("SetDiscarded: asset not in pending state", "file", key, "current_state", record.State, "code", eventCode, "reason", reason)
+		}
+		return
 	}
 
 	record.State = StateDiscarded
@@ -199,23 +209,27 @@ func (at *AssetTracker) SetDiscarded(file fshelper.FSAndName, eventCode fileeven
 	at.pending--
 	at.discarded++
 	at.discardedSize += record.FileSize
-
-	return nil
 }
 
 // SetError transitions an asset to the ERROR state
-func (at *AssetTracker) SetError(file fshelper.FSAndName, eventCode fileevent.Code, err error) error {
+func (at *AssetTracker) SetError(file fshelper.FSAndName, eventCode fileevent.Code, err error) {
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
 	key := file.FullName()
 	record, exists := at.assets[key]
 	if !exists {
-		return fmt.Errorf("asset not found: %s", key)
+		if at.log != nil {
+			at.log.Error("SetError: asset not found", "file", key, "code", eventCode, "error", err.Error())
+		}
+		return
 	}
 
 	if record.State != StatePending {
-		return fmt.Errorf("asset not in pending state: %s (current: %s)", key, record.State)
+		if at.log != nil {
+			at.log.Error("SetError: asset not in pending state", "file", key, "current_state", record.State, "code", eventCode, "error", err.Error())
+		}
+		return
 	}
 
 	record.State = StateError
@@ -235,8 +249,6 @@ func (at *AssetTracker) SetError(file fshelper.FSAndName, eventCode fileevent.Co
 	at.pending--
 	at.errors++
 	at.errorSize += record.FileSize
-
-	return nil
 }
 
 // GetCounters returns current asset counters

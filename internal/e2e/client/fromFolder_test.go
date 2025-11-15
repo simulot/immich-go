@@ -26,6 +26,7 @@ func Test_FromFolder(t *testing.T) {
 	ctx := t.Context()
 	c, a := root.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{
+		"--concurrent-tasks=0", // for debugging
 		"upload", "from-folder",
 		"--server=" + ImmichURL,
 		"--api-key=" + u1.APIKey,
@@ -49,5 +50,5 @@ func Test_FromFolder(t *testing.T) {
 		fileevent.Uploaded:         40,
 		fileevent.UploadAddToAlbum: 0,
 		fileevent.Tagged:           0,
-	}, false, a.Jnl())
+	}, false, a.FileProcessor())
 }

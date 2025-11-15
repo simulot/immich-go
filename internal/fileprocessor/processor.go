@@ -51,32 +51,23 @@ func (fp *FileProcessor) RecordAssetDiscardedImmediately(ctx context.Context, fi
 
 // RecordAssetProcessed transitions an asset to PROCESSED state.
 // The state change is tracked and the event is logged.
-func (fp *FileProcessor) RecordAssetProcessed(ctx context.Context, file fshelper.FSAndName, code fileevent.Code) error {
-	if err := fp.tracker.SetProcessed(file, code); err != nil {
-		return err
-	}
+func (fp *FileProcessor) RecordAssetProcessed(ctx context.Context, file fshelper.FSAndName, code fileevent.Code) {
+	fp.tracker.SetProcessed(file, code)
 	fp.logger.Record(ctx, code, file)
-	return nil
 }
 
 // RecordAssetDiscarded transitions an asset to DISCARDED state.
 // The state change is tracked and the event is logged with the reason.
-func (fp *FileProcessor) RecordAssetDiscarded(ctx context.Context, file fshelper.FSAndName, code fileevent.Code, reason string) error {
-	if err := fp.tracker.SetDiscarded(file, code, reason); err != nil {
-		return err
-	}
+func (fp *FileProcessor) RecordAssetDiscarded(ctx context.Context, file fshelper.FSAndName, code fileevent.Code, reason string) {
+	fp.tracker.SetDiscarded(file, code, reason)
 	fp.logger.Record(ctx, code, file, "reason", reason)
-	return nil
 }
 
 // RecordAssetError transitions an asset to ERROR state.
 // The state change is tracked and the error event is logged.
-func (fp *FileProcessor) RecordAssetError(ctx context.Context, file fshelper.FSAndName, code fileevent.Code, err error) error {
-	if setErr := fp.tracker.SetError(file, code, err); setErr != nil {
-		return setErr
-	}
+func (fp *FileProcessor) RecordAssetError(ctx context.Context, file fshelper.FSAndName, code fileevent.Code, err error) {
+	fp.tracker.SetError(file, code, err)
 	fp.logger.Record(ctx, code, file, "error", err.Error())
-	return nil
 }
 
 // RecordNonAsset records a non-asset file (sidecar, metadata, etc.).

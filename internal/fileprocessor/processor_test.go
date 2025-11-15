@@ -124,10 +124,7 @@ func TestRecordAssetProcessed(t *testing.T) {
 	fp.RecordAssetDiscovered(ctx, file, 1024, fileevent.DiscoveredImage)
 
 	// Then mark as processed
-	err := fp.RecordAssetProcessed(ctx, file, fileevent.UploadedSuccess)
-	if err != nil {
-		t.Fatalf("RecordAssetProcessed failed: %v", err)
-	}
+	fp.RecordAssetProcessed(ctx, file, fileevent.UploadedSuccess)
 
 	// Check tracker
 	counters := fp.GetAssetCounters()
@@ -161,10 +158,7 @@ func TestRecordAssetDiscarded(t *testing.T) {
 	fp.RecordAssetDiscovered(ctx, file, 2048, fileevent.DiscoveredImage)
 
 	// Then mark as discarded during processing
-	err := fp.RecordAssetDiscarded(ctx, file, fileevent.DiscardedLocalDuplicate, "duplicate in input")
-	if err != nil {
-		t.Fatalf("RecordAssetDiscarded failed: %v", err)
-	}
+	fp.RecordAssetDiscarded(ctx, file, fileevent.DiscardedLocalDuplicate, "duplicate in input")
 
 	// Check tracker
 	counters := fp.GetAssetCounters()
@@ -199,10 +193,7 @@ func TestRecordAssetError(t *testing.T) {
 
 	// Then mark as errored
 	testErr := fs.ErrPermission
-	err := fp.RecordAssetError(ctx, file, fileevent.ErrorUploadFailed, testErr)
-	if err != nil {
-		t.Fatalf("RecordAssetError failed: %v", err)
-	}
+	fp.RecordAssetError(ctx, file, fileevent.ErrorUploadFailed, testErr)
 
 	// Check tracker
 	counters := fp.GetAssetCounters()

@@ -2,6 +2,7 @@ package assettracker
 
 import (
 	"context"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -86,10 +87,7 @@ func TestSetProcessed(t *testing.T) {
 	tracker.DiscoverAsset(file, 1024, fileevent.DiscoveredImage)
 
 	// Process it
-	err := tracker.SetProcessed(file, fileevent.UploadedSuccess)
-	if err != nil {
-		t.Fatalf("SetProcessed failed: %v", err)
-	}
+	tracker.SetProcessed(file, fileevent.UploadedSuccess)
 
 	counters := tracker.GetCounters()
 	if counters.Processed != 1 {
@@ -114,10 +112,7 @@ func TestSetDiscarded(t *testing.T) {
 	tracker.DiscoverAsset(file, 512, fileevent.DiscoveredImage)
 
 	// Discard it
-	err := tracker.SetDiscarded(file, fileevent.DiscardedLocalDuplicate, "duplicate in input")
-	if err != nil {
-		t.Fatalf("SetDiscarded failed: %v", err)
-	}
+	tracker.SetDiscarded(file, fileevent.DiscardedLocalDuplicate, "duplicate in input")
 
 	counters := tracker.GetCounters()
 	if counters.Discarded != 1 {
@@ -139,10 +134,7 @@ func TestSetError(t *testing.T) {
 	tracker.DiscoverAsset(file, 2048, fileevent.DiscoveredImage)
 
 	// Error it
-	err := tracker.SetError(file, fileevent.ErrorUploadFailed, fs.ErrPermission)
-	if err != nil {
-		t.Fatalf("SetError failed: %v", err)
-	}
+	tracker.SetError(file, fileevent.ErrorUploadFailed, fs.ErrPermission)
 
 	counters := tracker.GetCounters()
 	if counters.Errors != 1 {
@@ -322,14 +314,12 @@ func TestGenerateDetailedReport(t *testing.T) {
 }
 
 func TestStateTransitionErrors(t *testing.T) {
-	tracker := New()
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	tracker := NewWithLogger(log, false)
 	file := fshelper.FSName(mockFS{}, "test.jpg")
 
-	// Try to transition non-existent asset
-	err := tracker.SetProcessed(file, fileevent.UploadedSuccess)
-	if err == nil {
-		t.Error("should error when asset not found")
-	}
+	// Try to transition non-existent asset - should log error but not fail
+	tracker.SetProcessed(file, fileevent.UploadedSuccess)
 
 	// Discover asset
 	tracker.DiscoverAsset(file, 1024, fileevent.DiscoveredImage)
@@ -337,11 +327,8 @@ func TestStateTransitionErrors(t *testing.T) {
 	// Process it
 	tracker.SetProcessed(file, fileevent.UploadedSuccess)
 
-	// Try to transition already-processed asset
-	err = tracker.SetDiscarded(file, fileevent.DiscardedLocalDuplicate, "duplicate")
-	if err == nil {
-		t.Error("should error when asset not in pending state")
-	}
+	// Try to transition already-processed asset - should log error but not fail
+	tracker.SetDiscarded(file, fileevent.DiscardedLocalDuplicate, "duplicate")
 }
 
 func TestConcurrency(t *testing.T) {

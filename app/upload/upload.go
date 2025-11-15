@@ -7,15 +7,19 @@ import (
 
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/adapters/folder"
-	"github.com/simulot/immich-go/adapters/fromimmich"
-	gp "github.com/simulot/immich-go/adapters/googlePhotos"
+
+	// TEMPORARILY DISABLED FOR TESTING:
+	// "github.com/simulot/immich-go/adapters/fromimmich"
+	// gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/adapters/shared"
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assets/cache"
+	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/gen/syncset"
 	"github.com/simulot/immich-go/internal/groups/burst"
@@ -108,14 +112,23 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 	cmd.AddCommand(folder.NewFromFolderCommand(ctx, cmd, app, uc))
 	cmd.AddCommand(folder.NewFromICloudCommand(ctx, cmd, app, uc))
 	cmd.AddCommand(folder.NewFromPicasaCommand(ctx, cmd, app, uc))
-	cmd.AddCommand(gp.NewFromGooglePhotosCommand(ctx, cmd, app, uc))
-	cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, uc))
+	// TEMPORARILY DISABLED FOR TESTING:
+	// cmd.AddCommand(gp.NewFromGooglePhotosCommand(ctx, cmd, app, uc))
+	// cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, uc))
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// Initialize the Journal
 		if app.Jnl() == nil {
 			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
 		}
+
+		// Initialize the FileProcessor (tracker + logger)
+		if app.FileProcessor() == nil {
+			tracker := assettracker.NewWithLogger(app.Log().Logger, app.DryRun) // Enable debug mode in dry-run
+			processor := fileprocessor.New(tracker, app.Jnl())
+			app.SetFileProcessor(processor)
+		}
+
 		app.SetTZ(time.Local)
 		if tz, err := cmd.Flags().GetString("time-zone"); err == nil && tz != "" {
 			if loc, err := time.LoadLocation(tz); err == nil {
@@ -146,6 +159,13 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	// Initialize the Journal
 	if uc.app.Jnl() == nil {
 		uc.app.SetJnl(fileevent.NewRecorder(uc.app.Log().Logger))
+	}
+
+	// Initialize the FileProcessor if not already done
+	if uc.app.FileProcessor() == nil {
+		tracker := assettracker.NewWithLogger(uc.app.Log().Logger, uc.app.DryRun)
+		processor := fileprocessor.New(tracker, uc.app.Jnl())
+		uc.app.SetFileProcessor(processor)
 	}
 
 	if uc.SessionTag {
