@@ -70,6 +70,7 @@ const (
 	ProcessedAlbumAdded               // Asset added to album
 	ProcessedTagged                   // Asset tagged
 	ProcessedLivePhoto                // Live photo processed
+	ProcessedMetadataUpdated          // Asset metadata updated on server
 
 	// ===== Legacy/Compatibility =====
 	// Maintained for backward compatibility
@@ -132,6 +133,7 @@ var _code = map[Code]string{
 	ProcessedAlbumAdded:               "added to album",
 	ProcessedTagged:                   "tagged",
 	ProcessedLivePhoto:                "live photo",
+	ProcessedMetadataUpdated:          "metadata updated",
 
 	// Legacy
 	Uploaded:               "uploaded",
@@ -191,6 +193,7 @@ var _logLevels = map[Code]slog.Level{
 	ProcessedAlbumAdded:               slog.LevelInfo,
 	ProcessedTagged:                   slog.LevelInfo,
 	ProcessedLivePhoto:                slog.LevelInfo,
+	ProcessedMetadataUpdated:          slog.LevelInfo,
 
 	// Legacy
 	Uploaded:               slog.LevelInfo,
@@ -442,6 +445,7 @@ func (r *Recorder) GenerateEventReport() string {
 		ProcessedAlbumAdded,
 		ProcessedTagged,
 		ProcessedLivePhoto,
+		ProcessedMetadataUpdated,
 	} {
 		if eventCounts[c] > 0 {
 			hasProcessingEvents = true
@@ -457,6 +461,7 @@ func (r *Recorder) GenerateEventReport() string {
 			ProcessedAlbumAdded,
 			ProcessedTagged,
 			ProcessedLivePhoto,
+			ProcessedMetadataUpdated,
 		} {
 			if count := eventCounts[c]; count > 0 {
 				sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))

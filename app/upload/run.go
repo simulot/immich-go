@@ -390,13 +390,13 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.ID = advice.ServerAsset.ID
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 		// Record as processed - duplicate on server
-		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.UploadedServerDuplicate)
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.ProcessedMetadataUpdated)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		// Record as discarded - server has better version
-		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedServerBetter, advice.Message)
+		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.ProcessedMetadataUpdated, advice.Message)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case ForceUpload:
@@ -481,6 +481,8 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 			uc.app.FileProcessor().RecordAssetError(ctx, a.File, fileevent.ErrorServerError, err)
 			return "", err
 		}
+		// Record successful metadata update
+		uc.app.FileProcessor().Logger().Record(ctx, fileevent.ProcessedMetadataUpdated, a.File)
 	}
 	uc.assetIndex.addLocalAsset(a)
 	return ar.Status, nil
