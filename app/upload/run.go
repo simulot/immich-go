@@ -377,6 +377,8 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		}
 
 		uc.processUploadedAsset(ctx, a, serverStatus)
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.UploadedUpgraded)
+
 		return nil
 
 	case AlreadyProcessed: // SHA1 already processed
