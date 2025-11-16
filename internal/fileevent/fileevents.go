@@ -44,8 +44,10 @@ const (
 	DiscoveredUnsupported // Unsupported file format
 
 	// ===== Asset Lifecycle Events - To PROCESSED =====
-	UploadedSuccess  // Asset successfully uploaded
-	UploadedUpgraded // Server asset upgraded with input
+	UploadedSuccess          // Asset successfully uploaded
+	UploadedUpgraded         // Server asset upgraded with input
+	ProcessedMetadataUpdated // Asset metadata updated on server
+	FileArchived             // Asset successfully archived to disk
 
 	// ===== Asset Lifecycle Events - To DISCARDED =====
 	UploadedServerDuplicate // Server already has this asset
@@ -70,7 +72,6 @@ const (
 	ProcessedAlbumAdded               // Asset added to album
 	ProcessedTagged                   // Asset tagged
 	ProcessedLivePhoto                // Live photo processed
-	ProcessedMetadataUpdated          // Asset metadata updated on server
 
 	MaxCode
 )
@@ -90,8 +91,10 @@ var _code = map[Code]string{
 	DiscoveredUnsupported: "discovered unsupported file",
 
 	// To PROCESSED
-	UploadedSuccess:  "uploaded successfully",
-	UploadedUpgraded: "server asset upgraded",
+	UploadedSuccess:          "uploaded successfully",
+	UploadedUpgraded:         "server asset upgraded",
+	ProcessedMetadataUpdated: "metadata updated",
+	FileArchived:             "file archived",
 
 	// To DISCARDED
 	UploadedServerDuplicate: "server has duplicate",
@@ -115,7 +118,6 @@ var _code = map[Code]string{
 	ProcessedAlbumAdded:               "added to album",
 	ProcessedTagged:                   "tagged",
 	ProcessedLivePhoto:                "live photo",
-	ProcessedMetadataUpdated:          "metadata updated",
 }
 
 var _logLevels = map[Code]slog.Level{
@@ -133,8 +135,10 @@ var _logLevels = map[Code]slog.Level{
 	DiscoveredUnsupported: slog.LevelWarn,
 
 	// To PROCESSED
-	UploadedSuccess:  slog.LevelInfo,
-	UploadedUpgraded: slog.LevelInfo,
+	UploadedSuccess:          slog.LevelInfo,
+	UploadedUpgraded:         slog.LevelInfo,
+	ProcessedMetadataUpdated: slog.LevelInfo,
+	FileArchived:             slog.LevelInfo,
 
 	// To DISCARDED
 	UploadedServerDuplicate: slog.LevelInfo,
@@ -158,7 +162,6 @@ var _logLevels = map[Code]slog.Level{
 	ProcessedAlbumAdded:               slog.LevelInfo,
 	ProcessedTagged:                   slog.LevelInfo,
 	ProcessedLivePhoto:                slog.LevelInfo,
-	ProcessedMetadataUpdated:          slog.LevelInfo,
 }
 
 func (e Code) String() string {
@@ -297,7 +300,7 @@ func (r *Recorder) GenerateEventReport() string {
 
 	// Asset Lifecycle - To PROCESSED
 	hasProcessed := false
-	for _, c := range []Code{UploadedSuccess, UploadedUpgraded, ProcessedMetadataUpdated} {
+	for _, c := range []Code{UploadedSuccess, UploadedUpgraded, ProcessedMetadataUpdated, FileArchived} {
 		if eventCounts[c] > 0 {
 			hasProcessed = true
 			break
@@ -305,7 +308,7 @@ func (r *Recorder) GenerateEventReport() string {
 	}
 	if hasProcessed {
 		sb.WriteString("\nAsset Lifecycle (PROCESSED):\n")
-		for _, c := range []Code{UploadedSuccess, UploadedUpgraded, ProcessedMetadataUpdated} {
+		for _, c := range []Code{UploadedSuccess, UploadedUpgraded, ProcessedMetadataUpdated, FileArchived} {
 			if count := eventCounts[c]; count > 0 {
 				if size := eventSizes[c]; size > 0 {
 					sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size)))
@@ -379,7 +382,6 @@ func (r *Recorder) GenerateEventReport() string {
 		ProcessedAlbumAdded,
 		ProcessedTagged,
 		ProcessedLivePhoto,
-		ProcessedMetadataUpdated,
 	} {
 		if eventCounts[c] > 0 {
 			hasProcessingEvents = true
@@ -395,7 +397,6 @@ func (r *Recorder) GenerateEventReport() string {
 			ProcessedAlbumAdded,
 			ProcessedTagged,
 			ProcessedLivePhoto,
-			ProcessedMetadataUpdated,
 		} {
 			if count := eventCounts[c]; count > 0 {
 				sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))

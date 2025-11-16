@@ -44,8 +44,8 @@ func Test_FromGooglePhotos(t *testing.T) {
 	}
 
 	e2eutils.CheckResults(t, map[fileevent.Code]int64{
-		fileevent.Uploaded:         5,
-		fileevent.UploadAddToAlbum: 5,
-		fileevent.Tagged:           5,
+		fileevent.UploadedSuccess:     5,
+		fileevent.ProcessedAlbumAdded: 5,
+		fileevent.ProcessedTagged:     5,
 	}, false, a.FileProcessor())
 }

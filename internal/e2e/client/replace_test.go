@@ -114,9 +114,9 @@ func Test_Replace(t *testing.T) {
 	}
 
 	e2eutils.CheckResults(t, map[fileevent.Code]int64{
-		fileevent.Uploaded:         5,
-		fileevent.UploadAddToAlbum: 0,
-		fileevent.Tagged:           0,
+		fileevent.UploadedSuccess:     5,
+		fileevent.ProcessedAlbumAdded: 0,
+		fileevent.ProcessedTagged:     0,
 	}, false, a.FileProcessor())
 
 	time.Sleep(3 * time.Second) // Give the server enough time
@@ -144,10 +144,10 @@ func Test_Replace(t *testing.T) {
 	}
 
 	e2eutils.CheckResults(t, map[fileevent.Code]int64{
-		fileevent.Uploaded:         0,
-		fileevent.UploadAddToAlbum: 0,
-		fileevent.Tagged:           0,
-		fileevent.UploadedUpgraded: 5,
+		fileevent.UploadedSuccess:     0,
+		fileevent.ProcessedAlbumAdded: 0,
+		fileevent.ProcessedTagged:     0,
+		fileevent.UploadedUpgraded:    5,
 	}, false, a.FileProcessor())
 
 	assets, err := e2eutils.GetAllAssets(u1.Email, u1.Password)

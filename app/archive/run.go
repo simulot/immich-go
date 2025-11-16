@@ -62,6 +62,9 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 						log.Error(err.Error())
 						return err
 					}
+				} else {
+					// Asset successfully archived
+					ac.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.FileArchived)
 				}
 			}
 		}

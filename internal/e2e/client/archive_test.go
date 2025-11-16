@@ -42,10 +42,11 @@ func Test_ArchiveFromGP(t *testing.T) {
 		}
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.Written:          40,
-			fileevent.Uploaded:         0,
-			fileevent.UploadAddToAlbum: 0,
-			fileevent.Tagged:           0,
+			fileevent.DiscoveredImage:     40,
+			fileevent.FileArchived:        40,
+			fileevent.UploadedSuccess:     0,
+			fileevent.ProcessedAlbumAdded: 0,
+			fileevent.ProcessedTagged:     0,
 		}, false, a.FileProcessor())
 	})
 	t.Run("ArchiveFromGP", func(t *testing.T) {
@@ -78,11 +79,11 @@ func Test_ArchiveFromGP(t *testing.T) {
 		}
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.Written:                5,
-			fileevent.Uploaded:               0,
-			fileevent.UploadAddToAlbum:       0,
-			fileevent.Tagged:                 0,
-			fileevent.AnalysisLocalDuplicate: 5,
+			fileevent.DiscoveredImage:         10,
+			fileevent.UploadedSuccess:         0,
+			fileevent.ProcessedAlbumAdded:     0,
+			fileevent.ProcessedTagged:         0,
+			fileevent.DiscardedLocalDuplicate: 5,
 		}, false, a.FileProcessor())
 	})
 	t.Run("ArchiveFromGooglePhotos", func(t *testing.T) {
@@ -128,9 +129,9 @@ func Test_ArchiveFromGP(t *testing.T) {
 		}
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.Uploaded:         5,
-			fileevent.UploadAddToAlbum: 5,
-			fileevent.Tagged:           5,
+			fileevent.UploadedSuccess:     5,
+			fileevent.ProcessedAlbumAdded: 5,
+			fileevent.ProcessedTagged:     5,
 		}, false, a.FileProcessor())
 
 		// 2. Archive from-immich
@@ -156,8 +157,8 @@ func Test_ArchiveFromGP(t *testing.T) {
 		}
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.Written:         5,
 			fileevent.DiscoveredImage: 5,
+			fileevent.FileArchived:    5,
 		}, false, a.FileProcessor())
 	})
 }
