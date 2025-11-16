@@ -285,17 +285,6 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 
 	ui.prepareCounts.SetSize(8, 2, 1, 1).SetColumns(30, 10)
 
-	ui.uploadCounts = tview.NewGrid()
-	ui.uploadCounts.SetBorder(true).SetTitle("Uploading")
-
-	ui.addCounter(ui.uploadCounts, 0, "Files uploaded", fileevent.UploadedSuccess)
-	ui.addCounter(ui.uploadCounts, 1, "Errors during upload", fileevent.ErrorServerError)
-	ui.addCounter(ui.uploadCounts, 2, "Files not selected", fileevent.DiscardedNotSelected)
-	ui.addCounter(ui.uploadCounts, 3, "Server's asset upgraded", fileevent.UploadedUpgraded)
-	ui.addCounter(ui.uploadCounts, 4, "Server has same quality", fileevent.UploadedServerDuplicate)
-	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.DiscardedServerBetter)
-	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
-
 	// Create the processing status zone (replaces upload counts in layout)
 	ui.statusZone = ui.createStatusZone()
 
