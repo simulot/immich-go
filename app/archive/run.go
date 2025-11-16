@@ -57,7 +57,7 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 					err = a.Close()
 				}
 				if err != nil {
-					ac.app.FileProcessor().RecordAssetError(ctx, a.File, fileevent.Error, err)
+					ac.app.FileProcessor().RecordAssetError(ctx, a.File, fileevent.ErrorFileAccess, err)
 					errCount++
 					if errCount > 5 {
 						err := errors.New("too many errors, aborting")

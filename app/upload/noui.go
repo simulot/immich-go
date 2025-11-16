@@ -50,7 +50,7 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		}
 		lock.Unlock()
 
-		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.Uploaded], string(spinner[spinIdx]))
+		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.UploadedSuccess], string(spinner[spinIdx]))
 	}
 	uiGrp := errgroup.Group{}
 
@@ -111,7 +111,7 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 
 		counts := app.Jnl().GetCounts()
 		messages := strings.Builder{}
-		if counts[fileevent.Error]+counts[fileevent.ErrorServerError] > 0 {
+		if counts[fileevent.ErrorUploadFailed]+counts[fileevent.ErrorServerError]+counts[fileevent.ErrorFileAccess]+counts[fileevent.ErrorIncomplete] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
 

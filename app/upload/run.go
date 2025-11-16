@@ -311,7 +311,7 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	for _, a := range g.Removed {
 		a.Asset.Close()
 		// Record asset as discarded with reason
-		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.Asset.File, fileevent.DiscoveredDiscarded, a.Reason)
+		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.Asset.File, fileevent.DiscardedNotSelected, a.Reason)
 	}
 
 	// Upload assets from the group
@@ -328,7 +328,7 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		ids := []string{g.Assets[g.CoverIndex].ID}
 		for i, a := range g.Assets {
 			// Record stacking event
-			uc.app.FileProcessor().RecordAssetProcessed(ctx, g.Assets[i].File, fileevent.Stacked)
+			uc.app.FileProcessor().RecordNonAsset(ctx, g.Assets[i].File, 0, fileevent.ProcessedStacked)
 			if i != g.CoverIndex && a.ID != "" {
 				ids = append(ids, a.ID)
 			}
@@ -381,8 +381,9 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 
 	case AlreadyProcessed: // SHA1 already processed
 		// Record as discarded - duplicate in input
-		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.AnalysisLocalDuplicate,
-			fmt.Sprintf("already present in input as %s", advice.ServerAsset.OriginalFileName))
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.DiscardedLocalDuplicate)
+
+		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		return nil
 
 	case SameOnServer:
@@ -395,7 +396,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		// Record as discarded - server has better version
-		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.UploadServerBetter, advice.Message)
+		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedServerBetter, advice.Message)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case ForceUpload:
@@ -449,7 +450,7 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 		}
 		if a.ID == "" {
 			// Record as discarded - local duplicate
-			uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.AnalysisLocalDuplicate,
+			uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedLocalDuplicate,
 				fmt.Sprintf("already present in input as %s", originalName))
 		} else {
 			// Record as processed - server duplicate
@@ -457,7 +458,7 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 		}
 	} else {
 		// Record successful upload
-		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.Uploaded)
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.UploadedSuccess)
 	}
 	a.ID = ar.ID
 
@@ -536,7 +537,7 @@ func (uc *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName, ID
 		al := assets.NewAlbum("", album.Title, album.Description)
 		if uc.albumsCache.AddIDToCollection(al.Title, album, ID) {
 			// Record album addition event
-			uc.app.FileProcessor().Logger().Record(ctx, fileevent.UploadAddToAlbum, f, "album", al.Title)
+			uc.app.FileProcessor().Logger().Record(ctx, fileevent.ProcessedAlbumAdded, f, "album", al.Title)
 		}
 	}
 }
@@ -553,7 +554,7 @@ func (uc *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 	for _, t := range a.Tags {
 		if uc.tagsCache.AddIDToCollection(t.Name, t, a.ID) {
 			// Record tag event
-			uc.app.FileProcessor().Logger().Record(ctx, fileevent.Tagged, a.File, "tag", t.Value)
+			uc.app.FileProcessor().Logger().Record(ctx, fileevent.ProcessedTagged, a.File, "tag", t.Value)
 		}
 	}
 }

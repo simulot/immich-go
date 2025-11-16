@@ -215,7 +215,7 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 
 		uploadDone.Store(true)
 		counts := app.Jnl().GetCounts()
-		if counts[fileevent.Error]+counts[fileevent.ErrorServerError] > 0 {
+		if counts[fileevent.ErrorUploadFailed]+counts[fileevent.ErrorServerError]+counts[fileevent.ErrorFileAccess]+counts[fileevent.ErrorIncomplete] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
 
@@ -277,9 +277,9 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui.addCounter(ui.prepareCounts, 0, "Images", fileevent.DiscoveredImage)
 	ui.addCounter(ui.prepareCounts, 1, "Videos", fileevent.DiscoveredVideo)
 	ui.addCounter(ui.prepareCounts, 2, "Metadata files", fileevent.DiscoveredSidecar)
-	ui.addCounter(ui.prepareCounts, 3, "Discarded files", fileevent.DiscoveredDiscarded)
+	ui.addCounter(ui.prepareCounts, 3, "Discarded files", fileevent.DiscoveredDiscarded) // TODO: Replace with sum of specific discard events
 	ui.addCounter(ui.prepareCounts, 4, "Unsupported files", fileevent.DiscoveredUnsupported)
-	ui.addCounter(ui.prepareCounts, 5, "Duplicates in the input", fileevent.AnalysisLocalDuplicate)
+	ui.addCounter(ui.prepareCounts, 5, "Duplicates in the input", fileevent.DiscardedLocalDuplicate)
 	ui.addCounter(ui.prepareCounts, 6, "Files with a sidecar", fileevent.AnalysisAssociatedMetadata)
 	ui.addCounter(ui.prepareCounts, 7, "Files without sidecar", fileevent.AnalysisMissingAssociatedMetadata)
 
@@ -288,12 +288,12 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui.uploadCounts = tview.NewGrid()
 	ui.uploadCounts.SetBorder(true).SetTitle("Uploading")
 
-	ui.addCounter(ui.uploadCounts, 0, "Files uploaded", fileevent.Uploaded)
+	ui.addCounter(ui.uploadCounts, 0, "Files uploaded", fileevent.UploadedSuccess)
 	ui.addCounter(ui.uploadCounts, 1, "Errors during upload", fileevent.ErrorServerError)
-	ui.addCounter(ui.uploadCounts, 2, "Files not selected", fileevent.UploadNotSelected)
+	ui.addCounter(ui.uploadCounts, 2, "Files not selected", fileevent.DiscardedNotSelected)
 	ui.addCounter(ui.uploadCounts, 3, "Server's asset upgraded", fileevent.UploadedUpgraded)
 	ui.addCounter(ui.uploadCounts, 4, "Server has same quality", fileevent.UploadedServerDuplicate)
-	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
+	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.DiscardedServerBetter)
 	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
 
 	// Create the processing status zone (replaces upload counts in layout)

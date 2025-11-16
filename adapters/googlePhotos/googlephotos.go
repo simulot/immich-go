@@ -111,28 +111,28 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			ext := strings.ToLower(path.Ext(base))
 			finfo, err := fs.Stat(w, name)
 			if err != nil {
-				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.Error, "error", err.Error())
+				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				return nil
 			}
 
 			// Exclude files to be ignored before processing
 			if toc.BannedFiles.Match(name) {
-				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredDiscarded, "reason", "banned file")
+				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredBanned, "reason", "banned file")
 				return nil
 			}
 
 			if toc.supportedMedia.IsUseLess(name) {
-				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredUseless)
+				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredUnknown, "reason", "useless file")
 				return nil
 			}
 
 			if !toc.InclusionFlags.IncludedExtensions.Include(ext) {
-				toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredDiscarded, "extension not included")
+				toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedFiltered, "extension not included")
 
 				return nil
 			}
 			if toc.InclusionFlags.ExcludedExtensions.Exclude(ext) {
-				toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredDiscarded, "extension excluded")
+				toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedFiltered, "extension excluded")
 
 				return nil
 			}
@@ -201,14 +201,14 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				t := toc.supportedMedia.TypeFromExt(ext)
 				switch t {
 				case filetypes.TypeUseless:
-					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUseless, "reason", "useless file")
+					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnknown, "reason", "useless file")
 					return nil
 				case filetypes.TypeUnknown:
 					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnsupported, "reason", "unsupported file type")
 					return nil
 				case filetypes.TypeVideo:
 					if strings.Contains(name, "Failed Videos") {
-						toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredDiscarded, "can't upload failed videos")
+						toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedFiltered, "can't upload failed videos")
 						return nil
 					} else {
 						toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredVideo)
@@ -229,7 +229,7 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				toc.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
 
 				if _, ok := dirCatalog.unMatchedFiles[base]; ok {
-					toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.AnalysisLocalDuplicate, "duplicated in the directory")
+					toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedLocalDuplicate, "duplicated in the directory")
 					return nil
 				}
 
@@ -367,7 +367,7 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 		track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
 		if track.status == fileevent.Uploaded {
 			a.Close()
-			toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.AnalysisLocalDuplicate, "local duplicate")
+			toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedLocalDuplicate, "local duplicate")
 			continue
 		}
 
@@ -465,7 +465,7 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 					size:     int64(a.FileSize),
 				}
 				track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
-				track.status = fileevent.Uploaded
+				track.status = fileevent.UploadedSuccess
 				toc.fileTracker.Store(key, track) // to.fileTracker[key] = track
 			}
 		case <-ctx.Done():
@@ -513,25 +513,25 @@ func (toc *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md
 // filterOnMetadata, log discared files and closes the asset
 func (toc *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fileevent.Code {
 	if !toc.KeepArchived && a.Visibility == assets.VisibilityArchive {
-		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding archived file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding archived file")
 		a.Close()
-		return fileevent.DiscoveredDiscarded
+		return fileevent.DiscardedFiltered
 	}
 	if !toc.KeepPartner && a.FromPartner {
-		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding partner file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding partner file")
 		a.Close()
-		return fileevent.DiscoveredDiscarded
+		return fileevent.DiscardedFiltered
 	}
 	if !toc.KeepTrashed && a.Trashed {
-		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding trashed file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding trashed file")
 		a.Close()
-		return fileevent.DiscoveredDiscarded
+		return fileevent.DiscardedFiltered
 	}
 
 	if toc.InclusionFlags.DateRange.IsSet() && !toc.InclusionFlags.DateRange.InRange(a.CaptureDate) {
-		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding files out of date range")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding files out of date range")
 		a.Close()
-		return fileevent.DiscoveredDiscarded
+		return fileevent.DiscardedFiltered
 	}
 	if toc.ImportFromAlbum != "" {
 		keep := false
@@ -543,9 +543,9 @@ func (toc *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fi
 			keep = keep || album.Title == toc.ImportFromAlbum
 		}
 		if !keep {
-			toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscoveredDiscarded, "discarding files not in the specified album")
+			toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding files not in the specified album")
 			a.Close()
-			return fileevent.DiscoveredDiscarded
+			return fileevent.DiscardedFiltered
 		}
 	}
 	return fileevent.Code(0)
