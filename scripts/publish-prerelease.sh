@@ -65,6 +65,14 @@ fi
 echo -e "${YELLOW}📥 Pulling latest changes from develop...${NC}"
 git pull origin develop
 
+# Run E2E tests
+echo -e "${YELLOW}🧪 Running E2E tests...${NC}"
+if ! go test -tags e2e ./internal/e2e/... -v; then
+    echo -e "${RED}❌ E2E tests failed${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ E2E tests passed${NC}"
+
 # Get latest stable release tag (without prerelease suffix)
 latest_stable=$(git tag --list 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
 

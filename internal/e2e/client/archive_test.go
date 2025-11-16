@@ -114,7 +114,6 @@ func Test_ArchiveFromGP(t *testing.T) {
 			"--api-key=" + u1.APIKey,
 			"--admin-api-key=" + adm.APIKey,
 			"--no-ui",
-			// "--api-trace",
 			"--log-level=debug",
 			"DATA/fromGooglePhotos/gophers",
 		})
@@ -143,8 +142,7 @@ func Test_ArchiveFromGP(t *testing.T) {
 			"--from-server=" + ImmichURL,
 			"--from-api-key=" + u1.APIKey,
 			"--from-admin-api-key=" + adm.APIKey,
-			"--no-ui",
-			"--api-trace",
+			"--from-api-trace",
 			"--log-level=debug",
 		})
 		err = c.ExecuteContext(ctx)
