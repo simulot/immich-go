@@ -272,7 +272,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			// we have a file to process - it's an asset (image or video)
 			a, err := ifc.assetFromFile(ctx, fsys, name)
 			if err != nil {
-				ifc.processor.RecordAssetError(ctx, fshelper.FSName(fsys, name), fileevent.ErrorFileAccess, err)
+				ifc.processor.RecordAssetError(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, err)
 				return err
 			}
 			if a != nil {
@@ -380,7 +380,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 					if err == nil {
 						md, err := exif.GetMetaData(f, a.Ext, ifc.tz)
 						if err != nil {
-							ifc.processor.RecordNonAsset(ctx, a.File, 0, fileevent.INFO, "warning", err.Error())
+							// Metadata extraction failed, but continue processing
 						} else {
 							a.FromSourceFile = a.UseMetadata(md)
 						}

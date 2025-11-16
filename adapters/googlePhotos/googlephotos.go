@@ -365,9 +365,9 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 		a := catalog.matchedFiles[name]
 		key := fileKeyTracker{baseName: name, size: int64(a.FileSize)}
 		track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
-		if track.status == fileevent.Uploaded {
+		if track.status == fileevent.UploadedSuccess {
 			a.Close()
-			toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedLocalDuplicate, "local duplicate")
+			toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedLocalDuplicate, "local duplicate")
 			continue
 		}
 
@@ -513,23 +513,23 @@ func (toc *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md
 // filterOnMetadata, log discared files and closes the asset
 func (toc *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fileevent.Code {
 	if !toc.KeepArchived && a.Visibility == assets.VisibilityArchive {
-		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding archived file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedFiltered, "discarding archived file")
 		a.Close()
 		return fileevent.DiscardedFiltered
 	}
 	if !toc.KeepPartner && a.FromPartner {
-		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding partner file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedFiltered, "discarding partner file")
 		a.Close()
 		return fileevent.DiscardedFiltered
 	}
 	if !toc.KeepTrashed && a.Trashed {
-		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding trashed file")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedFiltered, "discarding trashed file")
 		a.Close()
 		return fileevent.DiscardedFiltered
 	}
 
 	if toc.InclusionFlags.DateRange.IsSet() && !toc.InclusionFlags.DateRange.InRange(a.CaptureDate) {
-		toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding files out of date range")
+		toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedFiltered, "discarding files out of date range")
 		a.Close()
 		return fileevent.DiscardedFiltered
 	}
@@ -543,7 +543,7 @@ func (toc *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fi
 			keep = keep || album.Title == toc.ImportFromAlbum
 		}
 		if !keep {
-			toc.processor.RecordAssetDiscarded(ctx, a.File, fileevent.DiscardedFiltered, "discarding files not in the specified album")
+			toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedFiltered, "discarding files not in the specified album")
 			a.Close()
 			return fileevent.DiscardedFiltered
 		}

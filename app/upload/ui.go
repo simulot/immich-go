@@ -157,7 +157,11 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 					ui.updateStatusZone()
 					if uc.Mode == UpModeGoogleTakeout {
 						ui.immichPrepare.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
-						ui.immichPrepare.SetValue(int(app.FileProcessor().Logger().TotalProcessedGP()))
+						// Calculate processed items for Google Takeout progress
+						counts := app.FileProcessor().Logger().GetCounts()
+						processedGP := counts[fileevent.AnalysisAssociatedMetadata] +
+							counts[fileevent.AnalysisMissingAssociatedMetadata]
+						ui.immichPrepare.SetValue(int(processedGP))
 
 						if preparationDone.Load() {
 							ui.immichUpload.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
@@ -450,7 +454,7 @@ func (ui *uiPage) createProcessingZone() *tview.Grid {
 	// Row 1: Added to albums
 	ui.addProcessingCounter(processing, 1, "Added to albums", fileevent.ProcessedAlbumAdded)
 	// Row 2: Stacked (bursts, raw+jpg)
-	ui.addProcessingCounter(processing, 2, "Stacked (bursts, raw+jpg)", fileevent.ProcessedStacked)
+	ui.addProcessingCounter(processing, 2, "Stacked", fileevent.ProcessedStacked)
 	// Row 3: Tagged
 	ui.addProcessingCounter(processing, 3, "Tagged", fileevent.ProcessedTagged)
 	// Row 4: Metadata updated
@@ -463,14 +467,14 @@ func (ui *uiPage) createProcessingZone() *tview.Grid {
 // createStatusZone creates the asset processing status zone
 func (ui *uiPage) createStatusZone() *tview.Grid {
 	status := tview.NewGrid()
-	status.SetBorder(true).SetTitle("Upload Progress")
+	status.SetBorder(true).SetTitle("Progress")
 
 	// Row 0: Pending assets
 	status.AddItem(tview.NewTextView().SetText("Pending"), 0, 0, 1, 1, 0, 0, false)
 	ui.addStatusCounter(status, 0, "pendingCount", "pendingSize")
 
 	// Row 1: Uploaded assets
-	status.AddItem(tview.NewTextView().SetText("Uploaded"), 1, 0, 1, 1, 0, 0, false)
+	status.AddItem(tview.NewTextView().SetText("Processed"), 1, 0, 1, 1, 0, 0, false)
 	ui.addStatusCounter(status, 1, "uploadedCount", "uploadedSize")
 
 	// Row 2: Discarded assets

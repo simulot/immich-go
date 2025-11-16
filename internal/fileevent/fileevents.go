@@ -72,24 +72,6 @@ const (
 	ProcessedLivePhoto                // Live photo processed
 	ProcessedMetadataUpdated          // Asset metadata updated on server
 
-	// ===== Legacy/Compatibility =====
-	// Maintained for backward compatibility
-	Uploaded               // Legacy: use UploadedSuccess
-	UploadAlbumCreated     // Album created/updated
-	UploadAddToAlbum       // Legacy: use ProcessedAlbumAdded
-	AnalysisLocalDuplicate // Legacy: use DiscardedLocalDuplicate
-	UploadNotSelected      // Legacy: use DiscardedNotSelected
-	UploadServerBetter     // Legacy: use DiscardedServerBetter
-	Stacked                // Legacy: use ProcessedStacked
-	LivePhoto              // Legacy: use ProcessedLivePhoto
-	Tagged                 // Legacy: use ProcessedTagged
-	Metadata               // Legacy metadata marker
-	INFO                   // Generic info message
-	Written                // File written to disk
-	DiscoveredDiscarded    // Legacy: use specific discard reasons
-	DiscoveredUseless      // Legacy: use DiscoveredUnknown or DiscoveredBanned
-	Error                  // Generic error
-
 	MaxCode
 )
 
@@ -134,23 +116,6 @@ var _code = map[Code]string{
 	ProcessedTagged:                   "tagged",
 	ProcessedLivePhoto:                "live photo",
 	ProcessedMetadataUpdated:          "metadata updated",
-
-	// Legacy
-	Uploaded:               "uploaded",
-	UploadAlbumCreated:     "album created",
-	UploadAddToAlbum:       "added to album",
-	AnalysisLocalDuplicate: "local duplicate",
-	UploadNotSelected:      "not selected",
-	UploadServerBetter:     "server better",
-	Stacked:                "stacked",
-	LivePhoto:              "live photo",
-	Tagged:                 "tagged",
-	Metadata:               "metadata",
-	INFO:                   "info",
-	Written:                "written",
-	DiscoveredDiscarded:    "discarded",
-	DiscoveredUseless:      "useless file",
-	Error:                  "error",
 }
 
 var _logLevels = map[Code]slog.Level{
@@ -194,23 +159,6 @@ var _logLevels = map[Code]slog.Level{
 	ProcessedTagged:                   slog.LevelInfo,
 	ProcessedLivePhoto:                slog.LevelInfo,
 	ProcessedMetadataUpdated:          slog.LevelInfo,
-
-	// Legacy
-	Uploaded:               slog.LevelInfo,
-	UploadAlbumCreated:     slog.LevelInfo,
-	UploadAddToAlbum:       slog.LevelInfo,
-	AnalysisLocalDuplicate: slog.LevelWarn,
-	UploadNotSelected:      slog.LevelWarn,
-	UploadServerBetter:     slog.LevelInfo,
-	Stacked:                slog.LevelInfo,
-	LivePhoto:              slog.LevelInfo,
-	Tagged:                 slog.LevelInfo,
-	Metadata:               slog.LevelInfo,
-	INFO:                   slog.LevelInfo,
-	Written:                slog.LevelInfo,
-	DiscoveredDiscarded:    slog.LevelWarn,
-	DiscoveredUseless:      slog.LevelWarn,
-	Error:                  slog.LevelError,
 }
 
 func (e Code) String() string {
@@ -310,28 +258,6 @@ func (r *Recorder) TotalAssets() int64 {
 	return atomic.LoadInt64(&r.counts[DiscoveredImage]) + atomic.LoadInt64(&r.counts[DiscoveredVideo])
 }
 
-func (r *Recorder) TotalProcessedGP() int64 {
-	return atomic.LoadInt64(&r.counts[AnalysisAssociatedMetadata]) +
-		atomic.LoadInt64(&r.counts[AnalysisMissingAssociatedMetadata]) +
-		atomic.LoadInt64(&r.counts[DiscoveredDiscarded])
-}
-
-func (r *Recorder) TotalProcessed(forcedMissingJSON bool) int64 {
-	v := atomic.LoadInt64(&r.counts[UploadedSuccess]) +
-		atomic.LoadInt64(&r.counts[ErrorUploadFailed]) +
-		atomic.LoadInt64(&r.counts[ErrorServerError]) +
-		atomic.LoadInt64(&r.counts[DiscardedNotSelected]) +
-		atomic.LoadInt64(&r.counts[UploadedUpgraded]) +
-		atomic.LoadInt64(&r.counts[UploadedServerDuplicate]) +
-		atomic.LoadInt64(&r.counts[DiscardedServerBetter]) +
-		atomic.LoadInt64(&r.counts[DiscoveredDiscarded]) +
-		atomic.LoadInt64(&r.counts[DiscardedLocalDuplicate])
-	if !forcedMissingJSON {
-		v += atomic.LoadInt64(&r.counts[AnalysisMissingAssociatedMetadata])
-	}
-	return v
-}
-
 // GenerateEventReport creates a comprehensive report of all events
 func (r *Recorder) GenerateEventReport() string {
 	sb := strings.Builder{}
@@ -371,7 +297,7 @@ func (r *Recorder) GenerateEventReport() string {
 
 	// Asset Lifecycle - To PROCESSED
 	hasProcessed := false
-	for _, c := range []Code{UploadedSuccess, UploadedUpgraded} {
+	for _, c := range []Code{UploadedSuccess, UploadedUpgraded, ProcessedMetadataUpdated} {
 		if eventCounts[c] > 0 {
 			hasProcessed = true
 			break
@@ -379,9 +305,13 @@ func (r *Recorder) GenerateEventReport() string {
 	}
 	if hasProcessed {
 		sb.WriteString("\nAsset Lifecycle (PROCESSED):\n")
-		for _, c := range []Code{UploadedSuccess, UploadedUpgraded} {
+		for _, c := range []Code{UploadedSuccess, UploadedUpgraded, ProcessedMetadataUpdated} {
 			if count := eventCounts[c]; count > 0 {
-				sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))
+				if size := eventSizes[c]; size > 0 {
+					sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size)))
+				} else {
+					sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))
+				}
 			}
 		}
 	}
@@ -414,7 +344,11 @@ func (r *Recorder) GenerateEventReport() string {
 			DiscardedServerBetter,
 		} {
 			if count := eventCounts[c]; count > 0 {
-				sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))
+				if size := eventSizes[c]; size > 0 {
+					sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size)))
+				} else {
+					sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))
+				}
 			}
 		}
 	}
