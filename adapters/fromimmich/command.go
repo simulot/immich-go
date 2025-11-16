@@ -12,7 +12,9 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/immichfs"
@@ -47,6 +49,7 @@ type FromImmichCmd struct {
 	ifs       *immichfs.ImmichFS
 	ic        *filenames.InfoCollector
 	app       *app.Application
+	processor *fileprocessor.FileProcessor
 }
 
 func (fic *FromImmichCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -98,6 +101,7 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 		return err
 	}
 
+	fic.processor = app.FileProcessor()
 	fic.ifs = immichfs.NewImmichFS(ctx, fic.client.Server, fic.client.Immich)
 	fic.ic = filenames.NewInfoCollector(time.Local, fic.client.Immich.SupportedMedia())
 
@@ -396,6 +400,13 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(fic.ifs, a.ID)
+
+		// Record asset discovery
+		code := fileevent.DiscoveredImage
+		if a.Type == "VIDEO" {
+			code = fileevent.DiscoveredVideo
+		}
+		fic.processor.RecordAssetDiscovered(ctx, asset.File, int64(asset.FileSize), code)
 
 		// Transfer the album
 		simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)

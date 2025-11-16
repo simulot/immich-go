@@ -48,20 +48,27 @@ jobs:
           source_branch="${{ github.head_ref }}"
           target_branch="${{ github.base_ref }}"
 
+          # Allow dependency management bot PRs to bypass naming convention
+          # Matches: dependabot/*, renovate/*, etc.
+          if [[ "${{ github.actor }}" == "dependabot[bot]" ]] || [[ "${{ github.actor }}" == "renovate[bot]" ]] || [[ "$source_branch" =~ ^(dependabot|renovate)/ ]]; then
+            echo "Dependency management bot PR '$source_branch' is exempt from naming convention."
+            exit 0
+          fi
+
           # Allow certain system/integration branches to bypass naming convention
           if [[ "$source_branch" =~ ^(main|develop|master)$ ]]; then
             echo "System branch '$source_branch' is exempt from naming convention."
           else
-            # Check if the source branch name is valid (feature/bugfix/hotfix)
-            if ! [[ "$source_branch" =~ ^(feature|bugfix|hotfix)/.+$ ]]; then
-              echo "::error::Branch name '$source_branch' does not follow the naming convention (feature/, bugfix/, hotfix/)."
+            # Check if the source branch name is valid (feature/bugfix/hotfix/chore)
+            if ! [[ "$source_branch" =~ ^(feature|bugfix|hotfix|chore)/.+$ ]]; then
+              echo "::error::Branch name '$source_branch' does not follow the naming convention (feature/, bugfix/, hotfix/, chore/)."
               exit 1
             fi
           fi
 
-          # Check if a feature or bugfix branch is targeting the correct branch (develop)
-          if [[ "$source_branch" =~ ^(feature|bugfix)/.+ ]] && [ "$target_branch" != "develop" ]; then
-            echo "::error::'feature/*' and 'bugfix/*' branches must only be merged into 'develop'."
+          # Check if a feature, bugfix, or chore branch is targeting the correct branch (develop)
+          if [[ "$source_branch" =~ ^(feature|bugfix|chore)/.+ ]] && [ "$target_branch" != "develop" ]; then
+            echo "::error::'feature/*', 'bugfix/*', and 'chore/*' branches must only be merged into 'develop'."
             exit 1
           fi
 
@@ -89,7 +96,7 @@ jobs:
           cache-dependency-path: "go.sum"
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
 

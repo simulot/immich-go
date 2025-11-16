@@ -25,19 +25,19 @@ func (uc *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []string
 	if album.ID == "" {
 		r, err := uc.client.Immich.CreateAlbum(ctx, album.Title, album.Description, ids)
 		if err != nil {
-			uc.app.Jnl().Log().Error("failed to create album", "err", err, "album", album.Title)
+			uc.app.Log().Error("failed to create album", "err", err, "album", album.Title)
 			return album, err
 		}
-		uc.app.Jnl().Log().Info("created album", "album", album.Title, "assets", len(ids))
+		uc.app.Log().Info("created album", "album", album.Title, "assets", len(ids))
 		album.ID = r.ID
 		return album, nil
 	}
 	_, err := uc.client.Immich.AddAssetToAlbum(ctx, album.ID, ids)
 	if err != nil {
-		uc.app.Jnl().Log().Error("failed to add assets to album", "err", err, "album", album.Title, "assets", len(ids))
+		uc.app.Log().Error("failed to add assets to album", "err", err, "album", album.Title, "assets", len(ids))
 		return album, err
 	}
-	uc.app.Jnl().Log().Info("updated album", "album", album.Title, "assets", len(ids))
+	uc.app.Log().Info("updated album", "album", album.Title, "assets", len(ids))
 	return album, err
 }
 
@@ -48,18 +48,18 @@ func (uc *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) (as
 	if tag.ID == "" {
 		r, err := uc.client.Immich.UpsertTags(ctx, []string{tag.Value})
 		if err != nil {
-			uc.app.Jnl().Log().Error("failed to create tag", "err", err, "tag", tag.Name)
+			uc.app.Log().Error("failed to create tag", "err", err, "tag", tag.Name)
 			return tag, err
 		}
-		uc.app.Jnl().Log().Info("created tag", "tag", tag.Value)
+		uc.app.Log().Info("created tag", "tag", tag.Value)
 		tag.ID = r[0].ID
 	}
 	_, err := uc.client.Immich.TagAssets(ctx, tag.ID, ids)
 	if err != nil {
-		uc.app.Jnl().Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
+		uc.app.Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
 		return tag, err
 	}
-	uc.app.Jnl().Log().Info("updated tag", "tag", tag.Value, "assets", len(ids))
+	uc.app.Log().Info("updated tag", "tag", tag.Value, "assets", len(ids))
 	return tag, err
 }
 
@@ -68,10 +68,10 @@ func (uc *UpCmd) pauseJobs(ctx context.Context) error {
 	for _, name := range jobs {
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "pause", true)
 		if err != nil {
-			uc.app.Jnl().Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
+			uc.app.Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
 			return err
 		}
-		uc.app.Jnl().Log().Info("Immich Job command sent", "pause", name)
+		uc.app.Log().Info("Immich Job command sent", "pause", name)
 	}
 	return nil
 }
@@ -84,10 +84,10 @@ func (uc *UpCmd) resumeJobs(_ context.Context) error {
 	for _, name := range jobs {
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
 		if err != nil {
-			uc.app.Jnl().Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
+			uc.app.Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
 			return err
 		}
-		uc.app.Jnl().Log().Info("Immich Job command sent", "resume", name)
+		uc.app.Log().Info("Immich Job command sent", "resume", name)
 	}
 	return nil
 }
@@ -106,13 +106,15 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// Log the journal report
-	report := uc.app.Jnl().Report()
 
-	if len(report) > 0 {
-		lines := strings.Split(report, "\n")
-		for _, s := range lines {
-			uc.app.Jnl().Log().Info(s)
+	// Generate FileProcessor report
+	if uc.app.FileProcessor() != nil {
+		report := uc.app.FileProcessor().GenerateReport()
+		if len(report) > 0 {
+			lines := strings.Split(report, "\n")
+			for _, s := range lines {
+				uc.app.Log().Info(s)
+			}
 		}
 	}
 
@@ -132,7 +134,9 @@ func (uc *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
 	}
 	defer func() { _ = uc.finishing(ctx) }()
 	defer func() {
-		fmt.Println(uc.app.Jnl().Report())
+		if uc.app.FileProcessor() != nil {
+			fmt.Println(uc.app.FileProcessor().GenerateReport())
+		}
 	}()
 	uc.albumsCache = cache.NewCollectionCache(50, func(album assets.Album, ids []string) (assets.Album, error) {
 		return uc.saveAlbum(ctx, album, ids)
@@ -306,7 +310,8 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	// discard rejected assets
 	for _, a := range g.Removed {
 		a.Asset.Close()
-		uc.app.Jnl().Record(ctx, fileevent.DiscoveredDiscarded, a.Asset.File, "reason", a.Reason)
+		// Record asset as discarded with reason
+		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.Asset.File, fileevent.DiscoveredDiscarded, a.Reason)
 	}
 
 	// Upload assets from the group
@@ -322,7 +327,8 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		client := uc.client.Immich.(immich.ImmichStackInterface)
 		ids := []string{g.Assets[g.CoverIndex].ID}
 		for i, a := range g.Assets {
-			uc.app.Jnl().Record(ctx, fileevent.Stacked, g.Assets[i].File)
+			// Record stacking event
+			uc.app.FileProcessor().RecordAssetProcessed(ctx, g.Assets[i].File, fileevent.Stacked)
 			if i != g.CoverIndex && a.ID != "" {
 				ids = append(ids, a.ID)
 			}
@@ -330,7 +336,7 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		if len(ids) > 1 {
 			_, err := client.CreateStack(ctx, ids)
 			if err != nil {
-				uc.app.Jnl().Log().Error("Can't create stack", "error", err)
+				uc.app.Log().Error("Can't create stack", "error", err)
 			}
 		}
 	}
@@ -374,18 +380,22 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		return nil
 
 	case AlreadyProcessed: // SHA1 already processed
-		uc.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a.File, "reason", "the file is already present in the input", "original name", advice.ServerAsset.OriginalFileName)
+		// Record as discarded - duplicate in input
+		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.AnalysisLocalDuplicate,
+			fmt.Sprintf("already present in input as %s", advice.ServerAsset.OriginalFileName))
 		return nil
 
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
-		uc.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a.File, "reason", advice.Message)
+		// Record as processed - duplicate on server
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.UploadedServerDuplicate)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
-		uc.app.Jnl().Record(ctx, fileevent.UploadServerBetter, a.File, "reason", advice.Message)
+		// Record as discarded - server has better version
+		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.UploadServerBetter, advice.Message)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case ForceUpload:
@@ -427,7 +437,8 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 
 	ar, err := uc.client.Immich.AssetUpload(ctx, a)
 	if err != nil {
-		uc.app.Jnl().Record(ctx, fileevent.UploadServerError, a, "error", err.Error())
+		// Record upload error
+		uc.app.FileProcessor().RecordAssetError(ctx, a.File, fileevent.ErrorServerError, err)
 		return "", err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
@@ -437,12 +448,16 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 			originalName = original.OriginalFileName
 		}
 		if a.ID == "" {
-			uc.app.Jnl().Record(ctx, fileevent.AnalysisLocalDuplicate, a, "reason", "the file is already present in the input", "original name", originalName)
+			// Record as discarded - local duplicate
+			uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, fileevent.AnalysisLocalDuplicate,
+				fmt.Sprintf("already present in input as %s", originalName))
 		} else {
-			uc.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, a, "reason", "the server already has this file", "original name", originalName)
+			// Record as processed - server duplicate
+			uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.UploadedServerDuplicate)
 		}
 	} else {
-		uc.app.Jnl().Record(ctx, fileevent.Uploaded, a)
+		// Record successful upload
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.Uploaded)
 	}
 	a.ID = ar.ID
 
@@ -461,7 +476,8 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 			DateTimeOriginal: a.CaptureDate,
 		})
 		if err != nil {
-			uc.app.Jnl().Record(ctx, fileevent.UploadServerError, a.File, "error", err.Error())
+			// Record metadata update error
+			uc.app.FileProcessor().RecordAssetError(ctx, a.File, fileevent.ErrorServerError, err)
 			return "", err
 		}
 	}
@@ -475,35 +491,35 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 	// 1. Upload the new asset
 	ar, err := uc.client.Immich.AssetUpload(ctx, newAsset)
 	if err != nil {
-		uc.app.Jnl().Record(ctx, fileevent.UploadServerError, newAsset, "error", err.Error())
+		// Record upload error
+		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, fileevent.ErrorServerError, err)
 		return "", err // Must signal the error to the caller
 	}
 	newAsset.ID = ar.ID
 	if ar.Status == immich.UploadDuplicate {
-		originalName := "unknown"
-		original := uc.assetIndex.getByID(ar.ID)
-		if original != nil {
-			originalName = original.OriginalFileName
-		}
-		uc.app.Jnl().Record(ctx, fileevent.UploadServerDuplicate, newAsset, "reason", "the server already has this file", "original name", originalName)
+		// Record as processed - server duplicate
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, fileevent.UploadedServerDuplicate)
 		return immich.UploadDuplicate, nil
 	}
 
 	// 2. copy metadata from existing asset to the new asset
 	err = uc.client.Immich.CopyAsset(ctx, oldAsset.ID, ar.ID)
 	if err != nil {
-		uc.app.Jnl().Record(ctx, fileevent.UploadServerError, newAsset, "error", err.Error())
+		// Record copy error
+		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, fileevent.ErrorServerError, err)
 		return "", err // Must signal the error to the caller
 	}
 
 	// 3. Delete the existing asset
 	err = uc.client.Immich.DeleteAssets(ctx, []string{oldAsset.ID}, true)
 	if err != nil {
-		uc.app.Jnl().Record(ctx, fileevent.UploadServerError, newAsset, "error", err.Error())
+		// Record delete error
+		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, fileevent.ErrorServerError, err)
 		return "", err // Must signal the error to the caller
 	}
 	uc.assetIndex.replaceAsset(newAsset, oldAsset)
-	uc.app.Jnl().Record(ctx, fileevent.UploadUpgraded, newAsset, "reason", "the file from the source is better than the file on the server")
+	// Record successful upgrade
+	uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, fileevent.UploadedUpgraded)
 	return "", nil
 }
 
@@ -519,7 +535,8 @@ func (uc *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName, ID
 	for _, album := range albums {
 		al := assets.NewAlbum("", album.Title, album.Description)
 		if uc.albumsCache.AddIDToCollection(al.Title, album, ID) {
-			uc.app.Jnl().Record(ctx, fileevent.UploadAddToAlbum, f, "album", al.Title)
+			// Record album addition event
+			uc.app.FileProcessor().Logger().Record(ctx, fileevent.UploadAddToAlbum, f, "album", al.Title)
 		}
 	}
 }
@@ -535,7 +552,8 @@ func (uc *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 	}
 	for _, t := range a.Tags {
 		if uc.tagsCache.AddIDToCollection(t.Name, t, a.ID) {
-			uc.app.Jnl().Record(ctx, fileevent.Tagged, a.File, "tag", t.Value)
+			// Record tag event
+			uc.app.FileProcessor().Logger().Record(ctx, fileevent.Tagged, a.File, "tag", t.Value)
 		}
 	}
 }

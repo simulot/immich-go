@@ -17,6 +17,8 @@ on-errors = 'stop'
 save-config = false
 
 [archive]
+write-to-folder = ''
+
 [archive.from-folder]
 album-path-joiner = ' / '
 date-from-name = true
@@ -345,6 +347,7 @@ archive:
     include-type: ""
     into-album: ""
     recursive: true
+  write-to-folder: ""
 concurrent-tasks: 12
 dry-run: false
 log-file: ""
@@ -573,7 +576,8 @@ upload:
       "include-type": "",
       "into-album": "",
       "recursive": true
-    }
+    },
+    "write-to-folder": ""
   },
   "concurrent-tasks": 12,
   "dry-run": false,

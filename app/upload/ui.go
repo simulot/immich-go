@@ -13,6 +13,7 @@ import (
 	"github.com/rivo/tview"
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"golang.org/x/sync/errgroup"
 )
@@ -22,9 +23,16 @@ type uiPage struct {
 	footer        *tview.Grid
 	prepareCounts *tview.Grid
 	uploadCounts  *tview.Grid
+	statusZone    *tview.Grid // NEW: Asset processing status zone
 	serverJobs    *tvxwidgets.Sparkline
 	logView       *tview.TextView
 	counts        map[fileevent.Code]*tview.TextView
+
+	// Status zone views (separate from fileevent counters)
+	statusViews map[string]*tview.TextView
+
+	// Asset tracker reference for status updates
+	tracker *assettracker.AssetTracker
 
 	// server's activity history
 	serverActivity []float64
@@ -135,6 +143,8 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 					for c := range ui.counts {
 						ui.getCountView(c, counts[c])
 					}
+					// Update the processing status zone
+					ui.updateStatusZone()
 					if uc.Mode == UpModeGoogleTakeout {
 						ui.immichPrepare.SetMaxValue(int(app.Jnl().TotalAssets()))
 						ui.immichPrepare.SetValue(int(app.Jnl().TotalProcessedGP()))
@@ -205,7 +215,7 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 
 		uploadDone.Store(true)
 		counts := app.Jnl().GetCounts()
-		if counts[fileevent.Error]+counts[fileevent.UploadServerError] > 0 {
+		if counts[fileevent.Error]+counts[fileevent.ErrorServerError] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}
 
@@ -279,12 +289,20 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui.uploadCounts.SetBorder(true).SetTitle("Uploading")
 
 	ui.addCounter(ui.uploadCounts, 0, "Files uploaded", fileevent.Uploaded)
-	ui.addCounter(ui.uploadCounts, 1, "Errors during upload", fileevent.UploadServerError)
+	ui.addCounter(ui.uploadCounts, 1, "Errors during upload", fileevent.ErrorServerError)
 	ui.addCounter(ui.uploadCounts, 2, "Files not selected", fileevent.UploadNotSelected)
-	ui.addCounter(ui.uploadCounts, 3, "Server's asset upgraded", fileevent.UploadUpgraded)
-	ui.addCounter(ui.uploadCounts, 4, "Server has same quality", fileevent.UploadServerDuplicate)
+	ui.addCounter(ui.uploadCounts, 3, "Server's asset upgraded", fileevent.UploadedUpgraded)
+	ui.addCounter(ui.uploadCounts, 4, "Server has same quality", fileevent.UploadedServerDuplicate)
 	ui.addCounter(ui.uploadCounts, 5, "Server has better quality", fileevent.UploadServerBetter)
 	ui.uploadCounts.SetSize(6, 2, 1, 1).SetColumns(30, 10)
+
+	// Create the processing status zone (replaces upload counts in layout)
+	ui.statusZone = ui.createStatusZone()
+
+	// Set tracker reference for status updates
+	if a.FileProcessor() != nil {
+		ui.tracker = a.FileProcessor().Tracker()
+	}
 
 	if _, err := uc.client.AdminImmich.GetJobs(ctx); err == nil {
 		ui.watchJobs = true
@@ -299,7 +317,7 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	counts := tview.NewGrid()
 	counts.Box = tview.NewBox()
 	counts.AddItem(ui.prepareCounts, 0, 0, 1, 1, 0, 0, false)
-	counts.AddItem(ui.uploadCounts, 0, 1, 1, 1, 0, 0, false)
+	counts.AddItem(ui.statusZone, 0, 1, 1, 1, 0, 0, false) // Use status zone instead of upload counts
 	if ui.watchJobs {
 		counts.AddItem(ui.serverJobs, 0, 2, 1, 1, 0, 0, false)
 	}
@@ -371,4 +389,96 @@ func (ui *uiPage) getCountView(c fileevent.Code, count int64) *tview.TextView {
 func (ui *uiPage) addCounter(g *tview.Grid, row int, label string, counter fileevent.Code) {
 	g.AddItem(tview.NewTextView().SetText(label), row, 0, 1, 1, 0, 0, false)
 	g.AddItem(ui.getCountView(counter, 0), row, 1, 1, 1, 0, 0, false)
+}
+
+// createStatusZone creates the asset processing status zone
+func (ui *uiPage) createStatusZone() *tview.Grid {
+	status := tview.NewGrid()
+	status.SetBorder(true).SetTitle("Processing Status")
+
+	// Row 0: Pending assets
+	status.AddItem(tview.NewTextView().SetText("Pending"), 0, 0, 1, 1, 0, 0, false)
+	ui.addStatusCounter(status, 0, "pendingCount", "pendingSize")
+
+	// Row 1: Processed assets
+	status.AddItem(tview.NewTextView().SetText("Processed"), 1, 0, 1, 1, 0, 0, false)
+	ui.addStatusCounter(status, 1, "processedCount", "processedSize")
+
+	// Row 2: Discarded assets
+	status.AddItem(tview.NewTextView().SetText("Discarded"), 2, 0, 1, 1, 0, 0, false)
+	ui.addStatusCounter(status, 2, "discardedCount", "discardedSize")
+
+	// Row 3: Error assets
+	status.AddItem(tview.NewTextView().SetText("Errors"), 3, 0, 1, 1, 0, 0, false)
+	ui.addStatusCounter(status, 3, "errorCount", "errorSize")
+
+	// Row 4: Total
+	status.AddItem(tview.NewTextView().SetText("Total"), 4, 0, 1, 1, 0, 0, false)
+	ui.addStatusCounter(status, 4, "totalCount", "totalSize")
+
+	status.SetSize(5, 3, 1, 1).SetColumns(20, 8, 10)
+	return status
+}
+
+// addStatusCounter adds count and size views for a status category
+func (ui *uiPage) addStatusCounter(g *tview.Grid, row int, countKey, sizeKey string) {
+	countView := tview.NewTextView().SetText("0").SetTextAlign(tview.AlignRight)
+	sizeView := tview.NewTextView().SetText("0 B").SetTextAlign(tview.AlignRight)
+
+	// Store references for updates
+	if ui.statusViews == nil {
+		ui.statusViews = make(map[string]*tview.TextView)
+	}
+	ui.statusViews[countKey] = countView
+	ui.statusViews[sizeKey] = sizeView
+
+	g.AddItem(countView, row, 1, 1, 1, 0, 0, false)
+	g.AddItem(sizeView, row, 2, 1, 1, 0, 0, false)
+}
+
+// updateStatusZone updates the status zone with current asset tracker data
+func (ui *uiPage) updateStatusZone() {
+	if ui.tracker == nil {
+		return
+	}
+
+	// Get current counters
+	pendingCount := ui.tracker.GetPendingCount()
+	pendingSize := ui.tracker.GetPendingSize()
+	processedCount := ui.tracker.GetProcessedCount()
+	processedSize := ui.tracker.GetProcessedSize()
+	discardedCount := ui.tracker.GetDiscardedCount()
+	discardedSize := ui.tracker.GetDiscardedSize()
+	errorCount := ui.tracker.GetErrorCount()
+	errorSize := ui.tracker.GetErrorSize()
+
+	// Calculate totals
+	totalCount := pendingCount + processedCount + discardedCount + errorCount
+	totalSize := pendingSize + processedSize + discardedSize + errorSize
+
+	// Update the views
+	ui.statusViews["pendingCount"].SetText(fmt.Sprintf("%6d", pendingCount))
+	ui.statusViews["pendingSize"].SetText(ui.formatBytes(pendingSize))
+	ui.statusViews["processedCount"].SetText(fmt.Sprintf("%6d", processedCount))
+	ui.statusViews["processedSize"].SetText(ui.formatBytes(processedSize))
+	ui.statusViews["discardedCount"].SetText(fmt.Sprintf("%6d", discardedCount))
+	ui.statusViews["discardedSize"].SetText(ui.formatBytes(discardedSize))
+	ui.statusViews["errorCount"].SetText(fmt.Sprintf("%6d", errorCount))
+	ui.statusViews["errorSize"].SetText(ui.formatBytes(errorSize))
+	ui.statusViews["totalCount"].SetText(fmt.Sprintf("%6d", totalCount))
+	ui.statusViews["totalSize"].SetText(ui.formatBytes(totalSize))
+}
+
+// formatBytes formats byte count as human-readable string
+func (ui *uiPage) formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d  B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%6.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

@@ -1,25 +1,14 @@
 package gp
 
 import (
-	"context"
 	"encoding/csv"
 	"io"
-	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/simulot/immich-go/internal/fileevent"
 )
-
-// logMessage for the photo and the movie attached to the photo
-func (toc *TakeoutCmd) logMessage(ctx context.Context, code fileevent.Code, a slog.LogValuer, reason string) {
-	t := "reason"
-	if code == fileevent.Error {
-		t = "error"
-	}
-	toc.log.Record(ctx, code, a, t, reason)
-}
 
 func (toc *TakeoutCmd) DebugFileTracker(w io.Writer) {
 	csv := csv.NewWriter(w)
