@@ -34,7 +34,7 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	}
 
 	progressString := func() string {
-		counts := app.Jnl().GetCounts()
+		counts := app.FileProcessor().Logger().GetCounts()
 		defer func() {
 			spinIdx++
 			if spinIdx == len(spinner) {
@@ -50,7 +50,7 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		}
 		lock.Unlock()
 
-		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.Jnl().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.UploadedSuccess], string(spinner[spinIdx]))
+		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.FileProcessor().Logger().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.UploadedSuccess], string(spinner[spinIdx]))
 	}
 	uiGrp := errgroup.Group{}
 
@@ -109,7 +109,7 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 			cancel(err)
 		}
 
-		counts := app.Jnl().GetCounts()
+		counts := app.FileProcessor().Logger().GetCounts()
 		messages := strings.Builder{}
 		if counts[fileevent.ErrorUploadFailed]+counts[fileevent.ErrorServerError]+counts[fileevent.ErrorFileAccess]+counts[fileevent.ErrorIncomplete] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")

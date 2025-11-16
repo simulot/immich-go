@@ -50,11 +50,11 @@ type uiPage struct {
 
 func (ui *uiPage) highJackLogger(app *app.Application) {
 	ui.logView.SetDynamicColors(true)
-	app.Jnl().SetLogger(app.Log().SetLogWriter(tview.ANSIWriter(ui.logView)))
+	app.FileProcessor().Logger().SetLogger(app.Log().SetLogWriter(tview.ANSIWriter(ui.logView)))
 }
 
 func (ui *uiPage) restoreLogger(app *app.Application) {
-	app.Jnl().SetLogger(app.Log().SetLogWriter(nil))
+	app.FileProcessor().Logger().SetLogger(app.Log().SetLogWriter(nil))
 }
 
 func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
@@ -139,18 +139,18 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 				return
 			case <-tick.C:
 				uiApp.QueueUpdateDraw(func() {
-					counts := app.Jnl().GetCounts()
+					counts := app.FileProcessor().Logger().GetCounts()
 					for c := range ui.counts {
 						ui.getCountView(c, counts[c])
 					}
 					// Update the processing status zone
 					ui.updateStatusZone()
 					if uc.Mode == UpModeGoogleTakeout {
-						ui.immichPrepare.SetMaxValue(int(app.Jnl().TotalAssets()))
-						ui.immichPrepare.SetValue(int(app.Jnl().TotalProcessedGP()))
+						ui.immichPrepare.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
+						ui.immichPrepare.SetValue(int(app.FileProcessor().Logger().TotalProcessedGP()))
 
 						if preparationDone.Load() {
-							ui.immichUpload.SetMaxValue(int(app.Jnl().TotalAssets()))
+							ui.immichUpload.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
 						}
 						// ui.immichUpload.SetValue(int(app.Jnl().TotalProcessed(uc.takeoutOptions.KeepJSONLess)))
 					}
@@ -214,7 +214,7 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		err = errors.Join(err, uc.finishing(ctx))
 
 		uploadDone.Store(true)
-		counts := app.Jnl().GetCounts()
+		counts := app.FileProcessor().Logger().GetCounts()
 		if counts[fileevent.ErrorUploadFailed]+counts[fileevent.ErrorServerError]+counts[fileevent.ErrorFileAccess]+counts[fileevent.ErrorIncomplete] > 0 {
 			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
 		}

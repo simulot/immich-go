@@ -9,7 +9,6 @@ import (
 
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/config"
-	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/spf13/cobra"
@@ -33,8 +32,7 @@ type Application struct {
 
 	// Internal state
 	log       *Log
-	jnl       *fileevent.Recorder
-	processor *fileprocessor.FileProcessor // NEW: Unified file processing tracker
+	processor *fileprocessor.FileProcessor // Unified file processing tracker
 	tz        *time.Location
 	Config    *config.ConfigurationManager
 
@@ -74,14 +72,6 @@ func (app *Application) GetTZ() *time.Location {
 
 func (app *Application) SetTZ(tz *time.Location) {
 	app.tz = tz
-}
-
-func (app *Application) Jnl() *fileevent.Recorder {
-	return app.jnl
-}
-
-func (app *Application) SetJnl(jnl *fileevent.Recorder) {
-	app.jnl = jnl
 }
 
 // FileProcessor returns the file processor for coordinated asset tracking and event logging
