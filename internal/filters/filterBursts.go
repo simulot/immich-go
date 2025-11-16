@@ -77,7 +77,7 @@ func stackBurstKeepJPEG(g *assets.Group) *assets.Group {
 	removedAssets := []*assets.Asset{}
 	keep := 0
 	for _, a := range g.Assets {
-		if a.Ext == ".jpg" || a.Ext == ".jpeg" { // nolint: goconst
+		if a.Ext == jpgExt || a.Ext == ".jpeg" { // nolint: goconst
 			keep++
 		} else {
 			removedAssets = append(removedAssets, a)
@@ -123,7 +123,7 @@ func (b BurstFlag) String() string {
 	case BurstKeepJPEG:
 		return "StackKeepJPEG"
 	default:
-		return "Unknown" // nolint: goconst
+		return unknown // nolint: goconst
 	}
 }
 

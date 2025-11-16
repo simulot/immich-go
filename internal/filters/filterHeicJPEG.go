@@ -76,7 +76,7 @@ func groupHeicJpgKeepJPG(g *assets.Group) *assets.Group {
 	removedAssets := []*assets.Asset{}
 	keep := 0
 	for _, a := range g.Assets {
-		if a.Ext == ".jpg" || a.Ext == ".jpeg" {
+		if a.Ext == jpgExt || a.Ext == ".jpeg" {
 			keep++
 		} else {
 			removedAssets = append(removedAssets, a)
@@ -113,7 +113,7 @@ func groupHeicJpgStackJPG(g *assets.Group) *assets.Group {
 	}
 	// Set the cover index to the first JPEG file
 	for i, a := range g.Assets {
-		if a.Ext == ".jpg" || a.Ext == ".jpeg" {
+		if a.Ext == jpgExt || a.Ext == ".jpeg" {
 			g.CoverIndex = i
 			break
 		}
@@ -152,7 +152,7 @@ func (h HeicJpgFlag) String() string {
 	case HeicJpgStackJPG:
 		return "StackCoverJPG"
 	default:
-		return "Unknown"
+		return unknown
 	}
 }
 
