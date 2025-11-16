@@ -17,6 +17,7 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	// ready to run
 	ctx := cmd.Context()
 	log := ac.app.Log()
+	log.Info("in ArchiveCmd.Run", "archivePath", ac.ArchivePath)
 
 	// Initialize the Journal and FileProcessor
 	if ac.app.Jnl() == nil {

@@ -72,28 +72,34 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 	body, pw := io.Pipe()
 	m := multipart.NewWriter(pw)
 
+	errChan := make(chan error, 1)
 	go func() {
 		defer func() {
 			m.Close()
 			pw.Close()
 		}()
 
-		err = ic.writeMultipartFields(m, callValues)
-		if err != nil {
+		var gErr error
+		gErr = ic.writeMultipartFields(m, callValues)
+		if gErr != nil {
+			errChan <- gErr
 			return
 		}
 
-		err = ic.writeFilePart(m, f, la.OriginalFileName, mtype)
-		if err != nil {
+		gErr = ic.writeFilePart(m, f, la.OriginalFileName, mtype)
+		if gErr != nil {
+			errChan <- gErr
 			return
 		}
 
 		if la.FromSideCar != nil && strings.HasSuffix(strings.ToLower(la.FromSideCar.File.Name()), ".xmp") {
-			err = ic.writeSideCarPart(m, la)
-			if err != nil {
+			gErr = ic.writeSideCarPart(m, la)
+			if gErr != nil {
+				errChan <- gErr
 				return
 			}
 		}
+		errChan <- nil
 	}()
 
 	var errCall error
@@ -108,7 +114,8 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 	if ar.Status == "duplicate" && errors.Is(err, io.ErrClosedPipe) {
 		err = nil // immich closes the connection when we upload the x-immich-checksum header and it finds a duplicate
 	}
-	err = errors.Join(err, errCall)
+	gErr := <-errChan
+	err = errors.Join(err, errCall, gErr)
 	return ar, err
 }
 

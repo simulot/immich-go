@@ -119,7 +119,7 @@ func Test_Replace(t *testing.T) {
 		fileevent.Tagged:           0,
 	}, false, a.FileProcessor())
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second) // Give the server enough time
 
 	c, a = root.RootImmichGoCommand(ctx)
 	c.SetArgs([]string{

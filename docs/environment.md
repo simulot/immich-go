@@ -14,6 +14,12 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ON_ERRORS` | `--on-errors` | `stop` | What to do when an error occurs (stop, continue, accept N errors at max) |
 | `IMMICH_GO_SAVE_CONFIG` | `--save-config` | `false` | Save the configuration to immich-go.yaml |
 
+## archive
+
+| Variable | Flag | Default | Description |
+|----------|------|---------|-------------|
+| `IMMICH_GO_ARCHIVE_WRITE_TO_FOLDER` | `--write-to-folder` |  | Path where to write the archive |
+
 ## archive from-folder
 
 | Variable | Flag | Default | Description |
