@@ -359,6 +359,62 @@ func (at *AssetTracker) GenerateDetailedReport(ctx context.Context) string {
 	return report
 }
 
+// GetPendingCount returns the count of pending assets
+func (at *AssetTracker) GetPendingCount() int {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+	return int(at.pending)
+}
+
+// GetPendingSize returns the total size of pending assets
+func (at *AssetTracker) GetPendingSize() int64 {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+	return at.assetSize - at.processedSize - at.discardedSize - at.errorSize
+}
+
+// GetProcessedCount returns the count of processed assets
+func (at *AssetTracker) GetProcessedCount() int {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+	return int(at.processed)
+}
+
+// GetProcessedSize returns the total size of processed assets
+func (at *AssetTracker) GetProcessedSize() int64 {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+	return at.processedSize
+}
+
+// GetDiscardedCount returns the count of discarded assets
+func (at *AssetTracker) GetDiscardedCount() int {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+	return int(at.discarded)
+}
+
+// GetDiscardedSize returns the total size of discarded assets
+func (at *AssetTracker) GetDiscardedSize() int64 {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+	return at.discardedSize
+}
+
+// GetErrorCount returns the count of errored assets
+func (at *AssetTracker) GetErrorCount() int {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+	return int(at.errors)
+}
+
+// GetErrorSize returns the total size of errored assets
+func (at *AssetTracker) GetErrorSize() int64 {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+	return at.errorSize
+}
+
 // formatBytes formats byte count as human-readable string
 func formatBytes(bytes int64) string {
 	const unit = 1024
