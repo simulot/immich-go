@@ -15,21 +15,29 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fileprocessor"
 	"golang.org/x/sync/errgroup"
 )
 
 type uiPage struct {
-	screen        *tview.Grid
-	footer        *tview.Grid
-	prepareCounts *tview.Grid
-	uploadCounts  *tview.Grid
-	statusZone    *tview.Grid // NEW: Asset processing status zone
-	serverJobs    *tvxwidgets.Sparkline
-	logView       *tview.TextView
-	counts        map[fileevent.Code]*tview.TextView
+	screen         *tview.Grid
+	footer         *tview.Grid
+	discoveryZone  *tview.Grid // NEW: Discovery zone
+	processingZone *tview.Grid // NEW: Processing events zone
+	statusZone     *tview.Grid // NEW: Asset processing status zone
+	serverJobs     *tvxwidgets.Sparkline
+	logView        *tview.TextView
+	counts         map[fileevent.Code]*tview.TextView
+	sizes          map[fileevent.Code]*tview.TextView // Size views for discovery events
 
 	// Status zone views (separate from fileevent counters)
 	statusViews map[string]*tview.TextView
+
+	// Discovery zone views for total row
+	discoveryViews map[string]*tview.TextView
+
+	// File processor reference for event sizes
+	fileProcessor *fileprocessor.FileProcessor
 
 	// Asset tracker reference for status updates
 	tracker *assettracker.AssetTracker
@@ -140,8 +148,10 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 			case <-tick.C:
 				uiApp.QueueUpdateDraw(func() {
 					counts := app.FileProcessor().Logger().GetCounts()
+					sizes := app.FileProcessor().Logger().GetEventSizes()
 					for c := range ui.counts {
 						ui.getCountView(c, counts[c])
+						ui.updateSizeView(c, sizes[c])
 					}
 					// Update the processing status zone
 					ui.updateStatusZone()
@@ -265,25 +275,17 @@ func newModal(message string) tview.Primitive {
 func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui := &uiPage{
 		counts: map[fileevent.Code]*tview.TextView{},
+		sizes:  map[fileevent.Code]*tview.TextView{},
 	}
 
 	ui.screen = tview.NewGrid()
 
 	ui.screen.AddItem(tview.NewTextView().SetText(app.Banner()), 0, 0, 1, 1, 0, 0, false)
 
-	ui.prepareCounts = tview.NewGrid()
-	ui.prepareCounts.SetBorder(true).SetTitle("Input analysis")
+	ui.discoveryZone = ui.createDiscoveryZone()
 
-	ui.addCounter(ui.prepareCounts, 0, "Images", fileevent.DiscoveredImage)
-	ui.addCounter(ui.prepareCounts, 1, "Videos", fileevent.DiscoveredVideo)
-	ui.addCounter(ui.prepareCounts, 2, "Metadata files", fileevent.DiscoveredSidecar)
-	ui.addCounter(ui.prepareCounts, 3, "Discarded files", fileevent.DiscoveredDiscarded) // TODO: Replace with sum of specific discard events
-	ui.addCounter(ui.prepareCounts, 4, "Unsupported files", fileevent.DiscoveredUnsupported)
-	ui.addCounter(ui.prepareCounts, 5, "Duplicates in the input", fileevent.DiscardedLocalDuplicate)
-	ui.addCounter(ui.prepareCounts, 6, "Files with a sidecar", fileevent.AnalysisAssociatedMetadata)
-	ui.addCounter(ui.prepareCounts, 7, "Files without sidecar", fileevent.AnalysisMissingAssociatedMetadata)
-
-	ui.prepareCounts.SetSize(8, 2, 1, 1).SetColumns(30, 10)
+	// Create the processing zone (shows processing events)
+	ui.processingZone = ui.createProcessingZone()
 
 	// Create the processing status zone (replaces upload counts in layout)
 	ui.statusZone = ui.createStatusZone()
@@ -291,6 +293,7 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	// Set tracker reference for status updates
 	if a.FileProcessor() != nil {
 		ui.tracker = a.FileProcessor().Tracker()
+		ui.fileProcessor = a.FileProcessor()
 	}
 
 	if _, err := uc.client.AdminImmich.GetJobs(ctx); err == nil {
@@ -305,13 +308,15 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 
 	counts := tview.NewGrid()
 	counts.Box = tview.NewBox()
-	counts.AddItem(ui.prepareCounts, 0, 0, 1, 1, 0, 0, false)
-	counts.AddItem(ui.statusZone, 0, 1, 1, 1, 0, 0, false) // Use status zone instead of upload counts
+	// Single row: Discovery, Processing, Upload Progress, Server Jobs
+	counts.AddItem(ui.discoveryZone, 0, 0, 1, 1, 0, 0, false)
+	counts.AddItem(ui.processingZone, 0, 1, 1, 1, 0, 0, false)
+	counts.AddItem(ui.statusZone, 0, 2, 1, 1, 0, 0, false)
 	if ui.watchJobs {
-		counts.AddItem(ui.serverJobs, 0, 2, 1, 1, 0, 0, false)
+		counts.AddItem(ui.serverJobs, 0, 3, 1, 1, 0, 0, false)
 	}
-	counts.SetSize(1, 3, 15, 40)
-	counts.SetColumns(40, 40, 0)
+	counts.SetSize(1, 4, 15, 40)
+	counts.SetColumns(40, 30, 40, 0)
 
 	ui.screen.AddItem(counts, 1, 0, 1, 1, 0, 0, false)
 
@@ -375,23 +380,98 @@ func (ui *uiPage) getCountView(c fileevent.Code, count int64) *tview.TextView {
 	return v
 }
 
+func (ui *uiPage) updateSizeView(c fileevent.Code, size int64) {
+	v, ok := ui.sizes[c]
+	if !ok {
+		return
+	}
+	if size == 0 {
+		v.SetText("0 B")
+	} else {
+		v.SetText(ui.formatBytes(size))
+	}
+}
+
 func (ui *uiPage) addCounter(g *tview.Grid, row int, label string, counter fileevent.Code) {
 	g.AddItem(tview.NewTextView().SetText(label), row, 0, 1, 1, 0, 0, false)
 	g.AddItem(ui.getCountView(counter, 0), row, 1, 1, 1, 0, 0, false)
+	g.AddItem(tview.NewTextView().SetText(""), row, 2, 1, 1, 0, 0, false) // Spacer
+
+	// Create size view for discovery events
+	sizeView := tview.NewTextView().SetText("0 B").SetTextAlign(tview.AlignRight)
+	if ui.sizes == nil {
+		ui.sizes = make(map[fileevent.Code]*tview.TextView)
+	}
+	ui.sizes[counter] = sizeView
+	g.AddItem(sizeView, row, 3, 1, 1, 0, 0, false)
+}
+
+func (ui *uiPage) addProcessingCounter(g *tview.Grid, row int, label string, counter fileevent.Code) {
+	g.AddItem(tview.NewTextView().SetText(label), row, 0, 1, 1, 0, 0, false)
+	g.AddItem(ui.getCountView(counter, 0), row, 1, 1, 1, 0, 0, false)
+}
+
+// createDiscoveryZone creates the discovery zone showing asset discovery events
+func (ui *uiPage) createDiscoveryZone() *tview.Grid {
+	discovery := tview.NewGrid()
+	discovery.SetBorder(true).SetTitle("Discovery")
+
+	// Row 0: Images
+	ui.addCounter(discovery, 0, "Images", fileevent.DiscoveredImage)
+	// Row 1: Videos
+	ui.addCounter(discovery, 1, "Videos", fileevent.DiscoveredVideo)
+	// Row 2: Empty row for spacing
+	discovery.AddItem(tview.NewTextView().SetText(""), 2, 0, 1, 4, 0, 0, false)
+	// Row 3: Duplicates (local)
+	ui.addCounter(discovery, 3, "Duplicates (local)", fileevent.DiscardedLocalDuplicate)
+	// Row 4: Already on server
+	ui.addCounter(discovery, 4, "Already on server", fileevent.UploadedServerDuplicate)
+	// Row 5: Filtered (rules)
+	ui.addCounter(discovery, 5, "Filtered (rules)", fileevent.DiscardedFiltered)
+	// Row 6: Banned
+	ui.addCounter(discovery, 6, "Banned", fileevent.DiscardedBanned)
+	// Row 7: Missing sidecar
+	ui.addCounter(discovery, 7, "Missing sidecar", fileevent.AnalysisMissingAssociatedMetadata)
+	// Row 8: Total discovered
+	discovery.AddItem(tview.NewTextView().SetText("Total discovered"), 8, 0, 1, 1, 0, 0, false)
+	ui.addDiscoveryCounter(discovery, 8, "discoveredCount", "discoveredSize")
+
+	discovery.SetSize(9, 4, 1, 1).SetColumns(20, 8, 2, 10)
+	return discovery
+}
+
+// createProcessingZone creates the processing zone showing processing events
+func (ui *uiPage) createProcessingZone() *tview.Grid {
+	processing := tview.NewGrid()
+	processing.SetBorder(true).SetTitle("Processing")
+
+	// Row 0: Sidecars associated
+	ui.addProcessingCounter(processing, 0, "Sidecars associated", fileevent.AnalysisAssociatedMetadata)
+	// Row 1: Added to albums
+	ui.addProcessingCounter(processing, 1, "Added to albums", fileevent.ProcessedAlbumAdded)
+	// Row 2: Stacked (bursts, raw+jpg)
+	ui.addProcessingCounter(processing, 2, "Stacked (bursts, raw+jpg)", fileevent.ProcessedStacked)
+	// Row 3: Tagged
+	ui.addProcessingCounter(processing, 3, "Tagged", fileevent.ProcessedTagged)
+	// Row 4: Metadata updated
+	ui.addProcessingCounter(processing, 4, "Metadata updated", fileevent.ProcessedMetadataUpdated)
+
+	processing.SetSize(5, 2, 1, 1).SetColumns(20, 10)
+	return processing
 }
 
 // createStatusZone creates the asset processing status zone
 func (ui *uiPage) createStatusZone() *tview.Grid {
 	status := tview.NewGrid()
-	status.SetBorder(true).SetTitle("Processing Status")
+	status.SetBorder(true).SetTitle("Upload Progress")
 
 	// Row 0: Pending assets
 	status.AddItem(tview.NewTextView().SetText("Pending"), 0, 0, 1, 1, 0, 0, false)
 	ui.addStatusCounter(status, 0, "pendingCount", "pendingSize")
 
-	// Row 1: Processed assets
-	status.AddItem(tview.NewTextView().SetText("Processed"), 1, 0, 1, 1, 0, 0, false)
-	ui.addStatusCounter(status, 1, "processedCount", "processedSize")
+	// Row 1: Uploaded assets
+	status.AddItem(tview.NewTextView().SetText("Uploaded"), 1, 0, 1, 1, 0, 0, false)
+	ui.addStatusCounter(status, 1, "uploadedCount", "uploadedSize")
 
 	// Row 2: Discarded assets
 	status.AddItem(tview.NewTextView().SetText("Discarded"), 2, 0, 1, 1, 0, 0, false)
@@ -405,7 +485,7 @@ func (ui *uiPage) createStatusZone() *tview.Grid {
 	status.AddItem(tview.NewTextView().SetText("Total"), 4, 0, 1, 1, 0, 0, false)
 	ui.addStatusCounter(status, 4, "totalCount", "totalSize")
 
-	status.SetSize(5, 3, 1, 1).SetColumns(20, 8, 10)
+	status.SetSize(5, 4, 1, 1).SetColumns(20, 8, 2, 10)
 	return status
 }
 
@@ -422,7 +502,25 @@ func (ui *uiPage) addStatusCounter(g *tview.Grid, row int, countKey, sizeKey str
 	ui.statusViews[sizeKey] = sizeView
 
 	g.AddItem(countView, row, 1, 1, 1, 0, 0, false)
-	g.AddItem(sizeView, row, 2, 1, 1, 0, 0, false)
+	g.AddItem(tview.NewTextView().SetText(""), row, 2, 1, 1, 0, 0, false) // Spacer
+	g.AddItem(sizeView, row, 3, 1, 1, 0, 0, false)
+}
+
+// addDiscoveryCounter adds count and size views for discovery zone total
+func (ui *uiPage) addDiscoveryCounter(g *tview.Grid, row int, countKey, sizeKey string) {
+	countView := tview.NewTextView().SetText("0").SetTextAlign(tview.AlignRight)
+	sizeView := tview.NewTextView().SetText("0 B").SetTextAlign(tview.AlignRight)
+
+	// Store references for updates
+	if ui.discoveryViews == nil {
+		ui.discoveryViews = make(map[string]*tview.TextView)
+	}
+	ui.discoveryViews[countKey] = countView
+	ui.discoveryViews[sizeKey] = sizeView
+
+	g.AddItem(countView, row, 1, 1, 1, 0, 0, false)
+	g.AddItem(tview.NewTextView().SetText(""), row, 2, 1, 1, 0, 0, false) // Spacer
+	g.AddItem(sizeView, row, 3, 1, 1, 0, 0, false)
 }
 
 // updateStatusZone updates the status zone with current asset tracker data
@@ -445,17 +543,23 @@ func (ui *uiPage) updateStatusZone() {
 	totalCount := pendingCount + processedCount + discardedCount + errorCount
 	totalSize := pendingSize + processedSize + discardedSize + errorSize
 
-	// Update the views
+	// Update the status views
 	ui.statusViews["pendingCount"].SetText(fmt.Sprintf("%6d", pendingCount))
 	ui.statusViews["pendingSize"].SetText(ui.formatBytes(pendingSize))
-	ui.statusViews["processedCount"].SetText(fmt.Sprintf("%6d", processedCount))
-	ui.statusViews["processedSize"].SetText(ui.formatBytes(processedSize))
+	ui.statusViews["uploadedCount"].SetText(fmt.Sprintf("%6d", processedCount))
+	ui.statusViews["uploadedSize"].SetText(ui.formatBytes(processedSize))
 	ui.statusViews["discardedCount"].SetText(fmt.Sprintf("%6d", discardedCount))
 	ui.statusViews["discardedSize"].SetText(ui.formatBytes(discardedSize))
 	ui.statusViews["errorCount"].SetText(fmt.Sprintf("%6d", errorCount))
 	ui.statusViews["errorSize"].SetText(ui.formatBytes(errorSize))
 	ui.statusViews["totalCount"].SetText(fmt.Sprintf("%6d", totalCount))
 	ui.statusViews["totalSize"].SetText(ui.formatBytes(totalSize))
+
+	// Update discovery zone total
+	if ui.discoveryViews != nil {
+		ui.discoveryViews["discoveredCount"].SetText(fmt.Sprintf("%6d", totalCount))
+		ui.discoveryViews["discoveredSize"].SetText(ui.formatBytes(totalSize))
+	}
 }
 
 // formatBytes formats byte count as human-readable string
@@ -469,5 +573,5 @@ func (ui *uiPage) formatBytes(bytes int64) string {
 		div *= unit
 		exp++
 	}
-	return fmt.Sprintf("%6.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
