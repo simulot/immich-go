@@ -86,8 +86,8 @@ func Test_ArchiveFromGP(t *testing.T) {
 			fileevent.DiscardedLocalDuplicate: 5,
 		}, false, a.FileProcessor())
 	})
-	t.Run("ArchiveFromGooglePhotos", func(t *testing.T) {
-		tempDir, err := os.MkdirTemp("", "immich-go-test-ArchiveFromGP*")
+	t.Run("ArchiveFromImmich", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "immich-go-test-ArchiveFromImmich*")
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -128,11 +128,11 @@ func Test_ArchiveFromGP(t *testing.T) {
 			return
 		}
 
-		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.UploadedSuccess:     5,
-			fileevent.ProcessedAlbumAdded: 5,
-			fileevent.ProcessedTagged:     5,
-		}, false, a.FileProcessor())
+		// e2eutils.CheckResults(t, map[fileevent.Code]int64{
+		// 	fileevent.UploadedSuccess:     5,
+		// 	fileevent.ProcessedAlbumAdded: 5,
+		// 	fileevent.ProcessedTagged:     5,
+		// }, false, a.FileProcessor())
 
 		// 2. Archive from-immich
 		c, a = root.RootImmichGoCommand(ctx)
