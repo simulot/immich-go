@@ -4,21 +4,25 @@ import (
 	"testing"
 
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fileprocessor"
 )
 
-func CheckResults(t *testing.T, expectedTesults map[fileevent.Code]int64, forcedJSON bool, recorder *fileevent.Recorder) bool {
+func CheckResults(t *testing.T, expectedResults map[fileevent.Code]int64, forcedJSON bool, processor *fileprocessor.FileProcessor) bool {
 	r := true
 
-	if recorder != nil {
-		gotResults := recorder.GetCounts()
-		for code, value := range expectedTesults {
+	if processor != nil {
+		gotResults := processor.GetEventCounts()
+		for code, value := range expectedResults {
 			if gotResults[code] != value {
 				t.Errorf("Expected %d results for code '%s', got %d", value, code.String(), gotResults[code])
 				r = false
 			}
 		}
-		if recorder.TotalAssets() != recorder.TotalProcessed(forcedJSON) {
-			t.Errorf("Total assets %d does not match total processed %d", recorder.TotalAssets(), recorder.TotalProcessed(forcedJSON))
+
+		// Check asset tracking completeness
+		counters := processor.GetAssetCounters()
+		if counters.Pending > 0 {
+			t.Errorf("Found %d pending assets that never reached final state", counters.Pending)
 			r = false
 		}
 	}

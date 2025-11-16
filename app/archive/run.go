@@ -6,7 +6,9 @@ import (
 
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/adapters/folder"
+	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/fshelper/osfs"
 	"github.com/spf13/cobra"
 )
@@ -14,11 +16,18 @@ import (
 func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	// ready to run
 	ctx := cmd.Context()
+	log := ac.app.Log()
+	log.Info("in ArchiveCmd.Run", "archivePath", ac.ArchivePath)
+
+	// Initialize the Journal and FileProcessor
 	if ac.app.Jnl() == nil {
 		ac.app.SetJnl(fileevent.NewRecorder(ac.app.Log().Logger))
-		ac.app.Jnl().SetLogger(ac.app.Log().SetLogWriter(os.Stdout))
 	}
-	jnl := ac.app.Jnl()
+	if ac.app.FileProcessor() == nil {
+		tracker := assettracker.NewWithLogger(ac.app.Log().Logger, ac.app.DryRun)
+		processor := fileprocessor.New(tracker, ac.app.Jnl())
+		ac.app.SetFileProcessor(processor)
+	}
 
 	p := ac.ArchivePath
 	err := os.MkdirAll(p, 0o755)
@@ -48,15 +57,15 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 					err = a.Close()
 				}
 				if err != nil {
-					jnl.Log().Error(err.Error())
+					ac.app.FileProcessor().RecordAssetError(ctx, a.File, fileevent.Error, err)
 					errCount++
 					if errCount > 5 {
 						err := errors.New("too many errors, aborting")
-						jnl.Log().Error(err.Error())
+						log.Error(err.Error())
 						return err
 					}
 				} else {
-					jnl.Record(ctx, fileevent.Written, a)
+					ac.app.FileProcessor().RecordAssetProcessed(ctx, a.File, fileevent.Written)
 				}
 			}
 		}

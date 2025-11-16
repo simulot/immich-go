@@ -10,8 +10,8 @@ import (
 	"github.com/simulot/immich-go/adapters/shared"
 	"github.com/simulot/immich-go/app"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filenames"
+	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/groups"
@@ -40,7 +40,7 @@ type ImportFolderCmd struct {
 
 	// Internal fields
 	app                     *app.Application
-	jnl                     *fileevent.Recorder
+	processor               *fileprocessor.FileProcessor
 	fsyss                   []fs.FS
 	tz                      *time.Location
 	supportedMedia          filetypes.SupportedMedia

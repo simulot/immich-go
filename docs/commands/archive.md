@@ -103,7 +103,7 @@ immich-go archive from-immich \
 immich-go archive from-immich \
   --server=http://localhost:2283 \
   --api-key=your-key \
-  --from-album="Family" \
+  --from-albums="Family" \
   --write-to-folder=/backup/albums
 ```
 
@@ -169,7 +169,7 @@ immich-go archive from-immich \
 
 # Archive by album
 immich-go archive from-immich \
-  --from-album="Professional Photos" \
+  --from-albums="Professional Photos" \
   --write-to-folder=/work-archive \
   --server=http://localhost:2283 --api-key=your-key
 ```
@@ -190,7 +190,7 @@ Same as [upload command](upload.md#server-connection-options).
 Same filtering options as corresponding upload sub-commands:
 - File type filtering (`--include-type`, `--include-extensions`)
 - Date range filtering (`--date-range`, `--from-date-range`)
-- Album filtering (`--from-album`)
+- Album filtering (`--from-albums`)
 
 ## See Also
 

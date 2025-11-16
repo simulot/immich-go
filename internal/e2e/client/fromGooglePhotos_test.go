@@ -47,5 +47,5 @@ func Test_FromGooglePhotos(t *testing.T) {
 		fileevent.Uploaded:         5,
 		fileevent.UploadAddToAlbum: 5,
 		fileevent.Tagged:           5,
-	}, false, a.Jnl())
+	}, false, a.FileProcessor())
 }

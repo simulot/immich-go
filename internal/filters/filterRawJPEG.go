@@ -18,6 +18,8 @@ const (
 	RawJPGStackJPG            // Stack raw and JPEG files, with the JPEG file as the cover
 
 	jpegExt = ".jpeg"
+	jpgExt  = ".jpg"
+	unknown = "Unknown"
 )
 
 func (r RawJPGFlag) GroupFilter() Filter {
@@ -78,7 +80,7 @@ func groupRawJPGKeepJPG(g *assets.Group) *assets.Group {
 	removedAssets := []*assets.Asset{}
 	keep := 0
 	for _, a := range g.Assets {
-		if a.Ext == ".jpg" || a.Ext == jpegExt {
+		if a.Ext == jpgExt || a.Ext == jpegExt {
 			keep++
 		} else {
 			removedAssets = append(removedAssets, a)
@@ -115,7 +117,7 @@ func groupRawJPGStackJPG(g *assets.Group) *assets.Group {
 	}
 	// Set the cover index to the first JPEG file
 	for i, a := range g.Assets {
-		if a.Ext == ".jpg" || a.Ext == jpegExt {
+		if a.Ext == jpgExt || a.Ext == jpegExt {
 			g.CoverIndex = i
 			break
 		}
@@ -154,7 +156,7 @@ func (r RawJPGFlag) String() string {
 	case RawJPGStackJPG:
 		return "StackCoverJPG"
 	default:
-		return "Unknown"
+		return unknown
 	}
 }
 
