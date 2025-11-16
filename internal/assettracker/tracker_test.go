@@ -2,6 +2,7 @@ package assettracker
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -354,5 +355,105 @@ func TestConcurrency(t *testing.T) {
 	counters := tracker.GetCounters()
 	if counters.Processed != 10 {
 		t.Errorf("expected 10 processed assets, got %d", counters.Processed)
+	}
+}
+
+func TestStatusMethods(t *testing.T) {
+	tracker := New()
+	file1 := fshelper.FSName(mockFS{}, "test1.jpg")
+	file2 := fshelper.FSName(mockFS{}, "test2.jpg")
+	file3 := fshelper.FSName(mockFS{}, "test3.jpg")
+	file4 := fshelper.FSName(mockFS{}, "test4.jpg")
+
+	// Discover assets
+	tracker.DiscoverAsset(file1, 1024, fileevent.DiscoveredImage) // pending: 1, size: 1024
+	tracker.DiscoverAsset(file2, 2048, fileevent.DiscoveredImage) // pending: 2, size: 3072
+	tracker.DiscoverAsset(file3, 512, fileevent.DiscoveredImage)  // pending: 3, size: 3584
+	tracker.DiscoverAsset(file4, 256, fileevent.DiscoveredImage)  // pending: 4, size: 3840
+
+	// Test initial pending state
+	if count := tracker.GetPendingCount(); count != 4 {
+		t.Errorf("expected 4 pending assets, got %d", count)
+	}
+	if size := tracker.GetPendingSize(); size != 3840 {
+		t.Errorf("expected pending size 3840, got %d", size)
+	}
+	if count := tracker.GetProcessedCount(); count != 0 {
+		t.Errorf("expected 0 processed assets, got %d", count)
+	}
+	if size := tracker.GetProcessedSize(); size != 0 {
+		t.Errorf("expected processed size 0, got %d", size)
+	}
+
+	// Discover assets
+	tracker.DiscoverAsset(file1, 1024, fileevent.DiscoveredImage)
+	tracker.DiscoverAsset(file2, 2048, fileevent.DiscoveredImage)
+	tracker.DiscoverAsset(file3, 512, fileevent.DiscoveredImage)
+	tracker.DiscoverAsset(file4, 256, fileevent.DiscoveredImage)
+
+	// Test initial state
+	if count := tracker.GetPendingCount(); count != 4 {
+		t.Errorf("expected 4 pending assets, got %d", count)
+	}
+	if size := tracker.GetPendingSize(); size != 3840 { // 1024 + 2048 + 512 + 256
+		t.Errorf("expected pending size 3840, got %d", size)
+	}
+	if count := tracker.GetProcessedCount(); count != 0 {
+		t.Errorf("expected 0 processed assets, got %d", count)
+	}
+	if size := tracker.GetProcessedSize(); size != 0 {
+		t.Errorf("expected processed size 0, got %d", size)
+	}
+
+	// Process some assets
+	tracker.SetProcessed(file1, fileevent.UploadedSuccess)
+	tracker.SetProcessed(file2, fileevent.UploadedSuccess)
+
+	// Test after processing
+	if count := tracker.GetPendingCount(); count != 2 {
+		t.Errorf("expected 2 pending assets, got %d", count)
+	}
+	if size := tracker.GetPendingSize(); size != 768 { // 512 + 256
+		t.Errorf("expected pending size 768, got %d", size)
+	}
+	if count := tracker.GetProcessedCount(); count != 2 {
+		t.Errorf("expected 2 processed assets, got %d", count)
+	}
+	if size := tracker.GetProcessedSize(); size != 3072 { // 1024 + 2048
+		t.Errorf("expected processed size 3072, got %d", size)
+	}
+
+	// Discard an asset
+	tracker.SetDiscarded(file3, fileevent.DiscardedLocalDuplicate, "duplicate")
+
+	// Test after discarding
+	if count := tracker.GetPendingCount(); count != 1 {
+		t.Errorf("expected 1 pending asset, got %d", count)
+	}
+	if size := tracker.GetPendingSize(); size != 256 {
+		t.Errorf("expected pending size 256, got %d", size)
+	}
+	if count := tracker.GetDiscardedCount(); count != 1 {
+		t.Errorf("expected 1 discarded asset, got %d", count)
+	}
+	if size := tracker.GetDiscardedSize(); size != 512 {
+		t.Errorf("expected discarded size 512, got %d", size)
+	}
+
+	// Error on an asset
+	tracker.SetError(file4, fileevent.ErrorUploadFailed, fmt.Errorf("read error"))
+
+	// Test after error
+	if count := tracker.GetPendingCount(); count != 0 {
+		t.Errorf("expected 0 pending assets, got %d", count)
+	}
+	if size := tracker.GetPendingSize(); size != 0 {
+		t.Errorf("expected pending size 0, got %d", size)
+	}
+	if count := tracker.GetErrorCount(); count != 1 {
+		t.Errorf("expected 1 error asset, got %d", count)
+	}
+	if size := tracker.GetErrorSize(); size != 256 {
+		t.Errorf("expected error size 256, got %d", size)
 	}
 }
