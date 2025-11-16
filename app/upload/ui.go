@@ -398,30 +398,30 @@ func (ui *uiPage) createStatusZone() *tview.Grid {
 
 	// Row 0: Pending assets
 	status.AddItem(tview.NewTextView().SetText("Pending"), 0, 0, 1, 1, 0, 0, false)
-	ui.addStatusCounter(status, 0, 1, "pendingCount", "pendingSize")
+	ui.addStatusCounter(status, 0, "pendingCount", "pendingSize")
 
 	// Row 1: Processed assets
 	status.AddItem(tview.NewTextView().SetText("Processed"), 1, 0, 1, 1, 0, 0, false)
-	ui.addStatusCounter(status, 1, 1, "processedCount", "processedSize")
+	ui.addStatusCounter(status, 1, "processedCount", "processedSize")
 
 	// Row 2: Discarded assets
 	status.AddItem(tview.NewTextView().SetText("Discarded"), 2, 0, 1, 1, 0, 0, false)
-	ui.addStatusCounter(status, 2, 1, "discardedCount", "discardedSize")
+	ui.addStatusCounter(status, 2, "discardedCount", "discardedSize")
 
 	// Row 3: Error assets
 	status.AddItem(tview.NewTextView().SetText("Errors"), 3, 0, 1, 1, 0, 0, false)
-	ui.addStatusCounter(status, 3, 1, "errorCount", "errorSize")
+	ui.addStatusCounter(status, 3, "errorCount", "errorSize")
 
 	// Row 4: Total
 	status.AddItem(tview.NewTextView().SetText("Total"), 4, 0, 1, 1, 0, 0, false)
-	ui.addStatusCounter(status, 4, 1, "totalCount", "totalSize")
+	ui.addStatusCounter(status, 4, "totalCount", "totalSize")
 
 	status.SetSize(5, 3, 1, 1).SetColumns(20, 8, 10)
 	return status
 }
 
 // addStatusCounter adds count and size views for a status category
-func (ui *uiPage) addStatusCounter(g *tview.Grid, row int, col int, countKey, sizeKey string) {
+func (ui *uiPage) addStatusCounter(g *tview.Grid, row int, countKey, sizeKey string) {
 	countView := tview.NewTextView().SetText("0").SetTextAlign(tview.AlignRight)
 	sizeView := tview.NewTextView().SetText("0 B").SetTextAlign(tview.AlignRight)
 
@@ -432,8 +432,8 @@ func (ui *uiPage) addStatusCounter(g *tview.Grid, row int, col int, countKey, si
 	ui.statusViews[countKey] = countView
 	ui.statusViews[sizeKey] = sizeView
 
-	g.AddItem(countView, row, col, 1, 1, 0, 0, false)
-	g.AddItem(sizeView, row, col+1, 1, 1, 0, 0, false)
+	g.AddItem(countView, row, 1, 1, 1, 0, 0, false)
+	g.AddItem(sizeView, row, 2, 1, 1, 0, 0, false)
 }
 
 // updateStatusZone updates the status zone with current asset tracker data
@@ -473,7 +473,7 @@ func (ui *uiPage) updateStatusZone() {
 func (ui *uiPage) formatBytes(bytes int64) string {
 	const unit = 1024
 	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
+		return fmt.Sprintf("%d  B", bytes)
 	}
 	div, exp := int64(unit), 0
 	for n := bytes / unit; n >= unit; n /= unit {
