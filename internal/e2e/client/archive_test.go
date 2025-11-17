@@ -42,11 +42,11 @@ func Test_ArchiveFromGP(t *testing.T) {
 		}
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.DiscoveredImage:     40,
-			fileevent.FileArchived:        40,
-			fileevent.UploadedSuccess:     0,
-			fileevent.ProcessedAlbumAdded: 0,
-			fileevent.ProcessedTagged:     0,
+			fileevent.DiscoveredImage:        40,
+			fileevent.ProcessedFileArchived:  40,
+			fileevent.ProcessedUploadSuccess: 0,
+			fileevent.ProcessedAlbumAdded:    0,
+			fileevent.ProcessedTagged:        0,
 		}, false, a.FileProcessor())
 	})
 	t.Run("ArchiveFromGP", func(t *testing.T) {
@@ -80,7 +80,7 @@ func Test_ArchiveFromGP(t *testing.T) {
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
 			fileevent.DiscoveredImage:         10,
-			fileevent.UploadedSuccess:         0,
+			fileevent.ProcessedUploadSuccess:  0,
 			fileevent.ProcessedAlbumAdded:     0,
 			fileevent.ProcessedTagged:         0,
 			fileevent.DiscardedLocalDuplicate: 5,
@@ -129,7 +129,7 @@ func Test_ArchiveFromGP(t *testing.T) {
 		}
 
 		// e2eutils.CheckResults(t, map[fileevent.Code]int64{
-		// 	fileevent.UploadedSuccess:     5,
+		// 	fileevent.ProcessedUploadSuccess:     5,
 		// 	fileevent.ProcessedAlbumAdded: 5,
 		// 	fileevent.ProcessedTagged:     5,
 		// }, false, a.FileProcessor())
@@ -157,8 +157,8 @@ func Test_ArchiveFromGP(t *testing.T) {
 		}
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.DiscoveredImage: 5,
-			fileevent.FileArchived:    5,
+			fileevent.DiscoveredImage:       5,
+			fileevent.ProcessedFileArchived: 5,
 		}, false, a.FileProcessor())
 	})
 }

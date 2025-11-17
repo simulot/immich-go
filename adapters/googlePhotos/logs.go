@@ -24,7 +24,7 @@ func (toc *TakeoutCmd) DebugFileTracker(w io.Writer) {
 		line[1] = strconv.Itoa(int(k.size))     // Size
 		line[2] = strconv.Itoa(track.count)     // Count
 		line[3] = strconv.Itoa(track.count - 1) // Duplicated
-		if track.status == fileevent.UploadedSuccess {
+		if track.status == fileevent.ProcessedUploadSuccess {
 			line[4] = "1" // Uploaded
 		} else {
 			line[4] = "0"

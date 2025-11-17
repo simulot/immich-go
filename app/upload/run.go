@@ -377,7 +377,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		}
 
 		uc.processUploadedAsset(ctx, a, serverStatus)
-		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.UploadedUpgraded)
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedUploadUpgraded)
 
 		return nil
 
@@ -392,7 +392,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.ID = advice.ServerAsset.ID
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 		// Record as processed - duplicate on server
-		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.UploadedServerDuplicate)
+		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedServerDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
@@ -457,11 +457,11 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 				fmt.Sprintf("already present in input as %s", originalName))
 		} else {
 			// Record as processed - server duplicate
-			uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.UploadedServerDuplicate)
+			uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.DiscardedServerDuplicate)
 		}
 	} else {
 		// Record successful upload
-		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.UploadedSuccess)
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedUploadSuccess)
 	}
 	a.ID = ar.ID
 
@@ -504,7 +504,7 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 	newAsset.ID = ar.ID
 	if ar.Status == immich.UploadDuplicate {
 		// Record as processed - server duplicate
-		uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.UploadedServerDuplicate)
+		uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.DiscardedServerDuplicate)
 		return immich.UploadDuplicate, nil
 	}
 
@@ -525,7 +525,7 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 	}
 	uc.assetIndex.replaceAsset(newAsset, oldAsset)
 	// Record successful upgrade
-	// uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.UploadedUpgraded)
+	// uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ProcessedUploadUpgraded)
 	return "", nil
 }
 

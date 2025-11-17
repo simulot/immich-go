@@ -159,8 +159,8 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 						ui.immichPrepare.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
 						// Calculate processed items for Google Takeout progress
 						counts := app.FileProcessor().Logger().GetCounts()
-						processedGP := counts[fileevent.AnalysisAssociatedMetadata] +
-							counts[fileevent.AnalysisMissingAssociatedMetadata]
+						processedGP := counts[fileevent.ProcessedAssociatedMetadata] +
+							counts[fileevent.ProcessedMissingMetadata]
 						ui.immichPrepare.SetValue(int(processedGP))
 
 						if preparationDone.Load() {
@@ -429,13 +429,13 @@ func (ui *uiPage) createDiscoveryZone() *tview.Grid {
 	// Row 3: Duplicates (local)
 	ui.addCounter(discovery, 3, "Duplicates (local)", fileevent.DiscardedLocalDuplicate)
 	// Row 4: Already on server
-	ui.addCounter(discovery, 4, "Already on server", fileevent.UploadedServerDuplicate)
+	ui.addCounter(discovery, 4, "Already on server", fileevent.DiscardedServerDuplicate)
 	// Row 5: Filtered (rules)
 	ui.addCounter(discovery, 5, "Filtered (rules)", fileevent.DiscardedFiltered)
 	// Row 6: Banned
 	ui.addCounter(discovery, 6, "Banned", fileevent.DiscardedBanned)
 	// Row 7: Missing sidecar
-	ui.addCounter(discovery, 7, "Missing sidecar", fileevent.AnalysisMissingAssociatedMetadata)
+	ui.addCounter(discovery, 7, "Missing sidecar", fileevent.ProcessedMissingMetadata)
 	// Row 8: Total discovered
 	discovery.AddItem(tview.NewTextView().SetText("Total discovered"), 8, 0, 1, 1, 0, 0, false)
 	ui.addDiscoveryCounter(discovery, 8, "discoveredCount", "discoveredSize")
@@ -450,7 +450,7 @@ func (ui *uiPage) createProcessingZone() *tview.Grid {
 	processing.SetBorder(true).SetTitle("Processing")
 
 	// Row 0: Sidecars associated
-	ui.addProcessingCounter(processing, 0, "Sidecars associated", fileevent.AnalysisAssociatedMetadata)
+	ui.addProcessingCounter(processing, 0, "Sidecars associated", fileevent.ProcessedAssociatedMetadata)
 	// Row 1: Added to albums
 	ui.addProcessingCounter(processing, 1, "Added to albums", fileevent.ProcessedAlbumAdded)
 	// Row 2: Stacked (bursts, raw+jpg)

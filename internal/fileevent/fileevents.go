@@ -44,19 +44,19 @@ const (
 	DiscoveredUnsupported // Unsupported file format
 
 	// ===== Asset Lifecycle Events - To PROCESSED =====
-	UploadedSuccess          // Asset successfully uploaded
-	UploadedUpgraded         // Server asset upgraded with input
+	ProcessedUploadSuccess   // Asset successfully uploaded
+	ProcessedUploadUpgraded  // Server asset upgraded with input
 	ProcessedMetadataUpdated // Asset metadata updated on server
-	FileArchived             // Asset successfully archived to disk
+	ProcessedFileArchived    // Asset successfully archived to disk
 
 	// ===== Asset Lifecycle Events - To DISCARDED =====
-	UploadedServerDuplicate // Server already has this asset
-	DiscardedBanned         // Asset with banned filename
-	DiscardedUnsupported    // Asset with unsupported format (deprecated, use DiscoveredUnsupported)
-	DiscardedFiltered       // Asset filtered out by user settings
-	DiscardedLocalDuplicate // Duplicate asset in input
-	DiscardedNotSelected    // Asset not selected for processing
-	DiscardedServerBetter   // Server has better version of asset
+	DiscardedServerDuplicate // Server already has this asset
+	DiscardedBanned          // Asset with banned filename
+	DiscardedUnsupported     // Asset with unsupported format (deprecated, use DiscoveredUnsupported)
+	DiscardedFiltered        // Asset filtered out by user settings
+	DiscardedLocalDuplicate  // Duplicate asset in input
+	DiscardedNotSelected     // Asset not selected for processing
+	DiscardedServerBetter    // Server has better version of asset
 
 	// ===== Asset Lifecycle Events - To ERROR =====
 	ErrorUploadFailed // Upload failed
@@ -66,12 +66,12 @@ const (
 
 	// ===== Processing Events - Informational =====
 	// These don't change asset state
-	AnalysisAssociatedMetadata        // Metadata file associated with asset
-	AnalysisMissingAssociatedMetadata // Expected metadata file missing
-	ProcessedStacked                  // Asset added to stack
-	ProcessedAlbumAdded               // Asset added to album
-	ProcessedTagged                   // Asset tagged
-	ProcessedLivePhoto                // Live photo processed
+	ProcessedAssociatedMetadata // Metadata file associated with asset
+	ProcessedMissingMetadata    // Expected metadata file missing
+	ProcessedStacked            // Asset added to stack
+	ProcessedAlbumAdded         // Asset added to album
+	ProcessedTagged             // Asset tagged
+	ProcessedLivePhoto          // Live photo processed
 
 	MaxCode
 )
@@ -91,19 +91,19 @@ var _code = map[Code]string{
 	DiscoveredUnsupported: "discovered unsupported file",
 
 	// To PROCESSED
-	UploadedSuccess:          "uploaded successfully",
-	UploadedUpgraded:         "server asset upgraded",
+	ProcessedUploadSuccess:   "uploaded successfully",
+	ProcessedUploadUpgraded:  "server asset upgraded",
 	ProcessedMetadataUpdated: "metadata updated",
-	FileArchived:             "file archived",
+	ProcessedFileArchived:    "file archived",
 
 	// To DISCARDED
-	UploadedServerDuplicate: "server has duplicate",
-	DiscardedBanned:         "discarded banned",
-	DiscardedUnsupported:    "discarded unsupported",
-	DiscardedFiltered:       "discarded filtered",
-	DiscardedLocalDuplicate: "discarded local duplicate",
-	DiscardedNotSelected:    "discarded not selected",
-	DiscardedServerBetter:   "discarded server better",
+	DiscardedServerDuplicate: "server has duplicate",
+	DiscardedBanned:          "discarded banned",
+	DiscardedUnsupported:     "discarded unsupported",
+	DiscardedFiltered:        "discarded filtered",
+	DiscardedLocalDuplicate:  "discarded local duplicate",
+	DiscardedNotSelected:     "discarded not selected",
+	DiscardedServerBetter:    "discarded server better",
 
 	// To ERROR
 	ErrorUploadFailed: "upload failed",
@@ -112,12 +112,12 @@ var _code = map[Code]string{
 	ErrorIncomplete:   "incomplete processing",
 
 	// Processing Events
-	AnalysisAssociatedMetadata:        "associated metadata",
-	AnalysisMissingAssociatedMetadata: "missing metadata",
-	ProcessedStacked:                  "stacked",
-	ProcessedAlbumAdded:               "added to album",
-	ProcessedTagged:                   "tagged",
-	ProcessedLivePhoto:                "live photo",
+	ProcessedAssociatedMetadata: "associated metadata",
+	ProcessedMissingMetadata:    "missing metadata",
+	ProcessedStacked:            "stacked",
+	ProcessedAlbumAdded:         "added to album",
+	ProcessedTagged:             "tagged",
+	ProcessedLivePhoto:          "live photo",
 }
 
 var _logLevels = map[Code]slog.Level{
@@ -135,19 +135,19 @@ var _logLevels = map[Code]slog.Level{
 	DiscoveredUnsupported: slog.LevelWarn,
 
 	// To PROCESSED
-	UploadedSuccess:          slog.LevelInfo,
-	UploadedUpgraded:         slog.LevelInfo,
+	ProcessedUploadSuccess:   slog.LevelInfo,
+	ProcessedUploadUpgraded:  slog.LevelInfo,
 	ProcessedMetadataUpdated: slog.LevelInfo,
-	FileArchived:             slog.LevelInfo,
+	ProcessedFileArchived:    slog.LevelInfo,
 
 	// To DISCARDED
-	UploadedServerDuplicate: slog.LevelInfo,
-	DiscardedBanned:         slog.LevelWarn,
-	DiscardedUnsupported:    slog.LevelWarn,
-	DiscardedFiltered:       slog.LevelWarn,
-	DiscardedLocalDuplicate: slog.LevelWarn,
-	DiscardedNotSelected:    slog.LevelWarn,
-	DiscardedServerBetter:   slog.LevelInfo,
+	DiscardedServerDuplicate: slog.LevelInfo,
+	DiscardedBanned:          slog.LevelWarn,
+	DiscardedUnsupported:     slog.LevelWarn,
+	DiscardedFiltered:        slog.LevelWarn,
+	DiscardedLocalDuplicate:  slog.LevelWarn,
+	DiscardedNotSelected:     slog.LevelWarn,
+	DiscardedServerBetter:    slog.LevelInfo,
 
 	// To ERROR
 	ErrorUploadFailed: slog.LevelError,
@@ -156,12 +156,12 @@ var _logLevels = map[Code]slog.Level{
 	ErrorIncomplete:   slog.LevelError,
 
 	// Processing Events
-	AnalysisAssociatedMetadata:        slog.LevelInfo,
-	AnalysisMissingAssociatedMetadata: slog.LevelWarn,
-	ProcessedStacked:                  slog.LevelInfo,
-	ProcessedAlbumAdded:               slog.LevelInfo,
-	ProcessedTagged:                   slog.LevelInfo,
-	ProcessedLivePhoto:                slog.LevelInfo,
+	ProcessedAssociatedMetadata: slog.LevelInfo,
+	ProcessedMissingMetadata:    slog.LevelWarn,
+	ProcessedStacked:            slog.LevelInfo,
+	ProcessedAlbumAdded:         slog.LevelInfo,
+	ProcessedTagged:             slog.LevelInfo,
+	ProcessedLivePhoto:          slog.LevelInfo,
 }
 
 func (e Code) String() string {
@@ -300,7 +300,7 @@ func (r *Recorder) GenerateEventReport() string {
 
 	// Asset Lifecycle - To PROCESSED
 	hasProcessed := false
-	for _, c := range []Code{UploadedSuccess, UploadedUpgraded, ProcessedMetadataUpdated, FileArchived} {
+	for _, c := range []Code{ProcessedUploadSuccess, ProcessedUploadUpgraded, ProcessedMetadataUpdated, ProcessedFileArchived} {
 		if eventCounts[c] > 0 {
 			hasProcessed = true
 			break
@@ -308,7 +308,7 @@ func (r *Recorder) GenerateEventReport() string {
 	}
 	if hasProcessed {
 		sb.WriteString("\nAsset Lifecycle (PROCESSED):\n")
-		for _, c := range []Code{UploadedSuccess, UploadedUpgraded, ProcessedMetadataUpdated, FileArchived} {
+		for _, c := range []Code{ProcessedUploadSuccess, ProcessedUploadUpgraded, ProcessedMetadataUpdated, ProcessedFileArchived} {
 			if count := eventCounts[c]; count > 0 {
 				if size := eventSizes[c]; size > 0 {
 					sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size)))
@@ -322,7 +322,7 @@ func (r *Recorder) GenerateEventReport() string {
 	// Asset Lifecycle - To DISCARDED
 	hasDiscarded := false
 	for _, c := range []Code{
-		UploadedServerDuplicate,
+		DiscardedServerDuplicate,
 		DiscardedBanned,
 		DiscardedUnsupported,
 		DiscardedFiltered,
@@ -338,7 +338,7 @@ func (r *Recorder) GenerateEventReport() string {
 	if hasDiscarded {
 		sb.WriteString("\nAsset Lifecycle (DISCARDED):\n")
 		for _, c := range []Code{
-			UploadedServerDuplicate,
+			DiscardedServerDuplicate,
 			DiscardedBanned,
 			DiscardedUnsupported,
 			DiscardedFiltered,
@@ -376,8 +376,8 @@ func (r *Recorder) GenerateEventReport() string {
 	// Processing Events
 	hasProcessingEvents := false
 	for _, c := range []Code{
-		AnalysisAssociatedMetadata,
-		AnalysisMissingAssociatedMetadata,
+		ProcessedAssociatedMetadata,
+		ProcessedMissingMetadata,
 		ProcessedStacked,
 		ProcessedAlbumAdded,
 		ProcessedTagged,
@@ -391,8 +391,8 @@ func (r *Recorder) GenerateEventReport() string {
 	if hasProcessingEvents {
 		sb.WriteString("\nProcessing Events:\n")
 		for _, c := range []Code{
-			AnalysisAssociatedMetadata,
-			AnalysisMissingAssociatedMetadata,
+			ProcessedAssociatedMetadata,
+			ProcessedMissingMetadata,
 			ProcessedStacked,
 			ProcessedAlbumAdded,
 			ProcessedTagged,

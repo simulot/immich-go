@@ -306,7 +306,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 							i.md = md
 							a := toc.makeAsset(ctx, dir, i, md)
 							cat.matchedFiles[f] = a
-							toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.AnalysisAssociatedMetadata, "json", json, "matcher", matcher.name)
+							toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedAssociatedMetadata, "json", json, "matcher", matcher.name)
 							delete(cat.unMatchedFiles, f)
 						}
 					}
@@ -319,7 +319,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 			sort.Strings(files)
 			for _, f := range files {
 				i := cat.unMatchedFiles[f]
-				toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.AnalysisMissingAssociatedMetadata)
+				toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedMissingMetadata)
 				if toc.KeepJSONLess {
 					a := toc.makeAsset(ctx, dir, i, nil)
 					cat.matchedFiles[f] = a
@@ -365,7 +365,7 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 		a := catalog.matchedFiles[name]
 		key := fileKeyTracker{baseName: name, size: int64(a.FileSize)}
 		track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
-		if track.status == fileevent.UploadedSuccess {
+		if track.status == fileevent.ProcessedUploadSuccess {
 			a.Close()
 			toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedLocalDuplicate, "local duplicate")
 			continue
@@ -465,7 +465,7 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 					size:     int64(a.FileSize),
 				}
 				track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
-				track.status = fileevent.UploadedSuccess
+				track.status = fileevent.ProcessedUploadSuccess
 				toc.fileTracker.Store(key, track) // to.fileTracker[key] = track
 			}
 		case <-ctx.Done():

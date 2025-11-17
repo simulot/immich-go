@@ -46,9 +46,9 @@ func Test_FromFolder(t *testing.T) {
 		}
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.UploadedSuccess:     40,
-			fileevent.ProcessedAlbumAdded: 0,
-			fileevent.ProcessedTagged:     0,
+			fileevent.ProcessedUploadSuccess: 40,
+			fileevent.ProcessedAlbumAdded:    0,
+			fileevent.ProcessedTagged:        0,
 		}, false, a.FileProcessor())
 	})
 	t.Run("duplicates", func(t *testing.T) {
@@ -86,7 +86,7 @@ func Test_FromFolder(t *testing.T) {
 		}
 
 		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.UploadedSuccess:         2,
+			fileevent.ProcessedUploadSuccess:  2,
 			fileevent.DiscardedLocalDuplicate: 2,
 			fileevent.ProcessedAlbumAdded:     0,
 			fileevent.ProcessedTagged:         0,

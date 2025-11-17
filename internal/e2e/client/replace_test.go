@@ -138,10 +138,10 @@ func Test_Replace(t *testing.T) {
 	}
 
 	e2eutils.CheckResults(t, map[fileevent.Code]int64{
-		fileevent.UploadedSuccess:     0,
-		fileevent.ProcessedAlbumAdded: 0,
-		fileevent.ProcessedTagged:     0,
-		fileevent.UploadedUpgraded:    5,
+		fileevent.ProcessedUploadSuccess:  0,
+		fileevent.ProcessedAlbumAdded:     0,
+		fileevent.ProcessedTagged:         0,
+		fileevent.ProcessedUploadUpgraded: 5,
 	}, false, a.FileProcessor())
 
 	assets, err := e2eutils.GetAllAssets(u1.Email, u1.Password)

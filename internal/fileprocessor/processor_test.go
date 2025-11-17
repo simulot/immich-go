@@ -124,7 +124,7 @@ func TestRecordAssetProcessed(t *testing.T) {
 	fp.RecordAssetDiscovered(ctx, file, 1024, fileevent.DiscoveredImage)
 
 	// Then mark as processed
-	fp.RecordAssetProcessed(ctx, file, 1024, fileevent.UploadedSuccess)
+	fp.RecordAssetProcessed(ctx, file, 1024, fileevent.ProcessedUploadSuccess)
 
 	// Check tracker
 	counters := fp.GetAssetCounters()
@@ -140,8 +140,8 @@ func TestRecordAssetProcessed(t *testing.T) {
 
 	// Check logger
 	eventCounts := fp.GetEventCounts()
-	if eventCounts[fileevent.UploadedSuccess] != 1 {
-		t.Errorf("Expected 1 UploadedSuccess event, got %d", eventCounts[fileevent.UploadedSuccess])
+	if eventCounts[fileevent.ProcessedUploadSuccess] != 1 {
+		t.Errorf("Expected 1 UploadedSuccess event, got %d", eventCounts[fileevent.ProcessedUploadSuccess])
 	}
 }
 
@@ -260,7 +260,7 @@ func TestFinalize(t *testing.T) {
 	// Add and process an asset
 	file1 := newTestFile("/test/image1.jpg")
 	fp.RecordAssetDiscovered(ctx, file1, 1024, fileevent.DiscoveredImage)
-	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.UploadedSuccess)
+	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.ProcessedUploadSuccess)
 
 	// Should still succeed
 	err = fp.Finalize(ctx)
@@ -309,7 +309,7 @@ func TestIsComplete(t *testing.T) {
 	}
 
 	// Process asset - complete again
-	fp.RecordAssetProcessed(ctx, file, 1024, fileevent.UploadedSuccess)
+	fp.RecordAssetProcessed(ctx, file, 1024, fileevent.ProcessedUploadSuccess)
 	if !fp.IsComplete() {
 		t.Error("Should be complete when all assets processed")
 	}
@@ -345,7 +345,7 @@ func TestGetPendingAssets(t *testing.T) {
 	}
 
 	// Process one
-	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.UploadedSuccess)
+	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.ProcessedUploadSuccess)
 
 	pending = fp.GetPendingAssets()
 	if len(pending) != 2 {
@@ -375,7 +375,7 @@ func TestGenerateReport(t *testing.T) {
 	sidecar := newTestFile("/test/metadata.json")
 
 	fp.RecordAssetDiscovered(ctx, file1, 1024, fileevent.DiscoveredImage)
-	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.UploadedSuccess)
+	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.ProcessedUploadSuccess)
 	fp.RecordAssetDiscovered(ctx, file2, 2048, fileevent.DiscoveredVideo)
 	fp.RecordNonAsset(ctx, sidecar, 128, fileevent.DiscoveredSidecar)
 
@@ -409,7 +409,7 @@ func TestSummary(t *testing.T) {
 	file4 := newTestFile("/test/pending.jpg")
 
 	fp.RecordAssetDiscovered(ctx, file1, 1024, fileevent.DiscoveredImage)
-	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.UploadedSuccess)
+	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.ProcessedUploadSuccess)
 
 	fp.RecordAssetDiscardedImmediately(ctx, file2, 512, fileevent.DiscardedBanned, "banned")
 
@@ -460,9 +460,9 @@ func TestCompleteWorkflow(t *testing.T) {
 	fp.RecordNonAsset(ctx, banned, 50, fileevent.DiscoveredBanned, "reason", "banned filename")
 
 	// 2. Process assets
-	fp.RecordAssetProcessed(ctx, image1, 1024000, fileevent.UploadedSuccess)
-	fp.RecordAssetDiscarded(ctx, image2, 2048000, fileevent.UploadedServerDuplicate, "server has duplicate")
-	fp.RecordAssetProcessed(ctx, video1, 5120000, fileevent.UploadedSuccess)
+	fp.RecordAssetProcessed(ctx, image1, 1024000, fileevent.ProcessedUploadSuccess)
+	fp.RecordAssetDiscarded(ctx, image2, 2048000, fileevent.DiscardedServerDuplicate, "server has duplicate")
+	fp.RecordAssetProcessed(ctx, video1, 5120000, fileevent.ProcessedUploadSuccess)
 
 	// 3. Validate final state
 	if !fp.IsComplete() {
