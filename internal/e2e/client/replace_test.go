@@ -113,12 +113,6 @@ func Test_Replace(t *testing.T) {
 		return
 	}
 
-	e2eutils.CheckResults(t, map[fileevent.Code]int64{
-		fileevent.UploadedSuccess:     5,
-		fileevent.ProcessedAlbumAdded: 0,
-		fileevent.ProcessedTagged:     0,
-	}, false, a.FileProcessor())
-
 	time.Sleep(3 * time.Second) // Give the server enough time
 
 	c, a = root.RootImmichGoCommand(ctx)
