@@ -8,7 +8,7 @@ This directory contains documentation about Immich-Go's concurrency features and
 Detailed analysis of Immich-Go's multi-threading capabilities, including:
 - Performance benchmarks with different concurrency levels
 - Network bandwidth vs CPU utilization analysis
-- Recommendations for optimal `--concurrent-uploads` settings
+- Recommendations for optimal `--concurrent-tasks` settings
 - Test methodology and results
 
 ### [Concurrency Visualization](concurrency.html)
@@ -27,7 +27,7 @@ From our testing, we've determined that:
 1. **Network Bound**: Upload performance is primarily constrained by network bandwidth rather than CPU usage
 2. **Optimal Range**: For most users, 4-8 concurrent uploads provide the best balance of speed and stability  
 3. **Diminishing Returns**: Beyond 12-16 concurrent uploads, performance gains are minimal and reliability may decrease
-4. **CPU Scaling**: Using CPU core count as the default for `--concurrent-uploads` provides a good starting point
+4. **CPU Scaling**: Using CPU core count as the default for `--concurrent-tasks` provides a good starting point
 
 ## Related Documentation
 
