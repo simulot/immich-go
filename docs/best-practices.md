@@ -28,7 +28,7 @@ immich-go upload from-google-photos \
   --concurrent-tasks=4 \
   --client-timeout=60m \
   --pause-immich-jobs=true \
-  --on-server-errors=continue \
+  --on-errors=continue \
   --session-tag \
   /path/to/takeout-*.zip
 ```
@@ -97,7 +97,7 @@ immich-go upload from-google-photos \
 # Adaptive configuration
 --concurrent-tasks=4-8
 --client-timeout=60m
---on-server-errors=continue
+--on-errors=continue
 ```
 
 #### Slow/Unstable Network
@@ -105,7 +105,7 @@ immich-go upload from-google-photos \
 # Conservative configuration
 --concurrent-tasks=1-2
 --client-timeout=120m
---on-server-errors=continue
+--on-errors=continue
 ```
 
 ### Server Considerations
@@ -462,7 +462,7 @@ nethogs
 ```bash
 # Continue on errors, log issues
 immich-go upload from-folder \
-  --on-server-errors=continue \
+  --on-errors=continue \
   --log-level=INFO \
   --log-file=/var/log/errors.log \
   --server=... --api-key=... /photos/
