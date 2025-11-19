@@ -100,7 +100,7 @@ immich-go upload from-google-photos \
   --concurrent-tasks=4 \
   --client-timeout=60m \
   --pause-immich-jobs=true \
-  --on-server-errors=continue \
+  -on-errors=continue \
   --session-tag \
   /downloads/takeout-*.zip
 ```
@@ -304,7 +304,7 @@ immich-go upload from-folder \
   --api-key=your-api-key \
   --concurrent-tasks=1 \
   --client-timeout=120m \
-  --on-server-errors=continue \
+  -on-errors=continue \
   /photos
 ```
 
