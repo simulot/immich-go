@@ -92,4 +92,45 @@ func Test_FromFolder(t *testing.T) {
 			fileevent.ProcessedTagged:         0,
 		}, false, a.FileProcessor())
 	})
+	t.Run("into-album", func(t *testing.T) {
+		adm, err := getUser("admin@immich.app")
+		if err != nil {
+			t.Fatalf("can't get admin user: %v", err)
+		}
+		// A fresh user for a new test
+		u1, err := createUser("minimal")
+		if err != nil {
+			t.Fatalf("can't create user: %v", err)
+		}
+
+		ctx := t.Context()
+		c, a := root.RootImmichGoCommand(ctx)
+		c.SetArgs([]string{
+			// "--concurrent-tasks=0", // for debugging
+			"upload", "from-folder",
+			"--server=" + ImmichURL,
+			"--api-key=" + u1.APIKey,
+			"--admin-api-key=" + adm.APIKey,
+			"--into-album=bananas",
+			"--no-ui",
+			"--api-trace",
+			"--log-level=debug",
+			"DATA/fromFolder/recursive",
+		})
+		err = c.ExecuteContext(ctx)
+		if err != nil && a.Log().GetSLog() != nil {
+			a.Log().Error(err.Error())
+		}
+
+		if err != nil {
+			t.Error("Unexpected error", err)
+			return
+		}
+
+		e2eutils.CheckResults(t, map[fileevent.Code]int64{
+			fileevent.ProcessedUploadSuccess: 40,
+			fileevent.ProcessedAlbumAdded:    40,
+			fileevent.ProcessedTagged:        0,
+		}, false, a.FileProcessor())
+	})
 }
