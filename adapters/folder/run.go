@@ -26,6 +26,7 @@ import (
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
+	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/simulot/immich-go/internal/worker"
 	"github.com/spf13/cobra"
 )
@@ -169,7 +170,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if strings.HasSuffix(strings.ToLower(dir), "albums") {
 				a, err := UseICloudAlbum(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.Error, "error", err.Error())
+					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
 					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a)
 				}
@@ -178,7 +179,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if ifc.ICloudMemoriesAsAlbums && strings.HasSuffix(strings.ToLower(dir), "memories") {
 				a, err := UseICloudMemory(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.Error, "error", err.Error())
+					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
 					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a)
 				}
@@ -188,7 +189,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if strings.HasPrefix(strings.ToLower(base), "photo details") {
 				err := UseICloudPhotoDetails(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.Error, "error", err.Error())
+					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
 					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata)
 				}
@@ -206,20 +207,20 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			continue
 		}
 
-		if ifc.BannedFiles.Match(name) {
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredDiscarded, "reason", "banned file")
+		if matchesBanned(ifc.BannedFiles, name, entry.IsDir()) {
+			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredBanned, "reason", "banned file")
 			continue
 		}
 
 		if ifc.supportedMedia.IsUseLess(name) {
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredUseless)
+			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredUnknown, "reason", "useless file")
 			continue
 		}
 
 		if ifc.PicasaAlbum && (strings.ToLower(base) == ".picasa.ini" || strings.ToLower(base) == "picasa.ini") {
 			a, err := ReadPicasaIni(fsys, name)
 			if err != nil {
-				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.Error, "error", err.Error())
+				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 			} else {
 				ifc.picasaAlbums.Store(dir, a)
 				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a.Name)
@@ -236,13 +237,13 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 
 		switch mediaType {
 		case filetypes.TypeUseless:
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredUseless)
+			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredUnknown)
 			continue
 		case filetypes.TypeImage, filetypes.TypeVideo:
 			// Will be recorded as discovered asset after assetFromFile creates it
 		case filetypes.TypeSidecar:
 			if ifc.IgnoreSideCarFiles {
-				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredDiscarded, "reason", "sidecar file ignored")
+				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredSidecar, "reason", "sidecar file ignored")
 				continue
 			}
 			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredSidecar)
@@ -252,7 +253,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 		if !ifc.InclusionFlags.IncludedExtensions.Include(ext) {
 			// Get file size for discarded asset
 			if info, err := fs.Stat(fsys, name); err == nil {
-				ifc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(fsys, name), info.Size(), fileevent.DiscoveredDiscarded, "extension not included")
+				ifc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(fsys, name), info.Size(), fileevent.DiscardedFiltered, "extension not included")
 			}
 			continue
 		}
@@ -260,7 +261,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 		if ifc.InclusionFlags.ExcludedExtensions.Exclude(ext) {
 			// Get file size for discarded asset
 			if info, err := fs.Stat(fsys, name); err == nil {
-				ifc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(fsys, name), info.Size(), fileevent.DiscoveredDiscarded, "extension excluded")
+				ifc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(fsys, name), info.Size(), fileevent.DiscardedFiltered, "extension excluded")
 			}
 			continue
 		}
@@ -272,7 +273,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			// we have a file to process - it's an asset (image or video)
 			a, err := ifc.assetFromFile(ctx, fsys, name)
 			if err != nil {
-				ifc.processor.RecordAssetError(ctx, fshelper.FSName(fsys, name), fileevent.Error, err)
+				ifc.processor.RecordAssetError(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, err)
 				return err
 			}
 			if a != nil {
@@ -292,8 +293,8 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 		base := entry.Name()
 		name := path.Join(dir, base)
 		if entry.IsDir() {
-			if ifc.BannedFiles.Match(name) {
-				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredDiscarded, "reason", "banned folder")
+			if matchesBanned(ifc.BannedFiles, name, true) {
+				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredBanned, "reason", "banned folder")
 				continue // Skip this folder, no error
 			}
 			if ifc.Recursive && entry.Name() != "." {
@@ -324,13 +325,13 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if err == nil && jsonName != "" {
 				buf, err := fs.ReadFile(fsys, jsonName)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.Error, "error", err.Error())
+					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
 					if bytes.Contains(buf, []byte("immich-go version")) {
 						md := &assets.Metadata{}
 						err = jsonsidecar.Read(bytes.NewReader(buf), md)
 						if err != nil {
-							ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.Error, "error", err.Error())
+							ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.ErrorFileAccess, "error", err.Error())
 						} else {
 							ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.DiscoveredSidecar)
 							md.File = fshelper.FSName(fsys, jsonName)
@@ -348,12 +349,12 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if err == nil && xmpName != "" {
 				buf, err := fs.ReadFile(fsys, xmpName)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.Error, "error", err.Error())
+					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
 					md := &assets.Metadata{}
 					err = xmpsidecar.ReadXMP(bytes.NewReader(buf), md)
 					if err != nil {
-						ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.Error, "error", err.Error())
+						ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.ErrorFileAccess, "error", err.Error())
 					} else {
 						ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.DiscoveredSidecar)
 						md.File = fshelper.FSName(fsys, xmpName)
@@ -380,7 +381,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 					if err == nil {
 						md, err := exif.GetMetaData(f, a.Ext, ifc.tz)
 						if err != nil {
-							ifc.processor.RecordNonAsset(ctx, a.File, 0, fileevent.INFO, "warning", err.Error())
+							// Metadata extraction failed, but continue processing
 						} else {
 							a.FromSourceFile = a.UseMetadata(md)
 						}
@@ -398,7 +399,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 
 			if !ifc.InclusionFlags.DateRange.InRange(a.CaptureDate) {
 				a.Close()
-				ifc.processor.RecordAssetDiscardedImmediately(ctx, a.File, int64(a.FileSize), fileevent.DiscoveredDiscarded, "asset outside date range")
+				ifc.processor.RecordAssetDiscardedImmediately(ctx, a.File, int64(a.FileSize), fileevent.DiscardedFiltered, "asset outside date range")
 				continue
 			}
 
@@ -507,6 +508,26 @@ func checkExistSideCar(fsys fs.FS, name string, ext string) (string, error) {
 		return l[0], nil
 	}
 	return "", nil
+}
+
+func matchesBanned(list namematcher.List, name string, isDir bool) bool {
+	trimmed := strings.TrimSuffix(name, "/")
+	if isDir {
+		if list.MatchDir(name) {
+			return true
+		}
+		if trimmed != name && list.MatchDir(trimmed) {
+			return true
+		}
+		return false
+	}
+	if list.MatchFile(name) {
+		return true
+	}
+	if trimmed != name && list.MatchFile(trimmed) {
+		return true
+	}
+	return false
 }
 
 func (ifc *ImportFolderCmd) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {

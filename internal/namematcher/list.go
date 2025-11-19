@@ -12,9 +12,14 @@ import (
 // List of file patterns used to ban unwanted files
 // Pattern can be a part of the path, a file name..
 
+type patternEntry struct {
+	re      *regexp.Regexp
+	raw     string
+	dirOnly bool
+}
+
 type List struct {
-	re       []*regexp.Regexp
-	patterns []string
+	entries []patternEntry
 }
 
 func New(patterns ...string) (List, error) {
@@ -37,8 +42,34 @@ func MustList(patterns ...string) List {
 }
 
 func (l List) Match(name string) bool {
-	for _, re := range l.re {
-		if re.MatchString(name) {
+	for _, entry := range l.entries {
+		if entry.re.MatchString(name) {
+			return true
+		}
+	}
+	return false
+}
+
+func (l List) MatchFile(name string) bool {
+	for _, entry := range l.entries {
+		if entry.dirOnly {
+			continue
+		}
+		if entry.re.MatchString(name) {
+			return true
+		}
+	}
+	return false
+}
+
+func (l List) MatchDir(name string) bool {
+	trimmed := strings.TrimSuffix(name, "/")
+	nameWithSlash := trimmed + "/"
+	for _, entry := range l.entries {
+		if !entry.dirOnly {
+			continue
+		}
+		if entry.re.MatchString(trimmed) || entry.re.MatchString(nameWithSlash) {
 			return true
 		}
 	}
@@ -131,19 +162,23 @@ func (l *List) Set(s string) error {
 	if err != nil {
 		return err
 	}
-	l.re = append(l.re, re)
-	l.patterns = append(l.patterns, s)
+	entry := patternEntry{
+		re:      re,
+		raw:     s,
+		dirOnly: strings.HasSuffix(s, "/"),
+	}
+	l.entries = append(l.entries, entry)
 	return nil
 }
 
 func (l List) String() string {
 	var s strings.Builder
-	for i, pattern := range l.patterns {
+	for i, entry := range l.entries {
 		if i > 0 {
 			s.WriteString(", ")
 		}
 		s.WriteRune('\'')
-		s.WriteString(pattern)
+		s.WriteString(entry.raw)
 		s.WriteRune('\'')
 	}
 	return s.String()

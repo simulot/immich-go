@@ -24,6 +24,10 @@ echo -e "${YELLOW}🚀 Provisioning Immich instance...${NC}"
 "${SCRIPT_DIR}/e2e-provision.sh" "$@"
 
 echo ""
+echo -e "${YELLOW}🔑 Updating VS Code launch configuration with admin API key...${NC}"
+"${SCRIPT_DIR}/../update-launch-with-key.sh"
+
+echo ""
 echo -e "${GREEN}✅ Immich E2E environment is ready!${NC}"
 echo ""
 echo -e "${BLUE}To clean up the environment, run:${NC}"

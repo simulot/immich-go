@@ -663,9 +663,13 @@ The following files are excluded automatically:
 - `SYNOFILE_THUMB_*.*`
 - `Lightroom Catalog/`
 - `thumbnails/`
-- `.DS_Store/`
-- `._*.*`
+- `.DS_Store`
+- `/._*`
+- `.Spotlight-V100/`
 - `.photostructure/`
+- `Recently Deleted/`
+
+Patterns ending with `/` target directories, while patterns without the trailing slash target files.
 
 ## Date range
 

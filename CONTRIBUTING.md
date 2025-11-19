@@ -138,37 +138,78 @@ golangci-lint run
 
 ## CI/CD Workflows
 
-Our repository uses a unified CI workflow that provides fast feedback and conditional E2E testing:
+Our repository uses a two-tier CI workflow system that provides fast feedback to all contributors while securely managing E2E tests that require secrets:
 
-### Unified CI Workflow
-**Workflow:** `.github/workflows/ci.yml`
+### 1. Fast Feedback Workflow (`.github/workflows/ci.yml`)
 
-This single workflow handles all CI needs - from quick code quality checks to comprehensive E2E tests:
+**Runs automatically on all pull requests** - No secrets required.
 
-#### Phase 1: Fast Feedback (~3-5 minutes)
+Provides quick feedback (~3-5 minutes) on every pull request and push:
 
-Runs on every pull request and push with code changes:
-
-- **Validate:** golangci-lint for code quality
-- **Test (Linux):** Unit tests with race detection and coverage  
+- **Branch Validation:** Ensures branch naming conventions
+- **Linting:** golangci-lint for code quality
+- **Unit Tests:** Comprehensive tests with race detection and coverage
 - **Build Check:** Validates successful compilation
 
-#### Phase 2: E2E Tests (~12-15 minutes, conditional)
+**Security:** This workflow runs on all PRs, including from external contributors, without exposing any secrets.
 
-Automatically runs **only if**:
-- ✅ Fast Feedback phase passes
-- ✅ Changes affect core code: `app/`, `adapters/`, `immich/`, `internal/`, `main.go`, `go.mod/sum`, or `e2e-immich/`
+### 2. E2E Tests Workflow (`.github/workflows/ci-e2e.yml`)
 
-E2E infrastructure:
-- **Server:** Ubuntu runner with Immich in Docker (via Tailscale)
-- **Clients:** Parallel Linux and Windows test runners
+**Requires approval for external contributors** - Uses Tailscale secrets.
+
+Runs comprehensive end-to-end tests (~12-15 minutes):
+
+- **E2E Server:** Ubuntu runner with Immich in Docker (via Tailscale)
+- **Linux Client Tests:** E2E tests on Linux runner
+- **Windows Client Tests:** E2E tests on Windows runner
 - **Communication:** Tailscale VPN for secure multi-runner networking
 
-#### Triggers
+#### Who Can Run E2E Tests?
 
-- **Automatic:** Pull requests and pushes to `main`/`develop`
-- **Manual:** Via GitHub Actions UI (always runs E2E tests)
-- **Path Filtering:** Skips for documentation-only changes
+**Trusted Contributors** (Repository collaborators):
+- ✅ E2E tests run automatically on all PRs
+- ✅ No approval needed
+
+**External Contributors** (First-time or non-collaborator PRs):
+- ⏸️ E2E tests are **skipped** by default (secrets not exposed)
+- 🔐 Requires maintainer approval via `e2e-approved` label
+- 🤖 Bot comments on PR explaining the approval process
+
+**Why?** E2E tests require Tailscale secrets. This approval process prevents malicious code from accessing secrets while still allowing external contributions.
+
+#### For External Contributors
+
+When you submit a pull request:
+1. ✅ Fast feedback checks run immediately (lint, test, build)
+2. ⏸️ E2E tests are skipped (requires maintainer review)
+3. 🤖 A bot will comment explaining that approval is needed
+4. ⌛ Wait for a maintainer to review and approve
+5. ✅ E2E tests run automatically after approval
+
+**Note:** You can still contribute! The fast feedback checks will validate your code. E2E tests are run by maintainers before merging.
+
+#### For Maintainers
+
+See the complete guide: [`.github/E2E_APPROVAL_GUIDE.md`](.github/E2E_APPROVAL_GUIDE.md)
+
+Quick approval process:
+1. Review the PR code thoroughly
+2. Add the `e2e-approved` label:
+   ```bash
+   gh pr edit PR_NUMBER --add-label "e2e-approved"
+   ```
+3. E2E tests run automatically
+
+#### Automatic E2E Triggers
+
+E2E tests automatically run when:
+- ✅ Changes affect core code: `app/`, `adapters/`, `immich/`, `internal/`, `main.go`, `go.mod/sum`
+- ✅ Contributor is a repository collaborator OR PR has `e2e-approved` label
+- ✅ Push to `main` or `develop` branches
+
+E2E tests are skipped when:
+- ⏭️ Only documentation files changed (`.md`, `docs/`, etc.)
+- ⏭️ External contributor without `e2e-approved` label
 
 ### Running CI Locally
 
@@ -194,13 +235,16 @@ go build -o immich-go main.go
 
 ### Manual E2E Testing
 
-You can manually trigger the full CI workflow (including E2E tests) on any branch:
+You can manually trigger E2E tests on any branch:
 
 1. Go to the **Actions** tab in GitHub
-2. Select **CI** workflow
+2. Select **E2E Tests** workflow
 3. Click **Run workflow**
 4. Choose your branch
-5. E2E tests will always run for manual triggers
+5. **For maintainers:** Check "Skip approval check" to bypass the approval process
+6. Click **Run workflow**
+
+**Note:** Manual triggers always run E2E tests, even for documentation-only changes.
 
 ## Our Git Branching Model
 
@@ -209,7 +253,7 @@ Our repository uses a structured branching model to manage development and relea
   * **`main`:** This branch always contains the code for the latest official release. It should be considered stable and ready for production at all times. All new code is merged into `main` only from `hotfix` or `develop` branches.
   * **`develop`:** This is our primary development branch. All new features and regular bug fixes are integrated here. It represents the state of the project for the upcoming release.
   * **`hotfix/*`:** Short-lived branches used for urgent bug fixes that must be applied directly to the latest release on `main`. These are always created from `main`.
-  * **`feature/*`** and **`bugfix/*`:** Short-lived branches for developing new features or fixing non-urgent bugs. These are always created from `develop`.
+  * **`feature/*`**, **`bugfix/*`**, and **`fix/*`:** Short-lived branches for developing new features or fixing non-urgent bugs. These are always created from `develop`.
 
 ## Your Contribution Workflow
 
@@ -226,7 +270,7 @@ For all non-urgent changes, your work should be based on the `develop` branch.
     ```
 2.  **Create a New Branch:** Create a new branch for your work using a descriptive name that follows our convention:
       * For features: `feature/your-feature-name`
-      * For bug fixes: `bugfix/your-bug-description`
+      * For bug fixes: `bugfix/your-bug-description` or `fix/your-bug-description`
     ```sh
     git checkout -b feature/my-new-feature
     ```

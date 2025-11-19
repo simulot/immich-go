@@ -79,8 +79,8 @@ func TestGenerateEventReport(t *testing.T) {
 	recorder.RecordWithSize(ctx, DiscoveredVideo, nil, 5120000, "test", "video")
 	recorder.RecordWithSize(ctx, DiscoveredSidecar, nil, 512, "test", "sidecar")
 	recorder.RecordWithSize(ctx, DiscoveredBanned, nil, 100, "test", "banned")
-	recorder.Record(ctx, UploadedSuccess, nil)
-	recorder.Record(ctx, UploadedServerDuplicate, nil)
+	recorder.Record(ctx, ProcessedUploadSuccess, nil)
+	recorder.Record(ctx, DiscardedServerDuplicate, nil)
 	recorder.Record(ctx, ErrorUploadFailed, nil)
 
 	// Generate report
@@ -150,7 +150,7 @@ func TestGetEventCountsMap(t *testing.T) {
 	recorder.Record(ctx, DiscoveredImage, nil)
 	recorder.Record(ctx, DiscoveredImage, nil)
 	recorder.Record(ctx, DiscoveredVideo, nil)
-	recorder.Record(ctx, UploadedSuccess, nil)
+	recorder.Record(ctx, ProcessedUploadSuccess, nil)
 
 	// Get map
 	eventCounts := recorder.GetEventCounts()
@@ -166,8 +166,8 @@ func TestGetEventCountsMap(t *testing.T) {
 	if eventCounts[DiscoveredVideo] != 1 {
 		t.Errorf("Expected 1 video, got %d", eventCounts[DiscoveredVideo])
 	}
-	if eventCounts[UploadedSuccess] != 1 {
-		t.Errorf("Expected 1 upload success, got %d", eventCounts[UploadedSuccess])
+	if eventCounts[ProcessedUploadSuccess] != 1 {
+		t.Errorf("Expected 1 upload success, got %d", eventCounts[ProcessedUploadSuccess])
 	}
 
 	// Should not have entries for events that weren't recorded

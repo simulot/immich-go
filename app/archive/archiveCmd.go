@@ -40,15 +40,11 @@ func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command
 	cmd.AddCommand(gp.NewFromGooglePhotosCommand(ctx, cmd, app, ac))
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Initialize the Journal
-		if app.Jnl() == nil {
-			app.SetJnl(fileevent.NewRecorder(app.Log().Logger))
-		}
-
 		// Initialize the FileProcessor (tracker + logger)
 		if app.FileProcessor() == nil {
+			logger := fileevent.NewRecorder(app.Log().Logger)
 			tracker := assettracker.NewWithLogger(app.Log().Logger, app.DryRun) // Enable debug mode in dry-run
-			processor := fileprocessor.New(tracker, app.Jnl())
+			processor := fileprocessor.New(tracker, logger)
 			app.SetFileProcessor(processor)
 		}
 
