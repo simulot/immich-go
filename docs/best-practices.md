@@ -25,7 +25,7 @@ This guide provides recommendations for optimal performance, reliability, and or
 immich-go upload from-google-photos \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
-  --concurrent-uploads=4 \
+  --concurrent-tasks=4 \
   --client-timeout=60m \
   --pause-immich-jobs=true \
   --on-server-errors=continue \
@@ -39,7 +39,7 @@ immich-go upload from-google-photos \
 immich-go upload from-google-photos \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
-  --concurrent-uploads=8 \
+  --concurrent-tasks=8 \
   --manage-raw-jpeg=StackCoverRaw \
   --manage-burst=Stack \
   /path/to/takeout-*.zip
@@ -51,7 +51,7 @@ immich-go upload from-google-photos \
 immich-go upload from-google-photos \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
-  --concurrent-uploads=12 \
+  --concurrent-tasks=12 \
   --manage-raw-jpeg=StackCoverRaw \
   --manage-burst=Stack \
   --manage-heic-jpeg=StackCoverJPG \
@@ -87,7 +87,7 @@ immich-go upload from-google-photos \
 #### Gigabit LAN (Fast, Stable)
 ```bash
 # High throughput configuration
---concurrent-uploads=16
+--concurrent-tasks=16
 --client-timeout=30m
 --pause-immich-jobs=true
 ```
@@ -95,7 +95,7 @@ immich-go upload from-google-photos \
 #### Internet Connection (Variable Speed)
 ```bash
 # Adaptive configuration
---concurrent-uploads=4-8
+--concurrent-tasks=4-8
 --client-timeout=60m
 --on-server-errors=continue
 ```
@@ -103,7 +103,7 @@ immich-go upload from-google-photos \
 #### Slow/Unstable Network
 ```bash
 # Conservative configuration
---concurrent-uploads=1-2
+--concurrent-tasks=1-2
 --client-timeout=120m
 --on-server-errors=continue
 ```
@@ -113,7 +113,7 @@ immich-go upload from-google-photos \
 #### Powerful Server (High CPU/RAM)
 ```bash
 # Maximize server utilization
---concurrent-uploads=12-20
+--concurrent-tasks=12-20
 --pause-immich-jobs=false  # Let server handle both
 --client-timeout=30m
 ```
@@ -121,7 +121,7 @@ immich-go upload from-google-photos \
 #### Limited Server Resources
 ```bash
 # Reduce server load
---concurrent-uploads=2-4
+--concurrent-tasks=2-4
 --pause-immich-jobs=true
 --client-timeout=60m
 ```
@@ -129,7 +129,7 @@ immich-go upload from-google-photos \
 #### NAS or Low-Power Server
 ```bash
 # Minimal resource usage
---concurrent-uploads=1-2
+--concurrent-tasks=1-2
 --pause-immich-jobs=true
 --client-timeout=180m
 ```
@@ -534,7 +534,7 @@ immich-go upload from-folder \
 immich-go upload from-google-photos \
   --session-tag \
   --tag="Migration/Full" \
-  --concurrent-uploads=8 \
+  --concurrent-tasks=8 \
   --log-file=/var/log/migration.log \
   --server=... --api-key=... /takeout-*.zip
 ```
