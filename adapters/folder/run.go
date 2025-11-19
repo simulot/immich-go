@@ -26,6 +26,7 @@ import (
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
+	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/simulot/immich-go/internal/worker"
 	"github.com/spf13/cobra"
 )
@@ -206,7 +207,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			continue
 		}
 
-		if ifc.BannedFiles.Match(name) {
+		if matchesBanned(ifc.BannedFiles, name, entry.IsDir()) {
 			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredBanned, "reason", "banned file")
 			continue
 		}
@@ -292,7 +293,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 		base := entry.Name()
 		name := path.Join(dir, base)
 		if entry.IsDir() {
-			if ifc.BannedFiles.Match(name) {
+			if matchesBanned(ifc.BannedFiles, name, true) {
 				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredBanned, "reason", "banned folder")
 				continue // Skip this folder, no error
 			}
@@ -507,6 +508,26 @@ func checkExistSideCar(fsys fs.FS, name string, ext string) (string, error) {
 		return l[0], nil
 	}
 	return "", nil
+}
+
+func matchesBanned(list namematcher.List, name string, isDir bool) bool {
+	trimmed := strings.TrimSuffix(name, "/")
+	if isDir {
+		if list.MatchDir(name) {
+			return true
+		}
+		if trimmed != name && list.MatchDir(trimmed) {
+			return true
+		}
+		return false
+	}
+	if list.MatchFile(name) {
+		return true
+	}
+	if trimmed != name && list.MatchFile(trimmed) {
+		return true
+	}
+	return false
 }
 
 func (ifc *ImportFolderCmd) assetFromFile(_ context.Context, fsys fs.FS, name string) (*assets.Asset, error) {

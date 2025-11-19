@@ -25,18 +25,20 @@ Immich-go supports same formats as Immich supports, among them:
 
 ### Banned Files
 
-Automatically excluded file patterns:
+Immich-Go automatically excludes several junk patterns. A trailing `/` means the pattern applies to directories; omit the slash to match files.
 
-| Pattern              | Source          | Description         |
-| -------------------- | --------------- | ------------------- |
-| `@eaDir/`            | Synology NAS    | Thumbnail directory |
-| `@__thumb/`          | Synology NAS    | Thumbnail directory |
-| `SYNOFILE_THUMB_*.*` | Synology NAS    | Thumbnail files     |
-| `Lightroom Catalog/` | Adobe Lightroom | Catalog directory   |
-| `thumbnails/`        | Various         | Generic thumbnails  |
-| `.DS_Store`          | macOS           | System metadata     |
-| `._*.*`              | macOS           | Resource forks      |
-| `.photostructure/`   | PhotoStructure  | Application data    |
+| Pattern              | Source          | Description              |
+| -------------------- | --------------- | ------------------------ |
+| `@eaDir/`            | Synology NAS    | Thumbnail directory      |
+| `@__thumb/`          | Synology NAS    | Thumbnail directory      |
+| `SYNOFILE_THUMB_*.*` | Synology NAS    | Thumbnail files          |
+| `Lightroom Catalog/` | Adobe Lightroom | Catalog directory        |
+| `thumbnails/`        | Various         | Generic thumbnail folder |
+| `.DS_Store`          | macOS           | Finder metadata file     |
+| `/._*`               | macOS           | Resource fork stubs      |
+| `.Spotlight-V100/`   | macOS           | Spotlight index folder   |
+| `.photostructure/`   | PhotoStructure  | Application data         |
+| `Recently Deleted/`  | iCloud          | Recently deleted items   |
 
 ### Date Extraction
 

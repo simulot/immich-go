@@ -59,16 +59,16 @@ jobs:
           if [[ "$source_branch" =~ ^(main|develop|master)$ ]]; then
             echo "System branch '$source_branch' is exempt from naming convention."
           else
-            # Check if the source branch name is valid (feature/bugfix/hotfix/chore)
-            if ! [[ "$source_branch" =~ ^(feature|bugfix|hotfix|chore)/.+$ ]]; then
-              echo "::error::Branch name '$source_branch' does not follow the naming convention (feature/, bugfix/, hotfix/, chore/)."
+            # Check if the source branch name is valid (feature/bugfix/fix/hotfix/chore)
+            if ! [[ "$source_branch" =~ ^(feature|bugfix|fix|hotfix|chore)/.+$ ]]; then
+              echo "::error::Branch name '$source_branch' does not follow the naming convention (feature/, bugfix/, fix/, hotfix/, chore/)."
               exit 1
             fi
           fi
 
-          # Check if a feature, bugfix, or chore branch is targeting the correct branch (develop)
-          if [[ "$source_branch" =~ ^(feature|bugfix|chore)/.+ ]] && [ "$target_branch" != "develop" ]; then
-            echo "::error::'feature/*', 'bugfix/*', and 'chore/*' branches must only be merged into 'develop'."
+          # Check if a feature, bugfix, fix, or chore branch is targeting the correct branch (develop)
+          if [[ "$source_branch" =~ ^(feature|bugfix|fix|chore)/.+ ]] && [ "$target_branch" != "develop" ]; then
+            echo "::error::'feature/*', 'bugfix/*', 'fix/*', and 'chore/*' branches must only be merged into 'develop'."
             exit 1
           fi
 

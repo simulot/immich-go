@@ -230,7 +230,7 @@ Usage:
 
 Flags:
       --album-path-joiner string           Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') (default " / ")
-      --ban-file FileList                  Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. (default '@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/')
+      --ban-file FileList                  Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. (default '@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/')
       --capture-date-method DateMethod     Specify the method to determine the capture date when not provided in a sidecar file. Options: NONE (do not attempt to determine), FILENAME (extract from filename), EXIF (extract from EXIF metadata), FILENAME-EXIF (try filename first, then EXIF), EXIF-FILENAME (try EXIF first, then filename) (default EXIF-FILENAME)
       --date-range date-range              Only import photos taken within the specified date range (default unset)
       --exclude-extensions ExtensionList   Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)
@@ -391,13 +391,17 @@ Meanwhile, it is disabled by default. You can enable it using the option `-creat
 
 ### feature exclude files based on a pattern
 
-Use the `-exclude-files=PATTERN` to exclude certain files or directories from the upload. Repeat the option for each pattern do you need. The following directories are excluded automatically:
+Use the `-exclude-files=PATTERN` to exclude certain files or directories from the upload. Repeat the option for each pattern do you need. The following patterns are excluded automatically (a trailing `/` means the pattern matches directories):
 - @eaDir/
 - @__thumb/
-- SYNOFILE_THUMB_\*.\*
+- SYNOFILE_THUMB_\*.*
 - Lightroom Catalog/
 - thumbnails/
-- .DS_Store/
+- .Spotlight-V100/
+- .photostructure/
+- Recently Deleted/
+- .DS_Store
+- /._*
 
 Example, the following command excludes any files in directories called backup or draft and any file with name finishing with "copy)" as PXL_20231006_063121958 (another copy).jpg:
 ```sh

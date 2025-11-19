@@ -253,7 +253,7 @@ Our repository uses a structured branching model to manage development and relea
   * **`main`:** This branch always contains the code for the latest official release. It should be considered stable and ready for production at all times. All new code is merged into `main` only from `hotfix` or `develop` branches.
   * **`develop`:** This is our primary development branch. All new features and regular bug fixes are integrated here. It represents the state of the project for the upcoming release.
   * **`hotfix/*`:** Short-lived branches used for urgent bug fixes that must be applied directly to the latest release on `main`. These are always created from `main`.
-  * **`feature/*`** and **`bugfix/*`:** Short-lived branches for developing new features or fixing non-urgent bugs. These are always created from `develop`.
+  * **`feature/*`**, **`bugfix/*`**, and **`fix/*`:** Short-lived branches for developing new features or fixing non-urgent bugs. These are always created from `develop`.
 
 ## Your Contribution Workflow
 
@@ -270,7 +270,7 @@ For all non-urgent changes, your work should be based on the `develop` branch.
     ```
 2.  **Create a New Branch:** Create a new branch for your work using a descriptive name that follows our convention:
       * For features: `feature/your-feature-name`
-      * For bug fixes: `bugfix/your-bug-description`
+      * For bug fixes: `bugfix/your-bug-description` or `fix/your-bug-description`
     ```sh
     git checkout -b feature/my-new-feature
     ```
