@@ -12,12 +12,6 @@ name: PR Checks - Fast Feedback
 
 on:
   pull_request:
-    branches:
-      - main
-      - develop
-      # This temporary branch is for testing the new workflow.
-      # It can be removed after the workflow is validated.
-      - 'test-new-ci'
 
 jobs:
   # =====================================================================================
