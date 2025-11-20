@@ -1,5 +1,5 @@
 # Configuration File
-
+TEST
 The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immich-go` looks for a file named `immich-go.toml` in the current directory.
 
 ## Configuration file structure
