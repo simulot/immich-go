@@ -34,8 +34,12 @@ jobs:
       - name: Check for code changes
         id: check_files
         run: |
+          set -ex # Exit on error, print commands for debugging
+
           echo "Checking for code changes..."
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+          # Diff the current PR branch HEAD against the TARGET branch's HEAD
+          # The '...' syntax finds the common ancestor and diffs from there.
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
 
           if [[ -z "$CHANGED_FILES" ]]; then
             echo "No changed files found. Assuming no code changes."
