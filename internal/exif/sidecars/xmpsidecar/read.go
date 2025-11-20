@@ -42,31 +42,35 @@ func walk(m mxj.Map, md *assets.Metadata, path string) {
 	}
 }
 
-var reDescription = regexp.MustCompile(`/xmpmeta/RDF/Description\[\d+\]/`)
+var (
+	reDescription = regexp.MustCompile(`/xmpmeta/RDF/Description(?:\[\d+\])?/`)
+	reIndex       = regexp.MustCompile(`\[\d+\]`)
+)
 
 func filter(md *assets.Metadata, p string, value string) {
 	p = reDescription.ReplaceAllString(p, "")
+	p = reIndex.ReplaceAllString(p, "")
 	// debug 	fmt.Printf("%s: %s\n", p, value)
 	switch p {
-	case "DateTimeOriginal":
+	case "DateTimeOriginal", "DateTimeOriginal/#text":
 		if d, err := TimeStringToTime(value, time.UTC); err == nil {
 			md.DateTaken = d
 		}
 	case "ImageDescription/Alt/li/#text":
 		md.Description = value
-	case "Rating":
+	case "Rating", "Rating/#text":
 		md.Rating = StringToByte(value)
-	case "TagsList/Seq/li":
+	case "TagsList/Seq/li", "TagsList/Seq/li/#text":
 		md.Tags = append(md.Tags,
 			assets.Tag{
 				Name:  path.Base(value),
 				Value: value,
 			})
-	case "/xmpmeta/RDF/Description/GPSLatitude":
+	case "/xmpmeta/RDF/Description/GPSLatitude", "/xmpmeta/RDF/Description/GPSLatitude/#text", "GPSLatitude", "GPSLatitude/#text":
 		if f, err := GPTStringToFloat(value); err == nil {
 			md.Latitude = f
 		}
-	case "/xmpmeta/RDF/Description/GPSLongitude":
+	case "/xmpmeta/RDF/Description/GPSLongitude", "/xmpmeta/RDF/Description/GPSLongitude/#text", "GPSLongitude", "GPSLongitude/#text":
 		if f, err := GPTStringToFloat(value); err == nil {
 			md.Longitude = f
 		}
