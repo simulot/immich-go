@@ -1,0 +1,119 @@
+name: PR Checks - Fast Feedback
+
+# This workflow provides fast feedback on pull requests.
+# It runs on every commit to a PR.
+#
+# 1. Analyze Changes: Determines if changes are code-related.
+# 2. Fast Feedback: If so, runs linting, unit tests, and a build check.
+# 3. Notify: If checks pass, it notifies the user how to run the full E2E tests.
+#
+# The E2E tests themselves are run in a separate, secure workflow (`run-e2e.yml`)
+# and must be triggered manually by a maintainer.
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      # This temporary branch is for testing the new workflow.
+      # It can be removed after the workflow is validated.
+      - 'test-new-ci'
+
+jobs:
+  # =====================================================================================
+  # Job 1: Analyze Changes
+  # =====================================================================================
+  analyze-changes:
+    name: 🔎 Analyze Changes
+    runs-on: ubuntu-latest
+    outputs:
+      has_code_changes: ${{ steps.check_files.outputs.has_code_changes }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Fetch all history for accurate diff
+
+      - name: Check for code changes
+        id: check_files
+        run: |
+          echo "Checking for code changes..."
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }})
+          echo "Files changed in this PR:"
+          echo "$CHANGED_FILES"
+          NON_DOC_FILES=$(echo "$CHANGED_FILES" | grep -vE '(\.md|\.txt)$|^docs/')
+
+          if [[ -n "$NON_DOC_FILES" ]]; then
+            echo "✅ Code changes detected."
+            echo "has_code_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ Only documentation changes found. Skipping code checks."
+            echo "has_code_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+  # =====================================================================================
+  # Job 2: Fast Feedback
+  # =====================================================================================
+  fast-feedback:
+    name: 🚀 Fast Feedback
+    runs-on: ubuntu-latest
+    needs: analyze-changes
+    if: needs.analyze-changes.outputs.has_code_changes == 'true'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
+
+      - name: Lint Code
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+
+      - name: Run Unit Tests
+        run: go test -race -v -count=1 -coverprofile=coverage.out ./...
+
+      - name: Generate Coverage Report
+        run: go tool cover -func=coverage.out
+
+      - name: Build Binary for Linux
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o immich-linux-amd64 -ldflags="-s -w -extldflags=-static" main.go
+
+      - name: Verify Binary
+        run: ./immich-linux-amd64 version
+
+  # =====================================================================================
+  # Job 3: Notify maintainers how to trigger E2E tests
+  # =====================================================================================
+  notify-for-e2e:
+    name: 📢 Notify for E2E
+    runs-on: ubuntu-latest
+    needs: fast-feedback
+    if: always() && needs.fast-feedback.result == 'success'
+    permissions:
+      pull-requests: write # Required to post comments
+    steps:
+      - name: Post E2E trigger instruction comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+          COMMENT_BODY="✅ Fast feedback checks passed.
+
+          **Next Step**: End-to-end (E2E) tests.
+          - For maintainers, E2E tests will start automatically in a separate workflow.
+          - For external contributors, a maintainer must review the code and trigger the tests by commenting `/run-e2e` on this PR."
+
+          # Check if a similar comment already exists to avoid spamming
+          EXISTING_COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq ".[] | select(.body | contains(\`Fast feedback checks passed\`)) | .id" | head -n 1)
+
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            echo "An instruction comment already exists. Skipping."
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$COMMENT_BODY"
+          fi
