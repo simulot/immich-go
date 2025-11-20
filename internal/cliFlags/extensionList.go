@@ -35,6 +35,10 @@ const (
 
 // SetIncludeTypeExtensions must be called once flags are parsed
 func (flags *InclusionFlags) SetIncludeTypeExtensions() {
+	if flags.IncludedType == IncludeAll {
+		return
+	}
+
 	mediaToExtensionsMap := filetypes.MediaToExtensions()
 
 	switch flags.IncludedType {
