@@ -22,67 +22,12 @@ To get started with your contribution, please follow the standard GitHub workflo
 
 ## Development Setup
 
-Before you can start contributing to `immich-go`, you need to set up your development environment.
+Before you can start contributing to `immich-go`, you need to set up your development environment. A `go.mod` file is present and defines the Go version to use.
 
 ### Prerequisites
 
-#### Go Installation
-
-`immich-go` requires **Go 1.25 or higher**. Here's how to install it:
-
-**Option 1: Official Go Installer (Recommended)**
-1. Visit the [official Go downloads page](https://golang.org/dl/)
-2. Download the installer for your operating system
-3. Follow the installation instructions for your platform
-
-**Option 2: Package Manager Installation**
-
-- **macOS (using Homebrew):**
-  ```sh
-  brew install go
-  ```
-
-- **Linux (Ubuntu/Debian):**
-  ```sh
-  # Remove any existing Go installation
-  sudo rm -rf /usr/local/go
-  
-  # Download and install Go 1.25+ (check for latest version)
-  wget https://golang.org/dl/go1.25.linux-amd64.tar.gz
-  sudo tar -C /usr/local -xzf go1.25.linux-amd64.tar.gz
-  
-  # Add Go to your PATH (add this to your ~/.bashrc or ~/.zshrc)
-  export PATH=$PATH:/usr/local/go/bin
-  ```
-
-- **Windows:**
-  Use the official installer from golang.org or use a package manager like Chocolatey:
-  ```powershell
-  choco install golang
-  ```
-
-#### Verify Installation
-
-After installation, verify that Go is properly installed:
-
-```sh
-go version
-```
-
-You should see output similar to: `go version go1.25.x linux/amd64`
-
-#### Set Up Your Go Workspace
-
-Make sure your `GOPATH` and `GOBIN` are properly configured:
-
-```sh
-# Check your Go environment
-go env GOPATH
-go env GOBIN
-
-# If GOBIN is empty, set it (add to your shell profile)
-export GOBIN=$GOPATH/bin
-```
+- **Go Installation**: `immich-go` requires the version of Go specified in the `go.mod` file.
+- **golangci-lint**: Optional, but recommended for running the linter locally.
 
 ### Building and Testing
 
@@ -92,44 +37,22 @@ Once you have Go installed and your fork cloned:
    ```sh
    cd immich-go
    ```
-
 2. **Install dependencies:**
    ```sh
    go mod download
    ```
-
 3. **Build the project:**
    ```sh
    go build -o immich-go main.go
    ```
-
 4. **Run tests:**
    ```sh
    go test ./...
    ```
-
 5. **Run the application:**
    ```sh
    ./immich-go --help
    ```
-
-### Development Tools (Optional but Recommended)
-
-For a better development experience, consider installing these tools:
-
-- **golangci-lint** (used in our CI pipeline): 
-Check the latest installation instructions at [golangci-lint](https://golangci-lint.run/docs/welcome/install/#local-installation)
-
-```sh
-# binary will be $(go env GOPATH)/bin/golangci-lint
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0
-golangci-lint --version  
-```
-
-- **gofmt** and **goimports** (for code formatting):
-  ```sh
-  go install golang.org/x/tools/cmd/goimports@latest
-  ```
 
 You can run the linter locally before submitting your PR:
 ```sh
@@ -138,174 +61,77 @@ golangci-lint run
 
 ## CI/CD Workflows
 
-Our repository uses a two-tier CI workflow system that provides fast feedback to all contributors while securely managing E2E tests that require secrets:
+Our repository uses a two-tier CI workflow system that provides fast feedback to all contributors while securely managing E2E tests that require secrets.
 
-### 1. Fast Feedback Workflow (`.github/workflows/ci.yml`)
+### 1. Fast Feedback Workflow (`.github/workflows/pr-checks.yml`)
 
 **Runs automatically on all pull requests** - No secrets required.
 
-Provides quick feedback (~3-5 minutes) on every pull request and push:
-
-- **Branch Validation:** Ensures branch naming conventions
-- **Linting:** golangci-lint for code quality
-- **Unit Tests:** Comprehensive tests with race detection and coverage
-- **Build Check:** Validates successful compilation
+Provides quick feedback on every pull request and push:
+- **Linting:** `golangci-lint` for code quality.
+- **Unit Tests:** Comprehensive tests with race detection and coverage.
+- **Build Check:** Validates successful compilation.
 
 **Security:** This workflow runs on all PRs, including from external contributors, without exposing any secrets.
 
-### 2. E2E Tests Workflow (`.github/workflows/ci-e2e.yml`)
+### 2. E2E Tests Workflow (`.github/workflows/run-e2e.yml`)
 
-**Requires approval for external contributors** - Uses Tailscale secrets.
+**Requires maintainer approval for external contributors** - Uses Tailscale secrets.
 
-Runs comprehensive end-to-end tests (~12-15 minutes):
-
-- **E2E Server:** Ubuntu runner with Immich in Docker (via Tailscale)
-- **Linux Client Tests:** E2E tests on Linux runner
-- **Windows Client Tests:** E2E tests on Windows runner
-- **Communication:** Tailscale VPN for secure multi-runner networking
+Runs comprehensive end-to-end tests:
+- **E2E Server:** Ubuntu runner with Immich in Docker (via Tailscale).
+- **Linux & Windows Client Tests:** E2E tests on both Linux and Windows runners.
 
 #### Who Can Run E2E Tests?
 
-**Trusted Contributors** (Repository collaborators):
-- ✅ E2E tests run automatically on all PRs
-- ✅ No approval needed
+- **Trusted Contributors** (Repository collaborators): E2E tests run automatically.
+- **External Contributors**: E2E tests are **skipped** by default. A maintainer must approve them.
 
-**External Contributors** (First-time or non-collaborator PRs):
-- ⏸️ E2E tests are **skipped** by default (secrets not exposed)
-- 🔐 Requires maintainer approval via `e2e-approved` label
-- 🤖 Bot comments on PR explaining the approval process
+#### How to Run E2E Tests on an External PR
 
-**Why?** E2E tests require Tailscale secrets. This approval process prevents malicious code from accessing secrets while still allowing external contributions.
+When you submit a pull request from a fork:
+1. ✅ Fast feedback checks run immediately (lint, test, build).
+2. 🤖 A bot will comment on your PR explaining that E2E tests require maintainer approval.
+3. ⌛ A maintainer will review your code for safety and correctness.
+4. ✅ To approve, the maintainer will post a comment with the command `/run-e2e`.
+5. 🚀 The E2E test workflow will then start automatically.
 
-#### For External Contributors
-
-When you submit a pull request:
-1. ✅ Fast feedback checks run immediately (lint, test, build)
-2. ⏸️ E2E tests are skipped (requires maintainer review)
-3. 🤖 A bot will comment explaining that approval is needed
-4. ⌛ Wait for a maintainer to review and approve
-5. ✅ E2E tests run automatically after approval
-
-**Note:** You can still contribute! The fast feedback checks will validate your code. E2E tests are run by maintainers before merging.
-
-#### For Maintainers
-
-See the complete guide: [`.github/E2E_APPROVAL_GUIDE.md`](.github/E2E_APPROVAL_GUIDE.md)
-
-Quick approval process:
-1. Review the PR code thoroughly
-2. Add the `e2e-approved` label:
-   ```bash
-   gh pr edit PR_NUMBER --add-label "e2e-approved"
-   ```
-3. E2E tests run automatically
-
-#### Automatic E2E Triggers
-
-E2E tests automatically run when:
-- ✅ Changes affect core code: `app/`, `adapters/`, `immich/`, `internal/`, `main.go`, `go.mod/sum`
-- ✅ Contributor is a repository collaborator OR PR has `e2e-approved` label
-- ✅ Push to `main` or `develop` branches
-
-E2E tests are skipped when:
-- ⏭️ Only documentation files changed (`.md`, `docs/`, etc.)
-- ⏭️ External contributor without `e2e-approved` label
-
-### Running CI Locally
-
-Before pushing your changes, you can run the same checks locally:
-
-```sh
-# Run linting (same as CI)
-golangci-lint run ./...
-
-# Run unit tests (same as CI)
-go test -race -v -count=1 ./...
-
-# Build check
-go build -o immich-go main.go
-```
-
-### Understanding CI Failures
-
-- **Lint failures:** Code style or quality issues. Run `golangci-lint run` locally to see details
-- **Test failures:** Unit tests failed. Run `go test -v ./...` locally to debug
-- **Build failures:** Code doesn't compile. Check the error messages in the workflow logs
-- **E2E failures:** Integration tests failed. These typically require manual review
-
-### Manual E2E Testing
-
-You can manually trigger E2E tests on any branch:
-
-1. Go to the **Actions** tab in GitHub
-2. Select **E2E Tests** workflow
-3. Click **Run workflow**
-4. Choose your branch
-5. **For maintainers:** Check "Skip approval check" to bypass the approval process
-6. Click **Run workflow**
-
-**Note:** Manual triggers always run E2E tests, even for documentation-only changes.
+**Why?** This approval process prevents malicious code in a PR from accessing sensitive credentials.
 
 ## Our Git Branching Model
 
-Our repository uses a structured branching model to manage development and releases effectively.
+Our repository uses a simple branching model:
 
-  * **`main`:** This branch always contains the code for the latest official release. It should be considered stable and ready for production at all times. All new code is merged into `main` only from `hotfix` or `develop` branches.
-  * **`develop`:** This is our primary development branch. All new features and regular bug fixes are integrated here. It represents the state of the project for the upcoming release.
-  * **`hotfix/*`:** Short-lived branches used for urgent bug fixes that must be applied directly to the latest release on `main`. These are always created from `main`.
-  * **`feature/*`**, **`bugfix/*`**, and **`fix/*`:** Short-lived branches for developing new features or fixing non-urgent bugs. These are always created from `develop`.
+  * **`main`:** This branch always contains the code for the latest official release. It is considered stable.
+  * **`develop`:** This is the primary development branch. All new features and bug fixes should be integrated here.
 
 ## Your Contribution Workflow
-
-Your workflow depends on the nature of your contribution:
-
-### 1. For a New Feature or a Regular Bug Fix
-
-For all non-urgent changes, your work should be based on the `develop` branch.
 
 1.  **Sync with `develop`:** Ensure your local `develop` branch is up to date with the latest changes from the main repository.
     ```sh
     git checkout develop
     git pull upstream develop
     ```
-2.  **Create a New Branch:** Create a new branch for your work using a descriptive name that follows our convention:
-      * For features: `feature/your-feature-name`
-      * For bug fixes: `bugfix/your-bug-description` or `fix/your-bug-description`
+2.  **Create a New Branch:** Create a new branch for your work from the `develop` branch. Use a short, descriptive name (e.g., `fix-login-bug`, `add-album-feature`).
     ```sh
-    git checkout -b feature/my-new-feature
+    git checkout -b my-new-feature
     ```
 3.  **Develop and Commit:** Make your changes, test them, and commit your work. Use clear and descriptive commit messages.
 4.  **Push your Branch:** Push your new branch to your personal fork on GitHub.
     ```sh
-    git push origin feature/my-new-feature
+    git push origin my-new-feature
     ```
-5.  **Create a Pull Request:** Go to your fork on GitHub and open a new Pull Request. The **base branch must be `develop`**. Your Pull Request will automatically be checked by our Continuous Integration (CI) system to ensure it meets our quality standards.
-
-### 2. For an Urgent Hotfix
-
-A hotfix is a critical bug that needs to be fixed in the current production version. This process is handled with extra care.
-
-1.  **Sync with `main`:** Ensure your local `main` branch is up to date.
-    ```sh
-    git checkout main
-    git pull upstream main
-    ```
-2.  **Create a New Branch:** Create a hotfix branch from `main` using a descriptive name:
-      * For a hotfix: `hotfix/critical-bug`
-    ```sh
-    git checkout -b hotfix/critical-bug
-    ```
-3.  **Develop, Commit, and Push:** Make your changes, commit them, and push your hotfix branch to your fork.
-4.  **Create a Pull Request:** Open a new Pull Request on GitHub. The **base branch must be `main`**. Our CI/CD pipeline will automatically run to validate the fix.
+5.  **Create a Pull Request:** Go to your fork on GitHub and open a new Pull Request.
+    *   The **base branch must be `develop`**.
+    *   Your Pull Request will automatically be checked by our CI system.
 
 ## Pull Request Guidelines
 
-To make the review process as efficient as possible, please follow these guidelines when creating a Pull Request:
+To make the review process as efficient as possible, please follow these guidelines:
 
   * **Descriptive Title and Body:** Provide a clear and concise title for your PR. In the description, explain the purpose of your changes, the problem they solve, and any relevant context.
-  * **Pass CI/CD Checks:** All Pull Requests must have a passing status from our automated checks before they can be merged. These checks include building the project and running tests.
-  * **Target the Right Branch:** Double-check that you are opening the PR to the correct target branch (`develop` for new features/bugfixes, `main` for hotfixes). Our automated system will block incorrect merges.
-  * **Code Style:** Please follow the existing code style.
+  * **Pass CI Checks:** All Pull Requests must have a passing status from our automated checks before they can be merged.
+  * **Target the `develop` Branch:** All pull requests should target the `develop` branch. Hotfixes to `main` are handled by maintainers as an exception.
 
 Thank you for your contribution!
 
