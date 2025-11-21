@@ -1,5 +1,5 @@
 # Installation Guide
-
+TEST
 This guide covers all installation methods for Immich-Go across different platforms.
 
 ## Prerequisites
