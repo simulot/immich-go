@@ -13,6 +13,7 @@ import (
 )
 
 func TestApplicationFileProcessor(t *testing.T) {
+	// TEST COMMENTS
 	ctx := context.Background()
 	cmd := &cobra.Command{}
 	app := New(ctx, cmd)
