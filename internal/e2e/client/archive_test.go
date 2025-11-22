@@ -12,6 +12,7 @@ import (
 )
 
 func Test_ArchiveFromGP(t *testing.T) {
+	// must trigger the e2e CI
 	t.Run("ArchiveFromFolder", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "immich-go-test-ArchiveFromFolder*")
 		if err != nil {
