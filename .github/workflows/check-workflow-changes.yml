@@ -60,45 +60,35 @@ jobs:
                   script: |
                       const changedFiles = process.env.CHANGED_FILES;
 
-                      const comment = `## 🚨 Workflow Security Review Required
-
-                      This PR modifies CI/CD workflow files or CODEOWNERS configuration. These changes require careful security review to prevent:
-                      - Script injection vulnerabilities
-                      - Unauthorized secret access
-                      - Malicious code execution
-                      - Bypass of security controls
-
-                      ${changedFiles}
-
-                      ### Security Checklist for Reviewers
-
-                      Before approving this PR, verify:
-
-                      - [ ] **No script injection**: User input (PR titles, branch names, etc.) is not directly used in \`run:\` commands
-                      - [ ] **Environment variables**: All user input is passed via \`env:\` and referenced as \`$VAR\` not \`\${{ }}\`
-                      - [ ] **Minimal permissions**: Workflow has only necessary permissions (default: \`contents: read\`)
-                      - [ ] **Explicit checkout**: For \`pull_request_target\`, checkout uses explicit \`ref:\` and \`persist-credentials: false\`
-                      - [ ] **Secret protection**: Secrets are only used in trusted contexts (not in \`pull_request\` from forks)
-                      - [ ] **Action versions**: Actions are pinned (preferably to SHA, or at least to major version)
-                      - [ ] **Proper triggers**: \`pull_request_target\` is only used when necessary for secrets
-                      - [ ] **CODEOWNERS**: Changes to CODEOWNERS maintain security (workflow files assigned to maintainers)
-
-                      ### Maintainer Actions Required
-
-                      1. **Review each changed file** for security implications
-                      2. **Test in a safe environment** if possible (fork or test branch)
-                      3. **Verify CODEOWNERS** ensures workflow files require maintainer review
-                      4. **Approve only if confident** the changes don't introduce vulnerabilities
-
-                      ⚠️ **Remember:** Malicious workflow changes can:
-                      - Steal repository secrets (API keys, credentials)
-                      - Modify code without review
-                      - Execute arbitrary code on runners
-                      - Compromise the entire CI/CD pipeline
-
-                      ---
-
-                      See [GitHub Actions Security Best Practices](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) for more information.`;
+                      const comment = "## 🚨 Workflow Security Review Required\n\n" +
+                      "This PR modifies CI/CD workflow files or CODEOWNERS configuration. These changes require careful security review to prevent:\n" +
+                      "- Script injection vulnerabilities\n" +
+                      "- Unauthorized secret access\n" +
+                      "- Malicious code execution\n" +
+                      "- Bypass of security controls\n\n" +
+                      changedFiles + "\n\n" +
+                      "### Security Checklist for Reviewers\n\n" +
+                      "Before approving this PR, verify:\n\n" +
+                      "- [ ] **No script injection**: User input (PR titles, branch names, etc.) is not directly used in `run:` commands\n" +
+                      "- [ ] **Environment variables**: All user input is passed via `env:` and referenced as `$VAR` not `${'$'}{{ }}`\n" +
+                      "- [ ] **Minimal permissions**: Workflow has only necessary permissions (default: `contents: read`)\n" +
+                      "- [ ] **Explicit checkout**: For `pull_request_target`, checkout uses explicit `ref:` and `persist-credentials: false`\n" +
+                      "- [ ] **Secret protection**: Secrets are only used in trusted contexts (not in `pull_request` from forks)\n" +
+                      "- [ ] **Action versions**: Actions are pinned (preferably to SHA, or at least to major version)\n" +
+                      "- [ ] **Proper triggers**: `pull_request_target` is only used when necessary for secrets\n" +
+                      "- [ ] **CODEOWNERS**: Changes to CODEOWNERS maintain security (workflow files assigned to maintainers)\n\n" +
+                      "### Maintainer Actions Required\n\n" +
+                      "1. **Review each changed file** for security implications\n" +
+                      "2. **Test in a safe environment** if possible (fork or test branch)\n" +
+                      "3. **Verify CODEOWNERS** ensures workflow files require maintainer review\n" +
+                      "4. **Approve only if confident** the changes don't introduce vulnerabilities\n\n" +
+                      "⚠️ **Remember:** Malicious workflow changes can:\n" +
+                      "- Steal repository secrets (API keys, credentials)\n" +
+                      "- Modify code without review\n" +
+                      "- Execute arbitrary code on runners\n" +
+                      "- Compromise the entire CI/CD pipeline\n\n" +
+                      "---\n\n" +
+                      "See [GitHub Actions Security Best Practices](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) for more information.";
 
                       const { data: comments } = await github.rest.issues.listComments({
                         owner: context.repo.owner,
