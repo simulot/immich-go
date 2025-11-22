@@ -118,7 +118,7 @@ jobs:
           - For external contributors, a maintainer must review the code and trigger the tests by commenting \"/run-e2e\" on this PR."
 
           # Check if a similar comment already exists to avoid spamming
-          EXISTING_COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq '.[] | select(.body | contains($search)) | .id' --arg search "Fast feedback checks passed" | head -n 1)
+          EXISTING_COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --jq '.[] | select(.body | test("Fast feedback checks passed")) | .id' | head -n 1)
 
           if [ -n "$EXISTING_COMMENT_ID" ]; then
             echo "An instruction comment already exists. Skipping."

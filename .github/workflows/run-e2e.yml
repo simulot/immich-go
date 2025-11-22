@@ -37,36 +37,39 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          EVENT_NAME: ${{ github.event_name }}
+          IS_PR: ${{ github.event.issue.pull_request }}
+          AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association }}
         run: |
           # This script validates that the comment is a valid trigger.
           # 1. Is the comment on a pull request?
           # 2. Is the comment body exactly `/run-e2e`?
           # 3. Is the author a maintainer (MEMBER or OWNER)?
 
-          if [[ "${{ github.event_name }}" != "issue_comment" ]]; then
+          if [[ "$EVENT_NAME" != "issue_comment" ]]; then
             echo "Not triggered by issue comment. Skipping."
             echo "should_run=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          if [[ "${{ github.event.issue.pull_request }}" == "" ]]
+          if [[ "$IS_PR" == "" ]]
           then
             echo "This comment is not on a pull request. Skipping."
             echo "should_run=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          if [[ "${{ github.event.comment.body }}" != "/run-e2e" ]]
+          if [[ "$COMMENT_BODY" != "/run-e2e" ]]
           then
             echo "Comment is not a trigger command. Skipping."
             echo "should_run=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          ASSOCIATION="${{ github.event.comment.author_association }}"
-          if [[ "$ASSOCIATION" != "MEMBER" && "$ASSOCIATION" != "OWNER" ]]
+          if [[ "$AUTHOR_ASSOCIATION" != "MEMBER" && "$AUTHOR_ASSOCIATION" != "OWNER" ]]
           then
-            echo "Comment author is not a maintainer ($ASSOCIATION). Skipping."
+            echo "Comment author is not a maintainer ($AUTHOR_ASSOCIATION). Skipping."
             echo "should_run=false" >> $GITHUB_OUTPUT
             exit 0
           fi
