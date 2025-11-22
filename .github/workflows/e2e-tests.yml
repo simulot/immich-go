@@ -422,3 +422,42 @@ jobs:
           curl -s -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/cancel"
+
+  # Final status job - always runs to report workflow completion
+  e2e-complete:
+    name: ✅ E2E Complete
+    runs-on: ubuntu-latest
+    needs: [check-trigger, e2e-server, e2e-linux, e2e-windows, e2e-cleanup]
+    if: always()
+    steps:
+      - name: Check if tests were skipped
+        id: skip-check
+        run: |
+          if [[ "${{ needs.check-trigger.outputs.should_run }}" != "true" ]]; then
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            echo "📝 E2E tests skipped (doc-only PR or not triggered)"
+            exit 0
+          fi
+          echo "skipped=false" >> $GITHUB_OUTPUT
+
+      - name: Check test results
+        if: steps.skip-check.outputs.skipped != 'true'
+        env:
+          SERVER_STATUS: ${{ needs.e2e-server.result }}
+          LINUX_STATUS: ${{ needs.e2e-linux.result }}
+          WINDOWS_STATUS: ${{ needs.e2e-windows.result }}
+          CLEANUP_STATUS: ${{ needs.e2e-cleanup.result }}
+        run: |
+          echo "E2E Server: $SERVER_STATUS"
+          echo "E2E Linux: $LINUX_STATUS"
+          echo "E2E Windows: $WINDOWS_STATUS"
+          echo "E2E Cleanup: $CLEANUP_STATUS"
+
+          if [[ "$SERVER_STATUS" != "success" ]] || \
+             [[ "$LINUX_STATUS" != "success" ]] || \
+             [[ "$WINDOWS_STATUS" != "success" ]]; then
+            echo "❌ E2E tests failed"
+            exit 1
+          fi
+
+          echo "✅ All E2E tests passed!"
