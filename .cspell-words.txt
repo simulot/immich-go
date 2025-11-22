@@ -1,0 +1,61 @@
+# Project-specific dictionary for cspell
+# Add technical terms, product names, and project-specific words here
+
+# Immich-specific
+immich
+immich-go
+takeout
+
+# Tailscale
+tailscale
+
+# GitHub usernames (add your maintainers)
+simulot
+
+# Technical terms
+api
+apis
+cli
+clis
+dockerfile
+dockerfiles
+yaml
+yml
+json
+url
+urls
+uri
+uris
+timestamp
+timestamps
+metadata
+jpeg
+jpg
+png
+gif
+heic
+webp
+exif
+uuid
+uuids
+sha
+oauth
+env
+envs
+cicd
+repo
+repos
+
+# Go-specific
+gorelease
+gorelaser
+CGO
+GOOS
+GOARCH
+
+# Common abbreviations
+e2e
+pr
+prs
+cd
+ci

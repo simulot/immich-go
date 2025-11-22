@@ -1,12 +1,14 @@
 package fshelper
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 //  VirtualGlobFS create a FS that limits the WalkDir function to the
@@ -45,6 +47,9 @@ func NewVirtualGlobFS(pattern string) (fs.FS, error) {
 
 	err = fs.WalkDir(vfs.rootFS, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
+			if shouldSkipDir(err) {
+				return fs.SkipDir
+			}
 			return err
 		}
 
@@ -65,6 +70,25 @@ func NewVirtualGlobFS(pattern string) (fs.FS, error) {
 	})
 
 	return vfs, err
+}
+
+func shouldSkipDir(err error) bool {
+	if errors.Is(err, fs.ErrPermission) {
+		return true
+	}
+	var pathErr *fs.PathError
+	if errors.As(err, &pathErr) {
+		if errors.Is(pathErr.Err, fs.ErrPermission) {
+			return true
+		}
+		if errors.Is(pathErr.Err, syscall.EPERM) || errors.Is(pathErr.Err, syscall.EACCES) {
+			return true
+		}
+	}
+	if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES) {
+		return true
+	}
+	return false
 }
 
 func getRootFs(pattern string) (NameFS, []string, error) {

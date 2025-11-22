@@ -1,0 +1,463 @@
+name: E2E Tests
+
+# This workflow runs end-to-end tests with a real Immich server.
+# Security: Uses pull_request_target to protect secrets from untrusted forks.
+# Trigger: Auto for maintainers after fast-feedback, manual approval for external contributors.
+
+on:
+  # Trigger on PR approval (trusted contributors only)
+  pull_request_review:
+    types: [submitted]
+
+  # Trigger on /run-e2e command
+  issue_comment:
+    types: [created]
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to test"
+        required: true
+      ref:
+        description: "Git ref to test"
+        required: true
+
+  # Auto-trigger after fast-feedback for trusted contributors
+  workflow_run:
+    workflows: ["PR Fast Feedback"]
+    types: [completed]
+    branches:
+      - main
+      - develop
+
+# Global environment variables
+env:
+  project_dir: /home/runner/work/immich-go/immich-go
+  e2e_folder: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server
+  e2e_users: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
+  e2e_server: e2e-immich-${{ github.run_id }}
+  e2e_url: http://e2e-immich-${{ github.run_id }}:2283
+  e2e_ssh: root@e2e-immich-${{ github.run_id }}
+  runner_timeout: 900
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Gate: Validate trigger and check contributor trust
+  check-trigger:
+    name: 🚦 Check Trigger
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.validate.outputs.should_run }}
+      pr_number: ${{ steps.validate.outputs.pr_number }}
+      ref: ${{ steps.validate.outputs.ref }}
+      is_trusted: ${{ steps.validate.outputs.is_trusted }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate trigger and get PR info
+        id: validate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          SHOULD_RUN=false
+          PR_NUMBER=""
+          REF=""
+          IS_TRUSTED=false
+
+          # Handle different trigger types
+          case "$EVENT_NAME" in
+            "workflow_dispatch")
+              # Manual trigger
+              PR_NUMBER="${{ github.event.inputs.pr_number }}"
+              REF="${{ github.event.inputs.ref }}"
+              SHOULD_RUN=true
+              IS_TRUSTED=true  # Manual triggers are trusted
+              ;;
+              
+            "issue_comment")
+              # Check if comment is /run-e2e on a PR
+              if [[ "${{ github.event.issue.pull_request }}" != "" ]] && \
+                 [[ "${{ github.event.comment.body }}" == "/run-e2e" ]]; then
+                
+                # Check if commenter is a maintainer
+                AUTHOR_ASSOCIATION="${{ github.event.comment.author_association }}"
+                if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" ]] || [[ "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
+                  PR_NUMBER="${{ github.event.issue.number }}"
+                  REF=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER" -q .head.ref)
+                  SHOULD_RUN=true
+                  IS_TRUSTED=false  # Treat as external until verified
+                else
+                  echo "❌ Comment author is not a maintainer"
+                fi
+              fi
+              ;;
+              
+            "pull_request_review")
+              # Check if review is approval
+              if [[ "${{ github.event.review.state }}" == "approved" ]]; then
+                PR_NUMBER="${{ github.event.pull_request.number }}"
+                REF="${{ github.event.pull_request.head.ref }}"
+                
+                # Check if PR is from a fork
+                PR_FROM_FORK="${{ github.event.pull_request.head.repo.fork }}"
+                if [[ "$PR_FROM_FORK" == "true" ]]; then
+                  echo "⏭️ PR is from a fork - use /run-e2e comment instead of approval trigger"
+                  echo "⏭️ This avoids secret access issues with fork PRs"
+                  SHOULD_RUN=false
+                else
+                  # Check if PR author is trusted (only for non-fork PRs)
+                  AUTHOR_ASSOCIATION="${{ github.event.pull_request.author_association }}"
+                  if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" ]] || [[ "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
+                    IS_TRUSTED=true
+                  fi
+                  SHOULD_RUN=true
+                fi
+              fi
+              ;;
+              
+            "workflow_run")
+              # Auto-trigger after fast-feedback success
+              if [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+                # Get PR number from workflow run
+                PR_NUMBER=$(gh api "/repos/${{ github.repository }}/pulls" \
+                  --jq ".[] | select(.head.sha == \"${{ github.event.workflow_run.head_sha }}\") | .number" | head -1)
+                
+                if [[ -n "$PR_NUMBER" ]]; then
+                  REF=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER" -q .head.ref)
+                  
+                  # Check if PR author is trusted
+                  AUTHOR_ASSOCIATION=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER" -q .author_association)
+                  if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" ]] || [[ "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
+                    IS_TRUSTED=true
+                    SHOULD_RUN=true
+                  else
+                    echo "⏭️ External contributor - awaiting approval"
+                  fi
+                fi
+              fi
+              ;;
+          esac
+
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "ref=$REF" >> $GITHUB_OUTPUT
+          echo "is_trusted=$IS_TRUSTED" >> $GITHUB_OUTPUT
+
+          if [[ "$SHOULD_RUN" == "true" ]]; then
+            echo "✅ E2E tests will run for PR #$PR_NUMBER (ref: $REF, trusted: $IS_TRUSTED)"
+            
+            # Check if PR has code changes (not just docs)
+            FILES=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER/files" --jq '.[].filename')
+            NON_DOC_FILES=$(echo "$FILES" | grep -vE '\.(md|txt)$|^docs/' || true)
+            
+            if [[ -z "$NON_DOC_FILES" ]]; then
+              echo "⏭️ PR only contains documentation changes - skipping E2E tests"
+              echo "should_run=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "⏭️ E2E tests skipped"
+          fi
+
+  # E2E Server
+  e2e-server:
+    name: 🖥️ E2E Server
+    runs-on: ubuntu-latest
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should_run == 'true'
+    timeout-minutes: 15
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          hostname: ${{ env.e2e_server }}
+          args: --ssh
+
+      - name: Prepare server environment
+        run: |
+          mkdir -p "${{ env.e2e_folder }}"
+          touch "${{ env.e2e_users }}"
+
+      - name: Deploy Immich
+        run: |
+          cd "${{ env.e2e_folder }}"
+          curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml" -o docker-compose.yml
+          curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/example.env" -o .env
+          docker compose pull -q
+          docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans
+
+      - name: Show Immich containers status
+        run: docker compose -f "${{ env.e2e_folder }}/docker-compose.yml" ps
+
+      - name: Wait for Immich API
+        run: |
+          echo "⏳ Waiting for Immich API at ${{ env.e2e_url }}..."
+          for i in {1..90}; do
+            if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
+              echo "✅ API is ready (took $((i*2))s)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ Immich API did not become ready within 180 seconds"
+          exit 1
+
+      - name: Keep server running for tests
+        run: |
+          echo "🖥️ Server is running. Waiting for client tests to complete..."
+          max_wait=${{ env.runner_timeout }}
+          for ((elapsed=0; elapsed<max_wait; elapsed+=5)); do
+            if [ -f "${{ env.e2e_folder }}/done" ]; then
+              echo "✅ Done marker found! Tests completed."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "⚠️ Maximum wait time reached. Shutting down server."
+          exit 1
+
+      - name: Show Immich logs on failure
+        if: failure()
+        run: |
+          echo "=== Immich Server Logs ==="
+          docker compose -f "${{ env.e2e_folder }}/docker-compose.yml" logs
+
+      - name: Cleanup Immich Instance
+        if: always()
+        run: |
+          docker compose -f "${{ env.e2e_folder }}/docker-compose.yml" down --volumes --remove-orphans || true
+          docker system prune -f || true
+
+  # E2E Linux Client
+  e2e-linux:
+    name: 🐧 E2E Linux
+    runs-on: ubuntu-latest
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should_run == 'true'
+    timeout-minutes: 15
+    steps:
+      # SECURITY: Explicit checkout of PR code (not automatic)
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-trigger.outputs.ref }}
+          persist-credentials: false # Don't persist git credentials
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          hostname: e2e-linux-${{ github.run_id }}
+
+      - name: Wait for Immich API
+        run: |
+          echo "⏳ Waiting for Immich API at ${{ env.e2e_url }}..."
+          for i in {1..90}; do
+            if curl -sf "${{ env.e2e_url }}/api/server/ping" > /dev/null 2>&1; then
+              echo "✅ API is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ API timeout"
+          exit 1
+
+      - name: Create admin user and copy to server
+        run: |
+          mkdir -p "${{ env.e2e_folder }}"
+          cd "${{ env.project_dir }}/internal/e2e/e2eUtils/cmd/createUser"
+          go run createUser.go create-admin > "${{ env.e2e_folder }}/e2eusers.env"
+          scp -o StrictHostKeyChecking=no "${{ env.e2e_folder }}/e2eusers.env" "${{ env.e2e_ssh }}:${{ env.e2e_folder }}/e2eusers.env"
+
+      - name: Run E2E Tests
+        run: |
+          cd "${{ env.project_dir }}/internal/e2e/client"
+          go test -v -tags=e2e -timeout=30m ./...
+        env:
+          CGO_ENABLED: 0
+
+  # E2E Windows Client (only if Linux succeeds)
+  e2e-windows:
+    name: 🪟 E2E Windows
+    runs-on: windows-latest
+    needs: [check-trigger, e2e-linux]
+    if: needs.check-trigger.outputs.should_run == 'true'
+    timeout-minutes: 15
+    env:
+      e2e_users_server: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
+    steps:
+      # SECURITY: Explicit checkout of PR code
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check-trigger.outputs.ref }}
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          hostname: e2e-windows-${{ github.run_id }}
+
+      - name: Wait for Immich API
+        shell: pwsh
+        run: |
+          Write-Host "⏳ Waiting for Immich API..."
+          foreach ($i in 1..90) {
+            try {
+              $res = Invoke-WebRequest -Uri "${{ env.e2e_url }}/api/server/ping" -UseBasicParsing -ErrorAction SilentlyContinue
+              if ($res.StatusCode -eq 200) {
+                Write-Host "✅ API is ready"
+                exit 0
+              }
+            } catch {}
+            Start-Sleep -Seconds 2
+          }
+          Write-Host "❌ API timeout" -ForegroundColor Red
+          exit 1
+
+      - name: Copy e2eusers.env from server
+        shell: pwsh
+        run: |
+          New-Item -Path "${{ env.project_dir }}\internal\e2e\testdata\immich-server" -ItemType Directory -Force | Out-Null
+          scp -o StrictHostKeyChecking=no "${{ env.e2e_ssh }}:${{ env.e2e_users_server }}" "${{ env.project_dir }}\internal\e2e\testdata\immich-server\e2eusers.env"
+
+      - name: Run Windows Unit Tests
+        shell: pwsh
+        run: |
+          Write-Host "Running Windows unit tests..."
+          go test -v -count=1 ./...
+        env:
+          CGO_ENABLED: 0
+
+      - name: Build for Windows
+        shell: pwsh
+        run: |
+          Write-Host "Building for Windows..."
+          go build -o immich-go-windows.exe -ldflags="-s -w" main.go
+        env:
+          CGO_ENABLED: 0
+          GOOS: windows
+          GOARCH: amd64
+
+      - name: Verify Windows build
+        shell: pwsh
+        run: |
+          if (Test-Path "immich-go-windows.exe") {
+            Write-Host "✅ Windows build successful"
+            .\immich-go-windows.exe version
+          } else {
+            Write-Host "❌ Windows build failed" -ForegroundColor Red
+            exit 1
+          }
+
+      - name: Run E2E Tests
+        shell: pwsh
+        run: |
+          cd "${{ env.project_dir }}\internal\e2e\client"
+          go test -v -tags=e2e -timeout=30m ./...
+        env:
+          CGO_ENABLED: 0
+
+  # E2E Cleanup
+  e2e-cleanup:
+    name: 🧹 E2E Cleanup
+    runs-on: ubuntu-latest
+    needs: [check-trigger, e2e-linux, e2e-windows]
+    if: always() && needs.check-trigger.outputs.should_run == 'true'
+    timeout-minutes: 2
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci-immich-go
+          hostname: e2e-cleanup-${{ github.run_id }}
+          args: --ssh
+
+      - name: Create done marker on server
+        run: |
+          ssh -o StrictHostKeyChecking=no "${{ env.e2e_ssh }}" "touch ${{ env.e2e_folder }}/done"
+
+  # Cancel workflow if server fails
+  e2e-cancel-on-failure:
+    name: 🛑 Cancel on Server Failure
+    runs-on: ubuntu-latest
+    needs: [check-trigger, e2e-server]
+    if: failure() && needs.check-trigger.outputs.should_run == 'true'
+    timeout-minutes: 2
+    steps:
+      - name: Cancel workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "❌ E2E server failed. Cancelling remaining jobs..."
+          curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/cancel"
+
+  # Final status job - always runs to report workflow completion
+  e2e-complete:
+    name: ✅ E2E Complete
+    runs-on: ubuntu-latest
+    needs: [check-trigger, e2e-server, e2e-linux, e2e-windows, e2e-cleanup]
+    if: always()
+    steps:
+      - name: Check if tests were skipped
+        id: skip-check
+        run: |
+          if [[ "${{ needs.check-trigger.outputs.should_run }}" != "true" ]]; then
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            echo "📝 E2E tests skipped (doc-only PR or not triggered)"
+            exit 0
+          fi
+          echo "skipped=false" >> $GITHUB_OUTPUT
+
+      - name: Check test results
+        if: steps.skip-check.outputs.skipped != 'true'
+        env:
+          SERVER_STATUS: ${{ needs.e2e-server.result }}
+          LINUX_STATUS: ${{ needs.e2e-linux.result }}
+          WINDOWS_STATUS: ${{ needs.e2e-windows.result }}
+          CLEANUP_STATUS: ${{ needs.e2e-cleanup.result }}
+        run: |
+          echo "E2E Server: $SERVER_STATUS"
+          echo "E2E Linux: $LINUX_STATUS"
+          echo "E2E Windows: $WINDOWS_STATUS"
+          echo "E2E Cleanup: $CLEANUP_STATUS"
+
+          if [[ "$SERVER_STATUS" != "success" ]] || \
+             [[ "$LINUX_STATUS" != "success" ]] || \
+             [[ "$WINDOWS_STATUS" != "success" ]]; then
+            echo "❌ E2E tests failed"
+            exit 1
+          fi
+
+          echo "✅ All E2E tests passed!"

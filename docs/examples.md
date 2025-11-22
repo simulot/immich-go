@@ -97,10 +97,10 @@ immich-go upload from-google-photos \
 immich-go upload from-google-photos \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
-  --concurrent-uploads=4 \
+  --concurrent-tasks=4 \
   --client-timeout=60m \
   --pause-immich-jobs=true \
-  --on-server-errors=continue \
+  --on-errors=continue \
   --session-tag \
   /downloads/takeout-*.zip
 ```
@@ -182,7 +182,7 @@ immich-go upload from-immich \
   --from-api-key=old-api-key \
   --server=http://new-server:2283 \
   --api-key=new-api-key \
-  --concurrent-uploads=4
+  --concurrent-tasks=4
 ```
 
 ### Selective Migration
@@ -290,7 +290,7 @@ immich-go upload from-folder \
 immich-go upload from-folder \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
-  --concurrent-uploads=16 \
+  --concurrent-tasks=16 \
   --client-timeout=30m \
   --pause-immich-jobs=true \
   /large/photo/collection
@@ -302,9 +302,9 @@ immich-go upload from-folder \
 immich-go upload from-folder \
   --server=http://localhost:2283 \
   --api-key=your-api-key \
-  --concurrent-uploads=1 \
+  --concurrent-tasks=1 \
   --client-timeout=120m \
-  --on-server-errors=continue \
+  --on-errors=continue \
   /photos
 ```
 
@@ -418,7 +418,7 @@ immich-go upload from-folder \
   --api-key=your-api-key \
   --include-type=VIDEO \
   --client-timeout=180m \
-  --concurrent-uploads=2 \
+  --concurrent-tasks=2 \
   /large-videos
 ```
 

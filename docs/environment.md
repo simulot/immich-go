@@ -25,11 +25,11 @@ The following environment variables can be used to configure `immich-go`.
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_ALBUM_PATH_JOINER` | `--album-path-joiner` | ` / ` | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') |
-| `IMMICH_GO_ARCHIVE_FROM_FOLDER_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_ARCHIVE_FROM_FOLDER_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_DATE_FROM_NAME` | `--date-from-name` | `true` | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_EXCLUDE_EXTENSIONS` | `--exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
-| `IMMICH_GO_ARCHIVE_FROM_FOLDER_FOLDER_AS_ALBUM` | `--folder-as-album` | `none` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
+| `IMMICH_GO_ARCHIVE_FROM_FOLDER_FOLDER_AS_ALBUM` | `--folder-as-album` | `NONE` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_FOLDER_AS_TAGS` | `--folder-as-tags` | `false` | Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024) |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
@@ -41,7 +41,7 @@ The following environment variables can be used to configure `immich-go`.
 
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
-| `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_EXCLUDE_EXTENSIONS` | `--exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_FROM_ALBUM_NAME` | `--from-album-name` |  | Only import photos from the specified Google Photos album |
@@ -62,11 +62,11 @@ The following environment variables can be used to configure `immich-go`.
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_ALBUM_PATH_JOINER` | `--album-path-joiner` | ` / ` | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') |
-| `IMMICH_GO_ARCHIVE_FROM_ICLOUD_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_ARCHIVE_FROM_ICLOUD_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_DATE_FROM_NAME` | `--date-from-name` | `true` | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_EXCLUDE_EXTENSIONS` | `--exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
-| `IMMICH_GO_ARCHIVE_FROM_ICLOUD_FOLDER_AS_ALBUM` | `--folder-as-album` | `none` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
+| `IMMICH_GO_ARCHIVE_FROM_ICLOUD_FOLDER_AS_ALBUM` | `--folder-as-album` | `NONE` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_FOLDER_AS_TAGS` | `--folder-as-tags` | `false` | Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024) |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
@@ -114,11 +114,11 @@ The following environment variables can be used to configure `immich-go`.
 |----------|------|---------|-------------|
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_ALBUM_PATH_JOINER` | `--album-path-joiner` | ` / ` | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_ALBUM_PICASA` | `--album-picasa` | `true` | Use Picasa album name found in .picasa.ini file |
-| `IMMICH_GO_ARCHIVE_FROM_PICASA_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_ARCHIVE_FROM_PICASA_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_DATE_FROM_NAME` | `--date-from-name` | `true` | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_EXCLUDE_EXTENSIONS` | `--exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
-| `IMMICH_GO_ARCHIVE_FROM_PICASA_FOLDER_AS_ALBUM` | `--folder-as-album` | `none` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
+| `IMMICH_GO_ARCHIVE_FROM_PICASA_FOLDER_AS_ALBUM` | `--folder-as-album` | `NONE` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_FOLDER_AS_TAGS` | `--folder-as-tags` | `false` | Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024) |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
@@ -174,11 +174,11 @@ The following environment variables can be used to configure `immich-go`.
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_ALBUM_PATH_JOINER` | `--album-path-joiner` | ` / ` | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') |
-| `IMMICH_GO_UPLOAD_FROM_FOLDER_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_UPLOAD_FROM_FOLDER_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_DATE_FROM_NAME` | `--date-from-name` | `true` | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_EXCLUDE_EXTENSIONS` | `--exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
-| `IMMICH_GO_UPLOAD_FROM_FOLDER_FOLDER_AS_ALBUM` | `--folder-as-album` | `none` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
+| `IMMICH_GO_UPLOAD_FROM_FOLDER_FOLDER_AS_ALBUM` | `--folder-as-album` | `NONE` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_FOLDER_AS_TAGS` | `--folder-as-tags` | `false` | Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024) |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
@@ -190,7 +190,7 @@ The following environment variables can be used to configure `immich-go`.
 
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
-| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_EXCLUDE_EXTENSIONS` | `--exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_FROM_ALBUM_NAME` | `--from-album-name` |  | Only import photos from the specified Google Photos album |
@@ -211,11 +211,11 @@ The following environment variables can be used to configure `immich-go`.
 | Variable | Flag | Default | Description |
 |----------|------|---------|-------------|
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_ALBUM_PATH_JOINER` | `--album-path-joiner` | ` / ` | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') |
-| `IMMICH_GO_UPLOAD_FROM_ICLOUD_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_UPLOAD_FROM_ICLOUD_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_DATE_FROM_NAME` | `--date-from-name` | `true` | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_EXCLUDE_EXTENSIONS` | `--exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
-| `IMMICH_GO_UPLOAD_FROM_ICLOUD_FOLDER_AS_ALBUM` | `--folder-as-album` | `none` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
+| `IMMICH_GO_UPLOAD_FROM_ICLOUD_FOLDER_AS_ALBUM` | `--folder-as-album` | `NONE` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_FOLDER_AS_TAGS` | `--folder-as-tags` | `false` | Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024) |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
@@ -263,11 +263,11 @@ The following environment variables can be used to configure `immich-go`.
 |----------|------|---------|-------------|
 | `IMMICH_GO_UPLOAD_FROM_PICASA_ALBUM_PATH_JOINER` | `--album-path-joiner` | ` / ` | Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_ALBUM_PICASA` | `--album-picasa` | `true` | Use Picasa album name found in .picasa.ini file |
-| `IMMICH_GO_UPLOAD_FROM_PICASA_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store/', '/._*', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
+| `IMMICH_GO_UPLOAD_FROM_PICASA_BAN_FILE` | `--ban-file` | `'@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/'` | Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_DATE_FROM_NAME` | `--date-from-name` | `true` | Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_DATE_RANGE` | `--date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_EXCLUDE_EXTENSIONS` | `--exclude-extensions` |  | Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none) |
-| `IMMICH_GO_UPLOAD_FROM_PICASA_FOLDER_AS_ALBUM` | `--folder-as-album` | `none` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
+| `IMMICH_GO_UPLOAD_FROM_PICASA_FOLDER_AS_ALBUM` | `--folder-as-album` | `NONE` | Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_FOLDER_AS_TAGS` | `--folder-as-tags` | `false` | Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024) |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |

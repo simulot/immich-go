@@ -149,3 +149,28 @@ func BenchmarkPatternToRe(b *testing.B) {
 		_, _ = patternToRe("SYNOFILE_THUMB_*.*")
 	}
 }
+
+func TestListMatchDirVsFile(t *testing.T) {
+	l, err := New("Thumbs.db", "tmp/")
+	if err != nil {
+		t.Fatalf("failed to create list: %v", err)
+	}
+	if !l.MatchFile("Thumbs.db") {
+		t.Errorf("Thumbs.db should match file pattern")
+	}
+	if l.MatchDir("Thumbs.db") {
+		t.Errorf("Thumbs.db should not match directory pattern")
+	}
+	if l.MatchFile("tmp") {
+		t.Errorf("tmp directory should not match file pattern")
+	}
+	if !l.MatchDir("tmp") {
+		t.Errorf("tmp directory should match directory pattern")
+	}
+	if !l.MatchDir("some/path/tmp") {
+		t.Errorf("nested tmp directory should match directory pattern")
+	}
+	if l.MatchFile("some/path/tmp/file.jpg") {
+		t.Errorf("files inside tmp directory should not match file pattern when only tmp/ is banned")
+	}
+}
