@@ -46,6 +46,7 @@ When asked to generate release notes:
   - the commit title should prioritize features that affects the user experience
   - the commit details list other changes
   - maintain a provisional change log in the folder scratchpad
+  - but newer commit scratchpad content
   - only changes in the command line options are concidered as breaking change. The project is not about publish an API or a library.
 
 ## prepare a pull-request to merge with the develop branch
