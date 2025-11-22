@@ -1,0 +1,286 @@
+name: PR Fast Feedback
+
+# This workflow provides fast feedback on pull requests with code changes.
+# It runs linting, unit tests, security scanning, and build checks in parallel.
+# All checks must pass before E2E tests can run.
+
+on:
+    pull_request:
+        branches:
+            - main
+            - develop
+        paths:
+            - "**.go"
+            - "go.mod"
+            - "go.sum"
+            - "main.go"
+            - ".github/workflows/pr-fast-feedback.yml"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pull-requests: write
+    security-events: write
+
+jobs:
+    # Check if changes include code (skip for doc-only PRs)
+    analyze-changes:
+        name: 🔎 Analyze Changes
+        runs-on: ubuntu-latest
+        outputs:
+            has_code_changes: ${{ steps.check.outputs.has_code_changes }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Check for code changes
+              id: check
+              run: |
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    echo "has_code_changes=true" >> $GITHUB_OUTPUT
+                    exit 0
+                  fi
+
+                  CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+                  if [[ -z "$CHANGED_FILES" ]]; then
+                    echo "has_code_changes=false" >> $GITHUB_OUTPUT
+                    exit 0
+                  fi
+
+                  # Check if any non-doc files changed
+                  NON_DOC_FILES=$(echo "$CHANGED_FILES" | grep -vE '\.(md|txt)$|^docs/' || true)
+
+                  if [[ -n "$NON_DOC_FILES" ]]; then
+                    echo "✅ Code changes detected"
+                    echo "has_code_changes=true" >> $GITHUB_OUTPUT
+                  else
+                    echo "⏭️ Only documentation changes"
+                    echo "has_code_changes=false" >> $GITHUB_OUTPUT
+                  fi
+
+    # Lint code with golangci-lint
+    lint:
+        name: 🔍 Lint Code
+        runs-on: ubuntu-latest
+        needs: analyze-changes
+        if: needs.analyze-changes.outputs.has_code_changes == 'true'
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: go.mod
+                  cache: true
+
+            - name: Run golangci-lint
+              uses: golangci/golangci-lint-action@v6
+              with:
+                  version: latest
+                  args: --timeout=10m
+
+    # Unit tests on Linux with race detection
+    test-linux:
+        name: 🐧 Unit Tests (Linux)
+        runs-on: ubuntu-latest
+        needs: analyze-changes
+        if: needs.analyze-changes.outputs.has_code_changes == 'true'
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: go.mod
+                  cache: true
+
+            - name: Run tests with race detection
+              run: go test -race -v -count=1 ./...
+              env:
+                  CGO_ENABLED: 0
+
+    # Windows tests moved to E2E Windows runner to avoid spinning up 2 Windows runners
+
+    # Security scanning
+    security-scan:
+        name: 🔐 Security Scan
+        runs-on: ubuntu-latest
+        needs: analyze-changes
+        if: needs.analyze-changes.outputs.has_code_changes == 'true'
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: go.mod
+                  cache: true
+
+            # Run govulncheck for Go vulnerability scanning
+            - name: Install govulncheck
+              run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+            - name: Run govulncheck
+              id: govulncheck
+              continue-on-error: true
+              run: |
+                  govulncheck ./... 2>&1 | tee govulncheck-output.txt
+                  EXIT_CODE=${PIPESTATUS[0]}
+
+                  if [ $EXIT_CODE -eq 0 ]; then
+                    echo "status=success" >> $GITHUB_OUTPUT
+                    echo "severity=none" >> $GITHUB_OUTPUT
+                  else
+                    # Check severity of vulnerabilities
+                    if grep -qE 'HIGH|CRITICAL' govulncheck-output.txt; then
+                      echo "status=critical" >> $GITHUB_OUTPUT
+                      echo "severity=high" >> $GITHUB_OUTPUT
+                    else
+                      echo "status=warning" >> $GITHUB_OUTPUT
+                      echo "severity=low" >> $GITHUB_OUTPUT
+                    fi
+                  fi
+
+            # Dependency review for pull requests
+            - name: Dependency Review
+              if: github.event_name == 'pull_request'
+              uses: actions/dependency-review-action@v4
+              with:
+                  fail-on-severity: high
+                  comment-summary-in-pr: always
+
+            - name: Upload security results
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: security-scan-results
+                  path: govulncheck-output.txt
+                  retention-days: 7
+
+            - name: Fail on critical vulnerabilities
+              if: steps.govulncheck.outputs.severity == 'high'
+              run: |
+                  echo "❌ Critical security vulnerabilities found"
+                  cat govulncheck-output.txt
+                  exit 1
+
+    # Build verification
+    build-check:
+        name: 🔨 Build Check
+        runs-on: ubuntu-latest
+        needs: analyze-changes
+        if: needs.analyze-changes.outputs.has_code_changes == 'true'
+        strategy:
+            matrix:
+                include:
+                    - os: linux
+                      arch: amd64
+                    - os: windows
+                      arch: amd64
+                    - os: darwin
+                      arch: amd64
+                    - os: darwin
+                      arch: arm64
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version-file: go.mod
+                  cache: true
+
+            - name: Build for ${{ matrix.os }}/${{ matrix.arch }}
+              run: |
+                  CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} \
+                  go build -o immich-go-${{ matrix.os }}-${{ matrix.arch }} \
+                  -ldflags="-s -w -extldflags=-static" main.go
+
+            - name: Upload build artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: immich-go-${{ matrix.os }}-${{ matrix.arch }}
+                  path: immich-go-${{ matrix.os }}-${{ matrix.arch }}*
+                  retention-days: 7
+
+    # Aggregate results
+    fast-feedback-complete:
+        name: ✅ Fast Feedback Complete
+        runs-on: ubuntu-latest
+        needs: [analyze-changes, lint, test-linux, security-scan, build-check]
+        if: always() && needs.analyze-changes.outputs.has_code_changes == 'true'
+        steps:
+            - name: Check all jobs status
+              env:
+                  LINT_STATUS: ${{ needs.lint.result }}
+                  TEST_LINUX_STATUS: ${{ needs.test-linux.result }}
+                  SECURITY_STATUS: ${{ needs.security-scan.result }}
+                  BUILD_STATUS: ${{ needs.build-check.result }}
+              run: |
+                  echo "Lint: $LINT_STATUS"
+                  echo "Test Linux: $TEST_LINUX_STATUS"
+                  echo "Security: $SECURITY_STATUS"
+                  echo "Build: $BUILD_STATUS"
+
+                  if [[ "$LINT_STATUS" != "success" ]] || \
+                     [[ "$TEST_LINUX_STATUS" != "success" ]] || \
+                     [[ "$SECURITY_STATUS" != "success" ]] || \
+                     [[ "$BUILD_STATUS" != "success" ]]; then
+                    echo "❌ Fast feedback checks failed"
+                    exit 1
+                  fi
+
+                  echo "✅ All fast feedback checks passed!"
+
+            - name: Post success comment
+              if: success() && github.event_name == 'pull_request'
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const comment = `## ✅ Fast Feedback Passed
+
+                      All code quality checks have passed:
+                      - ✅ Linting
+                      - ✅ Unit Tests (Linux)
+                      - ✅ Security Scanning
+                      - ✅ Build Verification (Linux, Windows, macOS)
+
+                      **Next Steps:**
+                      ${context.payload.pull_request.author_association === 'MEMBER' || context.payload.pull_request.author_association === 'OWNER' 
+                        ? '🚀 E2E tests will run automatically if code paths changed.'
+                        : '⏳ E2E tests require maintainer approval. A maintainer can trigger them by:\n- Approving this PR, or\n- Commenting `/run-e2e`'
+                      }`;
+
+                      const { data: comments } = await github.rest.issues.listComments({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: context.issue.number,
+                      });
+
+                      const botComment = comments.find(comment => 
+                        comment.user.type === 'Bot' && 
+                        comment.body.includes('Fast Feedback Passed')
+                      );
+
+                      if (botComment) {
+                        await github.rest.issues.updateComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          comment_id: botComment.id,
+                          body: comment
+                        });
+                      } else {
+                        await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: context.issue.number,
+                          body: comment
+                        });
+                      }

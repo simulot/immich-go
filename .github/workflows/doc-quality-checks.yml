@@ -1,0 +1,265 @@
+name: Documentation Quality Checks
+
+# This workflow validates documentation quality for any markdown changes.
+# It runs linting, link checking, spell checking, and grammar checking.
+# Auto-fixes are applied where possible, warnings are posted as comments,
+# and critical issues block the merge.
+
+# COMMENTED OUT - Will be enabled later
+# on:
+#     pull_request:
+#         branches:
+#             - main
+#             - develop
+#         paths:
+#             - "**.md"
+#             - "docs/**"
+#     workflow_dispatch:
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pull-requests: write # For posting comments
+
+jobs:
+    doc-quality:
+        name: 📚 Documentation Quality
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Get changed markdown files
+              id: changed-files
+              run: |
+                  if [ "${{ github.event_name }}" = "pull_request" ]; then
+                    CHANGED_MD=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.base_ref }}...HEAD | grep -E '\.md$' || true)
+                  else
+                    CHANGED_MD=$(find . -name '*.md' -not -path './node_modules/*' -not -path './.git/*')
+                  fi
+
+                  if [ -z "$CHANGED_MD" ]; then
+                    echo "No markdown files changed"
+                    echo "has_changes=false" >> $GITHUB_OUTPUT
+                  else
+                    echo "Changed markdown files:"
+                    echo "$CHANGED_MD"
+                    echo "$CHANGED_MD" > changed_files.txt
+                    echo "has_changes=true" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Setup Node.js
+              if: steps.changed-files.outputs.has_changes == 'true'
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+
+            # Markdown Linting with auto-fix
+            - name: Install markdownlint-cli2
+              if: steps.changed-files.outputs.has_changes == 'true'
+              run: npm install -g markdownlint-cli2
+
+            - name: Run markdownlint with auto-fix
+              if: steps.changed-files.outputs.has_changes == 'true'
+              id: markdown-lint
+              continue-on-error: true
+              run: |
+                  # Run with auto-fix
+                  cat changed_files.txt | xargs markdownlint-cli2 --fix || true
+
+                  # Check if there are still issues
+                  if cat changed_files.txt | xargs markdownlint-cli2 2>&1 | tee markdownlint-output.txt; then
+                    echo "status=success" >> $GITHUB_OUTPUT
+                  else
+                    echo "status=warning" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Commit auto-fixes
+              if: steps.changed-files.outputs.has_changes == 'true' && steps.markdown-lint.outputs.status == 'warning'
+              continue-on-error: true
+              run: |
+                  git config --local user.email "github-actions[bot]@users.noreply.github.com"
+                  git config --local user.name "github-actions[bot]"
+                  git add -A
+                  git diff --staged --quiet || git commit -m "docs: auto-fix markdown linting issues"
+
+            # Link Checking (Critical - blocks merge)
+            - name: Install markdown-link-check
+              if: steps.changed-files.outputs.has_changes == 'true'
+              run: npm install -g markdown-link-check
+
+            - name: Check markdown links
+              if: steps.changed-files.outputs.has_changes == 'true'
+              id: link-check
+              continue-on-error: true
+              run: |
+                  EXIT_CODE=0
+                  while IFS= read -r file; do
+                    echo "Checking links in: $file"
+                    if ! markdown-link-check "$file" --config .markdown-link-check.json 2>&1 | tee -a link-check-output.txt; then
+                      EXIT_CODE=1
+                    fi
+                  done < changed_files.txt
+
+                  if [ $EXIT_CODE -eq 0 ]; then
+                    echo "status=success" >> $GITHUB_OUTPUT
+                  else
+                    echo "status=critical" >> $GITHUB_OUTPUT
+                  fi
+
+            # Spell Checking (Warning only)
+            - name: Install cspell
+              if: steps.changed-files.outputs.has_changes == 'true'
+              run: npm install -g cspell
+
+            - name: Run spell check
+              if: steps.changed-files.outputs.has_changes == 'true'
+              id: spell-check
+              continue-on-error: true
+              run: |
+                  if cat changed_files.txt | xargs cspell --config .cspell.json 2>&1 | tee spell-check-output.txt; then
+                    echo "status=success" >> $GITHUB_OUTPUT
+                  else
+                    echo "status=warning" >> $GITHUB_OUTPUT
+                  fi
+
+            # Grammar Checking (Warning only)
+            - name: Install Vale
+              if: steps.changed-files.outputs.has_changes == 'true'
+              run: |
+                  wget https://github.com/errata-ai/vale/releases/latest/download/vale_Linux_64-bit.tar.gz
+                  mkdir -p bin
+                  tar -xvzf vale_Linux_64-bit.tar.gz -C bin
+                  echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+
+            - name: Run grammar check
+              if: steps.changed-files.outputs.has_changes == 'true'
+              id: grammar-check
+              continue-on-error: true
+              run: |
+                  if cat changed_files.txt | xargs ./bin/vale --config .vale.ini 2>&1 | tee grammar-check-output.txt; then
+                    echo "status=success" >> $GITHUB_OUTPUT
+                  else
+                    echo "status=warning" >> $GITHUB_OUTPUT
+                  fi
+
+            # Aggregate results and post comment
+            - name: Prepare results summary
+              if: steps.changed-files.outputs.has_changes == 'true'
+              id: summary
+              run: |
+                  SUMMARY="## 📚 Documentation Quality Check Results\n\n"
+                  HAS_CRITICAL=false
+                  HAS_WARNING=false
+
+                  # Markdown lint results
+                  if [ "${{ steps.markdown-lint.outputs.status }}" = "success" ]; then
+                    SUMMARY="${SUMMARY}✅ **Markdown Linting**: Passed\n"
+                  else
+                    SUMMARY="${SUMMARY}⚠️ **Markdown Linting**: Warnings found\n"
+                    HAS_WARNING=true
+                    if [ -f markdownlint-output.txt ]; then
+                      SUMMARY="${SUMMARY}\`\`\`\n$(cat markdownlint-output.txt | head -20)\n\`\`\`\n"
+                    fi
+                  fi
+
+                  # Link check results
+                  if [ "${{ steps.link-check.outputs.status }}" = "success" ]; then
+                    SUMMARY="${SUMMARY}✅ **Link Checking**: All links valid\n"
+                  elif [ "${{ steps.link-check.outputs.status }}" = "critical" ]; then
+                    SUMMARY="${SUMMARY}❌ **Link Checking**: Broken links found (BLOCKING)\n"
+                    HAS_CRITICAL=true
+                    if [ -f link-check-output.txt ]; then
+                      SUMMARY="${SUMMARY}\`\`\`\n$(cat link-check-output.txt | grep -E 'ERROR|✖' | head -10)\n\`\`\`\n"
+                    fi
+                  fi
+
+                  # Spell check results
+                  if [ "${{ steps.spell-check.outputs.status }}" = "success" ]; then
+                    SUMMARY="${SUMMARY}✅ **Spell Checking**: No typos found\n"
+                  else
+                    SUMMARY="${SUMMARY}⚠️ **Spell Checking**: Potential typos found\n"
+                    HAS_WARNING=true
+                    if [ -f spell-check-output.txt ]; then
+                      SUMMARY="${SUMMARY}\`\`\`\n$(cat spell-check-output.txt | head -15)\n\`\`\`\n"
+                    fi
+                  fi
+
+                  # Grammar check results
+                  if [ "${{ steps.grammar-check.outputs.status }}" = "success" ]; then
+                    SUMMARY="${SUMMARY}✅ **Grammar Checking**: Looks good\n"
+                  else
+                    SUMMARY="${SUMMARY}⚠️ **Grammar Checking**: Suggestions found\n"
+                    HAS_WARNING=true
+                    if [ -f grammar-check-output.txt ]; then
+                      SUMMARY="${SUMMARY}\`\`\`\n$(cat grammar-check-output.txt | head -15)\n\`\`\`\n"
+                    fi
+                  fi
+
+                  # Final status
+                  if [ "$HAS_CRITICAL" = "true" ]; then
+                    SUMMARY="${SUMMARY}\n---\n❌ **Status**: BLOCKING - Please fix critical issues before merging.\n"
+                    echo "final_status=critical" >> $GITHUB_OUTPUT
+                  elif [ "$HAS_WARNING" = "true" ]; then
+                    SUMMARY="${SUMMARY}\n---\n⚠️ **Status**: Warnings found - Review recommended but not blocking.\n"
+                    echo "final_status=warning" >> $GITHUB_OUTPUT
+                  else
+                    SUMMARY="${SUMMARY}\n---\n✅ **Status**: All checks passed!\n"
+                    echo "final_status=success" >> $GITHUB_OUTPUT
+                  fi
+
+                  echo "$SUMMARY" > summary.txt
+                  echo "summary<<EOF" >> $GITHUB_OUTPUT
+                  cat summary.txt >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
+
+            - name: Post results as PR comment
+              if: steps.changed-files.outputs.has_changes == 'true' && github.event_name == 'pull_request'
+              uses: actions/github-script@v7
+              env:
+                  SUMMARY: ${{ steps.summary.outputs.summary }}
+              with:
+                  script: |
+                      const summary = process.env.SUMMARY;
+                      const { data: comments } = await github.rest.issues.listComments({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: context.issue.number,
+                      });
+
+                      const botComment = comments.find(comment => 
+                        comment.user.type === 'Bot' && 
+                        comment.body.includes('Documentation Quality Check Results')
+                      );
+
+                      const commentBody = summary;
+
+                      if (botComment) {
+                        await github.rest.issues.updateComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          comment_id: botComment.id,
+                          body: commentBody
+                        });
+                      } else {
+                        await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: context.issue.number,
+                          body: commentBody
+                        });
+                      }
+
+            - name: Fail if critical issues found
+              if: steps.changed-files.outputs.has_changes == 'true' && steps.summary.outputs.final_status == 'critical'
+              run: |
+                  echo "❌ Critical documentation issues found. Please fix before merging."
+                  exit 1
+
+            - name: Success
+              if: steps.changed-files.outputs.has_changes == 'true'
+              run: echo "✅ Documentation quality checks completed"

@@ -1,0 +1,59 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "words": [],
+    "flagWords": [],
+    "ignorePaths": [
+        "node_modules/**",
+        "**/node_modules/**",
+        "vendor/**",
+        ".git/**",
+        "*.min.js"
+    ],
+    "ignoreRegExpList": [
+        "/\\b[A-Z]{2,}\\b/g",
+        "/\\b0x[0-9A-Fa-f]+\\b/g"
+    ],
+    "dictionaries": [
+        "en",
+        "en-US",
+        "companies",
+        "softwareTerms",
+        "misc",
+        "golang",
+        "project-words"
+    ],
+    "dictionaryDefinitions": [
+        {
+            "name": "project-words",
+            "path": "./.cspell-words.txt",
+            "addWords": true
+        },
+        {
+            "name": "golang",
+            "words": [
+                "golang",
+                "gofmt",
+                "golangci",
+                "gomod",
+                "gosum",
+                "goroutine",
+                "goroutines",
+                "struct",
+                "structs",
+                "func",
+                "funcs",
+                "chan",
+                "chans",
+                "ctx",
+                "init",
+                "ioutil",
+                "sync",
+                "mutex",
+                "waitgroup"
+            ]
+        }
+    ],
+    "allowCompoundWords": true,
+    "import": []
+}
