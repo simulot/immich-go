@@ -49,7 +49,7 @@ jobs:
 
           echo "Files changed in this PR:"
           echo "$CHANGED_FILES"
-          NON_DOC_FILES=$(echo "$CHANGED_FILES" | grep -vE '(\.md|\.txt)$|^docs/')
+          NON_DOC_FILES=$(echo "$CHANGED_FILES" | grep -vE '(\.md|\.txt)$|^docs/' || true)
 
           if [[ -n "$NON_DOC_FILES" ]]; then
             echo "✅ Code changes detected."
