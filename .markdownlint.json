@@ -1,0 +1,25 @@
+{
+    "config": {
+        "default": true,
+        "MD013": false,
+        "MD033": {
+            "allowed_elements": [
+                "details",
+                "summary",
+                "br",
+                "img",
+                "kbd"
+            ]
+        },
+        "MD041": false,
+        "MD024": {
+            "siblings_only": true
+        }
+    },
+    "ignores": [
+        "node_modules/**",
+        "**/node_modules/**",
+        "vendor/**",
+        ".git/**"
+    ]
+}

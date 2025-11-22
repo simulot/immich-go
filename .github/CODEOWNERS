@@ -1,0 +1,33 @@
+# CODEOWNERS for immich-go
+# This file defines code ownership and required reviewers for specific paths.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @simulot
+
+# GitHub Actions Workflows - CRITICAL SECURITY
+# Changes to workflow files must be reviewed by maintainers to prevent
+# malicious code from accessing secrets or compromising the CI/CD pipeline
+/.github/workflows/* @simulot
+
+# CI/CD Configuration Files
+/.github/CODEOWNERS @simulot
+/.github/*.yml @simulot
+/.github/*.md @simulot
+
+# Security-sensitive files
+/go.mod @simulot
+/go.sum @simulot
+
+# Release management
+/scripts/publish-prerelease.sh @simulot
+/scripts/generate-release-notes.sh @simulot
+/scripts/check-immich-api.sh @simulot
+
+# Documentation - maintainers review for technical accuracy
+/docs/* @simulot
+/README.md @simulot
+/CONTRIBUTING.md @simulot
+
+# E2E test infrastructure (contains server setup)
+/internal/e2e/testdata/immich-server/* @simulot

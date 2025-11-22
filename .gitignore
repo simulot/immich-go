@@ -21,6 +21,8 @@ archive.tar
 test-config.yaml
 __debug_*
 
+!.cspell-words.txt
+
 # macOS system files
 .DS_Store
 
