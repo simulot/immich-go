@@ -101,8 +101,6 @@ jobs:
 
             - name: Run tests with race detection
               run: go test -race -v -count=1 ./...
-              env:
-                  CGO_ENABLED: 0
 
     # Windows tests moved to E2E Windows runner to avoid spinning up 2 Windows runners
 
