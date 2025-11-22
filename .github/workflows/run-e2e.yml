@@ -26,7 +26,7 @@ jobs:
   # Job 1: Check if the trigger comment is valid
   # =====================================================================================
   check-trigger:
-    name:  gate Check Trigger Comment
+    name: gate Check Trigger Comment
     runs-on: ubuntu-latest
     outputs:
       pr_number: ${{ steps.check.outputs.pr_number }}
@@ -253,7 +253,8 @@ jobs:
     if: failure() && needs.check-trigger.outputs.should_run == 'true'
     steps:
       - name: Cancel workflow
-        env: { GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "❌ E2E server failed. Cancelling remaining jobs..."
           curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/cancel"

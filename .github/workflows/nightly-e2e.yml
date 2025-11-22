@@ -1,0 +1,87 @@
+name: Nightly E2E Tests
+
+# This workflow runs the end-to-end (E2E) test suite against the latest Immich server release.
+# It is scheduled to run daily and can also be triggered manually.
+
+on:
+  schedule:
+    # Run daily at 1:00 AM UTC
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+# Global environment variables
+env:
+  IMMICH_URL: http://localhost:2283
+
+jobs:
+  test-with-latest-immich:
+    name: 🧪 Test against latest Immich
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 🛎️ Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: 🛠️ Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "go.sum"
+
+      - name: 🚀 Deploy latest Immich server
+        run: |
+          mkdir -p immich-server
+          cd immich-server
+          echo "Downloading latest Immich docker-compose.yml and .env..."
+          curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml" -o docker-compose.yml
+          curl -fsSL "https://github.com/immich-app/immich/releases/latest/download/example.env" -o .env
+          
+          echo "Pulling latest images..."
+          docker compose pull -q
+          
+          echo "Starting Immich server..."
+          docker compose up -d --build --renew-anon-volumes --force-recreate --remove-orphans
+
+      - name: 🚦 Wait for Immich API to be ready
+        run: |
+          echo "⏳ Waiting for Immich API at ${{ env.IMMICH_URL }}..."
+          for i in {1..90}; do
+            if curl -sf "${{ env.IMMICH_URL }}/api/server/ping" > /dev/null 2>&1; then
+              echo "✅ API is ready (took $(($i*2))s)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ Immich API did not become ready within 180 seconds"
+          exit 1
+
+      - name: 🧑‍💻 Create admin user for tests
+        run: |
+          mkdir -p internal/e2e/testdata/immich-server
+          cd internal/e2e/e2eUtils/cmd/createUser
+          go run createUser.go create-admin > ../../../testdata/immich-server/e2eusers.env
+          
+      - name: 🔬 Run E2E Tests
+        run: |
+          cd internal/e2e/client
+          go test -v -tags=e2e -timeout=30m ./...
+        env:
+          CGO_ENABLED: 0
+          e2e_url: ${{ env.IMMICH_URL }}
+
+      - name: 📕 Show Immich logs on failure
+        if: failure()
+        run: |
+          echo "🚨 E2E tests failed. Dumping Immich server logs..."
+          cd immich-server
+          docker compose logs
+
+      - name: 🧹 Cleanup Immich Instance
+        if: always()
+        run: |
+          echo "Shutting down Immich server..."
+          cd immich-server
+          docker compose down --volumes --remove-orphans || true
+          docker system prune -f || true
