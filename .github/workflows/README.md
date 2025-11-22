@@ -1,185 +1,65 @@
 # GitHub Actions Workflows
 
-## Overview
+This document provides an overview of the CI/CD workflows used in the `immich-go` project.
 
-This directory contains the CI/CD workflows for the immich-go project.
+## Workflows Overview
 
-## Workflows
-
-### 1. CI (`ci.yml`)
-**Triggers:** Pull requests and pushes to `main`/`develop`
-
-**Runs automatically on all PRs** - No secrets required.
-
-**Jobs:**
-- ✅ Branch name validation
-- ✅ Code linting (golangci-lint)
-- ✅ Unit tests with coverage
-- ✅ Build verification
-
-**Purpose:** Fast feedback for all contributors without exposing secrets.
+| Workflow | Trigger | Description |
+|---|---|---|
+| [PR Checks](#pr-checks---fast-feedback) | Pull Request | Provides fast feedback (lint, unit tests, build) on code changes. |
+| [Nightly E2E](#nightly-e2e-tests) | Daily Schedule | Runs end-to-end tests against the latest Immich server release. |
+| [Run E2E Tests](#run-e2e-tests) | PR Comment | Runs end-to-end tests for a specific pull request. |
+| [Release](#release) | Manual | Creates a new release using GoReleaser. |
 
 ---
 
-### 2. E2E Tests (`ci-e2e.yml`)
-**Triggers:** Pull requests, pushes, and manual dispatch
+## 1. PR Checks - Fast Feedback
 
-**Requires approval for external contributors** - Uses Tailscale secrets.
+**File:** `pr-checks.yml`
 
-**Jobs:**
-- 🔐 Approval check (automatic for trusted, manual for external)
-- 🖥️ E2E server provisioning (Tailscale)
-- 🐧 Linux client E2E tests
-- 🪟 Windows client E2E tests
-- 🧹 Cleanup
+This workflow runs on every pull request to provide rapid feedback to contributors. It checks for code quality and runs basic tests.
 
-**Security:**
-- Trusted contributors (collaborators): E2E runs automatically
-- External contributors: Requires `e2e-approved` label from maintainer
+### Triggers
 
-**For maintainers:** See [`E2E_APPROVAL_GUIDE.md`](../E2E_APPROVAL_GUIDE.md)
+- On `pull_request` to `main` or `develop` branches.
 
----
 
-## CI Pipeline Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     PR Opened/Updated                        │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      ├─────────────────────────────────────┐
-                      │                                     │
-              ┌───────▼────────┐                   ┌────────▼────────┐
-              │   CI Workflow   │                   │  E2E Workflow   │
-              │   (ci.yml)      │                   │  (ci-e2e.yml)   │
-              └───────┬────────┘                   └────────┬────────┘
-                      │                                     │
-         ┌────────────┼────────────┐                       │
-         │            │            │                       │
-    ┌────▼───┐  ┌────▼───┐  ┌────▼───┐            ┌──────▼──────┐
-    │Validate│  │  Lint  │  │  Test  │            │Check Approval│
-    │ Branch │  │  Code  │  │  & Cov │            │   & Changes  │
-    └────┬───┘  └────┬───┘  └────┬───┘            └──────┬──────┘
-         │            │            │                       │
-         └────────────┴────────────┘               ┌───────┴───────┐
-                      │                            │               │
-                 ┌────▼────┐                  ┌────▼────┐    ┌────▼────┐
-                 │  Build  │                  │ Trusted │    │External │
-                 │  Check  │                  │  User   │    │Contrib. │
-                 └─────────┘                  └────┬────┘    └────┬────┘
-                                                   │              │
-                                              ┌────▼────┐    ┌────▼─────┐
-                                              │Run E2E  │    │Has Label?│
-                                              │Tests    │    └────┬─────┘
-                                              └─────────┘         │
-                                                              ┌───┴────┐
-                                                              │Yes│ No │
-                                                              └┬──┴──┬─┘
-                                                         ┌─────▼─┐   │
-                                                         │Run E2E│   │
-                                                         └───────┘   │
-                                                                 ┌───▼────┐
-                                                                 │Skip + │
-                                                                 │Comment │
-                                                                 └────────┘
-```
+### Jobs
 
-## For Contributors
+1.  **`🔎 Analyze Changes`**:
+    -   Determines if the pull request contains changes to Go code, scripts, or workflow files.
+    -   It ignores changes to documentation (e.g., `.md` files).
+    -   The result (`has_code_changes`) is used to decide whether to run the next job.
 
-### Running Tests Locally
+2.  **`🚀 Fast Feedback`**:
+    -   This job runs only if code changes are detected.
+    -   **Lint Code**: Runs `golangci-lint` to check for style issues.
+    -   **Run Unit Tests**: Executes `go test` with the `-race` detector.
+    -   **Build Binary**: Compiles the application to ensure it builds correctly.
 
-```bash
-# Run linting
-make lint
-# or
-golangci-lint run ./...
-
-# Run unit tests
-go test ./...
-
-# Run unit tests with coverage
-go test -cover ./...
-
-# Run E2E tests (requires local Immich server)
-go test -tags=e2e ./internal/e2e/client/...
-```
-
-### Expected CI Behavior
-
-**For external contributors:**
-1. ✅ Fast feedback (lint, test, build) runs immediately
-2. ⏸️ E2E tests are skipped (requires maintainer approval)
-3. Maintainer will review and add `e2e-approved` label if safe
-4. ✅ E2E tests run after approval
-
-**For repository collaborators:**
-1. ✅ All checks run automatically (including E2E)
-
-## For Maintainers
-
-### Approving E2E Tests for External PRs
-
-1. **Review the PR code thoroughly**
-2. **Check for security concerns**
-3. **Add the `e2e-approved` label:**
-
-```bash
-gh pr edit PR_NUMBER --add-label "e2e-approved"
-```
-
-4. **E2E tests run automatically**
-
-See the complete guide: [`E2E_APPROVAL_GUIDE.md`](../E2E_APPROVAL_GUIDE.md)
-
-### Creating the Label
-
-If `e2e-approved` doesn't exist:
-
-```bash
-gh label create "e2e-approved" \
-  --description "E2E tests approved by maintainer" \
-  --color "0E8A16"
-```
-
-## Secrets Required
-
-### For CI Workflow
-None - Runs on all PRs without secrets
-
-### For E2E Workflow
-- `TS_OAUTH_CLIENT_ID` - Tailscale OAuth client ID
-- `TS_OAUTH_SECRET` - Tailscale OAuth secret
-
-⚠️ **These secrets are only exposed to:**
-- Trusted contributors (repository collaborators)
-- External PRs with `e2e-approved` label (after manual review)
-
-## Troubleshooting
-
-### Lint Failures
-```bash
-# Run linting locally to reproduce
-golangci-lint run ./...
-```
-
-### Test Failures
-```bash
-# Run tests locally with verbose output
-go test -v ./...
-
-# Run specific test
-go test -v -run TestName ./path/to/package
-```
-
-### E2E Tests Not Running
-- **External contributor?** Wait for maintainer to add `e2e-approved` label
-- **Trusted contributor?** Check collaborator status in repo settings
-- **Only docs changed?** E2E tests are automatically skipped
-
-### Manual E2E Trigger
-Go to **Actions** → **E2E Tests** → **Run workflow**
+3.  **`📢 Notify for E2E`**:
+    -   If the `fast-feedback` job succeeds, this job posts a comment on the pull request.
+    -   The comment informs maintainers and contributors how to trigger the full End-to-End (E2E) tests.
 
 ---
 
-For questions or issues with CI/CD, please open a GitHub issue or discussion.
+## 2. Nightly E2E Tests
+
+**File:** `nightly-e2e.yml`
+
+This workflow validates the `main` branch against the very latest version of the Immich server to catch any breaking changes from upstream.
+
+### Triggers
+
+-   Daily at 1:00 AM UTC (`schedule`).
+-   Manually via `workflow_dispatch`.
+
+### Jobs
+
+1.  **`🧪 Test against latest Immich`**:
+    -   **Deploy latest Immich server**: Downloads and starts the official Immich server using the latest `docker-compose.yml` from their repository.
+    -   **Wait for Immich API**: Pings the server until it's ready to accept requests.
+    -   **Run E2E Tests**: Executes the Go E2E test suite (`go test -tags=e2e`).
+    -   **Show Immich logs on failure**: If the tests fail, it dumps the Docker logs for the Immich server to help with debugging.
+    -   **Cleanup**: Stops and removes the Docker containers and volumes, ensuring a clean environment for the next run.
