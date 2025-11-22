@@ -24,7 +24,7 @@ album-path-joiner = ' / '
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = 'none'
+folder-as-album = 'NONE'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
@@ -57,7 +57,7 @@ album-path-joiner = ' / '
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = 'none'
+folder-as-album = 'NONE'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
@@ -107,7 +107,7 @@ album-picasa = true
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = 'none'
+folder-as-album = 'NONE'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
@@ -158,7 +158,7 @@ album-path-joiner = ' / '
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = 'none'
+folder-as-album = 'NONE'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
@@ -191,7 +191,7 @@ album-path-joiner = ' / '
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = 'none'
+folder-as-album = 'NONE'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
@@ -241,7 +241,7 @@ album-picasa = true
 date-from-name = true
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
-folder-as-album = 'none'
+folder-as-album = 'NONE'
 folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
@@ -267,7 +267,7 @@ archive:
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
-    folder-as-album: none
+    folder-as-album: NONE
     folder-as-tags: false
     ignore-sidecar-files: false
     include-extensions: []
@@ -296,7 +296,7 @@ archive:
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
-    folder-as-album: none
+    folder-as-album: NONE
     folder-as-tags: false
     ignore-sidecar-files: false
     include-extensions: []
@@ -340,7 +340,7 @@ archive:
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
-    folder-as-album: none
+    folder-as-album: NONE
     folder-as-tags: false
     ignore-sidecar-files: false
     include-extensions: []
@@ -384,7 +384,7 @@ upload:
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
-    folder-as-album: none
+    folder-as-album: NONE
     folder-as-tags: false
     ignore-sidecar-files: false
     include-extensions: []
@@ -413,7 +413,7 @@ upload:
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
-    folder-as-album: none
+    folder-as-album: NONE
     folder-as-tags: false
     ignore-sidecar-files: false
     include-extensions: []
@@ -457,7 +457,7 @@ upload:
     date-from-name: true
     date-range: 2024-01-15,2024-03-31
     exclude-extensions: []
-    folder-as-album: none
+    folder-as-album: NONE
     folder-as-tags: false
     ignore-sidecar-files: false
     include-extensions: []
@@ -492,7 +492,7 @@ upload:
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
-      "folder-as-album": "none",
+      "folder-as-album": "NONE",
       "folder-as-tags": false,
       "ignore-sidecar-files": false,
       "include-extensions": null,
@@ -523,7 +523,7 @@ upload:
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
-      "folder-as-album": "none",
+      "folder-as-album": "NONE",
       "folder-as-tags": false,
       "ignore-sidecar-files": false,
       "include-extensions": null,
@@ -569,7 +569,7 @@ upload:
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
-      "folder-as-album": "none",
+      "folder-as-album": "NONE",
       "folder-as-tags": false,
       "ignore-sidecar-files": false,
       "include-extensions": null,
@@ -616,7 +616,7 @@ upload:
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
-      "folder-as-album": "none",
+      "folder-as-album": "NONE",
       "folder-as-tags": false,
       "ignore-sidecar-files": false,
       "include-extensions": null,
@@ -647,7 +647,7 @@ upload:
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
-      "folder-as-album": "none",
+      "folder-as-album": "NONE",
       "folder-as-tags": false,
       "ignore-sidecar-files": false,
       "include-extensions": null,
@@ -693,7 +693,7 @@ upload:
       "date-from-name": true,
       "date-range": "2024-01-15,2024-03-31",
       "exclude-extensions": null,
-      "folder-as-album": "none",
+      "folder-as-album": "NONE",
       "folder-as-tags": false,
       "ignore-sidecar-files": false,
       "include-extensions": null,
