@@ -43,6 +43,12 @@ jobs:
           # 2. Is the comment body exactly `/run-e2e`?
           # 3. Is the author a maintainer (MEMBER or OWNER)?
 
+          if [[ "${{ github.event_name }}" != "issue_comment" ]]; then
+            echo "Not triggered by issue comment. Skipping."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           if [[ "${{ github.event.issue.pull_request }}" == "" ]]
           then
             echo "This comment is not on a pull request. Skipping."
