@@ -78,9 +78,8 @@ jobs:
           cache: true
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.6.2
           args: --timeout=10m
 
   # Unit tests on Linux with race detection
