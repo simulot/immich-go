@@ -5,130 +5,130 @@ name: Check Workflow Changes
 # carefully for security implications.
 
 on:
-    pull_request:
-        branches:
-            - main
-            - develop
-        paths:
-            - ".github/workflows/**"
-            - ".github/CODEOWNERS"
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - ".github/workflows/**"
+      - ".github/CODEOWNERS"
 
 permissions:
-    contents: read
-    pull-requests: write
+  contents: read
+  pull-requests: write
 
 jobs:
-    detect-workflow-changes:
-        name: 🚨 Detect Workflow Changes
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+  detect-workflow-changes:
+    name: 🚨 Detect Workflow Changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Get changed workflow files
-              id: changed-files
-              run: |
-                  CHANGED_WORKFLOWS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^\.github/workflows/.*\.yml$' || true)
-                  CHANGED_CODEOWNERS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^\.github/CODEOWNERS$' || true)
+      - name: Get changed workflow files
+        id: changed-files
+        run: |
+          CHANGED_WORKFLOWS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^\.github/workflows/.*\.yml$' || true)
+          CHANGED_CODEOWNERS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^\.github/CODEOWNERS$' || true)
 
-                  if [[ -n "$CHANGED_WORKFLOWS" ]] || [[ -n "$CHANGED_CODEOWNERS" ]]; then
-                    echo "has_changes=true" >> $GITHUB_OUTPUT
-                    
-                    CHANGED_LIST=""
-                    if [[ -n "$CHANGED_WORKFLOWS" ]]; then
-                      CHANGED_LIST="**Workflow files:**\n\`\`\`\n${CHANGED_WORKFLOWS}\n\`\`\`\n"
-                    fi
-                    if [[ -n "$CHANGED_CODEOWNERS" ]]; then
-                      CHANGED_LIST="${CHANGED_LIST}**CODEOWNERS file:**\n\`\`\`\n${CHANGED_CODEOWNERS}\n\`\`\`\n"
-                    fi
-                    
-                    echo "changed_list<<EOF" >> $GITHUB_OUTPUT
-                    echo -e "$CHANGED_LIST" >> $GITHUB_OUTPUT
-                    echo "EOF" >> $GITHUB_OUTPUT
-                  else
-                    echo "has_changes=false" >> $GITHUB_OUTPUT
-                  fi
+          if [[ -n "$CHANGED_WORKFLOWS" ]] || [[ -n "$CHANGED_CODEOWNERS" ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            
+            CHANGED_LIST=""
+            if [[ -n "$CHANGED_WORKFLOWS" ]]; then
+              CHANGED_LIST="**Workflow files:**\n\`\`\`\n${CHANGED_WORKFLOWS}\n\`\`\`\n"
+            fi
+            if [[ -n "$CHANGED_CODEOWNERS" ]]; then
+              CHANGED_LIST="${CHANGED_LIST}**CODEOWNERS file:**\n\`\`\`\n${CHANGED_CODEOWNERS}\n\`\`\`\n"
+            fi
+            
+            echo "changed_list<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$CHANGED_LIST" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
 
-            - name: Post security warning comment
-              if: steps.changed-files.outputs.has_changes == 'true'
-              uses: actions/github-script@v7
-              env:
-                  CHANGED_FILES: ${{ steps.changed-files.outputs.changed_list }}
-              with:
-                  script: |
-                      const changedFiles = process.env.CHANGED_FILES;
+      - name: Post security warning comment
+        if: steps.changed-files.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        env:
+          CHANGED_FILES: ${{ steps.changed-files.outputs.changed_list }}
+        with:
+          script: |
+            const changedFiles = process.env.CHANGED_FILES;
 
-                      const comment = "## 🚨 Workflow Security Review Required\n\n" +
-                      "This PR modifies CI/CD workflow files or CODEOWNERS configuration. These changes require careful security review to prevent:\n" +
-                      "- Script injection vulnerabilities\n" +
-                      "- Unauthorized secret access\n" +
-                      "- Malicious code execution\n" +
-                      "- Bypass of security controls\n\n" +
-                      changedFiles + "\n\n" +
-                      "### Security Checklist for Reviewers\n\n" +
-                      "Before approving this PR, verify:\n\n" +
-                      "- [ ] **No script injection**: User input (PR titles, branch names, etc.) is not directly used in `run:` commands\n" +
-                      "- [ ] **Environment variables**: All user input is passed via `env:` and referenced as `$VAR` not `${'$'}{{ }}`\n" +
-                      "- [ ] **Minimal permissions**: Workflow has only necessary permissions (default: `contents: read`)\n" +
-                      "- [ ] **Explicit checkout**: For `pull_request_target`, checkout uses explicit `ref:` and `persist-credentials: false`\n" +
-                      "- [ ] **Secret protection**: Secrets are only used in trusted contexts (not in `pull_request` from forks)\n" +
-                      "- [ ] **Action versions**: Actions are pinned (preferably to SHA, or at least to major version)\n" +
-                      "- [ ] **Proper triggers**: `pull_request_target` is only used when necessary for secrets\n" +
-                      "- [ ] **CODEOWNERS**: Changes to CODEOWNERS maintain security (workflow files assigned to maintainers)\n\n" +
-                      "### Maintainer Actions Required\n\n" +
-                      "1. **Review each changed file** for security implications\n" +
-                      "2. **Test in a safe environment** if possible (fork or test branch)\n" +
-                      "3. **Verify CODEOWNERS** ensures workflow files require maintainer review\n" +
-                      "4. **Approve only if confident** the changes don't introduce vulnerabilities\n\n" +
-                      "⚠️ **Remember:** Malicious workflow changes can:\n" +
-                      "- Steal repository secrets (API keys, credentials)\n" +
-                      "- Modify code without review\n" +
-                      "- Execute arbitrary code on runners\n" +
-                      "- Compromise the entire CI/CD pipeline\n\n" +
-                      "---\n\n" +
-                      "See [GitHub Actions Security Best Practices](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) for more information.";
+            const comment = "## 🚨 Workflow Security Review Required\n\n" +
+            "This PR modifies CI/CD workflow files or CODEOWNERS configuration. These changes require careful security review to prevent:\n" +
+            "- Script injection vulnerabilities\n" +
+            "- Unauthorized secret access\n" +
+            "- Malicious code execution\n" +
+            "- Bypass of security controls\n\n" +
+            changedFiles + "\n\n" +
+            "### Security Checklist for Reviewers\n\n" +
+            "Before approving this PR, verify:\n\n" +
+            "- [ ] **No script injection**: User input (PR titles, branch names, etc.) is not directly used in `run:` commands\n" +
+            "- [ ] **Environment variables**: All user input is passed via `env:` and referenced as `$VAR` not `${'$'}{{ }}`\n" +
+            "- [ ] **Minimal permissions**: Workflow has only necessary permissions (default: `contents: read`)\n" +
+            "- [ ] **Explicit checkout**: For `pull_request_target`, checkout uses explicit `ref:` and `persist-credentials: false`\n" +
+            "- [ ] **Secret protection**: Secrets are only used in trusted contexts (not in `pull_request` from forks)\n" +
+            "- [ ] **Action versions**: Actions are pinned (preferably to SHA, or at least to major version)\n" +
+            "- [ ] **Proper triggers**: `pull_request_target` is only used when necessary for secrets\n" +
+            "- [ ] **CODEOWNERS**: Changes to CODEOWNERS maintain security (workflow files assigned to maintainers)\n\n" +
+            "### Maintainer Actions Required\n\n" +
+            "1. **Review each changed file** for security implications\n" +
+            "2. **Test in a safe environment** if possible (fork or test branch)\n" +
+            "3. **Verify CODEOWNERS** ensures workflow files require maintainer review\n" +
+            "4. **Approve only if confident** the changes don't introduce vulnerabilities\n\n" +
+            "⚠️ **Remember:** Malicious workflow changes can:\n" +
+            "- Steal repository secrets (API keys, credentials)\n" +
+            "- Modify code without review\n" +
+            "- Execute arbitrary code on runners\n" +
+            "- Compromise the entire CI/CD pipeline\n\n" +
+            "---\n\n" +
+            "See [GitHub Actions Security Best Practices](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) for more information.";
 
-                      const { data: comments } = await github.rest.issues.listComments({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: context.issue.number,
-                      });
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
 
-                      const botComment = comments.find(comment => 
-                        comment.user.type === 'Bot' && 
-                        comment.body.includes('Workflow Security Review Required')
-                      );
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Workflow Security Review Required')
+            );
 
-                      if (botComment) {
-                        await github.rest.issues.updateComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          comment_id: botComment.id,
-                          body: comment
-                        });
-                      } else {
-                        await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: context.issue.number,
-                          body: comment
-                        });
-                      }
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
 
-                      // Also request review from code owners
-                      const { data: prFiles } = await github.rest.pulls.listFiles({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        pull_number: context.issue.number,
-                      });
+            // Also request review from code owners
+            const { data: prFiles } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
 
-                      const workflowFiles = prFiles.filter(file => 
-                        file.filename.startsWith('.github/workflows/') || 
-                        file.filename === '.github/CODEOWNERS'
-                      );
+            const workflowFiles = prFiles.filter(file => 
+              file.filename.startsWith('.github/workflows/') || 
+              file.filename === '.github/CODEOWNERS'
+            );
 
-                      if (workflowFiles.length > 0) {
-                        core.notice('⚠️ Workflow files modified - maintainer review required');
-                      }
+            if (workflowFiles.length > 0) {
+              core.notice('⚠️ Workflow files modified - maintainer review required');
+            }

@@ -9,12 +9,8 @@ on:
     branches:
       - main
       - develop
-    paths:
-      - "**.go"
-      - "go.mod"
-      - "go.sum"
-      - "main.go"
-      - ".github/workflows/pr-fast-feedback.yml"
+    # Trigger on ALL PRs (removed path filters)
+    # Job conditions determine what actually runs
   workflow_dispatch:
 
 permissions:
@@ -212,9 +208,20 @@ jobs:
     name: ✅ Fast Feedback Complete
     runs-on: ubuntu-latest
     needs: [analyze-changes, lint, test-linux, security-scan, build-check]
-    if: always() && needs.analyze-changes.outputs.has_code_changes == 'true'
+    if: always()
     steps:
+      - name: Check if doc-only PR
+        id: doc-check
+        run: |
+          if [[ "${{ needs.analyze-changes.outputs.has_code_changes }}" != "true" ]]; then
+            echo "📝 Documentation-only PR - skipping code quality checks"
+            echo "is_doc_only=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "is_doc_only=false" >> $GITHUB_OUTPUT
+
       - name: Check all jobs status
+        if: steps.doc-check.outputs.is_doc_only != 'true'
         env:
           LINT_STATUS: ${{ needs.lint.result }}
           TEST_LINUX_STATUS: ${{ needs.test-linux.result }}
@@ -241,19 +248,14 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const comment = `## ✅ Fast Feedback Passed
-
-            All code quality checks have passed:
-            - ✅ Linting
-            - ✅ Unit Tests (Linux)
-            - ✅ Security Scanning
-            - ✅ Build Verification (Linux, Windows, macOS)
-
-            **Next Steps:**
-            ${context.payload.pull_request.author_association === 'MEMBER' || context.payload.pull_request.author_association === 'OWNER' 
-              ? '🚀 E2E tests will run automatically if code paths changed.'
-              : '⏳ E2E tests require maintainer approval. A maintainer can trigger them by:\n- Approving this PR, or\n- Commenting `/run-e2e`'
-            }`;
+            const isDocOnly = '${{ steps.doc-check.outputs.is_doc_only }}' === 'true';
+            
+            const comment = isDocOnly 
+              ? `## ✅ Fast Feedback Passed (Documentation)\n\nThis PR only contains documentation changes - code quality checks were skipped.\n\n**Next Steps:**\n✅ Ready to merge once approved.`
+              : `## ✅ Fast Feedback Passed\n\nAll code quality checks have passed:\n- ✅ Linting\n- ✅ Unit Tests (Linux)\n- ✅ Security Scanning\n- ✅ Build Verification (Linux, Windows, macOS)\n\n**Next Steps:**\n${context.payload.pull_request.author_association === 'MEMBER' || context.payload.pull_request.author_association === 'OWNER' 
+                ? '🚀 E2E tests will run automatically if code paths changed.'
+                : '⏳ E2E tests require maintainer approval. A maintainer can trigger them by:\n- Approving this PR, or\n- Commenting `/run-e2e`'
+              }`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
