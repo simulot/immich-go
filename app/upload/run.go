@@ -69,9 +69,11 @@ func (uc *UpCmd) pauseJobs(ctx context.Context) error {
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "pause", true)
 		if err != nil {
 			uc.app.Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
+			uc.publishLog(ctx, "error", "failed to pause Immich job", map[string]string{"job": name, "error": err.Error()})
 			return err
 		}
 		uc.app.Log().Info("Immich Job command sent", "pause", name)
+		uc.publishLog(ctx, "info", "Immich job paused", map[string]string{"job": name})
 	}
 	return nil
 }
@@ -85,9 +87,11 @@ func (uc *UpCmd) resumeJobs(_ context.Context) error {
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
 		if err != nil {
 			uc.app.Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
+			uc.publishLog(ctx, "error", "failed to resume Immich job", map[string]string{"job": name, "error": err.Error()})
 			return err
 		}
 		uc.app.Log().Info("Immich Job command sent", "resume", name)
+		uc.publishLog(ctx, "info", "Immich job resumed", map[string]string{"job": name})
 	}
 	return nil
 }
@@ -118,12 +122,15 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 		}
 	}
 
+	uc.uiPublisher.UpdateStats(ctx, uc.snapshotStats())
+
 	return nil
 }
 
 func (uc *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
+	uc.publishLog(ctx, "info", "starting upload run", map[string]string{"mode": uc.Mode.String()})
 	// Stop immich background jobs if requested
 	// will be resumed with a call to finishing()
 	if uc.client.PauseImmichBackgroundJobs {
@@ -157,6 +164,7 @@ func (uc *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
 		if err != nil {
 			uc.app.Log().Warn("can't initialize the screen for the UI mode. Falling back to no-gui mode", "err", err)
 			fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
+			uc.publishLog(ctx, "warn", "legacy TUI unavailable, falling back to no-ui", map[string]string{"error": err.Error()})
 			runner = uc.runNoUI
 		}
 	}
@@ -348,10 +356,12 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
+	uc.publishAssetQueued(ctx, a)
 
 	// var status stri g
 	advice, err := uc.assetIndex.ShouldUpload(a, uc)
 	if err != nil {
+		uc.publishAssetFailed(ctx, a, err)
 		return err
 	}
 
@@ -359,6 +369,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	case NotOnServer: // Upload and manage albums
 		serverStatus, err := uc.uploadAsset(ctx, a)
 		if err != nil {
+			uc.publishAssetFailed(ctx, a, err)
 			return err
 		}
 
@@ -373,6 +384,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		// Upload the superior asset
 		serverStatus, err := uc.replaceAsset(ctx, a, advice.ServerAsset)
 		if err != nil {
+			uc.publishAssetFailed(ctx, a, err)
 			return err
 		}
 
@@ -576,6 +588,8 @@ func (uc *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset, serv
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		uc.manageAssetTags(ctx, a)
 	}
+
+	uc.publishAssetUploaded(ctx, a)
 }
 
 /*
