@@ -1,35 +1,29 @@
 name: E2E Tests
 
-# This workflow runs end-to-end tests with a real Immich server.
-# Security: Uses pull_request_target to protect secrets from untrusted forks.
-# Trigger: Auto for maintainers after fast-feedback, manual approval for external contributors.
+# This workflow executes end-to-end tests against a real Immich server.
+# It only runs via workflow_dispatch, and all sensitive jobs are gated by environments.
 
 on:
-  # Trigger on PR approval (trusted contributors only)
-  pull_request_review:
-    types: [submitted]
-
-  # Trigger on /run-e2e command
-  issue_comment:
-    types: [created]
-
-  # Manual trigger
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "PR number to test"
+        description: "Pull request number"
         required: true
       ref:
-        description: "Git ref to test"
+        description: "PR head ref (branch name)"
         required: true
-
-  # Auto-trigger after fast-feedback for trusted contributors
-  workflow_run:
-    workflows: ["PR Fast Feedback"]
-    types: [completed]
-    branches:
-      - main
-      - develop
+      head_repo:
+        description: "owner/repo of the PR head"
+        required: true
+      head_sha:
+        description: "Head commit SHA approved for testing"
+        required: true
+      base_ref:
+        description: "Base branch that hosts the workflow"
+        required: true
+      trusted:
+        description: "Set to true when the PR author is trusted"
+        required: true
 
 # Global environment variables
 env:
@@ -40,138 +34,92 @@ env:
   e2e_url: http://e2e-immich-${{ github.run_id }}:2283
   e2e_ssh: root@e2e-immich-${{ github.run_id }}
   runner_timeout: 900
+  pr_number: ${{ inputs.pr_number }}
+  pr_ref: ${{ inputs.ref }}
+  pr_repo: ${{ inputs.head_repo }}
+  pr_sha: ${{ inputs.head_sha }}
+  pr_base_ref: ${{ inputs.base_ref }}
+  pr_trusted: ${{ inputs.trusted }}
 
 permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: e2e-tests-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
 jobs:
-  # Gate: Validate trigger and check contributor trust
-  check-trigger:
-    name: 🚦 Check Trigger
+  prepare:
+    name: 🔎 Verify Request
     runs-on: ubuntu-latest
     outputs:
-      should_run: ${{ steps.validate.outputs.should_run }}
-      pr_number: ${{ steps.validate.outputs.pr_number }}
-      ref: ${{ steps.validate.outputs.ref }}
-      is_trusted: ${{ steps.validate.outputs.is_trusted }}
+      should_run: ${{ steps.verify.outputs.should_run }}
+      ref: ${{ steps.verify.outputs.ref }}
+      head_repo: ${{ steps.verify.outputs.head_repo }}
+      head_sha: ${{ steps.verify.outputs.head_sha }}
+      trusted: ${{ steps.verify.outputs.trusted }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Validate trigger and get PR info
-        id: validate
+      - name: Verify PR metadata
+        id: verify
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENT_NAME: ${{ github.event_name }}
+          EXPECTED_PR: ${{ inputs.pr_number }}
+          EXPECTED_REF: ${{ inputs.ref }}
+          EXPECTED_REPO: ${{ inputs.head_repo }}
+          EXPECTED_SHA: ${{ inputs.head_sha }}
+          TRUSTED: ${{ inputs.trusted }}
+          REPO: ${{ github.repository }}
         run: |
-          SHOULD_RUN=false
-          PR_NUMBER=""
-          REF=""
-          IS_TRUSTED=false
+          set -euo pipefail
 
-          # Handle different trigger types
-          case "$EVENT_NAME" in
-            "workflow_dispatch")
-              # Manual trigger
-              PR_NUMBER="${{ github.event.inputs.pr_number }}"
-              REF="${{ github.event.inputs.ref }}"
-              SHOULD_RUN=true
-              IS_TRUSTED=true  # Manual triggers are trusted
-              ;;
-              
-            "issue_comment")
-              # Check if comment is /run-e2e on a PR
-              if [[ "${{ github.event.issue.pull_request }}" != "" ]] && \
-                 [[ "${{ github.event.comment.body }}" == "/run-e2e" ]]; then
-                
-                # Check if commenter is a maintainer
-                AUTHOR_ASSOCIATION="${{ github.event.comment.author_association }}"
-                if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" ]] || [[ "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
-                  PR_NUMBER="${{ github.event.issue.number }}"
-                  REF=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER" -q .head.ref)
-                  SHOULD_RUN=true
-                  IS_TRUSTED=false  # Treat as external until verified
-                else
-                  echo "❌ Comment author is not a maintainer"
-                fi
-              fi
-              ;;
-              
-            "pull_request_review")
-              # Check if review is approval
-              if [[ "${{ github.event.review.state }}" == "approved" ]]; then
-                PR_NUMBER="${{ github.event.pull_request.number }}"
-                REF="${{ github.event.pull_request.head.ref }}"
-                
-                # Check if PR is from a fork
-                PR_FROM_FORK="${{ github.event.pull_request.head.repo.fork }}"
-                if [[ "$PR_FROM_FORK" == "true" ]]; then
-                  echo "⏭️ PR is from a fork - use /run-e2e comment instead of approval trigger"
-                  echo "⏭️ This avoids secret access issues with fork PRs"
-                  SHOULD_RUN=false
-                else
-                  # Check if PR author is trusted (only for non-fork PRs)
-                  AUTHOR_ASSOCIATION="${{ github.event.pull_request.author_association }}"
-                  if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" ]] || [[ "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
-                    IS_TRUSTED=true
-                  fi
-                  SHOULD_RUN=true
-                fi
-              fi
-              ;;
-              
-            "workflow_run")
-              # Auto-trigger after fast-feedback success
-              if [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
-                # Get PR number from workflow run
-                PR_NUMBER=$(gh api "/repos/${{ github.repository }}/pulls" \
-                  --jq ".[] | select(.head.sha == \"${{ github.event.workflow_run.head_sha }}\") | .number" | head -1)
-                
-                if [[ -n "$PR_NUMBER" ]]; then
-                  REF=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER" -q .head.ref)
-                  
-                  # Check if PR author is trusted
-                  AUTHOR_ASSOCIATION=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER" -q .author_association)
-                  if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" ]] || [[ "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
-                    IS_TRUSTED=true
-                    SHOULD_RUN=true
-                  else
-                    echo "⏭️ External contributor - awaiting approval"
-                  fi
-                fi
-              fi
-              ;;
-          esac
-
-          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          echo "ref=$REF" >> $GITHUB_OUTPUT
-          echo "is_trusted=$IS_TRUSTED" >> $GITHUB_OUTPUT
-
-          if [[ "$SHOULD_RUN" == "true" ]]; then
-            echo "✅ E2E tests will run for PR #$PR_NUMBER (ref: $REF, trusted: $IS_TRUSTED)"
-            
-            # Check if PR has code changes (not just docs)
-            FILES=$(gh api "/repos/${{ github.repository }}/pulls/$PR_NUMBER/files" --jq '.[].filename')
-            NON_DOC_FILES=$(echo "$FILES" | grep -vE '\.(md|txt)$|^docs/' || true)
-            
-            if [[ -z "$NON_DOC_FILES" ]]; then
-              echo "⏭️ PR only contains documentation changes - skipping E2E tests"
-              echo "should_run=false" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "⏭️ E2E tests skipped"
+          if [[ -z "$EXPECTED_PR" ]]; then
+            echo "❌ pr_number input is required"
+            exit 1
           fi
+
+          PR_JSON=$(gh api "/repos/$REPO/pulls/$EXPECTED_PR")
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
+          HEAD_REPO=$(echo "$PR_JSON" | jq -r '.head.repo.full_name')
+          HEAD_SHA=$(echo "$PR_JSON" | jq -r '.head.sha')
+
+          if [[ "$HEAD_REPO" != "$EXPECTED_REPO" ]]; then
+            echo "❌ Head repository mismatch ($HEAD_REPO != $EXPECTED_REPO). Request a new authorization run."
+            exit 1
+          fi
+
+          if [[ "$HEAD_REF" != "$EXPECTED_REF" ]]; then
+            echo "❌ Head ref changed to $HEAD_REF. Request a new authorization run."
+            exit 1
+          fi
+
+          if [[ "$HEAD_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "❌ Detected new commits on the PR. Please re-run authorization."
+            exit 1
+          fi
+
+          NON_DOC=$(gh api --paginate "/repos/$REPO/pulls/$EXPECTED_PR/files" --jq '.[].filename' | grep -vE '\\.(md|txt)$|^docs/' || true)
+          if [[ -z "$NON_DOC" ]]; then
+            echo "⏭️ Documentation-only changes detected after authorization."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "trusted=$TRUSTED" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "should_run=true" >> $GITHUB_OUTPUT
+          echo "ref=$HEAD_REF" >> $GITHUB_OUTPUT
+          echo "head_repo=$HEAD_REPO" >> $GITHUB_OUTPUT
+          echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+          echo "trusted=$TRUSTED" >> $GITHUB_OUTPUT
 
   # E2E Server
   e2e-server:
     name: 🖥️ E2E Server
     runs-on: ubuntu-latest
-    needs: check-trigger
-    if: needs.check-trigger.outputs.should_run == 'true'
+    needs: prepare
+    if: needs.prepare.outputs.should_run == 'true'
+    environment:
+      name: ${{ needs.prepare.outputs.trusted == 'true' && 'e2e-trusted' || 'e2e-infra' }}
     timeout-minutes: 15
     steps:
       - name: Connect to Tailscale
@@ -242,15 +190,18 @@ jobs:
   e2e-linux:
     name: 🐧 E2E Linux
     runs-on: ubuntu-latest
-    needs: check-trigger
-    if: needs.check-trigger.outputs.should_run == 'true'
+    needs: prepare
+    if: needs.prepare.outputs.should_run == 'true'
+    environment:
+      name: ${{ needs.prepare.outputs.trusted == 'true' && 'e2e-trusted' || 'e2e-infra' }}
     timeout-minutes: 15
     steps:
       # SECURITY: Explicit checkout of PR code (not automatic)
       - name: Checkout PR code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.check-trigger.outputs.ref }}
+          repository: ${{ needs.prepare.outputs.head_repo }}
+          ref: ${{ needs.prepare.outputs.ref }}
           persist-credentials: false # Don't persist git credentials
 
       - name: Setup Go
@@ -298,8 +249,10 @@ jobs:
   e2e-windows:
     name: 🪟 E2E Windows
     runs-on: windows-latest
-    needs: [check-trigger, e2e-linux]
-    if: needs.check-trigger.outputs.should_run == 'true'
+    needs: [prepare, e2e-linux]
+    if: needs.prepare.outputs.should_run == 'true'
+    environment:
+      name: ${{ needs.prepare.outputs.trusted == 'true' && 'e2e-trusted' || 'e2e-infra' }}
     timeout-minutes: 15
     env:
       e2e_users_server: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
@@ -308,7 +261,8 @@ jobs:
       - name: Checkout PR code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.check-trigger.outputs.ref }}
+          repository: ${{ needs.prepare.outputs.head_repo }}
+          ref: ${{ needs.prepare.outputs.ref }}
           persist-credentials: false
 
       - name: Setup Go
@@ -389,8 +343,10 @@ jobs:
   e2e-cleanup:
     name: 🧹 E2E Cleanup
     runs-on: ubuntu-latest
-    needs: [check-trigger, e2e-linux, e2e-windows]
-    if: always() && needs.check-trigger.outputs.should_run == 'true'
+    needs: [prepare, e2e-linux, e2e-windows]
+    if: always() && needs.prepare.outputs.should_run == 'true'
+    environment:
+      name: ${{ needs.prepare.outputs.trusted == 'true' && 'e2e-trusted' || 'e2e-infra' }}
     timeout-minutes: 2
     steps:
       - name: Connect to Tailscale
@@ -410,8 +366,10 @@ jobs:
   e2e-cancel-on-failure:
     name: 🛑 Cancel on Server Failure
     runs-on: ubuntu-latest
-    needs: [check-trigger, e2e-server]
-    if: failure() && needs.check-trigger.outputs.should_run == 'true'
+    needs: [prepare, e2e-server]
+    if: failure() && needs.prepare.outputs.should_run == 'true'
+    environment:
+      name: ${{ needs.prepare.outputs.trusted == 'true' && 'e2e-trusted' || 'e2e-infra' }}
     timeout-minutes: 2
     steps:
       - name: Cancel workflow
@@ -427,13 +385,13 @@ jobs:
   e2e-complete:
     name: ✅ E2E Complete
     runs-on: ubuntu-latest
-    needs: [check-trigger, e2e-server, e2e-linux, e2e-windows, e2e-cleanup]
+    needs: [prepare, e2e-server, e2e-linux, e2e-windows, e2e-cleanup]
     if: always()
     steps:
       - name: Check if tests were skipped
         id: skip-check
         run: |
-          if [[ "${{ needs.check-trigger.outputs.should_run }}" != "true" ]]; then
+          if [[ "${{ needs.prepare.outputs.should_run }}" != "true" ]]; then
             echo "skipped=true" >> $GITHUB_OUTPUT
             echo "📝 E2E tests skipped (doc-only PR or not triggered)"
             exit 0
