@@ -87,13 +87,13 @@ jobs:
                 echo "ℹ️ Review state is '$REVIEW_STATE' - skipping"
                 exit 0
               fi
-              PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
-              PR_JSON=$(load_pr "$PR_NUMBER")
-              PR_FROM_FORK=$(echo "$PR_JSON" | jq -r '.head.repo.fork')
-              if [[ "$PR_FROM_FORK" == "true" ]]; then
-                echo "⏭️ PR #$PR_NUMBER comes from a fork. Use /run-e2e comment to request tests."
+              REVIEW_AUTHOR_ASSOC=$(jq -r '.review.author_association // ""' "$GITHUB_EVENT_PATH")
+              if [[ "$REVIEW_AUTHOR_ASSOC" != "MEMBER" && "$REVIEW_AUTHOR_ASSOC" != "OWNER" ]]; then
+                echo "ℹ️ Review author association '$REVIEW_AUTHOR_ASSOC' cannot trigger E2E"
                 exit 0
               fi
+              PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+              PR_JSON=$(load_pr "$PR_NUMBER")
               AUTHOR_ASSOCIATION=$(echo "$PR_JSON" | jq -r '.author_association')
               if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" || "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
                 TRUSTED=true

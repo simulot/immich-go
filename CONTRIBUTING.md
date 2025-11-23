@@ -99,10 +99,9 @@ When you submit a pull request from a fork:
 1. ✅ Fast feedback checks run immediately (lint, test, security, build)
 2. 🤖 A comment will explain that E2E tests require maintainer approval
 3. ⌛ A maintainer will review your code for safety and correctness
-4. ✅ To approve, the maintainer can either:
-   - Post a comment: `/run-e2e`
-   - Approve the PR (triggers E2E automatically)
-5. 🚀 The E2E test workflow will then start
+4. ✅ As soon as a maintainer submits an **Approve** review, the E2E workflow starts automatically (even for forks)
+5. 🔁 Need tests without approving (or a re-run after new commits)? A maintainer can still post `/run-e2e` to force another run
+6. 🚀 The E2E Linux/Windows clients execute against the dedicated Immich server
 
 **Why?** This approval process prevents malicious code in a PR from accessing sensitive credentials (Tailscale network, Immich server).
 
