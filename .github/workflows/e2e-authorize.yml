@@ -38,23 +38,24 @@ jobs:
             local base_ref="$5"
             local trusted="$6"
 
-            local inputs_json
-            inputs_json=$(jq -n \
+            local payload
+            payload=$(jq -n \
+              --arg ref "$base_ref" \
               --arg pr "$pr_number" \
-              --arg ref "$head_ref" \
+              --arg headRef "$head_ref" \
               --arg repo "$head_repo" \
               --arg sha "$head_sha" \
               --arg base "$base_ref" \
               --arg trusted "$trusted" \
-              '{pr_number:$pr, ref:$ref, head_repo:$repo, head_sha:$sha, base_ref:$base, trusted:$trusted}')
+              '{ref:$ref, inputs:{pr_number:$pr, ref:$headRef, head_repo:$repo, head_sha:$sha, base_ref:$base, trusted:$trusted}}')
 
             echo "🚀 Dispatching E2E workflow for PR #$pr_number (ref: $head_repo@$head_ref, trusted=$trusted)"
             gh api \
               --method POST \
               -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
               "/repos/$REPOSITORY/actions/workflows/e2e-tests.yml/dispatches" \
-              -f ref="$base_ref" \
-              -f inputs:="$inputs_json"
+              --input - <<<"$payload"
           }
 
           has_code_changes() {
