@@ -38,18 +38,24 @@ jobs:
             local base_ref="$5"
             local trusted="$6"
 
+            local payload
+            payload=$(jq -n \
+              --arg ref "$base_ref" \
+              --arg pr "$pr_number" \
+              --arg headRef "$head_ref" \
+              --arg repo "$head_repo" \
+              --arg sha "$head_sha" \
+              --arg base "$base_ref" \
+              --arg trusted "$trusted" \
+              '{ref:$ref, inputs:{pr_number:$pr, ref:$headRef, head_repo:$repo, head_sha:$sha, base_ref:$base, trusted:$trusted}}')
+
             echo "🚀 Dispatching E2E workflow for PR #$pr_number (ref: $head_repo@$head_ref, trusted=$trusted)"
             gh api \
               --method POST \
               -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
               "/repos/$REPOSITORY/actions/workflows/e2e-tests.yml/dispatches" \
-              -f ref="$base_ref" \
-              -F inputs.pr_number="$pr_number" \
-              -F inputs.ref="$head_ref" \
-              -F inputs.head_repo="$head_repo" \
-              -F inputs.head_sha="$head_sha" \
-              -F inputs.base_ref="$base_ref" \
-              -F inputs.trusted="$trusted"
+              --input - <<<"$payload"
           }
 
           has_code_changes() {
@@ -81,13 +87,13 @@ jobs:
                 echo "ℹ️ Review state is '$REVIEW_STATE' - skipping"
                 exit 0
               fi
-              PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
-              PR_JSON=$(load_pr "$PR_NUMBER")
-              PR_FROM_FORK=$(echo "$PR_JSON" | jq -r '.head.repo.fork')
-              if [[ "$PR_FROM_FORK" == "true" ]]; then
-                echo "⏭️ PR #$PR_NUMBER comes from a fork. Use /run-e2e comment to request tests."
+              REVIEW_AUTHOR_ASSOC=$(jq -r '.review.author_association // ""' "$GITHUB_EVENT_PATH")
+              if [[ "$REVIEW_AUTHOR_ASSOC" != "MEMBER" && "$REVIEW_AUTHOR_ASSOC" != "OWNER" ]]; then
+                echo "ℹ️ Review author association '$REVIEW_AUTHOR_ASSOC' cannot trigger E2E"
                 exit 0
               fi
+              PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+              PR_JSON=$(load_pr "$PR_NUMBER")
               AUTHOR_ASSOCIATION=$(echo "$PR_JSON" | jq -r '.author_association')
               if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" || "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
                 TRUSTED=true
