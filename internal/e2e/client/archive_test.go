@@ -13,7 +13,7 @@ import (
 
 func Test_ArchiveFromGP(t *testing.T) {
 	t.Run("ArchiveFromFolder", func(t *testing.T) {
-		// patch3 
+		// patch7 
 		tempDir, err := os.MkdirTemp("", "immich-go-test-ArchiveFromFolder*")
 		if err != nil {
 			t.Fatal(err.Error())
