@@ -1,0 +1,165 @@
+name: E2E Authorization
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: ["PR Fast Feedback"]
+    types: [completed]
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: write
+
+jobs:
+  authorize:
+    name: 🔐 Authorize E2E
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate trigger and dispatch tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          dispatch_tests() {
+            local pr_number="$1"
+            local head_ref="$2"
+            local head_repo="$3"
+            local head_sha="$4"
+            local base_ref="$5"
+            local trusted="$6"
+
+            echo "🚀 Dispatching E2E workflow for PR #$pr_number (ref: $head_repo@$head_ref, trusted=$trusted)"
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPOSITORY/actions/workflows/e2e-tests.yml/dispatches" \
+              -f ref="$base_ref" \
+              -F inputs.pr_number="$pr_number" \
+              -F inputs.ref="$head_ref" \
+              -F inputs.head_repo="$head_repo" \
+              -F inputs.head_sha="$head_sha" \
+              -F inputs.base_ref="$base_ref" \
+              -F inputs.trusted="$trusted"
+          }
+
+          has_code_changes() {
+            local pr_number="$1"
+            local changes
+            changes=$(gh api --paginate "/repos/$REPOSITORY/pulls/$pr_number/files" --jq '.[].filename' | grep -vE '\\.(md|txt)$|^docs/' || true)
+            if [[ -z "$changes" ]]; then
+              return 1
+            fi
+            return 0
+          }
+
+          load_pr() {
+            local pr_number="$1"
+            gh api "/repos/$REPOSITORY/pulls/$pr_number"
+          }
+
+          EVENT_NAME_LOWER=$(echo "$EVENT_NAME" | tr 'A-Z' 'a-z')
+
+          SHOULD_RUN=false
+          PR_NUMBER=""
+          PR_JSON=""
+          TRUSTED=false
+
+          case "$EVENT_NAME_LOWER" in
+            pull_request_review)
+              REVIEW_STATE=$(jq -r '.review.state // ""' "$GITHUB_EVENT_PATH")
+              if [[ "$REVIEW_STATE" != "approved" ]]; then
+                echo "ℹ️ Review state is '$REVIEW_STATE' - skipping"
+                exit 0
+              fi
+              PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+              PR_JSON=$(load_pr "$PR_NUMBER")
+              PR_FROM_FORK=$(echo "$PR_JSON" | jq -r '.head.repo.fork')
+              if [[ "$PR_FROM_FORK" == "true" ]]; then
+                echo "⏭️ PR #$PR_NUMBER comes from a fork. Use /run-e2e comment to request tests."
+                exit 0
+              fi
+              AUTHOR_ASSOCIATION=$(echo "$PR_JSON" | jq -r '.author_association')
+              if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" || "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
+                TRUSTED=true
+              fi
+              SHOULD_RUN=true
+              ;;
+            issue_comment)
+              COMMENT_BODY=$(jq -r '.comment.body // ""' "$GITHUB_EVENT_PATH" | tr 'A-Z' 'a-z')
+              PULL_URL=$(jq -r '.issue.pull_request.url // ""' "$GITHUB_EVENT_PATH")
+              if [[ -z "$PULL_URL" ]]; then
+                echo "ℹ️ Comment is not on a PR - skipping"
+                exit 0
+              fi
+              if [[ "$COMMENT_BODY" != "/run-e2e" ]]; then
+                echo "ℹ️ Comment is not /run-e2e - skipping"
+                exit 0
+              fi
+              COMMENTER_ASSOCIATION=$(jq -r '.comment.author_association // ""' "$GITHUB_EVENT_PATH")
+              if [[ "$COMMENTER_ASSOCIATION" != "MEMBER" && "$COMMENTER_ASSOCIATION" != "OWNER" ]]; then
+                echo "❌ /run-e2e requires a maintainer comment"
+                exit 1
+              fi
+              PR_NUMBER=$(jq -r '.issue.number' "$GITHUB_EVENT_PATH")
+              PR_JSON=$(load_pr "$PR_NUMBER")
+              TRUSTED=false
+              SHOULD_RUN=true
+              ;;
+            workflow_run)
+              CONCLUSION=$(jq -r '.workflow_run.conclusion // ""' "$GITHUB_EVENT_PATH")
+              if [[ "$CONCLUSION" != "success" ]]; then
+                echo "ℹ️ Fast Feedback conclusion is '$CONCLUSION' - skipping"
+                exit 0
+              fi
+              HEAD_SHA=$(jq -r '.workflow_run.head_sha // ""' "$GITHUB_EVENT_PATH")
+              if [[ -z "$HEAD_SHA" ]]; then
+                echo "ℹ️ Missing head SHA - skipping"
+                exit 0
+              fi
+              PR_NUMBER=$(gh api --paginate "/repos/$REPOSITORY/pulls" --jq ".[] | select(.head.sha == \"$HEAD_SHA\") | .number" | head -n 1 || true)
+              if [[ -z "$PR_NUMBER" ]]; then
+                echo "ℹ️ No PR found for head SHA $HEAD_SHA"
+                exit 0
+              fi
+              PR_JSON=$(load_pr "$PR_NUMBER")
+              AUTHOR_ASSOCIATION=$(echo "$PR_JSON" | jq -r '.author_association')
+              if [[ "$AUTHOR_ASSOCIATION" == "MEMBER" || "$AUTHOR_ASSOCIATION" == "OWNER" ]]; then
+                TRUSTED=true
+                SHOULD_RUN=true
+              else
+                echo "⏭️ External contributor - waiting for maintainer approval"
+                exit 0
+              fi
+              ;;
+            *)
+              echo "ℹ️ Event $EVENT_NAME_LOWER not handled"
+              exit 0
+              ;;
+          esac
+
+          if [[ "$SHOULD_RUN" != "true" ]]; then
+            echo "⏭️ Authorization conditions not met"
+            exit 0
+          fi
+
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
+          HEAD_REPO=$(echo "$PR_JSON" | jq -r '.head.repo.full_name')
+          HEAD_SHA=$(echo "$PR_JSON" | jq -r '.head.sha')
+          BASE_REF=$(echo "$PR_JSON" | jq -r '.base.ref')
+
+          if ! has_code_changes "$PR_NUMBER"; then
+            echo "⏭️ PR #$PR_NUMBER only has documentation changes - skipping E2E tests"
+            exit 0
+          fi
+
+          dispatch_tests "$PR_NUMBER" "$HEAD_REF" "$HEAD_REPO" "$HEAD_SHA" "$BASE_REF" "$TRUSTED"
