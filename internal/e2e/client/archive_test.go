@@ -12,7 +12,9 @@ import (
 )
 
 func Test_ArchiveFromGP(t *testing.T) {
+	// TODO: remove this comment
 	// must trigger the e2e CI
+	// another comment
 	t.Run("ArchiveFromFolder", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "immich-go-test-ArchiveFromFolder*")
 		if err != nil {
