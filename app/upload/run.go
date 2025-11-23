@@ -1,9 +1,15 @@
 package upload
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -12,9 +18,11 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assets/cache"
+	"github.com/simulot/immich-go/internal/exif/sidecars/xmpsidecar"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/fshelper/osfs"
 	"github.com/simulot/immich-go/internal/worker"
 )
 
@@ -98,8 +106,12 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 	}
 	defer func() { uc.finished = true }()
 	// do waiting operations
-	uc.albumsCache.Close()
-	uc.tagsCache.Close()
+	if uc.albumsCache != nil {
+		uc.albumsCache.Close()
+	}
+	if uc.tagsCache != nil {
+		uc.tagsCache.Close()
+	}
 
 	// Resume immich background jobs if requested
 	err := uc.resumeJobs(ctx)
@@ -116,6 +128,13 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 				uc.app.Log().Info(s)
 			}
 		}
+	}
+
+	if uc.tagSidecarDir != "" {
+		if remErr := os.RemoveAll(uc.tagSidecarDir); remErr != nil {
+			uc.app.Log().Warn("failed to clean temporary tag sidecar directory", "dir", uc.tagSidecarDir, "err", remErr)
+		}
+		uc.tagSidecarDir = ""
 	}
 
 	return nil
@@ -141,9 +160,13 @@ func (uc *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
 	uc.albumsCache = cache.NewCollectionCache(50, func(album assets.Album, ids []string) (assets.Album, error) {
 		return uc.saveAlbum(ctx, album, ids)
 	})
-	uc.tagsCache = cache.NewCollectionCache(50, func(tag assets.Tag, ids []string) (assets.Tag, error) {
-		return uc.saveTags(ctx, tag, ids)
-	})
+	if !uc.TagViaSidecar {
+		uc.tagsCache = cache.NewCollectionCache(50, func(tag assets.Tag, ids []string) (assets.Tag, error) {
+			return uc.saveTags(ctx, tag, ids)
+		})
+	} else {
+		uc.tagsCache = nil
+	}
 
 	uc.adapter = adapter
 
@@ -438,6 +461,14 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 	for _, tag := range uc.Tags {
 		a.AddTag(tag)
 	}
+	if err := uc.prepareTagsSidecar(ctx, a); err != nil {
+		if uc.app.FileProcessor() != nil {
+			uc.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorFileAccess, err)
+		} else if uc.app.Log() != nil {
+			uc.app.Log().Error("prepare sidecar failed", "file", a.File, "error", err)
+		}
+		return "", err
+	}
 
 	ar, err := uc.client.Immich.AssetUpload(ctx, a)
 	if err != nil {
@@ -494,6 +525,14 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 // replaceAsset replaces an asset on the server. It uploads the new asset, copies the metadata from the old one and deletes the old one.
 // https://github.com/immich-app/immich/pull/23172#issue-3542430029
 func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.Asset) (string, error) {
+	if err := uc.prepareTagsSidecar(ctx, newAsset); err != nil {
+		if uc.app.FileProcessor() != nil {
+			uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorFileAccess, err)
+		} else if uc.app.Log() != nil {
+			uc.app.Log().Error("prepare sidecar failed", "file", newAsset.File, "error", err)
+		}
+		return "", err
+	}
 	// 1. Upload the new asset
 	ar, err := uc.client.Immich.AssetUpload(ctx, newAsset)
 	if err != nil {
@@ -548,6 +587,9 @@ func (uc *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName, ID
 }
 
 func (uc *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
+	if uc.TagViaSidecar {
+		return
+	}
 	if len(a.Tags) == 0 {
 		return
 	}
@@ -562,6 +604,111 @@ func (uc *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 			uc.app.FileProcessor().Logger().Record(ctx, fileevent.ProcessedTagged, a.File, "tag", t.Value)
 		}
 	}
+}
+
+func (uc *UpCmd) prepareTagsSidecar(ctx context.Context, a *assets.Asset) error {
+	if !uc.TagViaSidecar {
+		return nil
+	}
+
+	loggedTags := make(map[string]struct{})
+	fp := uc.app.FileProcessor()
+	for _, t := range a.Tags {
+		if t.Value == "" {
+			continue
+		}
+		if _, seen := loggedTags[t.Value]; seen {
+			continue
+		}
+		loggedTags[t.Value] = struct{}{}
+		if fp != nil && fp.Logger() != nil {
+			fp.Logger().Record(ctx, fileevent.ProcessedTagged, a.File, "tag", t.Value, "method", "sidecar")
+		}
+	}
+
+	tagSet := make(map[string]struct{})
+	for value := range loggedTags {
+		tagSet[value] = struct{}{}
+	}
+	for _, t := range a.Tags {
+		if t.Value != "" {
+			tagSet[t.Value] = struct{}{}
+		}
+	}
+	if a.FromSideCar != nil {
+		for _, t := range a.FromSideCar.Tags {
+			if t.Value != "" {
+				tagSet[t.Value] = struct{}{}
+			}
+		}
+	}
+
+	tagValues := make([]string, 0, len(tagSet))
+	for value := range tagSet {
+		tagValues = append(tagValues, value)
+	}
+	sort.Strings(tagValues)
+
+	if len(tagValues) == 0 {
+		uc.app.Log().Debug("tag via sidecar skipped", "file", a.OriginalFileName, "reason", "no tags")
+		return nil
+	}
+
+	tagList := strings.Join(tagValues, ", ")
+	if len(loggedTags) > 0 {
+		uc.app.Log().Info("tag via sidecar applied", "file", a.OriginalFileName, "tags", tagList)
+	} else {
+		uc.app.Log().Debug("tag via sidecar preserved existing tags", "file", a.OriginalFileName, "tags", tagList)
+	}
+
+	var source []byte
+	if a.FromSideCar != nil && a.FromSideCar.File.FS() != nil && a.FromSideCar.File.Name() != "" {
+		f, err := a.FromSideCar.File.Open()
+		if err != nil {
+			return fmt.Errorf("open existing sidecar: %w", err)
+		}
+		source, err = io.ReadAll(f)
+		_ = f.Close()
+		if err != nil {
+			return fmt.Errorf("read existing sidecar: %w", err)
+		}
+	}
+
+	if len(source) == 0 && len(tagValues) == 0 {
+		return nil
+	}
+
+	updated, err := xmpsidecar.UpdateTags(source, tagValues)
+	if err != nil {
+		return fmt.Errorf("update sidecar tags: %w", err)
+	}
+
+	if uc.tagSidecarDir == "" {
+		dir, dirErr := os.MkdirTemp("", "immich-go-tag-sidecars-*")
+		if dirErr != nil {
+			return fmt.Errorf("create temporary sidecar directory: %w", dirErr)
+		}
+		uc.tagSidecarDir = dir
+	}
+
+	fileName := path.Base(a.OriginalFileName) + ".xmp"
+	fullPath := filepath.Join(uc.tagSidecarDir, fileName)
+	if writeErr := os.WriteFile(fullPath, updated, 0o600); writeErr != nil {
+		return fmt.Errorf("write temporary sidecar: %w", writeErr)
+	}
+
+	uc.app.Log().Debug("tag via sidecar wrote temporary sidecar", "file", a.OriginalFileName, "path", fullPath)
+
+	md := &assets.Metadata{}
+	if err = xmpsidecar.ReadXMP(bytes.NewReader(updated), md); err != nil {
+		return fmt.Errorf("reload updated sidecar metadata: %w", err)
+	}
+
+	fs := osfs.DirFS(uc.tagSidecarDir)
+	md.File = fshelper.FSName(fs, fileName)
+	a.FromSideCar = a.UseMetadata(md)
+
+	return nil
 }
 
 func (uc *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
