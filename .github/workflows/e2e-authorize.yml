@@ -54,7 +54,7 @@ jobs:
               -H "Accept: application/vnd.github+json" \
               "/repos/$REPOSITORY/actions/workflows/e2e-tests.yml/dispatches" \
               -f ref="$base_ref" \
-              -f inputs="$inputs_json"
+              -f inputs:="$inputs_json"
           }
 
           has_code_changes() {
