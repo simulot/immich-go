@@ -22,13 +22,12 @@ jobs:
         name: 🔐 Authorize E2E
         runs-on: ubuntu-latest
         steps:
-            - name: Evaluate trigger and dispatch tests
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  EVENT_NAME: ${{ github.event_name }}
-                  REPOSITORY: ${{ github.repository }}
-                  EVENT_PATH: ${{ github.event_path }}
-              run: |
+          - name: Evaluate trigger and dispatch tests
+            env:
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              EVENT_NAME: ${{ github.event_name }}
+              REPOSITORY: ${{ github.repository }}
+            run: |
                   set -euo pipefail
 
                   dispatch_tests() {
@@ -77,12 +76,12 @@ jobs:
 
                   case "$EVENT_NAME_LOWER" in
                     pull_request_review)
-                      REVIEW_STATE=$(jq -r '.review.state // ""' "$EVENT_PATH")
+                      REVIEW_STATE=$(jq -r '.review.state // ""' "$GITHUB_EVENT_PATH")
                       if [[ "$REVIEW_STATE" != "approved" ]]; then
                         echo "ℹ️ Review state is '$REVIEW_STATE' - skipping"
                         exit 0
                       fi
-                      PR_NUMBER=$(jq -r '.pull_request.number' "$EVENT_PATH")
+                      PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
                       PR_JSON=$(load_pr "$PR_NUMBER")
                       PR_FROM_FORK=$(echo "$PR_JSON" | jq -r '.head.repo.fork')
                       if [[ "$PR_FROM_FORK" == "true" ]]; then
@@ -96,8 +95,8 @@ jobs:
                       SHOULD_RUN=true
                       ;;
                     issue_comment)
-                      COMMENT_BODY=$(jq -r '.comment.body // ""' "$EVENT_PATH" | tr 'A-Z' 'a-z')
-                      PULL_URL=$(jq -r '.issue.pull_request.url // ""' "$EVENT_PATH")
+                      COMMENT_BODY=$(jq -r '.comment.body // ""' "$GITHUB_EVENT_PATH" | tr 'A-Z' 'a-z')
+                      PULL_URL=$(jq -r '.issue.pull_request.url // ""' "$GITHUB_EVENT_PATH")
                       if [[ -z "$PULL_URL" ]]; then
                         echo "ℹ️ Comment is not on a PR - skipping"
                         exit 0
@@ -106,23 +105,23 @@ jobs:
                         echo "ℹ️ Comment is not /run-e2e - skipping"
                         exit 0
                       fi
-                      COMMENTER_ASSOCIATION=$(jq -r '.comment.author_association // ""' "$EVENT_PATH")
+                      COMMENTER_ASSOCIATION=$(jq -r '.comment.author_association // ""' "$GITHUB_EVENT_PATH")
                       if [[ "$COMMENTER_ASSOCIATION" != "MEMBER" && "$COMMENTER_ASSOCIATION" != "OWNER" ]]; then
                         echo "❌ /run-e2e requires a maintainer comment"
                         exit 1
                       fi
-                      PR_NUMBER=$(jq -r '.issue.number' "$EVENT_PATH")
+                      PR_NUMBER=$(jq -r '.issue.number' "$GITHUB_EVENT_PATH")
                       PR_JSON=$(load_pr "$PR_NUMBER")
                       TRUSTED=false
                       SHOULD_RUN=true
                       ;;
                     workflow_run)
-                      CONCLUSION=$(jq -r '.workflow_run.conclusion // ""' "$EVENT_PATH")
+                      CONCLUSION=$(jq -r '.workflow_run.conclusion // ""' "$GITHUB_EVENT_PATH")
                       if [[ "$CONCLUSION" != "success" ]]; then
                         echo "ℹ️ Fast Feedback conclusion is '$CONCLUSION' - skipping"
                         exit 0
                       fi
-                      HEAD_SHA=$(jq -r '.workflow_run.head_sha // ""' "$EVENT_PATH")
+                      HEAD_SHA=$(jq -r '.workflow_run.head_sha // ""' "$GITHUB_EVENT_PATH")
                       if [[ -z "$HEAD_SHA" ]]; then
                         echo "ℹ️ Missing head SHA - skipping"
                         exit 0
