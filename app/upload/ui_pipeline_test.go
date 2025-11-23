@@ -6,6 +6,7 @@ import (
 	"testing/fstest"
 
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/ui/core/messages"
 	"github.com/simulot/immich-go/internal/ui/core/state"
@@ -17,7 +18,7 @@ func TestPublishAssetQueuedUpdatesStats(t *testing.T) {
 	uc := &UpCmd{uiPublisher: mem}
 	asset := sampleAsset(42)
 
-	uc.publishAssetQueued(context.Background(), asset)
+	uc.publishAssetQueued(context.Background(), asset, fileevent.DiscoveredImage)
 
 	events := mem.Events()
 	if len(events) != 2 {
@@ -40,7 +41,7 @@ func TestPublishAssetUploadedUpdatesBytes(t *testing.T) {
 	uc := &UpCmd{uiPublisher: mem}
 	asset := sampleAsset(2048)
 
-	uc.publishAssetUploaded(context.Background(), asset)
+	uc.publishAssetUploaded(context.Background(), asset, fileevent.ProcessedUploadSuccess, int64(asset.FileSize), nil)
 
 	events := mem.Events()
 	if len(events) != 2 {
@@ -66,7 +67,7 @@ func TestPublishAssetFailedUpdatesCounter(t *testing.T) {
 	uc := &UpCmd{uiPublisher: mem}
 	asset := sampleAsset(10)
 
-	uc.publishAssetFailed(context.Background(), asset, context.Canceled)
+	uc.publishAssetFailed(context.Background(), asset, fileevent.ErrorServerError, context.Canceled, nil)
 
 	events := mem.Events()
 	if len(events) != 2 {
@@ -81,6 +82,9 @@ func TestPublishAssetFailedUpdatesCounter(t *testing.T) {
 	}
 	if stats.Failed != 1 {
 		t.Fatalf("expected failed count to be 1, got %d", stats.Failed)
+	}
+	if !stats.HasErrors {
+		t.Fatalf("expected HasErrors to be true when failures occur")
 	}
 }
 

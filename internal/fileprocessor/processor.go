@@ -12,8 +12,9 @@ import (
 // FileProcessor coordinates AssetTracker and EventLogger to provide
 // a unified interface for tracking file processing lifecycle.
 type FileProcessor struct {
-	tracker *assettracker.AssetTracker
-	logger  *fileevent.Recorder
+	tracker      *assettracker.AssetTracker
+	logger       *fileevent.Recorder
+	countersHook func(assettracker.AssetCounters)
 }
 
 // New creates a new FileProcessor with the given tracker and logger
@@ -21,6 +22,20 @@ func New(tracker *assettracker.AssetTracker, logger *fileevent.Recorder) *FilePr
 	return &FileProcessor{
 		tracker: tracker,
 		logger:  logger,
+	}
+}
+
+// SetCountersHook registers a callback invoked every time asset counters change.
+func (fp *FileProcessor) SetCountersHook(hook func(assettracker.AssetCounters)) {
+	fp.countersHook = hook
+	if hook != nil {
+		hook(fp.tracker.GetCounters())
+	}
+}
+
+func (fp *FileProcessor) emitCounters() {
+	if fp.countersHook != nil {
+		fp.countersHook(fp.tracker.GetCounters())
 	}
 }
 
@@ -39,6 +54,7 @@ func (fp *FileProcessor) Logger() *fileevent.Recorder {
 func (fp *FileProcessor) RecordAssetDiscovered(ctx context.Context, file fshelper.FSAndName, size int64, code fileevent.Code) {
 	fp.tracker.DiscoverAsset(file, size, code)
 	fp.logger.RecordWithSize(ctx, code, file, size)
+	fp.emitCounters()
 }
 
 // RecordAssetDiscardedImmediately records an asset that is immediately discarded
@@ -47,6 +63,7 @@ func (fp *FileProcessor) RecordAssetDiscovered(ctx context.Context, file fshelpe
 func (fp *FileProcessor) RecordAssetDiscardedImmediately(ctx context.Context, file fshelper.FSAndName, size int64, code fileevent.Code, reason string) {
 	fp.tracker.DiscoverAndDiscard(file, size, code, reason)
 	fp.logger.RecordWithSize(ctx, code, file, size, "reason", reason)
+	fp.emitCounters()
 }
 
 // RecordAssetProcessed transitions an asset to PROCESSED state.
@@ -54,6 +71,7 @@ func (fp *FileProcessor) RecordAssetDiscardedImmediately(ctx context.Context, fi
 func (fp *FileProcessor) RecordAssetProcessed(ctx context.Context, file fshelper.FSAndName, size int64, code fileevent.Code) {
 	fp.tracker.SetProcessed(file, code)
 	fp.logger.RecordWithSize(ctx, code, file, size)
+	fp.emitCounters()
 }
 
 // RecordAssetDiscarded transitions an asset to DISCARDED state.
@@ -61,6 +79,7 @@ func (fp *FileProcessor) RecordAssetProcessed(ctx context.Context, file fshelper
 func (fp *FileProcessor) RecordAssetDiscarded(ctx context.Context, file fshelper.FSAndName, size int64, code fileevent.Code, reason string) {
 	fp.tracker.SetDiscarded(file, code, reason)
 	fp.logger.RecordWithSize(ctx, code, file, size, "reason", reason)
+	fp.emitCounters()
 }
 
 // RecordAssetError transitions an asset to ERROR state.
@@ -68,6 +87,7 @@ func (fp *FileProcessor) RecordAssetDiscarded(ctx context.Context, file fshelper
 func (fp *FileProcessor) RecordAssetError(ctx context.Context, file fshelper.FSAndName, size int64, code fileevent.Code, err error) {
 	fp.tracker.SetError(file, code, err)
 	fp.logger.RecordWithSize(ctx, code, file, size, "error", err.Error())
+	fp.emitCounters()
 }
 
 // RecordNonAsset records a non-asset file (sidecar, metadata, etc.).

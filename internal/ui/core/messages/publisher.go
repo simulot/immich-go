@@ -8,9 +8,9 @@ import (
 
 // Publisher exposes strongly-typed methods for emitting UI-friendly events.
 type Publisher interface {
-	AssetQueued(ctx context.Context, ref state.AssetRef)
-	AssetUploaded(ctx context.Context, ref state.AssetRef, bytes int64)
-	AssetFailed(ctx context.Context, ref state.AssetRef, reason string)
+	AssetQueued(ctx context.Context, event state.AssetEvent)
+	AssetUploaded(ctx context.Context, event state.AssetEvent)
+	AssetFailed(ctx context.Context, event state.AssetEvent)
 	UpdateStats(ctx context.Context, stats state.RunStats)
 	AppendLog(ctx context.Context, entry state.LogEvent)
 	UpdateJobs(ctx context.Context, jobs []state.JobSummary)
@@ -24,13 +24,13 @@ type NoopPublisher struct{}
 var _ Publisher = (*NoopPublisher)(nil)
 
 // AssetQueued implements Publisher.
-func (NoopPublisher) AssetQueued(context.Context, state.AssetRef) {}
+func (NoopPublisher) AssetQueued(context.Context, state.AssetEvent) {}
 
 // AssetUploaded implements Publisher.
-func (NoopPublisher) AssetUploaded(context.Context, state.AssetRef, int64) {}
+func (NoopPublisher) AssetUploaded(context.Context, state.AssetEvent) {}
 
 // AssetFailed implements Publisher.
-func (NoopPublisher) AssetFailed(context.Context, state.AssetRef, string) {}
+func (NoopPublisher) AssetFailed(context.Context, state.AssetEvent) {}
 
 // UpdateStats implements Publisher.
 func (NoopPublisher) UpdateStats(context.Context, state.RunStats) {}

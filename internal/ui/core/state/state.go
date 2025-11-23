@@ -8,13 +8,47 @@ type AssetRef struct {
 	Path string
 }
 
+// AssetStage describes the lifecycle phase of an asset event.
+type AssetStage string
+
+const (
+	AssetStageQueued   AssetStage = "queued"
+	AssetStageUploaded AssetStage = "uploaded"
+	AssetStageFailed   AssetStage = "failed"
+)
+
+// AssetEventCode is a renderer-agnostic identifier for lifecycle events.
+type AssetEventCode int
+
+// AssetEvent carries structured information about an asset lifecycle update.
+type AssetEvent struct {
+	Asset     AssetRef
+	Stage     AssetStage
+	Code      AssetEventCode
+	CodeLabel string
+	Bytes     int64
+	Reason    string
+	Details   map[string]string
+}
+
 // RunStats aggregates high-level counters for the current CLI session.
 type RunStats struct {
-	Queued    int
-	Uploaded  int
-	Failed    int
-	BytesSent int64
-	StartedAt time.Time
+	Queued               int
+	Uploaded             int
+	Failed               int
+	BytesSent            int64
+	Pending              int
+	PendingBytes         int64
+	Processed            int
+	ProcessedBytes       int64
+	Discarded            int
+	DiscardedBytes       int64
+	ErrorCount           int
+	ErrorBytes           int64
+	TotalDiscovered      int
+	TotalDiscoveredBytes int64
+	HasErrors            bool
+	StartedAt            time.Time
 }
 
 // JobSummary describes a background job running on the Immich server.

@@ -22,24 +22,16 @@ func NewMemPublisher() *MemPublisher {
 // Ensure MemPublisher implements messages.Publisher.
 var _ messages.Publisher = (*MemPublisher)(nil)
 
-func (m *MemPublisher) AssetQueued(_ context.Context, ref state.AssetRef) {
-	m.append(messages.Event{Type: messages.EventAssetQueued, Payload: ref})
+func (m *MemPublisher) AssetQueued(_ context.Context, event state.AssetEvent) {
+	m.append(messages.Event{Type: messages.EventAssetQueued, Payload: event})
 }
 
-func (m *MemPublisher) AssetUploaded(_ context.Context, ref state.AssetRef, bytes int64) {
-	payload := struct {
-		Ref   state.AssetRef
-		Bytes int64
-	}{Ref: ref, Bytes: bytes}
-	m.append(messages.Event{Type: messages.EventAssetUploaded, Payload: payload})
+func (m *MemPublisher) AssetUploaded(_ context.Context, event state.AssetEvent) {
+	m.append(messages.Event{Type: messages.EventAssetUploaded, Payload: event})
 }
 
-func (m *MemPublisher) AssetFailed(_ context.Context, ref state.AssetRef, reason string) {
-	payload := struct {
-		Ref    state.AssetRef
-		Reason string
-	}{Ref: ref, Reason: reason}
-	m.append(messages.Event{Type: messages.EventAssetFailed, Payload: payload})
+func (m *MemPublisher) AssetFailed(_ context.Context, event state.AssetEvent) {
+	m.append(messages.Event{Type: messages.EventAssetFailed, Payload: event})
 }
 
 func (m *MemPublisher) UpdateStats(_ context.Context, stats state.RunStats) {

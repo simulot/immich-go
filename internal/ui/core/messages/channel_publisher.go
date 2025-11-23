@@ -25,26 +25,18 @@ func NewChannelPublisher(buffer int) (*ChannelPublisher, Stream) {
 var _ Publisher = (*ChannelPublisher)(nil)
 
 // AssetQueued implements Publisher.
-func (p *ChannelPublisher) AssetQueued(ctx context.Context, ref state.AssetRef) {
-	p.send(ctx, Event{Type: EventAssetQueued, Payload: ref})
+func (p *ChannelPublisher) AssetQueued(ctx context.Context, event state.AssetEvent) {
+	p.send(ctx, Event{Type: EventAssetQueued, Payload: event})
 }
 
 // AssetUploaded implements Publisher.
-func (p *ChannelPublisher) AssetUploaded(ctx context.Context, ref state.AssetRef, bytes int64) {
-	payload := struct {
-		Ref   state.AssetRef
-		Bytes int64
-	}{Ref: ref, Bytes: bytes}
-	p.send(ctx, Event{Type: EventAssetUploaded, Payload: payload})
+func (p *ChannelPublisher) AssetUploaded(ctx context.Context, event state.AssetEvent) {
+	p.send(ctx, Event{Type: EventAssetUploaded, Payload: event})
 }
 
 // AssetFailed implements Publisher.
-func (p *ChannelPublisher) AssetFailed(ctx context.Context, ref state.AssetRef, reason string) {
-	payload := struct {
-		Ref    state.AssetRef
-		Reason string
-	}{Ref: ref, Reason: reason}
-	p.send(ctx, Event{Type: EventAssetFailed, Payload: payload})
+func (p *ChannelPublisher) AssetFailed(ctx context.Context, event state.AssetEvent) {
+	p.send(ctx, Event{Type: EventAssetFailed, Payload: event})
 }
 
 // UpdateStats implements Publisher.
