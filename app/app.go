@@ -54,6 +54,7 @@ func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")
 	flags.IntVar(&app.ConcurrentTask, "concurrent-tasks", runtime.NumCPU(), "Number of concurrent tasks (1-20)")
 	flags.StringVar((*string)(&app.UIMode), "ui", string(runner.ModeAuto), "UI mode for experimental interface (auto, terminal, web, native, off)")
+	_ = flags.MarkHidden("ui")
 	flags.BoolVar(&app.UIExperimental, "tui-experimental", false, "Enable the experimental Bubble Tea interface")
 	flags.BoolVar(&app.UILegacy, "tui-legacy", false, "Force the legacy tcell UI even when new UI becomes default")
 	flags.IntVar(&app.UIEventBuffer, "ui-event-buffer", 256, "Size of the buffered channel used to stream UI events")
