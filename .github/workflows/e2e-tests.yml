@@ -255,6 +255,7 @@ jobs:
       name: ${{ needs.prepare.outputs.trusted == 'true' && 'e2e-trusted' || 'e2e-infra' }}
     timeout-minutes: 15
     env:
+      project_dir: ${{ github.workspace }}
       e2e_users_server: /home/runner/work/immich-go/immich-go/internal/e2e/testdata/immich-server/e2eusers.env
     steps:
       # SECURITY: Explicit checkout of PR code
