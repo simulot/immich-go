@@ -13,6 +13,7 @@ import (
 
 func Test_ArchiveFromGP(t *testing.T) {
 	t.Run("ArchiveFromFolder", func(t *testing.T) {
+		// triggers the CI worlflow
 		tempDir, err := os.MkdirTemp("", "immich-go-test-ArchiveFromFolder*")
 		if err != nil {
 			t.Fatal(err.Error())
