@@ -205,7 +205,7 @@ jobs:
           persist-credentials: false # Don't persist git credentials
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -267,7 +267,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
