@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -97,15 +98,25 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 		return nil
 	}
 	defer func() { uc.finished = true }()
-	// do waiting operations
-	uc.albumsCache.Close()
-	uc.tagsCache.Close()
 
 	// Resume immich background jobs if requested
 	err := uc.resumeJobs(ctx)
 	if err != nil {
 		return err
 	}
+
+	if uc.DeferTags {
+		uc.app.Log().Info("Waiting for metadata extraction to complete...")
+		err := uc.waitForMetadataExtraction(ctx)
+		if err != nil {
+			uc.app.Log().Error("Failed to wait for metadata extraction", "err", err)
+		}
+		uc.app.Log().Info("Metadata extraction complete, applying tags...")
+	}
+
+	// do waiting operations
+	uc.albumsCache.Close()
+	uc.tagsCache.Close()
 
 	// Generate FileProcessor report
 	if uc.app.FileProcessor() != nil {
@@ -141,7 +152,11 @@ func (uc *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
 	uc.albumsCache = cache.NewCollectionCache(50, func(album assets.Album, ids []string) (assets.Album, error) {
 		return uc.saveAlbum(ctx, album, ids)
 	})
-	uc.tagsCache = cache.NewCollectionCache(50, func(tag assets.Tag, ids []string) (assets.Tag, error) {
+	tagCacheSize := 50
+	if uc.DeferTags {
+		tagCacheSize = 1 << 30
+	}
+	uc.tagsCache = cache.NewCollectionCache(tagCacheSize, func(tag assets.Tag, ids []string) (assets.Tag, error) {
 		return uc.saveTags(ctx, tag, ids)
 	})
 
@@ -596,3 +611,28 @@ func (upCmd *UpCmd) DeleteLocalAssets() error {
 	return nil
 }
 */
+
+func (uc *UpCmd) waitForMetadataExtraction(ctx context.Context) error {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			jobs, err := uc.client.Immich.GetJobs(ctx)
+			if err != nil {
+				return err
+			}
+			job, ok := jobs["metadataExtraction"]
+			if !ok {
+				// Job not found, assume it's done or not running
+				return nil
+			}
+			if job.JobCounts.Active == 0 && job.JobCounts.Waiting == 0 {
+				return nil
+			}
+		}
+	}
+}

@@ -77,6 +77,7 @@ type UpCmd struct {
 	tagsCache         *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 	finished          bool                                 // the finish task has been run
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
+	DeferTags         bool                                 // Defer tagging until metadata extraction is complete
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -85,6 +86,7 @@ func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&uc.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
 	flags.StringSliceVar(&uc.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	flags.BoolVar(&uc.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
+	flags.BoolVar(&uc.DeferTags, "defer-tags", false, "Defer tagging until metadata extraction is complete")
 
 	uc.StackOptions.RegisterFlags(flags)
 }
