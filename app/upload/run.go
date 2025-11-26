@@ -99,24 +99,37 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 	}
 	defer func() { uc.finished = true }()
 
-	// Resume immich background jobs if requested
-	err := uc.resumeJobs(ctx)
-	if err != nil {
-		return err
-	}
-
 	if uc.DeferTags {
+		if uc.client.PauseImmichBackgroundJobs {
+			uc.app.Log().Info("Resuming metadata extraction...")
+			// Use a background context to ensure the command is sent even if the main context is cancelling
+			bgCtx := context.Background()
+			_, err := uc.client.AdminImmich.SendJobCommand(bgCtx, "metadataExtraction", "resume", true)
+			if err != nil {
+				uc.app.Log().Error("Failed to resume metadata extraction", "err", err)
+			}
+		}
+
 		uc.app.Log().Info("Waiting for metadata extraction to complete...")
 		err := uc.waitForMetadataExtraction(ctx)
 		if err != nil {
 			uc.app.Log().Error("Failed to wait for metadata extraction", "err", err)
 		}
 		uc.app.Log().Info("Metadata extraction complete, applying tags...")
+		uc.tagsCache.Close()
+	}
+
+	// Resume immich background jobs if requested
+	err := uc.resumeJobs(ctx)
+	if err != nil {
+		return err
 	}
 
 	// do waiting operations
 	uc.albumsCache.Close()
-	uc.tagsCache.Close()
+	if !uc.DeferTags {
+		uc.tagsCache.Close()
+	}
 
 	// Generate FileProcessor report
 	if uc.app.FileProcessor() != nil {
