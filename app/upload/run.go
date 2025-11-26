@@ -55,12 +55,21 @@ func (uc *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) (as
 		uc.app.Log().Info("created tag", "tag", tag.Value)
 		tag.ID = r[0].ID
 	}
-	_, err := uc.client.Immich.TagAssets(ctx, tag.ID, ids)
-	if err != nil {
-		uc.app.Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
-		return tag, err
+	const batchSize = 500
+	total := len(ids)
+	var err error
+	for i := 0; i < total; i += batchSize {
+		end := i + batchSize
+		if end > total {
+			end = total
+		}
+		_, err = uc.client.Immich.TagAssets(ctx, tag.ID, ids[i:end])
+		if err != nil {
+			uc.app.Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids[i:end]))
+			return tag, err
+		}
 	}
-	uc.app.Log().Info("updated tag", "tag", tag.Value, "assets", len(ids))
+	uc.app.Log().Info("updated tag", "tag", tag.Value, "assets", total)
 	return tag, err
 }
 
