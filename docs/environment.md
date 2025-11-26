@@ -165,7 +165,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_PAUSE_IMMICH_JOBS` | `--pause-immich-jobs` | `true` | Pause Immich background jobs during upload operations |
 | `IMMICH_GO_UPLOAD_SERVER` | `--server` |  | Immich server address (example http://your-ip:2283 or https://your-domain) |
 | `IMMICH_GO_UPLOAD_SESSION_TAG` | `--session-tag` | `false` | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS" |
-| `IMMICH_GO_UPLOAD_DEFER_TAGS` | `--defer-tags` | `false` | Apply tags only after metadata extraction has finished |
+| `IMMICH_GO_UPLOAD_DEFER_TAGS` | `--defer-tags` | `true` | Apply tags only after metadata extraction has finished |
 | `IMMICH_GO_UPLOAD_SKIP_VERIFY_SSL` | `--skip-verify-ssl` | `false` | Skip SSL verification |
 | `IMMICH_GO_UPLOAD_TAG` | `--tag` | `[]` | Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1') |
 | `IMMICH_GO_UPLOAD_TIME_ZONE` | `--time-zone` |  | Override the system time zone |
