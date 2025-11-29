@@ -175,9 +175,7 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 		uc.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
 	}
 
-	if err := uc.initUIPipeline(ctx); err != nil {
-		return err
-	}
+	uc.initUIPipeline(ctx)
 	defer uc.shutdownUIPipeline()
 
 	if uc.ManageEpsonFastFoto {

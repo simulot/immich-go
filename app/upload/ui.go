@@ -662,7 +662,7 @@ func (ui *uiPage) updateJobSparkline(active, waiting int) {
 	if ui.serverJobs == nil {
 		return
 	}
-	_, _, w, _ := ui.serverJobs.GetInnerRect()
+	_, _, w, _ := ui.serverJobs.GetInnerRect() //nolint:dogsled
 	ui.serverActivity = append(ui.serverActivity, float64(active))
 	if w > 0 && len(ui.serverActivity) > w {
 		ui.serverActivity = ui.serverActivity[len(ui.serverActivity)-w:]

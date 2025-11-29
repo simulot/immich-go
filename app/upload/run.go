@@ -78,11 +78,10 @@ func (uc *UpCmd) pauseJobs(ctx context.Context) error {
 	return nil
 }
 
-func (uc *UpCmd) resumeJobs(_ context.Context) error {
+func (uc *UpCmd) resumeJobs(ctx context.Context) error {
 	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
 
 	// Start with a context not yet cancelled
-	ctx := context.Background() //nolint
 	for _, name := range jobs {
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
 		if err != nil {

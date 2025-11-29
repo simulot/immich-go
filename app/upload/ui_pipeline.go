@@ -18,7 +18,7 @@ import (
 	"github.com/simulot/immich-go/internal/ui/runner"
 )
 
-func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
+func (uc *UpCmd) initUIPipeline(ctx context.Context) {
 	if uc.uiPublisher == nil {
 		uc.uiPublisher = messages.NoopPublisher{}
 	}
@@ -30,7 +30,7 @@ func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
 	uc.uiPublisher.UpdateStats(ctx, statsSnapshot)
 
 	if uc.NoUI || !uc.app.UIExperimental {
-		return nil
+		return
 	}
 
 	buffer := uc.app.UIEventBuffer
@@ -93,8 +93,6 @@ func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
 			}
 		}()
 	}
-
-	return nil
 }
 
 func (uc *UpCmd) shutdownUIPipeline() {
@@ -174,7 +172,7 @@ func (uc *UpCmd) publishAssetUploaded(ctx context.Context, a *assets.Asset, code
 	})
 }
 
-func (uc *UpCmd) publishAssetFailed(ctx context.Context, a *assets.Asset, code fileevent.Code, reason error, details map[string]string) {
+func (uc *UpCmd) publishAssetFailed(ctx context.Context, a *assets.Asset, code fileevent.Code, reason error, details map[string]string) { //nolint:unparam
 	msg := ""
 	if reason != nil {
 		msg = reason.Error()
@@ -352,7 +350,7 @@ func assetDiscoveryCode(a *assets.Asset) fileevent.Code {
 	if a == nil {
 		return fileevent.NotHandled
 	}
-	if a.NameInfo.Type == filetypes.TypeVideo {
+	if a.Type == filetypes.TypeVideo {
 		return fileevent.DiscoveredVideo
 	}
 	return fileevent.DiscoveredImage

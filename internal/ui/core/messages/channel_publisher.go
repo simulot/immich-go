@@ -67,9 +67,6 @@ func (p *ChannelPublisher) send(ctx context.Context, evt Event) {
 	if p == nil {
 		return
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	select {
 	case <-ctx.Done():
 	case p.ch <- evt:
