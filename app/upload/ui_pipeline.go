@@ -3,6 +3,7 @@ package upload
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
@@ -38,14 +39,20 @@ func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
 	uc.uiPublisher = publisher
 	uc.uiPublisher.UpdateStats(ctx, uc.snapshotStats())
 
-	if processor := uc.app.FileProcessor(); processor != nil {
-		processor.SetCountersHook(func(c assettracker.AssetCounters) {
-			uc.updateStatsFromCounters(ctx, c)
-		})
-	}
-
 	uiCtx, cancel := context.WithCancel(ctx)
 	uc.uiRunnerCancel = cancel
+
+	if processor := uc.app.FileProcessor(); processor != nil {
+		processor.SetCountersHook(func(c assettracker.AssetCounters) {
+			uc.recordCountersSnapshot(c)
+		})
+		processor.SetEventHook(func(evtCtx context.Context, code fileevent.Code, file fshelper.FSAndName, size int64, attrs map[string]string) {
+			uc.forwardProcessingEvent(evtCtx, code, file, size, attrs)
+		})
+		uc.startStatsAggregator(uiCtx)
+		uc.flushStatsFromCounters(ctx)
+	}
+	uc.startJobsWatcher(uiCtx)
 
 	go func() {
 		cfg := runner.Config{
@@ -64,7 +71,10 @@ func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
 func (uc *UpCmd) shutdownUIPipeline() {
 	if processor := uc.app.FileProcessor(); processor != nil {
 		processor.SetCountersHook(nil)
+		processor.SetEventHook(nil)
 	}
+	uc.stopStatsAggregator()
+	uc.stopJobsWatcher()
 	if uc.uiPublisher != nil {
 		uc.uiPublisher.Close()
 	}
@@ -133,7 +143,7 @@ func (uc *UpCmd) updateStats(ctx context.Context, mutate func(*state.RunStats)) 
 	uc.uiPublisher.UpdateStats(ctx, snapshot)
 }
 
-func (uc *UpCmd) updateStatsFromCounters(ctx context.Context, counters assettracker.AssetCounters) {
+func (uc *UpCmd) applyCountersSnapshot(ctx context.Context, counters assettracker.AssetCounters) {
 	uc.updateStats(ctx, func(stats *state.RunStats) {
 		stats.Pending = int(counters.Pending)
 		stats.PendingBytes = counters.PendingSize
@@ -146,6 +156,84 @@ func (uc *UpCmd) updateStatsFromCounters(ctx context.Context, counters assettrac
 		stats.TotalDiscovered = int(counters.Total())
 		stats.TotalDiscoveredBytes = counters.AssetSize
 	})
+}
+
+const statsAggregationInterval = 200 * time.Millisecond
+
+func (uc *UpCmd) recordCountersSnapshot(counters assettracker.AssetCounters) {
+	uc.uiStatsCountersMu.Lock()
+	uc.uiStatsCounters = counters
+	uc.uiStatsDirty = true
+	uc.uiStatsCountersMu.Unlock()
+}
+
+func (uc *UpCmd) startStatsAggregator(ctx context.Context) {
+	uc.stopStatsAggregator()
+	aggCtx, cancel := context.WithCancel(ctx)
+	uc.uiStatsCancel = cancel
+	go uc.runStatsAggregator(aggCtx)
+}
+
+func (uc *UpCmd) stopStatsAggregator() {
+	if uc.uiStatsCancel != nil {
+		uc.uiStatsCancel()
+		uc.uiStatsCancel = nil
+	}
+}
+
+func (uc *UpCmd) runStatsAggregator(ctx context.Context) {
+	ticker := time.NewTicker(statsAggregationInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			uc.flushStatsFromCounters(ctx)
+			return
+		case <-ticker.C:
+			uc.flushStatsFromCounters(ctx)
+		}
+	}
+}
+
+func (uc *UpCmd) flushStatsFromCounters(ctx context.Context) {
+	if counters, ok := uc.consumeCountersSnapshot(); ok {
+		uc.applyCountersSnapshot(ctx, counters)
+	}
+}
+
+func (uc *UpCmd) startJobsWatcher(ctx context.Context) {
+	uc.stopJobsWatcher()
+	if uc.client.AdminImmich == nil || uc.uiPublisher == nil {
+		return
+	}
+	interval := uc.app.UIJobsPollInterval
+	cfg := runner.JobsWatcherConfig{
+		Client:    uc.client.AdminImmich,
+		Publisher: uc.uiPublisher,
+		Interval:  interval,
+	}
+	if log := uc.app.Log(); log != nil {
+		cfg.Logger = log.Logger
+	}
+	uc.uiJobsCancel = runner.StartJobsWatcher(ctx, cfg)
+}
+
+func (uc *UpCmd) stopJobsWatcher() {
+	if uc.uiJobsCancel != nil {
+		uc.uiJobsCancel()
+		uc.uiJobsCancel = nil
+	}
+}
+
+func (uc *UpCmd) consumeCountersSnapshot() (assettracker.AssetCounters, bool) {
+	uc.uiStatsCountersMu.Lock()
+	defer uc.uiStatsCountersMu.Unlock()
+	if !uc.uiStatsDirty {
+		return assettracker.AssetCounters{}, false
+	}
+	counters := uc.uiStatsCounters
+	uc.uiStatsDirty = false
+	return counters, true
 }
 
 func (uc *UpCmd) buildAssetEvent(a *assets.Asset, stage state.AssetStage, code fileevent.Code, bytes int64, reason string, details map[string]string) state.AssetEvent {
@@ -195,4 +283,37 @@ func assetDiscoveryCode(a *assets.Asset) fileevent.Code {
 		return fileevent.DiscoveredVideo
 	}
 	return fileevent.DiscoveredImage
+}
+
+type processingLogConfig struct {
+	level   string
+	message string
+}
+
+var processingEventLogConfig = map[fileevent.Code]processingLogConfig{
+	fileevent.ProcessedAssociatedMetadata: {level: "info", message: "associated metadata"},
+	fileevent.ProcessedMissingMetadata:    {level: "warn", message: "missing metadata"},
+	fileevent.ProcessedAlbumAdded:         {level: "info", message: "added to album"},
+	fileevent.ProcessedTagged:             {level: "info", message: "tag applied"},
+	fileevent.ProcessedStacked:            {level: "info", message: "stack updated"},
+	fileevent.ProcessedLivePhoto:          {level: "info", message: "live photo processed"},
+}
+
+func (uc *UpCmd) forwardProcessingEvent(ctx context.Context, code fileevent.Code, file fshelper.FSAndName, size int64, attrs map[string]string) {
+	cfg, ok := processingEventLogConfig[code]
+	if !ok {
+		return
+	}
+	details := make(map[string]string, len(attrs)+3)
+	for k, v := range attrs {
+		details[k] = v
+	}
+	if path := safeFullName(file); path != "" {
+		details["file"] = path
+	}
+	if size > 0 {
+		details["size_bytes"] = strconv.FormatInt(size, 10)
+	}
+	details["event_code"] = code.String()
+	uc.publishLog(ctx, cfg.level, cfg.message, details)
 }

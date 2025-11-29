@@ -54,6 +54,9 @@ type RunStats struct {
 // JobSummary describes a background job running on the Immich server.
 type JobSummary struct {
 	Name      string
+	Kind      string
+	Active    int
+	Waiting   int
 	Pending   int
 	Completed int
 	Failed    int
@@ -75,5 +78,5 @@ func NewRunStats(start time.Time) RunStats {
 
 // NewJobSummary returns an empty JobSummary for the provided job name.
 func NewJobSummary(name string) JobSummary {
-	return JobSummary{Name: name}
+	return JobSummary{Name: name, Kind: name}
 }

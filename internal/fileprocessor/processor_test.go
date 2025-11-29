@@ -214,6 +214,37 @@ func TestRecordAssetError(t *testing.T) {
 	}
 }
 
+func TestEventHookCapturesAttributes(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+	tracker := assettracker.New()
+	recorder := fileevent.NewRecorder(logger)
+	fp := New(tracker, recorder)
+
+	ctx := context.Background()
+	file := newTestFile("/test/album.jpg")
+
+	var capturedCode fileevent.Code
+	var capturedPath string
+	var capturedAlbum string
+	fp.SetEventHook(func(_ context.Context, code fileevent.Code, f fshelper.FSAndName, _ int64, attrs map[string]string) {
+		capturedCode = code
+		capturedPath = f.FullName()
+		capturedAlbum = attrs["album"]
+	})
+
+	fp.RecordNonAsset(ctx, file, 0, fileevent.ProcessedAlbumAdded, "album", "Vacation")
+
+	if capturedCode != fileevent.ProcessedAlbumAdded {
+		t.Fatalf("expected hook to capture ProcessedAlbumAdded, got %v", capturedCode)
+	}
+	if capturedPath == "" || !strings.Contains(capturedPath, "album.jpg") {
+		t.Fatalf("expected captured path to reference file, got %q", capturedPath)
+	}
+	if capturedAlbum != "Vacation" {
+		t.Fatalf("expected album metadata, got %q", capturedAlbum)
+	}
+}
+
 func TestRecordNonAsset(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()

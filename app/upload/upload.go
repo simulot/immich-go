@@ -84,6 +84,11 @@ type UpCmd struct {
 	uiRunnerCancel    context.CancelFunc
 	uiStats           state.RunStats
 	uiStatsMu         sync.Mutex
+	uiStatsCountersMu sync.Mutex
+	uiStatsCounters   assettracker.AssetCounters
+	uiStatsDirty      bool
+	uiStatsCancel     context.CancelFunc
+	uiJobsCancel      context.CancelFunc
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {

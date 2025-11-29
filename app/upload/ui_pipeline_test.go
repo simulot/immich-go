@@ -6,6 +6,7 @@ import (
 	"testing/fstest"
 
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/ui/core/messages"
@@ -85,6 +86,100 @@ func TestPublishAssetFailedUpdatesCounter(t *testing.T) {
 	}
 	if !stats.HasErrors {
 		t.Fatalf("expected HasErrors to be true when failures occur")
+	}
+}
+
+func TestForwardProcessingEventAppendsLog(t *testing.T) {
+	mem := uitesting.NewMemPublisher()
+	uc := &UpCmd{uiPublisher: mem}
+	asset := sampleAsset(0)
+	attrs := map[string]string{"album": "Family"}
+
+	uc.forwardProcessingEvent(context.Background(), fileevent.ProcessedAlbumAdded, asset.File, 0, attrs)
+
+	events := mem.Events()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	if events[0].Type != messages.EventLogLine {
+		t.Fatalf("expected log event, got %s", events[0].Type)
+	}
+	logEvent, ok := events[0].Payload.(state.LogEvent)
+	if !ok {
+		t.Fatalf("expected LogEvent payload, got %T", events[0].Payload)
+	}
+	if got := logEvent.Details["album"]; got != "Family" {
+		t.Fatalf("expected album detail, got %q", got)
+	}
+	if logEvent.Details["event_code"] != fileevent.ProcessedAlbumAdded.String() {
+		t.Fatalf("expected event_code detail, got %q", logEvent.Details["event_code"])
+	}
+}
+
+func TestForwardProcessingEventIgnoresUntrackedCodes(t *testing.T) {
+	mem := uitesting.NewMemPublisher()
+	uc := &UpCmd{uiPublisher: mem}
+	asset := sampleAsset(0)
+
+	uc.forwardProcessingEvent(context.Background(), fileevent.DiscoveredImage, asset.File, 0, nil)
+
+	if len(mem.Events()) != 0 {
+		t.Fatalf("expected no events for non-processing code, got %d", len(mem.Events()))
+	}
+}
+
+func TestApplyCountersSnapshotUpdatesStats(t *testing.T) {
+	mem := uitesting.NewMemPublisher()
+	uc := &UpCmd{uiPublisher: mem}
+	counters := assettracker.AssetCounters{
+		Pending:       3,
+		PendingSize:   300,
+		Processed:     2,
+		ProcessedSize: 200,
+		Discarded:     1,
+		DiscardedSize: 50,
+		Errors:        1,
+		ErrorSize:     10,
+		AssetSize:     360,
+	}
+	uc.applyCountersSnapshot(context.Background(), counters)
+
+	events := mem.Events()
+	if len(events) != 1 {
+		t.Fatalf("expected stats event, got %d", len(events))
+	}
+	stats, ok := events[0].Payload.(state.RunStats)
+	if !ok {
+		t.Fatalf("expected RunStats payload, got %T", events[0].Payload)
+	}
+	if stats.Pending != 3 || stats.Processed != 2 || stats.Discarded != 1 {
+		t.Fatalf("unexpected stats snapshot: %+v", stats)
+	}
+	if stats.TotalDiscoveredBytes != 360 {
+		t.Fatalf("expected total bytes 360, got %d", stats.TotalDiscoveredBytes)
+	}
+}
+
+func TestRecordAndFlushCountersSnapshot(t *testing.T) {
+	mem := uitesting.NewMemPublisher()
+	uc := &UpCmd{uiPublisher: mem}
+	counters := assettracker.AssetCounters{Pending: 5}
+	uc.recordCountersSnapshot(counters)
+	uc.flushStatsFromCounters(context.Background())
+
+	events := mem.Events()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 stats event, got %d", len(events))
+	}
+	stats := events[0].Payload.(state.RunStats)
+	if stats.Pending != 5 {
+		t.Fatalf("expected pending 5, got %d", stats.Pending)
+	}
+	// Ensure second flush without new data emits nothing
+	initialCount := len(mem.Events())
+	uc.flushStatsFromCounters(context.Background())
+	if len(mem.Events()) != initialCount {
+		t.Fatalf("expected no new events without dirty snapshot")
 	}
 }
 
