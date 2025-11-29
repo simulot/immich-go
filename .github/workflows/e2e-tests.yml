@@ -198,7 +198,7 @@ jobs:
     steps:
       # SECURITY: Explicit checkout of PR code (not automatic)
       - name: Checkout PR code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ needs.prepare.outputs.head_repo }}
           ref: ${{ needs.prepare.outputs.ref }}
@@ -260,7 +260,7 @@ jobs:
     steps:
       # SECURITY: Explicit checkout of PR code
       - name: Checkout PR code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ needs.prepare.outputs.head_repo }}
           ref: ${{ needs.prepare.outputs.ref }}
