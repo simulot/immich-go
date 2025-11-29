@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assettracker"
@@ -180,6 +181,48 @@ func TestRecordAndFlushCountersSnapshot(t *testing.T) {
 	uc.flushStatsFromCounters(context.Background())
 	if len(mem.Events()) != initialCount {
 		t.Fatalf("expected no new events without dirty snapshot")
+	}
+}
+
+func TestFanOutEventStreamCopiesEvents(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	source := make(chan messages.Event, 1)
+	sinkA := make(chan messages.Event, 1)
+	sinkB := make(chan messages.Event, 1)
+	go fanOutEventStream(ctx, messages.Stream(source), sinkA, sinkB)
+	want := messages.Event{Type: messages.EventLogLine}
+	source <- want
+	close(source)
+	for _, sink := range []<-chan messages.Event{sinkA, sinkB} {
+		select {
+		case got, ok := <-sink:
+			if !ok {
+				t.Fatalf("sink closed before receiving event")
+			}
+			if got.Type != want.Type {
+				t.Fatalf("expected event %v, got %v", want.Type, got.Type)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("timeout waiting for fan-out delivery")
+		}
+	}
+}
+
+func TestDrainEventStreamStopsOnClose(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	source := make(chan messages.Event)
+	done := make(chan struct{})
+	go func() {
+		drainEventStream(ctx, messages.Stream(source))
+		close(done)
+	}()
+	close(source)
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatalf("drainEventStream did not exit after source closed")
 	}
 }
 

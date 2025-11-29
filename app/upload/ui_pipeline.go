@@ -41,6 +41,23 @@ func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
 
 	uiCtx, cancel := context.WithCancel(ctx)
 	uc.uiRunnerCancel = cancel
+	legacyStreamNeeded := !uc.NoUI
+	var sinks []chan messages.Event
+	if legacyStreamNeeded {
+		legacyChan := make(chan messages.Event, buffer)
+		uc.uiStream = legacyChan
+		sinks = append(sinks, legacyChan)
+	}
+	var runnerStream chan messages.Event
+	if uc.app.UIMode != runner.ModeOff {
+		runnerStream = make(chan messages.Event, buffer)
+		sinks = append(sinks, runnerStream)
+	}
+	if len(sinks) > 0 {
+		go fanOutEventStream(uiCtx, stream, sinks...)
+	} else {
+		go drainEventStream(uiCtx, stream)
+	}
 
 	if processor := uc.app.FileProcessor(); processor != nil {
 		processor.SetCountersHook(func(c assettracker.AssetCounters) {
@@ -54,16 +71,18 @@ func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
 	}
 	uc.startJobsWatcher(uiCtx)
 
-	go func() {
-		cfg := runner.Config{
-			Mode:          uc.app.UIMode,
-			Experimental:  uc.app.UIExperimental,
-			LegacyEnabled: uc.app.UILegacy,
-		}
-		if err := runner.Run(uiCtx, cfg, stream); err != nil && !errors.Is(err, runner.ErrNoShellSelected) && !errors.Is(err, context.Canceled) {
-			uc.app.Log().Debug("ui runner exited", "err", err)
-		}
-	}()
+	if runnerStream != nil {
+		go func() {
+			cfg := runner.Config{
+				Mode:          uc.app.UIMode,
+				Experimental:  uc.app.UIExperimental,
+				LegacyEnabled: uc.app.UILegacy,
+			}
+			if err := runner.Run(uiCtx, cfg, runnerStream); err != nil && !errors.Is(err, runner.ErrNoShellSelected) && !errors.Is(err, context.Canceled) {
+				uc.app.Log().Debug("ui runner exited", "err", err)
+			}
+		}()
+	}
 
 	return nil
 }
@@ -81,6 +100,50 @@ func (uc *UpCmd) shutdownUIPipeline() {
 	if uc.uiRunnerCancel != nil {
 		uc.uiRunnerCancel()
 		uc.uiRunnerCancel = nil
+	}
+	uc.uiStream = nil
+}
+
+func fanOutEventStream(ctx context.Context, source messages.Stream, sinks ...chan messages.Event) {
+	defer func() {
+		for _, sink := range sinks {
+			if sink != nil {
+				close(sink)
+			}
+		}
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case evt, ok := <-source:
+			if !ok {
+				return
+			}
+			for _, sink := range sinks {
+				if sink == nil {
+					continue
+				}
+				select {
+				case sink <- evt:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}
+}
+
+func drainEventStream(ctx context.Context, source messages.Stream) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case _, ok := <-source:
+			if !ok {
+				return
+			}
+		}
 	}
 }
 

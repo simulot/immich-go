@@ -89,6 +89,7 @@ type UpCmd struct {
 	uiStatsDirty      bool
 	uiStatsCancel     context.CancelFunc
 	uiJobsCancel      context.CancelFunc
+	uiStream          messages.Stream
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
