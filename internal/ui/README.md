@@ -33,9 +33,17 @@ Runtime flags (to be wired during Phase 0/1):
 - `--ui=auto|terminal|web|native|off`
 - `--tui-experimental` (opt-in until the new UI surpasses the legacy TUI)
 
+### Runtime Behavior
+
+- When `--ui=off`, `runner.Run` drains the event stream and returns `ErrNoShellSelected`, allowing callers to decide whether to keep the legacy UI active.
+- If a requested shell is unavailable at build time, the runner falls back to draining events and reports `ErrShellUnavailable` so the caller can log a concise warning.
+- Legacy tcell subscribers can still receive events via the upload pipeline’s fan-out even when the experimental runner is disabled.
+
 ## Development Notes
 
 1. Keep all renderer-agnostic types inside `core/*` packages. Platform packages must not import CLI commands directly.
 2. Publishers should remain non-blocking; default to `messages.NoopPublisher` when the UI is disabled.
 3. Extend `internal/ui/specifications/tui-revamp-plan.md` before undertaking structural changes.
 4. Tests that depend on the UI bus should use `internal/ui/testing.MemPublisher` to avoid brittle snapshot assertions.
+
+Progress snapshots for Phase 0 live in `scratchpad/tui-phase0-progress.md` and are updated as scaffolding lands.
