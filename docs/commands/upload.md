@@ -53,6 +53,9 @@ All upload sub-commands require these connection parameters:
 | ------------- | ------- | ----------------------- |
 | `--no-ui`     | `false` | Disable interactive UI  |
 | `--api-trace` | `false` | Enable API call tracing |
+| `--ui-dump-events` | `false` | Log experimental UI events for debugging |
+
+`--ui-dump-events` is hidden from `--help` output and is meant for troubleshooting the experimental TUI pipeline.
 
 ---
 

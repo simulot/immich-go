@@ -36,6 +36,7 @@ type Application struct {
 	UILegacy           bool
 	UIEventBuffer      int
 	UIJobsPollInterval time.Duration
+	UIDumpEvents       bool
 
 	// Internal state
 	log       *Log
@@ -59,6 +60,8 @@ func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&app.UIExperimental, "tui-experimental", false, "Enable the experimental Bubble Tea interface")
 	flags.BoolVar(&app.UILegacy, "tui-legacy", false, "Force the legacy tcell UI even when new UI becomes default")
 	flags.IntVar(&app.UIEventBuffer, "ui-event-buffer", 256, "Size of the buffered channel used to stream UI events")
+	flags.BoolVar(&app.UIDumpEvents, "ui-dump-events", false, "Log every experimental UI event for debugging")
+	_ = flags.MarkHidden("ui-dump-events")
 }
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {

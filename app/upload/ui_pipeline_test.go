@@ -1,7 +1,10 @@
 package upload
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
+	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -224,6 +227,45 @@ func TestDrainEventStreamStopsOnClose(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatalf("drainEventStream did not exit after source closed")
 	}
+}
+
+func TestLogUIEventsWritesToLogger(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := make(chan messages.Event, 1)
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	go logUIEvents(ctx, stream, logger)
+	stream <- messages.Event{Type: messages.EventLogLine, Payload: state.LogEvent{Level: "info", Message: "hello"}}
+	close(stream)
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if strings.Contains(buf.String(), "hello") {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected dump log to contain message, got %q", buf.String())
+}
+
+func TestLogUIEventsSummarizesJobs(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := make(chan messages.Event, 1)
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	go logUIEvents(ctx, stream, logger)
+	stream <- messages.Event{Type: messages.EventJobsUpdated, Payload: []state.JobSummary{{Name: "background-uploader"}}}
+	close(stream)
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		logline := buf.String()
+		if strings.Contains(logline, "jobs=1") && strings.Contains(logline, "background-uploader") {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected dump log to summarize jobs, got %q", buf.String())
 }
 
 func sampleAsset(size int) *assets.Asset {

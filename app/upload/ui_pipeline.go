@@ -3,6 +3,8 @@ package upload
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -43,6 +45,7 @@ func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
 	uc.uiRunnerCancel = cancel
 	legacyStreamNeeded := !uc.NoUI
 	var sinks []chan messages.Event
+	var dumpStream chan messages.Event
 	if legacyStreamNeeded {
 		legacyChan := make(chan messages.Event, buffer)
 		uc.uiStream = legacyChan
@@ -53,10 +56,17 @@ func (uc *UpCmd) initUIPipeline(ctx context.Context) error {
 		runnerStream = make(chan messages.Event, buffer)
 		sinks = append(sinks, runnerStream)
 	}
+	if uc.app.UIDumpEvents && uc.app.Log() != nil && uc.app.Log().Logger != nil {
+		dumpStream = make(chan messages.Event, buffer)
+		sinks = append(sinks, dumpStream)
+	}
 	if len(sinks) > 0 {
 		go fanOutEventStream(uiCtx, stream, sinks...)
 	} else {
 		go drainEventStream(uiCtx, stream)
+	}
+	if dumpStream != nil {
+		go logUIEvents(uiCtx, dumpStream, uc.app.Log().Logger)
 	}
 
 	if processor := uc.app.FileProcessor(); processor != nil {
@@ -379,4 +389,37 @@ func (uc *UpCmd) forwardProcessingEvent(ctx context.Context, code fileevent.Code
 	}
 	details["event_code"] = code.String()
 	uc.publishLog(ctx, cfg.level, cfg.message, details)
+}
+
+func logUIEvents(ctx context.Context, events <-chan messages.Event, logger *slog.Logger) {
+	if logger == nil {
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case evt, ok := <-events:
+			if !ok {
+				return
+			}
+			logger.DebugContext(ctx, "ui-event", "type", evt.Type, "summary", summarizeEventPayload(evt.Payload))
+		}
+	}
+}
+
+func summarizeEventPayload(payload any) string {
+	switch v := payload.(type) {
+	case state.RunStats:
+		return fmt.Sprintf("stats queued=%d uploaded=%d failed=%d", v.Queued, v.Uploaded, v.Failed)
+	case state.LogEvent:
+		return fmt.Sprintf("log[%s]: %s", v.Level, v.Message)
+	case []state.JobSummary:
+		if len(v) == 0 {
+			return "jobs=0"
+		}
+		return fmt.Sprintf("jobs=%d first=%s", len(v), v[0].Name)
+	default:
+		return fmt.Sprintf("payload=%T", payload)
+	}
 }
