@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -54,12 +55,21 @@ func (uc *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) (as
 		uc.app.Log().Info("created tag", "tag", tag.Value)
 		tag.ID = r[0].ID
 	}
-	_, err := uc.client.Immich.TagAssets(ctx, tag.ID, ids)
-	if err != nil {
-		uc.app.Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids))
-		return tag, err
+	const batchSize = 500
+	total := len(ids)
+	var err error
+	for i := 0; i < total; i += batchSize {
+		end := i + batchSize
+		if end > total {
+			end = total
+		}
+		_, err = uc.client.Immich.TagAssets(ctx, tag.ID, ids[i:end])
+		if err != nil {
+			uc.app.Log().Error("failed to add assets to tag", "err", err, "tag", tag.Value, "assets", len(ids[i:end]))
+			return tag, err
+		}
 	}
-	uc.app.Log().Info("updated tag", "tag", tag.Value, "assets", len(ids))
+	uc.app.Log().Info("updated tag", "tag", tag.Value, "assets", total)
 	return tag, err
 }
 
@@ -97,14 +107,37 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 		return nil
 	}
 	defer func() { uc.finished = true }()
-	// do waiting operations
-	uc.albumsCache.Close()
-	uc.tagsCache.Close()
+
+	if uc.DeferTags {
+		if uc.client.PauseImmichBackgroundJobs {
+			uc.app.Log().Info("Resuming metadata extraction...")
+			// Use a background context to ensure the command is sent even if the main context is cancelling
+			bgCtx := context.Background()
+			_, err := uc.client.AdminImmich.SendJobCommand(bgCtx, "metadataExtraction", "resume", true)
+			if err != nil {
+				uc.app.Log().Error("Failed to resume metadata extraction", "err", err)
+			}
+		}
+
+		uc.app.Log().Info("Waiting for metadata extraction to complete...")
+		err := uc.waitForMetadataExtraction(ctx)
+		if err != nil {
+			uc.app.Log().Error("Failed to wait for metadata extraction", "err", err)
+		}
+		uc.app.Log().Info("Metadata extraction complete, applying tags...")
+		uc.tagsCache.Close()
+	}
 
 	// Resume immich background jobs if requested
 	err := uc.resumeJobs(ctx)
 	if err != nil {
 		return err
+	}
+
+	// do waiting operations
+	uc.albumsCache.Close()
+	if !uc.DeferTags {
+		uc.tagsCache.Close()
 	}
 
 	// Generate FileProcessor report
@@ -141,7 +174,11 @@ func (uc *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
 	uc.albumsCache = cache.NewCollectionCache(50, func(album assets.Album, ids []string) (assets.Album, error) {
 		return uc.saveAlbum(ctx, album, ids)
 	})
-	uc.tagsCache = cache.NewCollectionCache(50, func(tag assets.Tag, ids []string) (assets.Tag, error) {
+	tagCacheSize := 50
+	if uc.DeferTags {
+		tagCacheSize = 1 << 30
+	}
+	uc.tagsCache = cache.NewCollectionCache(tagCacheSize, func(tag assets.Tag, ids []string) (assets.Tag, error) {
 		return uc.saveTags(ctx, tag, ids)
 	})
 
@@ -596,3 +633,28 @@ func (upCmd *UpCmd) DeleteLocalAssets() error {
 	return nil
 }
 */
+
+func (uc *UpCmd) waitForMetadataExtraction(ctx context.Context) error {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			jobs, err := uc.client.Immich.GetJobs(ctx)
+			if err != nil {
+				return err
+			}
+			job, ok := jobs["metadataExtraction"]
+			if !ok {
+				// Job not found, assume it's done or not running
+				return nil
+			}
+			if job.JobCounts.Active == 0 && job.JobCounts.Waiting == 0 {
+				return nil
+			}
+		}
+	}
+}

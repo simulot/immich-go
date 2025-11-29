@@ -150,6 +150,7 @@ overwrite = false
 pause-immich-jobs = true
 server = 'https://immich.app'
 session-tag = false
+defer-tags = false
 skip-verify-ssl = false
 time-zone = ''
 
@@ -473,6 +474,7 @@ upload:
   pause-immich-jobs: true
   server: https://immich.app
   session-tag: false
+  defer-tags: false
   skip-verify-ssl: false
   tag: {}
   time-zone: ""
@@ -710,6 +712,7 @@ upload:
     "pause-immich-jobs": true,
     "server": "https://immich.app",
     "session-tag": false,
+    "defer-tags": false,
     "skip-verify-ssl": false,
     "tag": {},
     "time-zone": ""
