@@ -150,7 +150,7 @@ jobs:
 
       - name: Upload security results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: security-scan-results
           path: govulncheck-output.txt
@@ -197,7 +197,7 @@ jobs:
           -ldflags="-s -w -extldflags=-static" main.go
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: immich-go-${{ matrix.os }}-${{ matrix.arch }}
           path: immich-go-${{ matrix.os }}-${{ matrix.arch }}*
