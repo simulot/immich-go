@@ -69,6 +69,10 @@ func (p *ChannelPublisher) send(ctx context.Context, evt Event) {
 	}
 	select {
 	case <-ctx.Done():
+		return
+	default:
+	}
+	select {
 	case p.ch <- evt:
 	default:
 	}

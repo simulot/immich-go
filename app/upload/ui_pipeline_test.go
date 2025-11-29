@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -229,43 +230,62 @@ func TestDrainEventStreamStopsOnClose(t *testing.T) {
 	}
 }
 
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+// Write implements io.Writer with thread safety
+func (s *safeBuffer) Write(p []byte) (n int, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.Write(p)
+}
+
+// String returns the buffer contents with thread safety
+func (s *safeBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.String()
+}
+
 func TestLogUIEventsWritesToLogger(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	stream := make(chan messages.Event, 1)
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	var sb safeBuffer
+	logger := slog.New(slog.NewTextHandler(&sb, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	go logUIEvents(ctx, stream, logger)
 	stream <- messages.Event{Type: messages.EventLogLine, Payload: state.LogEvent{Level: "info", Message: "hello"}}
 	close(stream)
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {
-		if strings.Contains(buf.String(), "hello") {
+		if strings.Contains(sb.String(), "hello") {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("expected dump log to contain message, got %q", buf.String())
+	t.Fatalf("expected dump log to contain message, got %q", sb.String())
 }
 
 func TestLogUIEventsSummarizesJobs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	stream := make(chan messages.Event, 1)
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	var sb safeBuffer
+	logger := slog.New(slog.NewTextHandler(&sb, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	go logUIEvents(ctx, stream, logger)
 	stream <- messages.Event{Type: messages.EventJobsUpdated, Payload: []state.JobSummary{{Name: "background-uploader"}}}
 	close(stream)
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {
-		logline := buf.String()
+		logline := sb.String()
 		if strings.Contains(logline, "jobs=1") && strings.Contains(logline, "background-uploader") {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("expected dump log to summarize jobs, got %q", buf.String())
+	t.Fatalf("expected dump log to summarize jobs, got %q", sb.String())
 }
 
 func sampleAsset(size int) *assets.Asset {
