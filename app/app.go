@@ -11,6 +11,7 @@ import (
 	"github.com/simulot/immich-go/internal/config"
 	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/filetypes"
+	"github.com/simulot/immich-go/internal/ui/runner"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -24,11 +25,17 @@ import (
 
 type Application struct {
 	// CLI flags
-	DryRun         bool
-	OnErrors       cliflags.OnErrorsFlag
-	SaveConfig     bool
-	ConcurrentTask int
-	CfgFile        string
+	DryRun             bool
+	OnErrors           cliflags.OnErrorsFlag
+	SaveConfig         bool
+	ConcurrentTask     int
+	CfgFile            string
+	UIMode             runner.Mode
+	UIExperimental     bool
+	UILegacy           bool
+	UIEventBuffer      int
+	UIJobsPollInterval time.Duration
+	UIDumpEvents       bool
 
 	// Internal state
 	log       *Log
@@ -47,14 +54,24 @@ func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&app.SaveConfig, "save-config", false, "Save the configuration to immich-go.yaml")
 	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")
 	flags.IntVar(&app.ConcurrentTask, "concurrent-tasks", runtime.NumCPU(), "Number of concurrent tasks (1-20)")
+	flags.StringVar((*string)(&app.UIMode), "ui", string(runner.ModeAuto), "UI mode for experimental interface (auto, terminal, web, native, off)")
+	_ = flags.MarkHidden("ui")
+	flags.BoolVar(&app.UIExperimental, "tui-experimental", false, "Enable the experimental Bubble Tea interface")
+	flags.BoolVar(&app.UILegacy, "tui-legacy", false, "Force the legacy tcell UI even when new UI becomes default")
+	flags.IntVar(&app.UIEventBuffer, "ui-event-buffer", 256, "Size of the buffered channel used to stream UI events")
+	flags.BoolVar(&app.UIDumpEvents, "ui-dump-events", false, "Log every experimental UI event for debugging")
+	_ = flags.MarkHidden("ui-dump-events")
 }
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {
 	// application's context
 	a := &Application{
-		log:    &Log{},
-		tz:     time.Local,
-		Config: config.New(),
+		log:                &Log{},
+		tz:                 time.Local,
+		Config:             config.New(),
+		UIMode:             runner.ModeAuto,
+		UIEventBuffer:      256,
+		UIJobsPollInterval: 250 * time.Millisecond,
 	}
 	return a
 }

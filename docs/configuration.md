@@ -15,6 +15,11 @@ log-level = 'INFO'
 log-type = 'text'
 on-errors = 'stop'
 save-config = false
+tui-experimental = false
+tui-legacy = false
+ui = 'auto'
+ui-dump-events = false
+ui-event-buffer = 256
 
 [archive]
 write-to-folder = ''
@@ -371,6 +376,11 @@ stack:
   server: https://immich.app
   skip-verify-ssl: false
   time-zone: ""
+tui-experimental: false
+tui-legacy: false
+ui: auto
+ui-dump-events: false
+ui-event-buffer: 256
 upload:
   admin-api-key: ""
   api-key: YOUR-API-KEY
@@ -603,6 +613,11 @@ upload:
     "skip-verify-ssl": false,
     "time-zone": ""
   },
+  "tui-experimental": false,
+  "tui-legacy": false,
+  "ui": "auto",
+  "ui-dump-events": false,
+  "ui-event-buffer": 256,
   "upload": {
     "admin-api-key": "",
     "api-key": "YOUR-API-KEY",

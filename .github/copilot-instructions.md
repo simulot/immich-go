@@ -77,11 +77,12 @@ When asked to generate release notes:
 
 ## Working on a new feature
 
-- Storyboarding and design discussions should be documented in the `scratchpad/` directory.
-- Implementation progress and summaries should also be documented in the `scratchpad/` directory.   
-- propose unit tests for testing tricky aspects of the feature
-- propose e2e tests:
-    - explain the case to be tested: 
-    - propose a description of test data needed for the test. 
-    - I'll provide the data and files for the test
-    - ensure that the entire upload process works as expected, including file discovery, processing, and uploading to the Immich server.
+- by default, Storyboarding and design discussions should be documented in the `scratchpad/` directory.
+   - Implementation progress and summaries should also be documented in the `scratchpad/` directory.   
+   - propose unit tests for testing tricky aspects of the feature
+   - propose e2e tests:
+      - explain the case to be tested: 
+      - propose a description of test data needed for the test. 
+      - I'll provide the data and files for the test
+      - ensure that the entire upload process works as expected, including file discovery, processing, and uploading to the Immich server.
+- for the tui-revamping, use the folder `internal/ui/specifications`

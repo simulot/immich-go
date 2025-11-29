@@ -3,6 +3,7 @@ package upload
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/adapters"
@@ -23,6 +24,8 @@ import (
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
+	"github.com/simulot/immich-go/internal/ui/core/messages"
+	"github.com/simulot/immich-go/internal/ui/core/state"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -77,6 +80,16 @@ type UpCmd struct {
 	tagsCache         *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 	finished          bool                                 // the finish task has been run
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
+	uiPublisher       messages.Publisher
+	uiRunnerCancel    context.CancelFunc
+	uiStats           state.RunStats
+	uiStatsMu         sync.Mutex
+	uiStatsCountersMu sync.Mutex
+	uiStatsCounters   assettracker.AssetCounters
+	uiStatsDirty      bool
+	uiStatsCancel     context.CancelFunc
+	uiJobsCancel      context.CancelFunc
+	uiStream          messages.Stream
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -101,6 +114,7 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 		app:               app,
 		localAssets:       syncset.New[string](),
 		immichAssetsReady: make(chan struct{}),
+		uiPublisher:       messages.NoopPublisher{},
 	}
 
 	// Register CLI flags for the upload command
@@ -160,6 +174,9 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	if uc.SessionTag {
 		uc.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
 	}
+
+	uc.initUIPipeline(ctx)
+	defer uc.shutdownUIPipeline()
 
 	if uc.ManageEpsonFastFoto {
 		g := epsonfastfoto.Group{}
