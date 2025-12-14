@@ -31,7 +31,7 @@ func Test_FromGooglePhotos(t *testing.T) {
 		"--no-ui",
 		// "--api-trace",
 		"--log-level=debug",
-		"DATA/fromGooglePhotos/gophers",
+		"DATA/fromGooglePhotos/gophers*",
 	})
 	err = c.ExecuteContext(ctx)
 	if err != nil && a.Log().GetSLog() != nil {
@@ -47,5 +47,8 @@ func Test_FromGooglePhotos(t *testing.T) {
 		fileevent.ProcessedUploadSuccess: 5,
 		fileevent.ProcessedAlbumAdded:    5,
 		fileevent.ProcessedTagged:        5,
+		fileevent.DiscardedLocalDuplicate: 1,
+		fileevent.DiscardedFiltered:       1,
+		fileevent.ProcessedMissingMetadata: 1,
 	}, false, a.FileProcessor())
 }
