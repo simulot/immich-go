@@ -18,7 +18,8 @@ This document describes the high-level architecture of `immich-go`, how its comp
 │  - folder: local directory reader                           │
 │  - googlePhotos: Google Takeout parser                       │
 │  - icloud: iCloud reader                                    │
-│  - fromimmich: server-to-server                             │
+│  - fromimmich: server-to-server transfer                    │
+│  - bereal: BeReal memories import                           │
 └────────────────────┬────────────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────────────┐
@@ -87,6 +88,12 @@ This document describes the high-level architecture of `immich-go`, how its comp
   - Uses Immich API to list assets
   - Applies server-side filtering
   - Re-uploads to target server
+
+- **`bereal/`** — Imports BeReal memories
+  - Parses BeReal export structure and `memories.json`
+  - Separates front (main) and back (selfie) camera images
+  - Applies proper tags (`BeReal_Main`, `BeReal_Selfie`) and stacking
+  - Supports per-memory album grouping
 
 **Interface** (implicit):
 Each adapter is responsible for:
@@ -267,68 +274,27 @@ Here's how a photo flows through the system:
 
 ---
 
-## Extension Points: Adding BeReal Support
+## Adding New Import Sources
 
-When adding a new import source (e.g., BeReal), you need to:
+To add support for a new import source, follow this pattern:
 
-### 1. Create an Adapter (`adapters/bereal/`)
+### 1. Create an Adapter (`adapters/<source>/`)
 
-```go
-package bereal
+Implement the adapter to:
+- Parse the source format (filesystem, JSON metadata, CSV, API, etc.)
+- Discover assets and extract metadata (dates, locations, descriptions, tags, albums)
+- Normalize everything to the common `Asset` model
+- Yield assets on a channel for the upload pipeline
 
-import "github.com/simulot/immich-go/internal/assets"
+**Example**: The BeReal adapter discovers front/back image pairs from `memories.json`, applies tags (`BeReal_Main`, `BeReal_Selfie`), stacks them together, and optionally groups them into per-memory albums.
 
-type BeRealAdapter struct {
-    sourceDir string  // path to BeReal export
-    fsys      fs.FS   // filesystem abstraction
-}
+### 2. Wire into CLI
 
-func NewBeRealAdapter(dir string) (*BeRealAdapter, error) {
-    // Initialize and validate directory structure
-}
+Register the command in `app/upload/upload.go` and implement the Cobra command with flags as needed.
 
-func (ba *BeRealAdapter) DiscoverAssets(ctx context.Context) (chan *assets.Asset, error) {
-    // Scan BeReal directory structure
-    // Parse main + selfie image pairs
-    // Extract metadata (capture time, location, etc.)
-    // Yield assets on channel
-    
-    // For each memory:
-    // 1. Create Asset for main image
-    //    a. Add tag: "BeReal_Main"
-    // 2. Create Asset for selfie
-    //    a. Add tag: "BeReal_Selfie"
-    // 3. Group in album: "BeReal"
-    // 4. Set CaptureDate from BeReal metadata
-}
-```
+### 3. Leverage Immich Client
 
-### 2. Wire into CLI Command
-
-In `app/upload/run.go` or new command:
-```go
-case "from-bereal":
-    adapter, err := bereal.NewBeRealAdapter(sourceDir)
-    if err != nil {
-        return err
-    }
-    // Process assets like existing adapters
-```
-
-### 3. Use Immich Client for Tagging
-
-Already implemented — use existing methods:
-```go
-client.UpsertTags(ctx, []string{"BeReal_Main", "BeReal_Selfie"})
-client.TagAssets(ctx, tagID, []string{assetID})
-client.CreateAlbum(ctx, &Album{Title: "BeReal"})
-client.AddAssetsToAlbum(ctx, albumID, []string{assetID})
-```
-
-Or use the new helper method you added:
-```go
-result, err := client.ImportBeRealMemory(ctx, mainAsset, selfieAsset)
-```
+Use existing client methods for tagging and albums — the upload orchestration handles these automatically once the adapter yields normalized assets.
 
 ---
 
@@ -458,21 +424,8 @@ go test ./...
 # E2E tests (requires running Immich server)
 go test -tags=e2e ./internal/e2e/...
 
-# Specific package
-go test ./adapters/folder -v
+# Specific adapter
+go test ./adapters/bereal -v
 ```
 
-See `docs/test.md` for detailed testing guidelines.
-
----
-
-## Next Steps for BeReal Feature
-
-1. **Finalize data format**: How does BeReal export provide the main + selfie images? (directory structure, metadata format, etc.)
-2. **Create `adapters/bereal/` package**: Implement discovery and metadata extraction
-3. **Test parsing**: Unit tests for BeReal metadata parsing
-4. **Wire into CLI**: Add `upload from-bereal` command
-5. **Add E2E tests**: End-to-end test with sample BeReal data
-6. **Update docs**: Document BeReal import in `docs/commands/upload.md`
-
-The `immich.ImportBeRealMemory()` helper you created can be used by the upload orchestration logic to simplify the tagging workflow.
+Each adapter should include unit tests for metadata parsing and asset discovery. See `docs/test.md` for detailed guidelines.
