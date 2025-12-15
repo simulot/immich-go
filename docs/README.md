@@ -19,6 +19,7 @@ This documentation is organized into several sections to help you get started qu
 
 ### 📋 Best Practices & Advanced Topics
 - [**Best Practices**](best-practices.md) - Performance tips and optimization strategies
+- [**Architecture**](architecture.md) - High-level design, data flow, and extension points
 - [**Technical Details**](technical.md) - File processing, metadata handling, and internals
 - [**Environment Setup**](environment.md) - Advanced environment configuration
 
@@ -39,9 +40,10 @@ This documentation is organized into several sections to help you get started qu
 - [Upload from Google Photos](commands/upload.md#from-google-photos)
 
 ### Advanced Users
-- [Technical Details](technical.md) for deep dive into functionality
-- [Configuration](configuration.md) for advanced customization
-- [Concurrency](concurrency/) for performance optimization
+- [**Architecture**](architecture.md) for understanding system design and extension points
+- [**Technical Details**](technical.md) for deep dive into functionality
+- [**Configuration**](configuration.md) for advanced customization
+- [**Concurrency**](concurrency/) for performance optimization
 
 ## 🛠 Common Commands Quick Reference
 
@@ -69,6 +71,7 @@ docs/
 ├── environment.md              # Environment setup
 ├── examples.md                 # Practical examples
 ├── best-practices.md           # Performance and reliability tips
+├── architecture.md             # System design and extension points
 ├── technical.md                # Technical details and internals
 ├── commands/                   # Command reference
 │   ├── README.md              # Command overview
