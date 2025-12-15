@@ -39,7 +39,7 @@ func TestPathResolutionVariants(t *testing.T) {
 			found[a.OriginalFileName] = true
 		}
 	}
-	assert.True(t, found["6lNLfy.webp"])    // front
+	assert.True(t, found["6lNLfy.webp"])      // front
 	assert.True(t, found["1111555JKKL.webp"]) // back
 }
 
