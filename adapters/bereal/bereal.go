@@ -27,6 +27,7 @@ type BeRealAdapter struct {
 type BeRealMemory struct {
 	FrontImage   ImageInfo `json:"frontImage"`
 	BackImage    ImageInfo `json:"backImage,omitempty"`
+	Caption      string    `json:"caption"`
 	IsLate       bool      `json:"isLate"`
 	Date         string    `json:"date"`
 	TakenTime    string    `json:"takenTime"`
@@ -95,30 +96,6 @@ func (ba *BeRealAdapter) loadMemories() error {
 	return nil
 }
 
-// DiscoverAssets yields all BeReal memory assets
-// This method is used by Browse
-func (ba *BeRealAdapter) discoverAssets() []*assets.Asset {
-	var result []*assets.Asset
-
-	for _, memory := range ba.memories {
-		// Create main asset from frontImage
-		if memory.FrontImage.Path != "" {
-			if asset := ba.createAsset(memory, true); asset != nil {
-				result = append(result, asset)
-			}
-		}
-
-		// Create selfie asset from backImage (if present)
-		if memory.BackImage.Path != "" {
-			if asset := ba.createAsset(memory, false); asset != nil {
-				result = append(result, asset)
-			}
-		}
-	}
-
-	return result
-}
-
 // Browse implements the adapters.Reader interface
 // It returns a channel of asset groups for processing
 // Front and back images from the same memory are grouped together for stacking
@@ -146,10 +123,10 @@ func (ba *BeRealAdapter) Browse(ctx context.Context) chan *assets.Group {
 				}
 			}
 
-			// Create a group for this memory's pair with GroupByRawJpg
-			// (representing front/back pair stacking similar to raw/jpg stacking)
+			// Create a group for this memory's front+back camera pair
+			// BeReal photos should ALWAYS be stacked with front camera as cover
 			if len(groupAssets) > 0 {
-				group := assets.NewGroup(assets.GroupByRawJpg, groupAssets...)
+				group := assets.NewGroup(assets.GroupByDualCamera, groupAssets...)
 				// The main (front) image is the cover
 				if len(groupAssets) > 0 {
 					group.SetCover(0)
@@ -260,6 +237,24 @@ func (ba *BeRealAdapter) createAsset(memory BeRealMemory, isFront bool) *assets.
 		captureDate, _ = time.Parse(time.RFC3339, memory.Date)
 	}
 
+	// Build description from caption if available
+	var description string
+	if memory.Caption != "" {
+		description = memory.Caption
+	}
+
+	// Create metadata with BeReal information
+	// This marks the metadata as coming from the application, which is required
+	// for the upload process to send it to the server
+	md := &assets.Metadata{
+		File:        fshelper.FSName(ba.fsys, imageInfo.Path),
+		FileName:    fileName,
+		DateTaken:   captureDate,
+		Latitude:    memory.Location.Latitude,
+		Longitude:   memory.Location.Longitude,
+		Description: description,
+	}
+
 	// Create asset
 	asset := &assets.Asset{
 		File:             fshelper.FSName(ba.fsys, imageInfo.Path),
@@ -267,10 +262,12 @@ func (ba *BeRealAdapter) createAsset(memory BeRealMemory, isFront bool) *assets.
 		FileSize:         int(info.Size()),
 		FileDate:         info.ModTime().UTC(),
 		CaptureDate:      captureDate,
-		Latitude:         memory.Location.Latitude,
-		Longitude:        memory.Location.Longitude,
 		Visibility:       assets.VisibilityTimeline,
 	}
+
+	// Apply metadata and mark it as from application
+	// This is required for location and description to be uploaded to the server
+	asset.FromApplication = asset.UseMetadata(md)
 
 	// Add tag
 	asset.AddTag(tag)
@@ -292,11 +289,6 @@ func (ba *BeRealAdapter) createAsset(memory BeRealMemory, isFront bool) *assets.
 				Description: "BeReal memories",
 			},
 		}
-	}
-
-	// Add description with music if available
-	if memory.Music.Track != "" {
-		asset.Description = fmt.Sprintf("🎵 %s by %s", memory.Music.Track, memory.Music.Artist)
 	}
 
 	ba.logger.Debug(fmt.Sprintf("created BeReal asset %s with tag %s dated %v, size %d", fileName, tag, captureDate, info.Size()))
