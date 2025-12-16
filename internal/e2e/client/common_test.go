@@ -142,6 +142,8 @@ func createUser(keyName string) (user, error) {
 	password := name
 	u := user{Password: password, Email: email}
 
+	fmt.Printf("Creating test user: email:%s, password:%s\n", email, password)
+
 	err = e2eutils.CreateUser(admtk, email, password, email)
 	if err != nil {
 		return u, err

@@ -165,7 +165,6 @@ func CreateUser(adminToken Token, email string, password string, name string) er
 		ShouldChangePassword: false,
 	}
 
-	// uResp := map[string]any
 	resp, err := post(getAPIURL()+"/admin/users", u, adminToken)
 	if err != nil {
 		return err
