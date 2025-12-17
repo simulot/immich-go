@@ -4,7 +4,7 @@
 
 ## Overview
 
-This release introduces full support for importing BeReal memories with automatic front/back camera image handling, intelligent stacking, and proper tagging.
+This release introduces full support for importing BeReal memories with automatic back/front camera image handling, intelligent stacking, and proper tagging.
 
 ---
 
@@ -14,11 +14,11 @@ This release introduces full support for importing BeReal memories with automati
 
 A specialized import command for BeReal memories with complete support for the dual-camera nature of BeReal photos:
 
-- **Automatic Camera Separation**: Separates front (main camera) and back (selfie camera) images into distinct assets
-- **Smart Stacking**: Front and back images are automatically stacked together with the front camera as the cover image for viewing
+- **Automatic Camera Separation**: Separates back (main camera) and front (selfie camera) images into distinct assets
+- **Smart Stacking**: Back and front images are automatically stacked together with the back camera as the cover image for viewing
 - **Intelligent Tagging**: 
-  - Front camera images tagged as `BeReal_Main`
-  - Back camera images tagged as `BeReal_Selfie`
+  - Back camera images tagged as `BeReal_Main`
+  - Front camera images tagged as `BeReal_Selfie`
 - **Metadata Preservation**:
   - Capture date and time extracted from BeReal export
   - GPS location preserved when available
@@ -32,7 +32,7 @@ immich-go upload from-bereal [flags] <path>
 ```
 
 **Flags**:
-- `--bereal-album`: Group BeReal assets into per-memory albums named 'BeReal/YYYY-MM-DD' (optional)
+- `--bereal-album`: Group BeReal assets into the 'BeReal' album (optional)
 
 **Usage Example**:
 ```bash
@@ -85,7 +85,7 @@ Download the latest release for your platform from [GitHub Releases](https://git
 ## Known Limitations
 
 - BeReal captions are imported as asset descriptions only (not as separate note assets)
-- Per-memory album grouping creates separate album per date (not a unified BeReal album)
+- Per-memory album grouping groups all BeReal assets into a single 'BeReal' album (not separate albums per date)
 
 ---
 

@@ -105,29 +105,29 @@ func (ba *BeRealAdapter) Browse(ctx context.Context) chan *assets.Group {
 	go func() {
 		defer close(out)
 
-		// Create groups where front+back pairs are stacked together
+		// Create groups where main+selfie pairs are stacked together
 		for _, memory := range ba.memories {
 			var groupAssets []*assets.Asset
 
-			// Add front image
-			if memory.FrontImage.Path != "" {
+			// Add Main image (back camera) - this will be the cover (first in group)
+			if memory.BackImage.Path != "" {
 				if asset := ba.createAsset(memory, true); asset != nil {
 					groupAssets = append(groupAssets, asset)
 				}
 			}
 
-			// Add back image
-			if memory.BackImage.Path != "" {
+			// Add Selfie image (front camera) - this will be stacked
+			if memory.FrontImage.Path != "" {
 				if asset := ba.createAsset(memory, false); asset != nil {
 					groupAssets = append(groupAssets, asset)
 				}
 			}
 
-			// Create a group for this memory's front+back camera pair
-			// BeReal photos should ALWAYS be stacked with front camera as cover
+			// Create a group for this memory's main+selfie camera pair
+			// BeReal photos should ALWAYS be stacked with main camera as cover
 			if len(groupAssets) > 0 {
 				group := assets.NewGroup(assets.GroupByDualCamera, groupAssets...)
-				// The main (front) image is the cover
+				// The main (front) image is the cover (index 0)
 				if len(groupAssets) > 0 {
 					group.SetCover(0)
 				}
@@ -145,16 +145,16 @@ func (ba *BeRealAdapter) Browse(ctx context.Context) chan *assets.Group {
 }
 
 // createAsset converts a BeReal memory into an assets.Asset
-// isFront=true for main camera, false for selfie camera
-func (ba *BeRealAdapter) createAsset(memory BeRealMemory, isFront bool) *assets.Asset {
+// isMain=true for main camera (back), false for selfie camera (front)
+func (ba *BeRealAdapter) createAsset(memory BeRealMemory, isMain bool) *assets.Asset {
 	var imageInfo ImageInfo
 	var tag string
 
-	if isFront {
-		imageInfo = memory.FrontImage
+	if isMain {
+		imageInfo = memory.BackImage
 		tag = "BeReal_Main"
 	} else {
-		imageInfo = memory.BackImage
+		imageInfo = memory.FrontImage
 		tag = "BeReal_Selfie"
 	}
 

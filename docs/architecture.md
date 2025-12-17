@@ -286,7 +286,7 @@ Implement the adapter to:
 - Normalize everything to the common `Asset` model
 - Yield assets on a channel for the upload pipeline
 
-**Example**: The BeReal adapter discovers front/back image pairs from `memories.json`, applies tags (`BeReal_Main`, `BeReal_Selfie`), stacks them together, and optionally groups them into per-memory albums.
+**Example**: The BeReal adapter discovers back/front image pairs from `memories.json`, applies tags (`BeReal_Main`, `BeReal_Selfie`), stacks them together, and optionally groups them into per-memory albums.
 
 ### 2. Wire into CLI
 
