@@ -3,11 +3,11 @@
 package client
 
 import (
+	"context"
 	"testing"
 
 	"github.com/simulot/immich-go/app/root"
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
-	"github.com/simulot/immich-go/internal/fileevent"
 )
 
 func Test_FromFolder(t *testing.T) {
@@ -23,33 +23,36 @@ func Test_FromFolder(t *testing.T) {
 		}
 
 		ctx := t.Context()
-		c, a := root.RootImmichGoCommand(ctx)
+		capture := e2eutils.NewStatsCapture()
+		testCtx := context.WithValue(ctx, "test-stats-capture", capture)
+
+		c, _ := root.RootImmichGoCommand(testCtx)
 		c.SetArgs([]string{
-			// "--concurrent-tasks=0", // for debugging
 			"upload", "from-folder",
 			"--server=" + ImmichURL,
 			"--api-key=" + u1.APIKey,
 			"--admin-api-key=" + adm.APIKey,
-			"--no-ui",
-			"--api-trace",
+			"--tui-experimental",
+			"--ui=off",
 			"--log-level=debug",
 			"DATA/fromFolder/recursive",
 		})
-		err = c.ExecuteContext(ctx)
-		if err != nil && a.Log().GetSLog() != nil {
-			a.Log().Error(err.Error())
-		}
-
+		err = c.ExecuteContext(testCtx)
 		if err != nil {
 			t.Error("Unexpected error", err)
 			return
 		}
 
-		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.ProcessedUploadSuccess: 40,
-			fileevent.ProcessedAlbumAdded:    0,
-			fileevent.ProcessedTagged:        0,
-		}, false, a.FileProcessor())
+		r := capture.Last(t)
+		if r.Uploaded != 40 {
+			t.Fatalf("uploaded=%d, want 40", r.Uploaded)
+		}
+		if r.Discarded != 0 {
+			t.Fatalf("discarded=%d, want 0", r.Discarded)
+		}
+		if r.Failed != 0 {
+			t.Fatalf("failed=%d, want 0", r.Failed)
+		}
 	})
 	t.Run("duplicates", func(t *testing.T) {
 		adm, err := getUser("admin@immich.app")
@@ -63,34 +66,38 @@ func Test_FromFolder(t *testing.T) {
 		}
 
 		ctx := t.Context()
-		c, a := root.RootImmichGoCommand(ctx)
+		capture := e2eutils.NewStatsCapture()
+		testCtx := context.WithValue(ctx, "test-stats-capture", capture)
+
+		c, _ := root.RootImmichGoCommand(testCtx)
 		c.SetArgs([]string{
 			"--concurrent-tasks=0", // for debugging
 			"upload", "from-folder",
 			"--server=" + ImmichURL,
 			"--api-key=" + u1.APIKey,
 			"--admin-api-key=" + adm.APIKey,
-			"--no-ui",
+			"--tui-experimental",
+			"--ui=off",
 			"--api-trace",
 			"--log-level=debug",
 			"DATA/fromFolder/duplicates",
 		})
-		err = c.ExecuteContext(ctx)
-		if err != nil && a.Log().GetSLog() != nil {
-			a.Log().Error(err.Error())
-		}
-
+		err = c.ExecuteContext(testCtx)
 		if err != nil {
 			t.Error("Unexpected error", err)
 			return
 		}
 
-		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.ProcessedUploadSuccess:  2,
-			fileevent.DiscardedLocalDuplicate: 2,
-			fileevent.ProcessedAlbumAdded:     0,
-			fileevent.ProcessedTagged:         0,
-		}, false, a.FileProcessor())
+		r := capture.Last(t)
+		if r.Uploaded != 2 {
+			t.Fatalf("uploaded=%d, want 2", r.Uploaded)
+		}
+		if r.Discarded != 2 {
+			t.Fatalf("discarded=%d, want 2", r.Discarded)
+		}
+		if r.Failed != 0 {
+			t.Fatalf("failed=%d, want 0", r.Failed)
+		}
 	})
 	t.Run("into-album", func(t *testing.T) {
 		adm, err := getUser("admin@immich.app")
@@ -104,33 +111,34 @@ func Test_FromFolder(t *testing.T) {
 		}
 
 		ctx := t.Context()
-		c, a := root.RootImmichGoCommand(ctx)
+		capture := e2eutils.NewStatsCapture()
+		testCtx := context.WithValue(ctx, "test-stats-capture", capture)
+
+		c, _ := root.RootImmichGoCommand(testCtx)
 		c.SetArgs([]string{
-			// "--concurrent-tasks=0", // for debugging
 			"upload", "from-folder",
 			"--server=" + ImmichURL,
 			"--api-key=" + u1.APIKey,
 			"--admin-api-key=" + adm.APIKey,
 			"--into-album=bananas",
-			"--no-ui",
+			"--tui-experimental",
+			"--ui=off",
 			"--api-trace",
 			"--log-level=debug",
 			"DATA/fromFolder/recursive",
 		})
-		err = c.ExecuteContext(ctx)
-		if err != nil && a.Log().GetSLog() != nil {
-			a.Log().Error(err.Error())
-		}
-
+		err = c.ExecuteContext(testCtx)
 		if err != nil {
 			t.Error("Unexpected error", err)
 			return
 		}
 
-		e2eutils.CheckResults(t, map[fileevent.Code]int64{
-			fileevent.ProcessedUploadSuccess: 40,
-			fileevent.ProcessedAlbumAdded:    40,
-			fileevent.ProcessedTagged:        0,
-		}, false, a.FileProcessor())
+		r := capture.Last(t)
+		if r.Uploaded != 40 {
+			t.Fatalf("uploaded=%d, want 40", r.Uploaded)
+		}
+		if r.Failed != 0 {
+			t.Fatalf("failed=%d, want 0", r.Failed)
+		}
 	})
 }

@@ -171,18 +171,18 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if strings.HasSuffix(strings.ToLower(dir), "albums") {
 				a, err := UseICloudAlbum(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
+					ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a)
+					ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a)
 				}
 				continue
 			}
 			if ifc.ICloudMemoriesAsAlbums && strings.HasSuffix(strings.ToLower(dir), "memories") {
 				a, err := UseICloudMemory(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
+					ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a)
+					ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a)
 				}
 				continue
 			}
@@ -190,9 +190,9 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if strings.HasPrefix(strings.ToLower(base), "photo details") {
 				err := UseICloudPhotoDetails(ifc.icloudMetas, fsys, name)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
+					ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata)
+					ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata)
 				}
 				continue
 			}
@@ -211,43 +211,43 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 		if ifc.PicasaAlbum && (lowerBase == ".picasa.ini" || lowerBase == "picasa.ini") {
 			a, err := ReadPicasaIni(fsys, name)
 			if err != nil {
-				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
+				ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 			} else {
 				ifc.picasaAlbums.Store(dir, a)
-				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a.Name)
+				ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a.Name)
 			}
 			continue
 		}
 
 		if matchesBanned(ifc.BannedFiles, name, entry.IsDir()) {
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredBanned, "reason", "banned file")
+			ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredBanned, "reason", "banned file")
 			continue
 		}
 
 		if ifc.supportedMedia.IsUseLess(name) {
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredUnknown, "reason", "useless file")
+			ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredUnknown, "reason", "useless file")
 			continue
 		}
 
 		mediaType := ifc.supportedMedia.TypeFromExt(ext)
 
 		if mediaType == filetypes.TypeUnknown {
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredUnsupported, "reason", "unsupported file type")
+			ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredUnsupported, "reason", "unsupported file type")
 			continue
 		}
 
 		switch mediaType {
 		case filetypes.TypeUseless:
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredUnknown)
+			ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredUnknown)
 			continue
 		case filetypes.TypeImage, filetypes.TypeVideo:
 			// Will be recorded as discovered asset after assetFromFile creates it
 		case filetypes.TypeSidecar:
 			if ifc.IgnoreSideCarFiles {
-				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredSidecar, "reason", "sidecar file ignored")
+				ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredSidecar, "reason", "sidecar file ignored")
 				continue
 			}
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredSidecar)
+			ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredSidecar)
 			continue
 		}
 
@@ -295,7 +295,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 		name := path.Join(dir, base)
 		if entry.IsDir() {
 			if matchesBanned(ifc.BannedFiles, name, true) {
-				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredBanned, "reason", "banned folder")
+				ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredBanned, "reason", "banned folder")
 				continue // Skip this folder, no error
 			}
 			if ifc.Recursive && entry.Name() != "." {
@@ -326,21 +326,21 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if err == nil && jsonName != "" {
 				buf, err := fs.ReadFile(fsys, jsonName)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.ErrorFileAccess, "error", err.Error())
+					ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
 					if bytes.Contains(buf, []byte("immich-go version")) {
 						md := &assets.Metadata{}
 						err = jsonsidecar.Read(bytes.NewReader(buf), md)
 						if err != nil {
-							ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.ErrorFileAccess, "error", err.Error())
+							ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.ErrorFileAccess, "error", err.Error())
 						} else {
-							ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.DiscoveredSidecar)
+							ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.DiscoveredSidecar)
 							md.File = fshelper.FSName(fsys, jsonName)
 							a.FromApplication = a.UseMetadata(md) // Force the use of the metadata coming from immich export
 							a.OriginalFileName = md.FileName      // Force the name of the file to be the one from the JSON file
 						}
 					} else {
-						ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.DiscoveredSidecar)
+						ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.DiscoveredSidecar)
 						ifc.app.Log().Warn("JSON file detected but not from immich-go", "file", fshelper.FSName(fsys, jsonName))
 					}
 				}
@@ -350,14 +350,14 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			if err == nil && xmpName != "" {
 				buf, err := fs.ReadFile(fsys, xmpName)
 				if err != nil {
-					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.ErrorFileAccess, "error", err.Error())
+					ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
 					md := &assets.Metadata{}
 					err = xmpsidecar.ReadXMP(bytes.NewReader(buf), md)
 					if err != nil {
-						ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.ErrorFileAccess, "error", err.Error())
+						ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.ErrorFileAccess, "error", err.Error())
 					} else {
-						ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.DiscoveredSidecar)
+						ifc.processor.LogEvent(ctx, fshelper.FSName(fsys, xmpName), 0, fileevent.DiscoveredSidecar)
 						md.File = fshelper.FSName(fsys, xmpName)
 						a.FromSideCar = a.UseMetadata(md)
 					}

@@ -13,6 +13,11 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_LOG_TYPE` | `--log-type` | `text` | Log formatted  as text of JSON file |
 | `IMMICH_GO_ON_ERRORS` | `--on-errors` | `stop` | What to do when an error occurs (stop, continue, accept N errors at max) |
 | `IMMICH_GO_SAVE_CONFIG` | `--save-config` | `false` | Save the configuration to immich-go.yaml |
+| `IMMICH_GO_TUI_EXPERIMENTAL` | `--tui-experimental` | `false` | Enable the experimental Bubble Tea interface |
+| `IMMICH_GO_TUI_LEGACY` | `--tui-legacy` | `false` | Force the legacy tcell UI even when new UI becomes default |
+| `IMMICH_GO_UI` | `--ui` | `auto` | UI mode for experimental interface (auto, terminal, web, native, off) |
+| `IMMICH_GO_UI_DUMP_EVENTS` | `--ui-dump-events` | `false` | Log every experimental UI event for debugging |
+| `IMMICH_GO_UI_EVENT_BUFFER` | `--ui-event-buffer` | `256` | Size of the buffered channel used to stream UI events |
 
 ## archive
 

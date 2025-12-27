@@ -25,8 +25,8 @@ func TestApplicationFileProcessor(t *testing.T) {
 	// Create and set a file processor
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	processor := fileprocessor.New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	processor := fileprocessor.NewFileProcessor(tracker, recorder)
 
 	app.SetFileProcessor(processor)
 

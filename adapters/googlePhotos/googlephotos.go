@@ -111,18 +111,18 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			ext := strings.ToLower(path.Ext(base))
 			finfo, err := fs.Stat(w, name)
 			if err != nil {
-				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
+				toc.processor.LogEvent(ctx, fshelper.FSName(w, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				return nil
 			}
 
 			// Exclude files to be ignored before processing
 			if toc.BannedFiles.Match(name) {
-				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredBanned, "reason", "banned file")
+				toc.processor.LogEvent(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredBanned, "reason", "banned file")
 				return nil
 			}
 
 			if toc.supportedMedia.IsUseLess(name) {
-				toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredUnknown, "reason", "useless file")
+				toc.processor.LogEvent(ctx, fshelper.FSName(w, name), 0, fileevent.DiscoveredUnknown, "reason", "useless file")
 				return nil
 			}
 
@@ -154,11 +154,11 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				if bytes.Contains(b, []byte("immich-go version:")) {
 					md, err = assets.UnMarshalMetadata(b)
 					if err != nil {
-						toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
+						toc.processor.LogEvent(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
 						return nil
 					}
 					md.FileName = base
-					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "immich-go metadata", "title", md.FileName)
+					toc.processor.LogEvent(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "immich-go metadata", "title", md.FileName)
 					md.File = fshelper.FSName(w, name)
 				} else {
 					md, err := fshelper.UnmarshalJSON[GoogleMetaData](b)
@@ -168,11 +168,11 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 							md := md.AsMetadata(fshelper.FSName(w, name), toc.PeopleTag) // Keep metadata
 							dirCatalog.jsons[base] = md
 							toc.app.Log().Debug("Asset JSON", "metadata", md)
-							toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)
+							toc.processor.LogEvent(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)
 						case md.isAlbum():
 							toc.app.Log().Debug("Album JSON", "metadata", md)
 							if !toc.KeepUntitled && md.Title == "" {
-								toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "discard untitled album")
+								toc.processor.LogEvent(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "discard untitled album")
 								return nil
 							}
 							a := toc.albums[dir]
@@ -186,13 +186,13 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 								a.Longitude = e.Longitude
 							}
 							toc.albums[dir] = a
-							toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "album metadata", "title", md.Title)
+							toc.processor.LogEvent(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "album metadata", "title", md.Title)
 						default:
-							toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
+							toc.processor.LogEvent(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
 							return nil
 						}
 					} else {
-						toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
+						toc.processor.LogEvent(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredUnsupported, "reason", "unknown JSONfile")
 						return nil
 					}
 				}
@@ -201,10 +201,10 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				t := toc.supportedMedia.TypeFromExt(ext)
 				switch t {
 				case filetypes.TypeUseless:
-					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnknown, "reason", "useless file")
+					toc.processor.LogEvent(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnknown, "reason", "useless file")
 					return nil
 				case filetypes.TypeUnknown:
-					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnsupported, "reason", "unsupported file type")
+					toc.processor.LogEvent(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnsupported, "reason", "unsupported file type")
 					return nil
 				case filetypes.TypeVideo:
 					if strings.Contains(name, "Failed Videos") {
@@ -306,7 +306,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 							i.md = md
 							a := toc.makeAsset(ctx, dir, i, md)
 							cat.matchedFiles[f] = a
-							toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedAssociatedMetadata, "json", json, "matcher", matcher.name)
+							toc.processor.LogEvent(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedAssociatedMetadata, "json", json, "matcher", matcher.name)
 							delete(cat.unMatchedFiles, f)
 						}
 					}
@@ -319,7 +319,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 			sort.Strings(files)
 			for _, f := range files {
 				i := cat.unMatchedFiles[f]
-				toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedMissingMetadata)
+				toc.processor.LogEvent(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedMissingMetadata)
 				if toc.KeepJSONLess {
 					a := toc.makeAsset(ctx, dir, i, nil)
 					cat.matchedFiles[f] = a

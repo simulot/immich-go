@@ -3,11 +3,7 @@ package upload
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assets"
@@ -17,62 +13,20 @@ import (
 
 func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
-	lock := sync.RWMutex{}
 	defer cancel(nil)
 
-	var preparationDone atomic.Bool
-
-	stopProgress := make(chan any)
-	var maxImmich, currImmich int
-	spinner := []rune{' ', ' ', '.', ' ', ' '}
-	spinIdx := 0
-
-	immichUpdate := func(value, total int) {
-		lock.Lock()
-		currImmich, maxImmich = value, total
-		lock.Unlock()
+	consoleSink := newConsoleSink(!app.UIExperimental)
+	if processor := app.FileProcessor(); processor != nil {
+		processor.Logger().RegisterSink(consoleSink)
+		defer processor.Logger().UnregisterSink(consoleSink)
 	}
-
-	progressString := func() string {
-		counts := app.FileProcessor().Logger().GetCounts()
-		defer func() {
-			spinIdx++
-			if spinIdx == len(spinner) {
-				spinIdx = 0
-			}
-		}()
-		lock.Lock()
-		immichPct := 0
-		if maxImmich > 0 {
-			immichPct = 100 * currImmich / maxImmich
-		} else {
-			immichPct = 100
-		}
-		lock.Unlock()
-
-		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.FileProcessor().Logger().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.ProcessedUploadSuccess], string(spinner[spinIdx]))
-	}
+	consoleSink.Start(ctx)
+	defer consoleSink.Stop()
 	uiGrp := errgroup.Group{}
 
-	uiGrp.Go(func() error {
-		ticker := time.NewTicker(500 * time.Millisecond)
-		defer func() {
-			ticker.Stop()
-			fmt.Println(progressString())
-		}()
-		for {
-			select {
-			case <-stopProgress:
-				fmt.Print(progressString())
-				return nil
-			case <-ctx.Done():
-				fmt.Print(progressString())
-				return ctx.Err()
-			case <-ticker.C:
-				fmt.Print(progressString())
-			}
-		}
-	})
+	immichUpdate := func(value, total int) {
+		consoleSink.SetImmichProgress(value, total)
+	}
 
 	uiGrp.Go(func() error {
 		processGrp := errgroup.Group{}
@@ -103,7 +57,6 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 				return err
 			}
 		}
-		preparationDone.Store(true)
 		err = uc.uploadLoop(ctx, groupChan)
 		if err != nil {
 			cancel(err)
@@ -119,7 +72,6 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 			cancel(errors.New(messages.String()))
 		}
 		err = errors.Join(err, uc.finishing(ctx))
-		close(stopProgress)
 		return err
 	})
 

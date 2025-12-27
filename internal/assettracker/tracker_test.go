@@ -248,7 +248,7 @@ func TestValidate(t *testing.T) {
 
 func TestDebugMode(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	tracker := NewWithLogger(log, true)
+	tracker := NewWithDebug(log, true)
 
 	file := fshelper.FSName(mockFS{}, "test.jpg")
 
@@ -316,7 +316,7 @@ func TestGenerateDetailedReport(t *testing.T) {
 
 func TestStateTransitionErrors(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	tracker := NewWithLogger(log, false)
+	tracker := NewWithDebug(log, false)
 	file := fshelper.FSName(mockFS{}, "test.jpg")
 
 	// Try to transition non-existent asset - should log error but not fail

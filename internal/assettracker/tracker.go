@@ -36,7 +36,7 @@ type AssetTracker struct {
 	log       *slog.Logger
 }
 
-// New creates a new AssetTracker
+// New creates a new AssetTracker without debug logging
 func New() *AssetTracker {
 	return &AssetTracker{
 		assets:    make(map[string]*AssetRecord),
@@ -44,8 +44,8 @@ func New() *AssetTracker {
 	}
 }
 
-// NewWithLogger creates a new AssetTracker with debug logging
-func NewWithLogger(log *slog.Logger, debugMode bool) *AssetTracker {
+// NewWithDebug creates a new AssetTracker with debug logging
+func NewWithDebug(log *slog.Logger, debugMode bool) *AssetTracker {
 	return &AssetTracker{
 		assets:    make(map[string]*AssetRecord),
 		debugMode: debugMode,

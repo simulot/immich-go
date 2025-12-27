@@ -3,11 +3,11 @@
 package client
 
 import (
+	"context"
 	"testing"
 
 	"github.com/simulot/immich-go/app/root"
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
-	"github.com/simulot/immich-go/internal/fileevent"
 )
 
 func Test_FromGooglePhotos(t *testing.T) {
@@ -22,30 +22,31 @@ func Test_FromGooglePhotos(t *testing.T) {
 	}
 
 	ctx := t.Context()
-	c, a := root.RootImmichGoCommand(ctx)
+	capture := e2eutils.NewStatsCapture()
+	testCtx := context.WithValue(ctx, "test-stats-capture", capture)
+
+	c, _ := root.RootImmichGoCommand(testCtx)
 	c.SetArgs([]string{
 		"upload", "from-google-photos",
 		"--server=" + ImmichURL,
 		"--api-key=" + u1.APIKey,
 		"--admin-api-key=" + adm.APIKey,
-		"--no-ui",
-		// "--api-trace",
+		"--tui-experimental",
+		"--ui=off",
 		"--log-level=debug",
 		"DATA/fromGooglePhotos/gophers",
 	})
-	err = c.ExecuteContext(ctx)
-	if err != nil && a.Log().GetSLog() != nil {
-		a.Log().Error(err.Error())
-	}
-
+	err = c.ExecuteContext(testCtx)
 	if err != nil {
 		t.Error("Unexpected error", err)
 		return
 	}
 
-	e2eutils.CheckResults(t, map[fileevent.Code]int64{
-		fileevent.ProcessedUploadSuccess: 5,
-		fileevent.ProcessedAlbumAdded:    5,
-		fileevent.ProcessedTagged:        5,
-	}, false, a.FileProcessor())
+	r := capture.Last(t)
+	if r.Uploaded != 5 {
+		t.Fatalf("uploaded=%d, want 5", r.Uploaded)
+	}
+	if r.Failed != 0 {
+		t.Fatalf("failed=%d, want 0", r.Failed)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -15,7 +16,8 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/fileprocessor"
+	"github.com/simulot/immich-go/internal/ui/core/messages"
+	"github.com/simulot/immich-go/internal/ui/core/state"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -36,14 +38,15 @@ type uiPage struct {
 	// Discovery zone views for total row
 	discoveryViews map[string]*tview.TextView
 
-	// File processor reference for event sizes
-	fileProcessor *fileprocessor.FileProcessor
-
 	// Asset tracker reference for status updates
 	tracker *assettracker.AssetTracker
 
 	// server's activity history
 	serverActivity []float64
+
+	// Counters fed by streamed log events
+	logCounts map[fileevent.Code]int64
+	logSizes  map[fileevent.Code]int64
 
 	// detect when the server is idling
 	lastTimeServerActive atomic.Int64
@@ -103,8 +106,10 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		return event
 	})
 
-	// update server status
-	if ui.watchJobs {
+	uc.startLegacyUIEventConsumer(ctx, uiApp, ui)
+
+	// update server status via legacy poller when stream not available
+	if ui.watchJobs && uc.uiStream == nil {
 		go func() {
 			tick := time.NewTicker(250 * time.Millisecond)
 			for {
@@ -121,57 +126,46 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 							jobCount += j.JobCounts.Active
 							jobWaiting += j.JobCounts.Waiting
 						}
-						_, _, w, _ := ui.serverJobs.GetInnerRect()
-						ui.serverActivity = append(ui.serverActivity, float64(jobCount))
-						if len(ui.serverActivity) > w {
-							ui.serverActivity = ui.serverActivity[1:]
-						}
-						ui.serverJobs.SetData(ui.serverActivity)
-						ui.serverJobs.SetTitle(fmt.Sprintf("Server's jobs: active: %d, waiting: %d", jobCount, jobWaiting))
-						if jobCount > 0 {
-							ui.lastTimeServerActive.Store(time.Now().Unix())
-						}
+						ui.updateJobSparkline(jobCount, jobWaiting)
 					}
 				}
 			}
 		}()
 	}
 
-	// force the ui to redraw counters
-	go func() {
-		tick := time.NewTicker(100 * time.Millisecond)
-		for {
-			select {
-			case <-ctx.Done():
-				tick.Stop()
-				return
-			case <-tick.C:
-				uiApp.QueueUpdateDraw(func() {
-					counts := app.FileProcessor().Logger().GetCounts()
-					sizes := app.FileProcessor().Logger().GetEventSizes()
-					for c := range ui.counts {
-						ui.getCountView(c, counts[c])
-						ui.updateSizeView(c, sizes[c])
-					}
-					// Update the processing status zone
-					ui.updateStatusZone()
-					if uc.Mode == UpModeGoogleTakeout {
-						ui.immichPrepare.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
-						// Calculate processed items for Google Takeout progress
+	if uc.uiStream == nil {
+		// Legacy fallback: periodically poll trackers when no event stream is available.
+		go func() {
+			tick := time.NewTicker(100 * time.Millisecond)
+			for {
+				select {
+				case <-ctx.Done():
+					tick.Stop()
+					return
+				case <-tick.C:
+					uiApp.QueueUpdateDraw(func() {
 						counts := app.FileProcessor().Logger().GetCounts()
-						processedGP := counts[fileevent.ProcessedAssociatedMetadata] +
-							counts[fileevent.ProcessedMissingMetadata]
-						ui.immichPrepare.SetValue(int(processedGP))
-
-						if preparationDone.Load() {
-							ui.immichUpload.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
+						sizes := app.FileProcessor().Logger().GetEventSizes()
+						for c := range ui.counts {
+							ui.getCountView(c, counts[c])
+							ui.updateSizeView(c, sizes[c])
 						}
-						// ui.immichUpload.SetValue(int(app.Jnl().TotalProcessed(uc.takeoutOptions.KeepJSONLess)))
-					}
-				})
+						ui.updateStatusZone()
+						if uc.Mode == UpModeGoogleTakeout {
+							ui.immichPrepare.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
+							counts := app.FileProcessor().Logger().GetCounts()
+							processedGP := counts[fileevent.ProcessedAssociatedMetadata] +
+								counts[fileevent.ProcessedMissingMetadata]
+							ui.immichPrepare.SetValue(int(processedGP))
+							if preparationDone.Load() {
+								ui.immichUpload.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
+							}
+						}
+					})
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	// start the UI
 	uiGroup.Go(func() error {
@@ -278,8 +272,10 @@ func newModal(message string) tview.Primitive {
 
 func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	ui := &uiPage{
-		counts: map[fileevent.Code]*tview.TextView{},
-		sizes:  map[fileevent.Code]*tview.TextView{},
+		counts:    map[fileevent.Code]*tview.TextView{},
+		sizes:     map[fileevent.Code]*tview.TextView{},
+		logCounts: map[fileevent.Code]int64{},
+		logSizes:  map[fileevent.Code]int64{},
 	}
 
 	ui.screen = tview.NewGrid()
@@ -297,17 +293,19 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 	// Set tracker reference for status updates
 	if a.FileProcessor() != nil {
 		ui.tracker = a.FileProcessor().Tracker()
-		ui.fileProcessor = a.FileProcessor()
 	}
 
-	if _, err := uc.client.AdminImmich.GetJobs(ctx); err == nil {
+	canWatchJobs := false
+	if uc.client.AdminImmich != nil {
+		if uc.uiStream != nil {
+			canWatchJobs = true
+		} else if _, err := uc.client.AdminImmich.GetJobs(ctx); err == nil {
+			canWatchJobs = true
+		}
+	}
+	if canWatchJobs {
 		ui.watchJobs = true
-
-		ui.serverJobs = tvxwidgets.NewSparkline()
-		ui.serverJobs.SetBorder(true).SetTitle("Server pending jobs")
-		ui.serverJobs.SetData(ui.serverActivity)
-		ui.serverJobs.SetDataTitleColor(tcell.ColorDarkOrange)
-		ui.serverJobs.SetLineColor(tcell.ColorSteelBlue)
+		ui.initServerJobsView()
 	}
 
 	counts := tview.NewGrid()
@@ -415,6 +413,17 @@ func (ui *uiPage) addProcessingCounter(g *tview.Grid, row int, label string, cou
 	g.AddItem(ui.getCountView(counter, 0), row, 1, 1, 1, 0, 0, false)
 }
 
+func (ui *uiPage) initServerJobsView() {
+	if ui.serverJobs != nil {
+		return
+	}
+	ui.serverJobs = tvxwidgets.NewSparkline()
+	ui.serverJobs.SetBorder(true).SetTitle("Server pending jobs")
+	ui.serverJobs.SetData(ui.serverActivity)
+	ui.serverJobs.SetDataTitleColor(tcell.ColorDarkOrange)
+	ui.serverJobs.SetLineColor(tcell.ColorSteelBlue)
+}
+
 // createDiscoveryZone creates the discovery zone showing asset discovery events
 func (ui *uiPage) createDiscoveryZone() *tview.Grid {
 	discovery := tview.NewGrid()
@@ -510,6 +519,64 @@ func (ui *uiPage) addStatusCounter(g *tview.Grid, row int, countKey, sizeKey str
 	g.AddItem(sizeView, row, 3, 1, 1, 0, 0, false)
 }
 
+// applyStats updates counters based on streamed RunStats snapshots.
+func (ui *uiPage) applyStats(stats state.RunStats) {
+	if ui.statusViews == nil || ui.discoveryViews == nil {
+		return
+	}
+	ui.statusViews["pendingCount"].SetText(fmt.Sprintf("%6d", stats.Pending))
+	ui.statusViews["pendingSize"].SetText(ui.formatBytes(stats.PendingBytes))
+	ui.statusViews["uploadedCount"].SetText(fmt.Sprintf("%6d", stats.Processed))
+	ui.statusViews["uploadedSize"].SetText(ui.formatBytes(stats.ProcessedBytes))
+	ui.statusViews["discardedCount"].SetText(fmt.Sprintf("%6d", stats.Discarded))
+	ui.statusViews["discardedSize"].SetText(ui.formatBytes(stats.DiscardedBytes))
+	ui.statusViews["errorCount"].SetText(fmt.Sprintf("%6d", stats.ErrorCount))
+	ui.statusViews["errorSize"].SetText(ui.formatBytes(stats.ErrorBytes))
+
+	// Total discovered mirrors discovery zone summary.
+	ui.statusViews["totalCount"].SetText(fmt.Sprintf("%6d", stats.TotalDiscovered))
+	ui.statusViews["totalSize"].SetText(ui.formatBytes(stats.TotalDiscoveredBytes))
+
+	ui.discoveryViews["discoveredCount"].SetText(fmt.Sprintf("%6d", stats.TotalDiscovered))
+	ui.discoveryViews["discoveredSize"].SetText(ui.formatBytes(stats.TotalDiscoveredBytes))
+}
+
+// applyLogEventCounters increments discovery/processing counters from log events carrying event metadata.
+func (ui *uiPage) applyLogEventCounters(entry state.LogEvent) {
+	if entry.Details == nil {
+		return
+	}
+	codeID := entry.Details["event_code_id"]
+	if codeID == "" {
+		return
+	}
+	var codeInt int
+	_, err := fmt.Sscanf(codeID, "%d", &codeInt)
+	if err != nil {
+		return
+	}
+	code := fileevent.Code(codeInt)
+
+	ui.logCounts[code]++
+	if sizeStr, ok := entry.Details["size_bytes"]; ok {
+		var size int64
+		_, _ = fmt.Sscan(sizeStr, &size)
+		ui.logSizes[code] += size
+	}
+
+	if view, ok := ui.counts[code]; ok {
+		view.SetText(fmt.Sprintf("%6d", ui.logCounts[code]))
+	}
+	if sizeView, ok := ui.sizes[code]; ok {
+		size := ui.logSizes[code]
+		if size == 0 {
+			sizeView.SetText("0 B")
+		} else {
+			sizeView.SetText(ui.formatBytes(size))
+		}
+	}
+}
+
 // addDiscoveryCounter adds count and size views for discovery zone total
 func (ui *uiPage) addDiscoveryCounter(g *tview.Grid, row int, countKey, sizeKey string) {
 	countView := tview.NewTextView().SetText("0").SetTextAlign(tview.AlignRight)
@@ -578,4 +645,93 @@ func (ui *uiPage) formatBytes(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+func (uc *UpCmd) startLegacyUIEventConsumer(ctx context.Context, uiApp *tview.Application, ui *uiPage) {
+	if uc.uiStream == nil {
+		return
+	}
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt, ok := <-uc.uiStream:
+				if !ok {
+					return
+				}
+				uc.dispatchLegacyUIEvent(uiApp, ui, evt)
+			}
+		}
+	}()
+}
+
+func (uc *UpCmd) dispatchLegacyUIEvent(uiApp *tview.Application, ui *uiPage, evt messages.Event) {
+	uiApp.QueueUpdateDraw(func() {
+		switch evt.Type {
+		case messages.EventLogLine:
+			if entry, ok := evt.Payload.(state.LogEvent); ok {
+				ui.appendUILogEntry(entry)
+				ui.applyLogEventCounters(entry)
+			}
+		case messages.EventStatsUpdated:
+			if stats, ok := evt.Payload.(state.RunStats); ok {
+				ui.applyStats(stats)
+			}
+		case messages.EventJobsUpdated:
+			if summaries, ok := evt.Payload.([]state.JobSummary); ok {
+				ui.applyJobSummaries(summaries)
+			}
+		}
+	})
+}
+
+func (ui *uiPage) appendUILogEntry(entry state.LogEvent) {
+	if ui.logView == nil {
+		return
+	}
+	timestamp := entry.Timestamp.Format("15:04:05")
+	line := fmt.Sprintf("[%s] %-5s %s", timestamp, strings.ToUpper(entry.Level), entry.Message)
+	if len(entry.Details) > 0 {
+		keys := make([]string, 0, len(entry.Details))
+		for k := range entry.Details {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		pairs := make([]string, 0, len(keys))
+		for _, k := range keys {
+			pairs = append(pairs, fmt.Sprintf("%s=%s", k, entry.Details[k]))
+		}
+		line = fmt.Sprintf("%s (%s)", line, strings.Join(pairs, " "))
+	}
+	fmt.Fprintln(ui.logView, line)
+}
+
+func (ui *uiPage) applyJobSummaries(jobs []state.JobSummary) {
+	if len(jobs) == 0 {
+		return
+	}
+	active := 0
+	waiting := 0
+	for _, job := range jobs {
+		active += job.Active
+		waiting += job.Waiting
+	}
+	ui.updateJobSparkline(active, waiting)
+}
+
+func (ui *uiPage) updateJobSparkline(active, waiting int) {
+	if ui.serverJobs == nil {
+		return
+	}
+	_, _, w, _ := ui.serverJobs.GetInnerRect() //nolint:dogsled
+	ui.serverActivity = append(ui.serverActivity, float64(active))
+	if w > 0 && len(ui.serverActivity) > w {
+		ui.serverActivity = ui.serverActivity[len(ui.serverActivity)-w:]
+	}
+	ui.serverJobs.SetData(ui.serverActivity)
+	ui.serverJobs.SetTitle(fmt.Sprintf("Server's jobs: active: %d, waiting: %d", active, waiting))
+	if active > 0 {
+		ui.lastTimeServerActive.Store(time.Now().Unix())
+	}
 }

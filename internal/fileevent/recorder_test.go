@@ -10,7 +10,7 @@ import (
 
 func TestRecorderSizeTracking(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	recorder := NewRecorder(logger)
+	recorder := New(logger)
 
 	ctx := context.Background()
 
@@ -47,7 +47,7 @@ func TestRecorderSizeTracking(t *testing.T) {
 
 func TestRecordBackwardCompatibility(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	recorder := NewRecorder(logger)
+	recorder := New(logger)
 
 	ctx := context.Background()
 
@@ -70,7 +70,7 @@ func TestRecordBackwardCompatibility(t *testing.T) {
 
 func TestGenerateEventReport(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	recorder := NewRecorder(logger)
+	recorder := New(logger)
 
 	ctx := context.Background()
 
@@ -120,7 +120,7 @@ func TestGenerateEventReport(t *testing.T) {
 
 func TestEmptyRecorder(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	recorder := NewRecorder(logger)
+	recorder := New(logger)
 
 	// Check empty recorder
 	eventCounts := recorder.GetEventCounts()
@@ -141,7 +141,7 @@ func TestEmptyRecorder(t *testing.T) {
 
 func TestGetEventCountsMap(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	recorder := NewRecorder(logger)
+	recorder := New(logger)
 
 	ctx := context.Background()
 

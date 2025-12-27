@@ -42,9 +42,9 @@ func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// Initialize the FileProcessor (tracker + logger)
 		if app.FileProcessor() == nil {
-			logger := fileevent.NewRecorder(app.Log().Logger)
-			tracker := assettracker.NewWithLogger(app.Log().Logger, app.DryRun) // Enable debug mode in dry-run
-			processor := fileprocessor.New(tracker, logger)
+			logger := fileevent.New(app.Log().Logger)
+			tracker := assettracker.NewWithDebug(app.Log().Logger, app.DryRun) // Enable debug mode in dry-run
+			processor := fileprocessor.NewFileProcessor(tracker, logger)
 			app.SetFileProcessor(processor)
 		}
 

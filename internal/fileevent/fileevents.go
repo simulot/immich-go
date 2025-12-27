@@ -164,6 +164,14 @@ var _logLevels = map[Code]slog.Level{
 	ProcessedLivePhoto:          slog.LevelInfo,
 }
 
+// GetLogLevel returns the slog level for a given event code.
+func GetLogLevel(code Code) slog.Level {
+	if level, ok := _logLevels[code]; ok {
+		return level
+	}
+	return slog.LevelInfo
+}
+
 func (e Code) String() string {
 	if s, ok := _code[e]; ok {
 		return s
@@ -172,18 +180,26 @@ func (e Code) String() string {
 }
 
 type Recorder struct {
-	counts counts
-	sizes  counts // Size tracking for each event code
-	log    *slog.Logger
+	counts     counts
+	sizes      counts // Size tracking for each event code
+	log        *slog.Logger
+	dispatcher *Dispatcher
+	slogSink   *SlogSink // Keep reference to update when logger changes
 }
 
 type counts []int64
 
-func NewRecorder(l *slog.Logger) *Recorder {
+func New(l *slog.Logger) *Recorder {
 	r := &Recorder{
-		counts: make([]int64, MaxCode),
-		sizes:  make([]int64, MaxCode),
-		log:    l,
+		counts:     make([]int64, MaxCode),
+		sizes:      make([]int64, MaxCode),
+		log:        l,
+		dispatcher: NewDispatcher(),
+	}
+	// Register slog as default sink for file logging
+	if l != nil {
+		r.slogSink = NewSlogSink(l)
+		r.dispatcher.RegisterSink(r.slogSink)
 	}
 	return r
 }
@@ -201,28 +217,39 @@ func (r *Recorder) RecordWithSize(ctx context.Context, code Code, file slog.LogV
 	if fileSize > 0 {
 		atomic.AddInt64(&r.sizes[code], fileSize)
 	}
-	if r.log != nil {
-		level := _logLevels[code]
-		if file != nil {
-			args = append([]any{"file", file.LogValue()}, args...)
-		}
 
-		for _, a := range args {
-			if a == "error" {
-				level = slog.LevelError
-				break
-			}
-			if a == "warning" {
-				level = slog.LevelWarn
-				break
-			}
-		}
-		r.log.Log(ctx, level, code.String(), args...)
+	// Extract filename from LogValuer
+	fileName := ""
+	if file != nil {
+		fileName = fmt.Sprint(file.LogValue())
 	}
+
+	// Dispatch to all registered sinks
+	r.dispatcher.Dispatch(ctx, code, fileName, fileSize, args...)
 }
 
 func (r *Recorder) SetLogger(l *slog.Logger) {
 	r.log = l
+	// Update the slog sink for backwards compatibility
+	if r.slogSink != nil {
+		r.dispatcher.UnregisterSink(r.slogSink)
+	}
+	if l != nil {
+		r.slogSink = NewSlogSink(l)
+		r.dispatcher.RegisterSink(r.slogSink)
+	} else {
+		r.slogSink = nil
+	}
+}
+
+// RegisterSink adds a new event sink to receive events.
+func (r *Recorder) RegisterSink(sink EventSink) {
+	r.dispatcher.RegisterSink(sink)
+}
+
+// UnregisterSink removes an event sink.
+func (r *Recorder) UnregisterSink(sink EventSink) {
+	r.dispatcher.UnregisterSink(sink)
 }
 
 func (r *Recorder) GetCounts() []int64 {

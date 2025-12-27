@@ -3,6 +3,7 @@ package upload
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/adapters"
@@ -23,6 +24,9 @@ import (
 	"github.com/simulot/immich-go/internal/groups/burst"
 	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
 	"github.com/simulot/immich-go/internal/groups/series"
+	"github.com/simulot/immich-go/internal/ui/core/messages"
+	statssvc "github.com/simulot/immich-go/internal/ui/core/services/stats"
+	"github.com/simulot/immich-go/internal/ui/core/state"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -77,6 +81,24 @@ type UpCmd struct {
 	tagsCache         *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 	finished          bool                                 // the finish task has been run
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
+	uiPublisher       messages.Publisher
+	uiSink            *uiSink // UI sink for file events
+	uiRunnerCancel    context.CancelFunc
+	uiStats           state.RunStats
+	uiStatsMu         sync.Mutex
+	uiStatsPrevBytes  int64
+	uiStatsPrevSample time.Time
+	uiStatsCountersMu sync.Mutex
+	uiStatsCounters   assettracker.AssetCounters
+	uiStatsDirty      bool
+	uiStatsCancel     context.CancelFunc
+	uiJobsCancel      context.CancelFunc
+	uiInventoryCancel context.CancelFunc
+	uiBus             *messages.EventBus
+	uiStatsSource     *statssvc.Source
+	uiRunnerDone      chan struct{}
+	uiWaitForUser     bool
+	uiStream          messages.Stream
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -101,6 +123,7 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 		app:               app,
 		localAssets:       syncset.New[string](),
 		immichAssetsReady: make(chan struct{}),
+		uiPublisher:       messages.NoopPublisher{},
 	}
 
 	// Register CLI flags for the upload command
@@ -116,9 +139,9 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// Initialize the FileProcessor (tracker + logger)
 		if app.FileProcessor() == nil {
-			recorder := fileevent.NewRecorder(app.Log().Logger)
-			tracker := assettracker.NewWithLogger(app.Log().Logger, app.DryRun) // Enable debug mode in dry-run
-			processor := fileprocessor.New(tracker, recorder)
+			recorder := fileevent.New(app.Log().Logger)
+			tracker := assettracker.NewWithDebug(app.Log().Logger, app.DryRun) // Enable debug mode in dry-run
+			processor := fileprocessor.NewFileProcessor(tracker, recorder)
 			app.SetFileProcessor(processor)
 		}
 
@@ -149,17 +172,12 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	uc.tz = uc.app.GetTZ()
 	uc.app.SetSupportedMedia(uc.client.Immich.SupportedMedia())
 
-	// Initialize the FileProcessor if not already done
-	if uc.app.FileProcessor() == nil {
-		recorder := fileevent.NewRecorder(uc.app.Log().Logger)
-		tracker := assettracker.NewWithLogger(uc.app.Log().Logger, uc.app.DryRun)
-		processor := fileprocessor.New(tracker, recorder)
-		uc.app.SetFileProcessor(processor)
-	}
-
 	if uc.SessionTag {
 		uc.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
 	}
+
+	uc.initUIPipeline(ctx)
+	defer uc.shutdownUIPipeline(ctx)
 
 	if uc.ManageEpsonFastFoto {
 		g := epsonfastfoto.Group{}

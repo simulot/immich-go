@@ -33,9 +33,9 @@ func newTestFile(path string) fshelper.FSAndName {
 func TestNew(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
+	recorder := fileevent.New(logger)
 
-	fp := New(tracker, recorder)
+	fp := NewFileProcessor(tracker, recorder)
 
 	if fp == nil {
 		t.Fatal("New() returned nil")
@@ -51,8 +51,8 @@ func TestNew(t *testing.T) {
 func TestRecordAssetDiscovered(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 	file := newTestFile("/test/image.jpg")
@@ -83,8 +83,8 @@ func TestRecordAssetDiscovered(t *testing.T) {
 func TestRecordAssetDiscardedImmediately(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 	file := newTestFile("/test/banned.jpg")
@@ -114,8 +114,8 @@ func TestRecordAssetDiscardedImmediately(t *testing.T) {
 func TestRecordAssetProcessed(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 	file := newTestFile("/test/image.jpg")
@@ -148,8 +148,8 @@ func TestRecordAssetProcessed(t *testing.T) {
 func TestRecordAssetDiscarded(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 	file := newTestFile("/test/duplicate.jpg")
@@ -182,8 +182,8 @@ func TestRecordAssetDiscarded(t *testing.T) {
 func TestRecordAssetError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 	file := newTestFile("/test/failed.jpg")
@@ -214,17 +214,48 @@ func TestRecordAssetError(t *testing.T) {
 	}
 }
 
-func TestRecordNonAsset(t *testing.T) {
+func TestEventHookCapturesAttributes(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
+
+	ctx := context.Background()
+	file := newTestFile("/test/album.jpg")
+
+	var capturedCode fileevent.Code
+	var capturedPath string
+	var capturedAlbum string
+	fp.SetEventHook(func(_ context.Context, code fileevent.Code, f fshelper.FSAndName, _ int64, attrs map[string]string) {
+		capturedCode = code
+		capturedPath = f.FullName()
+		capturedAlbum = attrs["album"]
+	})
+
+	fp.LogEvent(ctx, file, 0, fileevent.ProcessedAlbumAdded, "album", "Vacation")
+
+	if capturedCode != fileevent.ProcessedAlbumAdded {
+		t.Fatalf("expected hook to capture ProcessedAlbumAdded, got %v", capturedCode)
+	}
+	if capturedPath == "" || !strings.Contains(capturedPath, "album.jpg") {
+		t.Fatalf("expected captured path to reference file, got %q", capturedPath)
+	}
+	if capturedAlbum != "Vacation" {
+		t.Fatalf("expected album metadata, got %q", capturedAlbum)
+	}
+}
+
+func TestLogEvent(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+	tracker := assettracker.New()
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 	file := newTestFile("/test/metadata.json")
 
 	// Record non-asset file
-	fp.RecordNonAsset(ctx, file, 128, fileevent.DiscoveredSidecar)
+	fp.LogEvent(ctx, file, 128, fileevent.DiscoveredSidecar)
 
 	// Check tracker - should have nothing tracked
 	counters := fp.GetAssetCounters()
@@ -246,8 +277,8 @@ func TestRecordNonAsset(t *testing.T) {
 func TestFinalize(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 
@@ -291,8 +322,8 @@ func TestFinalize(t *testing.T) {
 func TestIsComplete(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 
@@ -318,8 +349,8 @@ func TestIsComplete(t *testing.T) {
 func TestGetPendingAssets(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 
@@ -364,8 +395,8 @@ func TestGetPendingAssets(t *testing.T) {
 func TestGenerateReport(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 
@@ -377,7 +408,7 @@ func TestGenerateReport(t *testing.T) {
 	fp.RecordAssetDiscovered(ctx, file1, 1024, fileevent.DiscoveredImage)
 	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.ProcessedUploadSuccess)
 	fp.RecordAssetDiscovered(ctx, file2, 2048, fileevent.DiscoveredVideo)
-	fp.RecordNonAsset(ctx, sidecar, 128, fileevent.DiscoveredSidecar)
+	fp.LogEvent(ctx, sidecar, 128, fileevent.DiscoveredSidecar)
 
 	// Generate report
 	report := fp.GenerateReport()
@@ -397,8 +428,8 @@ func TestGenerateReport(t *testing.T) {
 func TestSummary(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 
@@ -438,8 +469,8 @@ func TestSummary(t *testing.T) {
 func TestCompleteWorkflow(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
-	recorder := fileevent.NewRecorder(logger)
-	fp := New(tracker, recorder)
+	recorder := fileevent.New(logger)
+	fp := NewFileProcessor(tracker, recorder)
 
 	ctx := context.Background()
 
@@ -456,8 +487,8 @@ func TestCompleteWorkflow(t *testing.T) {
 	fp.RecordAssetDiscovered(ctx, image2, 2048000, fileevent.DiscoveredImage)
 	fp.RecordAssetDiscovered(ctx, video1, 5120000, fileevent.DiscoveredVideo)
 	fp.RecordAssetDiscardedImmediately(ctx, bannedImage, 100, fileevent.DiscardedBanned, "banned filename")
-	fp.RecordNonAsset(ctx, sidecar, 512, fileevent.DiscoveredSidecar)
-	fp.RecordNonAsset(ctx, banned, 50, fileevent.DiscoveredBanned, "reason", "banned filename")
+	fp.LogEvent(ctx, sidecar, 512, fileevent.DiscoveredSidecar)
+	fp.LogEvent(ctx, banned, 50, fileevent.DiscoveredBanned, "reason", "banned filename")
 
 	// 2. Process assets
 	fp.RecordAssetProcessed(ctx, image1, 1024000, fileevent.ProcessedUploadSuccess)

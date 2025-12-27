@@ -1,0 +1,67 @@
+digraph EventPipeline {
+    rankdir=LR;
+    node [shape=box, style=rounded];
+    
+    // Sources
+    subgraph cluster_sources {
+        label="Event Sources";
+        style=dashed;
+        color=blue;
+        
+        StatsSource [label="statssvc.Source\n(RunStats updates)", fillcolor=lightblue, style="rounded,filled"];
+        PipelineSource [label="ChannelSource\n(pipeline)\n\nAsset events\nLog lines", fillcolor=lightblue, style="rounded,filled"];
+        JobsSource [label="watchers.JobsSource\n(Jobs polling)", fillcolor=lightblue, style="rounded,filled"];
+        InventorySource [label="watchers.InventorySource\n(Inventory polling)", fillcolor=lightblue, style="rounded,filled"];
+    }
+    
+    // Central Bus
+    EventBus [label="EventBus\n\nMerged Stream", fillcolor=lightyellow, style="rounded,filled", width=2];
+    
+    // Sinks
+    subgraph cluster_sinks {
+        label="Event Sinks";
+        style=dashed;
+        color=green;
+        
+        LegacyTUI [label="LegacyAdapter\n→ legacy uiStream", fillcolor=lightgreen, style="rounded,filled"];
+        RunnerStream [label="TUI Runner\nrunnerStream", fillcolor=lightgreen, style="rounded,filled"];
+        DumpStream [label="Debug Dump\ndumpStream\n(NDJSON)", fillcolor=lightgreen, style="rounded,filled"];
+        TestCapture [label="Test Capture\ncaptureTestStats\n(E2E only)", fillcolor=lightgreen, style="rounded,filled"];
+    }
+    
+    // Integration points
+    FileProcessor [label="FileProcessor", shape=ellipse, fillcolor=orange, style=filled];
+    CountersHook [label="SetCountersHook\n(AssetCounters)", shape=note, fillcolor=wheat, style=filled];
+    EventHook [label="SetEventHook\n(file events)", shape=note, fillcolor=wheat, style=filled];
+    
+    // Flows
+    FileProcessor -> CountersHook [style=dashed, color=orange];
+    CountersHook -> StatsSource [label="ApplyCounters", color=orange];
+    
+    FileProcessor -> EventHook [style=dashed, color=orange];
+    EventHook -> PipelineSource [label="forward events", color=orange];
+    
+    StatsSource -> EventBus [label="EventStatsUpdated", color=blue];
+    PipelineSource -> EventBus [label="EventAssetQueued\nEventAssetUploaded\nEventAssetFailed\nEventLogLine", color=blue];
+    JobsSource -> EventBus [label="EventJobsUpdated", color=blue];
+    InventorySource -> EventBus [label="EventInventoryUpdated", color=blue];
+    
+    EventBus -> LegacyTUI [color=green];
+    EventBus -> RunnerStream [color=green];
+    EventBus -> DumpStream [color=green];
+    EventBus -> TestCapture [color=green, style=dashed];
+    
+    // Legend
+    {
+        rank=sink;
+        legend [shape=none, margin=0, label=<
+            <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+                <tr><td colspan="2"><b>Legend</b></td></tr>
+                <tr><td bgcolor="lightblue">Sources</td><td>Produce events</td></tr>
+                <tr><td bgcolor="lightyellow">EventBus</td><td>Merge and fan-out</td></tr>
+                <tr><td bgcolor="lightgreen">Sinks</td><td>Consume events</td></tr>
+                <tr><td bgcolor="orange">Integration</td><td>FileProcessor hooks</td></tr>
+            </table>
+        >];
+    }
+}

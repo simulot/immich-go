@@ -21,9 +21,9 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 
 	// Initialize the Journal and FileProcessor
 	if ac.app.FileProcessor() == nil {
-		recorder := fileevent.NewRecorder(ac.app.Log().Logger)
-		tracker := assettracker.NewWithLogger(ac.app.Log().Logger, ac.app.DryRun)
-		processor := fileprocessor.New(tracker, recorder)
+		recorder := fileevent.New(ac.app.Log().Logger)
+		tracker := assettracker.NewWithDebug(ac.app.Log().Logger, ac.app.DryRun)
+		processor := fileprocessor.NewFileProcessor(tracker, recorder)
 		ac.app.SetFileProcessor(processor)
 	}
 

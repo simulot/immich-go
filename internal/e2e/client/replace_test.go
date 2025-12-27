@@ -3,6 +3,7 @@
 package client
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/simulot/immich-go/app/root"
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
-	"github.com/simulot/immich-go/internal/fileevent"
 )
 
 // getSHA1ByFilename reads all files in the given folder and returns a map
@@ -92,57 +92,64 @@ func Test_Replace(t *testing.T) {
 	}
 
 	ctx := t.Context()
-	c, a := root.RootImmichGoCommand(ctx)
+	lowCapture := e2eutils.NewStatsCapture()
+	lowCtx := context.WithValue(ctx, "test-stats-capture", lowCapture)
+
+	c, _ := root.RootImmichGoCommand(lowCtx)
 	c.SetArgs([]string{
 		"upload", "from-folder",
 		"--server=" + ImmichURL,
 		"--api-key=" + u1.APIKey,
 		"--admin-api-key=" + adm.APIKey,
-		"--no-ui",
+		"--tui-experimental",
+		"--ui=off",
 		"--api-trace",
 		"--log-level=debug",
 		"DATA/replace/low_quality",
 	})
-	err = c.ExecuteContext(ctx)
-	if err != nil && a.Log().GetSLog() != nil {
-		a.Log().Error(err.Error())
-	}
-
+	err = c.ExecuteContext(lowCtx)
 	if err != nil {
 		t.Error("Unexpected error", err)
 		return
 	}
+	low := lowCapture.Last(t)
+	if low.Uploaded != 5 {
+		t.Fatalf("low quality upload: uploaded=%d, want 5", low.Uploaded)
+	}
+	if low.Failed != 0 {
+		t.Fatalf("low quality upload: failed=%d, want 0", low.Failed)
+	}
 
 	time.Sleep(3 * time.Second) // Give the server enough time
 
-	c, a = root.RootImmichGoCommand(ctx)
+	highCapture := e2eutils.NewStatsCapture()
+	highCtx := context.WithValue(ctx, "test-stats-capture", highCapture)
+
+	c, _ = root.RootImmichGoCommand(highCtx)
 	c.SetArgs([]string{
 		"--concurrent-tasks=0", // 0 to enable debuging
 		"upload", "from-folder",
 		"--server=" + ImmichURL,
 		"--api-key=" + u1.APIKey,
 		"--admin-api-key=" + adm.APIKey,
-		"--no-ui",
+		"--tui-experimental",
+		"--ui=off",
 		"--api-trace",
 		"--log-level=debug",
 		"DATA/replace/high_quality",
 	})
-	err = c.ExecuteContext(ctx)
-	if err != nil && a.Log().GetSLog() != nil {
-		a.Log().Error(err.Error())
-	}
-
+	err = c.ExecuteContext(highCtx)
 	if err != nil {
 		t.Error("Unexpected error", err)
 		return
 	}
-
-	e2eutils.CheckResults(t, map[fileevent.Code]int64{
-		fileevent.ProcessedUploadSuccess:  0,
-		fileevent.ProcessedAlbumAdded:     0,
-		fileevent.ProcessedTagged:         0,
-		fileevent.ProcessedUploadUpgraded: 5,
-	}, false, a.FileProcessor())
+	high := highCapture.Last(t)
+	if high.Uploaded != 5 {
+		t.Fatalf("upgrade upload: uploaded=%d, want 5", high.Uploaded)
+	}
+	if high.Failed != 0 {
+		t.Fatalf("upgrade upload: failed=%d, want 0", high.Failed)
+	}
 
 	assets, err := e2eutils.GetAllAssets(u1.Email, u1.Password)
 	if err != nil {
