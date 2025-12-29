@@ -55,12 +55,14 @@ type UpCmd struct {
 	// Cli flags
 
 	shared.StackOptions
-	client     app.Client
-	NoUI       bool // Disable UI
-	Overwrite  bool // Always overwrite files on the server with local versions
-	Tags       []string
-	SessionTag bool
-	session    string // Session tag value
+	client        app.Client
+	NoUI          bool // Disable UI
+	Overwrite     bool // Always overwrite files on the server with local versions
+	Tags          []string
+	SessionTag    bool
+	TagViaSidecar bool
+	session       string // Session tag value
+	tagSidecarDir string
 
 	// Upload command state
 	// Filters           []filters.Filter
@@ -85,6 +87,7 @@ func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&uc.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
 	flags.StringSliceVar(&uc.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	flags.BoolVar(&uc.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
+	flags.BoolVar(&uc.TagViaSidecar, "tag-via-sidecar", false, "Write tags to a temporary XMP sidecar instead of creating tags in Immich")
 
 	uc.StackOptions.RegisterFlags(flags)
 }

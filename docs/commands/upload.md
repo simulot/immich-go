@@ -41,11 +41,12 @@ All upload sub-commands require these connection parameters:
 
 ## Tagging and Organization
 
-| Option          | Default      | Description                                  |
-| --------------- | ------------ | -------------------------------------------- |
-| `--session-tag` | `false`      | Tag with upload session timestamp            |
-| `--tag`         | -            | Add custom tags (can be used multiple times) |
-| `--device-uuid` | `$LOCALHOST` | Set device identifier                        |
+| Option             | Default      | Description                                                                                                                                                  |
+| ------------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--session-tag`    | `false`      | Tag with upload session timestamp                                                                                                                            |
+| `--tag`            | -            | Add custom tags (can be used multiple times)                                                                                                                 |
+| `--tag-via-sidecar`| `false`      | Write tags into a temporary XMP sidecar instead of using Immich tag APIs (workaround for [Immich #16747](https://github.com/immich-app/immich/issues/16747)) |
+| `--device-uuid`    | `$LOCALHOST` | Set device identifier                                                                                                                                        |
 
 ## User Interface
 
