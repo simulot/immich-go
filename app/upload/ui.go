@@ -56,15 +56,6 @@ type uiPage struct {
 	watchJobs bool
 }
 
-func (ui *uiPage) highJackLogger(app *app.Application) {
-	ui.logView.SetDynamicColors(true)
-	app.FileProcessor().Logger().SetLogger(app.Log().SetLogWriter(tview.ANSIWriter(ui.logView)))
-}
-
-func (ui *uiPage) restoreLogger(app *app.Application) {
-	app.FileProcessor().Logger().SetLogger(app.Log().SetLogWriter(nil))
-}
-
 func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	uiApp := tview.NewApplication()
@@ -93,7 +84,6 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	uiApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
-			ui.restoreLogger(app)
 			cancel(errors.New("interrupted: Ctrl+C or Ctrl+Q pressed"))
 		case tcell.KeyEnter:
 			if uploadDone.Load() {
@@ -137,37 +127,68 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 		}()
 	}
 
-	// force the ui to redraw counters
+	// Subscribe to events and display logs in UI (batched every 200ms)
 	go func() {
-		tick := time.NewTicker(100 * time.Millisecond)
+		sub := app.FileProcessor().Logger().Bus().Subscribe()
+		defer sub.Close()
+
+		var logBuffer []string
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+
+		flushLogs := func() {
+			if len(logBuffer) > 0 {
+				// Take only the last lines to avoid overwhelming the display
+				linesToShow := logBuffer
+				if len(linesToShow) > 50 {
+					linesToShow = linesToShow[len(linesToShow)-50:]
+				}
+
+				batch := strings.Join(linesToShow, "\n") + "\n"
+				uiApp.QueueUpdateDraw(func() {
+					ui.logView.Write([]byte(batch))
+				})
+				logBuffer = logBuffer[:0]
+			}
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
-				tick.Stop()
+				flushLogs() // Flush remaining logs before exit
 				return
-			case <-tick.C:
-				uiApp.QueueUpdateDraw(func() {
-					counts := app.FileProcessor().Logger().GetCounts()
-					sizes := app.FileProcessor().Logger().GetEventSizes()
-					for c := range ui.counts {
-						ui.getCountView(c, counts[c])
-						ui.updateSizeView(c, sizes[c])
-					}
-					// Update the processing status zone
-					ui.updateStatusZone()
-					if uc.Mode == UpModeGoogleTakeout {
-						ui.immichPrepare.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
-						// Calculate processed items for Google Takeout progress
-						counts := app.FileProcessor().Logger().GetCounts()
-						processedGP := counts[fileevent.ProcessedAssociatedMetadata] +
-							counts[fileevent.ProcessedMissingMetadata]
-						ui.immichPrepare.SetValue(int(processedGP))
+			case <-ticker.C:
+				flushLogs()
+			case ev := <-sub.Receive():
+				logLine := formatEventLog(ev)
+				if logLine != "" {
+					logBuffer = append(logBuffer, logLine)
+				}
+			}
+		}
+	}()
 
-						if preparationDone.Load() {
-							ui.immichUpload.SetMaxValue(int(app.FileProcessor().Logger().TotalAssets()))
-						}
-						// ui.immichUpload.SetValue(int(app.Jnl().TotalProcessed(uc.takeoutOptions.KeepJSONLess)))
-					}
+	// Subscribe to file events for real-time counter updates
+	// Adds a 250ms heartbeat refresh to avoid stale UI when events are dropped
+	go func() {
+		sub := app.FileProcessor().Logger().Bus().Subscribe()
+		defer sub.Close()
+
+		// Heartbeat refresh to ensure counters progress smoothly even under heavy load
+		hb := time.NewTicker(250 * time.Millisecond)
+		defer hb.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-hb.C:
+				uiApp.QueueUpdateDraw(func() {
+					ui.refreshCounters(app, &preparationDone, uc.Mode)
+				})
+			case <-sub.Receive():
+				uiApp.QueueUpdateDraw(func() {
+					ui.refreshCounters(app, &preparationDone, uc.Mode)
 				})
 			}
 		}
@@ -324,10 +345,8 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 
 	ui.screen.AddItem(counts, 1, 0, 1, 1, 0, 0, false)
 
-	// Hijack the log
 	ui.logView = tview.NewTextView().SetMaxLines(100).ScrollToEnd()
-	ui.highJackLogger(a)
-
+	ui.logView.SetDynamicColors(true)
 	ui.logView.SetBorder(true).SetTitle("Log")
 	ui.screen.AddItem(ui.logView, 2, 0, 1, 1, 0, 0, false)
 
@@ -377,10 +396,10 @@ func (ui *uiPage) updateImmichReading(value, total int) {
 func (ui *uiPage) getCountView(c fileevent.Code, count int64) *tview.TextView {
 	v, ok := ui.counts[c]
 	if !ok {
-		v = tview.NewTextView()
+		v = tview.NewTextView().SetTextAlign(tview.AlignRight)
 		ui.counts[c] = v
 	}
-	v.SetText(fmt.Sprintf("%6d", count))
+	v.SetText(fmt.Sprintf("%d", count))
 	return v
 }
 
@@ -389,11 +408,7 @@ func (ui *uiPage) updateSizeView(c fileevent.Code, size int64) {
 	if !ok {
 		return
 	}
-	if size == 0 {
-		v.SetText("0 B")
-	} else {
-		v.SetText(ui.formatBytes(size))
-	}
+	v.SetText(fileevent.FormatEventBytes(size))
 }
 
 func (ui *uiPage) addCounter(g *tview.Grid, row int, label string, counter fileevent.Code) {
@@ -402,7 +417,7 @@ func (ui *uiPage) addCounter(g *tview.Grid, row int, label string, counter filee
 	g.AddItem(tview.NewTextView().SetText(""), row, 2, 1, 1, 0, 0, false) // Spacer
 
 	// Create size view for discovery events
-	sizeView := tview.NewTextView().SetText("0 B").SetTextAlign(tview.AlignRight)
+	sizeView := tview.NewTextView().SetText(fileevent.FormatEventBytes(0)).SetTextAlign(tview.AlignRight)
 	if ui.sizes == nil {
 		ui.sizes = make(map[fileevent.Code]*tview.TextView)
 	}
@@ -548,34 +563,59 @@ func (ui *uiPage) updateStatusZone() {
 	totalSize := pendingSize + processedSize + discardedSize + errorSize
 
 	// Update the status views
-	ui.statusViews["pendingCount"].SetText(fmt.Sprintf("%6d", pendingCount))
-	ui.statusViews["pendingSize"].SetText(ui.formatBytes(pendingSize))
-	ui.statusViews["uploadedCount"].SetText(fmt.Sprintf("%6d", processedCount))
-	ui.statusViews["uploadedSize"].SetText(ui.formatBytes(processedSize))
-	ui.statusViews["discardedCount"].SetText(fmt.Sprintf("%6d", discardedCount))
-	ui.statusViews["discardedSize"].SetText(ui.formatBytes(discardedSize))
-	ui.statusViews["errorCount"].SetText(fmt.Sprintf("%6d", errorCount))
-	ui.statusViews["errorSize"].SetText(ui.formatBytes(errorSize))
-	ui.statusViews["totalCount"].SetText(fmt.Sprintf("%6d", totalCount))
-	ui.statusViews["totalSize"].SetText(ui.formatBytes(totalSize))
+	ui.statusViews["pendingCount"].SetText(fmt.Sprintf("%d", pendingCount))
+	ui.statusViews["pendingSize"].SetText(fileevent.FormatEventBytes(pendingSize))
+	ui.statusViews["uploadedCount"].SetText(fmt.Sprintf("%d", processedCount))
+	ui.statusViews["uploadedSize"].SetText(fileevent.FormatEventBytes(processedSize))
+	ui.statusViews["discardedCount"].SetText(fmt.Sprintf("%d", discardedCount))
+	ui.statusViews["discardedSize"].SetText(fileevent.FormatEventBytes(discardedSize))
+	ui.statusViews["errorCount"].SetText(fmt.Sprintf("%d", errorCount))
+	ui.statusViews["errorSize"].SetText(fileevent.FormatEventBytes(errorSize))
+	ui.statusViews["totalCount"].SetText(fmt.Sprintf("%d", totalCount))
+	ui.statusViews["totalSize"].SetText(fileevent.FormatEventBytes(totalSize))
 
 	// Update discovery zone total
 	if ui.discoveryViews != nil {
-		ui.discoveryViews["discoveredCount"].SetText(fmt.Sprintf("%6d", totalCount))
-		ui.discoveryViews["discoveredSize"].SetText(ui.formatBytes(totalSize))
+		ui.discoveryViews["discoveredCount"].SetText(fmt.Sprintf("%d", totalCount))
+		ui.discoveryViews["discoveredSize"].SetText(fileevent.FormatEventBytes(totalSize))
 	}
 }
 
-// formatBytes formats byte count as human-readable string
-func (ui *uiPage) formatBytes(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d  B", bytes)
+// Size formatting centralized via fileevent.FormatEventBytes for consistency
+
+// formatEventLog formats an event as a log line for display in the UI.
+func formatEventLog(ev fileevent.Event) string {
+	var parts []string
+	parts = append(parts, ev.Time.Format("15:04:05"))
+	parts = append(parts, ev.Code.String())
+	if ev.File != nil {
+		parts = append(parts, fmt.Sprintf("%v", ev.File))
 	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
+	for i := 0; i < len(ev.Args); i += 2 {
+		if i+1 < len(ev.Args) {
+			key := ev.Args[i]
+			val := ev.Args[i+1]
+			parts = append(parts, fmt.Sprintf("%v=%v", key, val))
+		}
 	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+	return strings.Join(parts, " ")
+}
+
+// refreshCounters updates event counts, sizes, status zone, and gauges in one place
+func (ui *uiPage) refreshCounters(a *app.Application, preparationDone *atomic.Bool, mode UpLoadMode) {
+	counts := a.FileProcessor().Logger().GetCounts()
+	sizes := a.FileProcessor().Logger().GetEventSizes()
+	for c := range ui.counts {
+		ui.getCountView(c, counts[c])
+		ui.updateSizeView(c, sizes[c])
+	}
+	ui.updateStatusZone()
+	if mode == UpModeGoogleTakeout {
+		ui.immichPrepare.SetMaxValue(int(a.FileProcessor().Logger().TotalAssets()))
+		processedGP := counts[fileevent.ProcessedAssociatedMetadata] + counts[fileevent.ProcessedMissingMetadata]
+		ui.immichPrepare.SetValue(int(processedGP))
+		if preparationDone.Load() {
+			ui.immichUpload.SetMaxValue(int(a.FileProcessor().Logger().TotalAssets()))
+		}
+	}
 }
