@@ -146,7 +146,7 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 
 				batch := strings.Join(linesToShow, "\n") + "\n"
 				uiApp.QueueUpdateDraw(func() {
-					ui.logView.Write([]byte(batch))
+					_, _ = ui.logView.Write([]byte(batch))
 				})
 				logBuffer = logBuffer[:0]
 			}
