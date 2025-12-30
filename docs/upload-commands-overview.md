@@ -52,6 +52,7 @@ Tags can be assigned in two main ways:
 
 *   **`--folder-as-tags`**: Uses the folder structure to create tags. For example, a file at `Holidays/Summer 2024/photo.jpg` will be tagged `Holidays/Summer 2024`.
 *   **XMP Metadata**: Tags are also read from XMP sidecar files.
+*   **`--defer-tags`**: Postpones tag creation until Immich finishes metadata extraction so built-in file tags/keywords aren’t dropped.
 
 `immich-go` creates new tags on the server as needed and efficiently tags assets in batches.
 

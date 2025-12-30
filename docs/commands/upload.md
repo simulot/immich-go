@@ -41,11 +41,12 @@ All upload sub-commands require these connection parameters:
 
 ## Tagging and Organization
 
-| Option          | Default      | Description                                  |
-| --------------- | ------------ | -------------------------------------------- |
-| `--session-tag` | `false`      | Tag with upload session timestamp            |
-| `--tag`         | -            | Add custom tags (can be used multiple times) |
-| `--device-uuid` | `$LOCALHOST` | Set device identifier                        |
+| Option          | Default      | Description                                                  |
+| --------------- | ------------ | ------------------------------------------------------------ |
+| `--session-tag` | `false`      | Tag with upload session timestamp                            |
+| `--defer-tags`  | `false`      | Apply tags only after metadata extraction has completed to keep embedded file tags/keywords intact |
+| `--tag`         | -            | Add custom tags (can be used multiple times)                 |
+| `--device-uuid` | `$LOCALHOST` | Set device identifier                                        |
 
 ## User Interface
 
