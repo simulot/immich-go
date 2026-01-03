@@ -364,6 +364,12 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 				}
 			}
 
+			// If no JSON but XMP exists, promote XMP metadata to FromApplication for upload
+			// This ensures XMP sidecars created by immich-go archive command can be re-imported
+			if a.FromApplication == nil && a.FromSideCar != nil {
+				a.FromApplication = a.FromSideCar
+			}
+
 			// Read metadata from the file only id needed (date range or take date from filename)
 			if ifc.requiresDateInformation {
 				// try to get date from icloud takeout meta

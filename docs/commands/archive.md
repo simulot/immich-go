@@ -17,10 +17,12 @@ destination-folder/
 ├── 2022/
 │   ├── 2022-01/
 │   │   ├── photo01.jpg
-│   │   └── photo01.jpg.JSON    # Metadata file
+│   │   ├── photo01.jpg.JSON    # Metadata (with --sidecar-format json or both)
+│   │   └── photo01.jpg.xmp     # XMP sidecar (with --sidecar-format xmp or both)
 │   └── 2022-02/
 │       ├── photo02.jpg
-│       └── photo02.jpg.JSON
+│       ├── photo02.jpg.JSON
+│       └── photo02.jpg.xmp
 ├── 2023/
 │   ├── 2023-03/
 │   └── 2023-04/
@@ -31,9 +33,43 @@ destination-folder/
 
 ## Required Options
 
-| Option | Description |
-|--------|-------------|
+| Option              | Description                            |
+|---------------------|----------------------------------------|
 | `--write-to-folder` | Destination folder for archived photos |
+
+## Archive Options
+
+| Option             | Default | Description                              |
+|--------------------|---------|------------------------------------------|
+| `--sidecar-format` | `json`  | Sidecar format: `json`, `xmp`, or `both` |
+
+### Sidecar Format
+
+The `--sidecar-format` option controls which metadata sidecar files are created:
+
+| Format | Description                                                                                                                                                     |
+|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `json` | Creates `.JSON` sidecars with full metadata. Best for round-trip with immich-go.                                                                                |
+| `xmp`  | Creates `.xmp` sidecars using standard XMP format. Interoperable with other applications and supported by Immich in external libraries or on immich-cli upload. |
+| `both` | Creates both `.JSON` and `.xmp` sidecars. Maximum compatibility.                                                                                                |
+
+#### XMP Field Mapping
+
+When using `xmp` or `both` format, the following fields are preserved:
+
+| Metadata Field | XMP Path                                  | Notes                                  |
+|----------------|-------------------------------------------|----------------------------------------|
+| DateTaken      | `exif:DateTimeOriginal`                   | ISO-8601 format                        |
+| Description    | `dc:description`, `tiff:ImageDescription` | Both namespaces for compatibility      |
+| Rating         | `xmp:Rating`                              | 0-5 scale                              |
+| Favorited      | `xmp:Rating`                              | Stored as Rating=5 when Favorited=true |
+| Tags           | `digiKam:TagsList`                        | Hierarchical paths                     |
+| Albums         | `digiKam:TagsList`                        | As `Albums/<AlbumName>` prefix         |
+| GPS            | `exif:GPSLatitude`, `exif:GPSLongitude`   | DMS format                             |
+
+**Fields NOT preserved in XMP** (JSON-only): `Trashed`, `Archived`, `FromPartner`, `FileName`
+
+A warning is logged when using `--sidecar-format xmp` for assets with these non-preservable fields.
 
 ## Sub-commands
 
@@ -127,7 +163,22 @@ immich-go archive from-google-photos \
 immich-go archive from-folder \
   --write-to-folder=/organized \
   /messy/photo/folders
+```
 
+### Archive with XMP Sidecars
+```bash
+# Create XMP sidecars for use with other applications
+immich-go archive from-google-photos \
+  --sidecar-format=xmp \
+  --write-to-folder=/organized-photos \
+  /path/to/takeout-*.zip
+
+# Create both JSON and XMP for maximum compatibility
+immich-go archive from-immich \
+  --server=http://localhost:2283 \
+  --api-key=your-key \
+  --sidecar-format=both \
+  --write-to-folder=/backup
 ```
 
 ## Use Cases
