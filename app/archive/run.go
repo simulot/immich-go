@@ -34,7 +34,7 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	}
 
 	destFS := osfs.DirFS(p)
-	ac.dest, err = folder.NewLocalAssetWriter(destFS, ".")
+	ac.dest, err = folder.NewLocalAssetWriter(destFS, ".", ac.SidecarFormat, log.Logger)
 	if err != nil {
 		return err
 	}
