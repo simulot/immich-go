@@ -3,6 +3,7 @@ package fromimmich
 import (
 	"context"
 	"fmt"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -400,6 +401,14 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(fic.ifs, a.ID)
+
+		// Set the base filename to the Immich UUID with the proper extension
+		// Use the extension from OriginalFileName if available
+		ext := ""
+		if a.OriginalFileName != "" {
+			ext = path.Ext(a.OriginalFileName)
+		}
+		asset.Base = a.ID + ext
 
 		// Record asset discovery
 		code := fileevent.DiscoveredImage
