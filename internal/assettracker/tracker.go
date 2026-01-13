@@ -31,6 +31,9 @@ type AssetTracker struct {
 	discardedSize int64 // Bytes of discarded assets
 	errorSize     int64 // Bytes of errored assets
 
+	// Event bus for state change notifications
+	bus *fileevent.Bus
+
 	// Debug mode
 	debugMode bool
 	log       *slog.Logger
@@ -44,12 +47,33 @@ func New() *AssetTracker {
 	}
 }
 
-// NewWithLogger creates a new AssetTracker with debug logging
+// NewWithLogger creates a new AssetTracker with debug logging.
+// For event bus integration, use NewWithBus instead.
 func NewWithLogger(log *slog.Logger, debugMode bool) *AssetTracker {
+	return NewWithBus(log, debugMode, nil)
+}
+
+// NewWithBus creates an AssetTracker with optional logger and event bus.
+//
+// When a bus is provided, the tracker publishes state transition events:
+//   - AssetStateTransitionProcessed: when SetProcessed() succeeds
+//   - AssetStateTransitionDiscarded: when SetDiscarded() succeeds
+//   - AssetStateTransitionError: when SetError() succeeds
+//
+// These events enable real-time UI updates without polling GetPendingCount().
+// The tracker is nil-safe: if bus is nil, no events are published.
+//
+// Example:
+//
+//	bus := fileevent.NewBus()
+//	tracker := assettracker.NewWithBus(logger, false, bus)
+//	// State transitions automatically emit events for subscribers
+func NewWithBus(log *slog.Logger, debugMode bool, bus *fileevent.Bus) *AssetTracker {
 	return &AssetTracker{
 		assets:    make(map[string]*AssetRecord),
 		debugMode: debugMode,
 		log:       log,
+		bus:       bus,
 	}
 }
 
@@ -169,6 +193,14 @@ func (at *AssetTracker) SetProcessed(file fshelper.FSAndName, eventCode fileeven
 	at.pending--
 	at.processed++
 	at.processedSize += record.FileSize
+
+	// Publish state transition event if bus is available
+	if at.bus != nil {
+		at.bus.Publish(fileevent.Event{
+			Code: fileevent.AssetStateTransitionProcessed,
+			Args: []any{"file", key, "eventCode", eventCode},
+		})
+	}
 }
 
 // SetDiscarded transitions an asset to the DISCARDED state
@@ -209,6 +241,14 @@ func (at *AssetTracker) SetDiscarded(file fshelper.FSAndName, eventCode fileeven
 	at.pending--
 	at.discarded++
 	at.discardedSize += record.FileSize
+
+	// Publish state transition event if bus is available
+	if at.bus != nil {
+		at.bus.Publish(fileevent.Event{
+			Code: fileevent.AssetStateTransitionDiscarded,
+			Args: []any{"file", key, "eventCode", eventCode, "reason", reason},
+		})
+	}
 }
 
 // SetError transitions an asset to the ERROR state
@@ -249,6 +289,14 @@ func (at *AssetTracker) SetError(file fshelper.FSAndName, eventCode fileevent.Co
 	at.pending--
 	at.errors++
 	at.errorSize += record.FileSize
+
+	// Publish state transition event if bus is available
+	if at.bus != nil {
+		at.bus.Publish(fileevent.Event{
+			Code: fileevent.AssetStateTransitionError,
+			Args: []any{"file", key, "eventCode", eventCode, "error", err.Error()},
+		})
+	}
 }
 
 // GetCounters returns current asset counters

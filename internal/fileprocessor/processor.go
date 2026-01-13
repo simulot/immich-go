@@ -3,6 +3,7 @@ package fileprocessor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -16,11 +17,44 @@ type FileProcessor struct {
 	logger  *fileevent.Recorder
 }
 
-// New creates a new FileProcessor with the given tracker and logger
+// New creates a new FileProcessor with the given tracker and logger.
+// For event bus integration, use NewWithBus instead.
 func New(tracker *assettracker.AssetTracker, logger *fileevent.Recorder) *FileProcessor {
 	return &FileProcessor{
 		tracker: tracker,
 		logger:  logger,
+	}
+}
+
+// NewWithBus creates a new FileProcessor with event bus integration.
+//
+// This constructor wires the event bus to both the Recorder (for file events) and
+// should be used with an AssetTracker created via NewWithBus (for state transitions).
+//
+// The resulting architecture:
+//   - Recorder publishes file processing events (discovered, processed, discarded, errors)
+//   - AssetTracker publishes state transition events (pending → processed/discarded/error)
+//   - Consumers (UI) subscribe to both via the same bus
+//
+// Example:
+//
+//	bus := fileevent.NewBus()
+//	tracker := assettracker.NewWithBus(logger, debugMode, bus)
+//	processor := fileprocessor.NewWithBus(tracker, logger, bus)
+//
+//	// UI subscribes once
+//	sub := processor.Logger().Bus().Subscribe()
+//	for event := range sub.Receive() {
+//	    // Handles both file events and state transitions
+//	}
+//
+// The recorder and tracker publish events to the bus for real-time subscribers
+// while also maintaining persistent slog.Logger output.
+func NewWithBus(tracker *assettracker.AssetTracker, logger *slog.Logger, bus *fileevent.Bus) *FileProcessor {
+	recorder := fileevent.NewRecorderWithBus(logger, bus)
+	return &FileProcessor{
+		tracker: tracker,
+		logger:  recorder,
 	}
 }
 
