@@ -229,7 +229,8 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				toc.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
 
 				if _, ok := dirCatalog.unMatchedFiles[base]; ok {
-					toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedLocalDuplicate, "duplicated in the directory")
+					// Asset was already discovered above, so transition from pending to discarded
+					toc.processor.RecordAssetDiscarded(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedLocalDuplicate, "duplicated in the directory")
 					return nil
 				}
 
@@ -323,8 +324,11 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 				if toc.KeepJSONLess {
 					a := toc.makeAsset(ctx, dir, i, nil)
 					cat.matchedFiles[f] = a
-					delete(cat.unMatchedFiles, f)
+				} else {
+					// Asset was discovered but has no JSON metadata and --include-unmatched is not set
+					toc.processor.RecordAssetDiscarded(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), int64(i.length), fileevent.DiscardedFiltered, "no matching JSON metadata (use --include-unmatched to import)")
 				}
+				delete(cat.unMatchedFiles, f)
 			}
 		}
 	}

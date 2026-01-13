@@ -435,6 +435,124 @@ func TestSummary(t *testing.T) {
 	}
 }
 
+// TestDiscoverThenDiscardTransition verifies that assets discovered and later
+// determined to be discardable (e.g., duplicates found during processing, files
+// without required metadata) are properly transitioned from PENDING to DISCARDED.
+//
+// This test documents a bug fix where assets were being discovered but not
+// properly transitioned to a final state when discarded during later processing
+// stages, leaving them stuck in PENDING state.
+//
+// The key insight is:
+//   - RecordAssetDiscardedImmediately: For assets discarded AT discovery time
+//     (before being added to pending)
+//   - RecordAssetDiscarded: For assets already discovered that are discarded
+//     during later processing (must transition from PENDING to DISCARDED)
+func TestDiscoverThenDiscardTransition(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+	tracker := assettracker.New()
+	recorder := fileevent.NewRecorder(logger)
+	fp := New(tracker, recorder)
+
+	ctx := context.Background()
+
+	// Scenario 1: Duplicate file found during processing
+	// In Google Photos takeout, the same image can appear in multiple zip parts
+	// with different paths. Both are discovered, then one is detected as duplicate.
+	file1 := newTestFile("/photos/album/image.jpg")
+	fp.RecordAssetDiscovered(ctx, file1, 1024, fileevent.DiscoveredImage)
+
+	// Same image in a different location (e.g., year folder) - different full path
+	file1InYear := newTestFile("/photos/2023/image.jpg")
+	fp.RecordAssetDiscovered(ctx, file1InYear, 1024, fileevent.DiscoveredImage)
+
+	// The year folder copy is detected as duplicate during processing
+	// Must use RecordAssetDiscarded (NOT RecordAssetDiscardedImmediately)
+	// because the asset was already discovered and is in PENDING state
+	fp.RecordAssetDiscarded(ctx, file1InYear, 1024, fileevent.DiscardedLocalDuplicate, "duplicate in directory")
+
+	// Scenario 2: File discovered but later filtered (e.g., no JSON metadata)
+	fileNoMeta := newTestFile("/photos/year/orphan.jpg")
+	fp.RecordAssetDiscovered(ctx, fileNoMeta, 2048, fileevent.DiscoveredImage)
+
+	// During puzzle solving, file has no matching JSON and --include-unmatched is false
+	// Must use RecordAssetDiscarded to properly transition from PENDING
+	fp.RecordAssetDiscarded(ctx, fileNoMeta, 2048, fileevent.DiscardedFiltered, "no matching JSON metadata")
+
+	// Process the first (non-duplicate) file normally
+	fp.RecordAssetProcessed(ctx, file1, 1024, fileevent.ProcessedUploadSuccess)
+
+	// Verify final state - NO assets should be pending
+	counters := fp.GetAssetCounters()
+	if counters.Pending != 0 {
+		t.Errorf("Expected 0 pending assets, got %d - assets not properly transitioned", counters.Pending)
+	}
+	if counters.Processed != 1 {
+		t.Errorf("Expected 1 processed asset, got %d", counters.Processed)
+	}
+	if counters.Discarded != 2 {
+		t.Errorf("Expected 2 discarded assets, got %d", counters.Discarded)
+	}
+
+	// Finalize should succeed with no pending assets
+	err := fp.Finalize(ctx)
+	if err != nil {
+		t.Errorf("Finalize should succeed when all assets reach final state, got error: %v", err)
+	}
+}
+
+// TestDiscardedImmediatelyVsDiscarded clarifies the difference between
+// RecordAssetDiscardedImmediately and RecordAssetDiscarded.
+func TestDiscardedImmediatelyVsDiscarded(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+	tracker := assettracker.New()
+	recorder := fileevent.NewRecorder(logger)
+	fp := New(tracker, recorder)
+
+	ctx := context.Background()
+
+	// RecordAssetDiscardedImmediately: Asset is rejected at discovery time
+	// (e.g., banned filename pattern, excluded extension)
+	// This creates the asset directly in DISCARDED state
+	bannedFile := newTestFile("/photos/.DS_Store.jpg")
+	fp.RecordAssetDiscardedImmediately(ctx, bannedFile, 100, fileevent.DiscardedBanned, "banned filename")
+
+	// Verify it went directly to discarded, never pending
+	counters := fp.GetAssetCounters()
+	if counters.Pending != 0 {
+		t.Errorf("Immediately discarded asset should not be pending, got %d pending", counters.Pending)
+	}
+	if counters.Discarded != 1 {
+		t.Errorf("Expected 1 discarded, got %d", counters.Discarded)
+	}
+
+	// RecordAssetDiscarded: Asset was discovered, then later discarded during processing
+	// First it must be discovered (goes to PENDING)
+	laterDiscarded := newTestFile("/photos/image.jpg")
+	fp.RecordAssetDiscovered(ctx, laterDiscarded, 512, fileevent.DiscoveredImage)
+
+	counters = fp.GetAssetCounters()
+	if counters.Pending != 1 {
+		t.Errorf("Discovered asset should be pending, got %d", counters.Pending)
+	}
+
+	// Then it's discarded (transitions PENDING -> DISCARDED)
+	fp.RecordAssetDiscarded(ctx, laterDiscarded, 512, fileevent.DiscardedLocalDuplicate, "duplicate")
+
+	counters = fp.GetAssetCounters()
+	if counters.Pending != 0 {
+		t.Errorf("After RecordAssetDiscarded, asset should not be pending, got %d", counters.Pending)
+	}
+	if counters.Discarded != 2 {
+		t.Errorf("Expected 2 discarded (immediate + later), got %d", counters.Discarded)
+	}
+
+	// Verify finalization succeeds
+	if err := fp.Finalize(ctx); err != nil {
+		t.Errorf("Finalize should succeed: %v", err)
+	}
+}
+
 func TestCompleteWorkflow(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	tracker := assettracker.New()
