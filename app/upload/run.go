@@ -557,7 +557,7 @@ func (uc *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 		tags[i] = a.Tags[i].Name
 	}
 	for _, t := range a.Tags {
-		if uc.tagsCache.AddIDToCollection(t.Name, t, a.ID) {
+		if uc.tagsCache.AddIDToCollection(t.Value, t, a.ID) {
 			// Record tag event
 			uc.app.FileProcessor().Logger().Record(ctx, fileevent.ProcessedTagged, a.File, "tag", t.Value)
 		}
