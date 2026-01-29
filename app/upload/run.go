@@ -386,6 +386,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedLocalDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		uc.manageAssetTags(ctx, a)
 		return nil
 
 	case SameOnServer:
@@ -395,13 +396,14 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedServerDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		uc.manageAssetTags(ctx, a)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		// Record as discarded - server has better version
 		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated, advice.Message)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-
+		uc.manageAssetTags(ctx, a)
 	case ForceUpload:
 		var serverStatus string
 		var err error
@@ -570,12 +572,12 @@ func (uc *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 }
 
 func (uc *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset, serverStatus string) {
-	if serverStatus != immich.StatusDuplicate {
+	//if serverStatus != immich.StatusDuplicate {
 		// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
 		//       there is no mean to go the list of tagged assets for a given tag.
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		uc.manageAssetTags(ctx, a)
-	}
+	//}
 }
 
 /*
