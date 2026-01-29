@@ -153,6 +153,7 @@ func Test_FromFolder(t *testing.T) {
 			"--api-key=" + u1.APIKey,
 			"--admin-api-key=" + adm.APIKey,
 			"--folder-as-tags=true",
+			"--pause-immich-jobs=false", // has to scan sidecars to get tags immediately
 			"--no-ui",
 			"--api-trace",
 			"--log-level=debug",
@@ -174,31 +175,12 @@ func Test_FromFolder(t *testing.T) {
 			fileevent.ProcessedTagged:        4,
 		}, false, a.FileProcessor())
 
-		// Verify that 4 different tags were created, not consolidated into fewer tags
-		// This is the critical check for issue #1262
-		tags, err := e2eutils.GetAllTags(u1.Email, u1.Password)
-		if err != nil {
-			t.Fatalf("failed to get tags: %v", err)
-		}
-
-		// Convert tag slice to map for faster lookup
-		tagMap := make(map[string]bool)
-		for _, tag := range tags {
-			tagMap[tag] = true
-		}
-
-		// Verify each expected tag exists
-		expectedTags := []string{
-			"folder-as-tags-test/one/same",
-			"folder-as-tags-test/one/unique1",
-			"folder-as-tags-test/2/same",
-			"folder-as-tags-test/2/unique2",
-		}
-
-		for _, expectedTag := range expectedTags {
-			if !tagMap[expectedTag] {
-				t.Errorf("expected tag not found: %s", expectedTag)
-			}
-		}
+		// Map filenames to expected tags (derived from folder structure)
+		e2eutils.VerifyTagList(t, u1.Email, u1.Password, map[string][]string{
+			"telescopes_01.jpg": {"folder-as-tags-test/one/same"},
+			"telescopes_02.jpg": {"folder-as-tags-test/one/unique1"},
+			"telescopes_03.jpg": {"folder-as-tags-test/2/same"},
+			"telescopes_04.jpg": {"folder-as-tags-test/2/unique2"},
+		})
 	})
 }

@@ -21,7 +21,7 @@ func GetAllTags(email, password string) ([]string, error) {
 		return nil, fmt.Errorf("failed to login: %w", err)
 	}
 
-	resp, err := do("GET", getAPIURL()+"/tags", make(map[string]string), token)
+	resp, err := get(getAPIURL()+"/tags", token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tags: %w", err)
 	}
