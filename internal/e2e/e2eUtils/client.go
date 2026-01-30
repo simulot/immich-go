@@ -22,9 +22,14 @@ func getAPIURL() string {
 }
 
 func do(method string, url string, body any, token Token) (*http.Response, error) {
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("can't post %s: %w", url, err)
+	var jsonBody []byte
+	// Don't marshal nil into JSON "null" which some endpoints do not accept
+	if body != nil {
+		var err error
+		jsonBody, err = json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("can't post %s: %w", url, err)
+		}
 	}
 	req, err := http.NewRequest(method, url, bytes.NewReader(jsonBody))
 	if err != nil {
@@ -49,6 +54,10 @@ func do(method string, url string, body any, token Token) (*http.Response, error
 		return nil, fmt.Errorf("can't post %s: %s,%s", url, resp.Status, er.GetMessage())
 	}
 	return resp, nil
+}
+
+func get(url string, token Token) (*http.Response, error) {
+	return do(http.MethodGet, url, nil, token)
 }
 
 func post(url string, body any, token Token) (*http.Response, error) {

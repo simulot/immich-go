@@ -5,29 +5,37 @@ import (
 	"fmt"
 )
 
+type Tag struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Value     string `json:"value"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
 // Asset represents a simplified Immich asset returned from search
+// update to include albums, exifInfo, owner, people if needed or use internal/assets
 type Asset struct {
-	ID               string   `json:"id"`
-	DeviceAssetID    string   `json:"deviceAssetId"`
-	DeviceID         string   `json:"deviceId"`
-	Type             string   `json:"type"`
-	OriginalPath     string   `json:"originalPath"`
-	OriginalFileName string   `json:"originalFileName"`
-	Resized          bool     `json:"resized"`
-	Thumbhash        string   `json:"thumbhash"`
-	FileCreatedAt    string   `json:"fileCreatedAt"`
-	FileModifiedAt   string   `json:"fileModifiedAt"`
-	LocalDateTime    string   `json:"localDateTime"`
-	UpdatedAt        string   `json:"updatedAt"`
-	IsFavorite       bool     `json:"isFavorite"`
-	IsArchived       bool     `json:"isArchived"`
-	IsTrashed        bool     `json:"isTrashed"`
-	Duration         string   `json:"duration"`
-	Checksum         string   `json:"checksum"`
-	LivePhotoVideoID string   `json:"livePhotoVideoId"`
-	Tags             []string `json:"tags"`
-	Rating           int      `json:"rating"`
-	Visibility       string   `json:"visibility"`
+	ID               string `json:"id"`
+	DeviceAssetID    string `json:"deviceAssetId"`
+	DeviceID         string `json:"deviceId"`
+	Type             string `json:"type"`
+	OriginalPath     string `json:"originalPath"`
+	OriginalFileName string `json:"originalFileName"`
+	Resized          bool   `json:"resized"`
+	Thumbhash        string `json:"thumbhash"`
+	FileCreatedAt    string `json:"fileCreatedAt"`
+	FileModifiedAt   string `json:"fileModifiedAt"`
+	LocalDateTime    string `json:"localDateTime"`
+	UpdatedAt        string `json:"updatedAt"`
+	IsFavorite       bool   `json:"isFavorite"`
+	IsArchived       bool   `json:"isArchived"`
+	IsTrashed        bool   `json:"isTrashed"`
+	Duration         string `json:"duration"`
+	Checksum         string `json:"checksum"`
+	LivePhotoVideoID string `json:"livePhotoVideoId"`
+	Tags             []Tag  `json:"tags"`
+	Rating           int    `json:"rating"`
+	Visibility       string `json:"visibility"`
 }
 
 // SearchMetadataRequest represents the request body for /search/metadata
@@ -94,4 +102,27 @@ func GetAllAssets(email, password string) (map[string]*Asset, error) {
 	}
 
 	return assetsByName, nil
+}
+
+// GetAssetDetails complete information about a specific asset, like its tags, albums
+func GetAssetDetails(email, password, assetID string) (*Asset, error) {
+	// Login to get access token
+	token, err := UserLogin(email, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to login: %w", err)
+	}
+
+	resp, err := get(getAPIURL()+"/assets/"+assetID, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get asset details: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var asset Asset
+	err = json.NewDecoder(resp.Body).Decode(&asset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode asset details response: %w", err)
+	}
+
+	return &asset, nil
 }
