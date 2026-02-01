@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -92,6 +93,10 @@ func runUp(ctx context.Context, opts *syncOptions, client *app.Client) error {
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Message("Sync interrupted.")
+			return nil
+		}
 		return fmt.Errorf("fetching server assets: %w", err)
 	}
 	log.Message("Found %d assets on server", len(serverChecksums))
@@ -123,7 +128,7 @@ func runUp(ctx context.Context, opts *syncOptions, client *app.Client) error {
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Canceled
 		default:
 		}
 
@@ -190,6 +195,10 @@ func runUp(ctx context.Context, opts *syncOptions, client *app.Client) error {
 	}
 
 	if err := filepath.WalkDir(dir, walkFn); err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Message("Sync interrupted.")
+			return nil
+		}
 		return fmt.Errorf("scanning directory: %w", err)
 	}
 	log.Message("Uploaded %d new assets", uploaded)

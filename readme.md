@@ -9,6 +9,7 @@
 
 - **Simple Installation**: No NodeJS or Docker required
 - **Multiple Sources**: Upload from Google Photos Takeouts, iCloud, local folders, ZIP archives, and other Immich servers
+- **Bidirectional Sync**: Keep a local directory and your Immich server in sync with `sync down` and `sync up`
 - **Large Collections**: Successfully handles 100,000+ photos
 - **Smart Management**: Duplicate detection, burst photo stacking, RAW+JPEG handling
 - **Cross-Platform**: Available for Windows, macOS, Linux, and FreeBSD
@@ -20,8 +21,17 @@ Download the pre-built binary for your system from the [GitHub releases page](ht
 
 ### 2. Basic Usage
 ```bash
+# Store credentials once (optional, avoids repeating --server/--api-key)
+immich-go login
+
 # Upload photos from a local folder
 immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key /path/to/your/photos
+
+# Sync server photos to local backup
+immich-go sync down -d /path/to/backup
+
+# Upload local photos to server
+immich-go sync up -d /path/to/photos
 
 # Upload Google Photos takeout
 immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-api-key /path/to/takeout-*.zip

@@ -3,6 +3,7 @@ package sync
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -95,6 +96,10 @@ func runDown(ctx context.Context, opts *syncOptions, client *app.Client) error {
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Message("Sync interrupted.")
+			return nil
+		}
 		return fmt.Errorf("fetching server assets: %w", err)
 	}
 	log.Message("Found %d assets on server", len(serverAssets))
@@ -104,7 +109,8 @@ func runDown(ctx context.Context, opts *syncOptions, client *app.Client) error {
 	for checksum, sa := range serverAssets {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			log.Message("Sync interrupted.")
+			return nil
 		default:
 		}
 

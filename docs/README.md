@@ -13,7 +13,9 @@ This documentation is organized into several sections to help you get started qu
 
 ### 📝 Command Reference
 - [**Commands Overview**](commands/README.md) - Complete command structure and global options
+- [**Login**](commands/login.md) - Store server credentials globally
 - [**Upload Commands**](commands/upload.md) - Detailed upload command documentation
+- [**Sync Commands**](commands/sync.md) - Bidirectional sync between local directory and server
 - [**Archive Commands**](commands/archive.md) - Export and archival operations
 - [**Stack Commands**](commands/stack.md) - Photo organization and stacking
 
@@ -46,8 +48,17 @@ This documentation is organized into several sections to help you get started qu
 ## 🛠 Common Commands Quick Reference
 
 ```bash
+# Store credentials once (no --server/--api-key needed afterwards)
+immich-go login
+
 # Upload from local folder
 immich-go upload from-folder --server=SERVER --api-key=KEY /path/to/photos
+
+# Sync server to local backup
+immich-go sync down -d /path/to/backup
+
+# Upload local changes to server
+immich-go sync up -d /path/to/photos
 
 # Upload Google Photos takeout
 immich-go upload from-google-photos --server=SERVER --api-key=KEY /path/to/takeout.zip
@@ -72,7 +83,9 @@ docs/
 ├── technical.md                # Technical details and internals
 ├── commands/                   # Command reference
 │   ├── README.md              # Command overview
+│   ├── login.md               # Login command
 │   ├── upload.md              # Upload commands
+│   ├── sync.md                # Sync commands
 │   ├── archive.md             # Archive commands
 │   └── stack.md               # Stack commands
 ├── concurrency/               # Performance optimization
