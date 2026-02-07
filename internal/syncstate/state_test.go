@@ -1,9 +1,11 @@
 package syncstate
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestLockUnlock(t *testing.T) {
@@ -178,7 +180,7 @@ func TestSaveIfNeeded(t *testing.T) {
 	}
 
 	// At threshold: should save
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		m.TrackAsset(string(rune('a'+i+1))+"x", AssetEntry{ID: string(rune('0' + i)), Filename: "x.jpg", Path: "x.jpg", Size: 1})
 	}
 	if err := m.SaveIfNeeded(5); err != nil {
@@ -210,5 +212,103 @@ func TestAtomicSave(t *testing.T) {
 	// Verify state file exists and is valid
 	if _, err := os.Stat(statePath); err != nil {
 		t.Fatalf("state file should exist: %v", err)
+	}
+}
+
+func TestMigration_OldStateWithoutCaptureDate(t *testing.T) {
+	// Simulate a state file from before CaptureDate was added
+	oldJSON := `{
+  "version": 1,
+  "server": "https://immich.example",
+  "user_id": "user-1",
+  "last_sync": "2025-01-01T00:00:00Z",
+  "assets": {
+    "abc123": {
+      "id": "asset-1",
+      "filename": "photo.jpg",
+      "path": "2025/2025-01/photo.jpg",
+      "size": 12345
+    }
+  }
+}`
+
+	dir := t.TempDir()
+	stateDir := filepath.Join(dir, ".immich-sync")
+	os.MkdirAll(stateDir, 0o755)
+	os.WriteFile(filepath.Join(stateDir, "state.json"), []byte(oldJSON), 0o644)
+
+	m := NewManager(dir, false)
+	state, err := m.Load()
+	if err != nil {
+		t.Fatalf("Load old state: %v", err)
+	}
+
+	entry := state.Assets["abc123"]
+	if entry.Filename != "photo.jpg" {
+		t.Fatalf("expected photo.jpg, got %s", entry.Filename)
+	}
+	if !entry.CaptureDate.IsZero() {
+		t.Fatalf("expected zero CaptureDate for old state, got %v", entry.CaptureDate)
+	}
+}
+
+func TestCaptureDate_Roundtrip(t *testing.T) {
+	dir := t.TempDir()
+
+	m := NewManager(dir, false)
+	if err := m.Lock(); err != nil {
+		t.Fatalf("Lock: %v", err)
+	}
+	defer m.Unlock()
+
+	m.Load()
+
+	captureDate := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
+	m.TrackAsset("abc123", AssetEntry{
+		ID:          "asset-1",
+		Filename:    "photo.jpg",
+		Path:        "2024/2024-06/photo.jpg",
+		Size:        12345,
+		CaptureDate: captureDate,
+	})
+
+	if err := m.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Reload and verify CaptureDate survives
+	m2 := NewManager(dir, false)
+	state2, err := m2.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	entry := state2.Assets["abc123"]
+	if !entry.CaptureDate.Equal(captureDate) {
+		t.Fatalf("expected CaptureDate %v, got %v", captureDate, entry.CaptureDate)
+	}
+}
+
+func TestCaptureDate_OmittedWhenZero(t *testing.T) {
+	entry := AssetEntry{
+		ID:       "asset-1",
+		Filename: "photo.jpg",
+		Path:     "photo.jpg",
+		Size:     100,
+		// CaptureDate left as zero
+	}
+
+	data, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	// The JSON should not contain "capture_date" when zero
+	if contains := string(data); contains != "" {
+		var m map[string]any
+		json.Unmarshal(data, &m)
+		if _, ok := m["capture_date"]; ok {
+			t.Fatal("capture_date should be omitted when zero")
+		}
 	}
 }

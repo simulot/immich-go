@@ -8,9 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/assetmatch"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/fshelper/hash"
@@ -79,16 +81,22 @@ func runUp(ctx context.Context, opts *syncOptions, client *app.Client) error {
 	ctx, stopSignal := withGracefulShutdown(ctx, sm, log)
 	defer stopSignal()
 
-	// Build server checksum index
+	// Build server asset index
 	log.Message("Fetching server assets...")
-	serverChecksums := make(map[string]string) // checksum → assetID
+	serverIndex := assetmatch.NewIndex()
 
 	err = client.Immich.GetAllAssets(ctx, func(a *immich.Asset) error {
 		if a.IsTrashed {
 			return nil
 		}
 		if a.Checksum != "" {
-			serverChecksums[a.Checksum] = a.ID
+			serverIndex.Add(assetmatch.ServerAsset{
+				ID:          a.ID,
+				Checksum:    a.Checksum,
+				Filename:    a.OriginalFileName,
+				CaptureDate: a.ExifInfo.DateTimeOriginal.Time,
+				Size:        a.ExifInfo.FileSizeInByte,
+			})
 		}
 		return nil
 	})
@@ -99,7 +107,7 @@ func runUp(ctx context.Context, opts *syncOptions, client *app.Client) error {
 		}
 		return fmt.Errorf("fetching server assets: %w", err)
 	}
-	log.Message("Found %d assets on server", len(serverChecksums))
+	log.Message("Found %d assets on server", serverIndex.Len())
 
 	// Scan local directory
 	log.Message("Scanning local directory...")
@@ -141,54 +149,85 @@ func runUp(ctx context.Context, opts *syncOptions, client *app.Client) error {
 			return nil
 		}
 
-		localFiles[checksum] = relPath
-
-		// Already on server?
-		if _, ok := serverChecksums[checksum]; ok {
-			// Update state to track it even if we didn't upload it
-			info, _ := d.Info()
-			var size int64
-			if info != nil {
-				size = info.Size()
-			}
-			sm.TrackAsset(checksum, syncstate.AssetEntry{
-				ID:       serverChecksums[checksum],
-				Filename: d.Name(),
-				Path:     relPath,
-				Size:     size,
-			})
-			return nil
-		}
-
-		// Upload
 		info, _ := d.Info()
 		var size int64
+		var fileDate time.Time
 		if info != nil {
 			size = info.Size()
+			fileDate = info.ModTime()
 		}
 
-		if dryRun {
-			log.Message("[dry-run] Would upload %s", relPath)
-		} else {
-			log.Message("Uploading %s", relPath)
-			assetID, uploadErr := uploadFile(ctx, client.Immich, path, d.Name(), checksum)
-			if uploadErr != nil {
-				log.Error("Upload failed", "file", relPath, "err", uploadErr.Error())
-				return nil
-			}
-			serverChecksums[checksum] = assetID
+		localFiles[checksum] = relPath
 
+		// Match against server index
+		advice := serverIndex.Match(checksum, d.Name(), fileDate, size)
+
+		switch advice.Code {
+		case assetmatch.SameOnServer, assetmatch.BetterOnServer:
+			// Already on server (or server has better version) — skip upload, track in state
+			sa := advice.ServerAsset
 			sm.TrackAsset(checksum, syncstate.AssetEntry{
-				ID:       assetID,
-				Filename: d.Name(),
-				Path:     relPath,
-				Size:     size,
+				ID:          sa.ID,
+				Filename:    d.Name(),
+				Path:        relPath,
+				Size:        size,
+				CaptureDate: fileDate,
 			})
-			uploaded++
+			return nil
 
-			if err := sm.SaveIfNeeded(50); err != nil {
-				log.Error("Saving state", "err", err.Error())
+		case assetmatch.SmallerOnServer:
+			// Server has smaller version — upload replacement
+			if dryRun {
+				log.Message("[dry-run] Would replace (local is larger) %s", relPath)
+			} else {
+				log.Message("Replacing (local is larger) %s", relPath)
+				assetID, uploadErr := uploadFile(ctx, client.Immich, path, d.Name(), checksum)
+				if uploadErr != nil {
+					log.Error("Upload failed", "file", relPath, "err", uploadErr.Error())
+					return nil
+				}
+
+				sm.TrackAsset(checksum, syncstate.AssetEntry{
+					ID:          assetID,
+					Filename:    d.Name(),
+					Path:        relPath,
+					Size:        size,
+					CaptureDate: fileDate,
+				})
+				uploaded++
+
+				if err := sm.SaveIfNeeded(50); err != nil {
+					log.Error("Saving state", "err", err.Error())
+				}
 			}
+			return nil
+
+		case assetmatch.NotOnServer:
+			// New asset — upload
+			if dryRun {
+				log.Message("[dry-run] Would upload %s", relPath)
+			} else {
+				log.Message("Uploading %s", relPath)
+				assetID, uploadErr := uploadFile(ctx, client.Immich, path, d.Name(), checksum)
+				if uploadErr != nil {
+					log.Error("Upload failed", "file", relPath, "err", uploadErr.Error())
+					return nil
+				}
+
+				sm.TrackAsset(checksum, syncstate.AssetEntry{
+					ID:          assetID,
+					Filename:    d.Name(),
+					Path:        relPath,
+					Size:        size,
+					CaptureDate: fileDate,
+				})
+				uploaded++
+
+				if err := sm.SaveIfNeeded(50); err != nil {
+					log.Error("Saving state", "err", err.Error())
+				}
+			}
+			return nil
 		}
 
 		return nil
@@ -219,7 +258,7 @@ func runUp(ctx context.Context, opts *syncOptions, client *app.Client) error {
 		}
 
 		if len(toDelete) > 0 {
-			if len(toDelete) > 10 && !opts.Force {
+			if !dryRun && len(toDelete) > 10 && !opts.Force {
 				if !confirmDeletion(len(toDelete), "server assets") {
 					log.Message("Deletion cancelled by user")
 					toDelete = nil
@@ -242,7 +281,11 @@ func runUp(ctx context.Context, opts *syncOptions, client *app.Client) error {
 				sm.RemoveAsset(item.checksum)
 				deleted++
 			}
-			log.Message("Deleted %d server assets", deleted)
+			if dryRun {
+				log.Message("[dry-run] Would delete %d server assets", deleted)
+			} else {
+				log.Message("Deleted %d server assets", deleted)
+			}
 		}
 	}
 

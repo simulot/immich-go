@@ -137,10 +137,11 @@ func runDown(ctx context.Context, opts *syncOptions, client *app.Client) error {
 		}
 
 		sm.TrackAsset(checksum, syncstate.AssetEntry{
-			ID:       sa.ID,
-			Filename: sa.OriginalFileName,
-			Path:     targetPath,
-			Size:     sa.ExifInfo.FileSizeInByte,
+			ID:          sa.ID,
+			Filename:    sa.OriginalFileName,
+			Path:        targetPath,
+			Size:        sa.ExifInfo.FileSizeInByte,
+			CaptureDate: sa.ExifInfo.DateTimeOriginal.Time,
 		})
 		downloaded++
 
@@ -162,7 +163,7 @@ func runDown(ctx context.Context, opts *syncOptions, client *app.Client) error {
 		}
 
 		if len(toDelete) > 0 {
-			if len(toDelete) > 10 && !opts.Force {
+			if !dryRun && len(toDelete) > 10 && !opts.Force {
 				if !confirmDeletion(len(toDelete), "local files") {
 					log.Message("Deletion cancelled by user")
 					toDelete = nil
@@ -186,7 +187,11 @@ func runDown(ctx context.Context, opts *syncOptions, client *app.Client) error {
 				sm.RemoveAsset(checksum)
 				deleted++
 			}
-			log.Message("Deleted %d local files", deleted)
+			if dryRun {
+				log.Message("[dry-run] Would delete %d local files", deleted)
+			} else {
+				log.Message("Deleted %d local files", deleted)
+			}
 		}
 	}
 
