@@ -51,6 +51,7 @@ immich-go archive from-immich --from-server=http://your-ip:2283 --from-api-key=y
 | [Configuration](docs/configuration.md) | Configuration options and environment variables |
 | [Examples](docs/examples.md) | Common use cases and practical examples |
 | [Best Practices](docs/best-practices.md) | Tips for optimal performance and reliability |
+| [Architecture](docs/architecture.md) | Design patterns and structure of immich-go |
 | [Technical Details](docs/technical.md) | File processing, metadata handling, and advanced features |
 | [Upload Commands Overview](docs/upload-commands-overview.md) | How `immich-go` processes files from different sources |
 | [Release Notes](docs/releases/) | Version history and release notes |
@@ -66,6 +67,7 @@ Here's a brief overview of the main upload commands:
 *   **`from-immich`**: A server-to-server migration tool that allows you to copy assets between two Immich instances with fine-grained filtering.
 *   **`from-picasa`**: A specialized version of `from-folder` that automatically reads `.picasa.ini` files to restore your Picasa album organization.
 *   **`from-icloud`**: Another specialized command that handles the complexity of an iCloud Photos takeout, correctly identifying creation dates and album structures from the included CSV files.
+*   **`from-bereal`**: A specialized command for importing BeReal memories. Automatically separates front and back camera images into distinct assets with proper tagging (`BeReal_Main` and `BeReal_Selfie`), stacks them together for viewing, and optionally groups them by memory date into a BeReal album. Supports robust path resolution for various BeReal export formats.
 
 ### Leveraging Immich's Features
 

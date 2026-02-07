@@ -37,3 +37,4 @@ internal/e2e/immich-test
 internal/e2e/fixtures/wikimedia
 scratchpad/
 internal/e2e/testdata
+immich_test_server

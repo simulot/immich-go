@@ -10358,7 +10358,7 @@
           "storageTemplateMigration": {
             "$ref": "#/components/schemas/JobStatusDto"
           },
-          "thumbnailGeneration": {
+          "": {
             "$ref": "#/components/schemas/JobStatusDto"
           },
           "videoConversion": {

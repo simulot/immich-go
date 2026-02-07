@@ -5,29 +5,47 @@ import (
 	"fmt"
 )
 
+// TagResponseDto represents a tag as returned by the Immich API
+type TagResponseDto struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Color     string `json:"color"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+	ParentID  string `json:"parentId"`
+}
+
+// AssetStack represents stack information for an asset
+type AssetStack struct {
+	AssetCount     int    `json:"assetCount"`
+	ID             string `json:"id"`
+	PrimaryAssetID string `json:"primaryAssetId"`
+}
+
 // Asset represents a simplified Immich asset returned from search
 type Asset struct {
-	ID               string   `json:"id"`
-	DeviceAssetID    string   `json:"deviceAssetId"`
-	DeviceID         string   `json:"deviceId"`
-	Type             string   `json:"type"`
-	OriginalPath     string   `json:"originalPath"`
-	OriginalFileName string   `json:"originalFileName"`
-	Resized          bool     `json:"resized"`
-	Thumbhash        string   `json:"thumbhash"`
-	FileCreatedAt    string   `json:"fileCreatedAt"`
-	FileModifiedAt   string   `json:"fileModifiedAt"`
-	LocalDateTime    string   `json:"localDateTime"`
-	UpdatedAt        string   `json:"updatedAt"`
-	IsFavorite       bool     `json:"isFavorite"`
-	IsArchived       bool     `json:"isArchived"`
-	IsTrashed        bool     `json:"isTrashed"`
-	Duration         string   `json:"duration"`
-	Checksum         string   `json:"checksum"`
-	LivePhotoVideoID string   `json:"livePhotoVideoId"`
-	Tags             []string `json:"tags"`
-	Rating           int      `json:"rating"`
-	Visibility       string   `json:"visibility"`
+	ID               string           `json:"id"`
+	DeviceAssetID    string           `json:"deviceAssetId"`
+	DeviceID         string           `json:"deviceId"`
+	Type             string           `json:"type"`
+	OriginalPath     string           `json:"originalPath"`
+	OriginalFileName string           `json:"originalFileName"`
+	Resized          bool             `json:"resized"`
+	Thumbhash        string           `json:"thumbhash"`
+	FileCreatedAt    string           `json:"fileCreatedAt"`
+	FileModifiedAt   string           `json:"fileModifiedAt"`
+	LocalDateTime    string           `json:"localDateTime"`
+	UpdatedAt        string           `json:"updatedAt"`
+	IsFavorite       bool             `json:"isFavorite"`
+	IsArchived       bool             `json:"isArchived"`
+	IsTrashed        bool             `json:"isTrashed"`
+	Duration         string           `json:"duration"`
+	Checksum         string           `json:"checksum"`
+	LivePhotoVideoID string           `json:"livePhotoVideoId"`
+	Stack            *AssetStack      `json:"stack"`
+	Tags             []TagResponseDto `json:"tags"`
+	Rating           int              `json:"rating"`
+	Visibility       string           `json:"visibility"`
 }
 
 // SearchMetadataRequest represents the request body for /search/metadata
