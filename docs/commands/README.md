@@ -14,7 +14,9 @@ immich-go [global-options] command sub-command [command-options] [path]
 |---------|-------------|--------------|
 | [upload](upload.md) | Upload photos/videos to Immich server | from-folder, from-google-photos, from-icloud, from-picasa, from-immich |
 | [archive](archive.md) | Export/archive photos to local folder structure | from-folder, from-google-photos, from-icloud, from-picasa, from-immich |
+| [sync](sync.md) | Bidirectional sync between local directory and server | down, up |
 | [stack](stack.md) | Organize related photos into stacks on server | (none) |
+| [login](login.md) | Store server credentials in global config | (none) |
 | version | Display version information | (none) |
 
 ## Global Options
@@ -46,8 +48,17 @@ These options work with all commands:
 ## Quick Examples
 
 ```bash
+# Store credentials once
+immich-go login
+
 # Upload from local folder
 immich-go upload from-folder --server=http://localhost:2283 --api-key=your-key /photos
+
+# Sync server photos to local backup
+immich-go sync down -d /backup/immich
+
+# Upload local photos to server
+immich-go sync up -d /photos
 
 # Archive from server
 immich-go archive from-immich --server=http://localhost:2283 --api-key=your-key --write-to-folder=/backup
@@ -61,6 +72,8 @@ immich-go version
 
 ## Detailed Command Documentation
 
+- [Login Command](login.md) - Store credentials for all commands
 - [Upload Command](upload.md) - Comprehensive upload options and sub-commands
-- [Archive Command](archive.md) - Export and archival features  
+- [Sync Command](sync.md) - Bidirectional sync with state tracking
+- [Archive Command](archive.md) - Export and archival features
 - [Stack Command](stack.md) - Photo organization and stacking

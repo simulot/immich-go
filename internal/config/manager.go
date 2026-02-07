@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -44,10 +45,47 @@ func New() *ConfigurationManager {
 	}
 }
 
+// GlobalConfigDir returns the path to the global configuration directory (~/.config/immich-go).
+func GlobalConfigDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine home directory: %w", err)
+	}
+	return filepath.Join(home, ".config", "immich-go"), nil
+}
+
+// GlobalConfigPath returns the full path to the global config file.
+func GlobalConfigPath() (string, error) {
+	dir, err := GlobalConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "config.yaml"), nil
+}
+
 // Init initializes the configuration manager with the specified config file.
-// If cfgFile is empty, it defaults to looking for "immich-go.toml" in the current directory.
-// It sets up environment variable prefix and automatic environment binding.
+// Loading order (later overrides earlier):
+// 1. Global config (~/.config/immich-go/config.yaml)
+// 2. Local config (./immich-go.*)
+// 3. Explicit --config file
+// 4. Environment variables
+// 5. CLI flags (handled in ProcessCommand)
 func (cm *ConfigurationManager) Init(cfgFile string) error {
+	cm.v.SetEnvPrefix("IMMICH_GO")
+	cm.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+	cm.v.AutomaticEnv()
+
+	// Load global config first (lowest file priority)
+	if globalPath, err := GlobalConfigPath(); err == nil {
+		if _, statErr := os.Stat(globalPath); statErr == nil {
+			cm.v.SetConfigFile(globalPath)
+			if err := cm.v.ReadInConfig(); err != nil {
+				return fmt.Errorf("reading global config: %w", err)
+			}
+		}
+	}
+
+	// Merge local/explicit config on top
 	if cfgFile != "" {
 		cm.v.SetConfigFile(cfgFile)
 	} else {
@@ -55,14 +93,50 @@ func (cm *ConfigurationManager) Init(cfgFile string) error {
 		cm.v.SetConfigName("immich-go")
 	}
 
-	cm.v.SetEnvPrefix("IMMICH_GO")
-	cm.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
-	cm.v.AutomaticEnv()
-
-	if err := cm.v.ReadInConfig(); err != nil {
+	if err := cm.v.MergeInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return err
 		}
+	}
+	return nil
+}
+
+// SaveGlobal saves the given key-value pairs to the global config file.
+// It uses a separate Viper instance to avoid polluting the runtime config.
+// The file is written atomically with mode 0600 to protect API keys.
+func SaveGlobal(values map[string]string) error {
+	configDir, err := GlobalConfigDir()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(configDir, 0o700); err != nil {
+		return fmt.Errorf("creating config directory: %w", err)
+	}
+
+	configPath, _ := GlobalConfigPath()
+
+	// Use a separate Viper to read-modify-write the global config
+	gv := viper.New()
+	gv.SetConfigFile(configPath)
+	gv.SetConfigType("yaml")
+	_ = gv.ReadInConfig() // ignore error if file doesn't exist yet
+
+	for k, v := range values {
+		gv.Set(k, v)
+	}
+
+	// Write to temp file with .yaml extension (Viper needs it), then rename
+	tmpPath := configPath + ".new.yaml"
+	if err := gv.WriteConfigAs(tmpPath); err != nil {
+		return fmt.Errorf("writing config: %w", err)
+	}
+	if err := os.Chmod(tmpPath, 0o600); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("setting config permissions: %w", err)
+	}
+	if err := os.Rename(tmpPath, configPath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("renaming config: %w", err)
 	}
 	return nil
 }
@@ -123,8 +197,19 @@ func (cm *ConfigurationManager) processFlagSet(cmd *cobra.Command, fs *pflag.Fla
 	fs.VisitAll(func(f *pflag.Flag) {
 		key := getViperKey(cmd, f)
 		_ = cm.v.BindPFlag(key, f) // can't fail in this context
-		if !f.Changed && cm.v.IsSet(key) {
-			val := cm.v.Get(key)
+
+		// For subcommand flags (e.g. "sync.down.server"), also check the flat key
+		// ("server") as a fallback. This allows global config values to apply to
+		// all subcommands without requiring per-command keys.
+		effectiveKey := key
+		if !f.Changed && !cm.v.IsSet(key) && strings.Contains(key, ".") {
+			if cm.v.IsSet(f.Name) {
+				effectiveKey = f.Name
+			}
+		}
+
+		if !f.Changed && cm.v.IsSet(effectiveKey) {
+			val := cm.v.Get(effectiveKey)
 
 			err = errors.Join(fs.Set(f.Name, fmt.Sprintf("%v", val)))
 			// Determine origin

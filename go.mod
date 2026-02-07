@@ -1,6 +1,6 @@
 module github.com/simulot/immich-go
 
-go 1.25
+go 1.25.6
 
 require (
 	github.com/disintegration/imaging v1.6.2

@@ -1,6 +1,20 @@
 # Configuration File
 
-The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immich-go` looks for a file named `immich-go.toml` in the current directory.
+The configuration file can be a `TOML`, `YAML` or `JSON` file.
+
+## Configuration Loading Order
+
+Immich-go loads configuration from multiple sources (later overrides earlier):
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| 1 (lowest) | Global config | `~/.config/immich-go/config.yaml` (created by `immich-go login`) |
+| 2 | Local config | `./immich-go.toml`, `./immich-go.yaml`, or `./immich-go.json` in the current directory |
+| 3 | Explicit config | File specified with `--config` flag |
+| 4 | Environment variables | Prefixed with `IMMICH_GO_` (e.g., `IMMICH_GO_SERVER`) |
+| 5 (highest) | CLI flags | Command-line flags like `--server`, `--api-key` |
+
+This allows you to store credentials once with `immich-go login` and override per-directory or per-command as needed.
 
 ## Configuration file structure
 
