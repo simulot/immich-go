@@ -113,6 +113,31 @@ func (ce callError) Error() string {
 		b.WriteRune('\n')
 	}
 
+	// Add enhanced permission information if this is a permission error
+	if isPermissionError(ce.status, ce.message) {
+		b.WriteRune('\n')
+		b.WriteString("This appears to be a permission error. Your API key must have the following permissions:\n")
+		b.WriteString("  ")
+		b.WriteString(formatPermissionList(RequiredUserPermissions))
+		b.WriteString("\n\n")
+
+		if isAdminEndpoint(ce.endPoint) {
+			b.WriteString("This endpoint requires an admin API key with these additional permissions:\n")
+			b.WriteString("  ")
+			b.WriteString(formatPermissionList(RequiredAdminPermissions))
+			b.WriteString("\n\n")
+		} else {
+			b.WriteString("For operations that pause/resume Immich jobs, you also need an admin API key with:\n")
+			b.WriteString("  ")
+			b.WriteString(formatPermissionList(RequiredAdminPermissions))
+			b.WriteString("\n\n")
+		}
+
+		b.WriteString("For more information, see: ")
+		b.WriteString(DocsPermissionsURL)
+		b.WriteRune('\n')
+	}
+
 	return b.String()
 }
 
