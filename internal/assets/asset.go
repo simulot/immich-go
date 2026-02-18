@@ -164,7 +164,7 @@ func (a *Asset) MergeTags(t2 []Tag) {
 	for _, tag := range t2 {
 		found := false
 		for _, existingTag := range a.Tags {
-			if existingTag.Name == tag.Name {
+			if existingTag.Value == tag.Value {
 				found = true
 				break
 			}
