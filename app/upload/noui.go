@@ -26,6 +26,9 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	var maxImmich, currImmich int
 	spinner := []rune{' ', ' ', '.', ' ', ' '}
 	spinIdx := 0
+	var prevSize int64
+	var prevTime time.Time
+	var speedStr string
 
 	immichUpdate := func(value, total int) {
 		lock.Lock()
@@ -50,11 +53,26 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		}
 		lock.Unlock()
 
+		// Compute upload speed
+		now := time.Now()
+		if tracker := app.FileProcessor().Tracker(); tracker != nil {
+			currentSize := tracker.GetProcessedSize()
+			if !prevTime.IsZero() {
+				elapsed := now.Sub(prevTime).Seconds()
+				if elapsed > 0 {
+					bps := float64(currentSize-prevSize) / elapsed
+					speedStr = formatSpeedNoUI(bps)
+				}
+			}
+			prevSize = currentSize
+			prevTime = now
+		}
+
 		monthInfo := ""
 		if uc.currentMonth != "" {
 			monthInfo = fmt.Sprintf("Month: %s, ", uc.currentMonth)
 		}
-		return fmt.Sprintf("\rImmich read %d%%, %sAssets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, monthInfo, app.FileProcessor().Logger().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.ProcessedUploadSuccess], string(spinner[spinIdx]))
+		return fmt.Sprintf("\rImmich read %d%%, %sAssets found: %d, Upload errors: %d, Uploaded %d, Speed: %s %s", immichPct, monthInfo, app.FileProcessor().Logger().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.ProcessedUploadSuccess], speedStr, string(spinner[spinIdx]))
 	}
 	uiGrp := errgroup.Group{}
 
@@ -132,4 +150,20 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		err = context.Cause(ctx)
 	}
 	return err
+}
+
+func formatSpeedNoUI(bytesPerSec float64) string {
+	if bytesPerSec < 1 {
+		return "—"
+	}
+	const unit = 1024
+	if bytesPerSec < unit {
+		return fmt.Sprintf("%.0f B/s", bytesPerSec)
+	}
+	div, exp := float64(unit), 0
+	for n := bytesPerSec / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB/s", bytesPerSec/div, "KMGTPE"[exp])
 }

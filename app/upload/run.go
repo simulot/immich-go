@@ -441,10 +441,10 @@ func (uc *UpCmd) runMonthNoUI(ctx context.Context, dr *cliflags.DateRange, group
 	processGrp.Go(func() error {
 		var err error
 		if dr != nil {
-			err = uc.getImmichAssetsFiltered(ctx, *dr, nil)
+			err = uc.getImmichAssetsFiltered(ctx, *dr, uc.immichUpdateFn)
 		} else {
 			// no-date batch: fetch all assets (or skip server fetch)
-			err = uc.getImmichAssetsFiltered(ctx, cliflags.DateRange{}, nil)
+			err = uc.getImmichAssetsFiltered(ctx, cliflags.DateRange{}, uc.immichUpdateFn)
 		}
 		if err != nil {
 			cancel(err)

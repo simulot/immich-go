@@ -90,6 +90,7 @@ type UpCmd struct {
 	batchCurrent      int                                  // index of current month (1-based)
 	batchTotal        int                                  // total months being processed in this run
 	resumeSkipped     atomic.Int64                         // count of files skipped due to resume state
+	immichUpdateFn    progressUpdate                       // callback for Immich asset reading progress (set by UI)
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {

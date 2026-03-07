@@ -60,6 +60,12 @@ type TakeoutCmd struct {
 	fileTracker    *gen.SyncMap[fileKeyTracker, trackingInfo] // map[fileKeyTracker]trackingInfo // key is base name + file size,  value is list of file paths
 	groupers       []groups.Grouper
 	// filters        []filters.Filter
+
+	// Pre-scan state (for DateRangeProvider / batched upload)
+	catalogBuilt bool      // true after PreScan has built the catalog
+	targetMonth  string    // "YYYY-MM", "no-date", or "" (no filter)
+	targetAfter  time.Time // inclusive lower bound for month filter
+	targetBefore time.Time // exclusive upper bound for month filter
 }
 
 func (toc *TakeoutCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
