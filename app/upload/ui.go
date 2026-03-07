@@ -56,7 +56,8 @@ type uiPage struct {
 	watchJobs bool
 
 	// Batch progress (for batched upload mode)
-	batchInfo *tview.TextView
+	batchInfoView     *tview.TextView
+	resumeSkippedView *tview.TextView
 }
 
 func (ui *uiPage) highJackLogger(app *app.Application) {
@@ -348,8 +349,11 @@ func (uc *UpCmd) runBatchedUI(ctx context.Context, monthLoop func(ctx context.Co
 						ui.updateSizeView(c, sizes[c])
 					}
 					ui.updateStatusZone()
-					if ui.batchInfo != nil && uc.batchTotal > 0 {
-						ui.batchInfo.SetText(fmt.Sprintf("[yellow]Batch %d/%d[white]  Month: [green]%s", uc.batchCurrent, uc.batchTotal, uc.currentMonth))
+					if ui.batchInfoView != nil && uc.batchTotal > 0 {
+						ui.batchInfoView.SetText(fmt.Sprintf("Batch %d/%d: %s", uc.batchCurrent, uc.batchTotal, uc.currentMonth))
+					}
+					if ui.resumeSkippedView != nil {
+						ui.resumeSkippedView.SetText(fmt.Sprintf("%d", uc.resumeSkipped.Load()))
 					}
 				})
 			}
@@ -497,10 +501,6 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 		ui.footer.AddItem(tview.NewTextView().SetText("Google Photo puzzle:").SetTextAlign(tview.AlignCenter), 0, 2, 1, 1, 0, 0, false).AddItem(ui.immichPrepare, 0, 3, 1, 1, 0, 0, false)
 		ui.footer.AddItem(tview.NewTextView().SetText("Uploading:").SetTextAlign(tview.AlignCenter), 0, 4, 1, 1, 0, 0, false).AddItem(ui.immichUpload, 0, 5, 1, 1, 0, 0, false)
 		ui.footer.SetColumns(25, 0, 25, 0, 25, 0)
-	} else if uc.batchTotal > 0 {
-		ui.batchInfo = tview.NewTextView().SetTextAlign(tview.AlignCenter).SetDynamicColors(true)
-		ui.footer.AddItem(ui.batchInfo, 0, 2, 1, 1, 0, 0, false)
-		ui.footer.SetColumns(25, 0, 0)
 	} else {
 		ui.footer.SetColumns(25, 0)
 	}
@@ -584,11 +584,15 @@ func (ui *uiPage) createDiscoveryZone() *tview.Grid {
 	ui.addCounter(discovery, 6, "Banned", fileevent.DiscardedBanned)
 	// Row 7: Missing sidecar
 	ui.addCounter(discovery, 7, "Missing sidecar", fileevent.ProcessedMissingMetadata)
-	// Row 8: Total discovered
-	discovery.AddItem(tview.NewTextView().SetText("Total discovered"), 8, 0, 1, 1, 0, 0, false)
-	ui.addDiscoveryCounter(discovery, 8, "discoveredCount", "discoveredSize")
+	// Row 8: Skipped (resume) — custom counter, not a fileevent
+	discovery.AddItem(tview.NewTextView().SetText("Skipped (resume)"), 8, 0, 1, 1, 0, 0, false)
+	ui.resumeSkippedView = tview.NewTextView().SetTextAlign(tview.AlignRight).SetText("0")
+	discovery.AddItem(ui.resumeSkippedView, 8, 1, 1, 1, 0, 0, false)
+	// Row 9: Total discovered
+	discovery.AddItem(tview.NewTextView().SetText("Total discovered"), 9, 0, 1, 1, 0, 0, false)
+	ui.addDiscoveryCounter(discovery, 9, "discoveredCount", "discoveredSize")
 
-	discovery.SetSize(9, 4, 1, 1).SetColumns(20, 8, 2, 10)
+	discovery.SetSize(10, 4, 1, 1).SetColumns(20, 8, 2, 10)
 	return discovery
 }
 
@@ -607,8 +611,11 @@ func (ui *uiPage) createProcessingZone() *tview.Grid {
 	ui.addProcessingCounter(processing, 3, "Tagged", fileevent.ProcessedTagged)
 	// Row 4: Metadata updated
 	ui.addProcessingCounter(processing, 4, "Metadata updated", fileevent.ProcessedMetadataUpdated)
+	// Row 5: Batch info (empty until batched mode sets it)
+	ui.batchInfoView = tview.NewTextView().SetDynamicColors(true)
+	processing.AddItem(ui.batchInfoView, 5, 0, 1, 2, 0, 0, false)
 
-	processing.SetSize(5, 2, 1, 1).SetColumns(20, 10)
+	processing.SetSize(6, 2, 1, 1).SetColumns(20, 10)
 	return processing
 }
 

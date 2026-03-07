@@ -25,6 +25,7 @@ type ImmichClient struct {
 	DeviceUUID     string        // Device
 	Retries        int           // Number of attempts on 500 errors
 	RetriesDelay   time.Duration // Duration between retries
+	RetryEnabled   bool          // If true, retry transient server errors
 	apiTraceWriter io.Writer     // If not nil, logs API calls to this writer
 
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias

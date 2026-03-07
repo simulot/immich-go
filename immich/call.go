@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 	"sync/atomic"
 
 	"github.com/simulot/immich-go/internal/assets"
@@ -218,6 +219,36 @@ func putRequest(url string, opts ...serverRequestOption) requestFunction {
 }
 
 func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
+	maxAttempts := 1
+	if sc.ic.RetryEnabled {
+		maxAttempts = maxRetries
+	}
+
+	var lastErr error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		if attempt > 0 {
+			delay := retryDelay(attempt-1, "")
+			select {
+			case <-time.After(delay):
+			case <-sc.ctx.Done():
+				return sc.ctx.Err()
+			}
+			// Reset error state for retry
+			sc.err = nil
+		}
+
+		lastErr = sc.doOnce(fnRequest, opts...)
+		if lastErr == nil {
+			return nil
+		}
+		if !isRetryable(lastErr) {
+			return lastErr
+		}
+	}
+	return lastErr
+}
+
+func (sc *serverCall) doOnce(fnRequest requestFunction, opts ...serverResponseOption) error {
 	var (
 		resp *http.Response
 		err  error

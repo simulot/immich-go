@@ -3,6 +3,7 @@ package upload
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/simulot/immich-go/adapters"
@@ -12,6 +13,7 @@ import (
 	"github.com/simulot/immich-go/adapters/shared"
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/immich"
+	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assets/cache"
 	"github.com/simulot/immich-go/internal/assettracker"
@@ -87,6 +89,7 @@ type UpCmd struct {
 	currentMonth      string                               // current month being processed in batched mode
 	batchCurrent      int                                  // index of current month (1-based)
 	batchTotal        int                                  // total months being processed in this run
+	resumeSkipped     atomic.Int64                         // count of files skipped due to resume state
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -164,6 +167,13 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	}
 	uc.tz = uc.app.GetTZ()
 	uc.app.SetSupportedMedia(uc.client.Immich.SupportedMedia())
+
+	// Enable retry on the immich client when --on-errors=retry
+	if uc.app.OnErrors == cliflags.OnErrorsRetry {
+		if ic, ok := uc.client.Immich.(*immich.ImmichClient); ok {
+			ic.RetryEnabled = true
+		}
+	}
 
 	// Initialize the FileProcessor if not already done
 	if uc.app.FileProcessor() == nil {

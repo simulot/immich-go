@@ -16,10 +16,11 @@ const (
 	OnErrorsStop OnErrorsFlag = iota
 	OnErrorsStopAfter
 	OnErrorsNeverStop = -1
+	OnErrorsRetry     = -2
 )
 
 func (f *OnErrorsFlag) RegisterFlags(fs *pflag.FlagSet, prefix string) {
-	fs.Var(f, prefix+"on-errors", "Action to take on errors, (stop|continue| <n> errors)")
+	fs.Var(f, prefix+"on-errors", "Action to take on errors (stop|continue|retry|N)")
 }
 
 func (f OnErrorsFlag) String() string {
@@ -28,6 +29,8 @@ func (f OnErrorsFlag) String() string {
 		return "stop"
 	case f == OnErrorsNeverStop:
 		return "continue"
+	case f == OnErrorsRetry:
+		return "retry"
 	case f >= OnErrorsStopAfter:
 		return fmt.Sprintf("%d", f)
 	default:
@@ -41,6 +44,8 @@ func (f *OnErrorsFlag) Set(value string) error {
 		*f = OnErrorsStop
 	case "continue":
 		*f = OnErrorsNeverStop
+	case "retry":
+		*f = OnErrorsRetry
 	default:
 		n, err := strconv.Atoi(value)
 		if err != nil {

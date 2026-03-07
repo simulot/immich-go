@@ -45,7 +45,7 @@ func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&app.CfgFile, "config", "", "config file (default is ./immich-go.yaml)")
 	flags.BoolVar(&app.DryRun, "dry-run", false, "dry run")
 	flags.BoolVar(&app.SaveConfig, "save-config", false, "Save the configuration to immich-go.yaml")
-	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")
+	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop|continue|retry|N)")
 	flags.IntVar(&app.ConcurrentTask, "concurrent-tasks", runtime.NumCPU(), "Number of concurrent tasks (1-20)")
 }
 
@@ -114,6 +114,9 @@ func (app *Application) ProcessError(err error) error {
 		app.Log().Error("Error", "err", err.Error())
 		return err
 	} else if app.OnErrors == cliflags.OnErrorsNeverStop {
+		app.Log().Error("Error", "err", err.Error())
+		return nil
+	} else if app.OnErrors == cliflags.OnErrorsRetry {
 		app.Log().Error("Error", "err", err.Error())
 		return nil
 	} else if nErr > int64(app.OnErrors) {

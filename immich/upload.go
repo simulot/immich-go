@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/simulot/immich-go/internal/assets"
@@ -40,6 +41,35 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 		}, nil
 	}
 
+	maxAttempts := 1
+	if ic.RetryEnabled {
+		maxAttempts = maxRetries
+	}
+
+	var lastErr error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		if attempt > 0 {
+			delay := retryDelay(attempt-1, "")
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return AssetResponse{}, ctx.Err()
+			}
+		}
+
+		ar, err := ic.uploadAssetOnce(ctx, la, endPoint, replaceID)
+		if err == nil {
+			return ar, nil
+		}
+		if !isRetryable(err) {
+			return ar, err
+		}
+		lastErr = err
+	}
+	return AssetResponse{}, lastErr
+}
+
+func (ic *ImmichClient) uploadAssetOnce(ctx context.Context, la *assets.Asset, endPoint string, replaceID string) (AssetResponse, error) {
 	var ar AssetResponse
 	ext := path.Ext(la.OriginalFileName)
 	if strings.TrimSuffix(la.OriginalFileName, ext) == "" {

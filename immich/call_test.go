@@ -89,3 +89,96 @@ func TestCall(t *testing.T) {
 		})
 	}
 }
+
+func TestCallRetry_TransientError(t *testing.T) {
+	attempts := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts < 3 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"error":"Service Unavailable","statusCode":503,"message":"overloaded"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	ic, err := NewImmichClient(server.URL, "key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ic.RetryEnabled = true
+
+	r := map[string]string{}
+	err = ic.newServerCall(context.Background(), "test").
+		do(getRequest("/test", setAcceptJSON()), responseJSON(&r))
+	if err != nil {
+		t.Errorf("expected success after retries, got error: %v", err)
+	}
+	if attempts != 3 {
+		t.Errorf("expected 3 attempts, got %d", attempts)
+	}
+}
+
+func TestCallRetry_NonRetryableError(t *testing.T) {
+	attempts := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(`{"error":"Forbidden","statusCode":403,"message":"no access"}`))
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	ic, err := NewImmichClient(server.URL, "key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ic.RetryEnabled = true
+
+	r := map[string]string{}
+	err = ic.newServerCall(context.Background(), "test").
+		do(getRequest("/test", setAcceptJSON()), responseJSON(&r))
+	if err == nil {
+		t.Error("expected error for 403, got nil")
+	}
+	if attempts != 1 {
+		t.Errorf("expected 1 attempt (no retry for 403), got %d", attempts)
+	}
+}
+
+func TestCallRetry_Disabled(t *testing.T) {
+	attempts := 0
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte(`{"error":"Service Unavailable","statusCode":503,"message":"overloaded"}`))
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	ic, err := NewImmichClient(server.URL, "key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// RetryEnabled defaults to false
+
+	r := map[string]string{}
+	err = ic.newServerCall(context.Background(), "test").
+		do(getRequest("/test", setAcceptJSON()), responseJSON(&r))
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+	if attempts != 1 {
+		t.Errorf("expected 1 attempt (retry disabled), got %d", attempts)
+	}
+}

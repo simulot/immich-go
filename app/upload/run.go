@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/simulot/immich-go/adapters"
@@ -260,10 +262,17 @@ func (uc *UpCmd) uploadBatched(ctx context.Context, adapter adapters.Reader, drp
 
 	// 3. Filter months: remove completed, apply batch-limit
 	var remaining []string
+	var skippedMonths []string
 	for _, m := range months {
-		if !uc.state.IsMonthCompleted(m) {
+		if uc.state.IsMonthCompleted(m) {
+			skippedMonths = append(skippedMonths, m)
+		} else {
 			remaining = append(remaining, m)
 		}
+	}
+
+	if len(skippedMonths) > 0 {
+		uc.app.Log().Info(fmt.Sprintf("Skipping %d already completed months: %s", len(skippedMonths), strings.Join(skippedMonths, ", ")))
 	}
 
 	if len(remaining) == 0 {
@@ -275,7 +284,7 @@ func (uc *UpCmd) uploadBatched(ctx context.Context, adapter adapters.Reader, drp
 		remaining = remaining[:uc.BatchLimit]
 	}
 
-	uc.app.Log().Info(fmt.Sprintf("Processing %d months (of %d remaining)", len(remaining), len(months)-len(uc.state.CompletedMonths)))
+	uc.app.Log().Info(fmt.Sprintf("Processing %d months (of %d remaining): %s", len(remaining), len(months)-len(skippedMonths), strings.Join(remaining, ", ")))
 
 	// 4. Build the month-loop function that will be called from within either UI or NoUI
 	uc.batchTotal = len(remaining)
@@ -608,7 +617,11 @@ func (uc *UpCmd) getImmichAssetsFiltered(ctx context.Context, dr cliflags.DateRa
 func (uc *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 
-	// the goroutine submits the groups, and stops when then number of error is higher than tolerated
+	useAdaptive := uc.app.OnErrors == cliflags.OnErrorsRetry
+	throttle := worker.NewThrottle(uc.app.ConcurrentTask)
+
+	var consecutiveSuccesses atomic.Int64
+
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		workers := worker.NewPool(uc.app.ConcurrentTask)
@@ -622,12 +635,45 @@ func (uc *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) e
 				if !ok {
 					return
 				}
+				if useAdaptive {
+					throttle.Acquire()
+				}
 				workers.Submit(func() {
+					if useAdaptive {
+						defer throttle.Release()
+					}
 					err := uc.handleGroup(ctx, g)
 					if err != nil {
+						if useAdaptive && immich.IsRetryable(err) {
+							consecutiveSuccesses.Store(0)
+							cur := throttle.Current()
+							newLevel := max(cur/2, 1)
+							if newLevel < cur {
+								throttle.SetConcurrency(newLevel)
+								uc.app.Log().Info("Reducing concurrency due to server errors", "from", cur, "to", newLevel)
+							}
+							// Brief pause to let server recover
+							select {
+							case <-time.After(5 * time.Second):
+							case <-ctx.Done():
+							}
+						}
 						err = uc.app.ProcessError(err)
 						if err != nil {
 							cancel(err)
+						}
+					} else {
+						if useAdaptive {
+							n := consecutiveSuccesses.Add(1)
+							if n%10 == 0 {
+								cur := throttle.Current()
+								maxLevel := throttle.Max()
+								if cur < maxLevel {
+									newLevel := min(cur+1, maxLevel)
+									throttle.SetConcurrency(newLevel)
+									uc.app.Log().Info("Increasing concurrency after consecutive successes", "from", cur, "to", newLevel)
+								}
+							}
 						}
 					}
 				})
@@ -715,7 +761,8 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		}
 		filePath := a.File.Name()
 		if uc.state.IsFileUploaded(source, filePath, int64(a.FileSize)) {
-			uc.app.Log().Debug("Skipping file already uploaded in previous run", "file", filePath)
+			uc.resumeSkipped.Add(1)
+			uc.app.Log().Info("Skipping file already uploaded in previous run", "file", filePath)
 			return nil
 		}
 	}
