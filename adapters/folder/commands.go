@@ -2,7 +2,10 @@ package folder
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
+	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -52,6 +55,168 @@ type ImportFolderCmd struct {
 	picasaAlbums            *gen.SyncMap[string, PicasaAlbum] // ap[string]PicasaAlbum
 	icloudMetas             *gen.SyncMap[string, iCloudMeta]
 	icloudMetaPass          bool
+
+	// Pre-scan date tracking
+	monthsMu       sync.Mutex
+	activeMonthSet map[string]struct{} // set of YYYY-MM strings discovered during pre-scan
+	activeMonths   []string            // sorted list of YYYY-MM strings (populated after pre-scan)
+	hasNoDateFiles bool                // whether files with no determinable date were found
+}
+
+// addMonth extracts the YYYY-MM string from a time.Time and adds it to the
+// active months set. It is safe for concurrent use.
+func (ifc *ImportFolderCmd) addMonth(t time.Time) {
+	if t.IsZero() {
+		return
+	}
+	month := fmt.Sprintf("%04d-%02d", t.Year(), t.Month())
+	ifc.monthsMu.Lock()
+	defer ifc.monthsMu.Unlock()
+	if ifc.activeMonthSet == nil {
+		ifc.activeMonthSet = make(map[string]struct{})
+	}
+	ifc.activeMonthSet[month] = struct{}{}
+}
+
+// setNoDateFiles marks that at least one file with no determinable date was found.
+func (ifc *ImportFolderCmd) setNoDateFiles() {
+	ifc.monthsMu.Lock()
+	defer ifc.monthsMu.Unlock()
+	ifc.hasNoDateFiles = true
+}
+
+// buildSortedMonths converts the activeMonthSet into a sorted slice and stores it in activeMonths.
+func (ifc *ImportFolderCmd) buildSortedMonths() {
+	ifc.monthsMu.Lock()
+	defer ifc.monthsMu.Unlock()
+	ifc.activeMonths = make([]string, 0, len(ifc.activeMonthSet))
+	for m := range ifc.activeMonthSet {
+		ifc.activeMonths = append(ifc.activeMonths, m)
+	}
+	sort.Strings(ifc.activeMonths)
+}
+
+// ActiveMonths returns the sorted list of YYYY-MM strings discovered during pre-scan.
+func (ifc *ImportFolderCmd) ActiveMonths() []string {
+	ifc.monthsMu.Lock()
+	defer ifc.monthsMu.Unlock()
+	result := make([]string, len(ifc.activeMonths))
+	copy(result, ifc.activeMonths)
+	return result
+}
+
+// HasNoDateFiles returns whether files with no determinable date were found during pre-scan.
+func (ifc *ImportFolderCmd) HasNoDateFiles() bool {
+	ifc.monthsMu.Lock()
+	defer ifc.monthsMu.Unlock()
+	return ifc.hasNoDateFiles
+}
+
+// PreScan runs the iCloud CSV first pass (if applicable) and walks local files
+// to extract dates from filenames using InfoCollector. It returns a sorted unique
+// list of YYYY-MM strings representing months that have assets.
+func (ifc *ImportFolderCmd) PreScan(ctx context.Context) ([]string, error) {
+	// Initialize month set
+	ifc.monthsMu.Lock()
+	ifc.activeMonthSet = make(map[string]struct{})
+	ifc.hasNoDateFiles = false
+	ifc.monthsMu.Unlock()
+
+	// For iCloud takeouts, run the CSV meta pass first
+	if ifc.ICloudTakeout && ifc.icloudMetas != nil {
+		// Iterate over already-parsed iCloud metas to collect dates
+		ifc.icloudMetas.Range(func(_ string, meta iCloudMeta) bool {
+			if !meta.originalCreationDate.IsZero() {
+				ifc.addMonth(meta.originalCreationDate)
+			}
+			return true
+		})
+	}
+
+	// Walk local files to extract dates from filenames
+	if ifc.infoCollector == nil {
+		ifc.infoCollector = filenames.NewInfoCollector(ifc.tz, ifc.supportedMedia)
+	}
+
+	for _, fsys := range ifc.fsyss {
+		err := ifc.preScanDir(ctx, fsys, ".")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ifc.buildSortedMonths()
+	return ifc.ActiveMonths(), nil
+}
+
+// preScanDir walks a directory to extract dates from filenames for pre-scan.
+func (ifc *ImportFolderCmd) preScanDir(ctx context.Context, fsys fs.FS, dir string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return err
+	}
+
+	fsName := ""
+	if named, ok := fsys.(interface{ Name() string }); ok {
+		fsName = named.Name()
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			if ifc.Recursive && entry.Name() != "." {
+				subDir := dir + "/" + entry.Name()
+				if dir == "." {
+					subDir = entry.Name()
+				}
+				if err := ifc.preScanDir(ctx, fsys, subDir); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+
+		base := entry.Name()
+		ext := filepath.Ext(base)
+
+		// Skip CSV and non-media files
+		if ext == icloudMetadataExt {
+			continue
+		}
+		mediaType := ifc.supportedMedia.TypeFromExt(ext)
+		if mediaType != filetypes.TypeImage && mediaType != filetypes.TypeVideo {
+			continue
+		}
+
+		// Build a full path for the info collector
+		name := dir + "/" + base
+		if dir == "." {
+			name = base
+		}
+		n := name
+		if fsName != "" {
+			n = fsName + "/" + n
+		}
+
+		info := ifc.infoCollector.GetInfo(n)
+		if !info.Taken.IsZero() {
+			ifc.addMonth(info.Taken)
+		} else {
+			// Try file modification time as fallback
+			fi, err := fs.Stat(fsys, name)
+			if err == nil && !fi.ModTime().IsZero() {
+				ifc.addMonth(fi.ModTime())
+			} else {
+				ifc.setNoDateFiles()
+			}
+		}
+	}
+	return nil
 }
 
 func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {

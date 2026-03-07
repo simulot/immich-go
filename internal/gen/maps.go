@@ -79,3 +79,15 @@ func (m *SyncMap[K, V]) Keys() []K {
 	}
 	return r
 }
+
+// Range calls f for each key-value pair in the map.
+// If f returns false, Range stops iteration.
+func (m *SyncMap[K, V]) Range(f func(K, V) bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for k, v := range m.m {
+		if !f(k, v) {
+			return
+		}
+	}
+}

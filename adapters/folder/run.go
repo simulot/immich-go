@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/app"
@@ -113,6 +114,16 @@ func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
 			}
 			ifc.wg.Wait()
 			ifc.icloudMetaPass = false
+
+			// Collect dates from iCloud metas after the first pass
+			if ifc.icloudMetas != nil {
+				ifc.icloudMetas.Range(func(_ string, meta iCloudMeta) bool {
+					if !meta.originalCreationDate.IsZero() {
+						ifc.addMonth(meta.originalCreationDate)
+					}
+					return true
+				})
+			}
 		}
 		for _, fsys := range ifc.fsyss {
 			ifc.concurrentParseDir(ctx, fsys, ".", gOut)
@@ -121,6 +132,88 @@ func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
 		ifc.pool.Stop()
 	}()
 	return gOut
+}
+
+// BrowseMonth works like Browse but only yields assets whose date falls
+// within the target month. The month parameter is a "YYYY-MM" string or
+// the special value "no-date" for assets with no determinable date.
+//
+// Date resolution order: CaptureDate > FileDate > NameInfo.Taken.
+// Files with no date at all are only included when month == "no-date".
+func (ifc *ImportFolderCmd) BrowseMonth(ctx context.Context, month string) chan *assets.Group {
+	// Use Browse to get all groups, then filter assets per group.
+	allGroups := ifc.Browse(ctx)
+	gOut := make(chan *assets.Group)
+
+	go func() {
+		defer close(gOut)
+
+		isNoDate := month == "no-date"
+		var after, before time.Time
+		if !isNoDate {
+			var err error
+			after, before, err = adapters.MonthToDateRange(month)
+			if err != nil {
+				return
+			}
+		}
+
+		for g := range allGroups {
+			var filtered []*assets.Asset
+			for _, a := range g.Assets {
+				d := assetDate(a)
+				if d.IsZero() {
+					if isNoDate {
+						filtered = append(filtered, a)
+					} else {
+						a.Close()
+					}
+				} else {
+					if isNoDate {
+						a.Close()
+					} else if (d.Equal(after) || d.After(after)) && d.Before(before) {
+						filtered = append(filtered, a)
+					} else {
+						a.Close()
+					}
+				}
+			}
+			if len(filtered) == 0 {
+				continue
+			}
+			fg := assets.NewGroup(g.Grouping, filtered...)
+			// Adjust cover index: if original cover is still present, keep it
+			coverIdx := 0
+			if g.CoverIndex < len(g.Assets) {
+				origCover := g.Assets[g.CoverIndex]
+				for i, a := range filtered {
+					if a == origCover {
+						coverIdx = i
+						break
+					}
+				}
+			}
+			fg.CoverIndex = coverIdx
+			select {
+			case gOut <- fg:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return gOut
+}
+
+// assetDate returns the best available date for the asset, following the
+// resolution order: CaptureDate, FileDate, NameInfo.Taken.
+func assetDate(a *assets.Asset) time.Time {
+	if !a.CaptureDate.IsZero() {
+		return a.CaptureDate
+	}
+	if !a.FileDate.IsZero() {
+		return a.FileDate
+	}
+	return a.Taken
 }
 
 func (ifc *ImportFolderCmd) concurrentParseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) {
@@ -187,7 +280,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			}
 			// iCloud photo details (csv). File name pattern: "Photo Details.csv"
 			if strings.HasPrefix(strings.ToLower(base), "photo details") {
-				err := UseICloudPhotoDetails(ifc.icloudMetas, fsys, name)
+				err := UseICloudPhotoDetails(ifc.icloudMetas, fsys, name, ifc.addMonth)
 				if err != nil {
 					ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
 				} else {
@@ -283,6 +376,23 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 					code = fileevent.DiscoveredVideo
 				}
 				ifc.processor.RecordAssetDiscovered(ctx, a.File, int64(a.FileSize), code)
+
+				// Collect date for pre-scan month tracking
+				assetDate := a.Taken // from filename via NameInfo
+				if assetDate.IsZero() && ifc.ICloudTakeout && ifc.icloudMetas != nil {
+					if meta, ok := ifc.icloudMetas.Load(a.OriginalFileName); ok {
+						assetDate = meta.originalCreationDate
+					}
+				}
+				if assetDate.IsZero() {
+					assetDate = a.FileDate
+				}
+				if !assetDate.IsZero() {
+					ifc.addMonth(assetDate)
+				} else {
+					ifc.setNoDateFiles()
+				}
+
 				as = append(as, a)
 			}
 		}

@@ -17,6 +17,10 @@ type iCloudMeta struct {
 	originalCreationDate time.Time
 }
 
+// DateCollector is a callback invoked for each date parsed during iCloud CSV processing.
+// Callers can use this to track min/max dates or collect active months.
+type DateCollector func(t time.Time)
+
 func UseICloudMemory(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filename string) (string, error) {
 	file, err := fsys.Open(filename)
 	if err != nil {
@@ -66,7 +70,7 @@ func useAlbum(m *gen.SyncMap[string, iCloudMeta], file fs.File, albumName string
 // Example:
 // imgName,fileChecksum,favorite,hidden,deleted,originalCreationDate,viewCount,importDate
 // IMG_7938.HEIC,AfQj57ORF2JIumUCjO+PawZ9nqPg,no,no,no,"Saturday June 4,2022 12:11 PM GMT",10,"Saturday June 4,2022 12:11 PM GMT"
-func UseICloudPhotoDetails(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filename string) error {
+func UseICloudPhotoDetails(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filename string, collectors ...DateCollector) error {
 	file, err := fsys.Open(filename)
 	if err != nil {
 		return err
@@ -98,6 +102,11 @@ func UseICloudPhotoDetails(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filen
 		meta, _ := m.Load(fileName)
 		meta.originalCreationDate = t
 		m.Store(fileName, meta)
+
+		// Notify collectors of parsed date
+		for _, collect := range collectors {
+			collect(t)
+		}
 	}
 
 	return nil
