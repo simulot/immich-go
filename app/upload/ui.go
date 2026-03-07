@@ -54,6 +54,9 @@ type uiPage struct {
 	immichUpload  *tvxwidgets.PercentageModeGauge
 
 	watchJobs bool
+
+	// Batch progress (for batched upload mode)
+	batchInfo *tview.TextView
 }
 
 func (ui *uiPage) highJackLogger(app *app.Application) {
@@ -254,6 +257,147 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	return err
 }
 
+// runBatchedUI runs the TUI for batched upload mode.
+// It starts the TUI once and runs the month loop inside it, so the user
+// sees live counters and progress across all months.
+func (uc *UpCmd) runBatchedUI(ctx context.Context, monthLoop func(ctx context.Context) error) error {
+	ctx, cancel := context.WithCancelCause(ctx)
+	uiApp := tview.NewApplication()
+	ui := uc.newUI(ctx, uc.app)
+
+	defer cancel(nil)
+	pages := tview.NewPages()
+
+	var uploadDone atomic.Bool
+	var uiGroup errgroup.Group
+	var messages strings.Builder
+
+	uiApp.SetRoot(pages, true)
+
+	stopUI := func(err error) {
+		cancel(err)
+		if uiApp != nil {
+			uiApp.Stop()
+		}
+	}
+
+	pages.AddPage("ui", ui.screen, true, true)
+
+	// handle Ctrl+C and Ctrl+Q
+	uiApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyCtrlQ, tcell.KeyCtrlC:
+			ui.restoreLogger(uc.app)
+			cancel(errors.New("interrupted: Ctrl+C or Ctrl+Q pressed"))
+		case tcell.KeyEnter:
+			if uploadDone.Load() {
+				stopUI(nil)
+			}
+		}
+		return event
+	})
+
+	// update server status
+	if ui.watchJobs {
+		go func() {
+			tick := time.NewTicker(250 * time.Millisecond)
+			for {
+				select {
+				case <-ctx.Done():
+					tick.Stop()
+					return
+				case <-tick.C:
+					jobs, err := uc.client.AdminImmich.GetJobs(ctx)
+					if err == nil {
+						jobCount := 0
+						jobWaiting := 0
+						for _, j := range jobs {
+							jobCount += j.JobCounts.Active
+							jobWaiting += j.JobCounts.Waiting
+						}
+						_, _, w, _ := ui.serverJobs.GetInnerRect()
+						ui.serverActivity = append(ui.serverActivity, float64(jobCount))
+						if len(ui.serverActivity) > w {
+							ui.serverActivity = ui.serverActivity[1:]
+						}
+						ui.serverJobs.SetData(ui.serverActivity)
+						ui.serverJobs.SetTitle(fmt.Sprintf("Server's jobs: active: %d, waiting: %d", jobCount, jobWaiting))
+						if jobCount > 0 {
+							ui.lastTimeServerActive.Store(time.Now().Unix())
+						}
+					}
+				}
+			}
+		}()
+	}
+
+	// force the ui to redraw counters
+	go func() {
+		tick := time.NewTicker(100 * time.Millisecond)
+		for {
+			select {
+			case <-ctx.Done():
+				tick.Stop()
+				return
+			case <-tick.C:
+				uiApp.QueueUpdateDraw(func() {
+					counts := uc.app.FileProcessor().Logger().GetCounts()
+					sizes := uc.app.FileProcessor().Logger().GetEventSizes()
+					for c := range ui.counts {
+						ui.getCountView(c, counts[c])
+						ui.updateSizeView(c, sizes[c])
+					}
+					ui.updateStatusZone()
+					if ui.batchInfo != nil && uc.batchTotal > 0 {
+						ui.batchInfo.SetText(fmt.Sprintf("[yellow]Batch %d/%d[white]  Month: [green]%s", uc.batchCurrent, uc.batchTotal, uc.currentMonth))
+					}
+				})
+			}
+		}
+	}()
+
+	// start the UI
+	uiGroup.Go(func() error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			err := uiApp.Run()
+			cancel(err)
+			return err
+		}
+	})
+
+	// run the month loop
+	uiGroup.Go(func() error {
+		err := monthLoop(ctx)
+
+		err = errors.Join(err, uc.finishing(ctx))
+
+		uploadDone.Store(true)
+		counts := uc.app.FileProcessor().Logger().GetCounts()
+		if counts[fileevent.ErrorUploadFailed]+counts[fileevent.ErrorServerError]+counts[fileevent.ErrorFileAccess]+counts[fileevent.ErrorIncomplete] > 0 {
+			messages.WriteString("Some errors have occurred. Look at the log file for details\n")
+		}
+
+		modal := newModal(messages.String())
+		pages.AddPage("modal", modal, true, false)
+		pages.ShowPage("modal")
+
+		return err
+	})
+
+	err := uiGroup.Wait()
+	if err != nil {
+		err = context.Cause(ctx)
+	}
+
+	if messages.Len() > 0 {
+		return errors.New(messages.String())
+	}
+	return err
+}
+
 func newModal(message string) tview.Primitive {
 	message += "\nYou can quit the program safely.\n\nPress the [enter] key to exit."
 	lines := strings.Count(message, "\n")
@@ -353,6 +497,10 @@ func (uc *UpCmd) newUI(ctx context.Context, a *app.Application) *uiPage {
 		ui.footer.AddItem(tview.NewTextView().SetText("Google Photo puzzle:").SetTextAlign(tview.AlignCenter), 0, 2, 1, 1, 0, 0, false).AddItem(ui.immichPrepare, 0, 3, 1, 1, 0, 0, false)
 		ui.footer.AddItem(tview.NewTextView().SetText("Uploading:").SetTextAlign(tview.AlignCenter), 0, 4, 1, 1, 0, 0, false).AddItem(ui.immichUpload, 0, 5, 1, 1, 0, 0, false)
 		ui.footer.SetColumns(25, 0, 25, 0, 25, 0)
+	} else if uc.batchTotal > 0 {
+		ui.batchInfo = tview.NewTextView().SetTextAlign(tview.AlignCenter).SetDynamicColors(true)
+		ui.footer.AddItem(ui.batchInfo, 0, 2, 1, 1, 0, 0, false)
+		ui.footer.SetColumns(25, 0, 0)
 	} else {
 		ui.footer.SetColumns(25, 0)
 	}

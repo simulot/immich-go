@@ -277,17 +277,42 @@ func (uc *UpCmd) uploadBatched(ctx context.Context, adapter adapters.Reader, drp
 
 	uc.app.Log().Info(fmt.Sprintf("Processing %d months (of %d remaining)", len(remaining), len(months)-len(uc.state.CompletedMonths)))
 
-	// 4. Process month by month
-	for _, month := range remaining {
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		default:
+	// 4. Build the month-loop function that will be called from within either UI or NoUI
+	uc.batchTotal = len(remaining)
+	monthLoop := func(ctx context.Context) error {
+		for i, month := range remaining {
+			select {
+			case <-ctx.Done():
+				return context.Cause(ctx)
+			default:
+			}
+			uc.batchCurrent = i + 1
+			err := uc.processMonth(ctx, adapter, drp, month)
+			if err != nil {
+				return err
+			}
 		}
-		err := uc.processMonth(ctx, adapter, drp, month)
+		return nil
+	}
+
+	// 5. Run with UI or NoUI
+	useUI := !uc.NoUI
+	if useUI {
+		_, err := tcell.NewScreen()
 		if err != nil {
-			return err
+			uc.app.Log().Warn("can't initialize the screen for the UI mode. Falling back to no-gui mode", "err", err)
+			fmt.Println("can't initialize the screen for the UI mode. Falling back to no-gui mode")
+			useUI = false
 		}
+	}
+
+	if useUI {
+		err = uc.runBatchedUI(ctx, monthLoop)
+	} else {
+		err = monthLoop(ctx)
+	}
+	if err != nil {
+		return err
 	}
 
 	// Print batch summary
@@ -396,7 +421,8 @@ func (uc *UpCmd) processMonth(ctx context.Context, adapter adapters.Reader, drp 
 
 // runMonthNoUI runs the parallel initialization and upload loop for a single month
 // in the batched upload flow. It fetches server assets scoped to the date range,
-// fetches albums, and then runs the upload loop.
+// fetches albums, and runs the upload loop — all in parallel to avoid deadlock
+// (BrowseMonth's channel must be drained concurrently with server asset fetching).
 func (uc *UpCmd) runMonthNoUI(ctx context.Context, dr *cliflags.DateRange, groupChan chan *assets.Group) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
@@ -420,13 +446,27 @@ func (uc *UpCmd) runMonthNoUI(ctx context.Context, dr *cliflags.DateRange, group
 		return uc.getImmichAlbums(ctx)
 	})
 
+	// uploadLoop must run in parallel so it drains groupChan while server
+	// assets are being fetched. uploadLoop already waits for immichAssetsReady
+	// before processing each asset.
+	var uploadErr error
+	processGrp.Go(func() error {
+		uploadErr = uc.uploadLoop(ctx, groupChan)
+		if uploadErr != nil {
+			cancel(uploadErr)
+		}
+		return uploadErr
+	})
+
 	err := processGrp.Wait()
 	if err != nil {
-		return context.Cause(ctx)
+		cause := context.Cause(ctx)
+		if cause != nil {
+			return cause
+		}
+		return err
 	}
-
-	err = uc.uploadLoop(ctx, groupChan)
-	return err
+	return nil
 }
 
 func (uc *UpCmd) getImmichAlbums(ctx context.Context) error {
@@ -660,6 +700,13 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
+	// Wait for server asset index to be ready before checking duplicates
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-uc.immichAssetsReady:
+	}
+
 	// In batched mode, check if this file was already uploaded in a previous run
 	if uc.state != nil {
 		source := ""
@@ -673,7 +720,6 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		}
 	}
 
-	// var status stri g
 	advice, err := uc.assetIndex.ShouldUpload(a, uc)
 	if err != nil {
 		return err

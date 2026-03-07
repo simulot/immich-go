@@ -103,9 +103,16 @@ const icloudMetadataExt = ".csv"
 
 func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
 	gOut := make(chan *assets.Group)
+
+	// Recreate the worker pool for each Browse call (needed for multi-month batching)
+	if ifc.app != nil {
+		ifc.pool = worker.NewPool(ifc.app.ConcurrentTask)
+	}
+
 	go func() {
 		defer func() {
 			close(gOut)
+			ifc.targetMonth = "" // reset month filter after browsing
 		}()
 		// two passes for icloud takouts
 		if ifc.icloudMetaPass {
@@ -138,70 +145,28 @@ func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
 // within the target month. The month parameter is a "YYYY-MM" string or
 // the special value "no-date" for assets with no determinable date.
 //
-// Date resolution order: CaptureDate > FileDate > NameInfo.Taken.
-// Files with no date at all are only included when month == "no-date".
+// Instead of post-filtering Browse() output (which extracts every file),
+// this sets a pre-filter so parseDir skips non-matching files before
+// extracting them from zip archives.
 func (ifc *ImportFolderCmd) BrowseMonth(ctx context.Context, month string) chan *assets.Group {
-	// Use Browse to get all groups, then filter assets per group.
-	allGroups := ifc.Browse(ctx)
-	gOut := make(chan *assets.Group)
-
-	go func() {
-		defer close(gOut)
-
-		isNoDate := month == "no-date"
-		var after, before time.Time
-		if !isNoDate {
-			var err error
-			after, before, err = adapters.MonthToDateRange(month)
-			if err != nil {
-				return
-			}
+	// Set the target month filter — parseDir will check this before extraction
+	ifc.targetMonth = month
+	if month != "no-date" {
+		after, before, err := adapters.MonthToDateRange(month)
+		if err != nil {
+			ch := make(chan *assets.Group)
+			close(ch)
+			return ch
 		}
+		ifc.targetAfter = after
+		ifc.targetBefore = before
+	} else {
+		ifc.targetAfter = time.Time{}
+		ifc.targetBefore = time.Time{}
+	}
 
-		for g := range allGroups {
-			var filtered []*assets.Asset
-			for _, a := range g.Assets {
-				d := assetDate(a)
-				if d.IsZero() {
-					if isNoDate {
-						filtered = append(filtered, a)
-					} else {
-						a.Close()
-					}
-				} else {
-					if isNoDate {
-						a.Close()
-					} else if (d.Equal(after) || d.After(after)) && d.Before(before) {
-						filtered = append(filtered, a)
-					} else {
-						a.Close()
-					}
-				}
-			}
-			if len(filtered) == 0 {
-				continue
-			}
-			fg := assets.NewGroup(g.Grouping, filtered...)
-			// Adjust cover index: if original cover is still present, keep it
-			coverIdx := 0
-			if g.CoverIndex < len(g.Assets) {
-				origCover := g.Assets[g.CoverIndex]
-				for i, a := range filtered {
-					if a == origCover {
-						coverIdx = i
-						break
-					}
-				}
-			}
-			fg.CoverIndex = coverIdx
-			select {
-			case gOut <- fg:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-	return gOut
+	// Browse will now respect the targetMonth filter in parseDir
+	return ifc.Browse(ctx)
 }
 
 // assetDate returns the best available date for the asset, following the
@@ -214,6 +179,45 @@ func assetDate(a *assets.Asset) time.Time {
 		return a.FileDate
 	}
 	return a.Taken
+}
+
+// matchesTargetMonth checks if a file belongs to the target month using
+// metadata available BEFORE extraction (iCloud CSV dates, filename dates).
+// Returns true if the file matches or if we can't determine the date
+// (to avoid dropping files that might belong).
+func (ifc *ImportFolderCmd) matchesTargetMonth(fsName, name, base string) bool {
+	isNoDate := ifc.targetMonth == "no-date"
+
+	// Try iCloud metadata first (most reliable for iCloud archives)
+	if ifc.ICloudTakeout && ifc.icloudMetas != nil {
+		// iCloud metas are keyed by original filename (the base name without path)
+		if meta, ok := ifc.icloudMetas.Load(base); ok {
+			if !meta.originalCreationDate.IsZero() {
+				d := meta.originalCreationDate
+				if isNoDate {
+					return false // has a date, doesn't belong in no-date batch
+				}
+				return (d.Equal(ifc.targetAfter) || d.After(ifc.targetAfter)) && d.Before(ifc.targetBefore)
+			}
+		}
+	}
+
+	// Try filename-based date detection
+	n := name
+	if fsName != "" {
+		n = fsName + "/" + n
+	}
+	info := ifc.infoCollector.GetInfo(n)
+	if !info.Taken.IsZero() {
+		if isNoDate {
+			return false
+		}
+		return (info.Taken.Equal(ifc.targetAfter) || info.Taken.After(ifc.targetAfter)) && info.Taken.Before(ifc.targetBefore)
+	}
+
+	// Can't determine date without extraction — include in no-date batch,
+	// or include anyway (will be filtered post-extraction if wrong)
+	return isNoDate
 }
 
 func (ifc *ImportFolderCmd) concurrentParseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) {
@@ -357,6 +361,13 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 				ifc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(fsys, name), info.Size(), fileevent.DiscardedFiltered, "extension excluded")
 			}
 			continue
+		}
+
+		// Early month filter: check date from metadata/filename BEFORE extracting from zip
+		if ifc.targetMonth != "" {
+			if !ifc.matchesTargetMonth(fsName, name, base) {
+				continue
+			}
 		}
 
 		select {

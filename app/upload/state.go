@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"time"
 )
 
@@ -25,6 +26,7 @@ type State struct {
 	// stateDir is the directory where the state file is stored.
 	// Not serialized to JSON.
 	stateDir string
+	mu       sync.Mutex `json:"-"`
 }
 
 // StateDateRange represents the overall date range of the archive.
@@ -105,6 +107,9 @@ func LoadState(stateDir, serverURL, archivePath string) (*State, error) {
 // SaveState writes the state to disk atomically.
 // It writes to a temporary file in the same directory and renames it into place.
 func (s *State) SaveState() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.UpdatedAt = time.Now().UTC().Truncate(time.Second)
 
 	if err := os.MkdirAll(s.stateDir, 0o700); err != nil {
@@ -150,6 +155,9 @@ func (s *State) CompleteMonth(month string) {
 // IsFileUploaded checks whether a file with the given source, path, and size
 // has already been recorded as uploaded in the current in-progress month.
 func (s *State) IsFileUploaded(source, path string, size int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for _, f := range s.InProgress.UploadedFiles {
 		if f.Source == source && f.Path == path && f.Size == size {
 			return true
@@ -160,6 +168,9 @@ func (s *State) IsFileUploaded(source, path string, size int64) bool {
 
 // RecordFileUploaded adds a file to the in-progress uploaded files list.
 func (s *State) RecordFileUploaded(source, path string, size int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.InProgress.UploadedFiles = append(s.InProgress.UploadedFiles, UploadedFile{
 		Source: source,
 		Path:   path,

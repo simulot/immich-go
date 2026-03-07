@@ -85,6 +85,8 @@ type UpCmd struct {
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
 	state             *State                               // runtime state tracking for batched uploads
 	currentMonth      string                               // current month being processed in batched mode
+	batchCurrent      int                                  // index of current month (1-based)
+	batchTotal        int                                  // total months being processed in this run
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {

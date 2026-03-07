@@ -61,6 +61,12 @@ type ImportFolderCmd struct {
 	activeMonthSet map[string]struct{} // set of YYYY-MM strings discovered during pre-scan
 	activeMonths   []string            // sorted list of YYYY-MM strings (populated after pre-scan)
 	hasNoDateFiles bool                // whether files with no determinable date were found
+
+	// Month filter for BrowseMonth — when set, parseDir skips files
+	// not matching this month BEFORE extracting from zip.
+	targetMonth  string    // "YYYY-MM", "no-date", or "" (no filter)
+	targetAfter  time.Time // inclusive lower bound
+	targetBefore time.Time // exclusive upper bound
 }
 
 // addMonth extracts the YYYY-MM string from a time.Time and adds it to the
