@@ -5,12 +5,19 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/gen"
 )
+
+// icloudCSVSuffixPattern matches trailing digits appended directly to a word
+// character (letter/underscore) — this is how iCloud splits large CSVs into chunks
+// (e.g., "Trip1", "Trip10"). Names where digits follow a space or punctuation
+// (e.g., "Summer 2022", "Part 3") are NOT modified.
+var icloudCSVSuffixPattern = regexp.MustCompile(`^(.*[a-zA-Z_])\d+$`)
 
 type iCloudMeta struct {
 	albums               []assets.Album
@@ -27,7 +34,8 @@ func UseICloudMemory(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filename st
 		return "", err
 	}
 	defer file.Close()
-	albumName := "Memory " + strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
+	baseName := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
+	albumName := "Memory " + stripICloudCSVSuffix(baseName)
 
 	return albumName, useAlbum(m, file, albumName)
 }
@@ -38,9 +46,21 @@ func UseICloudAlbum(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filename str
 		return "", err
 	}
 	defer file.Close()
-	albumName := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
+	baseName := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
+	albumName := stripICloudCSVSuffix(baseName)
 
 	return albumName, useAlbum(m, file, albumName)
+}
+
+// stripICloudCSVSuffix removes trailing digits that iCloud appends when splitting
+// large Memory/Album CSVs into chunks (e.g., "Trip1.csv", "Trip10.csv" are chunks
+// of "Trip.csv"). Uses greedy matching so "Summer 2022" stays as "Summer 2022"
+// (the digit must follow a non-digit character to be considered a suffix).
+func stripICloudCSVSuffix(name string) string {
+	if m := icloudCSVSuffixPattern.FindStringSubmatch(name); m != nil {
+		return m[1]
+	}
+	return name
 }
 
 func useAlbum(m *gen.SyncMap[string, iCloudMeta], file fs.File, albumName string) error {
@@ -60,8 +80,18 @@ func useAlbum(m *gen.SyncMap[string, iCloudMeta], file fs.File, albumName string
 		}
 		fileName := record[0]
 		meta, _ := m.Load(fileName)
-		meta.albums = append(meta.albums, assets.Album{Title: albumName})
-		m.Store(fileName, meta)
+		// Deduplicate: only add the album if this file doesn't already have it
+		hasAlbum := false
+		for _, a := range meta.albums {
+			if a.Title == albumName {
+				hasAlbum = true
+				break
+			}
+		}
+		if !hasAlbum {
+			meta.albums = append(meta.albums, assets.Album{Title: albumName})
+			m.Store(fileName, meta)
+		}
 	}
 
 	return nil
@@ -95,6 +125,10 @@ func UseICloudPhotoDetails(m *gen.SyncMap[string, iCloudMeta], fsys fs.FS, filen
 		}
 		fileName := record[0]
 		originalCreationDate := record[5]
+		if originalCreationDate == "" || originalCreationDate == "null" {
+			// Skip records with missing dates (deleted photos, etc.)
+			continue
+		}
 		t, err := time.Parse("Monday January 2,2006 15:04 PM GMT", originalCreationDate)
 		if err != nil {
 			return errors.Join(err, errors.New("invalid original creation date"))

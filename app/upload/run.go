@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,6 +15,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assets/cache"
+	"github.com/simulot/immich-go/internal/assettracker"
 	cliflags "github.com/simulot/immich-go/internal/cliFlags"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filters"
@@ -34,6 +36,11 @@ func (uc *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []string
 		}
 		uc.app.Log().Info("created album", "album", album.Title, "assets", len(ids))
 		album.ID = r.ID
+
+		// Add newly created album to the cached data so subsequent months
+		// know it already exists and won't create duplicates.
+		uc.addAlbumToCache(r.ID, album.Title, album.Description, ids)
+
 		return album, nil
 	}
 	_, err := uc.client.Immich.AddAssetToAlbum(ctx, album.ID, ids)
@@ -42,7 +49,44 @@ func (uc *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []string
 		return album, err
 	}
 	uc.app.Log().Info("updated album", "album", album.Title, "assets", len(ids))
+
+	// Update cached album data with newly added asset IDs
+	uc.appendAssetsToCachedAlbum(album.ID, ids)
+
 	return album, err
+}
+
+// addAlbumToCache appends a newly created album to cachedAlbums so that
+// subsequent months' getImmichAlbums merge will find it (avoiding duplicate creation).
+func (uc *UpCmd) addAlbumToCache(id, name, description string, assetIDs []string) {
+	albumAssets := make([]*immich.Asset, len(assetIDs))
+	for i, aid := range assetIDs {
+		albumAssets[i] = &immich.Asset{ID: aid}
+	}
+	uc.cachedAlbums = append(uc.cachedAlbums, albumResult{
+		album: immich.AlbumContent{
+			ID:          id,
+			AlbumName:   name,
+			Description: description,
+			Assets:      albumAssets,
+		},
+	})
+}
+
+// appendAssetsToCachedAlbum adds asset IDs to an existing album in cachedAlbums
+// so the next month's merge knows about them.
+func (uc *UpCmd) appendAssetsToCachedAlbum(albumID string, newIDs []string) {
+	for i := range uc.cachedAlbums {
+		if uc.cachedAlbums[i].err != nil {
+			continue
+		}
+		if uc.cachedAlbums[i].album.ID == albumID {
+			for _, id := range newIDs {
+				uc.cachedAlbums[i].album.Assets = append(uc.cachedAlbums[i].album.Assets, &immich.Asset{ID: id})
+			}
+			return
+		}
+	}
 }
 
 func (uc *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) (assets.Tag, error) {
@@ -126,9 +170,34 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 				uc.app.Log().Info(s)
 			}
 		}
+
+		// Write error report file if there were errors
+		if tracker := uc.app.FileProcessor().Tracker(); tracker != nil {
+			errs := tracker.GetErrors()
+			if len(errs) > 0 {
+				uc.writeErrorReport(errs)
+			}
+		}
 	}
 
 	return nil
+}
+
+func (uc *UpCmd) writeErrorReport(errs []assettracker.AssetRecord) {
+	reportFile := fmt.Sprintf("immich-go-errors-%s.txt", time.Now().Format("2006-01-02T15-04-05"))
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("immich-go error report - %s\n", time.Now().Format("2006-01-02 15:04:05")))
+	sb.WriteString(fmt.Sprintf("Total errors: %d\n\n", len(errs)))
+	for _, e := range errs {
+		sb.WriteString(fmt.Sprintf("%-20s %s\n  Error: %s\n\n", e.EventCode, e.File.FullName(), e.Reason))
+	}
+
+	if err := os.WriteFile(reportFile, []byte(sb.String()), 0o644); err != nil {
+		uc.app.Log().Error("can't write error report", "file", reportFile, "err", err)
+		return
+	}
+	fmt.Printf("\nError report written to: %s\n", reportFile)
+	uc.app.Log().Info("Error report written", "file", reportFile, "errors", len(errs))
 }
 
 func (uc *UpCmd) upload(ctx context.Context, adapter adapters.Reader) error {
@@ -177,6 +246,7 @@ func (uc *UpCmd) uploadUnbatched(ctx context.Context, adapter adapters.Reader) e
 	runner := uc.runUI
 	uc.assetIndex = newAssetIndex()
 	uc.immichAssetsReady = make(chan struct{})
+	uc.immichAlbumsReady = make(chan struct{})
 
 	if uc.NoUI {
 		runner = uc.runNoUI
@@ -368,6 +438,7 @@ func (uc *UpCmd) processMonth(ctx context.Context, adapter adapters.Reader, drp 
 	// Fresh asset index per month (key for memory efficiency)
 	uc.assetIndex = newAssetIndex()
 	uc.immichAssetsReady = make(chan struct{})
+	uc.immichAlbumsReady = make(chan struct{})
 
 	// Set in-progress
 	uc.state.SetInProgressMonth(month)
@@ -478,50 +549,85 @@ func (uc *UpCmd) runMonthNoUI(ctx context.Context, dr *cliflags.DateRange, group
 	return nil
 }
 
-func (uc *UpCmd) getImmichAlbums(ctx context.Context) error {
-	// Get the album list from the server, but without assets.
+type albumResult struct {
+	album immich.AlbumContent
+	err   error
+}
+
+// fetchAlbumDetails fetches all album details from the server concurrently.
+// Results are cached on UpCmd so subsequent calls are a no-op.
+func (uc *UpCmd) fetchAlbumDetails(ctx context.Context) error {
+	if uc.albumsFetched {
+		return nil
+	}
+
 	serverAlbums, err := uc.client.Immich.GetAllAlbums(ctx)
 	if err != nil {
 		return fmt.Errorf("can't get the album list from the server: %w", err)
 	}
 
+	results := make([]albumResult, len(serverAlbums))
+	const maxConcurrent = 5
+	pool := worker.NewPool(min(maxConcurrent, max(1, len(serverAlbums))))
+	var wg sync.WaitGroup
+
+	for i, sa := range serverAlbums {
+		wg.Add(1)
+		i, sa := i, sa
+		pool.Submit(func() {
+			defer wg.Done()
+			r, err := uc.client.Immich.GetAlbumInfo(ctx, sa.ID, false)
+			results[i] = albumResult{album: r, err: err}
+		})
+	}
+	wg.Wait()
+	pool.Stop()
+
+	uc.cachedAlbums = results
+	uc.albumsFetched = true
+	uc.app.Log().Info(fmt.Sprintf("Fetched %d album details from server", len(results)))
+	return nil
+}
+
+// getImmichAlbums fetches album details (once) and merges them into the
+// current assetIndex and albumsCache. Safe to call multiple times — the
+// server fetch is cached, only the merge runs again.
+func (uc *UpCmd) getImmichAlbums(ctx context.Context) error {
+	if err := uc.fetchAlbumDetails(ctx); err != nil {
+		return err
+	}
+
+	// Wait for asset index to be ready before merging
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-uc.immichAssetsReady:
-		// Wait for the server's assets to be ready.
-		for _, a := range serverAlbums {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-				// Get the album info from the server, with assets.
-				r, err := uc.client.Immich.GetAlbumInfo(ctx, a.ID, false)
-				if err != nil {
-					uc.app.Log().Error("can't get the album info from the server", "album", a.AlbumName, "err", err)
-					continue
-				}
-				ids := make([]string, 0, len(r.Assets))
-				for _, aa := range r.Assets {
-					ids = append(ids, aa.ID)
-				}
+	}
 
-				album := assets.NewAlbum(a.ID, a.AlbumName, a.Description)
-				uc.albumsCache.NewCollection(a.AlbumName, album, ids)
-				uc.app.Log().Info("got album from the server", "album", a.AlbumName, "assets", len(r.Assets))
-				uc.app.Log().Debug("got album from the server", "album", a.AlbumName, "assets", ids)
-				// assign the album to the assets
-				for _, id := range ids {
-					a := uc.assetIndex.getByID(id)
-					if a == nil {
-						uc.app.Log().Debug("processing the immich albums: asset not found in index", "id", id)
-						continue
-					}
-					a.Albums = append(a.Albums, album)
-				}
+	// Merge cached results into the current asset index
+	for _, res := range uc.cachedAlbums {
+		if res.err != nil {
+			continue
+		}
+		r := res.album
+		ids := make([]string, 0, len(r.Assets))
+		for _, aa := range r.Assets {
+			ids = append(ids, aa.ID)
+		}
+
+		album := assets.NewAlbum(r.ID, r.AlbumName, r.Description)
+		uc.albumsCache.NewCollection(r.AlbumName, album, ids)
+		for _, id := range ids {
+			a := uc.assetIndex.getByID(id)
+			if a == nil {
+				continue
 			}
+			a.Albums = append(a.Albums, album)
 		}
 	}
+
+	// Signal that albums are ready for use by uploadLoop
+	close(uc.immichAlbumsReady)
 	return nil
 }
 
@@ -966,6 +1072,15 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 func (uc *UpCmd) manageAssetAlbums(ctx context.Context, f fshelper.FSAndName, ID string, albums []assets.Album) {
 	if len(albums) == 0 {
 		return
+	}
+
+	// Wait for server albums to be merged into albumsCache before adding
+	// assets. Without this, we'd create new albums instead of reusing
+	// existing ones from the server.
+	select {
+	case <-ctx.Done():
+		return
+	case <-uc.immichAlbumsReady:
 	}
 
 	for _, album := range albums {

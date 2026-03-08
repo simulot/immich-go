@@ -78,6 +78,7 @@ type UpCmd struct {
 	assetIndex        *immichIndex                         // List of assets present on the server
 	localAssets       *syncset.Set[string]                 // List of assets present on the local input by name+size
 	immichAssetsReady chan struct{}                        // Signal that the asset index is ready
+	immichAlbumsReady chan struct{}                        // Signal that server albums have been merged into albumsCache
 	deleteServerList  []*immich.Asset                      // List of server assets to remove
 	adapter           adapters.Reader                      // the source of assets
 	DebugCounters     bool                                 // Enable CSV action counters per file
@@ -91,6 +92,8 @@ type UpCmd struct {
 	batchTotal        int                                  // total months being processed in this run
 	resumeSkipped     atomic.Int64                         // count of files skipped due to resume state
 	immichUpdateFn    progressUpdate                       // callback for Immich asset reading progress (set by UI)
+	cachedAlbums      []albumResult                        // cached album details from server (fetched once)
+	albumsFetched     bool                                 // true after album details have been fetched
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {

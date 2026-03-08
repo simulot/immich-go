@@ -329,6 +329,15 @@ func (at *AssetTracker) GenerateReport() string {
 		report += fmt.Sprintf("\n⚠️  WARNING: %d assets did not reach a final state!\n", counters.Pending)
 	}
 
+	// List individual errors
+	if counters.Errors > 0 {
+		errors := at.GetErrors()
+		report += "\nFailed files:\n"
+		for _, e := range errors {
+			report += fmt.Sprintf("  %s: %s (%s)\n", e.EventCode, e.File.FullName(), e.Reason)
+		}
+	}
+
 	return report
 }
 
@@ -413,6 +422,20 @@ func (at *AssetTracker) GetErrorSize() int64 {
 	at.mu.RLock()
 	defer at.mu.RUnlock()
 	return at.errorSize
+}
+
+// GetErrors returns all assets in the ERROR state
+func (at *AssetTracker) GetErrors() []AssetRecord {
+	at.mu.RLock()
+	defer at.mu.RUnlock()
+
+	var errs []AssetRecord
+	for _, record := range at.assets {
+		if record.State == StateError {
+			errs = append(errs, *record)
+		}
+	}
+	return errs
 }
 
 // formatBytes formats byte count as human-readable string

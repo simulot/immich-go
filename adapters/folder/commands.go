@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -128,9 +129,17 @@ func (ifc *ImportFolderCmd) PreScan(ctx context.Context) ([]string, error) {
 	ifc.hasNoDateFiles = false
 	ifc.monthsMu.Unlock()
 
-	// For iCloud takeouts, run the CSV meta pass first
+	// For iCloud takeouts, parse Photo Details CSVs to get dates.
+	// This must happen before the filename-based scan because iCloud
+	// uses UUID filenames that don't contain date information.
 	if ifc.ICloudTakeout && ifc.icloudMetas != nil {
-		// Iterate over already-parsed iCloud metas to collect dates
+		for _, fsys := range ifc.fsyss {
+			if err := ifc.preScanICloudCSVs(ctx, fsys, "."); err != nil {
+				return nil, err
+			}
+		}
+		// Collect months from all iCloud metas (parsed from CSVs above,
+		// or pre-populated by caller)
 		ifc.icloudMetas.Range(func(_ string, meta iCloudMeta) bool {
 			if !meta.originalCreationDate.IsZero() {
 				ifc.addMonth(meta.originalCreationDate)
@@ -153,6 +162,54 @@ func (ifc *ImportFolderCmd) PreScan(ctx context.Context) ([]string, error) {
 
 	ifc.buildSortedMonths()
 	return ifc.ActiveMonths(), nil
+}
+
+// preScanICloudCSVs walks the filesystem to find and parse Photo Details CSV
+// files, populating icloudMetas with dates and collecting active months.
+func (ifc *ImportFolderCmd) preScanICloudCSVs(ctx context.Context, fsys fs.FS, dir string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			subDir := dir + "/" + entry.Name()
+			if dir == "." {
+				subDir = entry.Name()
+			}
+			if err := ifc.preScanICloudCSVs(ctx, fsys, subDir); err != nil {
+				return err
+			}
+			continue
+		}
+
+		base := entry.Name()
+		ext := filepath.Ext(base)
+		if ext != icloudMetadataExt {
+			continue
+		}
+
+		name := dir + "/" + base
+		if dir == "." {
+			name = base
+		}
+
+		// Only parse Photo Details CSVs for date extraction
+		if strings.HasPrefix(strings.ToLower(base), "photo details") {
+			err := UseICloudPhotoDetails(ifc.icloudMetas, fsys, name, ifc.addMonth)
+			if err != nil {
+				ifc.app.Log().Warn("PreScan: error parsing iCloud CSV", "file", name, "error", err.Error())
+			}
+		}
+	}
+	return nil
 }
 
 // preScanDir walks a directory to extract dates from filenames for pre-scan.
