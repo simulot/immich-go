@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -94,8 +93,6 @@ func NewClient(baseURL, account, password string, opts ...ClientOption) (*Client
 		opt(client)
 	}
 
-	fmt.Fprintf(os.Stderr, "[DEBUG] Client created for base URL: %s\n", baseURL)
-
 	return client, nil
 }
 
@@ -141,9 +138,6 @@ func (c *Client) Login(ctx context.Context) error {
 			Path:       "auth.cgi",
 			MaxVersion: 6,
 		}
-		fmt.Fprintf(os.Stderr, "[DEBUG] Using default API info, path=%s, version=%d\n", apiInfo.Path, apiInfo.MaxVersion)
-	} else {
-		fmt.Fprintf(os.Stderr, "[DEBUG] API info: path=%s, maxVersion=%d\n", apiInfo.Path, apiInfo.MaxVersion)
 	}
 
 	// Build login parameters according to DSM API spec
@@ -162,16 +156,11 @@ func (c *Client) Login(ctx context.Context) error {
 
 	var resp LoginResponse
 	if err := c.doRequest(ctx, http.MethodGet, authPath, params, nil, &resp); err != nil {
-		return fmt.Errorf("login request failed: %w", err)
-	}
-
-	if !resp.Success {
-		return fmt.Errorf("login failed: error code %d (%s)", resp.Error.Code, c.getErrorMessage(resp.Error.Code))
+		return fmt.Errorf("login failed: %w", err)
 	}
 
 	c.sid = resp.Data.SID
 	c.did = resp.Data.DID
-	fmt.Fprintf(os.Stderr, "[DEBUG] Login successful!\n")
 	return nil
 }
 
@@ -486,15 +475,12 @@ func (c *Client) doAuthenticatedRequest(ctx context.Context, method, path string
 
 // doRequest performs an HTTP request with retries
 func (c *Client) doRequest(ctx context.Context, method, path string, params url.Values, body io.Reader, result interface{}) error {
-	var lastErr error
-
 	for attempt := 0; attempt < c.maxRetries; attempt++ {
 		if attempt > 0 {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-time.After(c.retryDelay * time.Duration(attempt)):
-				// Exponential backoff
 			}
 		}
 
@@ -503,7 +489,6 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 			return fmt.Errorf("invalid URL: %w", err)
 		}
 
-		// Add query parameters
 		if len(params) > 0 {
 			reqURL = reqURL + "?" + params.Encode()
 		}
@@ -520,24 +505,28 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			lastErr = err
-			continue // Retry on network error
+			if attempt < c.maxRetries-1 {
+				continue
+			}
+			return fmt.Errorf("http request failed: %w", err)
 		}
 
 		respBody, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
 
 		if err != nil {
-			lastErr = fmt.Errorf("read response: %w", err)
-			continue
+			if attempt < c.maxRetries-1 {
+				continue
+			}
+			return fmt.Errorf("read response: %w", err)
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
-			continue
+			if attempt < c.maxRetries-1 {
+				continue
+			}
+			return fmt.Errorf("http %d: %s", resp.StatusCode, string(respBody))
 		}
-
-		fmt.Fprintf(os.Stderr, "[DEBUG] Response body: %s\n", string(respBody))
 
 		// Parse response
 		var baseResp struct {
@@ -546,38 +535,42 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 		}
 
 		if err := json.Unmarshal(respBody, &baseResp); err != nil {
-			lastErr = fmt.Errorf("parse response: %w (body: %s)", err, string(respBody))
+			if attempt < c.maxRetries-1 {
+				continue
+			}
+			return fmt.Errorf("parse response: %w", err)
+		}
+
+		// Handle session expiration - re-login and retry
+		if !baseResp.Success && baseResp.Error != nil && baseResp.Error.Code == 119 {
+			c.sid = ""
+			if err := c.Login(ctx); err != nil {
+				if attempt < c.maxRetries-1 {
+					continue
+				}
+				return fmt.Errorf("re-login after session expired: %w", err)
+			}
+			params.Set("_sid", c.sid)
 			continue
 		}
 
-		// Handle API error response
+		// Handle other API errors
 		if !baseResp.Success {
-			if baseResp.Error != nil && baseResp.Error.Code == 119 {
-				// Session expired - try to re-login
-				c.sid = ""
-				if err := c.Login(ctx); err != nil {
-					lastErr = err
-					continue
-				}
-				// Update params with new session ID
-				params.Set("_sid", c.sid)
-				continue
-			}
-			// Other API error - return immediately
 			if baseResp.Error != nil {
-				return fmt.Errorf("API error: code %d (%s)", baseResp.Error.Code, c.getErrorMessage(baseResp.Error.Code))
+				return fmt.Errorf("synology api error %d: %s", baseResp.Error.Code, c.getErrorMessage(baseResp.Error.Code))
 			}
-			return fmt.Errorf("API error: success=false but no error code")
+			return fmt.Errorf("synology api error: success=false")
 		}
 
+		// Parse result
 		if result != nil {
 			if err := json.Unmarshal(respBody, result); err != nil {
-				return fmt.Errorf("parse result: %w (body: %s)", err, string(respBody))
+				return fmt.Errorf("parse result: %w", err)
 			}
 		}
 
 		return nil
 	}
 
-	return fmt.Errorf("max retries exceeded: %w", lastErr)
+	return fmt.Errorf("max retries exceeded")
 }
