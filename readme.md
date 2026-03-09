@@ -8,7 +8,7 @@
 ## 🌟 Key Features
 
 - **Simple Installation**: No NodeJS or Docker required
-- **Multiple Sources**: Upload from Google Photos Takeouts, iCloud, local folders, ZIP archives, and other Immich servers
+- **Multiple Sources**: Upload from Google Photos Takeouts, iCloud, local folders, ZIP archives, Synology Photos, and other Immich servers
 - **Large Collections**: Successfully handles 100,000+ photos
 - **Smart Management**: Duplicate detection, burst photo stacking, RAW+JPEG handling
 - **Cross-Platform**: Available for Windows, macOS, Linux, and FreeBSD
@@ -27,7 +27,11 @@ immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key
 immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-api-key /path/to/takeout-*.zip
 
 # Archive photos from Immich server
-immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-key --write-to-folder=/path/to/archive
+immich-go archive from-immich --from-server=http://your-ip:2283 --from-api-key=your-api-key --write-to-folder=/path/to/archive
+
+# Migrate from Synology Photos
+immich-go upload from-synology --server=http://your-ip:2283 --api-key=your-api-key \
+  --synology-url=https://nas:5001 --synology-user=admin --synology-pass=secret
 ```
 
 ### 3. Requirements
@@ -66,6 +70,7 @@ Here's a brief overview of the main upload commands:
 *   **`from-immich`**: A server-to-server migration tool that allows you to copy assets between two Immich instances with fine-grained filtering.
 *   **`from-picasa`**: A specialized version of `from-folder` that automatically reads `.picasa.ini` files to restore your Picasa album organization.
 *   **`from-icloud`**: Another specialized command that handles the complexity of an iCloud Photos takeout, correctly identifying creation dates and album structures from the included CSV files.
+*   **`from-synology`**: Migrate from Synology Photos. Imports photos, videos, albums, tags, and face recognition data (converted to tags) from your Synology NAS.
 
 ### Leveraging Immich's Features
 
@@ -82,6 +87,7 @@ For a detailed explanation of how each upload command works, please see the [Upl
 
 - **Google Photos Migration**: [Complete guide](docs/best-practices.md#google-photos-migration)
 - **iCloud Import**: [Step-by-step instructions](docs/examples.md#icloud-import)
+- **Synology Photos Migration**: Import from Synology Photos with albums, tags, and face recognition preserved
 - **Server Migration**: [Transfer between Immich instances](docs/examples.md#server-migration)
 - **Bulk Organization**: [Stacking and tagging strategies](docs/best-practices.md#organization-strategies)
 
