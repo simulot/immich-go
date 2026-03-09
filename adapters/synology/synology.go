@@ -59,6 +59,11 @@ func (sa *Adapter) Open(ctx context.Context) error {
 		return fmt.Errorf("create client: %w", err)
 	}
 
+	// Query API info first to verify connection
+	if _, err := client.QueryAPIInfo(ctx, "SYNO.API.Auth"); err != nil {
+		sa.app.Log().Warn("Failed to query API info", "error", err, "tip", "check if URL is correct and Synology is accessible")
+	}
+
 	if err := client.Login(ctx); err != nil {
 		return fmt.Errorf("login: %w", err)
 	}

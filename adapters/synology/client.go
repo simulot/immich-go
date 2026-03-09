@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -93,32 +94,84 @@ func NewClient(baseURL, account, password string, opts ...ClientOption) (*Client
 		opt(client)
 	}
 
+	fmt.Fprintf(os.Stderr, "[DEBUG] Client created for base URL: %s\n", baseURL)
+
 	return client, nil
+}
+
+// APIInfo represents the SYNO.API.Info response
+type APIInfo struct {
+	Path       string `json:"path"`
+	MinVersion int    `json:"minVersion"`
+	MaxVersion int    `json:"maxVersion"`
+}
+
+// QueryAPIInfo queries available APIs and returns API paths and versions
+func (c *Client) QueryAPIInfo(ctx context.Context, apiName string) (*APIInfo, error) {
+	params := url.Values{
+		"api":     {"SYNO.API.Info"},
+		"version": {"1"},
+		"method":  {"query"},
+		"query":   {apiName},
+	}
+
+	var resp APIResponse[map[string]APIInfo]
+	if err := c.doRequest(ctx, http.MethodGet, "/webapi/query.cgi", params, nil, &resp); err != nil {
+		return nil, fmt.Errorf("query API info failed: %w", err)
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("query API info failed: error %d", resp.Error.Code)
+	}
+
+	if apiInfo, ok := resp.Data[apiName]; ok {
+		return &apiInfo, nil
+	}
+
+	return nil, fmt.Errorf("API %s not found", apiName)
 }
 
 // Login authenticates with the Synology server
 func (c *Client) Login(ctx context.Context) error {
+	// First, query API info to get the correct path and version
+	apiInfo, err := c.QueryAPIInfo(ctx, "SYNO.API.Auth")
+	if err != nil {
+		// Fallback to default values
+		apiInfo = &APIInfo{
+			Path:       "auth.cgi",
+			MaxVersion: 6,
+		}
+		fmt.Fprintf(os.Stderr, "[DEBUG] Using default API info, path=%s, version=%d\n", apiInfo.Path, apiInfo.MaxVersion)
+	} else {
+		fmt.Fprintf(os.Stderr, "[DEBUG] API info: path=%s, maxVersion=%d\n", apiInfo.Path, apiInfo.MaxVersion)
+	}
+
+	// Build login parameters according to DSM API spec
 	params := url.Values{
-		"api":     {"SYNO.API.Auth"},
-		"version": {"6"},
-		"method":  {"login"},
-		"account": {c.account},
-		"passwd":  {c.password},
-		"session": {"Foto"},
+		"api":               {"SYNO.API.Auth"},
+		"version":           {strconv.Itoa(apiInfo.MaxVersion)},
+		"method":            {"login"},
+		"account":           {c.account},
+		"passwd":            {c.password},
+		"format":            {"sid"},
 		"enable_syno_token": {"yes"},
 	}
 
+	// Use the correct API path from API info
+	authPath := "/webapi/" + apiInfo.Path
+
 	var resp LoginResponse
-	if err := c.doRequest(ctx, http.MethodPost, "/webapi/auth.cgi", params, nil, &resp); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, authPath, params, nil, &resp); err != nil {
 		return fmt.Errorf("login request failed: %w", err)
 	}
 
 	if !resp.Success {
-		return fmt.Errorf("login failed: error code %d (%s), check your username and password", resp.Error.Code, c.getErrorMessage(resp.Error.Code))
+		return fmt.Errorf("login failed: error code %d (%s)", resp.Error.Code, c.getErrorMessage(resp.Error.Code))
 	}
 
 	c.sid = resp.Data.SID
 	c.did = resp.Data.DID
+	fmt.Fprintf(os.Stderr, "[DEBUG] Login successful!\n")
 	return nil
 }
 
@@ -128,15 +181,35 @@ func (c *Client) getErrorMessage(code int) string {
 	case 100:
 		return "Unknown error"
 	case 101:
-		return "Invalid parameters - check URL, username and password"
+		return "Invalid parameters - wrong API, method, or version"
 	case 102:
 		return "The requested method does not exist"
 	case 103:
 		return "The requested method does not support the requested version"
+	case 104:
+		return "Version not supported"
+	case 105:
+		return "Session ID not found (need to login again)"
+	case 106:
+		return "Incorrect account or password"
+	case 107:
+		return "Permission denied"
+	case 108:
+		return "OTP code required (two-factor authentication)"
+	case 109:
+		return "Failed to authenticate with OTP"
+	case 110:
+		return "Max TOTP retries reached"
+	case 111:
+		return "Password change required"
+	case 112:
+		return "Strong password required"
+	case 113:
+		return "Strong password required for admin"
 	case 119:
-		return "Session timeout - session ID not found"
+		return "SID not found or session timeout"
 	case 400:
-		return "Invalid credentials - wrong account or password"
+		return "Invalid credentials in request"
 	case 401:
 		return "Guest account disabled"
 	case 402:
@@ -144,20 +217,19 @@ func (c *Client) getErrorMessage(code int) string {
 	case 403:
 		return "Permission denied"
 	case 404:
-		return "OTP code required (two-factor authentication)"
+		return "OTP code required"
 	case 405:
-		return "Failed to authenticate with OTP"
-	case 407:
-		return "Max TOTP retries reached"
-	case 408:
-		return "Password change required"
-	case 409:
-		return "Strong password required"
-	case 410:
-		return "Strong password required for admin"
+		return "OTP authenticate failed"
 	default:
 		return fmt.Sprintf("Unknown error code %d", code)
 	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // Logout ends the session
@@ -464,6 +536,8 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
 			continue
 		}
+
+		fmt.Fprintf(os.Stderr, "[DEBUG] Response body: %s\n", string(respBody))
 
 		// Parse response
 		var baseResp struct {
