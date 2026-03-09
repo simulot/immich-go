@@ -100,24 +100,64 @@ func NewClient(baseURL, account, password string, opts ...ClientOption) (*Client
 func (c *Client) Login(ctx context.Context) error {
 	params := url.Values{
 		"api":     {"SYNO.API.Auth"},
-		"version": {"3"},
+		"version": {"6"},
 		"method":  {"login"},
 		"account": {c.account},
 		"passwd":  {c.password},
+		"session": {"Foto"},
+		"enable_syno_token": {"yes"},
 	}
 
 	var resp LoginResponse
 	if err := c.doRequest(ctx, http.MethodPost, "/webapi/auth.cgi", params, nil, &resp); err != nil {
-		return fmt.Errorf("login failed: %w", err)
+		return fmt.Errorf("login request failed: %w", err)
 	}
 
 	if !resp.Success {
-		return fmt.Errorf("login failed: error code %d", resp.Error.Code)
+		return fmt.Errorf("login failed: error code %d (%s), check your username and password", resp.Error.Code, c.getErrorMessage(resp.Error.Code))
 	}
 
 	c.sid = resp.Data.SID
 	c.did = resp.Data.DID
 	return nil
+}
+
+// getErrorMessage returns a human-readable error message for Synology API error codes
+func (c *Client) getErrorMessage(code int) string {
+	switch code {
+	case 100:
+		return "Unknown error"
+	case 101:
+		return "Invalid parameters - check URL, username and password"
+	case 102:
+		return "The requested method does not exist"
+	case 103:
+		return "The requested method does not support the requested version"
+	case 119:
+		return "Session timeout - session ID not found"
+	case 400:
+		return "Invalid credentials - wrong account or password"
+	case 401:
+		return "Guest account disabled"
+	case 402:
+		return "Account disabled"
+	case 403:
+		return "Permission denied"
+	case 404:
+		return "OTP code required (two-factor authentication)"
+	case 405:
+		return "Failed to authenticate with OTP"
+	case 407:
+		return "Max TOTP retries reached"
+	case 408:
+		return "Password change required"
+	case 409:
+		return "Strong password required"
+	case 410:
+		return "Strong password required for admin"
+	default:
+		return fmt.Sprintf("Unknown error code %d", code)
+	}
 }
 
 // Logout ends the session
@@ -432,7 +472,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 		}
 
 		if err := json.Unmarshal(respBody, &baseResp); err != nil {
-			lastErr = fmt.Errorf("parse response: %w", err)
+			lastErr = fmt.Errorf("parse response: %w (body: %s)", err, string(respBody))
 			continue
 		}
 
@@ -451,7 +491,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 
 		if result != nil {
 			if err := json.Unmarshal(respBody, result); err != nil {
-				return fmt.Errorf("parse result: %w", err)
+				return fmt.Errorf("parse result: %w (body: %s)", err, string(respBody))
 			}
 		}
 

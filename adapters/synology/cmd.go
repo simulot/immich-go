@@ -120,8 +120,9 @@ func (fsc *FromSynologyCmd) Run(ctx context.Context, cmd *cobra.Command, app *ap
 	fsc.adapter = adapter
 
 	// Open connection to Synology
-	app.Log().Info("Connecting to Synology Photos", "url", fsc.SynologyURL)
+	app.Log().Info("Connecting to Synology Photos", "url", fsc.SynologyURL, "user", fsc.SynologyUser)
 	if err := adapter.Open(ctx); err != nil {
+		app.Log().Error("Connection failed. Common causes:", "reason", "1) Wrong URL format - use https://nas:5001 (admin port) or https://nas/photo (Photo alias). 2) Wrong username/password. 3) Account lacks permission. 4) 2FA is enabled (not supported yet)")
 		return fmt.Errorf("failed to connect to Synology Photos: %w", err)
 	}
 	defer adapter.Close(ctx)
