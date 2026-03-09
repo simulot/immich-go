@@ -298,6 +298,7 @@ func (sa *Adapter) getAdditionalFields() []string {
 }
 
 // processItem processes a single item and sends it to the output channel
+// For live photos, this creates both the image and video assets
 func (sa *Adapter) processItem(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
 	// Check tag filter
 	if len(sa.Tags) > 0 && !sa.matchesTagFilter(item) {
@@ -309,6 +310,51 @@ func (sa *Adapter) processItem(ctx context.Context, item *Item, album *Album, gO
 		return nil
 	}
 
+	// For live photos, we need to create two assets: image and video
+	if item.IsLivePhoto() {
+		return sa.processLivePhoto(ctx, item, album, gOut)
+	}
+
+	// Regular single asset
+	return sa.processSingleItem(ctx, item, album, gOut)
+}
+
+// processLivePhoto handles live photos by creating both image and video assets
+func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
+	// Live photos have two files with the same basename:
+	// - Image: e.g., IMG_9948.HEIC
+	// - Video: e.g., IMG_9948.MOV
+
+	// Process the image part first
+	imageAsset := sa.mapToAsset(item, album)
+
+	// Send image
+	sa.processor.RecordAssetDiscovered(ctx, imageAsset.File, int64(imageAsset.FileSize), fileevent.DiscoveredImage)
+	group := assets.NewGroup(assets.GroupByNone, imageAsset)
+	select {
+	case gOut <- group:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	// Infer video filename from image filename
+	// SYNO.Foto.Download API should handle this based on item ID
+	videoAsset := sa.mapToAssetForLiveVideo(item, album)
+	if videoAsset != nil {
+		sa.processor.RecordAssetDiscovered(ctx, videoAsset.File, int64(videoAsset.FileSize), fileevent.DiscoveredVideo)
+		group := assets.NewGroup(assets.GroupByNone, videoAsset)
+		select {
+		case gOut <- group:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return nil
+}
+
+// processSingleItem processes a regular (non-live) photo or video
+func (sa *Adapter) processSingleItem(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
 	// Map to asset
 	asset := sa.mapToAsset(item, album)
 
@@ -368,6 +414,66 @@ func (sa *Adapter) matchesPeopleFilter(item *Item) bool {
 	}
 
 	return false
+}
+
+// mapToAssetForLiveVideo creates an Asset for the video part of a live photo
+// For live photos, we create a separate video Asset with the inferred video filename
+func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album) *assets.Asset {
+	videoFilename := item.LivePhotoVideoFilename()
+	if videoFilename == "" {
+		return nil
+	}
+
+	// For the video part, use thumbnail's unit_id if different from main item
+	// This handles cases where photo and video have different IDs
+	videoItemID := item.ID
+	videoCacheKey := item.Additional.Thumbnail.CacheKey
+	if item.Additional.Thumbnail.UnitID > 0 && item.Additional.Thumbnail.UnitID != item.ID {
+		videoItemID = item.Additional.Thumbnail.UnitID
+	}
+
+	// Create a custom FS for the video file
+	synFS := &synologyFS{
+		client:   sa.client,
+		itemID:   videoItemID,
+		cacheKey: videoCacheKey,
+		filename: videoFilename,
+		size:     int(item.Filesize), // Approximate, may not be accurate for video
+	}
+
+	videoAsset := &assets.Asset{
+		File:             fshelper.FSName(synFS, videoFilename),
+		FileSize:         int(item.Filesize), // May need adjustment
+		OriginalFileName: videoFilename,
+		FileDate:         item.IndexedAt(),
+		CaptureDate:      item.CaptureTime(),
+		Description:      item.Additional.Description,
+		Latitude:         item.Additional.GPS.Latitude,
+		Longitude:        item.Additional.GPS.Longitude,
+	}
+
+	// Add album if specified
+	if album != nil {
+		albumName := strings.TrimSpace(album.Name)
+		if albumName != "" {
+			videoAsset.Albums = []assets.Album{
+				{
+					Title: albumName,
+				},
+			}
+		}
+	}
+
+	// Store original metadata
+	videoAsset.FromApplication = &assets.Metadata{
+		FileName:    videoFilename,
+		DateTaken:   item.CaptureTime(),
+		Description: item.Additional.Description,
+		Latitude:    item.Additional.GPS.Latitude,
+		Longitude:   item.Additional.GPS.Longitude,
+	}
+
+	return videoAsset
 }
 
 // mapToAsset converts a Synology Item to an immich-go Asset

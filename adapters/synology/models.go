@@ -1,6 +1,8 @@
 package synology
 
 import (
+	"path"
+	"strings"
 	"time"
 )
 
@@ -232,6 +234,32 @@ func (i Item) IsVideo() bool {
 // IsLivePhoto returns true if the item is a live photo
 func (i Item) IsLivePhoto() bool {
 	return i.Type == "live"
+}
+
+// LivePhotoVideoFilename returns the inferred video filename for a live photo
+// Live photos have two files: image (e.g., .HEIC) and video (e.g., .MOV)
+// with the same basename
+func (i Item) LivePhotoVideoFilename() string {
+	if !i.IsLivePhoto() {
+		return ""
+	}
+	ext := strings.ToLower(path.Ext(i.Filename))
+	basename := i.Filename[:len(i.Filename)-len(ext)]
+
+	// Map of image extensions to video extensions (common for live photos)
+	videoExts := map[string]string{
+		".heic": ".mov",
+		".jpg":  ".mov",
+		".jpeg": ".mov",
+		".png":  ".mov",
+	}
+
+	if videoExt, ok := videoExts[ext]; ok {
+		return basename + videoExt
+	}
+
+	// Default to .mov if extension not recognized
+	return basename + ".mov"
 }
 
 // CreateTime returns the album creation time as time.Time
