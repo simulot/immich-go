@@ -106,7 +106,10 @@ func (sa *Adapter) Browse(ctx context.Context) chan *assets.Group {
 		}
 
 		// Process albums or all items
-		if len(albumsToProcess) > 0 {
+		// If user specified specific albums, process only those
+		// Otherwise process ALL items (including those not in any album)
+		if len(sa.Albums) > 0 && len(albumsToProcess) > 0 {
+			// User requested specific albums, process only items in those albums
 			for _, album := range albumsToProcess {
 				if err := sa.processAlbum(ctx, album, gOut); err != nil {
 					sa.app.Log().Error("Failed to process album", "album", album.Name, "error", err)
@@ -114,7 +117,8 @@ func (sa *Adapter) Browse(ctx context.Context) chan *assets.Group {
 				}
 			}
 		} else {
-			// Process all items (not album-based)
+			// No specific albums requested - process ALL items
+			// This includes both album items and non-album items
 			if err := sa.processAllItems(ctx, gOut); err != nil {
 				sa.app.Log().Error("Failed to process items", "error", err)
 				return
