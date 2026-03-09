@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -465,33 +467,63 @@ type synologyFS struct {
 	cacheKey string
 	filename string
 	size     int
+	app      *app.Application // For temp file management
 }
 
 // Open implements fs.FS
+// Downloads the file to a local temp file first to avoid network timeout during upload
 func (s *synologyFS) Open(name string) (fs.File, error) {
 	if name != s.filename {
 		return nil, fmt.Errorf("file not found: %s", name)
 	}
 
 	ctx := context.Background()
+
+	// Create temp file
+	tempFile, err := os.CreateTemp("", "synology-*-"+filepath.Base(s.filename))
+	if err != nil {
+		return nil, fmt.Errorf("create temp file: %w", err)
+	}
+
+	// Download to temp file
 	reader, err := s.client.DownloadItem(ctx, s.itemID, s.cacheKey)
 	if err != nil {
+		tempFile.Close()
+		os.Remove(tempFile.Name())
 		return nil, err
 	}
 
+	_, err = io.Copy(tempFile, reader)
+	reader.Close()
+
+	if err != nil {
+		tempFile.Close()
+		os.Remove(tempFile.Name())
+		return nil, fmt.Errorf("download to temp: %w", err)
+	}
+
+	// Seek to beginning for reading
+	_, err = tempFile.Seek(0, 0)
+	if err != nil {
+		tempFile.Close()
+		os.Remove(tempFile.Name())
+		return nil, fmt.Errorf("seek temp file: %w", err)
+	}
+
 	return &synologyFile{
-		ReadCloser: reader,
-		name:       s.filename,
-		size:       int64(s.size),
+		File:   tempFile,
+		name:   s.filename,
+		size:   int64(s.size),
+		tempPath: tempFile.Name(),
 	}, nil
 }
 
 // synologyFile implements fs.File
 type synologyFile struct {
-	io.ReadCloser
-	name string
-	size int64
-	offset int64
+	*os.File
+	name     string
+	size     int64
+	tempPath string
 }
 
 func (f *synologyFile) Stat() (fs.FileInfo, error) {
@@ -501,14 +533,11 @@ func (f *synologyFile) Stat() (fs.FileInfo, error) {
 	}, nil
 }
 
-func (f *synologyFile) Read(p []byte) (n int, err error) {
-	n, err = f.ReadCloser.Read(p)
-	f.offset += int64(n)
-	return n, err
-}
-
 func (f *synologyFile) Close() error {
-	return f.ReadCloser.Close()
+	// Close the file and remove temp file
+	err := f.File.Close()
+	os.Remove(f.tempPath)
+	return err
 }
 
 // synologyFileInfo implements fs.FileInfo

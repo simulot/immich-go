@@ -429,52 +429,77 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 		"cache_key": {cacheKey},
 	}
 
-	// Build request URL with auth params
+	// Build request URL
 	reqURL, err := url.JoinPath(c.baseURL, "/webapi/entry.cgi")
 	if err != nil {
 		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
-	// Create POST request with params in body
-	reqBody := strings.NewReader(params.Encode())
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	// Set required headers
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("X-SYNO-TOKEN", c.synotoken)
-	req.Header.Set("Cookie", fmt.Sprintf("id=%s", c.sid))
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("download request failed: %w", err)
-	}
-
-	// Check if response is JSON error (Synology returns JSON for API errors even on download)
-	contentType := resp.Header.Get("Content-Type")
-	if strings.Contains(contentType, "application/json") {
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		// Try to parse error
-		var errResp struct {
-			Success bool   `json:"success"`
-			Error   *Error `json:"error,omitempty"`
+	var lastErr error
+	for attempt := 0; attempt < c.maxRetries; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(c.retryDelay * time.Duration(attempt)):
+			}
 		}
-		if json.Unmarshal(body, &errResp) == nil && !errResp.Success && errResp.Error != nil {
-			return nil, fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
+
+		reqBody := strings.NewReader(params.Encode())
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, reqBody)
+		if err != nil {
+			return nil, fmt.Errorf("create request: %w", err)
 		}
-		return nil, fmt.Errorf("download failed: %s", string(body))
+
+		// Set required headers
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+		req.Header.Set("Accept", "*/*")
+		if c.synotoken != "" {
+			req.Header.Set("X-SYNO-TOKEN", c.synotoken)
+		}
+		if c.sid != "" {
+			req.Header.Set("Cookie", fmt.Sprintf("id=%s", c.sid))
+		}
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		// Check if response is JSON error
+		contentType := resp.Header.Get("Content-Type")
+		if strings.Contains(contentType, "application/json") {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			var errResp struct {
+				Success bool   `json:"success"`
+				Error   *Error `json:"error,omitempty"`
+			}
+			if json.Unmarshal(body, &errResp) == nil && !errResp.Success && errResp.Error != nil {
+				if errResp.Error.Code == 119 && attempt < c.maxRetries-1 {
+					// Session expired, re-login and retry
+					if err := c.Login(ctx); err != nil {
+						lastErr = fmt.Errorf("re-login failed: %w", err)
+						continue
+					}
+					continue
+				}
+				return nil, fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
+			}
+			return nil, fmt.Errorf("download failed: %s", string(body))
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			lastErr = fmt.Errorf("http %d", resp.StatusCode)
+			continue
+		}
+
+		return resp.Body, nil
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("download failed with status %d", resp.StatusCode)
-	}
-
-	return resp.Body, nil
+	return nil, fmt.Errorf("download failed after retries: %w", lastErr)
 }
 
 // GetThumbnailURL returns the URL for a thumbnail
