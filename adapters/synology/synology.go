@@ -54,7 +54,10 @@ func NewAdapter(app *app.Application, serverURL, account, password string) *Adap
 
 // Open initializes the connection to Synology Photos
 func (sa *Adapter) Open(ctx context.Context) error {
-	client, err := NewClient(sa.ServerURL, sa.Account, sa.Password, WithInsecureSkipVerify(true))
+	client, err := NewClient(sa.ServerURL, sa.Account, sa.Password,
+		WithInsecureSkipVerify(true),
+		WithLogger(sa.app.Log().Logger),
+	)
 	if err != nil {
 		return fmt.Errorf("create client: %w", err)
 	}
@@ -162,14 +165,19 @@ func (sa *Adapter) buildCaches(ctx context.Context) error {
 }
 
 // getAlbumsToProcess returns the list of albums to import
+// Note: SYNO.Foto.Browse.Album may not be available in some DSM versions
 func (sa *Adapter) getAlbumsToProcess(ctx context.Context) ([]Album, error) {
-	// Get all albums
+	// Try to get albums, but if API doesn't exist, return empty list
+	// Photos will be imported without album structure
 	allAlbums := make([]Album, 0)
+
 	offset := 0
 	for {
 		albums, err := sa.client.ListAlbums(ctx, offset, 1000)
 		if err != nil {
-			return nil, fmt.Errorf("list albums: %w", err)
+			// If album API is not available, just log warning and return empty
+			sa.app.Log().Warn("Album API not available, importing without album structure", "error", err)
+			return nil, nil
 		}
 		allAlbums = append(allAlbums, albums...)
 		if len(albums) < 1000 {
@@ -201,6 +209,12 @@ func (sa *Adapter) getAlbumsToProcess(ctx context.Context) ([]Album, error) {
 
 // processAlbum processes items from a specific album
 func (sa *Adapter) processAlbum(ctx context.Context, album Album, gOut chan *assets.Group) error {
+	// Clean up album name (trim whitespace)
+	album.Name = strings.TrimSpace(album.Name)
+	if album.Name == "" {
+		sa.app.Log().Warn("Skipping album with empty name", "id", album.ID)
+		return nil
+	}
 	sa.app.Log().Info("Processing album", "name", album.Name, "item_count", album.ItemCount)
 
 	additional := sa.getAdditionalFields()
@@ -388,28 +402,36 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 		Longitude:        item.Additional.GPS.Longitude,
 	}
 
-	// Add album if specified
+	// Add album if specified (with cleaned up name)
 	if album != nil {
-		asset.Albums = []assets.Album{
-			{
-				Title: album.Name,
-			},
+		albumName := strings.TrimSpace(album.Name)
+		if albumName != "" {
+			asset.Albums = []assets.Album{
+				{
+					Title: albumName,
+				},
+			}
 		}
 	}
 
-	// Add tags
+	// Add tags (skip empty names)
 	for _, tag := range item.Additional.Tag {
-		asset.Tags = append(asset.Tags, assets.Tag{
-			Name: tag.Name,
-		})
+		if tag.Name != "" {
+			asset.Tags = append(asset.Tags, assets.Tag{
+				Name: tag.Name,
+			})
+		}
 	}
 
 	// Add people as tags (prefixed with "Person: ") since Immich handles faces separately
+	// Skip empty person names
 	if !sa.SkipFaceData {
 		for _, person := range item.Additional.Person {
-			asset.Tags = append(asset.Tags, assets.Tag{
-				Name: fmt.Sprintf("Person: %s", person.Name),
-			})
+			if person.Name != "" {
+				asset.Tags = append(asset.Tags, assets.Tag{
+					Name: fmt.Sprintf("Person: %s", person.Name),
+				})
+			}
 		}
 	}
 

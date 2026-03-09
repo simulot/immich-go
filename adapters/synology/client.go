@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -27,9 +28,11 @@ type Client struct {
 	password   string
 	sid        string
 	did        string
+	synotoken  string // Required for some APIs
 	httpClient *http.Client
 	maxRetries int
 	retryDelay time.Duration
+	logger     *slog.Logger // Optional logger for debugging
 }
 
 // ClientOption is a functional option for the Client
@@ -65,12 +68,20 @@ func WithRetries(maxRetries int) ClientOption {
 	}
 }
 
+// WithLogger sets a logger for debugging
+func WithLogger(logger *slog.Logger) ClientOption {
+	return func(c *Client) {
+		c.logger = logger
+	}
+}
+
 // NewClient creates a new Synology Photos API client
 func NewClient(baseURL, account, password string, opts ...ClientOption) (*Client, error) {
 	// Clean up the base URL
 	baseURL = strings.TrimRight(baseURL, "/")
 
 	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment, // Enable HTTP_PROXY/HTTPS_PROXY support
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true, // Default to insecure for self-signed certs
 		},
@@ -113,7 +124,7 @@ func (c *Client) QueryAPIInfo(ctx context.Context, apiName string) (*APIInfo, er
 	}
 
 	var resp APIResponse[map[string]APIInfo]
-	if err := c.doRequest(ctx, http.MethodGet, "/webapi/query.cgi", params, nil, &resp); err != nil {
+	if err := c.doRequestNoAuth(ctx, http.MethodGet, "/webapi/query.cgi", params, &resp); err != nil {
 		return nil, fmt.Errorf("query API info failed: %w", err)
 	}
 
@@ -155,12 +166,16 @@ func (c *Client) Login(ctx context.Context) error {
 	authPath := "/webapi/" + apiInfo.Path
 
 	var resp LoginResponse
-	if err := c.doRequest(ctx, http.MethodGet, authPath, params, nil, &resp); err != nil {
+	if err := c.doRequestNoAuth(ctx, http.MethodGet, authPath, params, &resp); err != nil {
 		return fmt.Errorf("login failed: %w", err)
 	}
 
 	c.sid = resp.Data.SID
 	c.did = resp.Data.DID
+	c.synotoken = resp.Data.SynoToken
+	if c.did == "" {
+		c.did = resp.Data.DeviceID // Fallback to device_id if did is empty
+	}
 	return nil
 }
 
@@ -235,7 +250,7 @@ func (c *Client) Logout(ctx context.Context) error {
 	}
 
 	var resp APIResponse[struct{ Success bool }]
-	err := c.doRequest(ctx, http.MethodGet, "/webapi/auth.cgi", params, nil, &resp)
+	err := c.doRequestNoAuth(ctx, http.MethodGet, "/webapi/auth.cgi", params, &resp)
 
 	c.sid = ""
 	c.did = ""
@@ -249,11 +264,13 @@ func (c *Client) IsAuthenticated() bool {
 }
 
 // ListAlbums retrieves a list of albums
+// Note: SYNO.Foto.Browse.Album may not be available in all DSM versions
 func (c *Client) ListAlbums(ctx context.Context, offset, limit int) ([]Album, error) {
 	if limit <= 0 {
 		limit = defaultLimit
 	}
 
+	// Try SYNO.Foto.Browse.Album first (version 1)
 	params := url.Values{
 		"api":     {"SYNO.Foto.Browse.Album"},
 		"version": {"1"},
@@ -263,8 +280,10 @@ func (c *Client) ListAlbums(ctx context.Context, offset, limit int) ([]Album, er
 	}
 
 	var resp APIResponse[AlbumListResponse]
-	if err := c.doAuthenticatedRequest(ctx, http.MethodGet, "/webapi/entry.cgi", params, nil, &resp); err != nil {
-		return nil, err
+	err := c.doAuthenticatedRequest(ctx, http.MethodPost, "/webapi/entry.cgi", params, nil, &resp)
+	if err != nil {
+		// If Album API fails, try getting items from timeline instead
+		return nil, fmt.Errorf("album API not available: %w", err)
 	}
 
 	return resp.Data.List, nil
@@ -278,7 +297,7 @@ func (c *Client) GetAlbumItems(ctx context.Context, albumID int, offset, limit i
 
 	params := url.Values{
 		"api":        {"SYNO.Foto.Browse.Item"},
-		"version":    {"1"},
+		"version":    {"4"},
 		"method":     {"list"},
 		"offset":     {strconv.Itoa(offset)},
 		"limit":      {strconv.Itoa(limit)},
@@ -291,7 +310,7 @@ func (c *Client) GetAlbumItems(ctx context.Context, albumID int, offset, limit i
 	}
 
 	var resp APIResponse[ItemListResponse]
-	if err := c.doAuthenticatedRequest(ctx, http.MethodGet, "/webapi/entry.cgi", params, nil, &resp); err != nil {
+	if err := c.doAuthenticatedRequest(ctx, http.MethodPost, "/webapi/entry.cgi", params, nil, &resp); err != nil {
 		return nil, err
 	}
 
@@ -306,7 +325,7 @@ func (c *Client) ListItems(ctx context.Context, folderID *int, offset, limit int
 
 	params := url.Values{
 		"api":     {"SYNO.Foto.Browse.Item"},
-		"version": {"1"},
+		"version": {"4"},
 		"method":  {"list"},
 		"offset":  {strconv.Itoa(offset)},
 		"limit":   {strconv.Itoa(limit)},
@@ -322,7 +341,7 @@ func (c *Client) ListItems(ctx context.Context, folderID *int, offset, limit int
 	}
 
 	var resp APIResponse[ItemListResponse]
-	if err := c.doAuthenticatedRequest(ctx, http.MethodGet, "/webapi/entry.cgi", params, nil, &resp); err != nil {
+	if err := c.doAuthenticatedRequest(ctx, http.MethodPost, "/webapi/entry.cgi", params, nil, &resp); err != nil {
 		return nil, err
 	}
 
@@ -364,14 +383,14 @@ func (c *Client) ListTags(ctx context.Context, offset, limit int) ([]Tag, error)
 
 	params := url.Values{
 		"api":     {"SYNO.Foto.Browse.GeneralTag"},
-		"version": {"1"},
+		"version": {"4"},
 		"method":  {"list"},
 		"offset":  {strconv.Itoa(offset)},
 		"limit":   {strconv.Itoa(limit)},
 	}
 
 	var resp APIResponse[TagListResponse]
-	if err := c.doAuthenticatedRequest(ctx, http.MethodGet, "/webapi/entry.cgi", params, nil, &resp); err != nil {
+	if err := c.doAuthenticatedRequest(ctx, http.MethodPost, "/webapi/entry.cgi", params, nil, &resp); err != nil {
 		return nil, err
 	}
 
@@ -407,24 +426,47 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 		"version":   {"1"},
 		"method":    {"download"},
 		"unit_id":   {fmt.Sprintf("[%d]", itemID)},
-		"cache_key": {fmt.Sprintf("\"%s\"", cacheKey)},
+		"cache_key": {cacheKey},
 	}
 
+	// Build request URL with auth params
 	reqURL, err := url.JoinPath(c.baseURL, "/webapi/entry.cgi")
 	if err != nil {
 		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
-	fullURL := reqURL + "?" + params.Encode()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	// Create POST request with params in body
+	reqBody := strings.NewReader(params.Encode())
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
+	// Set required headers
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("X-SYNO-TOKEN", c.synotoken)
+	req.Header.Set("Cookie", fmt.Sprintf("id=%s", c.sid))
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download request failed: %w", err)
+	}
+
+	// Check if response is JSON error (Synology returns JSON for API errors even on download)
+	contentType := resp.Header.Get("Content-Type")
+	if strings.Contains(contentType, "application/json") {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		// Try to parse error
+		var errResp struct {
+			Success bool   `json:"success"`
+			Error   *Error `json:"error,omitempty"`
+		}
+		if json.Unmarshal(body, &errResp) == nil && !errResp.Success && errResp.Error != nil {
+			return nil, fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
+		}
+		return nil, fmt.Errorf("download failed: %s", string(body))
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -458,6 +500,48 @@ func (c *Client) GetThumbnailURL(itemID int, cacheKey string, size string) strin
 	return c.baseURL + "/webapi/entry.cgi?" + params.Encode()
 }
 
+// doRequestNoAuth performs an HTTP request without authentication (used for login and API info)
+func (c *Client) doRequestNoAuth(ctx context.Context, method, path string, params url.Values, result interface{}) error {
+	reqURL, err := url.JoinPath(c.baseURL, path)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	if len(params) > 0 {
+		reqURL = reqURL + "?" + params.Encode()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	if result != nil {
+		if err := json.Unmarshal(respBody, result); err != nil {
+			return fmt.Errorf("parse result: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // doAuthenticatedRequest makes an authenticated API request
 func (c *Client) doAuthenticatedRequest(ctx context.Context, method, path string, params url.Values, body io.Reader, result interface{}) error {
 	// Ensure we're authenticated
@@ -467,14 +551,11 @@ func (c *Client) doAuthenticatedRequest(ctx context.Context, method, path string
 		}
 	}
 
-	// Add session ID to params
-	params.Set("_sid", c.sid)
-
-	return c.doRequest(ctx, method, path, params, body, result)
+	return c.doRequestWithAuth(ctx, method, path, params, body, result)
 }
 
-// doRequest performs an HTTP request with retries
-func (c *Client) doRequest(ctx context.Context, method, path string, params url.Values, body io.Reader, result interface{}) error {
+// doRequestWithAuth makes a request with authentication headers
+func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, params url.Values, body io.Reader, result interface{}) error {
 	for attempt := 0; attempt < c.maxRetries; attempt++ {
 		if attempt > 0 {
 			select {
@@ -489,18 +570,42 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 			return fmt.Errorf("invalid URL: %w", err)
 		}
 
-		if len(params) > 0 {
-			reqURL = reqURL + "?" + params.Encode()
+		// Clone params and add auth
+		reqParams := url.Values{}
+		for k, v := range params {
+			reqParams[k] = v
 		}
 
-		req, err := http.NewRequestWithContext(ctx, method, reqURL, body)
+		// For POST requests, put params in body; for GET, put in URL
+		var reqBody io.Reader
+		var contentType string
+		if method == http.MethodPost {
+			reqBody = strings.NewReader(reqParams.Encode())
+			contentType = "application/x-www-form-urlencoded; charset=UTF-8"
+		} else {
+			if len(reqParams) > 0 {
+				reqURL = reqURL + "?" + reqParams.Encode()
+			}
+		}
+
+		req, err := http.NewRequestWithContext(ctx, method, reqURL, reqBody)
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}
 
 		req.Header.Set("Accept", "application/json")
-		if body != nil {
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if contentType != "" {
+			req.Header.Set("Content-Type", contentType)
+		}
+
+			// Add X-SYNO-TOKEN header for CSRF protection
+		if c.synotoken != "" {
+			req.Header.Set("X-SYNO-TOKEN", c.synotoken)
+		}
+
+		// Add Cookie with session ID (required for some APIs)
+		if c.sid != "" {
+			req.Header.Set("Cookie", fmt.Sprintf("id=%s", c.sid))
 		}
 
 		resp, err := c.httpClient.Do(req)
@@ -528,6 +633,11 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 			return fmt.Errorf("http %d: %s", resp.StatusCode, string(respBody))
 		}
 
+		// Debug logging
+		if c.logger != nil {
+			c.logger.Debug("synology api call", "method", method, "url", reqURL, "response", string(respBody))
+		}
+
 		// Parse response
 		var baseResp struct {
 			Success bool   `json:"success"`
@@ -550,7 +660,6 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 				}
 				return fmt.Errorf("re-login after session expired: %w", err)
 			}
-			params.Set("_sid", c.sid)
 			continue
 		}
 
@@ -574,3 +683,4 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 
 	return fmt.Errorf("max retries exceeded")
 }
+

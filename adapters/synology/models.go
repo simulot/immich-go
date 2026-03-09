@@ -6,8 +6,10 @@ import (
 
 // LoginData represents the login response data
 type LoginData struct {
-	DID string `json:"did"` // Device ID
-	SID string `json:"sid"` // Session ID
+	DID        string `json:"did"`        // Device ID
+	SID        string `json:"sid"`        // Session ID
+	SynoToken  string `json:"synotoken"`  // CSRF token for some APIs
+	DeviceID   string `json:"device_id"`  // Device ID (alternative field)
 }
 
 // LoginResponse represents the response from SYNO.API.Auth login
