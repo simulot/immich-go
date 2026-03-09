@@ -418,7 +418,8 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 	for _, tag := range item.Additional.Tag {
 		if tag.Name != "" {
 			asset.Tags = append(asset.Tags, assets.Tag{
-				Name: tag.Name,
+				Name:  tag.Name,
+				Value: tag.Name,
 			})
 		}
 	}
@@ -428,8 +429,10 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 	if !sa.SkipFaceData {
 		for _, person := range item.Additional.Person {
 			if person.Name != "" {
+				personTag := fmt.Sprintf("Person: %s", person.Name)
 				asset.Tags = append(asset.Tags, assets.Tag{
-					Name: fmt.Sprintf("Person: %s", person.Name),
+					Name:  personTag,
+					Value: personTag,
 				})
 			}
 		}
