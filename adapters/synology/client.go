@@ -550,17 +550,24 @@ func (c *Client) doRequest(ctx context.Context, method, path string, params url.
 			continue
 		}
 
-		// Handle authentication error - try to re-login
-		if !baseResp.Success && baseResp.Error != nil && baseResp.Error.Code == 119 {
-			// Session expired
-			c.sid = ""
-			if err := c.Login(ctx); err != nil {
-				lastErr = err
+		// Handle API error response
+		if !baseResp.Success {
+			if baseResp.Error != nil && baseResp.Error.Code == 119 {
+				// Session expired - try to re-login
+				c.sid = ""
+				if err := c.Login(ctx); err != nil {
+					lastErr = err
+					continue
+				}
+				// Update params with new session ID
+				params.Set("_sid", c.sid)
 				continue
 			}
-			// Update params with new session ID
-			params.Set("_sid", c.sid)
-			continue
+			// Other API error - return immediately
+			if baseResp.Error != nil {
+				return fmt.Errorf("API error: code %d (%s)", baseResp.Error.Code, c.getErrorMessage(baseResp.Error.Code))
+			}
+			return fmt.Errorf("API error: success=false but no error code")
 		}
 
 		if result != nil {
