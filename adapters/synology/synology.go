@@ -739,8 +739,9 @@ func (fi *synologyFileInfo) ModTime() time.Time { return time.Now() }
 func (fi *synologyFileInfo) IsDir() bool        { return false }
 func (fi *synologyFileInfo) Sys() interface{}   { return nil }
 
-// synologyLivePhotoFS implements fs.FS for live photos (ZIP bundle)
-// Downloads a ZIP containing both HEIC and MOV files, extracts on demand
+// synologyLivePhotoFS implements fs.FS for live photos
+// Downloads either a ZIP (containing both HEIC and MOV) or just the image file
+// Synology's API may return either format based on how the live photo is stored
 type synologyLivePhotoFS struct {
 	client       *Client
 	itemID       int
@@ -749,13 +750,15 @@ type synologyLivePhotoFS struct {
 	tempDir      string
 	logger       *slog.Logger
 	downloaded   bool
-	mu           sync.Mutex // protects download operation
-	refCount     int        // number of open files using this FS
+	isZip        bool              // whether the download was a ZIP
+	mu           sync.Mutex        // protects download operation
+	refCount     int               // number of open files using this FS
 }
 
-// Open implements fs.FS - downloads ZIP on first call, returns requested file
+// Open implements fs.FS - downloads on first call, returns requested file
+// Handles both ZIP (containing both image and video) and single file responses
 func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
-	// Only allow opening the main file (HEIC) or its corresponding video (MOV)
+	// Only allow opening the main file (HEIC/JPG) or its corresponding video (MOV)
 	expectedVideo := s.filename[:len(s.filename)-len(filepath.Ext(s.filename))] + ".mov"
 	if name != s.filename && strings.ToLower(name) != strings.ToLower(expectedVideo) {
 		return nil, fmt.Errorf("file not found: %s", name)
@@ -767,10 +770,10 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Download and extract ZIP on first access
+	// Download on first access
 	if !s.downloaded {
 		if s.logger != nil {
-			s.logger.Debug("Downloading live photo ZIP", "filename", s.filename, "item_id", s.itemID)
+			s.logger.Debug("Downloading live photo", "filename", s.filename, "item_id", s.itemID)
 		}
 
 		// Create temp directory
@@ -780,106 +783,41 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 		}
 		s.tempDir = tempDir
 
-		// Download ZIP
-		reader, contentType, err := s.client.DownloadLivePhotoZip(ctx, s.itemID, s.filename, s.logger)
+		// Download - may return ZIP or single file
+		reader, contentType, isZip, err := s.client.DownloadLivePhoto(ctx, s.itemID, s.filename, s.logger)
 		if err != nil {
 			os.RemoveAll(s.tempDir)
 			s.tempDir = ""
-			return nil, fmt.Errorf("download live photo ZIP: %w", err)
+			return nil, fmt.Errorf("download live photo: %w", err)
 		}
+
+		s.isZip = isZip
 
 		if s.logger != nil {
-			s.logger.Debug("Downloaded live photo", "filename", s.filename, "content_type", contentType, "item_id", s.itemID)
+			s.logger.Debug("Downloaded live photo", "filename", s.filename, "content_type", contentType,
+				"is_zip", isZip, "item_id", s.itemID)
 		}
 
-		// Save ZIP to temp file
-		zipPath := filepath.Join(tempDir, "livephoto.zip")
-		zipFile, err := os.Create(zipPath)
-		if err != nil {
-			reader.Close()
-			os.RemoveAll(s.tempDir)
-			s.tempDir = ""
-			return nil, fmt.Errorf("create zip temp file: %w", err)
+		if isZip {
+			// Handle ZIP download (contains both image and video)
+			if err := s.handleZipDownload(reader, tempDir); err != nil {
+				reader.Close()
+				os.RemoveAll(s.tempDir)
+				s.tempDir = ""
+				return nil, err
+			}
+		} else {
+			// Handle single file download (just the image)
+			if err := s.handleSingleFileDownload(reader, tempDir, name); err != nil {
+				reader.Close()
+				os.RemoveAll(s.tempDir)
+				s.tempDir = ""
+				return nil, err
+			}
 		}
-
-		written, err := io.Copy(zipFile, reader)
 		reader.Close()
-		zipFile.Close()
-
-		if s.logger != nil {
-			s.logger.Debug("Downloaded ZIP to temp file", "filename", s.filename, "bytes", written)
-		}
-
-		if err != nil {
-			os.RemoveAll(s.tempDir)
-			s.tempDir = ""
-			return nil, fmt.Errorf("save zip: %w", err)
-		}
-
-		// Verify ZIP by checking file header (magic number)
-		if err := verifyZipFile(zipPath); err != nil {
-			// Print debug curl command for manual troubleshooting
-			s.printDebugCurlCommand()
-			os.RemoveAll(s.tempDir)
-			s.tempDir = ""
-			return nil, fmt.Errorf("verify zip: %w", err)
-		}
-
-		// Extract ZIP
-		zipReader, err := zip.OpenReader(zipPath)
-		if err != nil {
-			os.RemoveAll(s.tempDir)
-			s.tempDir = ""
-			return nil, fmt.Errorf("open zip: %w", err)
-		}
-
-		s.zipFiles = make(map[string]string)
-		for _, zf := range zipReader.File {
-			// Extract each file
-			extractPath := filepath.Join(tempDir, filepath.Base(zf.Name))
-			rc, err := zf.Open()
-			if err != nil {
-				zipReader.Close()
-				os.RemoveAll(s.tempDir)
-				s.tempDir = ""
-				return nil, fmt.Errorf("extract %s: %w", zf.Name, err)
-			}
-
-			extractFile, err := os.Create(extractPath)
-			if err != nil {
-				rc.Close()
-				zipReader.Close()
-				os.RemoveAll(s.tempDir)
-				s.tempDir = ""
-				return nil, fmt.Errorf("create extract file: %w", err)
-			}
-
-			_, err = io.Copy(extractFile, rc)
-			rc.Close()
-			extractFile.Close()
-
-			if err != nil {
-				zipReader.Close()
-				os.RemoveAll(s.tempDir)
-				s.tempDir = ""
-				return nil, fmt.Errorf("extract %s: %w", zf.Name, err)
-			}
-
-			s.zipFiles[filepath.Base(zf.Name)] = extractPath
-			if s.logger != nil {
-				s.logger.Debug("Extracted live photo file", "name", zf.Name, "size", zf.UncompressedSize64)
-			}
-		}
-		zipReader.Close()
-
-		// Clean up ZIP file
-		os.Remove(zipPath)
 
 		s.downloaded = true
-
-		if s.logger != nil {
-			s.logger.Debug("Live photo ZIP downloaded and extracted", "files", len(s.zipFiles))
-		}
 	}
 
 	// Return the requested file
@@ -899,7 +837,7 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 			}
 
 			s.refCount++
-		return &synologyLivePhotoFile{
+			return &synologyLivePhotoFile{
 				File:     f,
 				name:     fname,
 				size:     info.Size(),
@@ -910,6 +848,112 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 	}
 
 	return nil, fmt.Errorf("file not found in live photo: %s", name)
+}
+
+// handleZipDownload processes a ZIP response containing both image and video
+func (s *synologyLivePhotoFS) handleZipDownload(reader io.ReadCloser, tempDir string) error {
+	// Save ZIP to temp file
+	zipPath := filepath.Join(tempDir, "livephoto.zip")
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		return fmt.Errorf("create zip temp file: %w", err)
+	}
+
+	written, err := io.Copy(zipFile, reader)
+	zipFile.Close()
+
+	if s.logger != nil {
+		s.logger.Debug("Downloaded ZIP to temp file", "filename", s.filename, "bytes", written)
+	}
+
+	if err != nil {
+		return fmt.Errorf("save zip: %w", err)
+	}
+
+	// Verify ZIP by checking file header (magic number)
+	if err := verifyZipFile(zipPath); err != nil {
+		s.printDebugCurlCommand()
+		return fmt.Errorf("verify zip: %w", err)
+	}
+
+	// Extract ZIP
+	zipReader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("open zip: %w", err)
+	}
+	defer zipReader.Close()
+
+	s.zipFiles = make(map[string]string)
+	for _, zf := range zipReader.File {
+		// Extract each file
+		extractPath := filepath.Join(tempDir, filepath.Base(zf.Name))
+		rc, err := zf.Open()
+		if err != nil {
+			return fmt.Errorf("extract %s: %w", zf.Name, err)
+		}
+
+		extractFile, err := os.Create(extractPath)
+		if err != nil {
+			rc.Close()
+			return fmt.Errorf("create extract file: %w", err)
+		}
+
+		_, err = io.Copy(extractFile, rc)
+		rc.Close()
+		extractFile.Close()
+
+		if err != nil {
+			return fmt.Errorf("extract %s: %w", zf.Name, err)
+		}
+
+		s.zipFiles[filepath.Base(zf.Name)] = extractPath
+		if s.logger != nil {
+			s.logger.Debug("Extracted live photo file", "name", zf.Name, "size", zf.UncompressedSize64)
+		}
+	}
+
+	// Clean up ZIP file
+	os.Remove(zipPath)
+
+	if s.logger != nil {
+		s.logger.Debug("Live photo ZIP extracted", "files", len(s.zipFiles))
+	}
+
+	return nil
+}
+
+// handleSingleFileDownload processes a single file response (just the image)
+// For non-ZIP responses, we only get the image file. The video may need separate handling.
+func (s *synologyLivePhotoFS) handleSingleFileDownload(reader io.ReadCloser, tempDir string, requestedName string) error {
+	// Save the single file
+	filePath := filepath.Join(tempDir, s.filename)
+	outFile, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+
+	written, err := io.Copy(outFile, reader)
+	outFile.Close()
+
+	if s.logger != nil {
+		s.logger.Debug("Downloaded single file", "filename", s.filename, "bytes", written)
+	}
+
+	if err != nil {
+		return fmt.Errorf("save file: %w", err)
+	}
+
+	s.zipFiles = make(map[string]string)
+	s.zipFiles[s.filename] = filePath
+
+	// Note: For non-ZIP responses, we don't have the video file.
+	// This is a limitation - Synology's API doesn't provide the video separately
+	// in this case. The live photo will be uploaded as a static image.
+	if s.logger != nil {
+		s.logger.Debug("Live photo returned as single file (no video)", "filename", s.filename)
+	}
+
+	return nil
 }
 
 // cleanup removes the temp directory and all extracted files

@@ -502,22 +502,23 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 	return nil, fmt.Errorf("download failed after retries: %w", lastErr)
 }
 
-// DownloadLivePhotoZip downloads a live photo as a ZIP file containing both HEIC and MOV
-// Uses the SYNO.Foto.Download API with download_type=source which returns a ZIP
-func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename string, logger *slog.Logger) (io.ReadCloser, string, error) {
+// DownloadLivePhoto downloads a live photo using the source download API.
+// Returns the response body, content-type, and whether it's a ZIP file (based on Content-Disposition).
+// Note: Synology may return either a ZIP (containing both image and video) or just the image file.
+func (c *Client) DownloadLivePhoto(ctx context.Context, itemID int, filename string, logger *slog.Logger) (io.ReadCloser, string, bool, error) {
 	params := url.Values{
-		"api":           {"SYNO.Foto.Download"},
-		"version":       {"2"},
-		"method":        {"download"},
-		"item_id":       {fmt.Sprintf("[%d]", itemID)},
-		"download_type": {"source"},
+		"api":            {"SYNO.Foto.Download"},
+		"version":        {"2"},
+		"method":         {"download"},
+		"item_id":        {fmt.Sprintf("[%d]", itemID)},
+		"download_type":  {"source"},
 		"force_download": {"true"},
 	}
 
 	// Build request URL with filename in path (like browser does)
 	reqURL, err := url.JoinPath(c.baseURL, "/webapi/entry.cgi", filename)
 	if err != nil {
-		return nil, "", fmt.Errorf("invalid URL: %w", err)
+		return nil, "", false, fmt.Errorf("invalid URL: %w", err)
 	}
 
 	// Add synotoken as query param if available
@@ -530,7 +531,7 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 		if attempt > 0 {
 			select {
 			case <-ctx.Done():
-				return nil, "", ctx.Err()
+				return nil, "", false, ctx.Err()
 			case <-time.After(c.retryDelay * time.Duration(attempt)):
 			}
 		}
@@ -538,7 +539,7 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 		reqBody := strings.NewReader(params.Encode())
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, reqBody)
 		if err != nil {
-			return nil, "", fmt.Errorf("create request: %w", err)
+			return nil, "", false, fmt.Errorf("create request: %w", err)
 		}
 
 		// Set required headers
@@ -575,9 +576,9 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 					}
 					continue
 				}
-				return nil, "", fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
+				return nil, "", false, fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
 			}
-			return nil, "", fmt.Errorf("download failed: %s", string(body))
+			return nil, "", false, fmt.Errorf("download failed: %s", string(body))
 		}
 
 		if resp.StatusCode != http.StatusOK {
@@ -586,13 +587,20 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 			continue
 		}
 
+		// Check if response is a ZIP by looking at Content-Disposition header
+		contentDisposition := resp.Header.Get("Content-Disposition")
+		isZip := strings.HasSuffix(strings.ToLower(contentDisposition), ".zip") ||
+			strings.Contains(strings.ToLower(contentDisposition), "filename=\"download.zip\"") ||
+			strings.Contains(strings.ToLower(contentDisposition), "filename*=utf-8''download.zip")
+
 		if c.logger != nil {
-			c.logger.Debug("Downloaded live photo", "item_id", itemID, "content_type", contentType, "content_length", resp.Header.Get("Content-Length"))
+			c.logger.Debug("Downloaded live photo", "item_id", itemID, "content_type", contentType,
+				"content_disposition", contentDisposition, "is_zip", isZip, "content_length", resp.Header.Get("Content-Length"))
 		}
-		return resp.Body, contentType, nil
+		return resp.Body, contentType, isZip, nil
 	}
 
-	return nil, "", fmt.Errorf("download failed after retries: %w", lastErr)
+	return nil, "", false, fmt.Errorf("download failed after retries: %w", lastErr)
 }
 
 // GetThumbnailURL returns the URL for a thumbnail
