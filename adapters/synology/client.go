@@ -504,7 +504,7 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 
 // DownloadLivePhotoZip downloads a live photo as a ZIP file containing both HEIC and MOV
 // Uses the SYNO.Foto.Download API with download_type=source which returns a ZIP
-func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename string) (io.ReadCloser, error) {
+func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename string, logger *slog.Logger) (io.ReadCloser, string, error) {
 	params := url.Values{
 		"api":           {"SYNO.Foto.Download"},
 		"version":       {"2"},
@@ -517,7 +517,7 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 	// Build request URL with filename in path (like browser does)
 	reqURL, err := url.JoinPath(c.baseURL, "/webapi/entry.cgi", filename)
 	if err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
+		return nil, "", fmt.Errorf("invalid URL: %w", err)
 	}
 
 	// Add synotoken as query param if available
@@ -530,7 +530,7 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 		if attempt > 0 {
 			select {
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, "", ctx.Err()
 			case <-time.After(c.retryDelay * time.Duration(attempt)):
 			}
 		}
@@ -538,7 +538,7 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 		reqBody := strings.NewReader(params.Encode())
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, reqBody)
 		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
+			return nil, "", fmt.Errorf("create request: %w", err)
 		}
 
 		// Set required headers
@@ -575,9 +575,9 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 					}
 					continue
 				}
-				return nil, fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
+				return nil, "", fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
 			}
-			return nil, fmt.Errorf("download failed: %s", string(body))
+			return nil, "", fmt.Errorf("download failed: %s", string(body))
 		}
 
 		if resp.StatusCode != http.StatusOK {
@@ -586,10 +586,13 @@ func (c *Client) DownloadLivePhotoZip(ctx context.Context, itemID int, filename 
 			continue
 		}
 
-		return resp.Body, nil
+		if c.logger != nil {
+			c.logger.Debug("Downloaded live photo", "item_id", itemID, "content_type", contentType, "content_length", resp.Header.Get("Content-Length"))
+		}
+		return resp.Body, contentType, nil
 	}
 
-	return nil, fmt.Errorf("download failed after retries: %w", lastErr)
+	return nil, "", fmt.Errorf("download failed after retries: %w", lastErr)
 }
 
 // GetThumbnailURL returns the URL for a thumbnail

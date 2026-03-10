@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -780,11 +781,15 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 		s.tempDir = tempDir
 
 		// Download ZIP
-		reader, err := s.client.DownloadLivePhotoZip(ctx, s.itemID, s.filename)
+		reader, contentType, err := s.client.DownloadLivePhotoZip(ctx, s.itemID, s.filename, s.logger)
 		if err != nil {
 			os.RemoveAll(s.tempDir)
 			s.tempDir = ""
 			return nil, fmt.Errorf("download live photo ZIP: %w", err)
+		}
+
+		if s.logger != nil {
+			s.logger.Debug("Downloaded live photo", "filename", s.filename, "content_type", contentType, "item_id", s.itemID)
 		}
 
 		// Save ZIP to temp file
@@ -813,6 +818,8 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 
 		// Verify ZIP by checking file header (magic number)
 		if err := verifyZipFile(zipPath); err != nil {
+			// Print debug curl command for manual troubleshooting
+			s.printDebugCurlCommand()
 			os.RemoveAll(s.tempDir)
 			s.tempDir = ""
 			return nil, fmt.Errorf("verify zip: %w", err)
@@ -916,6 +923,47 @@ func (s *synologyLivePhotoFS) cleanup() {
 		s.zipFiles = nil
 		s.downloaded = false
 	}
+}
+
+// printDebugCurlCommand prints a curl command for manual debugging
+func (s *synologyLivePhotoFS) printDebugCurlCommand() {
+	if s.logger == nil {
+		return
+	}
+
+	client := s.client
+	baseURL := client.baseURL
+
+	// Build curl command
+	var cmd strings.Builder
+	cmd.WriteString("curl -v ")
+
+	// Headers
+	cmd.WriteString(`-H "Content-Type: application/x-www-form-urlencoded" `)
+	if client.synotoken != "" {
+		cmd.WriteString(fmt.Sprintf(`-H "X-SYNO-TOKEN: %s" `, client.synotoken))
+	}
+	if client.sid != "" {
+		cmd.WriteString(fmt.Sprintf(`-H "Cookie: id=%s" `, client.sid))
+	}
+
+	// POST data
+	params := fmt.Sprintf("force_download=true&item_id=%s&download_type=source&api=SYNO.Foto.Download&method=download&version=2",
+		url.QueryEscape(fmt.Sprintf("[%d]", s.itemID)))
+	cmd.WriteString(fmt.Sprintf(`--data "%s" `, params))
+
+	// URL
+	filename := url.QueryEscape(s.filename)
+	reqURL := fmt.Sprintf("%s/webapi/entry.cgi/%s", baseURL, filename)
+	if client.synotoken != "" {
+		reqURL = fmt.Sprintf("%s?SynoToken=%s", reqURL, url.QueryEscape(client.synotoken))
+	}
+	cmd.WriteString(fmt.Sprintf(`"%s" `, reqURL))
+
+	// Output to file
+	cmd.WriteString(`-o /tmp/debug_livephoto.zip`)
+
+	s.logger.Error("Live photo ZIP download returned non-ZIP content. Debug with:", "curl", cmd.String())
 }
 
 // verifyZipFile checks if the file is a valid ZIP by reading its magic number
