@@ -342,8 +342,13 @@ func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Albu
 		logger:   sa.app.Log().Logger,
 	}
 
+	// Pre-download to determine if we have a ZIP (with video) or single file
+	// This is necessary because hasVideo() needs to know the response type
+	if err := liveFS.preDownload(ctx); err != nil {
+		return fmt.Errorf("pre-download live photo: %w", err)
+	}
+
 	// Step 1: Process the image part (HEIC/JPG)
-	// This triggers the download and determines if we have a ZIP (with video) or single file
 	imageAsset := sa.mapToAssetForLiveImage(item, album, liveFS)
 	if imageAsset != nil {
 		sa.processor.RecordAssetDiscovered(ctx, imageAsset.File, int64(imageAsset.FileSize), fileevent.DiscoveredImage)
@@ -771,58 +776,17 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 
 	ctx := context.Background()
 
-	// Use mutex to prevent concurrent downloads in the same FS
+	// Use mutex to prevent concurrent access
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Download on first access
+	// If not pre-downloaded yet, do it now (shouldn't happen if processLivePhoto works correctly)
 	if !s.downloaded {
-		if s.logger != nil {
-			s.logger.Debug("Downloading live photo", "filename", s.filename, "item_id", s.itemID)
+		s.mu.Unlock()
+		if err := s.preDownload(ctx); err != nil {
+			return nil, err
 		}
-
-		// Create temp directory
-		tempDir, err := os.MkdirTemp("", "synology-livephoto-*")
-		if err != nil {
-			return nil, fmt.Errorf("create temp dir: %w", err)
-		}
-		s.tempDir = tempDir
-
-		// Download - may return ZIP or single file
-		reader, contentType, isZip, err := s.client.DownloadLivePhoto(ctx, s.itemID, s.filename, s.logger)
-		if err != nil {
-			os.RemoveAll(s.tempDir)
-			s.tempDir = ""
-			return nil, fmt.Errorf("download live photo: %w", err)
-		}
-
-		s.isZip = isZip
-
-		if s.logger != nil {
-			s.logger.Debug("Downloaded live photo", "filename", s.filename, "content_type", contentType,
-				"is_zip", isZip, "item_id", s.itemID)
-		}
-
-		if isZip {
-			// Handle ZIP download (contains both image and video)
-			if err := s.handleZipDownload(reader, tempDir); err != nil {
-				reader.Close()
-				os.RemoveAll(s.tempDir)
-				s.tempDir = ""
-				return nil, err
-			}
-		} else {
-			// Handle single file download (just the image)
-			if err := s.handleSingleFileDownload(reader, tempDir, name); err != nil {
-				reader.Close()
-				os.RemoveAll(s.tempDir)
-				s.tempDir = ""
-				return nil, err
-			}
-		}
-		reader.Close()
-
-		s.downloaded = true
+		s.mu.Lock()
 	}
 
 	// Return the requested file
@@ -967,6 +931,74 @@ func (s *synologyLivePhotoFS) hasVideo() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.isZip
+}
+
+// preDownload downloads the live photo ahead of time to determine the response type
+// This allows hasVideo() to return the correct value before assets are created
+func (s *synologyLivePhotoFS) preDownload(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.downloaded {
+		return nil
+	}
+
+	if s.logger != nil {
+		s.logger.Debug("Pre-downloading live photo", "filename", s.filename, "item_id", s.itemID)
+	}
+
+	// Create temp directory
+	tempDir, err := os.MkdirTemp("", "synology-livephoto-*")
+	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	s.tempDir = tempDir
+
+	// Download - may return ZIP or single file
+	reader, contentType, isZip, err := s.client.DownloadLivePhoto(ctx, s.itemID, s.filename, s.logger)
+	if err != nil {
+		os.RemoveAll(s.tempDir)
+		s.tempDir = ""
+		return fmt.Errorf("download live photo: %w", err)
+	}
+
+	s.isZip = isZip
+
+	if s.logger != nil {
+		s.logger.Debug("Pre-downloaded live photo", "filename", s.filename, "content_type", contentType,
+			"is_zip", isZip, "item_id", s.itemID)
+	}
+
+	if isZip {
+		// Handle ZIP download (contains both image and video)
+		if err := s.handleZipDownload(reader, tempDir); err != nil {
+			reader.Close()
+			os.RemoveAll(s.tempDir)
+			s.tempDir = ""
+			return err
+		}
+	} else {
+		// Handle single file download (just the image)
+		if err := s.handleSingleFileDownload(reader, tempDir, s.filename); err != nil {
+			reader.Close()
+			os.RemoveAll(s.tempDir)
+			s.tempDir = ""
+			return err
+		}
+	}
+	reader.Close()
+
+	s.downloaded = true
+
+	if s.logger != nil {
+		if isZip {
+			s.logger.Debug("Live photo pre-downloaded as ZIP", "files", len(s.zipFiles))
+		} else {
+			s.logger.Debug("Live photo pre-downloaded as single file")
+		}
+	}
+
+	return nil
 }
 
 // cleanup removes the temp directory and all extracted files
