@@ -1,10 +1,12 @@
 package synology
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -324,35 +326,51 @@ func (sa *Adapter) processItem(ctx context.Context, item *Item, album *Album, gO
 }
 
 // processLivePhoto handles live photos by creating both image and video assets
+// Uses Synology's ZIP download API to get both files in one request
 func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
-	// Live photos have two files with the same basename:
-	// - Image: e.g., IMG_9948.HEIC
-	// - Video: e.g., IMG_9948.MOV
+	sa.app.Log().Debug("Processing live photo", "filename", item.Filename, "item_id", item.ID)
 
-	// Process the image part first
-	imageAsset := sa.mapToAsset(item, album)
-
-	// Send image
-	sa.processor.RecordAssetDiscovered(ctx, imageAsset.File, int64(imageAsset.FileSize), fileevent.DiscoveredImage)
-	group := assets.NewGroup(assets.GroupByNone, imageAsset)
-	select {
-	case gOut <- group:
-	case <-ctx.Done():
-		return ctx.Err()
+	// Create a shared FS for the live photo ZIP bundle
+	liveFS := &synologyLivePhotoFS{
+		client:   sa.client,
+		itemID:   item.ID,
+		filename: item.Filename,
+		logger:   sa.app.Log().Logger,
 	}
 
-	// Infer video filename from image filename
-	// SYNO.Foto.Download API should handle this based on item ID
-	videoAsset := sa.mapToAssetForLiveVideo(item, album)
-	if videoAsset != nil {
-		sa.processor.RecordAssetDiscovered(ctx, videoAsset.File, int64(videoAsset.FileSize), fileevent.DiscoveredVideo)
-		group := assets.NewGroup(assets.GroupByNone, videoAsset)
+	// Step 1: Process the image part (HEIC/JPG)
+	imageAsset := sa.mapToAssetForLiveImage(item, album, liveFS)
+	if imageAsset != nil {
+		sa.processor.RecordAssetDiscovered(ctx, imageAsset.File, int64(imageAsset.FileSize), fileevent.DiscoveredImage)
+		group := assets.NewGroup(assets.GroupByNone, imageAsset)
 		select {
 		case gOut <- group:
 		case <-ctx.Done():
+			liveFS.cleanup()
 			return ctx.Err()
 		}
 	}
+
+	// Step 2: Process the video part (MOV)
+	videoFilename := item.LivePhotoVideoFilename()
+	if videoFilename != "" {
+		videoAsset := sa.mapToAssetForLiveVideo(item, album, liveFS, videoFilename)
+		if videoAsset != nil {
+			sa.processor.RecordAssetDiscovered(ctx, videoAsset.File, int64(videoAsset.FileSize), fileevent.DiscoveredVideo)
+			group := assets.NewGroup(assets.GroupByNone, videoAsset)
+			select {
+			case gOut <- group:
+			case <-ctx.Done():
+				liveFS.cleanup()
+				return ctx.Err()
+			}
+		}
+	} else {
+		sa.app.Log().Warn("Live photo has no video filename", "filename", item.Filename)
+	}
+
+	// Note: Cleanup happens when files are closed after upload
+	// We can't cleanup here because the files haven't been read yet
 
 	return nil
 }
@@ -420,34 +438,86 @@ func (sa *Adapter) matchesPeopleFilter(item *Item) bool {
 	return false
 }
 
+// mapToAssetForLiveImage creates an Asset for the image part of a live photo
+// Uses the shared liveFS which downloads and extracts the ZIP bundle
+func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album, liveFS *synologyLivePhotoFS) *assets.Asset {
+	sa.app.Log().Debug("Creating live photo image asset", "filename", item.Filename, "item_id", item.ID)
+
+	// Use the shared live photo FS (ZIP bundle)
+	// FileSize will be determined when the file is opened
+	imageAsset := &assets.Asset{
+		File:             fshelper.FSName(liveFS, item.Filename),
+		FileSize:         int(item.Filesize), // Approximate size from API
+		OriginalFileName: item.Filename,
+		FileDate:         item.IndexedAt(),
+		CaptureDate:      item.CaptureTime(),
+		Description:      item.Additional.Description,
+		Latitude:         item.Additional.GPS.Latitude,
+		Longitude:        item.Additional.GPS.Longitude,
+	}
+
+	// Add album if specified
+	if album != nil {
+		albumName := strings.TrimSpace(album.Name)
+		if albumName != "" {
+			imageAsset.Albums = []assets.Album{
+				{
+					Title: albumName,
+				},
+			}
+		}
+	}
+
+	// Add tags
+	for _, tag := range item.Additional.Tag {
+		if tag.Name != "" {
+			imageAsset.Tags = append(imageAsset.Tags, assets.Tag{
+				Name:  tag.Name,
+				Value: tag.Name,
+			})
+		}
+	}
+
+	// Add people as tags
+	if !sa.SkipFaceData {
+		for _, person := range item.Additional.Person {
+			if person.Name != "" {
+				personTag := fmt.Sprintf("Person: %s", person.Name)
+				imageAsset.Tags = append(imageAsset.Tags, assets.Tag{
+					Name:  personTag,
+					Value: personTag,
+				})
+			}
+		}
+	}
+
+	// Store original metadata
+	imageAsset.FromApplication = &assets.Metadata{
+		FileName:    item.Filename,
+		DateTaken:   item.CaptureTime(),
+		Description: item.Additional.Description,
+		Latitude:    item.Additional.GPS.Latitude,
+		Longitude:   item.Additional.GPS.Longitude,
+	}
+
+	// Copy tags to metadata
+	for _, tag := range imageAsset.Tags {
+		imageAsset.FromApplication.Tags = append(imageAsset.FromApplication.Tags, tag)
+	}
+
+	return imageAsset
+}
+
 // mapToAssetForLiveVideo creates an Asset for the video part of a live photo
-// For live photos, we create a separate video Asset with the inferred video filename
-func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album) *assets.Asset {
-	videoFilename := item.LivePhotoVideoFilename()
-	if videoFilename == "" {
-		return nil
-	}
+// Uses the shared liveFS which contains both HEIC and MOV from the ZIP bundle
+func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, liveFS *synologyLivePhotoFS, videoFilename string) *assets.Asset {
+	sa.app.Log().Debug("Creating live photo video asset", "filename", videoFilename, "item_id", item.ID)
 
-	// For the video part, use thumbnail's unit_id if different from main item
-	// This handles cases where photo and video have different IDs
-	videoItemID := item.ID
-	videoCacheKey := item.Additional.Thumbnail.CacheKey
-	if item.Additional.Thumbnail.UnitID > 0 && item.Additional.Thumbnail.UnitID != item.ID {
-		videoItemID = item.Additional.Thumbnail.UnitID
-	}
-
-	// Create a custom FS for the video file
-	synFS := &synologyFS{
-		client:   sa.client,
-		itemID:   videoItemID,
-		cacheKey: videoCacheKey,
-		filename: videoFilename,
-		size:     int(item.Filesize), // Approximate, may not be accurate for video
-	}
-
+	// Use the shared live photo FS (ZIP bundle)
+	// FileSize is approximate - actual size comes from extracted file
 	videoAsset := &assets.Asset{
-		File:             fshelper.FSName(synFS, videoFilename),
-		FileSize:         int(item.Filesize), // May need adjustment
+		File:             fshelper.FSName(liveFS, videoFilename),
+		FileSize:         int(item.Filesize), // Approximate size
 		OriginalFileName: videoFilename,
 		FileDate:         item.IndexedAt(),
 		CaptureDate:      item.CaptureTime(),
@@ -501,6 +571,7 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 		cacheKey: item.Additional.Thumbnail.CacheKey,
 		filename: item.Filename,
 		size:     int(item.Filesize),
+		logger:   sa.app.Log().Logger,
 	}
 
 	asset := &assets.Asset{
@@ -577,7 +648,7 @@ type synologyFS struct {
 	cacheKey string
 	filename string
 	size     int
-	app      *app.Application // For temp file management
+	logger   *slog.Logger // Optional logger for debugging
 }
 
 // Open implements fs.FS
@@ -585,6 +656,10 @@ type synologyFS struct {
 func (s *synologyFS) Open(name string) (fs.File, error) {
 	if name != s.filename {
 		return nil, fmt.Errorf("file not found: %s", name)
+	}
+
+	if s.logger != nil {
+		s.logger.Debug("Downloading Synology file", "filename", s.filename, "item_id", s.itemID, "cache_key", s.cacheKey)
 	}
 
 	ctx := context.Background()
@@ -603,13 +678,17 @@ func (s *synologyFS) Open(name string) (fs.File, error) {
 		return nil, err
 	}
 
-	_, err = io.Copy(tempFile, reader)
+	n, err := io.Copy(tempFile, reader)
 	reader.Close()
 
 	if err != nil {
 		tempFile.Close()
 		os.Remove(tempFile.Name())
 		return nil, fmt.Errorf("download to temp: %w", err)
+	}
+
+	if s.logger != nil {
+		s.logger.Debug("Downloaded Synology file", "filename", s.filename, "size", n)
 	}
 
 	// Seek to beginning for reading
@@ -662,3 +741,192 @@ func (fi *synologyFileInfo) Mode() fs.FileMode  { return 0444 } // Read-only
 func (fi *synologyFileInfo) ModTime() time.Time { return time.Now() }
 func (fi *synologyFileInfo) IsDir() bool        { return false }
 func (fi *synologyFileInfo) Sys() interface{}   { return nil }
+
+// synologyLivePhotoFS implements fs.FS for live photos (ZIP bundle)
+// Downloads a ZIP containing both HEIC and MOV files, extracts on demand
+type synologyLivePhotoFS struct {
+	client     *Client
+	itemID     int
+	filename   string            // e.g., "IMG_9948.HEIC"
+	zipFiles   map[string]string // filename -> temp path
+	tempDir    string
+	logger     *slog.Logger
+	downloaded bool
+	refCount   int // Number of open files
+}
+
+// Open implements fs.FS - downloads ZIP on first call, returns requested file
+func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
+	// Only allow opening the main file (HEIC) or its corresponding video (MOV)
+	expectedVideo := s.filename[:len(s.filename)-len(filepath.Ext(s.filename))] + ".mov"
+	if name != s.filename && strings.ToLower(name) != strings.ToLower(expectedVideo) {
+		return nil, fmt.Errorf("file not found: %s", name)
+	}
+
+	ctx := context.Background()
+
+	// Download and extract ZIP on first access
+	if !s.downloaded {
+		if s.logger != nil {
+			s.logger.Debug("Downloading live photo ZIP", "filename", s.filename, "item_id", s.itemID)
+		}
+
+		// Create temp directory
+		tempDir, err := os.MkdirTemp("", "synology-livephoto-*")
+		if err != nil {
+			return nil, fmt.Errorf("create temp dir: %w", err)
+		}
+		s.tempDir = tempDir
+
+		// Download ZIP
+		reader, err := s.client.DownloadLivePhotoZip(ctx, s.itemID, s.filename)
+		if err != nil {
+			os.RemoveAll(s.tempDir)
+			s.tempDir = ""
+			return nil, fmt.Errorf("download live photo ZIP: %w", err)
+		}
+
+		// Save ZIP to temp file
+		zipPath := filepath.Join(tempDir, "livephoto.zip")
+		zipFile, err := os.Create(zipPath)
+		if err != nil {
+			reader.Close()
+			os.RemoveAll(s.tempDir)
+			s.tempDir = ""
+			return nil, fmt.Errorf("create zip temp file: %w", err)
+		}
+
+		_, err = io.Copy(zipFile, reader)
+		reader.Close()
+		zipFile.Close()
+
+		if err != nil {
+			os.RemoveAll(s.tempDir)
+			s.tempDir = ""
+			return nil, fmt.Errorf("save zip: %w", err)
+		}
+
+		// Extract ZIP
+		zipReader, err := zip.OpenReader(zipPath)
+		if err != nil {
+			os.RemoveAll(s.tempDir)
+			s.tempDir = ""
+			return nil, fmt.Errorf("open zip: %w", err)
+		}
+
+		s.zipFiles = make(map[string]string)
+		for _, zf := range zipReader.File {
+			// Extract each file
+			extractPath := filepath.Join(tempDir, filepath.Base(zf.Name))
+			rc, err := zf.Open()
+			if err != nil {
+				zipReader.Close()
+				os.RemoveAll(s.tempDir)
+				s.tempDir = ""
+				return nil, fmt.Errorf("extract %s: %w", zf.Name, err)
+			}
+
+			extractFile, err := os.Create(extractPath)
+			if err != nil {
+				rc.Close()
+				zipReader.Close()
+				os.RemoveAll(s.tempDir)
+				s.tempDir = ""
+				return nil, fmt.Errorf("create extract file: %w", err)
+			}
+
+			_, err = io.Copy(extractFile, rc)
+			rc.Close()
+			extractFile.Close()
+
+			if err != nil {
+				zipReader.Close()
+				os.RemoveAll(s.tempDir)
+				s.tempDir = ""
+				return nil, fmt.Errorf("extract %s: %w", zf.Name, err)
+			}
+
+			s.zipFiles[filepath.Base(zf.Name)] = extractPath
+			if s.logger != nil {
+				s.logger.Debug("Extracted live photo file", "name", zf.Name, "size", zf.UncompressedSize64)
+			}
+		}
+		zipReader.Close()
+
+		// Clean up ZIP file
+		os.Remove(zipPath)
+
+		s.downloaded = true
+
+		if s.logger != nil {
+			s.logger.Debug("Live photo ZIP downloaded and extracted", "files", len(s.zipFiles))
+		}
+	}
+
+	// Return the requested file
+	lowerName := strings.ToLower(name)
+	for fname, fpath := range s.zipFiles {
+		if strings.ToLower(fname) == lowerName {
+			f, err := os.Open(fpath)
+			if err != nil {
+				return nil, err
+			}
+
+			// Get file info for size
+			info, err := f.Stat()
+			if err != nil {
+				f.Close()
+				return nil, err
+			}
+
+			s.refCount++
+		return &synologyLivePhotoFile{
+				File:     f,
+				name:     fname,
+				size:     info.Size(),
+				tempPath: fpath,
+				fs:       s,
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("file not found in live photo: %s", name)
+}
+
+// cleanup removes the temp directory and all extracted files
+func (s *synologyLivePhotoFS) cleanup() {
+	if s.tempDir != "" {
+		os.RemoveAll(s.tempDir)
+		s.tempDir = ""
+		s.zipFiles = nil
+		s.downloaded = false
+	}
+}
+
+// synologyLivePhotoFile implements fs.File for live photo extracted files
+type synologyLivePhotoFile struct {
+	*os.File
+	name     string
+	size     int64
+	tempPath string
+	fs       *synologyLivePhotoFS
+}
+
+func (f *synologyLivePhotoFile) Stat() (fs.FileInfo, error) {
+	return &synologyFileInfo{
+		name: f.name,
+		size: f.size,
+	}, nil
+}
+
+func (f *synologyLivePhotoFile) Close() error {
+	err := f.File.Close()
+	// Decrement ref count and cleanup if this is the last file
+	if f.fs != nil {
+		f.fs.refCount--
+		if f.fs.refCount <= 0 {
+			f.fs.cleanup()
+		}
+	}
+	return err
+}
