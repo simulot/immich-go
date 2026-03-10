@@ -329,10 +329,11 @@ func (sa *Adapter) processItem(ctx context.Context, item *Item, album *Album, gO
 
 // processLivePhoto handles live photos by creating both image and video assets
 // Uses Synology's ZIP download API with proper synchronization
+// Note: Synology may return either a ZIP (with both image and video) or just the image file
 func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
 	sa.app.Log().Debug("Processing live photo", "filename", item.Filename, "item_id", item.ID)
 
-	// Create a shared FS for the live photo ZIP bundle
+	// Create a shared FS for the live photo bundle
 	// The FS uses mutex to prevent concurrent downloads
 	liveFS := &synologyLivePhotoFS{
 		client:   sa.client,
@@ -342,6 +343,7 @@ func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Albu
 	}
 
 	// Step 1: Process the image part (HEIC/JPG)
+	// This triggers the download and determines if we have a ZIP (with video) or single file
 	imageAsset := sa.mapToAssetForLiveImage(item, album, liveFS)
 	if imageAsset != nil {
 		sa.processor.RecordAssetDiscovered(ctx, imageAsset.File, int64(imageAsset.FileSize), fileevent.DiscoveredImage)
@@ -354,9 +356,10 @@ func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Albu
 		}
 	}
 
-	// Step 2: Process the video part (MOV)
+	// Step 2: Process the video part (MOV) only if we got a ZIP response
+	// Non-ZIP responses only contain the image, no video
 	videoFilename := item.LivePhotoVideoFilename()
-	if videoFilename != "" {
+	if videoFilename != "" && liveFS.hasVideo() {
 		videoAsset := sa.mapToAssetForLiveVideo(item, album, liveFS, videoFilename)
 		if videoAsset != nil {
 			sa.processor.RecordAssetDiscovered(ctx, videoAsset.File, int64(videoAsset.FileSize), fileevent.DiscoveredVideo)
@@ -368,6 +371,8 @@ func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Albu
 				return ctx.Err()
 			}
 		}
+	} else if videoFilename != "" {
+		sa.app.Log().Debug("Live photo has no video file (single file response)", "filename", item.Filename)
 	} else {
 		sa.app.Log().Warn("Live photo has no video filename", "filename", item.Filename)
 	}
@@ -954,6 +959,14 @@ func (s *synologyLivePhotoFS) handleSingleFileDownload(reader io.ReadCloser, tem
 	}
 
 	return nil
+}
+
+// hasVideo returns true if the live photo contains a video file
+// This is true for ZIP responses, false for single file responses
+func (s *synologyLivePhotoFS) hasVideo() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.isZip
 }
 
 // cleanup removes the temp directory and all extracted files
