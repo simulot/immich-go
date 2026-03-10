@@ -330,38 +330,30 @@ func (sa *Adapter) processItem(ctx context.Context, item *Item, album *Album, gO
 func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
 	sa.app.Log().Debug("Processing live photo", "filename", item.Filename, "item_id", item.ID)
 
-	// Create a shared FS for the live photo ZIP bundle
-	liveFS := &synologyLivePhotoFS{
-		client:   sa.client,
-		itemID:   item.ID,
-		filename: item.Filename,
-		logger:   sa.app.Log().Logger,
-	}
-
 	// Step 1: Process the image part (HEIC/JPG)
-	imageAsset := sa.mapToAssetForLiveImage(item, album, liveFS)
+	// Each asset has its own FS instance to avoid lifecycle issues with shared temp directories
+	imageAsset := sa.mapToAssetForLiveImage(item, album)
 	if imageAsset != nil {
 		sa.processor.RecordAssetDiscovered(ctx, imageAsset.File, int64(imageAsset.FileSize), fileevent.DiscoveredImage)
 		group := assets.NewGroup(assets.GroupByNone, imageAsset)
 		select {
 		case gOut <- group:
 		case <-ctx.Done():
-			liveFS.cleanup()
 			return ctx.Err()
 		}
 	}
 
 	// Step 2: Process the video part (MOV)
+	// Each asset has its own FS instance - ZIP will be downloaded again but avoids cleanup races
 	videoFilename := item.LivePhotoVideoFilename()
 	if videoFilename != "" {
-		videoAsset := sa.mapToAssetForLiveVideo(item, album, liveFS, videoFilename)
+		videoAsset := sa.mapToAssetForLiveVideo(item, album, videoFilename)
 		if videoAsset != nil {
 			sa.processor.RecordAssetDiscovered(ctx, videoAsset.File, int64(videoAsset.FileSize), fileevent.DiscoveredVideo)
 			group := assets.NewGroup(assets.GroupByNone, videoAsset)
 			select {
 			case gOut <- group:
 			case <-ctx.Done():
-				liveFS.cleanup()
 				return ctx.Err()
 			}
 		}
@@ -439,12 +431,18 @@ func (sa *Adapter) matchesPeopleFilter(item *Item) bool {
 }
 
 // mapToAssetForLiveImage creates an Asset for the image part of a live photo
-// Uses the shared liveFS which downloads and extracts the ZIP bundle
-func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album, liveFS *synologyLivePhotoFS) *assets.Asset {
+// Each live photo asset gets its own FS instance to avoid lifecycle issues
+func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album) *assets.Asset {
 	sa.app.Log().Debug("Creating live photo image asset", "filename", item.Filename, "item_id", item.ID)
 
-	// Use the shared live photo FS (ZIP bundle)
-	// FileSize will be determined when the file is opened
+	// Create a dedicated FS for this image asset
+	liveFS := &synologyLivePhotoFS{
+		client:   sa.client,
+		itemID:   item.ID,
+		filename: item.Filename,
+		logger:   sa.app.Log().Logger,
+	}
+
 	imageAsset := &assets.Asset{
 		File:             fshelper.FSName(liveFS, item.Filename),
 		FileSize:         int(item.Filesize), // Approximate size from API
@@ -509,12 +507,19 @@ func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album, liveFS *syno
 }
 
 // mapToAssetForLiveVideo creates an Asset for the video part of a live photo
-// Uses the shared liveFS which contains both HEIC and MOV from the ZIP bundle
-func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, liveFS *synologyLivePhotoFS, videoFilename string) *assets.Asset {
+// Each live photo asset gets its own FS instance to avoid lifecycle issues
+func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, videoFilename string) *assets.Asset {
 	sa.app.Log().Debug("Creating live photo video asset", "filename", videoFilename, "item_id", item.ID)
 
-	// Use the shared live photo FS (ZIP bundle)
-	// FileSize is approximate - actual size comes from extracted file
+	// Create a dedicated FS for this video asset
+	// The ZIP will be downloaded again, but this avoids complex lifecycle management
+	liveFS := &synologyLivePhotoFS{
+		client:   sa.client,
+		itemID:   item.ID,
+		filename: item.Filename, // Original filename (HEIC) for the API
+		logger:   sa.app.Log().Logger,
+	}
+
 	videoAsset := &assets.Asset{
 		File:             fshelper.FSName(liveFS, videoFilename),
 		FileSize:         int(item.Filesize), // Approximate size
@@ -752,7 +757,6 @@ type synologyLivePhotoFS struct {
 	tempDir    string
 	logger     *slog.Logger
 	downloaded bool
-	refCount   int // Number of open files
 }
 
 // Open implements fs.FS - downloads ZIP on first call, returns requested file
@@ -879,8 +883,7 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 				return nil, err
 			}
 
-			s.refCount++
-		return &synologyLivePhotoFile{
+			return &synologyLivePhotoFile{
 				File:     f,
 				name:     fname,
 				size:     info.Size(),
@@ -921,12 +924,10 @@ func (f *synologyLivePhotoFile) Stat() (fs.FileInfo, error) {
 
 func (f *synologyLivePhotoFile) Close() error {
 	err := f.File.Close()
-	// Decrement ref count and cleanup if this is the last file
+	// Cleanup the temp directory when the file is closed
+	// Each asset has its own FS, so cleanup is safe
 	if f.fs != nil {
-		f.fs.refCount--
-		if f.fs.refCount <= 0 {
-			f.fs.cleanup()
-		}
+		f.fs.cleanup()
 	}
 	return err
 }
