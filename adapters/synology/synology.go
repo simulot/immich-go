@@ -816,7 +816,39 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("file not found in live photo: %s", name)
+	// If looking for video but exact name not found, try to find any video file
+	// Synology sometimes has mismatched filenames (e.g., IMG_4009.MOV vs IMG_4009_1.HEIC)
+	if strings.HasSuffix(lowerName, ".mov") {
+		for fname, fpath := range s.zipFiles {
+			lowerFname := strings.ToLower(fname)
+			if strings.HasSuffix(lowerFname, ".mov") || strings.HasSuffix(lowerFname, ".mp4") {
+				if s.logger != nil {
+					s.logger.Debug("Using alternative video file", "requested", name, "found", fname)
+				}
+				f, err := os.Open(fpath)
+				if err != nil {
+					return nil, err
+				}
+
+				info, err := f.Stat()
+				if err != nil {
+					f.Close()
+					return nil, err
+				}
+
+				s.refCount++
+				return &synologyLivePhotoFile{
+					File:     f,
+					name:     fname, // Return actual filename, not requested name
+					size:     info.Size(),
+					tempPath: fpath,
+					fs:       s,
+				}, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("file not found in live photo: %s (available: %v)", name, s.getAvailableFiles())
 }
 
 // handleZipDownload processes a ZIP response containing both image and video
@@ -931,6 +963,15 @@ func (s *synologyLivePhotoFS) hasVideo() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.isZip
+}
+
+// getAvailableFiles returns a list of available files (for debugging)
+func (s *synologyLivePhotoFS) getAvailableFiles() []string {
+	files := make([]string, 0, len(s.zipFiles))
+	for fname := range s.zipFiles {
+		files = append(files, fname)
+	}
+	return files
 }
 
 // preDownload downloads the live photo ahead of time to determine the response type
