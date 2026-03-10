@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/adapters"
@@ -326,34 +327,43 @@ func (sa *Adapter) processItem(ctx context.Context, item *Item, album *Album, gO
 }
 
 // processLivePhoto handles live photos by creating both image and video assets
-// Uses Synology's ZIP download API to get both files in one request
+// Uses Synology's ZIP download API with proper synchronization
 func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
 	sa.app.Log().Debug("Processing live photo", "filename", item.Filename, "item_id", item.ID)
 
+	// Create a shared FS for the live photo ZIP bundle
+	// The FS uses mutex to prevent concurrent downloads
+	liveFS := &synologyLivePhotoFS{
+		client:   sa.client,
+		itemID:   item.ID,
+		filename: item.Filename,
+		logger:   sa.app.Log().Logger,
+	}
+
 	// Step 1: Process the image part (HEIC/JPG)
-	// Each asset has its own FS instance to avoid lifecycle issues with shared temp directories
-	imageAsset := sa.mapToAssetForLiveImage(item, album)
+	imageAsset := sa.mapToAssetForLiveImage(item, album, liveFS)
 	if imageAsset != nil {
 		sa.processor.RecordAssetDiscovered(ctx, imageAsset.File, int64(imageAsset.FileSize), fileevent.DiscoveredImage)
 		group := assets.NewGroup(assets.GroupByNone, imageAsset)
 		select {
 		case gOut <- group:
 		case <-ctx.Done():
+			liveFS.cleanup()
 			return ctx.Err()
 		}
 	}
 
 	// Step 2: Process the video part (MOV)
-	// Each asset has its own FS instance - ZIP will be downloaded again but avoids cleanup races
 	videoFilename := item.LivePhotoVideoFilename()
 	if videoFilename != "" {
-		videoAsset := sa.mapToAssetForLiveVideo(item, album, videoFilename)
+		videoAsset := sa.mapToAssetForLiveVideo(item, album, liveFS, videoFilename)
 		if videoAsset != nil {
 			sa.processor.RecordAssetDiscovered(ctx, videoAsset.File, int64(videoAsset.FileSize), fileevent.DiscoveredVideo)
 			group := assets.NewGroup(assets.GroupByNone, videoAsset)
 			select {
 			case gOut <- group:
 			case <-ctx.Done():
+				liveFS.cleanup()
 				return ctx.Err()
 			}
 		}
@@ -361,9 +371,7 @@ func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Albu
 		sa.app.Log().Warn("Live photo has no video filename", "filename", item.Filename)
 	}
 
-	// Note: Cleanup happens when files are closed after upload
-	// We can't cleanup here because the files haven't been read yet
-
+	// Note: Cleanup happens when the last file is closed
 	return nil
 }
 
@@ -431,17 +439,9 @@ func (sa *Adapter) matchesPeopleFilter(item *Item) bool {
 }
 
 // mapToAssetForLiveImage creates an Asset for the image part of a live photo
-// Each live photo asset gets its own FS instance to avoid lifecycle issues
-func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album) *assets.Asset {
+// Uses the shared liveFS which handles concurrent access safely
+func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album, liveFS *synologyLivePhotoFS) *assets.Asset {
 	sa.app.Log().Debug("Creating live photo image asset", "filename", item.Filename, "item_id", item.ID)
-
-	// Create a dedicated FS for this image asset
-	liveFS := &synologyLivePhotoFS{
-		client:   sa.client,
-		itemID:   item.ID,
-		filename: item.Filename,
-		logger:   sa.app.Log().Logger,
-	}
 
 	imageAsset := &assets.Asset{
 		File:             fshelper.FSName(liveFS, item.Filename),
@@ -507,18 +507,9 @@ func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album) *assets.Asse
 }
 
 // mapToAssetForLiveVideo creates an Asset for the video part of a live photo
-// Each live photo asset gets its own FS instance to avoid lifecycle issues
-func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, videoFilename string) *assets.Asset {
+// Uses the shared liveFS which handles concurrent access safely
+func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, liveFS *synologyLivePhotoFS, videoFilename string) *assets.Asset {
 	sa.app.Log().Debug("Creating live photo video asset", "filename", videoFilename, "item_id", item.ID)
-
-	// Create a dedicated FS for this video asset
-	// The ZIP will be downloaded again, but this avoids complex lifecycle management
-	liveFS := &synologyLivePhotoFS{
-		client:   sa.client,
-		itemID:   item.ID,
-		filename: item.Filename, // Original filename (HEIC) for the API
-		logger:   sa.app.Log().Logger,
-	}
 
 	videoAsset := &assets.Asset{
 		File:             fshelper.FSName(liveFS, videoFilename),
@@ -750,13 +741,15 @@ func (fi *synologyFileInfo) Sys() interface{}   { return nil }
 // synologyLivePhotoFS implements fs.FS for live photos (ZIP bundle)
 // Downloads a ZIP containing both HEIC and MOV files, extracts on demand
 type synologyLivePhotoFS struct {
-	client     *Client
-	itemID     int
-	filename   string            // e.g., "IMG_9948.HEIC"
-	zipFiles   map[string]string // filename -> temp path
-	tempDir    string
-	logger     *slog.Logger
-	downloaded bool
+	client       *Client
+	itemID       int
+	filename     string            // e.g., "IMG_9948.HEIC"
+	zipFiles     map[string]string // filename -> temp path
+	tempDir      string
+	logger       *slog.Logger
+	downloaded   bool
+	mu           sync.Mutex // protects download operation
+	refCount     int        // number of open files using this FS
 }
 
 // Open implements fs.FS - downloads ZIP on first call, returns requested file
@@ -768,6 +761,10 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 	}
 
 	ctx := context.Background()
+
+	// Use mutex to prevent concurrent downloads in the same FS
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// Download and extract ZIP on first access
 	if !s.downloaded {
@@ -800,14 +797,25 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 			return nil, fmt.Errorf("create zip temp file: %w", err)
 		}
 
-		_, err = io.Copy(zipFile, reader)
+		written, err := io.Copy(zipFile, reader)
 		reader.Close()
 		zipFile.Close()
+
+		if s.logger != nil {
+			s.logger.Debug("Downloaded ZIP to temp file", "filename", s.filename, "bytes", written)
+		}
 
 		if err != nil {
 			os.RemoveAll(s.tempDir)
 			s.tempDir = ""
 			return nil, fmt.Errorf("save zip: %w", err)
+		}
+
+		// Verify ZIP by checking file header (magic number)
+		if err := verifyZipFile(zipPath); err != nil {
+			os.RemoveAll(s.tempDir)
+			s.tempDir = ""
+			return nil, fmt.Errorf("verify zip: %w", err)
 		}
 
 		// Extract ZIP
@@ -883,7 +891,8 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 				return nil, err
 			}
 
-			return &synologyLivePhotoFile{
+			s.refCount++
+		return &synologyLivePhotoFile{
 				File:     f,
 				name:     fname,
 				size:     info.Size(),
@@ -898,12 +907,49 @@ func (s *synologyLivePhotoFS) Open(name string) (fs.File, error) {
 
 // cleanup removes the temp directory and all extracted files
 func (s *synologyLivePhotoFS) cleanup() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.tempDir != "" {
 		os.RemoveAll(s.tempDir)
 		s.tempDir = ""
 		s.zipFiles = nil
 		s.downloaded = false
 	}
+}
+
+// verifyZipFile checks if the file is a valid ZIP by reading its magic number
+func verifyZipFile(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer file.Close()
+
+	// ZIP files start with PK\x03\x04 or PK\x05\x06
+	magic := make([]byte, 4)
+	_, err = file.Read(magic)
+	if err != nil {
+		return fmt.Errorf("read magic: %w", err)
+	}
+
+	// Check for ZIP local file header (PK\x03\x04) or empty archive (PK\x05\x06)
+	if magic[0] != 'P' || magic[1] != 'K' {
+		return fmt.Errorf("invalid ZIP magic bytes: %02x %02x %02x %02x", magic[0], magic[1], magic[2], magic[3])
+	}
+
+	// Check valid ZIP signatures
+	if magic[2] == 0x03 && magic[3] == 0x04 {
+		return nil // Local file header
+	}
+	if magic[2] == 0x05 && magic[3] == 0x06 {
+		return nil // Empty archive
+	}
+	if magic[2] == 0x07 && magic[3] == 0x08 {
+		return nil // Spanned archive
+	}
+
+	return fmt.Errorf("invalid ZIP signature: %02x %02x", magic[2], magic[3])
 }
 
 // synologyLivePhotoFile implements fs.File for live photo extracted files
@@ -924,10 +970,16 @@ func (f *synologyLivePhotoFile) Stat() (fs.FileInfo, error) {
 
 func (f *synologyLivePhotoFile) Close() error {
 	err := f.File.Close()
-	// Cleanup the temp directory when the file is closed
-	// Each asset has its own FS, so cleanup is safe
+	// Decrement ref count and cleanup when zero
 	if f.fs != nil {
-		f.fs.cleanup()
+		f.fs.mu.Lock()
+		f.fs.refCount--
+		shouldCleanup := f.fs.refCount <= 0
+		f.fs.mu.Unlock()
+
+		if shouldCleanup {
+			f.fs.cleanup()
+		}
 	}
 	return err
 }
