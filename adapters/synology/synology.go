@@ -459,10 +459,9 @@ func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album, liveFS *syno
 		FileSize:         int(item.Filesize), // Approximate size from API
 		OriginalFileName: item.Filename,
 		FileDate:         item.IndexedAt(),
-		CaptureDate:      item.CaptureTime(),
 		Description:      item.Additional.Description,
-		Latitude:         item.Additional.GPS.Latitude,
-		Longitude:        item.Additional.GPS.Longitude,
+		// Don't set CaptureDate, Latitude, Longitude - let Immich read from EXIF
+		// Synology's metadata may have timezone/format issues
 	}
 
 	// Add album if specified
@@ -527,10 +526,8 @@ func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, liveFS *syno
 		FileSize:         int(item.Filesize), // Approximate size
 		OriginalFileName: videoFilename,
 		FileDate:         item.IndexedAt(),
-		CaptureDate:      item.CaptureTime(),
 		Description:      item.Additional.Description,
-		Latitude:         item.Additional.GPS.Latitude,
-		Longitude:        item.Additional.GPS.Longitude,
+		// Don't set CaptureDate, Latitude, Longitude - let Immich read from EXIF
 	}
 
 	// Add album if specified
@@ -586,10 +583,8 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 		FileSize:         int(item.Filesize),
 		OriginalFileName: item.Filename,
 		FileDate:         item.IndexedAt(),
-		CaptureDate:      item.CaptureTime(),
 		Description:      item.Additional.Description,
-		Latitude:         item.Additional.GPS.Latitude,
-		Longitude:        item.Additional.GPS.Longitude,
+		// Don't set CaptureDate, Latitude, Longitude - let Immich read from EXIF
 	}
 
 	// Add album if specified (with cleaned up name)
