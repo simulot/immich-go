@@ -720,6 +720,7 @@ type synologyFile struct {
 	name     string
 	size     int64
 	tempPath string
+	closed   bool
 }
 
 func (f *synologyFile) Stat() (fs.FileInfo, error) {
@@ -730,6 +731,10 @@ func (f *synologyFile) Stat() (fs.FileInfo, error) {
 }
 
 func (f *synologyFile) Close() error {
+	if f.closed {
+		return nil
+	}
+	f.closed = true
 	// Close the file and remove temp file
 	err := f.File.Close()
 	os.Remove(f.tempPath)
@@ -1137,6 +1142,7 @@ type synologyLivePhotoFile struct {
 	size     int64
 	tempPath string
 	fs       *synologyLivePhotoFS
+	closed   bool
 }
 
 func (f *synologyLivePhotoFile) Stat() (fs.FileInfo, error) {
@@ -1147,6 +1153,10 @@ func (f *synologyLivePhotoFile) Stat() (fs.FileInfo, error) {
 }
 
 func (f *synologyLivePhotoFile) Close() error {
+	if f.closed {
+		return nil
+	}
+	f.closed = true
 	err := f.File.Close()
 	// Decrement ref count and cleanup when zero
 	if f.fs != nil {
