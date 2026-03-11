@@ -721,6 +721,7 @@ type synologyFile struct {
 	size     int64
 	tempPath string
 	closed   bool
+	mu       sync.Mutex
 }
 
 func (f *synologyFile) Stat() (fs.FileInfo, error) {
@@ -730,14 +731,34 @@ func (f *synologyFile) Stat() (fs.FileInfo, error) {
 	}, nil
 }
 
-func (f *synologyFile) Close() error {
+func (f *synologyFile) Read(p []byte) (n int, err error) {
+	f.mu.Lock()
 	if f.closed {
+		f.mu.Unlock()
+		return 0, fmt.Errorf("file is closed")
+	}
+	f.mu.Unlock()
+	return f.File.Read(p)
+}
+
+func (f *synologyFile) Close() error {
+	f.mu.Lock()
+	if f.closed {
+		f.mu.Unlock()
 		return nil
 	}
 	f.closed = true
-	// Close the file and remove temp file
+	f.mu.Unlock()
+
+	// Close the file
 	err := f.File.Close()
-	os.Remove(f.tempPath)
+
+	// Schedule temp file deletion after a delay to ensure all readers are done
+	go func(path string) {
+		time.Sleep(5 * time.Second)
+		os.Remove(path)
+	}(f.tempPath)
+
 	return err
 }
 
@@ -1143,6 +1164,7 @@ type synologyLivePhotoFile struct {
 	tempPath string
 	fs       *synologyLivePhotoFS
 	closed   bool
+	mu       sync.Mutex
 }
 
 func (f *synologyLivePhotoFile) Stat() (fs.FileInfo, error) {
@@ -1152,13 +1174,28 @@ func (f *synologyLivePhotoFile) Stat() (fs.FileInfo, error) {
 	}, nil
 }
 
-func (f *synologyLivePhotoFile) Close() error {
+func (f *synologyLivePhotoFile) Read(p []byte) (n int, err error) {
+	f.mu.Lock()
 	if f.closed {
+		f.mu.Unlock()
+		return 0, fmt.Errorf("file is closed")
+	}
+	f.mu.Unlock()
+	return f.File.Read(p)
+}
+
+func (f *synologyLivePhotoFile) Close() error {
+	f.mu.Lock()
+	if f.closed {
+		f.mu.Unlock()
 		return nil
 	}
 	f.closed = true
+	f.mu.Unlock()
+
 	err := f.File.Close()
-	// Decrement ref count and cleanup when zero
+
+	// Decrement ref count and schedule cleanup
 	if f.fs != nil {
 		f.fs.mu.Lock()
 		f.fs.refCount--
@@ -1166,8 +1203,13 @@ func (f *synologyLivePhotoFile) Close() error {
 		f.fs.mu.Unlock()
 
 		if shouldCleanup {
-			f.fs.cleanup()
+			// Delay cleanup to ensure all readers are done
+			go func(fs *synologyLivePhotoFS) {
+				time.Sleep(5 * time.Second)
+				fs.cleanup()
+			}(f.fs)
 		}
 	}
+
 	return err
 }
