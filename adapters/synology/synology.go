@@ -500,12 +500,10 @@ func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album, liveFS *syno
 	}
 
 	// Store original metadata
+	// Don't set DateTaken, Latitude, Longitude - let Immich read from EXIF
 	imageAsset.FromApplication = &assets.Metadata{
 		FileName:    item.Filename,
-		DateTaken:   item.CaptureTime(),
 		Description: item.Additional.Description,
-		Latitude:    item.Additional.GPS.Latitude,
-		Longitude:   item.Additional.GPS.Longitude,
 	}
 
 	// Copy tags to metadata
@@ -543,12 +541,10 @@ func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, liveFS *syno
 	}
 
 	// Store original metadata
+	// Don't set DateTaken, Latitude, Longitude - let Immich read from EXIF
 	videoAsset.FromApplication = &assets.Metadata{
 		FileName:    videoFilename,
-		DateTaken:   item.CaptureTime(),
 		Description: item.Additional.Description,
-		Latitude:    item.Additional.GPS.Latitude,
-		Longitude:   item.Additional.GPS.Longitude,
 	}
 
 	return videoAsset
@@ -624,12 +620,10 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 	}
 
 	// Store original metadata
+	// Don't set DateTaken, Latitude, Longitude - let Immich read from EXIF
 	asset.FromApplication = &assets.Metadata{
 		FileName:    item.Filename,
-		DateTaken:   item.CaptureTime(),
 		Description: item.Additional.Description,
-		Latitude:    item.Additional.GPS.Latitude,
-		Longitude:   item.Additional.GPS.Longitude,
 	}
 
 	// Copy tags to metadata
