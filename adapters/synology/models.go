@@ -211,8 +211,10 @@ type FolderListResponse struct {
 }
 
 // CaptureTime returns the capture time as a time.Time
+// Note: Synology stores Unix timestamp in local timezone, not UTC.
+// We convert to local time to preserve the original capture time.
 func (i Item) CaptureTime() time.Time {
-	return time.Unix(i.Time, 0)
+	return time.Unix(i.Time, 0).In(time.Local)
 }
 
 // IndexedTime returns the indexing time as a time.Time
