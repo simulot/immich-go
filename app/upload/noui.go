@@ -27,6 +27,11 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 	spinner := []rune{' ', ' ', '.', ' ', ' '}
 	spinIdx := 0
 
+	// ARM/low-memory fix: track album-fetch phase separately so the user
+	// sees "Fetching albums..." instead of a frozen progress counter while
+	// getImmichAlbums() is making its (potentially many) HTTP requests.
+	var albumsFetching atomic.Bool
+
 	immichUpdate := func(value, total int) {
 		lock.Lock()
 		currImmich, maxImmich = value, total
@@ -50,7 +55,11 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 		}
 		lock.Unlock()
 
-		return fmt.Sprintf("\rImmich read %d%%, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, app.FileProcessor().Logger().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.ProcessedUploadSuccess], string(spinner[spinIdx]))
+		phase := ""
+		if immichPct == 100 && albumsFetching.Load() {
+			phase = " [Fetching album details...]"
+		}
+		return fmt.Sprintf("\rImmich read %d%%%s, Assets found: %d, Upload errors: %d, Uploaded %d %s", immichPct, phase, app.FileProcessor().Logger().TotalAssets(), counts[fileevent.ErrorServerError], counts[fileevent.ProcessedUploadSuccess], string(spinner[spinIdx]))
 	}
 	uiGrp := errgroup.Group{}
 
@@ -88,6 +97,11 @@ func (uc *UpCmd) runNoUI(ctx context.Context, app *app.Application) error {
 			return err
 		})
 		processGrp.Go(func() error {
+			// Signal to the progress reporter that we are in the album-fetch
+			// phase so the user sees a meaningful status instead of a frozen
+			// counter (ARM/low-memory pipeline-stall fix).
+			albumsFetching.Store(true)
+			defer albumsFetching.Store(false)
 			return uc.getImmichAlbums(ctx)
 		})
 		processGrp.Go(func() error {

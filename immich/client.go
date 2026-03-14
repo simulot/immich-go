@@ -102,12 +102,16 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 
 	ic := ImmichClient{
 		endPoint: endPoint + "/api",
+			// ARM fix: reduce connection pool from 100 to 16. The default of 100
+		// allocates goroutine stacks and kernel socket buffers for connections
+		// that will never be used (ConcurrentTask defaults to 4 on H616).
+		// 16 gives headroom for retries and album/asset API calls without waste.
 		transport: &http.Transport{
-			MaxIdleConns:        100,
+			MaxIdleConns:        16,
 			IdleConnTimeout:     90 * time.Second,
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
-			MaxIdleConnsPerHost: 100,
-			MaxConnsPerHost:     100,
+			MaxIdleConnsPerHost: 16,
+			MaxConnsPerHost:     16,
 			Dial: (&net.Dialer{
 				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
