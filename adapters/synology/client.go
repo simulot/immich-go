@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	defaultTimeout      = 30 * time.Second
-	defaultMaxRetries   = 3
-	defaultRetryDelay   = 1 * time.Second
-	defaultLimit        = 100
+	defaultTimeout    = 30 * time.Second
+	defaultMaxRetries = 3
+	defaultRetryDelay = 1 * time.Second
+	defaultLimit      = 100
 )
 
 // Client is a Synology Photos API client
@@ -131,7 +131,7 @@ func (c *Client) QueryAPIInfo(ctx context.Context, apiName string) (*APIInfo, er
 	if !resp.Success {
 		return nil, fmt.Errorf("query API info failed: error %d", resp.Error.Code)
 	}
-
+	c.logger.Debug("API info query successful", "apiName", apiName, "data", resp.Data)
 	if apiInfo, ok := resp.Data[apiName]; ok {
 		return &apiInfo, nil
 	}
@@ -176,6 +176,13 @@ func (c *Client) Login(ctx context.Context) error {
 	if c.did == "" {
 		c.did = resp.Data.DeviceID // Fallback to device_id if did is empty
 	}
+	mask := func(s string) string {
+		if len(s) <= 6 {
+			return "***"
+		}
+		return s[:3] + "***" + s[len(s)-3:]
+	}
+	c.logger.Info("Synology login successful", "sid", mask(c.sid), "did", mask(c.did), "synotoken", mask(c.synotoken))
 	return nil
 }
 
@@ -229,13 +236,6 @@ func (c *Client) getErrorMessage(code int) string {
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // Logout ends the session
 func (c *Client) Logout(ctx context.Context) error {
 	if c.sid == "" {
@@ -254,7 +254,7 @@ func (c *Client) Logout(ctx context.Context) error {
 
 	c.sid = ""
 	c.did = ""
-
+	c.logger.Info("Synology session logged out")
 	return err
 }
 
@@ -296,12 +296,12 @@ func (c *Client) GetAlbumItems(ctx context.Context, albumID int, offset, limit i
 	}
 
 	params := url.Values{
-		"api":        {"SYNO.Foto.Browse.Item"},
-		"version":    {"4"},
-		"method":     {"list"},
-		"offset":     {strconv.Itoa(offset)},
-		"limit":      {strconv.Itoa(limit)},
-		"album_id":   {strconv.Itoa(albumID)},
+		"api":      {"SYNO.Foto.Browse.Item"},
+		"version":  {"4"},
+		"method":   {"list"},
+		"offset":   {strconv.Itoa(offset)},
+		"limit":    {strconv.Itoa(limit)},
+		"album_id": {strconv.Itoa(albumID)},
 	}
 
 	if len(additional) > 0 {
@@ -603,29 +603,6 @@ func (c *Client) DownloadLivePhoto(ctx context.Context, itemID int, filename str
 	return nil, "", false, fmt.Errorf("download failed after retries: %w", lastErr)
 }
 
-// GetThumbnailURL returns the URL for a thumbnail
-func (c *Client) GetThumbnailURL(itemID int, cacheKey string, size string) string {
-	if size == "" {
-		size = "xl" // default size
-	}
-
-	params := url.Values{
-		"api":       {"SYNO.Foto.Thumbnail"},
-		"version":   {"1"},
-		"method":    {"get"},
-		"id":        {strconv.Itoa(itemID)},
-		"cache_key": {cacheKey},
-		"type":      {"unit"},
-		"size":      {size},
-	}
-
-	if c.sid != "" {
-		params.Set("_sid", c.sid)
-	}
-
-	return c.baseURL + "/webapi/entry.cgi?" + params.Encode()
-}
-
 // doRequestNoAuth performs an HTTP request without authentication (used for login and API info)
 func (c *Client) doRequestNoAuth(ctx context.Context, method, path string, params url.Values, result interface{}) error {
 	reqURL, err := url.JoinPath(c.baseURL, path)
@@ -724,7 +701,7 @@ func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, par
 			req.Header.Set("Content-Type", contentType)
 		}
 
-			// Add X-SYNO-TOKEN header for CSRF protection
+		// Add X-SYNO-TOKEN header for CSRF protection
 		if c.synotoken != "" {
 			req.Header.Set("X-SYNO-TOKEN", c.synotoken)
 		}
@@ -809,4 +786,3 @@ func (c *Client) doRequestWithAuth(ctx context.Context, method, path string, par
 
 	return fmt.Errorf("max retries exceeded")
 }
-

@@ -26,22 +26,22 @@ import (
 // Adapter implements the adapters.Reader interface for Synology Photos
 type Adapter struct {
 	// Configuration
-	ServerURL      string
-	Account        string
-	Password       string
-	IncludeShared  bool
-	Albums         []string // Filter: import only these albums
-	Tags           []string // Filter: import only items with these tags
-	People         []string // Filter: import only items with these people
-	SkipFaceData   bool     // Skip face recognition data
+	ServerURL     string
+	Account       string
+	Password      string
+	IncludeShared bool
+	Albums        []string // Filter: import only these albums
+	Tags          []string // Filter: import only items with these tags
+	People        []string // Filter: import only items with these people
+	SkipFaceData  bool     // Skip face recognition data
 
 	// Internal
-	client     *Client
-	app        *app.Application
-	processor  *fileprocessor.FileProcessor
-	albumCache map[string]Album // album name -> album
-	tagCache   map[string]int   // tag name -> tag id
-	peopleCache map[string]int  // person name -> person id
+	client      *Client
+	app         *app.Application
+	processor   *fileprocessor.FileProcessor
+	albumCache  map[string]Album // album name -> album
+	tagCache    map[string]int   // tag name -> tag id
+	peopleCache map[string]int   // person name -> person id
 }
 
 // NewAdapter creates a new Synology Photos adapter
@@ -696,9 +696,9 @@ func (s *synologyFS) Open(name string) (fs.File, error) {
 	}
 
 	return &synologyFile{
-		File:   tempFile,
-		name:   s.filename,
-		size:   int64(s.size),
+		File:     tempFile,
+		name:     s.filename,
+		size:     int64(s.size),
 		tempPath: tempFile.Name(),
 	}, nil
 }
@@ -768,16 +768,16 @@ func (fi *synologyFileInfo) Sys() interface{}   { return nil }
 // Downloads either a ZIP (containing both HEIC and MOV) or just the image file
 // Synology's API may return either format based on how the live photo is stored
 type synologyLivePhotoFS struct {
-	client       *Client
-	itemID       int
-	filename     string            // e.g., "IMG_9948.HEIC"
-	zipFiles     map[string]string // filename -> temp path
-	tempDir      string
-	logger       *slog.Logger
-	downloaded   bool
-	isZip        bool              // whether the download was a ZIP
-	mu           sync.Mutex        // protects download operation
-	refCount     int               // number of open files using this FS
+	client     *Client
+	itemID     int
+	filename   string            // e.g., "IMG_9948.HEIC"
+	zipFiles   map[string]string // filename -> temp path
+	tempDir    string
+	logger     *slog.Logger
+	downloaded bool
+	isZip      bool       // whether the download was a ZIP
+	mu         sync.Mutex // protects download operation
+	refCount   int        // number of open files using this FS
 }
 
 // Open implements fs.FS - downloads on first call, returns requested file
