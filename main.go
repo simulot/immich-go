@@ -6,12 +6,24 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 
 	"github.com/simulot/immich-go/app/root"
 )
 
 // immich-go entry point
 func main() {
+	// ARM/1GB fix: set a soft memory limit so the Go GC does not trigger
+	// excessively on constrained devices. Without this, GOGC=100 (default)
+	// causes the GC to run every time the heap doubles, which on a 1GB
+	// device with 512MB available means frequent 5-20ms stop-the-world
+	// pauses during large uploads. 800MB leaves headroom for the OS and
+	// kernel while allowing the GC to batch work more efficiently.
+	// This can be overridden at runtime with GOMEMLIMIT env var.
+	if os.Getenv("GOMEMLIMIT") == "" {
+		debug.SetMemoryLimit(800 * 1024 * 1024) // 800 MiB
+	}
+
 	ctx := context.Background()
 	err := immichGoMain(ctx)
 	if err != nil {

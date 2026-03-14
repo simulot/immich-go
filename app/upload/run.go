@@ -175,28 +175,44 @@ func (uc *UpCmd) getImmichAlbums(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-uc.immichAssetsReady:
-		// Wait for the server's assets to be ready.
+		// ARM/low-memory fix: fetch album details in parallel using the
+		// existing worker pool. The original sequential loop made one HTTP
+		// request per album and blocked the entire pipeline during that
+		// time. With N albums at ~100ms each, 100 albums = 10s, 1000 albums
+		// = 100s of apparent hang. Parallel fetching reduces this to
+		// roughly (N / concurrency) * latency.
+		var albumMu sync.Mutex
+		pool := worker.NewPool(uc.app.ConcurrentTask)
+		var wg sync.WaitGroup
 		for _, a := range serverAlbums {
 			select {
 			case <-ctx.Done():
+				pool.Stop()
+				wg.Wait()
 				return ctx.Err()
 			default:
+			}
+			alb := a // capture loop variable
+			wg.Add(1)
+			pool.Submit(func() {
+				defer wg.Done()
 				// Get the album info from the server, with assets.
-				r, err := uc.client.Immich.GetAlbumInfo(ctx, a.ID, false)
+				r, err := uc.client.Immich.GetAlbumInfo(ctx, alb.ID, false)
 				if err != nil {
-					uc.app.Log().Error("can't get the album info from the server", "album", a.AlbumName, "err", err)
-					continue
+					uc.app.Log().Error("can't get the album info from the server", "album", alb.AlbumName, "err", err)
+					return
 				}
 				ids := make([]string, 0, len(r.Assets))
 				for _, aa := range r.Assets {
 					ids = append(ids, aa.ID)
 				}
-
-				album := assets.NewAlbum(a.ID, a.AlbumName, a.Description)
-				uc.albumsCache.NewCollection(a.AlbumName, album, ids)
-				uc.app.Log().Info("got album from the server", "album", a.AlbumName, "assets", len(r.Assets))
-				uc.app.Log().Debug("got album from the server", "album", a.AlbumName, "assets", ids)
-				// assign the album to the assets
+				album := assets.NewAlbum(alb.ID, alb.AlbumName, alb.Description)
+				uc.app.Log().Info("got album from the server", "album", alb.AlbumName, "assets", len(r.Assets))
+				uc.app.Log().Debug("got album from the server", "album", alb.AlbumName, "assets", ids)
+				// Assign album to assets and populate cache under a lock
+				// because multiple goroutines write to the shared index.
+				albumMu.Lock()
+				uc.albumsCache.NewCollection(alb.AlbumName, album, ids)
 				for _, id := range ids {
 					a := uc.assetIndex.getByID(id)
 					if a == nil {
@@ -205,8 +221,11 @@ func (uc *UpCmd) getImmichAlbums(ctx context.Context) error {
 					}
 					a.Albums = append(a.Albums, album)
 				}
-			}
+				albumMu.Unlock()
+			})
 		}
+		wg.Wait()
+		pool.Stop()
 	}
 	return nil
 }

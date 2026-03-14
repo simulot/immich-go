@@ -101,7 +101,14 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 const icloudMetadataExt = ".csv"
 
 func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
-	gOut := make(chan *assets.Group)
+	// ARM/low-memory fix: use a buffered channel so that file discovery
+	// goroutines are not blocked waiting for uploadLoop() to start.
+	// uploadLoop() only starts after getImmichAlbums() finishes (which
+	// makes one HTTP request per album and can take minutes on large
+	// libraries). Without a buffer, the 'Assets found: N' counter freezes
+	// and the process appears hung. A buffer of 512 allows discovery to
+	// run to completion independently of the initialization phase.
+	gOut := make(chan *assets.Group, 512)
 	go func() {
 		defer func() {
 			close(gOut)
