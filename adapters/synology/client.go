@@ -485,7 +485,7 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 					}
 					continue
 				}
-				return nil, fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
+				return nil, fmt.Errorf("download API error %d: %s, raw: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code), string(body))
 			}
 			return nil, fmt.Errorf("download failed: %s", string(body))
 		}
@@ -555,6 +555,7 @@ func (c *Client) DownloadLivePhoto(ctx context.Context, itemID int, filename str
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			lastErr = err
+			logger.Error("Download failed, retrying", "attempt", attempt, "error", err, "item", itemID, "filename", filename)
 			continue
 		}
 
@@ -576,7 +577,7 @@ func (c *Client) DownloadLivePhoto(ctx context.Context, itemID int, filename str
 					}
 					continue
 				}
-				return nil, "", false, fmt.Errorf("download API error %d: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code))
+				return nil, "", false, fmt.Errorf("download API error %d: %s, raw: %s", errResp.Error.Code, c.getErrorMessage(errResp.Error.Code), string(body))
 			}
 			return nil, "", false, fmt.Errorf("download failed: %s", string(body))
 		}
