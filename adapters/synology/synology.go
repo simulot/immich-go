@@ -567,14 +567,14 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 		size:     int(item.Filesize),
 		logger:   sa.app.Log().Logger,
 	}
-
+captureDate := time.Unix(sa.correctTimestamp(item.Time, sa.app.GetTZ()), 0).In(sa.app.GetTZ())
 	asset := &assets.Asset{
 		File:             fshelper.FSName(synFS, item.Filename),
 		FileSize:         int(item.Filesize),
 		OriginalFileName: item.Filename,
 		FileDate:         item.IndexedAt(),
 		Description:      item.Additional.Description,
-		// Don't set CaptureDate, Latitude, Longitude - let Immich read from EXIF
+		CaptureDate:      captureDate,
 	}
 
 	// Add album if specified (with cleaned up name)
@@ -613,19 +613,15 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 		}
 	}
 
-	// Store original metadata
-	// Don't set DateTaken, Latitude, Longitude - let Immich read from EXIF
-	asset.FromApplication = &assets.Metadata{
-		FileName:    item.Filename,
-		Description: item.Additional.Description,
-	}
-
-	// Copy tags to metadata
-	for _, tag := range asset.Tags {
-		asset.FromApplication.Tags = append(asset.FromApplication.Tags, tag)
-	}
-
 	return asset
+}
+func (sa *Adapter) correctTimestamp(wrong int64, loc *time.Location) int64 {
+	t := time.Unix(wrong, 0).UTC()
+	for i := 0; i < 2; i++ { // to fix the daylight saving time, twice is enough
+		_, offset := t.In(loc).Zone()
+		t = time.Unix(wrong-int64(offset), 0).UTC()
+	}
+	return t.Unix()
 }
 
 // Ensure Adapter implements adapters.Reader
