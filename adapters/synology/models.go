@@ -8,10 +8,10 @@ import (
 
 // LoginData represents the login response data
 type LoginData struct {
-	DID        string `json:"did"`        // Device ID
-	SID        string `json:"sid"`        // Session ID
-	SynoToken  string `json:"synotoken"`  // CSRF token for some APIs
-	DeviceID   string `json:"device_id"`  // Device ID (alternative field)
+	DID       string `json:"did"`       // Device ID
+	SID       string `json:"sid"`       // Session ID
+	SynoToken string `json:"synotoken"` // CSRF token for some APIs
+	DeviceID  string `json:"device_id"` // Device ID (alternative field)
 }
 
 // LoginResponse represents the response from SYNO.API.Auth login
@@ -35,23 +35,23 @@ type Error struct {
 
 // Album represents a Synology Photos album
 type Album struct {
-	ID                   int           `json:"id"`
-	Name                 string        `json:"name"`
-	ItemCount            int           `json:"item_count"`
-	OwnerUserID          int           `json:"owner_user_id"`
-	CreateTime           int64         `json:"create_time"` // Unix timestamp
-	EndTime              int64         `json:"end_time"`
-	StartTime            int64         `json:"start_time"`
-	Passphrase           string        `json:"passphrase"`
-	Shared               bool          `json:"shared"`
-	TemporaryShared      bool          `json:"temporary_shared"`
-	FreezeAlbum          bool          `json:"freeze_album"`
-	SortBy               string        `json:"sort_by"`
-	SortDirection        string        `json:"sort_direction"`
-	Type                 string        `json:"type"` // "normal" or "condition"
-	Version              int           `json:"version"`
-	Condition            Condition     `json:"condition,omitempty"`
-	CantMigrateCondition interface{}   `json:"cant_migrate_condition,omitempty"`
+	ID                   int         `json:"id"`
+	Name                 string      `json:"name"`
+	ItemCount            int         `json:"item_count"`
+	OwnerUserID          int         `json:"owner_user_id"`
+	CreateTime           int64       `json:"create_time"` // Unix timestamp
+	EndTime              int64       `json:"end_time"`
+	StartTime            int64       `json:"start_time"`
+	Passphrase           string      `json:"passphrase"`
+	Shared               bool        `json:"shared"`
+	TemporaryShared      bool        `json:"temporary_shared"`
+	FreezeAlbum          bool        `json:"freeze_album"`
+	SortBy               string      `json:"sort_by"`
+	SortDirection        string      `json:"sort_direction"`
+	Type                 string      `json:"type"` // "normal" or "condition"
+	Version              int         `json:"version"`
+	Condition            Condition   `json:"condition,omitempty"`
+	CantMigrateCondition interface{} `json:"cant_migrate_condition,omitempty"`
 }
 
 // Condition represents album filter conditions for conditional albums
@@ -67,44 +67,44 @@ type AlbumListResponse struct {
 
 // Item represents a photo or video in Synology Photos
 type Item struct {
-	ID            int        `json:"id"`
-	Filename      string     `json:"filename"`
-	Filesize      int64      `json:"filesize"`
-	FolderID      int        `json:"folder_id"`
-	Time          int64      `json:"time"` // Unix timestamp of capture time
-	IndexedTime   int64      `json:"indexed_time"`
-	Type          string     `json:"type"` // "photo", "video", or "live"
-	LiveType      string     `json:"live_type,omitempty"` // "photo" for live photos
-	OwnerUserID   int        `json:"owner_user_id"`
-	Additional    Additional `json:"additional,omitempty"`
+	ID          int        `json:"id"`
+	Filename    string     `json:"filename"`
+	Filesize    int64      `json:"filesize"`
+	FolderID    int        `json:"folder_id"`
+	Time        int64      `json:"time"` // Local timestamp of capture time
+	IndexedTime int64      `json:"indexed_time"`
+	Type        string     `json:"type"`                // "photo", "video", or "live"
+	LiveType    string     `json:"live_type,omitempty"` // "photo" for live photos
+	OwnerUserID int        `json:"owner_user_id"`
+	Additional  Additional `json:"additional,omitempty"`
 }
 
 // Additional contains extra metadata for items
 type Additional struct {
-	Thumbnail          ThumbnailInfo   `json:"thumbnail,omitempty"`
-	Resolution         ResolutionInfo  `json:"resolution,omitempty"`
-	Orientation        int             `json:"orientation,omitempty"`
+	Thumbnail           ThumbnailInfo  `json:"thumbnail,omitempty"`
+	Resolution          ResolutionInfo `json:"resolution,omitempty"`
+	Orientation         int            `json:"orientation,omitempty"`
 	OrientationOriginal int            `json:"orientation_original,omitempty"`
-	Exif               ExifInfo        `json:"exif,omitempty"`
-	Tag                []TagInfo       `json:"tag,omitempty"`
-	Description        string          `json:"description,omitempty"`
-	GPS                GPSInfo         `json:"gps,omitempty"`
-	GeocodingID        int             `json:"geocoding_id,omitempty"`
-	Address            AddressInfo     `json:"address,omitempty"`
-	Person             []PersonInfo    `json:"person,omitempty"`
-	VideoConvert       interface{}     `json:"video_convert,omitempty"`
-	VideoMeta          interface{}     `json:"video_meta,omitempty"`
-	ProviderUserID     int             `json:"provider_user_id,omitempty"`
+	Exif                ExifInfo       `json:"exif,omitempty"`
+	Tag                 []TagInfo      `json:"tag,omitempty"`
+	Description         string         `json:"description,omitempty"`
+	GPS                 GPSInfo        `json:"gps,omitempty"`
+	GeocodingID         int            `json:"geocoding_id,omitempty"`
+	Address             AddressInfo    `json:"address,omitempty"`
+	Person              []PersonInfo   `json:"person,omitempty"`
+	VideoConvert        interface{}    `json:"video_convert,omitempty"`
+	VideoMeta           interface{}    `json:"video_meta,omitempty"`
+	ProviderUserID      int            `json:"provider_user_id,omitempty"`
 }
 
 // ThumbnailInfo contains thumbnail availability information
 type ThumbnailInfo struct {
 	CacheKey string `json:"cache_key"`
 	UnitID   int    `json:"unit_id"`
-	SM       string `json:"sm"`       // "ready" or "broken"
-	M        string `json:"m"`        // "ready" or "broken"
-	XL       string `json:"xl"`       // "ready" or "broken"
-	Preview  string `json:"preview"`  // "ready" or "broken"
+	SM       string `json:"sm"`      // "ready" or "broken"
+	M        string `json:"m"`       // "ready" or "broken"
+	XL       string `json:"xl"`      // "ready" or "broken"
+	Preview  string `json:"preview"` // "ready" or "broken"
 }
 
 // ResolutionInfo contains image/video resolution
@@ -115,12 +115,12 @@ type ResolutionInfo struct {
 
 // ExifInfo contains EXIF metadata
 type ExifInfo struct {
-	Aperture     string  `json:"aperture,omitempty"`
-	Camera       string  `json:"camera,omitempty"`
-	ExposureTime string  `json:"exposure_time,omitempty"`
-	FocalLength  string  `json:"focal_length,omitempty"`
-	ISO          int     `json:"iso,omitempty"`
-	Lens         string  `json:"lens,omitempty"`
+	Aperture     string `json:"aperture,omitempty"`
+	Camera       string `json:"camera,omitempty"`
+	ExposureTime string `json:"exposure_time,omitempty"`
+	FocalLength  string `json:"focal_length,omitempty"`
+	ISO          int    `json:"iso,omitempty"`
+	Lens         string `json:"lens,omitempty"`
 }
 
 // TagInfo represents a tag assigned to an item
@@ -137,24 +137,24 @@ type GPSInfo struct {
 
 // AddressInfo contains reverse geocoding address
 type AddressInfo struct {
-	City      string `json:"city,omitempty"`
-	CityID    int    `json:"city_id,omitempty"`
-	Country   string `json:"country,omitempty"`
-	CountryID int    `json:"country_id,omitempty"`
-	County    string `json:"county,omitempty"`
-	CountyID  int    `json:"county_id,omitempty"`
-	District  string `json:"district,omitempty"`
-	DistrictID int   `json:"district_id,omitempty"`
-	Landmark  string `json:"landmark,omitempty"`
-	LandmarkID int  `json:"landmark_id,omitempty"`
-	Route     string `json:"route,omitempty"`
-	RouteID   int    `json:"route_id,omitempty"`
-	State     string `json:"state,omitempty"`
-	StateID   int    `json:"state_id,omitempty"`
-	Town      string `json:"town,omitempty"`
-	TownID    int    `json:"town_id,omitempty"`
-	Village   string `json:"village,omitempty"`
-	VillageID int    `json:"village_id,omitempty"`
+	City       string `json:"city,omitempty"`
+	CityID     int    `json:"city_id,omitempty"`
+	Country    string `json:"country,omitempty"`
+	CountryID  int    `json:"country_id,omitempty"`
+	County     string `json:"county,omitempty"`
+	CountyID   int    `json:"county_id,omitempty"`
+	District   string `json:"district,omitempty"`
+	DistrictID int    `json:"district_id,omitempty"`
+	Landmark   string `json:"landmark,omitempty"`
+	LandmarkID int    `json:"landmark_id,omitempty"`
+	Route      string `json:"route,omitempty"`
+	RouteID    int    `json:"route_id,omitempty"`
+	State      string `json:"state,omitempty"`
+	StateID    int    `json:"state_id,omitempty"`
+	Town       string `json:"town,omitempty"`
+	TownID     int    `json:"town_id,omitempty"`
+	Village    string `json:"village,omitempty"`
+	VillageID  int    `json:"village_id,omitempty"`
 }
 
 // PersonInfo represents a recognized person in Synology Photos
@@ -182,10 +182,10 @@ type TagListResponse struct {
 
 // Person represents a person in the face recognition system
 type Person struct {
-	ID            int    `json:"id"`
-	Name          string `json:"name"`
-	ItemCount     int    `json:"item_count,omitempty"`
-	CoverItemID   int    `json:"cover_item_id,omitempty"`
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	ItemCount   int    `json:"item_count,omitempty"`
+	CoverItemID int    `json:"cover_item_id,omitempty"`
 }
 
 // PersonListResponse represents the response from Browse.Person list method
