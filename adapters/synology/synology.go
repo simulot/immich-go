@@ -288,15 +288,7 @@ func (sa *Adapter) getAdditionalFields() []string {
 	// Always request these
 	additional := []string{
 		"thumbnail",
-		"resolution",
-		"orientation",
-		"description",
-		"gps",
-	}
-
-	// Request tags if we need them
-	if len(sa.Tags) > 0 || len(sa.Albums) == 0 {
-		additional = append(additional, "tag")
+		"tag",
 	}
 
 	// Request people if we need them
