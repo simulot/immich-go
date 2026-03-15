@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,6 +20,8 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/fshelper"
+
+	mapset "github.com/deckarep/golang-set/v2"
 )
 
 // Adapter implements the adapters.Reader interface for Synology Photos
@@ -36,25 +37,27 @@ type Adapter struct {
 	SkipFaceData  bool     // Skip face recognition data
 
 	// Internal
-	client      *Client
-	app         *app.Application
-	processor   *fileprocessor.FileProcessor
-	albumCache  map[string]Album // album name -> album
-	tagCache    map[string]int   // tag name -> tag id
-	peopleCache map[string]int   // person name -> person id
+	client          *Client
+	app             *app.Application
+	processor       *fileprocessor.FileProcessor
+	albumCache      map[string]Album           // album name -> album
+	tagCache        map[string]int             // tag name -> tag id
+	peopleCache     map[string]int             // person name -> person id
+	albumImageCache map[string]mapset.Set[int] //album name -> set of image ids
 }
 
 // NewAdapter creates a new Synology Photos adapter
 func NewAdapter(app *app.Application, serverURL, account, password string) *Adapter {
 	return &Adapter{
-		ServerURL:   serverURL,
-		Account:     account,
-		Password:    password,
-		app:         app,
-		processor:   app.FileProcessor(),
-		albumCache:  make(map[string]Album),
-		tagCache:    make(map[string]int),
-		peopleCache: make(map[string]int),
+		ServerURL:       serverURL,
+		Account:         account,
+		Password:        password,
+		app:             app,
+		processor:       app.FileProcessor(),
+		albumCache:      make(map[string]Album),
+		tagCache:        make(map[string]int),
+		peopleCache:     make(map[string]int),
+		albumImageCache: make(map[string]mapset.Set[int]),
 	}
 }
 
@@ -109,24 +112,18 @@ func (sa *Adapter) Browse(ctx context.Context) chan *assets.Group {
 			return
 		}
 
-		// Process albums or all items
-		// If user specified specific albums, process only those
-		// Otherwise process ALL items (including those not in any album)
-		if len(sa.Albums) > 0 && len(albumsToProcess) > 0 {
-			// User requested specific albums, process only items in those albums
-			for _, album := range albumsToProcess {
-				if err := sa.processAlbum(ctx, album, gOut); err != nil {
-					sa.app.Log().Error("Failed to process album", "album", album.Name, "error", err)
-					continue
-				}
+		// list all image of albums
+		for _, album := range albumsToProcess {
+			if err := sa.fetchAlbumImages(ctx, album); err != nil {
+				sa.app.Log().Error("Failed to fetch album images", "album", album.Name, "error", err)
+				continue
 			}
-		} else {
-			// No specific albums requested - process ALL items
-			// This includes both album items and non-album items
-			if err := sa.processAllItems(ctx, gOut); err != nil {
-				sa.app.Log().Error("Failed to process items", "error", err)
-				return
-			}
+		}
+		// No specific albums requested - process ALL items
+		// This includes both album items and non-album items
+		if err := sa.processAllItems(ctx, gOut); err != nil {
+			sa.app.Log().Error("Failed to process items", "error", err)
+			return
 		}
 	}()
 
@@ -218,38 +215,25 @@ func (sa *Adapter) getAlbumsToProcess(ctx context.Context) ([]Album, error) {
 	return allAlbums, nil
 }
 
-// processAlbum processes items from a specific album
-func (sa *Adapter) processAlbum(ctx context.Context, album Album, gOut chan *assets.Group) error {
-	// Clean up album name (trim whitespace)
-	album.Name = strings.TrimSpace(album.Name)
-	if album.Name == "" {
-		sa.app.Log().Warn("Skipping album with empty name", "id", album.ID)
-		return nil
-	}
-	sa.app.Log().Info("Processing album", "name", album.Name, "item_count", album.ItemCount)
-
-	additional := sa.getAdditionalFields()
+func (sa *Adapter) fetchAlbumImages(ctx context.Context, album Album) error {
 	offset := 0
 	limit := 100
-
 	for {
-		items, err := sa.client.GetAlbumItems(ctx, album.ID, offset, limit, additional)
+		items, err := sa.client.GetAlbumItems(ctx, album.ID, offset, limit, nil)
 		if err != nil {
 			return fmt.Errorf("get album items: %w", err)
 		}
-
-		for _, item := range items {
-			if err := sa.processItem(ctx, &item, &album, gOut); err != nil {
-				sa.app.Log().Error("Failed to process item", "filename", item.Filename, "error", err)
-			}
+		if sa.albumImageCache[album.Name] == nil {
+			sa.albumImageCache[album.Name] = mapset.NewSet[int]()
 		}
-
+		for _, item := range items {
+			sa.albumImageCache[album.Name].Add(item.ID)
+		}
 		if len(items) < limit {
 			break
 		}
 		offset += limit
 	}
-
 	return nil
 }
 
@@ -268,7 +252,7 @@ func (sa *Adapter) processAllItems(ctx context.Context, gOut chan *assets.Group)
 		}
 
 		for _, item := range items {
-			if err := sa.processItem(ctx, &item, nil, gOut); err != nil {
+			if err := sa.processItem(ctx, &item, gOut); err != nil {
 				sa.app.Log().Error("Failed to process item", "filename", item.Filename, "error", err)
 			}
 		}
@@ -301,7 +285,7 @@ func (sa *Adapter) getAdditionalFields() []string {
 
 // processItem processes a single item and sends it to the output channel
 // For live photos, this creates both the image and video assets
-func (sa *Adapter) processItem(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
+func (sa *Adapter) processItem(ctx context.Context, item *Item, gOut chan *assets.Group) error {
 	// Check tag filter
 	if len(sa.Tags) > 0 && !sa.matchesTagFilter(item) {
 		return nil
@@ -314,17 +298,17 @@ func (sa *Adapter) processItem(ctx context.Context, item *Item, album *Album, gO
 
 	// For live photos, we need to create two assets: image and video
 	if item.IsLivePhoto() {
-		return sa.processLivePhoto(ctx, item, album, gOut)
+		return sa.processLivePhoto(ctx, item, gOut)
 	}
 
 	// Regular single asset
-	return sa.processSingleItem(ctx, item, album, gOut)
+	return sa.processSingleItem(ctx, item, gOut)
 }
 
 // processLivePhoto handles live photos by creating both image and video assets
 // Uses Synology's ZIP download API with proper synchronization
 // Note: Synology may return either a ZIP (with both image and video) or just the image file
-func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
+func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, gOut chan *assets.Group) error {
 	sa.app.Log().Debug("Processing live photo", "filename", item.Filename, "item_id", item.ID)
 
 	// Create a shared FS for the live photo bundle
@@ -343,7 +327,7 @@ func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Albu
 	}
 
 	// Step 1: Process the image part (HEIC/JPG)
-	imageAsset := sa.mapToAssetForLiveImage(item, album, liveFS)
+	imageAsset := sa.mapToAssetForLiveImage(item, liveFS)
 	if imageAsset != nil {
 		sa.processor.RecordAssetDiscovered(ctx, imageAsset.File, int64(imageAsset.FileSize), fileevent.DiscoveredImage)
 		group := assets.NewGroup(assets.GroupByNone, imageAsset)
@@ -359,7 +343,7 @@ func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Albu
 	// Non-ZIP responses only contain the image, no video
 	videoFilename := item.LivePhotoVideoFilename()
 	if videoFilename != "" && liveFS.hasVideo() {
-		videoAsset := sa.mapToAssetForLiveVideo(item, album, liveFS, videoFilename)
+		videoAsset := sa.mapToAssetForLiveVideo(item, liveFS, videoFilename)
 		if videoAsset != nil {
 			sa.processor.RecordAssetDiscovered(ctx, videoAsset.File, int64(videoAsset.FileSize), fileevent.DiscoveredVideo)
 			group := assets.NewGroup(assets.GroupByNone, videoAsset)
@@ -381,9 +365,9 @@ func (sa *Adapter) processLivePhoto(ctx context.Context, item *Item, album *Albu
 }
 
 // processSingleItem processes a regular (non-live) photo or video
-func (sa *Adapter) processSingleItem(ctx context.Context, item *Item, album *Album, gOut chan *assets.Group) error {
+func (sa *Adapter) processSingleItem(ctx context.Context, item *Item, gOut chan *assets.Group) error {
 	// Map to asset
-	asset := sa.mapToAsset(item, album)
+	asset := sa.mapToAsset(item)
 
 	// Record discovery
 	code := fileevent.DiscoveredImage
@@ -445,28 +429,25 @@ func (sa *Adapter) matchesPeopleFilter(item *Item) bool {
 
 // mapToAssetForLiveImage creates an Asset for the image part of a live photo
 // Uses the shared liveFS which handles concurrent access safely
-func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album, liveFS *synologyLivePhotoFS) *assets.Asset {
+func (sa *Adapter) mapToAssetForLiveImage(item *Item, liveFS *synologyLivePhotoFS) *assets.Asset {
 	sa.app.Log().Debug("Creating live photo image asset", "filename", item.Filename, "item_id", item.ID)
 
+	captureDate := time.Unix(sa.correctTimestamp(item.Time, sa.app.GetTZ()), 0).In(sa.app.GetTZ())
 	imageAsset := &assets.Asset{
 		File:             fshelper.FSName(liveFS, item.Filename),
 		FileSize:         int(item.Filesize), // Approximate size from API
 		OriginalFileName: item.Filename,
 		FileDate:         item.IndexedAt(),
 		Description:      item.Additional.Description,
-		// Don't set CaptureDate, Latitude, Longitude - let Immich read from EXIF
-		// Synology's metadata may have timezone/format issues
+		CaptureDate:      captureDate,
 	}
 
 	// Add album if specified
-	if album != nil {
-		albumName := strings.TrimSpace(album.Name)
-		if albumName != "" {
-			imageAsset.Albums = []assets.Album{
-				{
-					Title: albumName,
-				},
-			}
+	for albumName, images := range sa.albumImageCache {
+		if images.Contains(item.ID) {
+			imageAsset.Albums = append(imageAsset.Albums, assets.Album{
+				Title: albumName,
+			})
 		}
 	}
 
@@ -493,47 +474,32 @@ func (sa *Adapter) mapToAssetForLiveImage(item *Item, album *Album, liveFS *syno
 		}
 	}
 
-	// Store original metadata
-	// Don't set DateTaken, Latitude, Longitude - let Immich read from EXIF
-	imageAsset.FromApplication = &assets.Metadata{
-		FileName:    item.Filename,
-		Description: item.Additional.Description,
-	}
-
-	// Copy tags to metadata
-	for _, tag := range imageAsset.Tags {
-		imageAsset.FromApplication.Tags = append(imageAsset.FromApplication.Tags, tag)
-	}
-
 	return imageAsset
 }
 
 // mapToAssetForLiveVideo creates an Asset for the video part of a live photo
 // Uses the shared liveFS which handles concurrent access safely
-func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, liveFS *synologyLivePhotoFS, videoFilename string) *assets.Asset {
+func (sa *Adapter) mapToAssetForLiveVideo(item *Item, liveFS *synologyLivePhotoFS, videoFilename string) *assets.Asset {
 	sa.app.Log().Debug("Creating live photo video asset", "filename", videoFilename, "item_id", item.ID)
 
+	captureDate := time.Unix(sa.correctTimestamp(item.Time, sa.app.GetTZ()), 0).In(sa.app.GetTZ())
 	videoAsset := &assets.Asset{
 		File:             fshelper.FSName(liveFS, videoFilename),
 		FileSize:         int(item.Filesize), // Approximate size
 		OriginalFileName: videoFilename,
 		FileDate:         item.IndexedAt(),
 		Description:      item.Additional.Description,
-		// Don't set CaptureDate, Latitude, Longitude - let Immich read from EXIF
+		CaptureDate:      captureDate,
 	}
 
 	// Add album if specified
-	if album != nil {
-		albumName := strings.TrimSpace(album.Name)
-		if albumName != "" {
-			videoAsset.Albums = []assets.Album{
-				{
-					Title: albumName,
-				},
-			}
+	for albumName, images := range sa.albumImageCache {
+		if images.Contains(item.ID) {
+			videoAsset.Albums = append(videoAsset.Albums, assets.Album{
+				Title: albumName,
+			})
 		}
 	}
-
 	// Store original metadata
 	// Don't set DateTaken, Latitude, Longitude - let Immich read from EXIF
 	videoAsset.FromApplication = &assets.Metadata{
@@ -545,7 +511,7 @@ func (sa *Adapter) mapToAssetForLiveVideo(item *Item, album *Album, liveFS *syno
 }
 
 // mapToAsset converts a Synology Item to an immich-go Asset
-func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
+func (sa *Adapter) mapToAsset(item *Item) *assets.Asset {
 	// Determine file type
 	ext := strings.ToLower(path.Ext(item.Filename))
 	if ext == "" {
@@ -567,7 +533,7 @@ func (sa *Adapter) mapToAsset(item *Item, album *Album) *assets.Asset {
 		size:     int(item.Filesize),
 		logger:   sa.app.Log().Logger,
 	}
-captureDate := time.Unix(sa.correctTimestamp(item.Time, sa.app.GetTZ()), 0).In(sa.app.GetTZ())
+	captureDate := time.Unix(sa.correctTimestamp(item.Time, sa.app.GetTZ()), 0).In(sa.app.GetTZ())
 	asset := &assets.Asset{
 		File:             fshelper.FSName(synFS, item.Filename),
 		FileSize:         int(item.Filesize),
@@ -577,15 +543,12 @@ captureDate := time.Unix(sa.correctTimestamp(item.Time, sa.app.GetTZ()), 0).In(s
 		CaptureDate:      captureDate,
 	}
 
-	// Add album if specified (with cleaned up name)
-	if album != nil {
-		albumName := strings.TrimSpace(album.Name)
-		if albumName != "" {
-			asset.Albums = []assets.Album{
-				{
-					Title: albumName,
-				},
-			}
+	// Add album if specified
+	for albumName, images := range sa.albumImageCache {
+		if images.Contains(item.ID) {
+			asset.Albums = append(asset.Albums, assets.Album{
+				Title: albumName,
+			})
 		}
 	}
 
@@ -644,9 +607,7 @@ func (s *synologyFS) Open(name string) (fs.File, error) {
 		return nil, fmt.Errorf("file not found: %s", name)
 	}
 
-	if s.logger != nil {
-		s.logger.Debug("Downloading Synology file", "filename", s.filename, "item_id", s.itemID, "cache_key", s.cacheKey)
-	}
+	s.logger.Debug("Downloading Synology file", "filename", s.filename, "item_id", s.itemID, "cache_key", s.cacheKey)
 
 	ctx := context.Background()
 
@@ -672,10 +633,7 @@ func (s *synologyFS) Open(name string) (fs.File, error) {
 		os.Remove(tempFile.Name())
 		return nil, fmt.Errorf("download to temp: %w", err)
 	}
-
-	if s.logger != nil {
-		s.logger.Debug("Downloaded Synology file", "filename", s.filename, "size", n)
-	}
+	s.logger.Debug("Downloaded Synology file", "filename", s.filename, "size", n)
 
 	// Seek to beginning for reading
 	_, err = tempFile.Seek(0, 0)
@@ -738,6 +696,7 @@ func (f *synologyFile) Close() error {
 		os.Remove(path)
 	}(f.tempPath)
 
+	os.Remove(f.tempPath)
 	return err
 }
 
@@ -878,7 +837,6 @@ func (s *synologyLivePhotoFS) handleZipDownload(reader io.ReadCloser, tempDir st
 
 	// Verify ZIP by checking file header (magic number)
 	if err := verifyZipFile(zipPath); err != nil {
-		s.printDebugCurlCommand()
 		return fmt.Errorf("verify zip: %w", err)
 	}
 
@@ -1058,47 +1016,6 @@ func (s *synologyLivePhotoFS) cleanup() {
 		s.zipFiles = nil
 		s.downloaded = false
 	}
-}
-
-// printDebugCurlCommand prints a curl command for manual debugging
-func (s *synologyLivePhotoFS) printDebugCurlCommand() {
-	if s.logger == nil {
-		return
-	}
-
-	client := s.client
-	baseURL := client.baseURL
-
-	// Build curl command
-	var cmd strings.Builder
-	cmd.WriteString("curl -v ")
-
-	// Headers
-	cmd.WriteString(`-H "Content-Type: application/x-www-form-urlencoded" `)
-	if client.synotoken != "" {
-		cmd.WriteString(fmt.Sprintf(`-H "X-SYNO-TOKEN: %s" `, client.synotoken))
-	}
-	if client.sid != "" {
-		cmd.WriteString(fmt.Sprintf(`-H "Cookie: id=%s" `, client.sid))
-	}
-
-	// POST data
-	params := fmt.Sprintf("force_download=true&item_id=%s&download_type=source&api=SYNO.Foto.Download&method=download&version=2",
-		url.QueryEscape(fmt.Sprintf("[%d]", s.itemID)))
-	cmd.WriteString(fmt.Sprintf(`--data "%s" `, params))
-
-	// URL
-	filename := url.QueryEscape(s.filename)
-	reqURL := fmt.Sprintf("%s/webapi/entry.cgi/%s", baseURL, filename)
-	if client.synotoken != "" {
-		reqURL = fmt.Sprintf("%s?SynoToken=%s", reqURL, url.QueryEscape(client.synotoken))
-	}
-	cmd.WriteString(fmt.Sprintf(`"%s" `, reqURL))
-
-	// Output to file
-	cmd.WriteString(`-o /tmp/debug_livephoto.zip`)
-
-	s.logger.Error("Live photo ZIP download returned non-ZIP content. Debug with:", "curl", cmd.String())
 }
 
 // verifyZipFile checks if the file is a valid ZIP by reading its magic number
