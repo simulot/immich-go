@@ -198,6 +198,7 @@ func (sa *Adapter) getAlbumsToProcess(ctx context.Context) ([]Album, error) {
 
 	// Cache albums by name
 	for _, album := range allAlbums {
+		sa.app.Log().Debug("Caching album", "name", album.Name, "id", album.ID)
 		sa.albumCache[album.Name] = album
 	}
 
@@ -273,6 +274,7 @@ func (sa *Adapter) processAllItems(ctx context.Context, gOut chan *assets.Group)
 		}
 
 		if len(items) < limit {
+			sa.app.Log().Info("All items processed")
 			break
 		}
 		offset += limit
