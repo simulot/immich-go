@@ -167,6 +167,7 @@ func (log *Log) setHandlers(file, con io.Writer) {
 			TimeFormat: time.DateTime,
 			NoColor:    true,
 			Theme:      console.NewDefaultTheme(),
+			AddSource:  true,
 		}))
 	}
 
@@ -178,6 +179,7 @@ func (log *Log) setHandlers(file, con io.Writer) {
 			TimeFormat: time.DateTime,
 			NoColor:    false,
 			Theme:      console.NewDefaultTheme(),
+			AddSource:  true,
 		}))
 	}
 
