@@ -317,7 +317,10 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	// Upload assets from the group
 	for _, a := range g.Assets {
 		err := uc.handleAsset(ctx, a)
-		errGroup = errors.Join(err)
+		if err != nil {
+			uc.app.Log().Error("can't handle asset", "asset", a.File, "err", err)
+		}
+		errGroup = errors.Join(errGroup, err)
 	}
 
 	// Manage groups

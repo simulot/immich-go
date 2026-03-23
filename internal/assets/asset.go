@@ -36,6 +36,7 @@ const (
 	VisibilityUnknown  Visibility = ""
 )
 
+type CloseOption func(*Asset) error
 type Asset struct {
 	// File system and file name
 	File     fshelper.FSAndName
@@ -72,6 +73,8 @@ type Asset struct {
 
 	// buffer management
 	cacheReader *cachereader.CacheReader
+
+	closeOptions []CloseOption
 }
 
 // Kind is the probable type of the image
@@ -97,6 +100,14 @@ type NameInfo struct {
 	Taken      time.Time // date taken
 	IsCover    bool      // is this is the cover if the series
 	IsModified bool      // is this is a modified version of the original
+}
+
+func (a *Asset) AddCloseOption(o CloseOption) {
+	if a.closeOptions == nil {
+		a.closeOptions = []CloseOption{o}
+		return
+	}
+	a.closeOptions = append(a.closeOptions, o)
 }
 
 func (a *Asset) SetNameInfo(ni NameInfo) {
@@ -186,7 +197,7 @@ func (a *Asset) GetChecksum() (string, error) {
 		return "", errors.New("no file to compute checksum")
 	}
 
-	f, err := a.File.Open()
+	f, err := a.OpenFile()
 	if err != nil {
 		return "", err
 	}

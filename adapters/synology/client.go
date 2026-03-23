@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultTimeout    = 30 * time.Second
+	defaultTimeout    = 300 * time.Second
 	defaultMaxRetries = 3
 	defaultRetryDelay = 1 * time.Second
 	defaultLimit      = 100
@@ -383,7 +383,7 @@ func (c *Client) ListTags(ctx context.Context, offset, limit int) ([]Tag, error)
 
 	params := url.Values{
 		"api":     {"SYNO.Foto.Browse.GeneralTag"},
-		"version": {"4"},
+		"version": {"1"},
 		"method":  {"list"},
 		"offset":  {strconv.Itoa(offset)},
 		"limit":   {strconv.Itoa(limit)},
@@ -428,7 +428,7 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 		"unit_id":   {fmt.Sprintf("[%d]", itemID)},
 		"cache_key": {cacheKey},
 	}
-
+	c.logger.Debug("start download item", "itemID", itemID, "cacheKey", cacheKey)
 	// Build request URL
 	reqURL, err := url.JoinPath(c.baseURL, "/webapi/entry.cgi")
 	if err != nil {
@@ -440,6 +440,7 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 		if attempt > 0 {
 			select {
 			case <-ctx.Done():
+				c.logger.Debug("context done error", "err", err)
 				return nil, ctx.Err()
 			case <-time.After(c.retryDelay * time.Duration(attempt)):
 			}
@@ -463,6 +464,7 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
+			c.logger.Debug("http error", "err", err)
 			lastErr = err
 			continue
 		}
@@ -505,7 +507,7 @@ func (c *Client) DownloadItem(ctx context.Context, itemID int, cacheKey string) 
 // DownloadLivePhoto downloads a live photo using the source download API.
 // Returns the response body, content-type, and whether it's a ZIP file (based on Content-Disposition).
 // Note: Synology may return either a ZIP (containing both image and video) or just the image file.
-func (c *Client) DownloadLivePhoto(ctx context.Context, itemID int, filename string, logger *slog.Logger) (io.ReadCloser, string, bool, error) {
+func (c *Client) DownloadLivePhoto(ctx context.Context, itemID int, filename string) (io.ReadCloser, string, bool, error) {
 	params := url.Values{
 		"api":            {"SYNO.Foto.Download"},
 		"version":        {"2"},
@@ -514,7 +516,6 @@ func (c *Client) DownloadLivePhoto(ctx context.Context, itemID int, filename str
 		"download_type":  {"source"},
 		"force_download": {"true"},
 	}
-
 	// Build request URL with filename in path (like browser does)
 	reqURL, err := url.JoinPath(c.baseURL, "/webapi/entry.cgi", filename)
 	if err != nil {
@@ -555,7 +556,7 @@ func (c *Client) DownloadLivePhoto(ctx context.Context, itemID int, filename str
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			lastErr = err
-			logger.Error("Download failed, retrying", "attempt", attempt, "error", err, "item", itemID, "filename", filename)
+			c.logger.Error("Download failed, retrying", "attempt", attempt, "error", err, "item", itemID, "filename", filename)
 			continue
 		}
 
