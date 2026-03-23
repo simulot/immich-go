@@ -409,8 +409,12 @@ func (sa *Adapter) matchesTagFilter(item *Item) bool {
 	return false
 }
 
-// matchesAlbumFilter checks if the item belongs to any of the requested albums
+// matchesAlbumFilter checks if the item belongs to any of the requested albums.
+// Returns true when no album filter is active.
 func (sa *Adapter) matchesAlbumFilter(item *Item) bool {
+	if len(sa.Albums) == 0 {
+		return true
+	}
 	for _, images := range sa.albumImageCache {
 		if images.Contains(item.ID) {
 			return true
