@@ -9,7 +9,7 @@ import (
 type Set[T comparable] struct {
 	lock sync.Mutex
 	m    sync.Map
-	len  int64
+	len  atomic.Int64
 }
 
 // NewSet creates a new set.
@@ -29,7 +29,7 @@ func (s *Set[T]) Add(item T) bool {
 	defer s.lock.Unlock()
 	_, loaded := s.m.LoadOrStore(item, struct{}{})
 	if !loaded {
-		atomic.AddInt64(&s.len, 1)
+		s.len.Add(1)
 	}
 	return !loaded
 }
@@ -39,7 +39,7 @@ func (s *Set[T]) Remove(item T) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if _, loaded := s.m.LoadAndDelete(item); loaded {
-		atomic.AddInt64(&s.len, -1)
+		s.len.Add(-1)
 	}
 }
 
@@ -51,7 +51,7 @@ func (s *Set[T]) Contains(item T) bool {
 
 // Len returns the number of items in the set.
 func (s *Set[T]) Len() int {
-	return int(atomic.LoadInt64(&s.len))
+	return int(s.len.Load())
 }
 
 // Items returns a slice of all items in the set.
