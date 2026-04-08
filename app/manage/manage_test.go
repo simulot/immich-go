@@ -206,6 +206,103 @@ func TestSyncFlow_AddsOnlyMissingAssets(t *testing.T) {
 	}
 }
 
+func TestSyncFlow_AnyMode_UnionsPerPersonResults(t *testing.T) {
+	var mu sync.Mutex
+	var addedAssets []string
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/api/people"):
+			peopleResponse(w, []immich.PersonResponseDto{
+				{ID: "person-alice", Name: "Alice"},
+				{ID: "person-bob", Name: "Bob"},
+			})
+
+		case r.Method == "GET" && r.URL.Path == "/api/albums" && r.URL.Query().Get("assetId") == "":
+			json.NewEncoder(w).Encode([]immich.AlbumSimplified{
+				{ID: "album-1", AlbumName: "Family", AssetIds: []string{}},
+			})
+
+		case r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/api/albums/album-1"):
+			json.NewEncoder(w).Encode(immich.AlbumContent{
+				ID:        "album-1",
+				AlbumName: "Family",
+				AssetIDs:  []string{},
+			})
+
+		case r.Method == "POST" && strings.HasPrefix(r.URL.Path, "/api/search/metadata"):
+			// Return different assets depending on which person is queried
+			var body struct {
+				PersonIds []string `json:"personIds"`
+			}
+			json.NewDecoder(r.Body).Decode(&body)
+			if len(body.PersonIds) == 1 && body.PersonIds[0] == "person-alice" {
+				searchResponse(w, []string{"asset-1", "asset-2"}, "0")
+			} else if len(body.PersonIds) == 1 && body.PersonIds[0] == "person-bob" {
+				searchResponse(w, []string{"asset-2", "asset-3"}, "0")
+			} else {
+				searchResponse(w, []string{}, "0")
+			}
+
+		case r.Method == "PUT" && strings.Contains(r.URL.Path, "/albums/") && strings.Contains(r.URL.Path, "/assets"):
+			var body struct {
+				IDS []string `json:"ids"`
+			}
+			json.NewDecoder(r.Body).Decode(&body)
+			mu.Lock()
+			addedAssets = append(addedAssets, body.IDS...)
+			mu.Unlock()
+			results := make([]immich.UpdateAlbumResult, len(body.IDS))
+			for i, id := range body.IDS {
+				results[i] = immich.UpdateAlbumResult{ID: id, Success: true}
+			}
+			json.NewEncoder(w).Encode(results)
+
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	client := newTestClient(t, handler)
+	ctx := context.Background()
+
+	cfg := &PeopleAlbumSyncConfig{
+		Albums: []AlbumMapping{
+			{
+				Album:  "Family",
+				People: PeopleSelector{Names: []string{"Alice", "Bob"}},
+				Mode:   ModeAny,
+			},
+		},
+	}
+
+	sc := &PeopleAlbumSyncCmd{}
+	sc.client.Immich = client
+
+	err := sc.run(ctx, slog.Default(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// "any" mode should union: Alice has {asset-1, asset-2}, Bob has {asset-2, asset-3}
+	// Union = {asset-1, asset-2, asset-3}
+	addedSet := map[string]bool{}
+	for _, id := range addedAssets {
+		addedSet[id] = true
+	}
+	if !addedSet["asset-1"] {
+		t.Error("asset-1 should have been added (Alice has it)")
+	}
+	if !addedSet["asset-2"] {
+		t.Error("asset-2 should have been added (both have it)")
+	}
+	if !addedSet["asset-3"] {
+		t.Error("asset-3 should have been added (Bob has it)")
+	}
+}
+
 func TestSyncFlow_CreatesAlbumIfMissing(t *testing.T) {
 	albumCreated := false
 

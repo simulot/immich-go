@@ -60,6 +60,11 @@ func NewPeopleAlbumSyncCommand(ctx context.Context, a *app.Application) *cobra.C
 func (syncCmd *PeopleAlbumSyncCmd) run(ctx context.Context, log *slog.Logger, cfg *PeopleAlbumSyncConfig) error {
 	immichClient := syncCmd.client.Immich
 
+	allAlbums, err := immichClient.GetAllAlbums(ctx)
+	if err != nil {
+		return fmt.Errorf("listing albums: %w", err)
+	}
+
 	for _, mapping := range cfg.Albums {
 		label := mapping.albumLabel()
 		log.Info("Processing album mapping", "album", label)
@@ -70,7 +75,7 @@ func (syncCmd *PeopleAlbumSyncCmd) run(ctx context.Context, log *slog.Logger, cf
 		}
 		log.Info("Resolved people", "album", label, "people_ids", peopleIDs)
 
-		albumID, err := resolveOrCreateAlbum(ctx, immichClient, mapping, log)
+		albumID, err := resolveOrCreateAlbum(ctx, immichClient, mapping, allAlbums, log)
 		if err != nil {
 			return fmt.Errorf("album %q: %w", label, err)
 		}
@@ -82,19 +87,37 @@ func (syncCmd *PeopleAlbumSyncCmd) run(ctx context.Context, log *slog.Logger, cf
 		}
 		existingAssets := toSet(albumInfo.AssetIDs)
 
-		so := immich.SearchOptions().WithPeople(peopleIDs...)
 		var mu sync.Mutex
 		toAddSet := make(map[string]bool)
-		err = immichClient.GetFilteredAssetsFn(ctx, so, func(asset *immich.Asset) error {
-			mu.Lock()
-			defer mu.Unlock()
-			if !existingAssets[asset.ID] {
-				toAddSet[asset.ID] = true
+
+		if mapping.Mode == ModeAny {
+			for _, pid := range peopleIDs {
+				so := immich.SearchOptions().WithPeople(pid)
+				err = immichClient.GetFilteredAssetsFn(ctx, so, func(asset *immich.Asset) error {
+					mu.Lock()
+					defer mu.Unlock()
+					if !existingAssets[asset.ID] {
+						toAddSet[asset.ID] = true
+					}
+					return nil
+				})
+				if err != nil {
+					return fmt.Errorf("album %q: searching assets for person %s: %w", label, pid, err)
+				}
 			}
-			return nil
-		})
-		if err != nil {
-			return fmt.Errorf("album %q: searching assets: %w", label, err)
+		} else {
+			so := immich.SearchOptions().WithPeople(peopleIDs...)
+			err = immichClient.GetFilteredAssetsFn(ctx, so, func(asset *immich.Asset) error {
+				mu.Lock()
+				defer mu.Unlock()
+				if !existingAssets[asset.ID] {
+					toAddSet[asset.ID] = true
+				}
+				return nil
+			})
+			if err != nil {
+				return fmt.Errorf("album %q: searching assets: %w", label, err)
+			}
 		}
 
 		toAdd := make([]string, 0, len(toAddSet))
@@ -157,16 +180,12 @@ func resolvePeopleIDs(ctx context.Context, immichClient immich.ImmichInterface, 
 }
 
 // resolveOrCreateAlbum finds an existing album by name/ID or creates a new one.
-func resolveOrCreateAlbum(ctx context.Context, immichClient immich.ImmichInterface, mapping AlbumMapping, log *slog.Logger) (string, error) {
+func resolveOrCreateAlbum(ctx context.Context, immichClient immich.ImmichInterface, mapping AlbumMapping, allAlbums []immich.AlbumSimplified, log *slog.Logger) (string, error) {
 	if mapping.AlbumID != "" {
 		return mapping.AlbumID, nil
 	}
 
-	albums, err := immichClient.GetAllAlbums(ctx)
-	if err != nil {
-		return "", fmt.Errorf("listing albums: %w", err)
-	}
-	for _, album := range albums {
+	for _, album := range allAlbums {
 		if album.AlbumName == mapping.Album {
 			return album.ID, nil
 		}

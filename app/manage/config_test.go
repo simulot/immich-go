@@ -59,6 +59,53 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+func TestParseConfig_Mode(t *testing.T) {
+	yaml := `people-album-sync:
+  albums:
+    - album: "Everyone Together"
+      people:
+        names: ["Alice", "Bob"]
+      mode: "all"
+    - album: "Anyone"
+      people:
+        names: ["Alice", "Bob"]
+      mode: "any"
+    - album: "Default Mode"
+      people:
+        names: ["Alice"]
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "manage.yaml")
+	if err := os.WriteFile(path, []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := ParseConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Before validation, entry with no mode should be empty
+	if cfg.PeopleAlbumSync.Albums[2].Mode != "" {
+		t.Errorf("expected empty mode before validation, got %q", cfg.PeopleAlbumSync.Albums[2].Mode)
+	}
+
+	if err := cfg.PeopleAlbumSync.validate(); err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+
+	// After validation, all modes should be normalized
+	if cfg.PeopleAlbumSync.Albums[0].Mode != ModeAll {
+		t.Errorf("expected mode 'all', got %q", cfg.PeopleAlbumSync.Albums[0].Mode)
+	}
+	if cfg.PeopleAlbumSync.Albums[1].Mode != ModeAny {
+		t.Errorf("expected mode 'any', got %q", cfg.PeopleAlbumSync.Albums[1].Mode)
+	}
+	if cfg.PeopleAlbumSync.Albums[2].Mode != ModeAll {
+		t.Errorf("expected mode 'all' after validation (default), got %q", cfg.PeopleAlbumSync.Albums[2].Mode)
+	}
+}
+
 func TestParseConfig_AlbumByID(t *testing.T) {
 	yaml := `people-album-sync:
   albums:
@@ -107,6 +154,26 @@ func TestParseConfig_ValidationErrors(t *testing.T) {
 			name: "empty albums list",
 			yaml: `people-album-sync:
   albums: []
+`,
+		},
+		{
+			name: "both album and album_id",
+			yaml: `people-album-sync:
+  albums:
+    - album: "Test"
+      album_id: "uuid-123"
+      people:
+        names: ["Alice"]
+`,
+		},
+		{
+			name: "invalid mode",
+			yaml: `people-album-sync:
+  albums:
+    - album: "Test"
+      people:
+        names: ["Alice"]
+      mode: "invalid"
 `,
 		},
 	}
