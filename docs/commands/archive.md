@@ -43,6 +43,7 @@ All `upload` sub-commands are available for `archive`:
 |-------------|--------|-------------|
 | `from-folder` | Local filesystem | Archive from local folders or ZIP archives |
 | `from-google-photos` | Google Takeout | Archive from Google Photos takeout |
+| `from-snapchat` | Snapchat export | Archive from Snapchat memories exports |
 | `from-icloud` | iCloud export | Archive from iCloud takeout |
 | `from-picasa` | Picasa | Archive from Picasa collections |
 | `from-immich` | Immich server | Archive from Immich server |
@@ -119,6 +120,14 @@ immich-go archive from-google-photos \
   --from-album-name="Summer Vacation" \
   --write-to-folder=/vacations \
   /path/to/takeout
+```
+
+### Archive Snapchat Memories Export
+```bash
+# Archive multipart Snapchat export and merge overlays
+immich-go archive from-snapchat \
+  --write-to-folder=/organized-snapchat \
+  /path/to/mydata~*.zip
 ```
 
 ### Archive Local Folders

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -162,11 +163,10 @@ func (at *AssetTracker) SetProcessed(file fshelper.FSAndName, eventCode fileeven
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
-	key := file.FullName()
-	record, exists := at.assets[key]
+	key, record, exists := at.findRecordForFinalization(file)
 	if !exists {
 		if at.log != nil {
-			at.log.Error("SetProcessed: asset not found", "file", key, "code", eventCode)
+			at.log.Error("SetProcessed: asset not found", "file", file.FullName(), "code", eventCode)
 		}
 		return
 	}
@@ -208,11 +208,10 @@ func (at *AssetTracker) SetDiscarded(file fshelper.FSAndName, eventCode fileeven
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
-	key := file.FullName()
-	record, exists := at.assets[key]
+	key, record, exists := at.findRecordForFinalization(file)
 	if !exists {
 		if at.log != nil {
-			at.log.Error("SetDiscarded: asset not found", "file", key, "code", eventCode, "reason", reason)
+			at.log.Error("SetDiscarded: asset not found", "file", file.FullName(), "code", eventCode, "reason", reason)
 		}
 		return
 	}
@@ -256,11 +255,10 @@ func (at *AssetTracker) SetError(file fshelper.FSAndName, eventCode fileevent.Co
 	at.mu.Lock()
 	defer at.mu.Unlock()
 
-	key := file.FullName()
-	record, exists := at.assets[key]
+	key, record, exists := at.findRecordForFinalization(file)
 	if !exists {
 		if at.log != nil {
-			at.log.Error("SetError: asset not found", "file", key, "code", eventCode, "error", err.Error())
+			at.log.Error("SetError: asset not found", "file", file.FullName(), "code", eventCode, "error", err.Error())
 		}
 		return
 	}
@@ -475,4 +473,35 @@ func formatBytes(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+func (at *AssetTracker) findRecordForFinalization(file fshelper.FSAndName) (string, *AssetRecord, bool) {
+	key := file.FullName()
+	record, ok := at.assets[key]
+	if ok {
+		return key, record, true
+	}
+
+	// Compatibility lookup for Snapchat merged assets.
+	// Some discovery paths can register the original main file while processing
+	// finalizes with a synthetic key like:
+	// "snapchat-merged:<source-fs-and-name>:merged".
+	const (
+		snapPrefix = "snapchat-merged:"
+		snapSuffix = ":merged"
+	)
+	if strings.HasPrefix(key, snapPrefix) && strings.HasSuffix(key, snapSuffix) {
+		fallback := strings.TrimSuffix(strings.TrimPrefix(key, snapPrefix), snapSuffix)
+		if fallback != "" {
+			record, ok = at.assets[fallback]
+			if ok {
+				if at.log != nil {
+					at.log.Debug("AssetTracker used snapchat fallback key", "from", key, "to", fallback)
+				}
+				return fallback, record, true
+			}
+		}
+	}
+
+	return key, nil, false
 }

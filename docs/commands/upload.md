@@ -14,6 +14,7 @@ immich-go upload <sub-command> [options] <source-path>
 | ----------------------------------------- | ---------------- | ------------------------------------------ |
 | [from-folder](#from-folder)               | Local filesystem | Upload from local folders or ZIP archives  |
 | [from-google-photos](#from-google-photos) | Google Takeout   | Upload from Google Photos takeout archives |
+| [from-snapchat](#from-snapchat)           | Snapchat export  | Upload from Snapchat memories exports       |
 | [from-icloud](#from-icloud)               | iCloud export    | Upload from iCloud takeout                 |
 | [from-picasa](#from-picasa)               | Picasa           | Upload from Picasa photo collections       |
 | [from-immich](#from-immich)               | Immich server    | Transfer between Immich servers            |
@@ -36,6 +37,7 @@ All upload sub-commands require these connection parameters:
 | `--dry-run`           | `false`   | Simulate upload without actual transfers                            |
 | `--concurrent-tasks`  | CPU cores | Number of parallel tasks (1-20)                                     |
 | `--overwrite`         | `false`   | Replace existing files on server                                    |
+| `--conservative-duplicates` | `false` | For general imports: treat same capture date (+/-5s), size, and type as duplicates; for `from-snapchat`: also use Snapchat-aware fuzzy matching against existing `Snapchat-*` assets |
 | `--pause-immich-jobs` | `true`    | Pause server jobs during upload                                     |
 | `--on-errors`         | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors |
 
@@ -166,6 +168,40 @@ immich-go upload from-google-photos --include-unmatched --server=http://localhos
 
 # Import from specific album only
 immich-go upload from-google-photos --from-album-name="Vacation 2023" --server=http://localhost:2283 --api-key=your-key /takeout
+```
+
+---
+
+## from-snapchat
+
+Upload from Snapchat memories exports (`mydata~*.zip`), including multipart exports.
+
+### Usage
+```bash
+immich-go upload from-snapchat [options] <mydata-*.zip> | <takeout-folder>
+```
+
+### Behavior
+
+- Reads metadata from `json/memories_history.json` when present
+- Matches metadata to media using Snapchat memory IDs (`sid`/`mid`)
+- Detects paired files in `memories/` with naming pattern `*-main.*` and `*-overlay.png`
+- Automatically merges overlays onto the main media before upload
+- If overlay merge fails (for example missing `ffmpeg` for video), uploads the main media and logs a warning
+
+### File Management
+Same options as `from-folder` for burst, RAW/JPEG, and HEIC/JPEG management.
+
+### Examples
+```bash
+# Import multipart Snapchat export zips
+immich-go upload from-snapchat --server=http://localhost:2283 --api-key=your-key /path/to/mydata~*.zip
+
+# Import from extracted takeout directory
+immich-go upload from-snapchat --server=http://localhost:2283 --api-key=your-key /path/to/snapchat-export
+
+# Skip likely duplicates with different filenames/encodings
+immich-go upload from-snapchat --conservative-duplicates --server=http://localhost:2283 --api-key=your-key /path/to/mydata~*.zip
 ```
 
 ---

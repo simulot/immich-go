@@ -221,3 +221,46 @@ When migrating assets, `from-immich` ensures that all metadata is preserved:
 
 *   **Albums and Tags**: The assets' associations with albums and tags are fetched from the source server. When they are uploaded to the destination server, `immich-go` will recreate those albums and tags.
 *   **Other Metadata**: Descriptions, GPS coordinates, ratings, and other EXIF/XMP information are all carried over to the destination server.
+
+## 4. The `from-snapchat` Command: Importing Snapchat Memories Exports
+
+The `from-snapchat` command imports Snapchat data exports directly from zip parts (`mydata~*.zip`) or an extracted export folder.
+
+### How it Works
+
+`from-snapchat` uses a two-pass approach:
+
+1.  **Discovery pass**:
+    *   Scans all inputs for `json/memories_history.json` and parses capture date + location metadata.
+    *   Scans `memories/` entries and identifies media files (`*-main.*`) and overlay files (`*-overlay.png`).
+    *   Matches entries by Snapchat ID (`sid`/`mid`) extracted from JSON links and filenames.
+
+2.  **Asset pass**:
+    *   Builds assets from `*-main.*` files.
+    *   Applies metadata from `memories_history.json` (capture date and GPS coordinates).
+    *   If an overlay exists, merges it into the main media before upload/archive.
+
+### Overlay Merging
+
+Snapchat often exports overlays (text/stickers) as separate files. `from-snapchat` reconstructs the final media automatically:
+
+*   **Images**: Resizes `*-overlay.png` to the main image dimensions and composites it.
+*   **Videos**: Uses `ffmpeg` with `scale2ref + overlay` to burn the overlay onto the video stream.
+
+If video overlay merge fails (for example `ffmpeg` missing), `immich-go` logs a warning and falls back to the original main video so import can continue.
+
+### Integration with Existing Pipeline
+
+After Snapchat-specific preprocessing, assets enter the standard `immich-go` pipeline, so duplicate detection, filtering, stacking, album/tag logic, and archive behavior remain consistent with other import commands.
+
+### Conservative Duplicate Mode
+
+When `--conservative-duplicates` is enabled (upload command), `immich-go` also considers an asset as already present if all three conditions match an existing server asset:
+
+*   Capture date within +/-5 seconds
+*   Same file size
+*   Same media type (image/video)
+
+This mode is useful for Snapchat migrations where filenames and checksums can differ from already-imported media due to re-exports or overlay reconstruction.
+
+For `from-snapchat`, conservative mode also includes a Snapchat-specific fallback that compares same-day assets against existing `Snapchat-*` server assets using media type and size similarity. This helps detect likely duplicates when filenames and checksums differ significantly between Snapchat export files and already imported Immich assets.
