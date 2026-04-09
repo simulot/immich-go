@@ -7,6 +7,7 @@ import (
 
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/app/archive"
+	"github.com/simulot/immich-go/app/manage"
 	"github.com/simulot/immich-go/app/stack"
 	"github.com/simulot/immich-go/app/upload"
 	"github.com/simulot/immich-go/app/version"
@@ -42,6 +43,7 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 		upload.NewUploadCommand(ctx, a),   // Upload command for uploading assets
 		archive.NewArchiveCommand(ctx, a), // Archive command for archiving assets
 		stack.NewStackCommand(ctx, a),     // Stack command for managing stacks
+		manage.NewManageCommand(ctx, a),   // Manage command for people-to-album sync
 	)
 
 	// PersistentPreRunE is executed before any command runs, used for initialization

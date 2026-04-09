@@ -15,6 +15,7 @@ This documentation is organized into several sections to help you get started qu
 - [**Commands Overview**](commands/README.md) - Complete command structure and global options
 - [**Upload Commands**](commands/upload.md) - Detailed upload command documentation
 - [**Archive Commands**](commands/archive.md) - Export and archival operations
+- [**Manage Commands**](commands/manage.md) - Server-side resource management (people-album-sync)
 - [**Stack Commands**](commands/stack.md) - Photo organization and stacking
 
 ### 📋 Best Practices & Advanced Topics
@@ -55,6 +56,9 @@ immich-go upload from-google-photos --server=SERVER --api-key=KEY /path/to/takeo
 # Archive from Immich server
 immich-go archive from-immich --server=SERVER --api-key=KEY --write-to-folder=/archive
 
+# Sync people to albums
+immich-go manage people-album-sync --server=SERVER --api-key=KEY --config=manage.yaml
+
 # Stack similar photos
 immich-go stack --server=SERVER --api-key=KEY
 ```
@@ -74,6 +78,7 @@ docs/
 │   ├── README.md              # Command overview
 │   ├── upload.md              # Upload commands
 │   ├── archive.md             # Archive commands
+│   ├── manage.md              # Manage commands
 │   └── stack.md               # Stack commands
 ├── concurrency/               # Performance optimization
 │   ├── README.md             # Concurrency overview

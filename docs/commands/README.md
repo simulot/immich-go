@@ -14,6 +14,7 @@ immich-go [global-options] command sub-command [command-options] [path]
 |---------|-------------|--------------|
 | [upload](upload.md) | Upload photos/videos to Immich server | from-folder, from-google-photos, from-icloud, from-picasa, from-immich |
 | [archive](archive.md) | Export/archive photos to local folder structure | from-folder, from-google-photos, from-icloud, from-picasa, from-immich |
+| [manage](manage.md) | Manage Immich server resources | people-album-sync |
 | [stack](stack.md) | Organize related photos into stacks on server | (none) |
 | version | Display version information | (none) |
 
@@ -55,6 +56,9 @@ immich-go archive from-immich --server=http://localhost:2283 --api-key=your-key 
 # Stack photos on server
 immich-go stack --server=http://localhost:2283 --api-key=your-key --manage-burst=Stack
 
+# Sync people to albums
+immich-go manage people-album-sync --server=http://localhost:2283 --api-key=your-key --config=manage.yaml
+
 # Show version
 immich-go version
 ```
@@ -63,4 +67,5 @@ immich-go version
 
 - [Upload Command](upload.md) - Comprehensive upload options and sub-commands
 - [Archive Command](archive.md) - Export and archival features  
+- [Manage Command](manage.md) - Server-side resource management
 - [Stack Command](stack.md) - Photo organization and stacking
