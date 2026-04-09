@@ -10,7 +10,7 @@
 - **Simple Installation**: No NodeJS or Docker required
 - **Multiple Sources**: Upload from Google Photos Takeouts, iCloud, local folders, ZIP archives, and other Immich servers
 - **Large Collections**: Successfully handles 100,000+ photos
-- **Smart Management**: Duplicate detection, burst photo stacking, RAW+JPEG handling
+- **Smart Management**: Duplicate detection, burst photo stacking, RAW+JPEG handling, people-to-album sync
 - **Cross-Platform**: Available for Windows, macOS, Linux, and FreeBSD
 
 ## 🚀 Quick Start
@@ -28,6 +28,9 @@ immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-
 
 # Archive photos from Immich server
 immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-key --write-to-folder=/path/to/archive
+
+# Sync people to albums from a YAML config
+immich-go manage people-album-sync --server=http://your-ip:2283 --api-key=your-api-key --config=manage.yaml
 ```
 
 ### 3. Requirements
@@ -47,7 +50,7 @@ immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-ke
 | Topic | Description |
 |-------|-------------|
 | [Installation](docs/installation.md) | Detailed installation instructions for all platforms |
-| [Commands](docs/commands/) | Complete command reference and options |
+| [Commands](docs/commands/) | Complete command reference and options (upload, archive, manage, stack) |
 | [Configuration](docs/configuration.md) | Configuration options and environment variables |
 | [Examples](docs/examples.md) | Common use cases and practical examples |
 | [Best Practices](docs/best-practices.md) | Tips for optimal performance and reliability |
@@ -57,15 +60,21 @@ immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-ke
 
 ## ✨ How immich-go Works
 
-`immich-go` offers a versatile set of commands to handle your photo and video uploads. Whether you're uploading from a simple folder, migrating from a Google Photos Takeout, or transferring assets between Immich servers, the tool provides intelligent features to preserve your metadata and organization.
+`immich-go` offers a versatile set of commands to handle your photo and video uploads and management. Whether you're uploading from a simple folder, migrating 
+from a Google Photos Takeout, transferring assets between Immich servers, or managing your existing library, the tool provides intelligent features to 
+preserve your metadata and organization.
 
-Here's a brief overview of the main upload commands:
+Here's a brief overview of the main commands:
 
 *   **`from-folder`**: The basic command for uploading from any local folder. It can create albums from your directory structure and read XMP sidecar files.
 *   **`from-google-photos`**: A powerful command to migrate from a Google Photos Takeout. It intelligently matches photos with their JSON metadata to preserve albums, descriptions, and locations.
 *   **`from-immich`**: A server-to-server migration tool that allows you to copy assets between two Immich instances with fine-grained filtering.
 *   **`from-picasa`**: A specialized version of `from-folder` that automatically reads `.picasa.ini` files to restore your Picasa album organization.
 *   **`from-icloud`**: Another specialized command that handles the complexity of an iCloud Photos takeout, correctly identifying creation dates and album structures from the included CSV files.
+
+### Managing Your Library
+
+*   **`manage people-album-sync`**: Reads a YAML config that maps albums to people and automatically adds matching photos. Supports two modes: `"all"` (photos where every listed person appears together) and `"any"` (photos where any listed person appears). The command is additive and idempotent — safe to run on a schedule. See the [Manage Command docs](docs/commands/manage.md) for details.
 
 ### Leveraging Immich's Features
 
@@ -83,6 +92,7 @@ For a detailed explanation of how each upload command works, please see the [Upl
 - **Google Photos Migration**: [Complete guide](docs/best-practices.md#google-photos-migration)
 - **iCloud Import**: [Step-by-step instructions](docs/examples.md#icloud-import)
 - **Server Migration**: [Transfer between Immich instances](docs/examples.md#server-migration)
+- **People-Album Sync**: [Auto-populate albums by person](docs/commands/manage.md)
 - **Bulk Organization**: [Stacking and tagging strategies](docs/best-practices.md#organization-strategies)
 
 ## 💡 Support the Project

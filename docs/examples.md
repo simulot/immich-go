@@ -12,6 +12,7 @@ This guide provides practical examples for common Immich-Go scenarios.
 | [Server backup](#server-backup) | `archive from-immich` | Full server archive |
 | [Server migration](#server-migration) | `upload from-immich` | Transfer between servers |
 | [Photo organization](#photo-organization) | `stack` | Organize existing photos |
+| [People-album sync](#people-album-sync) | `manage people-album-sync` | Auto-populate albums by person |
 | [Selective sync](#selective-sync) | Various filters | Partial imports |
 
 ## Local Photo Upload
@@ -239,6 +240,41 @@ immich-go archive from-folder \
   --write-to-folder=/organized-photos \
   --manage-raw-jpeg=StackCoverRaw \
   /messy/photo/folders
+```
+
+## People-Album Sync
+
+### Auto-Populate Albums by Person
+```yaml
+# manage.yaml — map albums to people
+people-album-sync:
+  albums:
+    - album: "Family Trips"
+      mode: "all"
+      people:
+        names:
+          - "Alice"
+          - "Bob"
+    - album: "Kids"
+      mode: "any"
+      people:
+        names:
+          - "Emma"
+          - "Jack"
+```
+
+```bash
+# Run the sync
+immich-go manage people-album-sync \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
+  --config=manage.yaml
+```
+
+### Scheduled Sync (Cron)
+```bash
+# Run nightly at 1 AM — the command is idempotent, so repeated runs are safe
+0 1 * * * immich-go manage people-album-sync --server=http://localhost:2283 --api-key=your-key --config=/etc/immich-go/manage.yaml
 ```
 
 ## Selective Sync
