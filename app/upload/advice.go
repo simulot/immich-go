@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"regexp"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -64,6 +67,12 @@ type immichIndex struct {
 	// map of SHA1 to assetID
 	byChecksum *syncmap.SyncMap[string, *assets.Asset]
 
+	// map of conservative duplicate keys to assets
+	byConservative *syncmap.SyncMap[string, []*assets.Asset]
+
+	// map of day+type to assets (used for Snapchat fuzzy duplicate matching)
+	byDayType *syncmap.SyncMap[string, []*assets.Asset]
+
 	assetNumber int64
 }
 
@@ -71,6 +80,8 @@ func newAssetIndex() *immichIndex {
 	return &immichIndex{
 		immichAssets:    syncmap.New[string, *assets.Asset](),
 		byChecksum:      syncmap.New[string, *assets.Asset](),
+		byConservative:  syncmap.New[string, []*assets.Asset](),
+		byDayType:       syncmap.New[string, []*assets.Asset](),
 		byName:          syncmap.New[string, []string](),
 		uploadsChecksum: syncset.New[string](),
 	}
@@ -144,6 +155,18 @@ func (ii *immichIndex) add(a *assets.Asset, local bool) *assets.Asset {
 	l, _ := ii.byName.Load(filename)
 	l = append(l, a.ID)
 	ii.byName.Store(filename, l)
+
+	if key := conservativeKey(a); key != "" {
+		l2, _ := ii.byConservative.Load(key)
+		l2 = append(l2, a)
+		ii.byConservative.Store(key, l2)
+	}
+
+	if key := dayTypeKey(a); key != "" {
+		l3, _ := ii.byDayType.Load(key)
+		l3 = append(l3, a)
+		ii.byDayType.Store(key, l3)
+	}
 	return a
 }
 
@@ -297,7 +320,281 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, er
 			}
 		}
 	}
+
+	if upCmd.ConservativeDuplicates {
+		for _, key := range conservativeCandidateKeys(la) {
+			candidates, ok := ii.byConservative.Load(key)
+			if !ok {
+				continue
+			}
+			for _, sa := range candidates {
+				if sa == nil {
+					continue
+				}
+				if upCmd.app != nil {
+					upCmd.app.Log().Debug("conservative duplicate matched", "local", la.OriginalFileName, "server", sa.OriginalFileName, "key", key)
+				}
+				return ii.adviceSameOnServer(sa), nil
+			}
+		}
+
+		if best := ii.findSnapchatFuzzyDuplicate(la); best != nil {
+			if upCmd.app != nil {
+				upCmd.app.Log().Debug("snapchat fuzzy duplicate matched", "local", la.OriginalFileName, "server", best.OriginalFileName)
+			}
+			return ii.adviceSameOnServer(best), nil
+		}
+	}
 	return ii.adviceNotOnServer(), nil
+}
+
+var snapMainNameRE = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}_.+-main\.[A-Za-z0-9]+$`)
+
+func isSnapchatMainName(name string) bool {
+	return snapMainNameRE.MatchString(name)
+}
+
+func isSnapchatImmichName(name string) bool {
+	return strings.HasPrefix(strings.ToLower(name), "snapchat-")
+}
+
+func normalizeAssetType(a *assets.Asset) string {
+	if a == nil {
+		return ""
+	}
+	t := strings.ToLower(strings.TrimSpace(a.Type))
+	if t != "" {
+		return t
+	}
+	ext := strings.ToLower(path.Ext(a.OriginalFileName))
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif":
+		return "image"
+	case ".mp4", ".mov", ".m4v", ".webm":
+		return "video"
+	default:
+		return ""
+	}
+}
+
+func dayTypeKey(a *assets.Asset) string {
+	if a == nil {
+		return ""
+	}
+	t := a.CaptureDate
+	if t.IsZero() {
+		t = a.FileDate
+	}
+	if t.IsZero() {
+		return ""
+	}
+	k := normalizeAssetType(a)
+	if k == "" {
+		return ""
+	}
+	day := t.UTC().Format("2006-01-02")
+	return k + "|" + day
+}
+
+func (ii *immichIndex) findSnapchatFuzzyDuplicate(la *assets.Asset) *assets.Asset {
+	if la == nil || !isSnapchatMainName(la.OriginalFileName) {
+		return nil
+	}
+	keys := dayTypeWindowKeys(la, 1)
+	if len(keys) == 0 {
+		return nil
+	}
+
+	candidateByID := map[string]*assets.Asset{}
+	for _, key := range keys {
+		candidates, ok := ii.byDayType.Load(key)
+		if !ok || len(candidates) == 0 {
+			continue
+		}
+		for _, sa := range candidates {
+			if sa == nil || sa.ID == "" {
+				continue
+			}
+			candidateByID[sa.ID] = sa
+		}
+	}
+	if len(candidateByID) == 0 {
+		return nil
+	}
+
+	localSize := int64(la.FileSize)
+	if localSize <= 0 {
+		return nil
+	}
+	localType := normalizeAssetType(la)
+	localDay := normalizeToDay(la.CaptureDate)
+	if localDay.IsZero() {
+		localDay = normalizeToDay(la.FileDate)
+	}
+
+	bestScore := 2.0
+	secondScore := 2.0
+	var best *assets.Asset
+	typeBaseThreshold := 0.33 // images
+	if localType == "video" {
+		typeBaseThreshold = 0.90
+	}
+
+	candidates := make([]*assets.Asset, 0, len(candidateByID))
+	for _, sa := range candidateByID {
+		candidates = append(candidates, sa)
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
+
+	for _, sa := range candidates {
+		if sa == nil || sa.Trashed || !isSnapchatImmichName(sa.OriginalFileName) {
+			continue
+		}
+		if normalizeAssetType(sa) != localType {
+			continue
+		}
+
+		serverDay := normalizeToDay(sa.CaptureDate)
+		if serverDay.IsZero() {
+			serverDay = normalizeToDay(sa.FileDate)
+		}
+		if serverDay.IsZero() || localDay.IsZero() {
+			continue
+		}
+		dayDiff := absDaysBetween(localDay, serverDay)
+		if dayDiff > 1 {
+			continue
+		}
+
+		serverSize := int64(sa.FileSize)
+		if serverSize <= 0 {
+			continue
+		}
+		sizeScore := float64(absInt64(localSize-serverSize)) / float64(maxInt64(localSize, serverSize))
+		score := sizeScore + float64(dayDiff)*0.08
+
+		threshold := typeBaseThreshold
+		if dayDiff == 1 {
+			threshold -= 0.08
+		}
+		if sizeScore > threshold {
+			continue
+		}
+
+		if score < bestScore {
+			secondScore = bestScore
+			bestScore = score
+			best = sa
+		} else if score < secondScore {
+			secondScore = score
+		}
+	}
+
+	if best == nil {
+		return nil
+	}
+
+	// Avoid ambiguous matches among many same-day assets.
+	if secondScore-bestScore < 0.05 {
+		return nil
+	}
+
+	return best
+}
+
+func dayTypeWindowKeys(a *assets.Asset, dayWindow int) []string {
+	if a == nil {
+		return nil
+	}
+	t := normalizeToDay(a.CaptureDate)
+	if t.IsZero() {
+		t = normalizeToDay(a.FileDate)
+	}
+	if t.IsZero() {
+		return nil
+	}
+	typeName := normalizeAssetType(a)
+	if typeName == "" {
+		return nil
+	}
+	keys := make([]string, 0, dayWindow*2+1)
+	for delta := -dayWindow; delta <= dayWindow; delta++ {
+		day := t.AddDate(0, 0, delta).Format("2006-01-02")
+		keys = append(keys, typeName+"|"+day)
+	}
+	return keys
+}
+
+func normalizeToDay(t time.Time) time.Time {
+	if t.IsZero() {
+		return time.Time{}
+	}
+	u := t.UTC()
+	return time.Date(u.Year(), u.Month(), u.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func absDaysBetween(a, b time.Time) int {
+	if a.IsZero() || b.IsZero() {
+		return 0
+	}
+	d := a.Sub(b)
+	if d < 0 {
+		d = -d
+	}
+	return int(d / (24 * time.Hour))
+}
+
+func absInt64(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func maxInt64(a int64, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func conservativeCandidateKeys(a *assets.Asset) []string {
+	if conservativeKey(a) == "" {
+		return nil
+	}
+	dateTaken := a.CaptureDate
+	if dateTaken.IsZero() {
+		dateTaken = a.FileDate
+	}
+	t := dateTaken.UTC()
+	size := a.FileSize
+	typeName := normalizeAssetType(a)
+	if typeName == "" {
+		typeName = "unknown"
+	}
+	keys := make([]string, 0, 11)
+	for delta := -5; delta <= 5; delta++ {
+		keys = append(keys, fmt.Sprintf("%s|%d|%d", typeName, size, t.Add(time.Duration(delta)*time.Second).Unix()))
+	}
+	return keys
+}
+
+func conservativeKey(a *assets.Asset) string {
+	if a == nil {
+		return ""
+	}
+	dateTaken := a.CaptureDate
+	if dateTaken.IsZero() {
+		dateTaken = a.FileDate
+	}
+	if dateTaken.IsZero() {
+		return ""
+	}
+	typeName := normalizeAssetType(a)
+	if typeName == "" {
+		typeName = "unknown"
+	}
+	return fmt.Sprintf("%s|%d|%d", typeName, a.FileSize, dateTaken.UTC().Unix())
 }
 
 func compareDate(d1 time.Time, d2 time.Time) int {

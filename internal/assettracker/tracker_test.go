@@ -25,6 +25,18 @@ func (m mockFS) Name() string {
 	return "test.zip"
 }
 
+type mergedMockFS struct {
+	name string
+}
+
+func (m mergedMockFS) Open(name string) (fs.File, error) {
+	return nil, fs.ErrNotExist
+}
+
+func (m mergedMockFS) Name() string {
+	return m.name
+}
+
 func TestNew(t *testing.T) {
 	tracker := New()
 	if tracker == nil {
@@ -102,6 +114,69 @@ func TestSetProcessed(t *testing.T) {
 	}
 	if !tracker.IsComplete() {
 		t.Error("tracker should be complete")
+	}
+}
+
+func TestSetProcessedSnapchatMergedFallback(t *testing.T) {
+	tracker := New()
+
+	original := fshelper.FSName(mockFS{}, "memories/2020-01-01_abc-main.jpg")
+	tracker.DiscoverAsset(original, 1234, fileevent.DiscoveredImage)
+
+	merged := fshelper.FSName(mergedMockFS{name: "snapchat-merged:" + original.FullName()}, "merged")
+	tracker.SetProcessed(merged, fileevent.ProcessedUploadSuccess)
+
+	counters := tracker.GetCounters()
+	if counters.Processed != 1 {
+		t.Errorf("expected 1 processed asset, got %d", counters.Processed)
+	}
+	if counters.Pending != 0 {
+		t.Errorf("expected 0 pending assets, got %d", counters.Pending)
+	}
+	if counters.ProcessedSize != 1234 {
+		t.Errorf("expected processed size 1234, got %d", counters.ProcessedSize)
+	}
+}
+
+func TestSetDiscardedSnapchatMergedFallback(t *testing.T) {
+	tracker := New()
+
+	original := fshelper.FSName(mockFS{}, "memories/2020-01-01_abc-main.jpg")
+	tracker.DiscoverAsset(original, 1000, fileevent.DiscoveredImage)
+
+	merged := fshelper.FSName(mergedMockFS{name: "snapchat-merged:" + original.FullName()}, "merged")
+	tracker.SetDiscarded(merged, fileevent.DiscardedServerDuplicate, "server has duplicate")
+
+	counters := tracker.GetCounters()
+	if counters.Discarded != 1 {
+		t.Errorf("expected 1 discarded asset, got %d", counters.Discarded)
+	}
+	if counters.Pending != 0 {
+		t.Errorf("expected 0 pending assets, got %d", counters.Pending)
+	}
+	if counters.DiscardedSize != 1000 {
+		t.Errorf("expected discarded size 1000, got %d", counters.DiscardedSize)
+	}
+}
+
+func TestSetErrorSnapchatMergedFallback(t *testing.T) {
+	tracker := New()
+
+	original := fshelper.FSName(mockFS{}, "memories/2020-01-01_abc-main.mp4")
+	tracker.DiscoverAsset(original, 2000, fileevent.DiscoveredVideo)
+
+	merged := fshelper.FSName(mergedMockFS{name: "snapchat-merged:" + original.FullName()}, "merged")
+	tracker.SetError(merged, fileevent.ErrorUploadFailed, fs.ErrPermission)
+
+	counters := tracker.GetCounters()
+	if counters.Errors != 1 {
+		t.Errorf("expected 1 error asset, got %d", counters.Errors)
+	}
+	if counters.Pending != 0 {
+		t.Errorf("expected 0 pending assets, got %d", counters.Pending)
+	}
+	if counters.ErrorSize != 2000 {
+		t.Errorf("expected error size 2000, got %d", counters.ErrorSize)
 	}
 }
 

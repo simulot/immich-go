@@ -7,6 +7,7 @@ import (
 	"github.com/simulot/immich-go/adapters/folder"
 	"github.com/simulot/immich-go/adapters/fromimmich"
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
+	"github.com/simulot/immich-go/adapters/snapchat"
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
@@ -38,6 +39,7 @@ func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command
 	cmd.AddCommand(folder.NewFromPicasaCommand(ctx, cmd, app, ac))
 	cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, ac))
 	cmd.AddCommand(gp.NewFromGooglePhotosCommand(ctx, cmd, app, ac))
+	cmd.AddCommand(snapchat.NewFromSnapchatCommand(ctx, cmd, app, ac))
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// Initialize the FileProcessor (tracker + logger)

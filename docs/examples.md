@@ -8,6 +8,7 @@ This guide provides practical examples for common Immich-Go scenarios.
 |----------|---------|---------------|
 | [Upload local photos](#local-photo-upload) | `upload from-folder` | Basic photo upload |
 | [Google Photos migration](#google-photos-migration) | `upload from-google-photos` | Takeout import |
+| [Snapchat migration](#snapchat-migration) | `upload from-snapchat` | Snapchat memories export |
 | [iCloud import](#icloud-import) | `upload from-icloud` | iCloud takeout |
 | [Server backup](#server-backup) | `archive from-immich` | Full server archive |
 | [Server migration](#server-migration) | `upload from-immich` | Transfer between servers |
@@ -103,6 +104,35 @@ immich-go upload from-google-photos \
   --on-errors=continue \
   --session-tag \
   /downloads/takeout-*.zip
+```
+
+## Snapchat Migration
+
+### Multipart Export Import
+```bash
+# Import Snapchat mydata export parts and merge overlays
+immich-go upload from-snapchat \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
+  /downloads/mydata~*.zip
+```
+
+### Conservative Duplicate Mode
+```bash
+# Avoid re-importing likely existing media with different filenames
+immich-go upload from-snapchat \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
+  --conservative-duplicates \
+  /downloads/mydata~*.zip
+```
+
+### Archive Snapchat Export
+```bash
+# Rebuild a clean local archive from Snapchat export
+immich-go archive from-snapchat \
+  --write-to-folder=/organized/snapchat \
+  /downloads/mydata~*.zip
 ```
 
 ## iCloud Import
