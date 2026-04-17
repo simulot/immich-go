@@ -518,6 +518,9 @@ func (sa *Adapter) mapToAssetForLive(item *Item, actuleFilePath string) (*assets
 			return nil
 		}
 		dir := filepath.Dir(actuleFilePath)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			return nil
+		}
 		if files, err := os.ReadDir(dir); err != nil {
 			sa.app.Log().Error("Error reading dir", "dir", dir, "err", err)
 		} else if len(files) == 0 {
