@@ -36,10 +36,17 @@ func (a *Asset) OpenFile() (osfs.OSFS, error) {
 
 // Close close the temporary file  and close the source
 func (a *Asset) Close() error {
-	if a.cacheReader == nil {
-		return nil
+	if a.cacheReader != nil {
+		if err := a.cacheReader.Close(); err != nil {
+			return err
+		}
 	}
-	return a.cacheReader.Close()
+	for _, o := range a.closeOptions {
+		if err := o(a); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 /*
