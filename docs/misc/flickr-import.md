@@ -89,7 +89,10 @@ in your Flickr export.
 The following data is present in a Flickr export but is **not** imported:
 
 - **GPS / geo coordinates** — the `geo` field is present in per-photo JSON files but was
-  empty in all tested real-world exports; it is not imported.
+  empty in all tested real-world exports. GPS data embedded in the image EXIF is preserved
+  as-is by Immich during upload.
+- **People / user tags** — Flickr's export always produces an empty `people` field even
+  for photos with tagged users. This appears to be a bug in Flickr's export system.
 - **Comments**
 - **Groups**
 - **Favorites / faves**
