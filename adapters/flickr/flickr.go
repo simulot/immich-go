@@ -274,9 +274,10 @@ func (f *FlickrCmd) passTwo(ctx context.Context, gOut chan *assets.Group) error 
 		if md, ok := f.photoMeta[photoID]; ok {
 			converted := md.AsMetadata(fshelper.FSName(entry.fsys, entry.base))
 			a.FromApplication = a.UseMetadata(converted)
-			// Override OriginalFileName with the human-readable Flickr photo title when available.
+			// Override OriginalFileName with the human-readable Flickr photo title when available,
+			// preserving the original file extension so upload type detection still works.
 			if md.Name != "" {
-				a.OriginalFileName = md.Name
+				a.OriginalFileName = md.Name + path.Ext(entry.base)
 			}
 		} else {
 			f.processor.RecordNonAsset(ctx, fshelper.FSName(entry.fsys, entry.base), int64(entry.length), fileevent.ProcessedMissingMetadata)

@@ -304,8 +304,8 @@ func TestBrowse(t *testing.T) {
 		if !a.CaptureDate.Equal(wantDate) {
 			t.Errorf("CaptureDate = %v, want %v", a.CaptureDate, wantDate)
 		}
-		if a.OriginalFileName != "Sunset at the Beach" {
-			t.Errorf("OriginalFileName = %q, want %q", a.OriginalFileName, "Sunset at the Beach")
+		if a.OriginalFileName != "Sunset at the Beach.jpg" {
+			t.Errorf("OriginalFileName = %q, want %q", a.OriginalFileName, "Sunset at the Beach.jpg")
 		}
 		if len(a.Tags) != 2 {
 			t.Errorf("len(Tags) = %d, want 2", len(a.Tags))
