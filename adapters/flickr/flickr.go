@@ -21,6 +21,10 @@ import (
 // Compile-time assertion that FlickrCmd satisfies adapters.Reader.
 var _ adapters.Reader = (*FlickrCmd)(nil)
 
+// albumsJSONFile is the filename used to identify the metadata archive and
+// parse album membership. Declared as a constant to satisfy goconst.
+const albumsJSONFile = "albums.json"
+
 // Package-level compiled regexes — compiled once, never per-call.
 var (
 	// rePhotoIDPrimary matches the current Flickr export format: slug_ID_o.ext
@@ -51,9 +55,9 @@ type FlickrCmd struct {
 	app        *app.Application
 	processor  *fileprocessor.FileProcessor
 	fsyss      []fs.FS
-	catalog    map[string]*assetFile     // photo ID → image file entry
+	catalog    map[string]*assetFile      // photo ID → image file entry
 	photoMeta  map[string]*FlickrMetadata // photo ID → parsed per-photo JSON
-	albumIndex map[string][]string       // photo ID → album titles (from albums.json)
+	albumIndex map[string][]string        // photo ID → album titles (from albums.json)
 }
 
 // classifyArchives partitions the provided FSes into exactly one metadata FS
@@ -63,7 +67,7 @@ func classifyArchives(fsyss []fs.FS) (metaFS fs.FS, imageFS []fs.FS, err error) 
 	var metaCandidates []fs.FS
 
 	for _, fsys := range fsyss {
-		_, statErr := fs.Stat(fsys, "albums.json")
+		_, statErr := fs.Stat(fsys, albumsJSONFile)
 		if statErr == nil {
 			// albums.json present → this is the metadata archive
 			metaCandidates = append(metaCandidates, fsys)
@@ -221,13 +225,13 @@ func (f *FlickrCmd) passOneMetaFS(ctx context.Context, metaFS fs.FS) error {
 		base := path.Base(name)
 
 		switch {
-		case base == "albums.json":
+		case base == albumsJSONFile:
 			parsed, err := fshelper.ReadJSON[FlickrAlbums](metaFS, name)
 			if err != nil {
 				return err
 			}
 			f.albumIndex = albumIndex(parsed)
-			f.processor.RecordNonAsset(ctx, fshelper.FSName(metaFS, name), 0, fileevent.DiscoveredSidecar, "type", "albums.json")
+			f.processor.RecordNonAsset(ctx, fshelper.FSName(metaFS, name), 0, fileevent.DiscoveredSidecar, "type", albumsJSONFile)
 
 		case strings.HasPrefix(base, "photo_") && strings.HasSuffix(base, ".json"):
 			parsed, err := fshelper.ReadJSON[FlickrMetadata](metaFS, name)

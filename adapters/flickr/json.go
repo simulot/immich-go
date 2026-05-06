@@ -89,5 +89,3 @@ func albumIndex(albums *FlickrAlbums) map[string][]string {
 	}
 	return result
 }
-
-
