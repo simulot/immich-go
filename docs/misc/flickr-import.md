@@ -7,18 +7,21 @@ particularly around how image filenames embed photo IDs and how album membership
 ## What is a Flickr export?
 
 Flickr's "Request your account data" feature (available at flickr.com/account) produces
-a set of ZIP files. There are two distinct types:
+a set of ZIP files you download manually from your account page. There are two distinct
+types:
 
-- **Metadata archive** — has an opaque set-ID filename such as
+- **Metadata archive** — named with an opaque set-ID such as
   `72157724905358313_3ac1836c2225_part1.zip`. Inside you will find `albums.json`
   (a list of every album and its member photo IDs) and one `photo_<id>.json` per photo.
-  The adapter identifies this archive by the presence of `albums.json` at the ZIP root.
+  The adapter identifies this archive automatically by the presence of `albums.json`
+  at the ZIP root.
 
-- **Image archives** — named `data-download-*.zip`. These contain only image and video
-  files; there is no JSON metadata inside them.
+- **Image archives** — named `data-download-1.zip`, `data-download-2.zip`, etc. These
+  contain only the image and video files; there is no JSON metadata inside them.
+  For large accounts Flickr splits the images across multiple archives.
 
-For large accounts Flickr may split the image download across several archives.
-The metadata archive is always a single file.
+The simplest way to import is to download all ZIP files into the same folder and point
+`immich-go` at that folder.
 
 ## Image filename formats
 
@@ -41,19 +44,34 @@ map of photo ID → album titles and attaches that data during asset assembly.
 
 ## Usage
 
+The easiest approach is to download all Flickr ZIPs into one folder and pass the folder:
+
 ```sh
 immich-go upload from-flickr \
   --server http://your-immich-server:2283 \
   --api-key YOUR_KEY \
-  [--sync-albums=true] \
-  <metadata.zip> <images.zip>...
+  ~/Downloads/flickr-downloads/
 ```
 
-- `<metadata.zip>` is the archive that contains `albums.json` (the adapter identifies it
-  automatically — you do not need to specify which ZIP is which, just pass them all).
-- One or more `<images.zip>` arguments follow for the image archives.
-- `--sync-albums` (default: `true`) creates albums in Immich that match the album
-  structure in your Flickr export.
+You can also pass individual ZIP files or a glob pattern — all three forms are equivalent:
+
+```sh
+# Explicit files
+immich-go upload from-flickr --server ... --api-key ... \
+  72157724905358313_3ac1836c2225_part1.zip \
+  data-download-1.zip \
+  data-download-2.zip
+
+# Glob
+immich-go upload from-flickr --server ... --api-key ... \
+  ~/Downloads/flickr-downloads/*.zip
+```
+
+The adapter identifies the metadata archive automatically (by the presence of `albums.json`)
+regardless of how the ZIPs are passed — you do not need to specify which is which.
+
+`--sync-albums` (default: `true`) creates albums in Immich matching the album structure
+in your Flickr export.
 
 ## Metadata preserved
 
@@ -104,6 +122,8 @@ Malformed JSON files are also logged and skipped; they do not abort the import.
 
 - Exactly one metadata archive (one ZIP containing `albums.json`) is required. The adapter
   returns an error if none or more than one is found among the provided files.
+- When passing a directory, only `*.zip` files at the top level of that directory are
+  discovered — subdirectories are not scanned.
 - Geo/GPS data is not imported (empty in all tested real-world exports).
 - Video support depends on Flickr's export format; the adapter passes video files through
   the standard media-type filter and imports them if the type is recognised.
