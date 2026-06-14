@@ -239,6 +239,10 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 
 		resp, req, err := sc.doOnce(fnRequest, opts...)
 		if !shouldRetryCall(err, attempt, maxAttempts, sc.retryable) {
+			if resp != nil && resp.Body != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+			}
 			return err
 		}
 

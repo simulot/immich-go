@@ -3,13 +3,36 @@ package immich
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+type trackingReadCloser struct {
+	reader io.Reader
+	closed atomic.Bool
+}
+
+func (trc *trackingReadCloser) Read(p []byte) (int, error) {
+	return trc.reader.Read(p)
+}
+
+func (trc *trackingReadCloser) Close() error {
+	trc.closed.Store(true)
+	return nil
+}
 
 type testServer struct {
 	// endpoint       string
@@ -131,6 +154,33 @@ func TestCallRetryLogsAtInfoHook(t *testing.T) {
 	want := []string{"retrying Immich request", "retrying Immich request"}
 	if !reflect.DeepEqual(logs, want) {
 		t.Fatalf("retry logs = %#v, want %#v", logs, want)
+	}
+}
+
+func TestCallClosesResponseBodyWhenReturningNonRetryableError(t *testing.T) {
+	t.Parallel()
+
+	body := &trackingReadCloser{reader: io.NopCloser(strings.NewReader(`{"error":"bad request","statusCode":400,"message":"nope"}`))}
+
+	ic, err := NewImmichClient("https://example.com", "1234", OptionRetryPolicy(1, time.Millisecond, time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewImmichClient() error = %v", err)
+	}
+	ic.client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       body,
+			Request:    req,
+		}, nil
+	})
+
+	err = ic.newServerCall(context.Background(), "retry-test").do(getRequest("/assets", setAcceptJSON()))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !body.closed.Load() {
+		t.Fatal("expected response body to be closed")
 	}
 }
 

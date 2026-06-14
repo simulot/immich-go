@@ -444,7 +444,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	case AlreadyProcessed: // SHA1 already processed
 		a.ID = advice.ServerAsset.ID
 		a.MergeAlbums(advice.ServerAsset.Albums)
-		a.MergeTags(advice.ServerAsset.Tags)
+		mergeAssetTagsByValue(a, advice.ServerAsset.Tags)
 		uc.assetIndex.mergeAssetMetadata(advice.ServerAsset, a)
 		// Record as discarded - duplicate in input
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedLocalDuplicate)
@@ -456,7 +456,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
 		a.MergeAlbums(advice.ServerAsset.Albums)
-		a.MergeTags(advice.ServerAsset.Tags)
+		mergeAssetTagsByValue(a, advice.ServerAsset.Tags)
 		uc.assetIndex.mergeAssetMetadata(advice.ServerAsset, a)
 		// Record as processed - duplicate on server
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedServerDuplicate)
@@ -467,7 +467,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		a.MergeAlbums(advice.ServerAsset.Albums)
-		a.MergeTags(advice.ServerAsset.Tags)
+		mergeAssetTagsByValue(a, advice.ServerAsset.Tags)
 		uc.assetIndex.mergeAssetMetadata(advice.ServerAsset, a)
 		// Record as discarded - server has better version
 		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated, advice.Message)
@@ -624,12 +624,8 @@ func (uc *UpCmd) manageAssetTags(ctx context.Context, a *assets.Asset) {
 		return
 	}
 
-	tags := make([]string, len(a.Tags))
-	for i := range a.Tags {
-		tags[i] = a.Tags[i].Name
-	}
 	for _, t := range a.Tags {
-		if uc.tagsCache.AddIDToCollection(t.Name, t, a.ID) {
+		if uc.tagsCache.AddIDToCollection(t.Value, t, a.ID) {
 			// Record tag event
 			uc.app.FileProcessor().Logger().Record(ctx, fileevent.ProcessedTagged, a.File, "tag", t.Value)
 		}

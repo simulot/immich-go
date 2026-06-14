@@ -175,7 +175,16 @@ func (ii *immichIndex) mergeAssetMetadata(target *assets.Asset, incoming *assets
 	ii.lock.Lock()
 	defer ii.lock.Unlock()
 	target.MergeAlbums(incoming.Albums)
-	target.MergeTags(incoming.Tags)
+	mergeAssetTagsByValue(target, incoming.Tags)
+}
+
+func mergeAssetTagsByValue(target *assets.Asset, tags []assets.Tag) {
+	if target == nil {
+		return
+	}
+	for _, tag := range tags {
+		target.AddTag(tag.Value)
+	}
 }
 
 func (ii *immichIndex) isAlreadyProcessed(checksum string) bool {

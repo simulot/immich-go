@@ -146,7 +146,10 @@ func TestHandleAssetAlreadyProcessedMergesAlbumsAndTagsOntoCanonicalAsset(t *tes
 		OriginalFileName: "IMG_0001.JPG",
 		FileSize:         123,
 		Albums:           []assets.Album{{Title: "Existing"}},
-		Tags:             []assets.Tag{{Name: "Existing", Value: "Existing"}},
+		Tags: []assets.Tag{
+			{Name: "Existing", Value: "Existing"},
+			{Name: "shared", Value: "foo/shared"},
+		},
 	}
 	uc.assetIndex.addLocalAsset(canonical)
 
@@ -156,7 +159,10 @@ func TestHandleAssetAlreadyProcessedMergesAlbumsAndTagsOntoCanonicalAsset(t *tes
 		OriginalFileName: "IMG_0001.JPG",
 		FileSize:         123,
 		Albums:           []assets.Album{{Title: "Familie"}},
-		Tags:             []assets.Tag{{Name: "2", Value: "immich-go/src/nextcloud-memories/album/2"}},
+		Tags: []assets.Tag{
+			{Name: "2", Value: "immich-go/src/nextcloud-memories/album/2"},
+			{Name: "shared", Value: "bar/shared"},
+		},
 	}
 
 	err := uc.handleAsset(context.Background(), duplicate)
@@ -165,17 +171,30 @@ func TestHandleAssetAlreadyProcessedMergesAlbumsAndTagsOntoCanonicalAsset(t *tes
 	assert.Equal(t, "asset-1", duplicate.ID)
 	require.Len(t, canonical.Albums, 2)
 	assert.ElementsMatch(t, []string{"Existing", "Familie"}, []string{canonical.Albums[0].Title, canonical.Albums[1].Title})
-	require.Len(t, canonical.Tags, 2)
-	assert.ElementsMatch(t, []string{"Existing", "immich-go/src/nextcloud-memories/album/2"}, []string{canonical.Tags[0].Value, canonical.Tags[1].Value})
+	require.Len(t, canonical.Tags, 4)
+	assert.ElementsMatch(t,
+		[]string{"Existing", "foo/shared", "immich-go/src/nextcloud-memories/album/2", "bar/shared"},
+		[]string{canonical.Tags[0].Value, canonical.Tags[1].Value, canonical.Tags[2].Value, canonical.Tags[3].Value},
+	)
 
 	album, ids, ok := uc.albumsCache.GetCollection("Familie")
 	require.True(t, ok)
 	assert.Equal(t, "Familie", album.Title)
 	assert.Equal(t, []string{"asset-1"}, ids)
 
-	tag, ids, ok := uc.tagsCache.GetCollection("2")
+	tag, ids, ok := uc.tagsCache.GetCollection("immich-go/src/nextcloud-memories/album/2")
 	require.True(t, ok)
 	assert.Equal(t, "immich-go/src/nextcloud-memories/album/2", tag.Value)
+	assert.Equal(t, []string{"asset-1"}, ids)
+
+	tag, ids, ok = uc.tagsCache.GetCollection("foo/shared")
+	require.True(t, ok)
+	assert.Equal(t, "foo/shared", tag.Value)
+	assert.Equal(t, []string{"asset-1"}, ids)
+
+	tag, ids, ok = uc.tagsCache.GetCollection("bar/shared")
+	require.True(t, ok)
+	assert.Equal(t, "bar/shared", tag.Value)
 	assert.Equal(t, []string{"asset-1"}, ids)
 }
 type albumUserProviderStub struct {
