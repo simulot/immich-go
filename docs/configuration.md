@@ -14,6 +14,9 @@ log-file = ''
 log-level = 'INFO'
 log-type = 'text'
 on-errors = 'stop'
+retry-attempts = 6
+retry-backoff = '1s'
+retry-max-delay = '30s'
 save-config = false
 
 [archive]

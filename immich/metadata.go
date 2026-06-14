@@ -228,7 +228,7 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 
 	if so.withAll {
 		// add same queries but with TrashedAfter to the query set
-		qs2 := []SearchMetadataQuery{}
+		qs2 := make([]SearchMetadataQuery, 0, len(qs))
 		for _, q := range qs {
 			q.TrashedAfter = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC).Format(TimeFormat)
 			qs2 = append(qs2, q)

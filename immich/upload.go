@@ -7,9 +7,11 @@ import (
 	"io"
 	"io/fs"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/simulot/immich-go/internal/assets"
@@ -18,8 +20,8 @@ import (
 type callValues string
 
 const (
-	TimeFormat    string     = "2006-01-02T15:04:05.000Z"
-	ctxCallValues callValues = "call-values"
+	TimeFormat          string     = "2006-01-02T15:04:05.000Z"
+	ctxCallValues       callValues = "call-values"
 )
 
 func setContextValue(kv map[string]string) serverRequestOption {
@@ -33,6 +35,44 @@ func setContextValue(kv map[string]string) serverRequestOption {
 }
 
 func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPoint string, replaceID string) (AssetResponse, error) {
+	var (
+		ar  AssetResponse
+		err error
+	)
+
+	maxAttempts := ic.RetryAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 6
+	}
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		ar, err = ic.uploadAssetOnce(ctx, la, endPoint, replaceID)
+		if !shouldRetryUpload(err, attempt, maxAttempts) {
+			return ar, err
+		}
+
+		delay := ic.retryDelay(attempt)
+		if ic.retryLogger != nil {
+			ic.retryLogger(ctx, "retrying Immich upload",
+				"endpoint", endPoint,
+				"file", la.OriginalFileName,
+				"attempt", attempt+1,
+				"max_attempts", maxAttempts,
+				"delay", delay,
+				"error", err,
+			)
+		}
+
+		select {
+		case <-ctx.Done():
+			return ar, errors.Join(err, ctx.Err())
+		case <-time.After(delay):
+		}
+	}
+
+	return ar, err
+}
+
+func (ic *ImmichClient) uploadAssetOnce(ctx context.Context, la *assets.Asset, endPoint string, replaceID string) (AssetResponse, error) {
 	if ic.dryRun {
 		return AssetResponse{
 			ID:     uuid.NewString(),
@@ -75,8 +115,8 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 	errChan := make(chan error, 1)
 	go func() {
 		defer func() {
-			m.Close()
-			pw.Close()
+			_ = m.Close()
+			_ = pw.Close()
 		}()
 
 		var gErr error
@@ -106,17 +146,56 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 	switch endPoint {
 	case EndPointAssetUpload:
 		errCall = ic.newServerCall(ctx, EndPointAssetUpload).
+			withRetryable(false).
 			do(postRequest("/assets", m.FormDataContentType(), setContextValue(callValues), setAcceptJSON(), setImmichChecksum(la), setBody(body)), responseJSON(&ar))
 	case EndPointAssetReplace:
 		errCall = ic.newServerCall(ctx, EndPointAssetReplace).
+			withRetryable(false).
 			do(putRequest("/assets/"+replaceID+"/original", setContextValue(callValues), setAcceptJSON(), setImmichChecksum(la), setContentType(m.FormDataContentType()), setBody(body)), responseJSON(&ar))
 	}
-	if ar.Status == "duplicate" && errors.Is(err, io.ErrClosedPipe) {
-		err = nil // immich closes the connection when we upload the x-immich-checksum header and it finds a duplicate
+	if shouldIgnoreClosedPipe(ar, errCall) {
+		errCall = nil
 	}
 	gErr := <-errChan
+	if shouldIgnoreClosedPipe(ar, gErr) {
+		gErr = nil
+	}
 	err = errors.Join(err, errCall, gErr)
 	return ar, err
+}
+
+func shouldIgnoreClosedPipe(ar AssetResponse, err error) bool {
+	if err == nil {
+		return false
+	}
+	if ar.ID == "" && ar.Status != UploadCreated && ar.Status != "duplicate" {
+		return false
+	}
+	return errors.Is(err, io.ErrClosedPipe) || strings.Contains(err.Error(), "read/write on closed pipe")
+}
+
+func shouldRetryUpload(err error, attempt int, maxAttempts int) bool {
+	if err == nil || attempt >= maxAttempts {
+		return false
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+
+	var callErr callError
+	if errors.As(err, &callErr) {
+		switch callErr.status {
+		case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout, http.StatusTooManyRequests:
+			return true
+		}
+	}
+
+	return errors.Is(err, io.ErrClosedPipe) || strings.Contains(err.Error(), "read/write on closed pipe") || strings.Contains(err.Error(), "broken pipe")
 }
 
 func (ic *ImmichClient) prepareCallValues(la *assets.Asset, s fs.FileInfo, ext, mtype string) map[string]string {

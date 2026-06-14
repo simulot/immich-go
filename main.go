@@ -10,6 +10,8 @@ import (
 	"github.com/simulot/immich-go/app/root"
 )
 
+var errInterrupt = errors.New("Ctrl+C received")
+
 // immich-go entry point
 func main() {
 	ctx := context.Background()
@@ -32,11 +34,15 @@ func immichGoMain(ctx context.Context) error {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt)
 
-	// Watch for ^C to be pressed
+	// Watch for ^C to be pressed. The first interrupt asks the command to stop
+	// gracefully; the second one forces the process to exit.
 	go func() {
 		<-signalChannel
 		fmt.Println("\nCtrl+C received. Shutting down...")
-		cancel(errors.New("Ctrl+C received")) // Cancel the context when Ctrl+C is received
+		cancel(errInterrupt)
+		<-signalChannel
+		fmt.Println("\nSecond Ctrl+C received. Forcing exit...")
+		os.Exit(130)
 	}()
 
 	c, a := root.RootImmichGoCommand(ctx)

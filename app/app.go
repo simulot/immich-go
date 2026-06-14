@@ -29,6 +29,9 @@ type Application struct {
 	SaveConfig     bool
 	ConcurrentTask int
 	CfgFile        string
+	RetryAttempts  int
+	RetryBackoff   time.Duration
+	RetryMaxDelay  time.Duration
 
 	// Internal state
 	log       *Log
@@ -47,6 +50,9 @@ func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&app.SaveConfig, "save-config", false, "Save the configuration to immich-go.yaml")
 	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")
 	flags.IntVar(&app.ConcurrentTask, "concurrent-tasks", runtime.NumCPU(), "Number of concurrent tasks (1-20)")
+	flags.IntVar(&app.RetryAttempts, "retry-attempts", 6, "Maximum attempts for transient Immich request/upload failures")
+	flags.DurationVar(&app.RetryBackoff, "retry-backoff", time.Second, "Initial backoff for transient Immich request/upload retries")
+	flags.DurationVar(&app.RetryMaxDelay, "retry-max-delay", 30*time.Second, "Maximum backoff delay for transient Immich request/upload retries")
 }
 
 func New(ctx context.Context, cmd *cobra.Command) *Application {

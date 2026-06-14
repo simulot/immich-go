@@ -30,7 +30,7 @@ func (uc *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []string
 		}
 		uc.app.Log().Info("created album", "album", album.Title, "assets", len(ids))
 		album.ID = r.ID
-		return album, nil
+		return album, uc.syncAlbumUsers(ctx, album)
 	}
 	_, err := uc.client.Immich.AddAssetToAlbum(ctx, album.ID, ids)
 	if err != nil {
@@ -38,7 +38,65 @@ func (uc *UpCmd) saveAlbum(ctx context.Context, album assets.Album, ids []string
 		return album, err
 	}
 	uc.app.Log().Info("updated album", "album", album.Title, "assets", len(ids))
-	return album, err
+	return album, uc.syncAlbumUsers(ctx, album)
+}
+
+func (uc *UpCmd) syncAlbumUsers(ctx context.Context, album assets.Album) error {
+	provider, ok := uc.adapter.(adapters.AlbumUserProvider)
+	if !ok || album.ID == "" {
+		return nil
+	}
+	desiredUsers, err := provider.DesiredAlbumUsers(ctx, album)
+	if err != nil {
+		uc.app.Log().Error("failed to resolve desired album users", "err", err, "album", album.Title)
+		return err
+	}
+	if len(desiredUsers) == 0 {
+		return nil
+	}
+	albumInfo, err := uc.client.Immich.GetAlbumInfo(ctx, album.ID, true)
+	if err != nil {
+		uc.app.Log().Error("failed to fetch album details for share restoration", "err", err, "album", album.Title)
+		return err
+	}
+
+	currentUsers := make(map[string]immich.AlbumUserRole, len(albumInfo.AlbumUsers))
+	for _, albumUser := range albumInfo.AlbumUsers {
+		currentUsers[albumUser.User.ID] = albumUser.Role
+	}
+
+	missingUsers := make([]immich.AlbumUserAdd, 0, len(desiredUsers))
+	for _, desiredUser := range desiredUsers {
+		if desiredUser.UserID == "" {
+			continue
+		}
+		desiredRole := immich.AlbumUserRole(desiredUser.Role)
+		if desiredRole == "" {
+			desiredRole = immich.AlbumUserRoleEditor
+		}
+		currentRole, ok := currentUsers[desiredUser.UserID]
+		if !ok {
+			missingUsers = append(missingUsers, immich.AlbumUserAdd{UserID: desiredUser.UserID, Role: desiredRole})
+			continue
+		}
+		if currentRole != desiredRole {
+			if err := uc.client.Immich.UpdateAlbumUser(ctx, album.ID, desiredUser.UserID, desiredRole); err != nil {
+				uc.app.Log().Error("failed to update album user role", "err", err, "album", album.Title, "userID", desiredUser.UserID)
+				return err
+			}
+			uc.app.Log().Info("updated album user role", "album", album.Title, "userID", desiredUser.UserID, "role", desiredRole)
+		}
+	}
+
+	if len(missingUsers) == 0 {
+		return nil
+	}
+	if _, err := uc.client.Immich.AddUsersToAlbum(ctx, album.ID, missingUsers); err != nil {
+		uc.app.Log().Error("failed to add users to album", "err", err, "album", album.Title, "users", len(missingUsers))
+		return err
+	}
+	uc.app.Log().Info("restored album shares", "album", album.Title, "users", len(missingUsers))
+	return nil
 }
 
 func (uc *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) (assets.Tag, error) {
@@ -102,9 +160,11 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 	uc.tagsCache.Close()
 
 	// Resume immich background jobs if requested
-	err := uc.resumeJobs(ctx)
-	if err != nil {
-		return err
+	if uc.client.PauseImmichBackgroundJobs {
+		err := uc.resumeJobs(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Generate FileProcessor report
@@ -289,7 +349,7 @@ func (uc *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) e
 
 	// Cleanup: delete server assets if needed
 	if len(uc.deleteServerList) > 0 {
-		ids := []string{}
+		ids := make([]string, 0, len(uc.deleteServerList))
 		for _, da := range uc.deleteServerList {
 			ids = append(ids, da.ID)
 		}
@@ -382,25 +442,37 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		return nil
 
 	case AlreadyProcessed: // SHA1 already processed
+		a.ID = advice.ServerAsset.ID
+		a.MergeAlbums(advice.ServerAsset.Albums)
+		a.MergeTags(advice.ServerAsset.Tags)
+		uc.assetIndex.mergeAssetMetadata(advice.ServerAsset, a)
 		// Record as discarded - duplicate in input
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedLocalDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		uc.manageAssetTags(ctx, a)
 		return nil
 
 	case SameOnServer:
 		a.ID = advice.ServerAsset.ID
-		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
+		a.MergeAlbums(advice.ServerAsset.Albums)
+		a.MergeTags(advice.ServerAsset.Tags)
+		uc.assetIndex.mergeAssetMetadata(advice.ServerAsset, a)
 		// Record as processed - duplicate on server
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedServerDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		uc.manageAssetTags(ctx, a)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
+		a.MergeAlbums(advice.ServerAsset.Albums)
+		a.MergeTags(advice.ServerAsset.Tags)
+		uc.assetIndex.mergeAssetMetadata(advice.ServerAsset, a)
 		// Record as discarded - server has better version
 		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated, advice.Message)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		uc.manageAssetTags(ctx, a)
 
 	case ForceUpload:
 		var serverStatus string

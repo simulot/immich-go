@@ -74,6 +74,8 @@ type ImmichClientInterface interface {
 type ImmichAlbumInterface interface {
 	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
+	AddUsersToAlbum(ctx context.Context, id string, users []AlbumUserAdd) (AlbumContent, error)
+	UpdateAlbumUser(ctx context.Context, albumID string, userID string, role AlbumUserRole) error
 	CreateAlbum(
 		ctx context.Context,
 		tilte string,

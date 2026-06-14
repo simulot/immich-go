@@ -12,6 +12,9 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_LOG_LEVEL` | `--log-level` | `INFO` | Log level (DEBUG|INFO|WARN|ERROR), default INFO |
 | `IMMICH_GO_LOG_TYPE` | `--log-type` | `text` | Log formatted  as text of JSON file |
 | `IMMICH_GO_ON_ERRORS` | `--on-errors` | `stop` | What to do when an error occurs (stop, continue, accept N errors at max) |
+| `IMMICH_GO_RETRY_ATTEMPTS` | `--retry-attempts` | `6` | Maximum attempts for transient Immich request/upload failures |
+| `IMMICH_GO_RETRY_BACKOFF` | `--retry-backoff` | `1s` | Initial backoff before retrying transient Immich failures |
+| `IMMICH_GO_RETRY_MAX_DELAY` | `--retry-max-delay` | `30s` | Maximum backoff delay for transient Immich failures |
 | `IMMICH_GO_SAVE_CONFIG` | `--save-config` | `false` | Save the configuration to immich-go.yaml |
 
 ## archive

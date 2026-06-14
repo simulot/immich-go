@@ -38,6 +38,9 @@ All upload sub-commands require these connection parameters:
 | `--overwrite`         | `false`   | Replace existing files on server                                    |
 | `--pause-immich-jobs` | `true`    | Pause server jobs during upload                                     |
 | `--on-errors`         | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors |
+| `--retry-attempts`    | `6`       | Maximum attempts for transient Immich request/upload failures       |
+| `--retry-backoff`     | `1s`      | Initial backoff before retrying transient Immich failures           |
+| `--retry-max-delay`   | `30s`     | Maximum backoff delay for transient Immich failures                 |
 
 ## Tagging and Organization
 

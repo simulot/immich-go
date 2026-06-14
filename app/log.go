@@ -121,10 +121,7 @@ func (log *Log) Open(ctx context.Context, cmd *cobra.Command, app *Application) 
 	log.Info("Flags:")
 	visitFlags := func(flag *pflag.Flag) {
 		origin := app.Config.GetFlagOrigin(cmd, flag)
-		val := flag.Value.String()
-		if strings.Contains(flag.Name, "api-key") && len(val) > 4 {
-			val = strings.Repeat("*", len(val)-4) + val[len(val)-4:]
-		}
+		val := redactFlagValue(flag.Name, flag.Value.String())
 		log.Info("", "--"+flag.Name, val, "origin", origin)
 	}
 	cmd.Flags().VisitAll(visitFlags)
@@ -220,6 +217,29 @@ func (log *Log) Close(ctx context.Context, cmd *cobra.Command, app *Application)
 
 func (log *Log) GetSLog() *slog.Logger {
 	return log.Logger
+}
+
+func redactFlagValue(flagName string, value string) string {
+	if !isSensitiveFlag(flagName) {
+		return value
+	}
+	if value == "" {
+		return value
+	}
+	if len(value) <= 4 {
+		return strings.Repeat("*", len(value))
+	}
+	return strings.Repeat("*", len(value)-4) + value[len(value)-4:]
+}
+
+func isSensitiveFlag(flagName string) bool {
+	flagName = strings.ToLower(strings.TrimSpace(flagName))
+	for _, token := range []string{"password", "secret", "token", "api-key"} {
+		if strings.Contains(flagName, token) {
+			return true
+		}
+	}
+	return false
 }
 
 func (log *Log) OpenAPITrace() error {

@@ -13,23 +13,33 @@ import (
 // OpenFile return an os.File whatever the type of source reader is.
 // It can be called several times for the same asset.
 
+func (a *Asset) ensureCacheReader() error {
+	if a.cacheReader != nil {
+		return nil
+	}
+
+	f, err := a.File.Open()
+	if err != nil {
+		return err
+	}
+	debugfiles.TrackOpenFile(f, a.File.FullName())
+
+	cr, sha1, err := cachereader.NewCacheReader(a.File.FullName(), f)
+	if err != nil {
+		_ = f.Close()
+		debugfiles.TrackCloseFile(f)
+		return err
+	}
+	a.cacheReader = cr
+	if sha1 != "" {
+		a.Checksum = sha1
+	}
+	return nil
+}
+
 func (a *Asset) OpenFile() (osfs.OSFS, error) {
-	if a.cacheReader == nil {
-		// get a FS.File from of the asset
-		f, err := a.File.Open()
-		if err != nil {
-			return nil, err
-		}
-		debugfiles.TrackOpenFile(f, a.File.FullName())
-		// Create a cache reader from the FS.File
-		cr, sha1, err := cachereader.NewCacheReader(a.File.FullName(), f)
-		if err != nil {
-			return nil, err
-		}
-		a.cacheReader = cr
-		if sha1 != "" {
-			a.Checksum = sha1
-		}
+	if err := a.ensureCacheReader(); err != nil {
+		return nil, err
 	}
 	return a.cacheReader.OpenFile()
 }
