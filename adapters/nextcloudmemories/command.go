@@ -418,6 +418,10 @@ func (nc *Command) validate() error {
 		parsedURL, err := url.Parse(nc.NextcloudURL)
 		if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
 			joinedErr = errors.Join(joinedErr, fmt.Errorf("invalid --nextcloud-url %q: must include scheme and host", nc.NextcloudURL))
+		} else if parsedURL.User != nil {
+			joinedErr = errors.Join(joinedErr, errors.New("invalid --nextcloud-url: must not include credentials; use --nextcloud-user/--nextcloud-password"))
+		} else if parsedURL.RawQuery != "" || parsedURL.Fragment != "" {
+			joinedErr = errors.Join(joinedErr, errors.New("invalid --nextcloud-url: must not include a query string or fragment"))
 		} else {
 			nc.NextcloudURL = strings.TrimRight(parsedURL.String(), "/")
 		}
