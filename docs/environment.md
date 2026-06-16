@@ -227,6 +227,24 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
+## upload from-nextcloud-memories
+
+| Variable | Flag | Default | Description |
+|----------|------|---------|-------------|
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_DISCOVER_ONLY` | `--discover-only` | `false` | Print detected Memories configuration and exit |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_CLIENT_TIMEOUT` | `--nextcloud-client-timeout` | `5m0s` | Timeout for source Nextcloud API calls |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_LOCAL_DIR` | `--nextcloud-local-dir` |  | Prefer a local synced Nextcloud directory for file reads |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_PASSWORD` | `--nextcloud-password` |  | Nextcloud password or app password |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_SKIP_VERIFY_SSL` | `--nextcloud-skip-verify-ssl` | `false` | Skip TLS verification for the source Nextcloud server |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_URL` | `--nextcloud-url` |  | Nextcloud base URL |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_USER` | `--nextcloud-user` |  | Nextcloud username |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_REQUIRE_INDEXED` | `--require-indexed` | `false` | Fail if files are found without matching Memories metadata |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_SYNC_ALBUMS` | `--sync-albums` | `true` | Recreate owned Memories albums in Immich |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_SYNC_TAGS` | `--sync-tags` | `false` | Transfer source Memories system tags to Immich tags |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_TAG_ALBUM_MEMBERSHIP` | `--tag-album-membership` | `false` | Add synthetic source album membership tags |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_TIMELINE_ROOT` | `--timeline-root` | `[]` | Limit import to configured Memories timeline roots |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_USER_MAP` | `--user-map` | `[]` | Map a Nextcloud user ID to an Immich user ID for album share restoration |
+
 ## upload from-immich
 
 | Variable | Flag | Default | Description |

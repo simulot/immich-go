@@ -4,7 +4,7 @@
 
 **Phase**: Command supports source metadata, album mapping, owned-album share restoration, and live-tested lazy metadata loading
 
-**Last Updated**: 2026-06-04
+**Last Updated**: 2026-06-16
 
 **Summary**:
 
@@ -113,7 +113,19 @@ Live migration review on 2026-06-13 found that album reconstruction and syntheti
   - The upload pipeline now asks source adapters for desired album users and restores only missing or mismatched collaborators on reruns
   - Added focused tests for the DAV collaborator lookup, user-map parsing, adapter share resolution, and upload-side album-user restoration
 
-- [ ] Align command visibility and public docs with actual feature readiness on this branch
+- [x] Align command visibility and public docs with actual feature readiness on this branch
+  - Promoted `from-nextcloud-memories` into the public command reference, examples, README, configuration docs, and environment-variable docs
+  - Kept shared-album reconciliation clearly documented as follow-up work rather than current behavior
+
+### 2026-06-16: Public Docs Should Match The Implemented Importer, Not The Earlier Hidden Draft
+
+**Decision**: Document `from-nextcloud-memories` publicly on the branch, but describe only the behavior that is implemented now.
+
+**Rationale**:
+
+- the branch is being prepared for PR review rather than early scaffolding
+- user-facing docs must reflect the actual command shape, current limitations, and supported flags
+- shared-album reconciliation remains follow-up work and should stay documented as such
 
 ### 2026-06-02: Album Membership Uses Source Metadata
 

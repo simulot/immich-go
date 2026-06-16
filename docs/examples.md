@@ -9,6 +9,7 @@ This guide provides practical examples for common Immich-Go scenarios.
 | [Upload local photos](#local-photo-upload) | `upload from-folder` | Basic photo upload |
 | [Google Photos migration](#google-photos-migration) | `upload from-google-photos` | Takeout import |
 | [iCloud import](#icloud-import) | `upload from-icloud` | iCloud takeout |
+| [Nextcloud Memories migration](#nextcloud-memories-migration) | `upload from-nextcloud-memories` | Nextcloud Memories import |
 | [Server backup](#server-backup) | `archive from-immich` | Full server archive |
 | [Server migration](#server-migration) | `upload from-immich` | Transfer between servers |
 | [Photo organization](#photo-organization) | `stack` | Organize existing photos |
@@ -126,6 +127,51 @@ immich-go upload from-icloud \
   --memories \
   --manage-heic-jpeg=StackCoverJPG \
   /path/to/icloud-export
+```
+
+## Nextcloud Memories Migration
+
+### Discover The Source Library
+```bash
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --discover-only
+```
+
+### Basic Import
+```bash
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key
+```
+
+### Faster Import Using A Local Sync
+```bash
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --nextcloud-local-dir="$HOME/Nextcloud" \
+  --timeline-root=/Photos \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key
+```
+
+### Restore Owned Album Collaborators
+```bash
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --user-map=alice=8d5e7f39-0d62-4c2f-9e6b-111111111111 \
+  --user-map=bob=6f31f744-d9b2-4f26-9f42-222222222222 \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key
 ```
 
 ## Server Backup

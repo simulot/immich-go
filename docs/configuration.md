@@ -205,6 +205,21 @@ recursive = true
 
 [upload.from-icloud.ban-file]
 
+[upload.from-nextcloud-memories]
+discover-only = false
+nextcloud-client-timeout = '5m'
+nextcloud-local-dir = ''
+nextcloud-password = ''
+nextcloud-skip-verify-ssl = false
+nextcloud-url = ''
+nextcloud-user = ''
+require-indexed = false
+sync-albums = true
+sync-tags = false
+tag-album-membership = false
+timeline-root = []
+user-map = []
+
 [upload.from-immich]
 from-admin-api-key = ''
 from-api-key = 'OLD-API-KEY'
@@ -307,6 +322,20 @@ archive:
     into-album: ""
     memories: false
     recursive: true
+  from-nextcloud-memories:
+    discover-only: false
+    nextcloud-client-timeout: 5m
+    nextcloud-local-dir: ""
+    nextcloud-password: ""
+    nextcloud-skip-verify-ssl: false
+    nextcloud-url: ""
+    nextcloud-user: ""
+    require-indexed: false
+    sync-albums: true
+    sync-tags: false
+    tag-album-membership: false
+    timeline-root: []
+    user-map: []
   from-immich:
     from-admin-api-key: ""
     from-albums: {}
@@ -535,6 +564,21 @@ upload:
       "memories": false,
       "recursive": true
     },
+    "from-nextcloud-memories": {
+      "discover-only": false,
+      "nextcloud-client-timeout": "5m",
+      "nextcloud-local-dir": "",
+      "nextcloud-password": "",
+      "nextcloud-skip-verify-ssl": false,
+      "nextcloud-url": "",
+      "nextcloud-user": "",
+      "require-indexed": false,
+      "sync-albums": true,
+      "sync-tags": false,
+      "tag-album-membership": false,
+      "timeline-root": [],
+      "user-map": []
+    },
     "from-immich": {
       "from-admin-api-key": "",
       "from-albums": {},
@@ -658,6 +702,21 @@ upload:
       "into-album": "",
       "memories": false,
       "recursive": true
+    },
+    "from-nextcloud-memories": {
+      "discover-only": false,
+      "nextcloud-client-timeout": "5m",
+      "nextcloud-local-dir": "",
+      "nextcloud-password": "",
+      "nextcloud-skip-verify-ssl": false,
+      "nextcloud-url": "",
+      "nextcloud-user": "",
+      "require-indexed": false,
+      "sync-albums": true,
+      "sync-tags": false,
+      "tag-album-membership": false,
+      "timeline-root": [],
+      "user-map": []
     },
     "from-immich": {
       "from-admin-api-key": "",
