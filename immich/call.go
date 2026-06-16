@@ -491,8 +491,6 @@ func shouldIgnoreResponseDecodeError(resp *http.Response, err error) bool {
 	if err == nil || resp == nil || resp.StatusCode >= 300 {
 		return false
 	}
-	if !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "unexpected EOF") {
-		return false
-	}
-	return true
+	// Only ignore empty-body decode errors; "unexpected EOF" indicates truncated JSON.
+	return errors.Is(err, io.EOF)
 }
