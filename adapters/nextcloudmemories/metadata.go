@@ -33,6 +33,8 @@ type indexedMemoriesPhoto struct {
 	record   *memoriesAssetRecord
 	loaded   bool
 	loading  bool
+	queued   bool
+	ready    chan struct{}
 	metadata *assets.Metadata
 	loadErr  error
 }
@@ -178,14 +180,14 @@ func (idx *memoriesMetadataIndex) enqueueWarmLocked(entry *indexedMemoriesPhoto)
 	if idx == nil || entry == nil || idx.warmQueue == nil {
 		return
 	}
-	if entry.loaded || entry.loading {
+	if entry.loaded || entry.loading || entry.queued {
 		return
 	}
-	entry.loading = true
+	entry.queued = true
 	select {
 	case idx.warmQueue <- entry:
 	default:
-		entry.loading = false
+		entry.queued = false
 	}
 }
 
@@ -195,6 +197,16 @@ func (idx *memoriesMetadataIndex) loadEntry(ctx context.Context, entry *indexedM
 	}
 
 	idx.mu.Lock()
+	for entry.loading && !entry.loaded {
+		ready := entry.ready
+		idx.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		case <-ready:
+		}
+		idx.mu.Lock()
+	}
 	if entry.loaded {
 		md, err := entry.metadata, entry.loadErr
 		idx.mu.Unlock()
@@ -206,33 +218,48 @@ func (idx *memoriesMetadataIndex) loadEntry(ctx context.Context, entry *indexedM
 		}
 		return md, true, nil
 	}
+	entry.queued = false
 	entry.loading = true
+	entry.ready = make(chan struct{})
+	ready := entry.ready
+	fileID := entry.record.Photo.FileID
+	photo := entry.record.Photo
+	canonicalPath := entry.record.CanonicalPath
+	infoQuery := idx.infoQuery
+	client := idx.client
+	selectedRoots := slices.Clone(idx.selectedRoots)
+	options := idx.options
 	idx.mu.Unlock()
 
-	info, err := nextcloud.GetMemoriesImageInfo(ctx, idx.client, entry.record.Photo.FileID, idx.infoQuery)
+	info, err := nextcloud.GetMemoriesImageInfo(ctx, client, fileID, infoQuery)
 	if err != nil {
+		loadErr := fmt.Errorf("failed to load memories image info for file %d: %w", fileID, err)
 		idx.mu.Lock()
 		entry.loaded = true
 		entry.loading = false
-		entry.loadErr = fmt.Errorf("failed to load memories image info for file %d: %w", entry.record.Photo.FileID, err)
+		entry.loadErr = loadErr
+		close(ready)
+		entry.ready = nil
 		idx.mu.Unlock()
-		return nil, true, entry.loadErr
+		return nil, true, loadErr
 	}
 
 	indexedPath := normalizeIndexedPath(info.FileName)
 	if indexedPath == "" {
-		indexedPath = entry.record.CanonicalPath
+		indexedPath = canonicalPath
 	}
 	if indexedPath == "" {
-		err := fmt.Errorf("memories image info for file %d did not include a filename", entry.record.Photo.FileID)
+		loadErr := fmt.Errorf("memories image info for file %d did not include a filename", fileID)
 		idx.mu.Lock()
 		entry.loaded = true
 		entry.loading = false
-		entry.loadErr = err
+		entry.loadErr = loadErr
+		close(ready)
+		entry.ready = nil
 		idx.mu.Unlock()
-		return nil, true, err
+		return nil, true, loadErr
 	}
-	if !isSelectedRootPath(indexedPath, idx.selectedRoots) {
+	if !isSelectedRootPath(indexedPath, selectedRoots) {
 		idx.mu.Lock()
 		entry.record.CanonicalPath = indexedPath
 		idx.photosByPath[indexedPath] = entry
@@ -241,11 +268,13 @@ func (idx *memoriesMetadataIndex) loadEntry(ctx context.Context, entry *indexedM
 		entry.loading = false
 		entry.metadata = nil
 		entry.loadErr = nil
+		close(ready)
+		entry.ready = nil
 		idx.mu.Unlock()
 		return nil, false, nil
 	}
 
-	md := metadataFromMemories(entry.record.Photo, info, idx.options)
+	md := metadataFromMemories(photo, info, options)
 	idx.mu.Lock()
 	entry.record.CanonicalPath = indexedPath
 	entry.record.Metadata = md
@@ -255,6 +284,8 @@ func (idx *memoriesMetadataIndex) loadEntry(ctx context.Context, entry *indexedM
 	entry.loading = false
 	entry.metadata = md
 	entry.loadErr = nil
+	close(ready)
+	entry.ready = nil
 	idx.mu.Unlock()
 	return md, true, nil
 }
