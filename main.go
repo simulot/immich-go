@@ -27,8 +27,7 @@ func immichGoMain(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	// Handle Ctrl+C signal (SIGINT)
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, os.Interrupt)
+signalChannel := make(chan os.Signal, 2)
 	defer signal.Stop(signalChannel)
 
 	// Watch for ^C to be pressed. The first interrupt asks the command to stop
