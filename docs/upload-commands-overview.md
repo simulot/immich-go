@@ -93,7 +93,7 @@ The `from-nextcloud-memories` command imports assets from a Nextcloud Memories l
 
 *   **Albums**: `--sync-albums` remains enabled by default and recreates owned Memories albums in Immich.
 *   **Source tags**: `--sync-tags` is disabled by default because Memories system tags are often AI-generated and noisy. Enable it explicitly if you want those source tags copied into Immich.
-*   **Album membership tracking tags**: `--tag-album-membership` remains a separate opt-in toggle. These synthetic tags are still used for later shared-album reconciliation and are not affected by `--sync-tags`.
+*   **Album membership tracking tags**: `--tag-album-membership` remains a separate opt-in toggle. These synthetic tags preserve source album membership for advanced/manual reconciliation workflows and are not affected by `--sync-tags`.
 *   **Reruns**: tag handling stays additive. When enabled, `--sync-tags` adds missing source tags but does not remove existing Immich tags from already-imported assets.
 
 #### The `from-picasa` Command

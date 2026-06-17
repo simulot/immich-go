@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMetadataFromMemoriesMapsArchivedAndSharedAlbums(t *testing.T) {
+func TestMetadataFromMemoriesMapsArchivedAndOwnedAlbumsOnly(t *testing.T) {
 	t.Parallel()
 
 	info := &nextcloud.MemoriesImageInfo{
@@ -46,12 +46,10 @@ func TestMetadataFromMemoriesMapsArchivedAndSharedAlbums(t *testing.T) {
 	assert.Equal(t, time.Unix(1700000000, 0).In(time.Local), md.DateTaken)
 	require.Len(t, md.Tags, 1)
 	assert.Equal(t, "Travel", md.Tags[0].Value)
-	require.Len(t, md.Albums, 2)
+	require.Len(t, md.Albums, 1)
 	assert.Equal(t, "Roadtrip", md.Albums[0].Title)
 	assert.Contains(t, md.Albums[0].Description, "\"album_id\":7")
 	assert.Contains(t, md.Albums[0].Description, "\"owner_uid\":\"alice\"")
-	assert.Equal(t, "Roadtrip (shared by Bob)", md.Albums[1].Title)
-	assert.Empty(t, md.Albums[1].Description)
 }
 
 func TestMetadataFromMemoriesOptionallyTagsAlbumMembership(t *testing.T) {

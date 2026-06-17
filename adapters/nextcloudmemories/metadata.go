@@ -499,7 +499,7 @@ func metadataFromMemories(photo nextcloud.MemoriesPhoto, info *nextcloud.Memorie
 		if options.SyncAlbums {
 			seenAlbums := map[string]struct{}{}
 			for _, album := range info.Clusters.Albums {
-				title := memoriesAlbumTitle(album, options.OwnerUID)
+				title := memoriesOwnedAlbumTitle(album, options.OwnerUID)
 				if title == "" {
 					continue
 				}
@@ -622,20 +622,15 @@ func memoriesExifFloat(exif map[string]any, key string) (float64, bool) {
 	return parsed, true
 }
 
-func memoriesAlbumTitle(album nextcloud.MemoriesAlbum, ownerUID string) string {
+func memoriesOwnedAlbumTitle(album nextcloud.MemoriesAlbum, ownerUID string) string {
 	name := strings.TrimSpace(album.Name)
 	if name == "" {
 		return ""
 	}
-	if album.User == "" || album.User == ownerUID {
-		return name
+	albumUser := strings.TrimSpace(album.User)
+	ownerUID = strings.TrimSpace(ownerUID)
+	if albumUser != "" && albumUser != ownerUID {
+		return ""
 	}
-	sharedBy := strings.TrimSpace(album.UserDisplay)
-	if sharedBy == "" {
-		sharedBy = strings.TrimSpace(album.User)
-	}
-	if sharedBy == "" {
-		return name
-	}
-	return fmt.Sprintf("%s (shared by %s)", name, sharedBy)
+	return name
 }

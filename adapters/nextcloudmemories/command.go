@@ -68,7 +68,7 @@ func (nc *Command) RegisterFlags(flags *pflag.FlagSet) {
 	flags.DurationVar(&nc.NextcloudClientTimeout, "nextcloud-client-timeout", 5*time.Minute, "Timeout for source Nextcloud API calls")
 	flags.BoolVar(&nc.DiscoverOnly, "discover-only", false, "Print detected Memories configuration and exit")
 	flags.StringSliceVar(&nc.TimelineRoots, "timeline-root", nil, "Limit the import to configured Memories timeline roots. Can be specified multiple times")
-	flags.BoolVar(&nc.SyncAlbums, "sync-albums", true, "Recreate Memories albums in Immich")
+	flags.BoolVar(&nc.SyncAlbums, "sync-albums", true, "Recreate owned Memories albums in Immich")
 	flags.BoolVar(&nc.SyncTags, "sync-tags", false, "Transfer source Memories system tags to Immich tags")
 	flags.BoolVar(&nc.RequireIndexed, "require-indexed", false, "Fail if files are found under the selected Memories roots without matching Memories metadata")
 	flags.BoolVar(&nc.TagAlbumMembership, "tag-album-membership", false, "Add synthetic tags encoding source album membership to support later shared-album reconciliation")

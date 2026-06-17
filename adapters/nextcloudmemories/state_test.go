@@ -79,6 +79,23 @@ func TestMemoriesOwnedAlbumDescriptionOnlyStampsOwnedAlbums(t *testing.T) {
 	assert.Empty(t, shared)
 }
 
+func TestMemoriesOwnedAlbumTitleSkipsSharedAlbums(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "Roadtrip", memoriesOwnedAlbumTitle(nextcloud.MemoriesAlbum{
+		AlbumID: 7,
+		Name:    "Roadtrip",
+		User:    "alice",
+	}, "alice"))
+
+	assert.Empty(t, memoriesOwnedAlbumTitle(nextcloud.MemoriesAlbum{
+		AlbumID:     9,
+		Name:        "Roadtrip",
+		User:        "bob",
+		UserDisplay: "Bob",
+	}, "alice"))
+}
+
 func TestMemoriesAlbumMembershipTag(t *testing.T) {
 	t.Parallel()
 

@@ -236,7 +236,7 @@ immich-go upload from-nextcloud-memories [options]
 | ------ | ------- | ----------- |
 | `--sync-albums` | `true` | Recreate owned Memories albums in Immich |
 | `--sync-tags` | `false` | Transfer source Memories system tags to Immich tags |
-| `--tag-album-membership` | `false` | Add synthetic source album membership tags to support later shared-album reconciliation |
+| `--tag-album-membership` | `false` | Add synthetic source album membership tags to preserve source album membership for advanced/manual reconciliation workflows |
 | `--user-map` | - | Map a Nextcloud user ID to an Immich user ID for owned album share restoration; repeatable (`<nextcloud-user>=<immich-user-id>`) |
 
 ### Supported Data
@@ -257,7 +257,8 @@ immich-go upload from-nextcloud-memories [options]
 - people and face assignments are not migrated
 - comments and trash state are not migrated
 - only data inside the configured Memories timeline roots is imported
-- shared album convergence across multiple user imports is not automatic yet; `--tag-album-membership` only preserves source state for later reconciliation work
+- albums owned by another Memories user are not recreated as Immich albums
+- assets that only exist through another user's shared album do not appear in the importing user's Memories timeline, so this importer does not migrate them
 - `--sync-tags` is intentionally opt-in because Memories system tags are often noisy
 
 ### Examples
