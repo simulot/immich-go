@@ -533,11 +533,8 @@ func mergeMemoriesPhoto(current, incoming nextcloud.MemoriesPhoto) nextcloud.Mem
 	if current.FileID == 0 {
 		return incoming
 	}
-	if current.FileID == 0 || incoming.FileID == 0 {
+	if incoming.FileID == 0 {
 		return current
-	}
-	if current.FileID == 0 {
-		current.FileID = incoming.FileID
 	}
 	if current.Basename == "" {
 		current.Basename = incoming.Basename

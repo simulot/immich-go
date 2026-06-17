@@ -124,6 +124,48 @@ func TestSaveAlbumUpdatesExistingAlbumUserRole(t *testing.T) {
 	assert.Equal(t, albumUserUpdateCall{albumID: "album-1", userID: "user-2", role: immich.AlbumUserRoleEditor}, updateCalls[0])
 }
 
+func TestSaveAlbumDefaultsUnknownAlbumUserRoleToEditor(t *testing.T) {
+	t.Parallel()
+
+	var addUsersCalls [][]immich.AlbumUserAdd
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.URL.Path {
+		case http.MethodPost + " /api/albums":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"album-1","albumName":"Roadtrip"}`))
+		case http.MethodGet + " /api/albums/album-1":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"album-1","albumName":"Roadtrip","albumUsers":[{"role":"owner","user":{"id":"owner-1","email":"owner@example.com"}}]}`))
+		case http.MethodPut + " /api/albums/album-1/users":
+			var body struct {
+				AlbumUsers []immich.AlbumUserAdd `json:"albumUsers"`
+			}
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			addUsersCalls = append(addUsersCalls, body.AlbumUsers)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"album-1","albumName":"Roadtrip"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	immichClient, err := immich.NewImmichClient(server.URL, "test-key")
+	require.NoError(t, err)
+	uc := &UpCmd{
+		client: app.Client{
+			Immich: immichClient,
+		},
+		adapter: albumUserProviderStub{users: []adapters.AlbumUser{{UserID: "user-2", Role: "edit"}}},
+		app:     newUploadTestApp(),
+	}
+
+	_, err = uc.saveAlbum(context.Background(), assets.Album{Title: "Roadtrip"}, []string{"asset-1"})
+	require.NoError(t, err)
+	require.Len(t, addUsersCalls, 1)
+	assert.Equal(t, []immich.AlbumUserAdd{{UserID: "user-2", Role: immich.AlbumUserRoleEditor}}, addUsersCalls[0])
+}
+
 func TestHandleAssetAlreadyProcessedMergesAlbumsAndTagsOntoCanonicalAsset(t *testing.T) {
 	t.Parallel()
 

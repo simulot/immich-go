@@ -69,9 +69,11 @@ type serverCall struct {
 	endPoint           string
 	ic                 *ImmichClient
 	err                error
+	baseCtx            context.Context
 	ctx                context.Context
 	hasResponseHandler bool
 	retryable          bool
+	retryableSet       bool
 }
 
 // callError represents errors returned by the server
@@ -123,17 +125,33 @@ func (ce callError) Error() string {
 
 func (ic *ImmichClient) newServerCall(ctx context.Context, api string) *serverCall {
 	sc := &serverCall{
-		endPoint:  api,
-		ic:        ic,
-		ctx:       ctx,
-		retryable: true,
+		endPoint: api,
+		ic:       ic,
+		baseCtx:  ctx,
+		ctx:      ctx,
 	}
 	return sc
 }
 
 func (sc *serverCall) withRetryable(retryable bool) *serverCall {
 	sc.retryable = retryable
+	sc.retryableSet = true
 	return sc
+}
+
+func (sc *serverCall) isRetryableMethod(method string) bool {
+	if sc == nil {
+		return false
+	}
+	if sc.retryableSet {
+		return sc.retryable
+	}
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodDelete:
+		return true
+	default:
+		return false
+	}
 }
 
 func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerErrorMessage) error {
@@ -235,10 +253,15 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 	}
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		sc.err = nil
+		sc.ctx = sc.baseCtx
 		sc.hasResponseHandler = false
 
 		resp, req, err := sc.doOnce(fnRequest, opts...)
-		if !shouldRetryCall(err, attempt, maxAttempts, sc.retryable) {
+		retryable := sc.isRetryableMethod(http.MethodGet)
+		if req != nil {
+			retryable = sc.isRetryableMethod(req.Method)
+		}
+		if !shouldRetryCall(err, attempt, maxAttempts, retryable) {
 			if err != nil && resp != nil && resp.Body != nil {
 				_, _ = io.Copy(io.Discard, resp.Body)
 				_ = resp.Body.Close()

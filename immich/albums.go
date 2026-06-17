@@ -33,6 +33,15 @@ const (
 	AlbumUserRoleViewer AlbumUserRole = "viewer"
 )
 
+func (r AlbumUserRole) IsValid() bool {
+	switch r {
+	case AlbumUserRoleEditor, AlbumUserRoleOwner, AlbumUserRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
 type AlbumUserResponse struct {
 	User User          `json:"user"`
 	Role AlbumUserRole `json:"role"`

@@ -84,6 +84,100 @@ func TestCallRetriesTransientServerError(t *testing.T) {
 	}
 }
 
+func TestCallDoesNotRetryPostByDefault(t *testing.T) {
+	t.Parallel()
+
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"Bad Gateway","statusCode":502,"message":"upstream busy"}`))
+	}))
+	defer server.Close()
+
+	ic, err := NewImmichClient(server.URL, "1234", OptionRetryPolicy(3, time.Millisecond, time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewImmichClient() error = %v", err)
+	}
+
+	err = ic.newServerCall(context.Background(), "retry-test").do(
+		postRequest("/albums", "application/json", setAcceptJSON(), setJSONBody(struct{ Name string }{Name: "test"})),
+	)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if got := attempts.Load(); got != 1 {
+		t.Fatalf("attempt count = %d, want 1", got)
+	}
+}
+
+func TestCallRetriesExplicitlyRetryablePost(t *testing.T) {
+	t.Parallel()
+
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		current := attempts.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		if current < 3 {
+			w.WriteHeader(http.StatusBadGateway)
+			_, _ = w.Write([]byte(`{"error":"Bad Gateway","statusCode":502,"message":"upstream busy"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	}))
+	defer server.Close()
+
+	ic, err := NewImmichClient(server.URL, "1234", OptionRetryPolicy(3, time.Millisecond, time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewImmichClient() error = %v", err)
+	}
+
+	resp := map[string]string{}
+	err = ic.newServerCall(context.Background(), "retry-test").
+		withRetryable(true).
+		do(postRequest("/search/metadata", "application/json", setAcceptJSON(), setJSONBody(struct{ Name string }{Name: "test"})), responseJSON(&resp))
+	if err != nil {
+		t.Fatalf("do() error = %v", err)
+	}
+	if resp["status"] != "ok" {
+		t.Fatalf("response status = %q, want ok", resp["status"])
+	}
+	if got := attempts.Load(); got != 3 {
+		t.Fatalf("attempt count = %d, want 3", got)
+	}
+}
+
+func TestCallResetsContextBetweenRetries(t *testing.T) {
+	t.Parallel()
+
+	var seenLeakedValue atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"Bad Gateway","statusCode":502,"message":"upstream busy"}`))
+	}))
+	defer server.Close()
+
+	ic, err := NewImmichClient(server.URL, "1234", OptionRetryPolicy(2, time.Millisecond, time.Millisecond))
+	if err != nil {
+		t.Fatalf("NewImmichClient() error = %v", err)
+	}
+
+	err = ic.newServerCall(context.Background(), "retry-test").do(func(sc *serverCall) *http.Request {
+		if sc.ctx.Value(ctxCallValues) != nil {
+			seenLeakedValue.Store(true)
+		}
+		return sc.request(http.MethodGet, sc.ic.endPoint+"/assets", setContextValue(map[string]string{"asset": "1"}), setAcceptJSON())
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if seenLeakedValue.Load() {
+		t.Fatal("expected retry attempt context to reset before rebuilding the request")
+	}
+}
+
 func TestShouldRetryCall(t *testing.T) {
 	t.Parallel()
 

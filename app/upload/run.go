@@ -71,7 +71,7 @@ func (uc *UpCmd) syncAlbumUsers(ctx context.Context, album assets.Album) error {
 			continue
 		}
 		desiredRole := immich.AlbumUserRole(desiredUser.Role)
-		if desiredRole == "" {
+		if !desiredRole.IsValid() {
 			desiredRole = immich.AlbumUserRoleEditor
 		}
 		currentRole, ok := currentUsers[desiredUser.UserID]

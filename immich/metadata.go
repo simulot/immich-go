@@ -302,7 +302,9 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMet
 			return ctx.Err()
 		default:
 			resp := searchMetadataResponse{}
-			err := ic.newServerCall(ctx, EndPointGetAllAssets).do(postRequest("/search/metadata", "application/json", setJSONBody(&query), setAcceptJSON()), responseJSON(&resp))
+			err := ic.newServerCall(ctx, EndPointGetAllAssets).
+				withRetryable(true).
+				do(postRequest("/search/metadata", "application/json", setJSONBody(&query), setAcceptJSON()), responseJSON(&resp))
 			if err != nil {
 				return err
 			}

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -30,6 +31,8 @@ type ImmichClient struct {
 	RetryMaxDelay  time.Duration // Maximum duration between retries
 	apiTraceWriter io.Writer     // If not nil, logs API calls to this writer
 	retryLogger    func(context.Context, string, ...any)
+	jitterMu       sync.Mutex
+	jitterRand     *rand.Rand
 
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
 	dryRun              bool                     //  If true, do not send any data to the server
@@ -144,11 +147,12 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: 20 * time.Minute,
 		},
-		key:          key,
-		DeviceUUID:   deviceUUID,
+		key:           key,
+		DeviceUUID:    deviceUUID,
 		RetryAttempts: 6,
 		RetryBackoff:  time.Second,
 		RetryMaxDelay: 30 * time.Second,
+		jitterRand:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 
 	ic.client = &http.Client{
@@ -193,6 +197,13 @@ func (ic *ImmichClient) retryDelay(attempt int) time.Duration {
 	if delay <= 0 {
 		return 0
 	}
-	jitter := time.Duration(rand.Int63n(int64(delay/2 + 1)))
+	ic.jitterMu.Lock()
+	jitterRand := ic.jitterRand
+	if jitterRand == nil {
+		jitterRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+		ic.jitterRand = jitterRand
+	}
+	jitter := time.Duration(jitterRand.Int63n(int64(delay/2 + 1)))
+	ic.jitterMu.Unlock()
 	return delay + jitter
 }
