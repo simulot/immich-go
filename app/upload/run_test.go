@@ -14,9 +14,9 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assets/cache"
+	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fileprocessor"
-	"github.com/simulot/immich-go/internal/assettracker"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -170,7 +170,7 @@ func TestHandleAssetAlreadyProcessedMergesAlbumsAndTagsOntoCanonicalAsset(t *tes
 	t.Parallel()
 
 	uc := &UpCmd{
-		app: newUploadTestApp(),
+		app:        newUploadTestApp(),
 		assetIndex: newAssetIndex(),
 		albumsCache: cache.NewCollectionCache(10, func(album assets.Album, ids []string) (assets.Album, error) {
 			album.ID = "album-1"
@@ -239,6 +239,7 @@ func TestHandleAssetAlreadyProcessedMergesAlbumsAndTagsOntoCanonicalAsset(t *tes
 	assert.Equal(t, "bar/shared", tag.Value)
 	assert.Equal(t, []string{"asset-1"}, ids)
 }
+
 type albumUserProviderStub struct {
 	users []adapters.AlbumUser
 }
