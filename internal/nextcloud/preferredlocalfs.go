@@ -25,13 +25,22 @@ func (p *preferredLocalFS) Open(name string) (fs.File, error) {
 			return f, nil
 		}
 	}
+	if p.remote == nil {
+		return nil, fs.ErrInvalid
+	}
 	return p.remote.Open(name)
 }
 
 func (p *preferredLocalFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	if p.remote == nil {
+		return nil, fs.ErrInvalid
+	}
 	return fs.ReadDir(p.remote, name)
 }
 
 func (p *preferredLocalFS) Stat(name string) (fs.FileInfo, error) {
+	if p.remote == nil {
+		return nil, fs.ErrInvalid
+	}
 	return fs.Stat(p.remote, name)
 }
