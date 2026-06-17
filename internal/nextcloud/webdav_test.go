@@ -71,6 +71,24 @@ func TestWebDAVFSRejectsPathEscape(t *testing.T) {
 	assert.ErrorContains(t, err, "invalid argument")
 }
 
+func TestWebDAVFSCleansRepeatedLeadingSlashes(t *testing.T) {
+	t.Parallel()
+
+	rootInfo := fakeFileInfo{name: "alice", dir: true}
+	photosInfo := fakeFileInfo{name: "Photos", dir: true}
+	dav := &fakeDAVClient{
+		stats: map[string]fakeFileInfo{
+			"/files/alice":        rootInfo,
+			"/files/alice/Photos": photosInfo,
+		},
+	}
+
+	fsys := newWebDAVFS(context.Background(), dav, "/files/alice", "nextcloud:alice")
+	info, err := fsys.Stat("//Photos")
+	require.NoError(t, err)
+	assert.Equal(t, "Photos", info.Name())
+}
+
 func TestWebDAVFSOpenCancelsActiveRead(t *testing.T) {
 	t.Parallel()
 

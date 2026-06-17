@@ -168,7 +168,14 @@ func shouldIgnoreClosedPipe(ar AssetResponse, err error) bool {
 	if err == nil {
 		return false
 	}
-	if ar.ID == "" && ar.Status != UploadCreated && ar.Status != "duplicate" {
+	switch ar.Status {
+	case UploadCreated:
+		if ar.ID == "" {
+			return false
+		}
+	case UploadDuplicate:
+		// Duplicate responses are still actionable even without a returned ID.
+	default:
 		return false
 	}
 	return errors.Is(err, io.ErrClosedPipe) || strings.Contains(err.Error(), "read/write on closed pipe")

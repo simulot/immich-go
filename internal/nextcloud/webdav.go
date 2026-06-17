@@ -130,7 +130,7 @@ func cleanRelativePath(name string) (string, error) {
 	if name == "" || name == "." {
 		return ".", nil
 	}
-	name = strings.TrimPrefix(name, "/")
+	name = strings.TrimLeft(name, "/")
 	cleaned := pathpkg.Clean(name)
 	if cleaned == "." {
 		return ".", nil

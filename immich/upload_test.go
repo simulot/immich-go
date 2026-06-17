@@ -16,6 +16,7 @@ import (
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/stretchr/testify/assert"
 )
 
 func newTestImmichClient(t *testing.T, serverURL string) *ImmichClient {
@@ -179,4 +180,14 @@ func TestUploadRetryLogsAtInfoHook(t *testing.T) {
 	if !reflect.DeepEqual(logs, want) {
 		t.Fatalf("retry logs = %#v, want %#v", logs, want)
 	}
+}
+
+func TestShouldIgnoreClosedPipeRequiresUsableResponse(t *testing.T) {
+	t.Parallel()
+
+	closedPipeErr := io.ErrClosedPipe
+	assert.False(t, shouldIgnoreClosedPipe(AssetResponse{Status: UploadCreated}, closedPipeErr))
+	assert.True(t, shouldIgnoreClosedPipe(AssetResponse{ID: "asset-id", Status: UploadCreated}, closedPipeErr))
+	assert.True(t, shouldIgnoreClosedPipe(AssetResponse{Status: UploadDuplicate}, closedPipeErr))
+	assert.False(t, shouldIgnoreClosedPipe(AssetResponse{Status: UploadReplaced}, closedPipeErr))
 }

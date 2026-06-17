@@ -66,16 +66,3 @@ func TestInterruptForcesExitOnSecondSignal(t *testing.T) {
 		t.Fatal("second interrupt did not force exit")
 	}
 }
-
-func startInterruptHandler(cancel context.CancelCauseFunc, signals <-chan os.Signal, exitFn func(int)) {
-	go func() {
-		if _, ok := <-signals; !ok {
-			return
-		}
-		cancel(errInterrupt)
-		if _, ok := <-signals; !ok {
-			return
-		}
-		exitFn(130)
-	}()
-}
