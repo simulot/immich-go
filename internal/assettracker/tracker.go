@@ -11,6 +11,12 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
+const (
+	assetArgReason    = "reason"
+	assetArgEventCode = "eventCode"
+	assetArgFile      = "file"
+)
+
 // AssetTracker tracks the complete lifecycle of assets (images/videos) from
 // discovery through final state (processed/discarded/error).
 // Non-asset files are ignored by this tracker.
@@ -146,7 +152,7 @@ func (at *AssetTracker) DiscoverAndDiscard(file fshelper.FSAndName, fileSize int
 				Code:      eventCode,
 				Timestamp: now,
 				Message:   "Asset discovered and immediately discarded",
-				Args:      map[string]any{"reason": reason},
+				Args:      map[string]any{assetArgReason: reason},
 			},
 		}
 	}
@@ -166,14 +172,14 @@ func (at *AssetTracker) SetProcessed(file fshelper.FSAndName, eventCode fileeven
 	record, exists := at.assets[key]
 	if !exists {
 		if at.log != nil {
-			at.log.Error("SetProcessed: asset not found", "file", key, "code", eventCode)
+			at.log.Error("SetProcessed: asset not found", assetArgFile, key, "code", eventCode)
 		}
 		return
 	}
 
 	if record.State != StatePending {
 		if at.log != nil {
-			at.log.Error("SetProcessed: asset not in pending state", "file", key, "current_state", record.State, "code", eventCode)
+			at.log.Error("SetProcessed: asset not in pending state", assetArgFile, key, "current_state", record.State, "code", eventCode)
 		}
 		return
 	}
@@ -198,7 +204,7 @@ func (at *AssetTracker) SetProcessed(file fshelper.FSAndName, eventCode fileeven
 	if at.bus != nil {
 		at.bus.Publish(fileevent.Event{
 			Code: fileevent.AssetStateTransitionProcessed,
-			Args: []any{"file", key, "eventCode", eventCode},
+			Args: []any{assetArgFile, key, assetArgEventCode, eventCode},
 		})
 	}
 }
@@ -212,14 +218,14 @@ func (at *AssetTracker) SetDiscarded(file fshelper.FSAndName, eventCode fileeven
 	record, exists := at.assets[key]
 	if !exists {
 		if at.log != nil {
-			at.log.Error("SetDiscarded: asset not found", "file", key, "code", eventCode, "reason", reason)
+			at.log.Error("SetDiscarded: asset not found", assetArgFile, key, "code", eventCode, assetArgReason, reason)
 		}
 		return
 	}
 
 	if record.State != StatePending {
 		if at.log != nil {
-			at.log.Error("SetDiscarded: asset not in pending state", "file", key, "current_state", record.State, "code", eventCode, "reason", reason)
+			at.log.Error("SetDiscarded: asset not in pending state", assetArgFile, key, "current_state", record.State, "code", eventCode, assetArgReason, reason)
 		}
 		return
 	}
@@ -234,7 +240,7 @@ func (at *AssetTracker) SetDiscarded(file fshelper.FSAndName, eventCode fileeven
 			Code:      eventCode,
 			Timestamp: record.FinalizedAt,
 			Message:   "Asset discarded",
-			Args:      map[string]any{"reason": reason},
+			Args:      map[string]any{assetArgReason: reason},
 		})
 	}
 
@@ -246,7 +252,7 @@ func (at *AssetTracker) SetDiscarded(file fshelper.FSAndName, eventCode fileeven
 	if at.bus != nil {
 		at.bus.Publish(fileevent.Event{
 			Code: fileevent.AssetStateTransitionDiscarded,
-			Args: []any{"file", key, "eventCode", eventCode, "reason", reason},
+			Args: []any{assetArgFile, key, assetArgEventCode, eventCode, assetArgReason, reason},
 		})
 	}
 }
@@ -260,14 +266,14 @@ func (at *AssetTracker) SetError(file fshelper.FSAndName, eventCode fileevent.Co
 	record, exists := at.assets[key]
 	if !exists {
 		if at.log != nil {
-			at.log.Error("SetError: asset not found", "file", key, "code", eventCode, "error", err.Error())
+			at.log.Error("SetError: asset not found", assetArgFile, key, "code", eventCode, "error", err.Error())
 		}
 		return
 	}
 
 	if record.State != StatePending {
 		if at.log != nil {
-			at.log.Error("SetError: asset not in pending state", "file", key, "current_state", record.State, "code", eventCode, "error", err.Error())
+			at.log.Error("SetError: asset not in pending state", assetArgFile, key, "current_state", record.State, "code", eventCode, "error", err.Error())
 		}
 		return
 	}
@@ -294,7 +300,7 @@ func (at *AssetTracker) SetError(file fshelper.FSAndName, eventCode fileevent.Co
 	if at.bus != nil {
 		at.bus.Publish(fileevent.Event{
 			Code: fileevent.AssetStateTransitionError,
-			Args: []any{"file", key, "eventCode", eventCode, "error", err.Error()},
+			Args: []any{assetArgFile, key, assetArgEventCode, eventCode, "error", err.Error()},
 		})
 	}
 }

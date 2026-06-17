@@ -20,8 +20,8 @@ import (
 type callValues string
 
 const (
-	TimeFormat          string     = "2006-01-02T15:04:05.000Z"
-	ctxCallValues       callValues = "call-values"
+	TimeFormat    string     = "2006-01-02T15:04:05.000Z"
+	ctxCallValues callValues = "call-values"
 )
 
 func setContextValue(kv map[string]string) serverRequestOption {
