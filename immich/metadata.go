@@ -228,7 +228,7 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 
 	if so.withAll {
 		// add same queries but with TrashedAfter to the query set
-		qs2 := []SearchMetadataQuery{}
+		qs2 := make([]SearchMetadataQuery, 0, len(qs))
 		for _, q := range qs {
 			q.TrashedAfter = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC).Format(TimeFormat)
 			qs2 = append(qs2, q)
@@ -302,7 +302,9 @@ func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMet
 			return ctx.Err()
 		default:
 			resp := searchMetadataResponse{}
-			err := ic.newServerCall(ctx, EndPointGetAllAssets).do(postRequest("/search/metadata", "application/json", setJSONBody(&query), setAcceptJSON()), responseJSON(&resp))
+			err := ic.newServerCall(ctx, EndPointGetAllAssets).
+				withRetryable(true).
+				do(postRequest("/search/metadata", "application/json", setJSONBody(&query), setAcceptJSON()), responseJSON(&resp))
 			if err != nil {
 				return err
 			}

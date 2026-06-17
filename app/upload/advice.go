@@ -94,17 +94,17 @@ func (ii *immichIndex) addImmichAsset(ia *immich.Asset) (*assets.Asset, bool) {
 	return ii.add(a, false), true
 }
 
-func (ii *immichIndex) addLocalAsset(ia *assets.Asset) (*assets.Asset, bool) {
+func (ii *immichIndex) addLocalAsset(ia *assets.Asset) {
 	ii.lock.Lock()
 	defer ii.lock.Unlock()
 
-	if existing, ok := ii.immichAssets.Load(ia.ID); ok {
-		return existing, false
+	if _, ok := ii.immichAssets.Load(ia.ID); ok {
+		return
 	}
-	if existing, ok := ii.byChecksum.Load(ia.Checksum); ok {
-		return existing, false
+	if _, ok := ii.byChecksum.Load(ia.Checksum); ok {
+		return
 	}
-	return ii.add(ia, true), true
+	ii.add(ia, true)
 }
 
 func (ii *immichIndex) getByID(id string) *assets.Asset {
@@ -166,6 +166,25 @@ func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *ass
 	l = append(l, newA.ID)
 	ii.byName.Store(filename, l)
 	return newA
+}
+
+func (ii *immichIndex) mergeAssetMetadata(target *assets.Asset, incoming *assets.Asset) {
+	if target == nil || incoming == nil {
+		return
+	}
+	ii.lock.Lock()
+	defer ii.lock.Unlock()
+	target.MergeAlbums(incoming.Albums)
+	mergeAssetTagsByValue(target, incoming.Tags)
+}
+
+func mergeAssetTagsByValue(target *assets.Asset, tags []assets.Tag) {
+	if target == nil {
+		return
+	}
+	for _, tag := range tags {
+		target.AddTag(tag.Value)
+	}
 }
 
 func (ii *immichIndex) isAlreadyProcessed(checksum string) bool {

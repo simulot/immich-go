@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fshelper"
@@ -24,6 +26,8 @@ const (
 	EndPointGetAllAlbums           = "GetAllAlbums"
 	EndPointGetAlbumInfo           = "GetAlbumInfo"
 	EndPointAddAsstToAlbum         = "AddAssetToAlbum"
+	EndPointAddUsersToAlbum        = "AddUsersToAlbum"
+	EndPointUpdateAlbumUser        = "UpdateAlbumUser"
 	EndPointCreateAlbum            = "CreateAlbum"
 	EndPointGetAssetAlbums         = "GetAssetAlbums"
 	EndPointDeleteAlbum            = "DeleteAlbum"
@@ -65,8 +69,11 @@ type serverCall struct {
 	endPoint           string
 	ic                 *ImmichClient
 	err                error
+	baseCtx            context.Context
 	ctx                context.Context
 	hasResponseHandler bool
+	retryable          bool
+	retryableSet       bool
 }
 
 // callError represents errors returned by the server
@@ -100,7 +107,7 @@ func (ce callError) Error() string {
 	b.WriteString(ce.url)
 	if ce.status > 0 {
 		b.WriteString(", ")
-		b.WriteString(fmt.Sprintf("%d %s", ce.status, http.StatusText(ce.status)))
+		_, _ = fmt.Fprintf(&b, "%d %s", ce.status, http.StatusText(ce.status))
 	}
 	b.WriteRune('\n')
 	if ce.err != nil && !errors.Is(ce.err, &callError{}) {
@@ -120,9 +127,31 @@ func (ic *ImmichClient) newServerCall(ctx context.Context, api string) *serverCa
 	sc := &serverCall{
 		endPoint: api,
 		ic:       ic,
+		baseCtx:  ctx,
 		ctx:      ctx,
 	}
 	return sc
+}
+
+func (sc *serverCall) withRetryable(retryable bool) *serverCall {
+	sc.retryable = retryable
+	sc.retryableSet = true
+	return sc
+}
+
+func (sc *serverCall) isRetryableMethod(method string) bool {
+	if sc == nil {
+		return false
+	}
+	if sc.retryableSet {
+		return sc.retryable
+	}
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace, http.MethodPut, http.MethodDelete:
+		return true
+	default:
+		return false
+	}
 }
 
 func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerErrorMessage) error {
@@ -218,51 +247,139 @@ func putRequest(url string, opts ...serverRequestOption) requestFunction {
 }
 
 func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
-	var (
-		resp *http.Response
-		err  error
-	)
+	maxAttempts := 3
+	if sc != nil && sc.ic != nil && sc.ic.RetryAttempts > 0 {
+		maxAttempts = sc.ic.RetryAttempts
+	}
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		sc.err = nil
+		sc.ctx = sc.baseCtx
+		sc.hasResponseHandler = false
 
+		resp, req, err := sc.doOnce(fnRequest, opts...)
+		retryable := sc.isRetryableMethod(http.MethodGet)
+		if req != nil {
+			retryable = sc.isRetryableMethod(req.Method)
+		}
+		if !shouldRetryCall(err, attempt, maxAttempts, retryable) {
+			if err != nil && resp != nil && resp.Body != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+			}
+			return err
+		}
+
+		delay := sc.ic.retryDelay(attempt)
+		sc.logRetry("retrying Immich request",
+			"endpoint", sc.endPoint,
+			"attempt", attempt+1,
+			"max_attempts", maxAttempts,
+			"delay", delay,
+			"error", err,
+		)
+
+		if resp != nil && resp.Body != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+
+		select {
+		case <-sc.ctx.Done():
+			if err == nil {
+				return sc.ctx.Err()
+			}
+			return errors.Join(err, sc.ctx.Err())
+		case <-time.After(delay):
+		}
+
+		_ = req
+	}
+	return nil
+}
+
+func (sc *serverCall) logRetry(msg string, args ...any) {
+	if sc == nil || sc.ic == nil || sc.ic.retryLogger == nil {
+		return
+	}
+	sc.ic.retryLogger(sc.ctx, msg, args...)
+}
+
+func (sc *serverCall) doOnce(fnRequest requestFunction, opts ...serverResponseOption) (*http.Response, *http.Request, error) {
 	req := fnRequest(sc)
 	if sc.err != nil || req == nil {
-		return sc.Err(req, nil, nil)
+		return nil, req, sc.Err(req, nil, nil)
 	}
 
-	resp, err = sc.ic.client.Do(req)
-	// any non nil error must be returned
+	resp, err := sc.ic.client.Do(req)
 	if err != nil {
 		sc.err = err
-		return sc.Err(req, nil, nil)
+		return nil, req, sc.Err(req, nil, nil)
 	}
 
-	// Any StatusCode above 300 denotes a problem, we expect a JSON with the server's error
 	if resp.StatusCode >= 300 {
 		msg := ServerErrorMessage{}
 		if resp.Body != nil {
-			defer resp.Body.Close()
 			if isJSON(resp.Header.Get("Content-Type")) {
 				if json.NewDecoder(resp.Body).Decode(&msg) == nil {
-					return sc.Err(req, resp, &msg)
+					return resp, req, sc.Err(req, resp, &msg)
 				}
 			}
 		}
-		return sc.Err(req, resp, &msg)
+		return resp, req, sc.Err(req, resp, &msg)
 	}
 
-	// We have a success
 	for _, opt := range opts {
 		if opt != nil {
 			_ = sc.joinError(opt(sc, resp))
 		}
+	}
+	if shouldIgnoreResponseDecodeError(resp, sc.err) {
+		sc.err = nil
 	}
 	if !sc.hasResponseHandler && resp.Body != nil {
 		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}
 	if sc.err != nil {
-		return sc.Err(req, resp, nil)
+		return resp, req, sc.Err(req, resp, nil)
 	}
-	return nil
+	return resp, req, nil
+}
+
+func shouldRetryCall(err error, attempt int, maxAttempts int, retryable bool) bool {
+	if !retryable || err == nil || attempt >= maxAttempts {
+		return false
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	if isTimeoutTransportError(err) {
+		return true
+	}
+
+	var callErr callError
+	if errors.As(err, &callErr) {
+		switch callErr.status {
+		case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout, http.StatusTooManyRequests:
+			return true
+		}
+	}
+
+	return false
+}
+
+func isTimeoutTransportError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "Client.Timeout exceeded while awaiting headers") ||
+		strings.Contains(msg, "timeout awaiting response headers")
 }
 
 type serverRequestOption func(sc *serverCall, req *http.Request) error
@@ -391,4 +508,12 @@ func responseOctetStream(rc *io.ReadCloser) serverResponseOption {
 func isJSON(contentType string) bool {
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	return err == nil && mediaType == "application/json"
+}
+
+func shouldIgnoreResponseDecodeError(resp *http.Response, err error) bool {
+	if err == nil || resp == nil || resp.StatusCode >= 300 {
+		return false
+	}
+	// Only ignore empty-body decode errors; "unexpected EOF" indicates truncated JSON.
+	return errors.Is(err, io.EOF)
 }

@@ -186,7 +186,14 @@ func (a *Asset) GetChecksum() (string, error) {
 		return "", errors.New("no file to compute checksum")
 	}
 
-	f, err := a.File.Open()
+	if err := a.ensureCacheReader(); err != nil {
+		return "", err
+	}
+	if a.Checksum != "" {
+		return a.Checksum, nil
+	}
+
+	f, err := a.cacheReader.OpenFile()
 	if err != nil {
 		return "", err
 	}

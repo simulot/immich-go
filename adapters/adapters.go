@@ -7,8 +7,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type AlbumUser struct {
+	UserID string
+	Role   string
+}
+
 type Reader interface {
 	Browse(cxt context.Context) chan *assets.Group
+}
+
+type AlbumUserProvider interface {
+	DesiredAlbumUsers(ctx context.Context, album assets.Album) ([]AlbumUser, error)
 }
 
 type AssetWriter interface {

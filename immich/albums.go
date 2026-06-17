@@ -9,9 +9,10 @@ import (
 )
 
 type AlbumSimplified struct {
-	ID          string `json:"id,omitempty"`
-	AlbumName   string `json:"albumName"`
-	Description string `json:"description,omitempty"`
+	ID          string              `json:"id,omitempty"`
+	AlbumName   string              `json:"albumName"`
+	Description string              `json:"description,omitempty"`
+	AlbumUsers  []AlbumUserResponse `json:"albumUsers,omitempty"`
 	// OwnerID                    string    `json:"ownerId"`
 	// CreatedAt                  time.Time `json:"createdAt"`
 	// UpdatedAt                  time.Time `json:"updatedAt"`
@@ -22,6 +23,37 @@ type AlbumSimplified struct {
 	// AssetCount                 int       `json:"assetCount"`
 	// LastModifiedAssetTimestamp time.Time `json:"lastModifiedAssetTimestamp"
 	AssetIds []string `json:"assetIds,omitempty"`
+}
+
+type AlbumUserRole string
+
+const (
+	AlbumUserRoleEditor AlbumUserRole = "editor"
+	AlbumUserRoleOwner  AlbumUserRole = "owner"
+	AlbumUserRoleViewer AlbumUserRole = "viewer"
+)
+
+func (r AlbumUserRole) IsValid() bool {
+	switch r {
+	case AlbumUserRoleEditor, AlbumUserRoleOwner, AlbumUserRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
+type AlbumUserResponse struct {
+	User User          `json:"user"`
+	Role AlbumUserRole `json:"role"`
+}
+
+type AlbumUserAdd struct {
+	UserID string        `json:"userId"`
+	Role   AlbumUserRole `json:"role,omitempty"`
+}
+
+type addUsersToAlbumRequest struct {
+	AlbumUsers []AlbumUserAdd `json:"albumUsers"`
 }
 
 func AlbumsFromAlbumSimplified(albums []AlbumSimplified) []assets.Album {
@@ -52,11 +84,12 @@ func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, er
 type AlbumContent struct {
 	ID string `json:"id,omitempty"`
 	// OwnerID                    string    `json:"ownerId"`
-	AlbumName   string   `json:"albumName"`
-	Description string   `json:"description"`
-	Shared      bool     `json:"shared"`
-	Assets      []*Asset `json:"assets,omitempty"`
-	AssetIDs    []string `json:"assetIds,omitempty"`
+	AlbumName   string              `json:"albumName"`
+	Description string              `json:"description"`
+	Shared      bool                `json:"shared"`
+	AlbumUsers  []AlbumUserResponse `json:"albumUsers,omitempty"`
+	Assets      []*Asset            `json:"assets,omitempty"`
+	AssetIDs    []string            `json:"assetIds,omitempty"`
 	// CreatedAt                  time.Time `json:"createdAt"`
 	// UpdatedAt                  time.Time `json:"updatedAt"`
 	// AlbumThumbnailAssetID      string    `json:"albumThumbnailAssetId"`
@@ -137,6 +170,31 @@ func (ic *ImmichClient) AddAssetToAlbum(ctx context.Context, albumID string, ass
 		return nil, err
 	}
 	return r, nil
+}
+
+func (ic *ImmichClient) AddUsersToAlbum(ctx context.Context, albumID string, users []AlbumUserAdd) (AlbumContent, error) {
+	if ic.dryRun {
+		return AlbumContent{ID: albumID}, nil
+	}
+	var album AlbumContent
+	body := addUsersToAlbumRequest{AlbumUsers: users}
+	err := ic.newServerCall(ctx, EndPointAddUsersToAlbum).do(
+		putRequest(fmt.Sprintf("/albums/%s/users", albumID), setAcceptJSON(), setJSONBody(body)),
+		responseJSON(&album),
+	)
+	return album, err
+}
+
+func (ic *ImmichClient) UpdateAlbumUser(ctx context.Context, albumID string, userID string, role AlbumUserRole) error {
+	if ic.dryRun {
+		return nil
+	}
+	body := struct {
+		Role AlbumUserRole `json:"role"`
+	}{Role: role}
+	return ic.newServerCall(ctx, EndPointUpdateAlbumUser).do(
+		putRequest(fmt.Sprintf("/albums/%s/user/%s", albumID, userID), setAcceptJSON(), setJSONBody(body)),
+	)
 }
 
 func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, description string, assetsIDs []string) (assets.Album, error) {

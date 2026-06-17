@@ -27,6 +27,8 @@ immich-go upload from-google-photos \
   --api-key=your-api-key \
   --concurrent-tasks=4 \
   --client-timeout=60m \
+  --retry-attempts=8 \
+  --retry-max-delay=60s \
   --pause-immich-jobs=true \
   --on-errors=continue \
   --session-tag \

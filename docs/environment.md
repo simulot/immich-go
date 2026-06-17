@@ -12,6 +12,9 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_LOG_LEVEL` | `--log-level` | `INFO` | Log level (DEBUG|INFO|WARN|ERROR), default INFO |
 | `IMMICH_GO_LOG_TYPE` | `--log-type` | `text` | Log formatted  as text of JSON file |
 | `IMMICH_GO_ON_ERRORS` | `--on-errors` | `stop` | What to do when an error occurs (stop, continue, accept N errors at max) |
+| `IMMICH_GO_RETRY_ATTEMPTS` | `--retry-attempts` | `6` | Maximum attempts for transient Immich request/upload failures |
+| `IMMICH_GO_RETRY_BACKOFF` | `--retry-backoff` | `1s` | Initial backoff before retrying transient Immich failures |
+| `IMMICH_GO_RETRY_MAX_DELAY` | `--retry-max-delay` | `30s` | Maximum backoff delay for transient Immich failures |
 | `IMMICH_GO_SAVE_CONFIG` | `--save-config` | `false` | Save the configuration to immich-go.yaml |
 
 ## archive
@@ -223,6 +226,24 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
+
+## upload from-nextcloud-memories
+
+| Variable | Flag | Default | Description |
+|----------|------|---------|-------------|
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_DISCOVER_ONLY` | `--discover-only` | `false` | Print detected Memories configuration and exit |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_CLIENT_TIMEOUT` | `--nextcloud-client-timeout` | `5m0s` | Timeout for source Nextcloud API calls |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_LOCAL_DIR` | `--nextcloud-local-dir` |  | Prefer a local synced Nextcloud directory for file reads |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_PASSWORD` | `--nextcloud-password` |  | Nextcloud password or app password |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_SKIP_VERIFY_SSL` | `--nextcloud-skip-verify-ssl` | `false` | Skip TLS verification for the source Nextcloud server |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_URL` | `--nextcloud-url` |  | Nextcloud base URL |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_NEXTCLOUD_USER` | `--nextcloud-user` |  | Nextcloud username |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_REQUIRE_INDEXED` | `--require-indexed` | `false` | Fail if files are found without matching Memories metadata |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_SYNC_ALBUMS` | `--sync-albums` | `true` | Recreate owned Memories albums in Immich |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_SYNC_TAGS` | `--sync-tags` | `false` | Transfer source Memories system tags to Immich tags |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_TAG_ALBUM_MEMBERSHIP` | `--tag-album-membership` | `false` | Add synthetic source album membership tags |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_TIMELINE_ROOT` | `--timeline-root` | `[]` | Limit import to configured Memories timeline roots |
+| `IMMICH_GO_UPLOAD_FROM_NEXTCLOUD_MEMORIES_USER_MAP` | `--user-map` | `[]` | Map a Nextcloud user ID to an Immich user ID for album share restoration |
 
 ## upload from-immich
 

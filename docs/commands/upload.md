@@ -5,7 +5,7 @@ The `upload` command transfers photos and videos from various sources to your Im
 ## Syntax
 
 ```bash
-immich-go upload <sub-command> [options] <source-path>
+immich-go upload <sub-command> [options] [source-specific arguments]
 ```
 
 ## Sub-commands
@@ -15,6 +15,7 @@ immich-go upload <sub-command> [options] <source-path>
 | [from-folder](#from-folder)               | Local filesystem | Upload from local folders or ZIP archives  |
 | [from-google-photos](#from-google-photos) | Google Takeout   | Upload from Google Photos takeout archives |
 | [from-icloud](#from-icloud)               | iCloud export    | Upload from iCloud takeout                 |
+| [from-nextcloud-memories](#from-nextcloud-memories) | Nextcloud Memories | Migrate a Nextcloud Memories library |
 | [from-picasa](#from-picasa)               | Picasa           | Upload from Picasa photo collections       |
 | [from-immich](#from-immich)               | Immich server    | Transfer between Immich servers            |
 
@@ -38,6 +39,9 @@ All upload sub-commands require these connection parameters:
 | `--overwrite`         | `false`   | Replace existing files on server                                    |
 | `--pause-immich-jobs` | `true`    | Pause server jobs during upload                                     |
 | `--on-errors`         | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors |
+| `--retry-attempts`    | `6`       | Maximum attempts for transient Immich request/upload failures       |
+| `--retry-backoff`     | `1s`      | Initial backoff before retrying transient Immich failures           |
+| `--retry-max-delay`   | `30s`     | Maximum backoff delay for transient Immich failures                 |
 
 ## Tagging and Organization
 
@@ -193,6 +197,118 @@ immich-go upload from-icloud --server=http://localhost:2283 --api-key=your-key /
 # Include memories as albums  
 immich-go upload from-icloud --memories --server=http://localhost:2283 --api-key=your-key /path/to/icloud-export
 ```
+
+---
+
+## from-nextcloud-memories
+
+Upload from a Nextcloud instance that uses the Memories app.
+
+This command migrates the configured Memories library for the authenticated user. It does not take a positional source path. Instead, it discovers the user's effective Memories configuration, resolves the configured timeline roots, and imports assets from that scope.
+
+### Usage
+```bash
+immich-go upload from-nextcloud-memories [options]
+```
+
+### Source Connection Options
+
+| Option | Required | Description |
+| ------ | :------: | ----------- |
+| `--nextcloud-url` | Y | Nextcloud base URL |
+| `--nextcloud-user` | Y | Nextcloud username |
+| `--nextcloud-password` | Y | Nextcloud password or app password |
+| `--nextcloud-local-dir` |  | Prefer reading file contents from a local synced Nextcloud copy while keeping Memories as the source of truth |
+| `--nextcloud-skip-verify-ssl` |  | Skip TLS verification for the source Nextcloud server |
+| `--nextcloud-client-timeout` |  | Timeout for source Nextcloud API calls |
+
+### Discovery And Scope Options
+
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `--discover-only` | `false` | Print detected Memories configuration and exit |
+| `--timeline-root` | all configured roots | Limit the import to one or more configured Memories timeline roots; repeatable |
+| `--require-indexed` | `false` | Fail if files are found under the selected Memories roots without matching Memories metadata |
+
+### Import And Share Options
+
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `--sync-albums` | `true` | Recreate owned Memories albums in Immich |
+| `--sync-tags` | `false` | Transfer source Memories system tags to Immich tags |
+| `--tag-album-membership` | `false` | Add synthetic source album membership tags to preserve source album membership for advanced/manual reconciliation workflows |
+| `--user-map` | - | Map a Nextcloud user ID to an Immich user ID for owned album share restoration; repeatable (`<nextcloud-user>=<immich-user-id>`) |
+
+### Supported Data
+
+- files
+- capture date
+- GPS coordinates
+- description
+- rating
+- favorite flag
+- archived flag
+- owned album recreation
+- owned album collaborator restoration when `--user-map` is provided
+- tags when `--sync-tags` is enabled
+
+### Current Limitations
+
+- people and face assignments are not migrated
+- comments and trash state are not migrated
+- only data inside the configured Memories timeline roots is imported
+- albums owned by another Memories user are not recreated as Immich albums
+- assets that only exist through another user's shared album do not appear in the importing user's Memories timeline, so this importer does not migrate them
+- `--sync-tags` is intentionally opt-in because Memories system tags are often noisy
+
+### Examples
+```bash
+# Basic Nextcloud Memories import
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --server=http://immich.example.com:2283 \
+  --api-key="$IMMICH_API_KEY"
+
+# Discover the effective Memories configuration first
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --discover-only
+
+# Prefer a local synced Nextcloud copy for faster reads
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --nextcloud-local-dir="$HOME/Nextcloud" \
+  --timeline-root=/Photos \
+  --server=http://immich.example.com:2283 \
+  --api-key="$IMMICH_API_KEY"
+
+# Restore owned album collaborators when user mappings are known
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --user-map=alice=8d5e7f39-0d62-4c2f-9e6b-111111111111 \
+  --user-map=bob=6f31f744-d9b2-4f26-9f42-222222222222 \
+  --server=http://immich.example.com:2283 \
+  --api-key="$IMMICH_API_KEY"
+
+# Fail closed when the selected Memories roots are only partially indexed
+immich-go upload from-nextcloud-memories \
+  --nextcloud-url=https://cloud.example.com \
+  --nextcloud-user=alice \
+  --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" \
+  --require-indexed \
+  --server=http://immich.example.com:2283 \
+  --api-key="$IMMICH_API_KEY"
+```
+
+For long-running migrations into smaller Immich instances, tune the global retry options such as `--retry-attempts`, `--retry-backoff`, and `--retry-max-delay` to make transient server failures less disruptive.
 
 ---
 

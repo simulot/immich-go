@@ -35,6 +35,14 @@ func (c *MockedCLient) CreateAlbum(context.Context, string, string, []string) (i
 	return immich.AlbumSimplified{}, nil
 }
 
+func (c *MockedCLient) AddUsersToAlbum(context.Context, string, []immich.AlbumUserAdd) (immich.AlbumContent, error) {
+	return immich.AlbumContent{}, nil
+}
+
+func (c *MockedCLient) UpdateAlbumUser(context.Context, string, string, immich.AlbumUserRole) error {
+	return nil
+}
+
 func (c *MockedCLient) UpdateAssets(ctx context.Context, ids []string, isArchived bool, isFavorite bool, latitude float64, longitude float64, removeParent bool, stackParentID string) error {
 	return nil
 }

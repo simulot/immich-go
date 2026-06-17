@@ -8,7 +8,7 @@
 ## 🌟 Key Features
 
 - **Simple Installation**: No NodeJS or Docker required
-- **Multiple Sources**: Upload from Google Photos Takeouts, iCloud, local folders, ZIP archives, and other Immich servers
+- **Multiple Sources**: Upload from Google Photos Takeouts, iCloud, Nextcloud Memories, local folders, ZIP archives, and other Immich servers
 - **Large Collections**: Successfully handles 100,000+ photos
 - **Smart Management**: Duplicate detection, burst photo stacking, RAW+JPEG handling
 - **Cross-Platform**: Available for Windows, macOS, Linux, and FreeBSD
@@ -25,6 +25,9 @@ immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key
 
 # Upload Google Photos takeout
 immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-api-key /path/to/takeout-*.zip
+
+# Import a Nextcloud Memories library
+immich-go upload from-nextcloud-memories --nextcloud-url=https://cloud.example.com --nextcloud-user=alice --nextcloud-password="$NEXTCLOUD_APP_PASSWORD" --server=http://your-ip:2283 --api-key=your-api-key
 
 # Archive photos from Immich server
 immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-key --write-to-folder=/path/to/archive
@@ -63,6 +66,7 @@ Here's a brief overview of the main upload commands:
 
 *   **`from-folder`**: The basic command for uploading from any local folder. It can create albums from your directory structure and read XMP sidecar files.
 *   **`from-google-photos`**: A powerful command to migrate from a Google Photos Takeout. It intelligently matches photos with their JSON metadata to preserve albums, descriptions, and locations.
+*   **`from-nextcloud-memories`**: A Nextcloud Memories migration command that discovers a user's configured Memories library, preserves supported metadata, and can restore owned album collaborators when user mappings are provided.
 *   **`from-immich`**: A server-to-server migration tool that allows you to copy assets between two Immich instances with fine-grained filtering.
 *   **`from-picasa`**: A specialized version of `from-folder` that automatically reads `.picasa.ini` files to restore your Picasa album organization.
 *   **`from-icloud`**: Another specialized command that handles the complexity of an iCloud Photos takeout, correctly identifying creation dates and album structures from the included CSV files.
@@ -82,6 +86,7 @@ For a detailed explanation of how each upload command works, please see the [Upl
 
 - **Google Photos Migration**: [Complete guide](docs/best-practices.md#google-photos-migration)
 - **iCloud Import**: [Step-by-step instructions](docs/examples.md#icloud-import)
+- **Nextcloud Memories Migration**: [Examples and current limitations](docs/examples.md#nextcloud-memories-migration)
 - **Server Migration**: [Transfer between Immich instances](docs/examples.md#server-migration)
 - **Bulk Organization**: [Stacking and tagging strategies](docs/best-practices.md#organization-strategies)
 

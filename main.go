@@ -10,14 +10,12 @@ import (
 	"github.com/simulot/immich-go/app/root"
 )
 
+var errInterrupt = errors.New("Ctrl+C received")
+
 // immich-go entry point
 func main() {
-	ctx := context.Background()
-	err := immichGoMain(ctx)
+	err := immichGoMain(context.Background())
 	if err != nil {
-		if e := context.Cause(ctx); e != nil {
-			err = e
-		}
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -29,21 +27,40 @@ func immichGoMain(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	// Handle Ctrl+C signal (SIGINT)
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, os.Interrupt)
+signalChannel := make(chan os.Signal, 2)
+	defer signal.Stop(signalChannel)
 
-	// Watch for ^C to be pressed
-	go func() {
-		<-signalChannel
-		fmt.Println("\nCtrl+C received. Shutting down...")
-		cancel(errors.New("Ctrl+C received")) // Cancel the context when Ctrl+C is received
-	}()
+	// Watch for ^C to be pressed. The first interrupt asks the command to stop
+	// gracefully; the second one forces the process to exit.
+	startInterruptHandler(cancel, signalChannel, func(code int) {
+		fmt.Println("\nSecond Ctrl+C received. Forcing exit...")
+		os.Exit(code)
+	})
 
 	c, a := root.RootImmichGoCommand(ctx)
 	// let's start
 	err := c.ExecuteContext(ctx)
+	if errors.Is(err, context.Canceled) {
+		if cause := context.Cause(ctx); cause != nil {
+			err = cause
+		}
+	}
 	if err != nil && a.Log().GetSLog() != nil {
 		a.Log().Error(err.Error())
 	}
 	return err
+}
+
+func startInterruptHandler(cancel context.CancelCauseFunc, signals <-chan os.Signal, exitFn func(int)) {
+	go func() {
+		if _, ok := <-signals; !ok {
+			return
+		}
+		fmt.Println("\nCtrl+C received. Shutting down...")
+		cancel(errInterrupt)
+		if _, ok := <-signals; !ok {
+			return
+		}
+		exitFn(130)
+	}()
 }

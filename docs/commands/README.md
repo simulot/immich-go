@@ -12,7 +12,7 @@ immich-go [global-options] command sub-command [command-options] [path]
 
 | Command | Description | Sub-commands |
 |---------|-------------|--------------|
-| [upload](upload.md) | Upload photos/videos to Immich server | from-folder, from-google-photos, from-icloud, from-picasa, from-immich |
+| [upload](upload.md) | Upload photos/videos to Immich server | from-folder, from-google-photos, from-icloud, from-nextcloud-memories, from-picasa, from-immich |
 | [archive](archive.md) | Export/archive photos to local folder structure | from-folder, from-google-photos, from-icloud, from-picasa, from-immich |
 | [stack](stack.md) | Organize related photos into stacks on server | (none) |
 | version | Display version information | (none) |

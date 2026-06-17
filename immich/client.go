@@ -1,11 +1,14 @@
 package immich
 
 import (
+	"context"
 	"crypto/tls"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -23,9 +26,13 @@ type ImmichClient struct {
 	endPoint       string        // Server API url
 	key            string        // User KEY
 	DeviceUUID     string        // Device
-	Retries        int           // Number of attempts on 500 errors
-	RetriesDelay   time.Duration // Duration between retries
+	RetryAttempts  int           // Number of attempts for transient failures
+	RetryBackoff   time.Duration // Initial duration between retries
+	RetryMaxDelay  time.Duration // Maximum duration between retries
 	apiTraceWriter io.Writer     // If not nil, logs API calls to this writer
+	retryLogger    func(context.Context, string, ...any)
+	jitterMu       sync.Mutex
+	jitterRand     *rand.Rand
 
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
 	dryRun              bool                     //  If true, do not send any data to the server
@@ -86,6 +93,31 @@ func OptionDryRun(dryRun bool) clientOption {
 	}
 }
 
+func OptionRetryLogger(fn func(context.Context, string, ...any)) clientOption {
+	return func(ic *ImmichClient) error {
+		ic.retryLogger = fn
+		return nil
+	}
+}
+
+func OptionRetryPolicy(attempts int, backoff, maxDelay time.Duration) clientOption {
+	return func(ic *ImmichClient) error {
+		if attempts > 0 {
+			ic.RetryAttempts = attempts
+		}
+		if backoff > 0 {
+			ic.RetryBackoff = backoff
+		}
+		if maxDelay > 0 {
+			ic.RetryMaxDelay = maxDelay
+		}
+		if ic.RetryMaxDelay < ic.RetryBackoff {
+			ic.RetryMaxDelay = ic.RetryBackoff
+		}
+		return nil
+	}
+}
+
 // Create a new ImmichClient
 func NewImmichClient(endPoint string, key string, options ...clientOption) (*ImmichClient, error) {
 	var err error
@@ -115,10 +147,12 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: 20 * time.Minute,
 		},
-		key:          key,
-		DeviceUUID:   deviceUUID,
-		Retries:      1,
-		RetriesDelay: time.Second * 1,
+		key:           key,
+		DeviceUUID:    deviceUUID,
+		RetryAttempts: 6,
+		RetryBackoff:  time.Second,
+		RetryMaxDelay: 30 * time.Second,
+		jitterRand:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 
 	ic.client = &http.Client{
@@ -134,4 +168,42 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 	}
 
 	return &ic, nil
+}
+
+func (ic *ImmichClient) retryDelay(attempt int) time.Duration {
+	if ic == nil {
+		return 0
+	}
+	base := ic.RetryBackoff
+	if base <= 0 {
+		base = time.Second
+	}
+	maxDelay := ic.RetryMaxDelay
+	if maxDelay <= 0 {
+		maxDelay = 30 * time.Second
+	}
+	delay := base
+	for i := 1; i < attempt; i++ {
+		if delay >= maxDelay {
+			delay = maxDelay
+			break
+		}
+		delay *= 2
+		if delay > maxDelay {
+			delay = maxDelay
+			break
+		}
+	}
+	if delay <= 0 {
+		return 0
+	}
+	ic.jitterMu.Lock()
+	jitterRand := ic.jitterRand
+	if jitterRand == nil {
+		jitterRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+		ic.jitterRand = jitterRand
+	}
+	jitter := time.Duration(jitterRand.Int63n(int64(delay/2 + 1)))
+	ic.jitterMu.Unlock()
+	return delay + jitter
 }
