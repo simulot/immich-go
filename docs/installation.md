@@ -17,10 +17,11 @@ This guide covers all installation methods for Immich-Go across different platfo
 - **Basic Command Line Knowledge**: Immich-Go is a command-line tool
 
 ## API Permissions
-`
-Create an` immich API key for each user account you plan to use with `Immich-Go` with the following permissions:
+
+Create an Immich API key for each user account you plan to use with `Immich-Go` with the following permissions:
+
 - `asset.read`
-- `asset.statistics` 
+- `asset.statistics`
 - `asset.update`
 - `asset.upload`
 - `asset.copy`
@@ -55,7 +56,7 @@ Immich-Go needs to pause Immich jobs during upload operations. Create an admin-l
 
 2. **Select your platform**:
    - Windows: `immich-go_Windows_x86_64.zip`
-   - macOS: `immich-go_Darwin_x86_64.tar.gz`  
+   - macOS: `immich-go_Darwin_x86_64.tar.gz`
    - Linux: `immich-go_Linux_x86_64.tar.gz`
    - FreeBSD: `immich-go_Freebsd_x86_64.tar.gz`
 
@@ -112,6 +113,20 @@ environment.systemPackages = with pkgs; [
 ];
 ```
 
+### Option 4: Other Package Managers
+
+MacPorts:
+
+```bash
+sudo port install immich-go
+```
+
+Homebrew:
+
+```bash
+brew install immich-go
+```
+
 ### Special Case: Termux (Android)
 
 Pre-built ARM64 binaries don't work in Termux. Build from source:
@@ -158,7 +173,7 @@ chmod +x immich-go
 
 ### Command Not Found
 - Ensure the binary is in your PATH, or
-- Use the full path to the binary, or  
+- Use the full path to the binary, or
 - Run from the directory containing the binary
 
 ### SSL/TLS Issues
@@ -166,6 +181,6 @@ Use the `--skip-verify-ssl` flag if you have certificate issues (not recommended
 
 ## Next Steps
 
-- [Learn about commands](commands/) 
+- [Learn about commands](commands/)
 - [See configuration options](configuration.md)
 - [Check out examples](examples.md)
