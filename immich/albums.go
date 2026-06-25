@@ -46,7 +46,18 @@ func (ic *ImmichClient) GetAllAlbums(ctx context.Context) ([]AlbumSimplified, er
 	if err != nil {
 		return nil, err
 	}
-	return albums, nil
+
+	var sharedAlbums []AlbumSimplified
+	err2 := ic.newServerCall(ctx, EndPointGetAllAlbums).
+		do(
+			getRequest("/albums?shared=true", setAcceptJSON()),
+			responseJSON(&sharedAlbums),
+		)
+	if err2 != nil {
+		return nil, err
+	}
+
+	return append(albums, sharedAlbums...), nil
 }
 
 type AlbumContent struct {
