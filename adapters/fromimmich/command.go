@@ -385,7 +385,17 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			return err
 		}
 
+		// Transfer the album
+		simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
+		if err = fic.app.ProcessError(err); err != nil {
+			return err
+		}
+		albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
+
 		asset := a.AsAsset()
+		asset.SetNameInfo(fic.ic.GetInfo(asset.OriginalFileName))
+		asset.File = fshelper.FSName(fic.ifs, a.ID)
+
 		asset.FromApplication = &assets.Metadata{
 			FileName:    a.OriginalFileName,
 			Latitude:    a.ExifInfo.Latitude,
@@ -396,10 +406,10 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			Archived:    a.IsArchived,
 			Favorited:   a.IsFavorite,
 			Rating:      byte(a.ExifInfo.Rating),
+			Albums:      albums,
 			Tags:        asset.Tags,
 		}
 		asset.UseMetadata(asset.FromApplication)
-		asset.File = fshelper.FSName(fic.ifs, a.ID)
 
 		// Record asset discovery
 		code := fileevent.DiscoveredImage
@@ -408,19 +418,10 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 		fic.processor.RecordAssetDiscovered(ctx, asset.File, int64(asset.FileSize), code)
 
-		// Transfer the album
-		simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
-		if err = fic.app.ProcessError(err); err != nil {
-			return err
-		}
-
-		albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
 		// clear the ID of the album that exists in from server, but not in to server
-		for i := range albums {
-			albums[i].ID = ""
+		for i := range asset.Albums {
+			asset.Albums[i].ID = ""
 		}
-
-		asset.Albums = albums
 
 		// Transfer tags
 		for t := range asset.Tags {
