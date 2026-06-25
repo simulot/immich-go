@@ -207,12 +207,12 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnsupported, "reason", "unsupported file type")
 					return nil
 				case filetypes.TypeVideo:
-					if strings.Contains(name, "Failed Videos") {
+					if !toc.KeepFailedVideos && strings.Contains(name, "Failed Videos") {
 						toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedFiltered, "can't upload failed videos")
 						return nil
-					} else {
-						toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredVideo)
 					}
+
+					toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredVideo)
 				case filetypes.TypeImage:
 					toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredImage)
 				}
