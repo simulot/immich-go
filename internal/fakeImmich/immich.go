@@ -27,6 +27,10 @@ func (c *MockedCLient) GetAllAlbums(context.Context) ([]immich.AlbumSimplified, 
 	return nil, nil
 }
 
+func (c *MockedCLient) GetAllSharedAlbums(context.Context) ([]immich.AlbumSimplified, error) {
+	return nil, nil
+}
+
 func (c *MockedCLient) AddAssetToAlbum(context.Context, string, []string) ([]immich.UpdateAlbumResult, error) {
 	return nil, nil
 }

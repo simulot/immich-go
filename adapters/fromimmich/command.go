@@ -27,6 +27,7 @@ type FromImmichCmd struct {
 	// CLI flags
 	client          app.Client
 	Albums          []string
+	SharedAlbums    []string
 	Tags            []string
 	People          []string
 	IncludePartners bool
@@ -43,9 +44,10 @@ type FromImmichCmd struct {
 	InclusionFlags  cliflags.InclusionFlags
 
 	// internal fields
-	albumIDs  []string
-	tagIDs    []string
-	peopleIDs []string
+	albumIDs       []string
+	sharedAlbumIDs []string
+	tagIDs         []string
+	peopleIDs      []string
 	ifs       *immichfs.ImmichFS
 	ic        *filenames.InfoCollector
 	app       *app.Application
@@ -59,6 +61,7 @@ func (fic *FromImmichCmd) RegisterFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&fic.State, "from-state", "", "Get only assets from this state")
 	flags.StringVar(&fic.City, "from-city", "", "Get only assets from this city")
 	flags.StringSliceVar(&fic.Albums, "from-albums", nil, "Get assets only from those albums, can be used multiple times")
+	flags.StringSliceVar(&fic.SharedAlbums, "from-shared-albums", nil, "Get assets only from those shared albums, can be used multiple times")
 	flags.StringSliceVar(&fic.Tags, "from-tags", nil, "Get assets only with those tags, can be used multiple times")
 	flags.StringSliceVar(&fic.People, "from-people", nil, "Get assets only with those people, can be used multiple times")
 	flags.BoolVar(&fic.IncludePartners, "from-partners", false, "Get partner's assets as well")
@@ -185,37 +188,65 @@ func (fic *FromImmichCmd) checkSuggestion(ctx context.Context, q immich.SearchSu
 }
 
 func (fic *FromImmichCmd) resolveAlbums(ctx context.Context) error {
-	if len(fic.Albums) == 0 {
-		return nil
-	}
-	albums, err := fic.client.Immich.GetAllAlbums(ctx)
-	if err != nil {
-		return err
-	}
-	unknownAlbums := []string{}
+	if len(fic.Albums) > 0 {
+		albums, err := fic.client.Immich.GetAllAlbums(ctx)
+		if err != nil {
+			return err
+		}
+		unknownAlbums := []string{}
 
-	for _, fromAlbum := range fic.Albums {
-		found := false
-		for _, a := range albums {
-			if a.AlbumName == fromAlbum {
-				fic.albumIDs = gen.AddOnce(fic.albumIDs, a.ID)
-				found = true
+		for _, fromAlbum := range fic.Albums {
+			found := false
+			for _, a := range albums {
+				if a.AlbumName == fromAlbum {
+					fic.albumIDs = gen.AddOnce(fic.albumIDs, a.ID)
+					found = true
+				}
+			}
+			if !found {
+				unknownAlbums = append(unknownAlbums, fromAlbum)
 			}
 		}
-		if !found {
-			unknownAlbums = append(unknownAlbums, fromAlbum)
+
+		if len(unknownAlbums) > 0 {
+			availables := []string{}
+			for _, a := range albums {
+				availables = append(availables, a.AlbumName)
+			}
+			return fmt.Errorf("unknown album(s): %v, available album(s): %v", formatQuotedStrings(unknownAlbums), formatQuotedStrings(availables))
 		}
 	}
 
-	if len(unknownAlbums) == 0 {
-		return nil
+	if len(fic.SharedAlbums) > 0 {
+		sharedAlbums, err := fic.client.Immich.GetAllSharedAlbums(ctx)
+		if err != nil {
+			return err
+		}
+		unknownAlbums := []string{}
+
+		for _, fromAlbum := range fic.SharedAlbums {
+			found := false
+			for _, a := range sharedAlbums {
+				if a.AlbumName == fromAlbum {
+					fic.sharedAlbumIDs = gen.AddOnce(fic.sharedAlbumIDs, a.ID)
+					found = true
+				}
+			}
+			if !found {
+				unknownAlbums = append(unknownAlbums, fromAlbum)
+			}
+		}
+
+		if len(unknownAlbums) > 0 {
+			availables := []string{}
+			for _, a := range sharedAlbums {
+				availables = append(availables, a.AlbumName)
+			}
+			return fmt.Errorf("unknown shared album(s): %v, available shared album(s): %v", formatQuotedStrings(unknownAlbums), formatQuotedStrings(availables))
+		}
 	}
 
-	availables := []string{}
-	for _, a := range albums {
-		availables = append(availables, a.AlbumName)
-	}
-	return fmt.Errorf("unknown album(s): %v, available album(s): %v", formatQuotedStrings(unknownAlbums), formatQuotedStrings(availables))
+	return nil
 }
 
 func (fic *FromImmichCmd) resolveTags(ctx context.Context) error {
@@ -299,12 +330,39 @@ func (fic *FromImmichCmd) Browse(ctx context.Context) chan *assets.Group {
 	go func() {
 		defer close(gOut)
 
-		err := fic.getAssets(ctx, gOut)
+		// Only run the general search if we're not exclusively fetching shared albums.
+		// When only --from-shared-albums is specified, skip getAssets to avoid
+		// an unfiltered search that would return all personal library assets.
+		if len(fic.sharedAlbumIDs) == 0 || len(fic.albumIDs) > 0 || fic.hasNonAlbumFilters() {
+			err := fic.getAssets(ctx, gOut)
+			if err = fic.app.ProcessError(err); err != nil {
+				return
+			}
+		}
+
+		err := fic.getSharedAlbumAssets(ctx, gOut)
 		if err = fic.app.ProcessError(err); err != nil {
 			return
 		}
 	}()
 	return gOut
+}
+
+// hasNonAlbumFilters returns true if any filter besides album names is set.
+func (fic *FromImmichCmd) hasNonAlbumFilters() bool {
+	return len(fic.Tags) > 0 ||
+		len(fic.People) > 0 ||
+		fic.OnlyArchived ||
+		fic.OnlyTrashed ||
+		fic.OnlyFavorite ||
+		fic.OnlyNoAlbum ||
+		fic.MinimalRating > 0 ||
+		fic.Make != "" ||
+		fic.Model != "" ||
+		fic.Country != "" ||
+		fic.State != "" ||
+		fic.City != "" ||
+		fic.InclusionFlags.DateRange.IsSet()
 }
 
 func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
@@ -379,62 +437,88 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			return nil
 		}
 
-		// Fetch details
-		a, err := fic.client.Immich.GetAssetInfo(ctx, a.ID)
-		if err = fic.app.ProcessError(err); err != nil {
-			return err
-		}
-
-		asset := a.AsAsset()
-		asset.FromApplication = &assets.Metadata{
-			FileName:    a.OriginalFileName,
-			Latitude:    a.ExifInfo.Latitude,
-			Longitude:   a.ExifInfo.Longitude,
-			Description: a.ExifInfo.Description,
-			DateTaken:   a.ExifInfo.DateTimeOriginal.Time,
-			Trashed:     a.IsTrashed,
-			Archived:    a.IsArchived,
-			Favorited:   a.IsFavorite,
-			Rating:      byte(a.ExifInfo.Rating),
-			Tags:        asset.Tags,
-		}
-		asset.UseMetadata(asset.FromApplication)
-		asset.File = fshelper.FSName(fic.ifs, a.ID)
-
-		// Record asset discovery
-		code := fileevent.DiscoveredImage
-		if a.Type == "VIDEO" {
-			code = fileevent.DiscoveredVideo
-		}
-		fic.processor.RecordAssetDiscovered(ctx, asset.File, int64(asset.FileSize), code)
-
-		// Transfer the album
-		simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
-		if err = fic.app.ProcessError(err); err != nil {
-			return err
-		}
-
-		albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
-		// clear the ID of the album that exists in from server, but not in to server
-		for i := range albums {
-			albums[i].ID = ""
-		}
-
-		asset.Albums = albums
-
-		// Transfer tags
-		for t := range asset.Tags {
-			asset.Tags[t].ID = ""
-		}
-
-		g := assets.NewGroup(assets.GroupByNone, asset)
-		select {
-		case grpChan <- g:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-		return nil
+		return fic.processAsset(ctx, a, grpChan)
 	})
+}
+
+func (fic *FromImmichCmd) getSharedAlbumAssets(ctx context.Context, grpChan chan *assets.Group) error {
+	if len(fic.sharedAlbumIDs) == 0 {
+		return nil
+	}
+
+	for _, albumID := range fic.sharedAlbumIDs {
+		albumContent, err := fic.client.Immich.GetAlbumInfo(ctx, albumID, false)
+		if err = fic.app.ProcessError(err); err != nil {
+			return err
+		}
+
+		for _, a := range albumContent.Assets {
+			if err := fic.processAsset(ctx, a, grpChan); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (fic *FromImmichCmd) processAsset(ctx context.Context, a *immich.Asset, grpChan chan *assets.Group) error {
+	// Fetch details
+	a, err := fic.client.Immich.GetAssetInfo(ctx, a.ID)
+	if err = fic.app.ProcessError(err); err != nil {
+		return err
+	}
+
+	asset := a.AsAsset()
+	asset.SetNameInfo(fic.ic.GetInfo(a.OriginalFileName))
+	asset.FromApplication = &assets.Metadata{
+		FileName:    a.OriginalFileName,
+		Latitude:    a.ExifInfo.Latitude,
+		Longitude:   a.ExifInfo.Longitude,
+		Description: a.ExifInfo.Description,
+		DateTaken:   a.ExifInfo.DateTimeOriginal.Time,
+		Trashed:     a.IsTrashed,
+		Archived:    a.IsArchived,
+		Favorited:   a.IsFavorite,
+		Rating:      byte(a.ExifInfo.Rating),
+		Tags:        asset.Tags,
+	}
+	asset.UseMetadata(asset.FromApplication)
+	asset.File = fshelper.FSName(fic.ifs, a.ID)
+
+	// Record asset discovery
+	code := fileevent.DiscoveredImage
+	if a.Type == "VIDEO" {
+		code = fileevent.DiscoveredVideo
+	}
+	fic.processor.RecordAssetDiscovered(ctx, asset.File, int64(asset.FileSize), code)
+
+	// Transfer the album
+	simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
+	if err = fic.app.ProcessError(err); err != nil {
+		return err
+	}
+
+	albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
+	// clear the ID of the album that exists in from server, but not in to server
+	for i := range albums {
+		albums[i].ID = ""
+	}
+
+	asset.Albums = albums
+
+	// Transfer tags
+	for t := range asset.Tags {
+		asset.Tags[t].ID = ""
+	}
+
+	g := assets.NewGroup(assets.GroupByNone, asset)
+	select {
+	case grpChan <- g:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
 }
 
 func formatQuotedStrings(ss []string) string {

@@ -74,6 +74,7 @@ type ImmichClientInterface interface {
 
 type ImmichAlbumInterface interface {
 	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
+	GetAllSharedAlbums(ctx context.Context) ([]AlbumSimplified, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
 	GetAlbumAssetIDs(ctx context.Context, albumID string) ([]string, error)
 	CreateAlbum(
