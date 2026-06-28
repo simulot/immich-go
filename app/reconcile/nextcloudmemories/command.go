@@ -2,16 +2,36 @@ package nextcloudmemories
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/simulot/immich-go/app"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-// NewCommand creates the reconcile subcommand scaffold for Nextcloud Memories.
+type commandRunner struct {
+	app                  *app.Application
+	client               app.Client
+	cleanupMigrationTags bool
+	run                  func(context.Context, *app.Application, *app.Client, bool) error
+}
+
+func (cr *commandRunner) registerFlags(flags *pflag.FlagSet) {
+	cr.client.RegisterFlags(flags, "")
+	flags.BoolVar(&cr.cleanupMigrationTags, "cleanup-migration-tags", false, "Remove successfully reconciled synthetic migration tags after the run")
+}
+
+func (cr *commandRunner) runCommand(ctx context.Context) error {
+	return cr.run(ctx, cr.app, &cr.client, cr.cleanupMigrationTags)
+}
+
+// NewCommand creates the reconcile subcommand for Nextcloud Memories.
 func NewCommand(ctx context.Context, app *app.Application) *cobra.Command {
-	_ = app
+	return newCommand(ctx, app, runNextcloudMemoriesReconcile)
+}
+
+func newCommand(ctx context.Context, app *app.Application, run func(context.Context, *app.Application, *app.Client, bool) error) *cobra.Command {
+	runner := &commandRunner{app: app, run: run}
 
 	cmd := &cobra.Command{
 		Use:   "nextcloud-memories [flags]",
@@ -23,11 +43,10 @@ reconstruction after one or more users have already imported their own libraries
 		Args: cobra.NoArgs,
 	}
 	cmd.SetContext(ctx)
-
-	cmd.Flags().Bool("cleanup-migration-tags", false, "Remove successfully reconciled synthetic migration tags after the run")
+	runner.registerFlags(cmd.Flags())
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		return errors.New("nextcloud Memories reconciliation is not implemented yet")
+		return runner.runCommand(cmd.Context())
 	}
 
 	return cmd

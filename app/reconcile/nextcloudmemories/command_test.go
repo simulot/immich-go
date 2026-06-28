@@ -22,18 +22,24 @@ func TestNewCommandMetadata(t *testing.T) {
 	assert.Contains(t, cmd.Short, "Reconcile Nextcloud Memories")
 	assert.Contains(t, cmd.Long, "post-import convergence workflows")
 	assert.NotNil(t, cmd.Flag("cleanup-migration-tags"))
+	assert.NotNil(t, cmd.Flag("server"))
+	assert.NotNil(t, cmd.Flag("api-key"))
 	assert.Empty(t, cmd.Aliases)
 }
 
-func TestCommandReturnsNotImplemented(t *testing.T) {
+func TestCommandUsesInjectedRunner(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	parent := &cobra.Command{Use: "reconcile"}
 	a := app.New(ctx, parent)
-	cmd := NewCommand(ctx, a)
+	called := false
+	cmd := newCommand(ctx, a, func(ctx context.Context, a *app.Application, client *app.Client, cleanupMigrationTags bool) error {
+		called = true
+		return nil
+	})
 
 	err := cmd.RunE(cmd, nil)
-	require.Error(t, err)
-	assert.ErrorContains(t, err, "not implemented")
+	require.NoError(t, err)
+	assert.True(t, called)
 }

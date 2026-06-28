@@ -39,11 +39,9 @@ Rationale:
 - makes reconciliation discoverable as a distinct phase
 - leaves room for future source-specific reconcilers
 
-## Initial Scope
+## Implemented Scope
 
-The first implementation should focus on command and package structure plus the Nextcloud Memories reconciliation contract.
-
-Target behavior for the first functional iteration:
+The first functional iteration is now implemented with the following behavior:
 
 1. Connect to Immich as the current user
 2. Enumerate accessible destination albums
@@ -51,6 +49,16 @@ Target behavior for the first functional iteration:
 4. Enumerate the current user's assets that carry synthetic source album membership tags
 5. Add missing assets to matching albums when permissions allow
 6. Report unmatched source album IDs and permission failures
+
+Additional current behavior details:
+
+- malformed managed album state is reported and skipped
+- assets from external libraries are skipped
+- already-present album membership is treated idempotently
+
+Current limitation:
+
+- cleanup of synthetic migration tags remains deferred until tag-removal support exists in the Immich client layer
 
 ## Architectural Direction
 
