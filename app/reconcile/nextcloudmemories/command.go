@@ -46,7 +46,7 @@ reconstruction after one or more users have already imported their own libraries
 	runner.registerFlags(cmd.Flags())
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		return runner.runCommand(cmd.Context())
+		return runner.runCommand(ctx)
 	}
 
 	return cmd

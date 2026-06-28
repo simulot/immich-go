@@ -39,11 +39,11 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 
 	// Add all subcommands to the root command
 	cmd.AddCommand(
-		version.NewVersionCommand(ctx, a), // Version command to display app version
-		upload.NewUploadCommand(ctx, a),   // Upload command for uploading assets
-		archive.NewArchiveCommand(ctx, a), // Archive command for archiving assets
+		version.NewVersionCommand(ctx, a),     // Version command to display app version
+		upload.NewUploadCommand(ctx, a),       // Upload command for uploading assets
+		archive.NewArchiveCommand(ctx, a),     // Archive command for archiving assets
 		reconcile.NewReconcileCommand(ctx, a), // Reconcile command for post-import convergence workflows
-		stack.NewStackCommand(ctx, a),     // Stack command for managing stacks
+		stack.NewStackCommand(ctx, a),         // Stack command for managing stacks
 	)
 
 	// PersistentPreRunE is executed before any command runs, used for initialization

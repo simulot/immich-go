@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	reconcilencm "github.com/simulot/immich-go/app/reconcile/nextcloudmemories"
 	"github.com/simulot/immich-go/app"
+	reconcilencm "github.com/simulot/immich-go/app/reconcile/nextcloudmemories"
 	"github.com/spf13/cobra"
 )
 
