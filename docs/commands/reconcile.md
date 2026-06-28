@@ -18,6 +18,16 @@ immich-go reconcile <sub-command> [options]
 
 Reconcile Nextcloud Memories shared albums after one or more users have already imported their own libraries.
 
+### Why this command exists
+
+`upload from-nextcloud-memories` is designed to preserve per-user ownership by having each user import their own timeline into their own Immich account. Shared albums can then be reconstructed later from migration state already stored in Immich, without requiring a separate local coordination file.
+
+This makes the workflow practical for incremental multi-user migrations:
+
+- each user can import at different times,
+- album ownership stays with the correct Immich user,
+- shared destination albums can converge as more users complete their imports.
+
 ### Migration State Contract
 
 This command consumes migration markers written by `immich-go upload from-nextcloud-memories`:
@@ -59,6 +69,7 @@ The current implementation:
 - The command only reconciles assets owned by the authenticated Immich user.
 - Assets from external libraries are skipped.
 - Cleanup only removes the specific synthetic album-membership tag consumed by reconciliation; it does not remove unrelated tags.
+- The command reconstructs album membership for already-imported assets; it does not perform continuous sync with Nextcloud Memories.
 
 ### Example
 
@@ -79,4 +90,3 @@ immich-go reconcile nextcloud-memories \
 
 - [Upload Command](upload.md)
 - [Command Reference](README.md)
-- [Reconcile plan notes](../plans/2026-reconcile-command/README.md)

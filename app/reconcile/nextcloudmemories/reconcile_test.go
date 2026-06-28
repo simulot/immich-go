@@ -207,16 +207,16 @@ func TestLoadManagedAlbumsSkipsAlbumInfoWhenTagMissing(t *testing.T) {
 }
 
 type reconcileTestAlbumClient struct {
-	albums           []immich.AlbumSimplified
-	albumInfo        map[string]immich.AlbumContent
-	tags             []immich.TagSimplified
-	addCalls         map[string][]string
-	untagCalls       map[string][]string
-	getAlbumInfoCalls int
-	addResponsesByID map[string][]immich.UpdateAlbumResult
+	albums             []immich.AlbumSimplified
+	albumInfo          map[string]immich.AlbumContent
+	tags               []immich.TagSimplified
+	addCalls           map[string][]string
+	untagCalls         map[string][]string
+	getAlbumInfoCalls  int
+	addResponsesByID   map[string][]immich.UpdateAlbumResult
 	untagResponsesByID map[string][]immich.TagAssetsResponse
-	addErr           error
-	untagErr         error
+	addErr             error
+	untagErr           error
 }
 
 func (f *reconcileTestAlbumClient) GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error) {
@@ -298,9 +298,9 @@ func TestReconcilerPropagatesAssetListErrors(t *testing.T) {
 
 	r := reconciler{
 		albums: &reconcileTestAlbumClient{
-			albums: []immich.AlbumSimplified{{ID: "album-1", AlbumName: "A", Description: description}},
+			albums:    []immich.AlbumSimplified{{ID: "album-1", AlbumName: "A", Description: description}},
 			albumInfo: map[string]immich.AlbumContent{"album-1": {ID: "album-1", AlbumName: "A"}},
-			tags: []immich.TagSimplified{{ID: "tag-5", Value: memoriesAlbumMembershipTag(5)}},
+			tags:      []immich.TagSimplified{{ID: "tag-5", Value: memoriesAlbumMembershipTag(5)}},
 		},
 		assets: reconcileTestAssetLister{err: errors.New("boom")},
 		userID: "user-1",
@@ -324,10 +324,10 @@ func TestReconcilerPropagatesCleanupErrors(t *testing.T) {
 
 	r := reconciler{
 		albums: &reconcileTestAlbumClient{
-			albums: []immich.AlbumSimplified{{ID: "album-1", AlbumName: "A", Description: description}},
+			albums:    []immich.AlbumSimplified{{ID: "album-1", AlbumName: "A", Description: description}},
 			albumInfo: map[string]immich.AlbumContent{"album-1": {ID: "album-1", AlbumName: "A"}},
-			tags: []immich.TagSimplified{{ID: "tag-6", Value: memoriesAlbumMembershipTag(6)}},
-			untagErr: errors.New("cleanup failed"),
+			tags:      []immich.TagSimplified{{ID: "tag-6", Value: memoriesAlbumMembershipTag(6)}},
+			untagErr:  errors.New("cleanup failed"),
 		},
 		assets: reconcileTestAssetLister{assetsByTagID: map[string][]*immich.Asset{"tag-6": {{ID: "asset-1", OwnerID: "user-1"}}}},
 		userID: "user-1",

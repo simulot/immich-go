@@ -9,6 +9,7 @@ This guide provides practical examples for common Immich-Go scenarios.
 | [Upload local photos](#local-photo-upload) | `upload from-folder` | Basic photo upload |
 | [Google Photos migration](#google-photos-migration) | `upload from-google-photos` | Takeout import |
 | [iCloud import](#icloud-import) | `upload from-icloud` | iCloud takeout |
+| [Nextcloud Memories reconciliation](#nextcloud-memories-reconciliation) | `reconcile nextcloud-memories` | Rebuild shared albums after per-user imports |
 | [Server backup](#server-backup) | `archive from-immich` | Full server archive |
 | [Server migration](#server-migration) | `upload from-immich` | Transfer between servers |
 | [Photo organization](#photo-organization) | `stack` | Organize existing photos |
@@ -127,6 +128,34 @@ immich-go upload from-icloud \
   --manage-heic-jpeg=StackCoverJPG \
   /path/to/icloud-export
 ```
+
+## Nextcloud Memories Reconciliation
+
+Use this after users have already imported their own Nextcloud Memories libraries and you want shared destination albums to include each user's own imported assets.
+
+### Basic Reconciliation
+```bash
+# Rebuild shared album membership for the current Immich user
+immich-go reconcile nextcloud-memories \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key
+```
+
+### Cleanup Synthetic Migration Tags
+```bash
+# Reconcile and remove consumed synthetic album-membership tags
+immich-go reconcile nextcloud-memories \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
+  --cleanup-migration-tags
+```
+
+### Multi-User Migration Pattern
+
+1. Each user imports their own Nextcloud Memories library into their own Immich account.
+2. Import-time migration markers are stored in Immich album descriptions and synthetic tags.
+3. Each user runs `reconcile nextcloud-memories` with their own API key.
+4. Shared destination albums converge as each user's imported assets are added.
 
 ## Server Backup
 

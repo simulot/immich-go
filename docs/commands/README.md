@@ -59,6 +59,9 @@ immich-go stack --server=http://localhost:2283 --api-key=your-key --manage-burst
 # Reconcile Nextcloud Memories shared albums
 immich-go reconcile nextcloud-memories --server=http://localhost:2283 --api-key=your-key
 
+# Reconcile and remove consumed migration tags
+immich-go reconcile nextcloud-memories --server=http://localhost:2283 --api-key=your-key --cleanup-migration-tags
+
 # Show version
 immich-go version
 ```
