@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewUploadCommand adds the Upload command
+// NewVersionCommand creates the version command.
 func NewVersionCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",

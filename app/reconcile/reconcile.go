@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewReconcileCommand creates the top-level reconcile command.
-func NewReconcileCommand(ctx context.Context, a *app.Application) *cobra.Command {
+// NewCommand creates the top-level reconcile command.
+func NewCommand(ctx context.Context, a *app.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reconcile",
 		Short: "Reconcile post-import migration state in Immich",

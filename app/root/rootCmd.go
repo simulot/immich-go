@@ -42,7 +42,7 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 		version.NewVersionCommand(ctx, a),     // Version command to display app version
 		upload.NewUploadCommand(ctx, a),       // Upload command for uploading assets
 		archive.NewArchiveCommand(ctx, a),     // Archive command for archiving assets
-		reconcile.NewReconcileCommand(ctx, a), // Reconcile command for post-import convergence workflows
+		reconcile.NewCommand(ctx, a), // Reconcile command for post-import convergence workflows
 		stack.NewStackCommand(ctx, a),         // Stack command for managing stacks
 	)
 

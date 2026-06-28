@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewReconcileCommandMetadata(t *testing.T) {
+func TestNewCommandMetadata(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	parent := &cobra.Command{Use: "immich-go"}
 	a := app.New(ctx, parent)
-	cmd := NewReconcileCommand(ctx, a)
+	cmd := NewCommand(ctx, a)
 
 	assert.Equal(t, "reconcile", cmd.Use)
 	require.NotNil(t, cmd.Args)
@@ -32,7 +32,7 @@ func TestReconcileCommandRequiresSubcommand(t *testing.T) {
 	ctx := context.Background()
 	parent := &cobra.Command{Use: "immich-go"}
 	a := app.New(ctx, parent)
-	cmd := NewReconcileCommand(ctx, a)
+	cmd := NewCommand(ctx, a)
 
 	err := cmd.RunE(cmd, nil)
 	require.Error(t, err)
