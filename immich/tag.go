@@ -81,6 +81,35 @@ func (ic *ImmichClient) TagAssets(
 	return resp, nil
 }
 
+func (ic *ImmichClient) UntagAssets(
+	ctx context.Context,
+	tagID string,
+	assetIDs []string,
+) ([]TagAssetsResponse, error) {
+	if ic.dryRun {
+		resp := make([]TagAssetsResponse, len(assetIDs))
+		for i, a := range assetIDs {
+			resp[i] = TagAssetsResponse{
+				ID:      a,
+				Success: true,
+			}
+		}
+		return resp, nil
+	}
+
+	var resp []TagAssetsResponse
+
+	body := struct {
+		IDs []string `json:"ids"`
+	}{IDs: assetIDs}
+	err := ic.newServerCall(ctx, EndPointUntagAssets).
+		do(deleteRequest(fmt.Sprintf("/tags/%s/assets", tagID), setJSONBody(body), setAcceptJSON()), responseJSON(&resp))
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 func (ic *ImmichClient) BulkTagAssets(
 	ctx context.Context,
 	tagIDs []string,

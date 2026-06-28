@@ -14,6 +14,7 @@ immich-go [global-options] command sub-command [command-options] [path]
 |---------|-------------|--------------|
 | [upload](upload.md) | Upload photos/videos to Immich server | from-folder, from-google-photos, from-icloud, from-picasa, from-immich |
 | [archive](archive.md) | Export/archive photos to local folder structure | from-folder, from-google-photos, from-icloud, from-picasa, from-immich |
+| [reconcile](reconcile.md) | Reconcile post-import migration state in Immich | nextcloud-memories |
 | [stack](stack.md) | Organize related photos into stacks on server | (none) |
 | version | Display version information | (none) |
 
@@ -55,6 +56,12 @@ immich-go archive from-immich --server=http://localhost:2283 --api-key=your-key 
 # Stack photos on server
 immich-go stack --server=http://localhost:2283 --api-key=your-key --manage-burst=Stack
 
+# Reconcile Nextcloud Memories shared albums
+immich-go reconcile nextcloud-memories --server=http://localhost:2283 --api-key=your-key
+
+# Reconcile and remove consumed migration tags
+immich-go reconcile nextcloud-memories --server=http://localhost:2283 --api-key=your-key --cleanup-migration-tags
+
 # Show version
 immich-go version
 ```
@@ -63,4 +70,5 @@ immich-go version
 
 - [Upload Command](upload.md) - Comprehensive upload options and sub-commands
 - [Archive Command](archive.md) - Export and archival features  
+- [Reconcile Command](reconcile.md) - Post-import convergence workflows
 - [Stack Command](stack.md) - Photo organization and stacking

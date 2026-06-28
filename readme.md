@@ -9,6 +9,7 @@
 
 - **Simple Installation**: No NodeJS or Docker required
 - **Multiple Sources**: Upload from Google Photos Takeouts, iCloud, local folders, ZIP archives, and other Immich servers
+- **Post-Import Reconciliation**: Rebuild shared albums for incremental multi-user migrations using server-stored migration state
 - **Large Collections**: Successfully handles 100,000+ photos
 - **Smart Management**: Duplicate detection, burst photo stacking, RAW+JPEG handling
 - **Cross-Platform**: Available for Windows, macOS, Linux, and FreeBSD
@@ -67,6 +68,10 @@ Here's a brief overview of the main upload commands:
 *   **`from-picasa`**: A specialized version of `from-folder` that automatically reads `.picasa.ini` files to restore your Picasa album organization.
 *   **`from-icloud`**: Another specialized command that handles the complexity of an iCloud Photos takeout, correctly identifying creation dates and album structures from the included CSV files.
 
+Immich-Go also includes a post-import workflow for incremental multi-user migrations:
+
+*   **`reconcile nextcloud-memories`**: Rebuilds Nextcloud Memories shared-album membership from migration state already stored in Immich so each user can add their own imported assets into shared destination albums without central coordination.
+
 ### Leveraging Immich's Features
 
 `immich-go` is more than just an uploader; it intelligently interacts with the Immich server to preserve your library's structure:
@@ -82,6 +87,7 @@ For a detailed explanation of how each upload command works, please see the [Upl
 
 - **Google Photos Migration**: [Complete guide](docs/best-practices.md#google-photos-migration)
 - **iCloud Import**: [Step-by-step instructions](docs/examples.md#icloud-import)
+- **Nextcloud Memories Shared Albums**: [Post-import reconciliation workflow](docs/examples.md#nextcloud-memories-reconciliation)
 - **Server Migration**: [Transfer between Immich instances](docs/examples.md#server-migration)
 - **Bulk Organization**: [Stacking and tagging strategies](docs/best-practices.md#organization-strategies)
 

@@ -35,6 +35,7 @@ const (
 	EndPointGetAllAssets           = "GetAllAssets"
 	EndPointUpsertTags             = "UpsertTags"
 	EndPointTagAssets              = "TagAssets"
+	EndPointUntagAssets            = "UntagAssets"
 	EndPointBulkTagAssets          = "BulkTagAssets"
 	EndPointGetAllTags             = "GetAllTags"
 	EndPointAssetUpload            = "AssetUpload"
@@ -100,7 +101,7 @@ func (ce callError) Error() string {
 	b.WriteString(ce.url)
 	if ce.status > 0 {
 		b.WriteString(", ")
-		b.WriteString(fmt.Sprintf("%d %s", ce.status, http.StatusText(ce.status)))
+		fmt.Fprintf(&b, "%d %s", ce.status, http.StatusText(ce.status))
 	}
 	b.WriteRune('\n')
 	if ce.err != nil && !errors.Is(ce.err, &callError{}) {
