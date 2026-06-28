@@ -69,10 +69,11 @@ func TestReconcilerRunAddsMissingAssets(t *testing.T) {
 	}
 
 	r := reconciler{albums: client, assets: assets, userID: "user-1"}
-	result, err := r.run(context.Background())
+	result, err := r.run(context.Background(), false)
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.ManagedAlbums)
 	assert.Equal(t, 1, result.MatchedAlbums)
+	assert.Equal(t, 2, result.TaggedAssetsMatched)
 	assert.Equal(t, 1, result.AssetsAdded)
 	assert.Equal(t, 1, result.AlreadyPresent)
 	assert.Equal(t, []string{"new-asset"}, client.addCalls["album-1"])
@@ -101,19 +102,46 @@ func TestReconcilerRunReportsUnresolvedAndMalformedAlbums(t *testing.T) {
 	}
 
 	r := reconciler{albums: client, assets: reconcileTestAssetLister{}, userID: "user-1"}
-	result, err := r.run(context.Background())
+	result, err := r.run(context.Background(), false)
 	require.NoError(t, err)
 	assert.Equal(t, []int{202}, result.UnresolvedAlbumIDs)
 	assert.Equal(t, []string{"Broken"}, result.MalformedAlbums)
 	assert.Empty(t, client.addCalls)
 }
 
-func TestRunNextcloudMemoriesReconcileRejectsCleanup(t *testing.T) {
+func TestReconcilerRunCleansUpMigrationTags(t *testing.T) {
 	t.Parallel()
 
-	err := runNextcloudMemoriesReconcile(context.Background(), &app.Application{}, &app.Client{}, true)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, errCleanupMigrationTagsUnsupported)
+	tagID := "tag-101"
+	description, err := applyManagedAlbumState("", managedAlbumState{
+		Source:        managedAlbumStateSource,
+		SchemaVersion: 1,
+		AlbumID:       101,
+		OwnerUID:      "alice",
+	})
+	require.NoError(t, err)
+
+	client := &reconcileTestAlbumClient{
+		albums: []immich.AlbumSimplified{{ID: "album-1", AlbumName: "Roadtrip", Description: description}},
+		albumInfo: map[string]immich.AlbumContent{
+			"album-1": {ID: "album-1", AlbumName: "Roadtrip", Assets: []*immich.Asset{{ID: "existing-asset"}}},
+		},
+		tags: []immich.TagSimplified{{ID: tagID, Value: memoriesAlbumMembershipTag(101), Name: "101"}},
+	}
+	assets := reconcileTestAssetLister{
+		assetsByTagID: map[string][]*immich.Asset{
+			tagID: {
+				{ID: "existing-asset", OwnerID: "user-1"},
+				{ID: "new-asset", OwnerID: "user-1"},
+			},
+		},
+	}
+
+	r := reconciler{albums: client, assets: assets, userID: "user-1"}
+	result, err := r.run(context.Background(), true)
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.TagsRemoved)
+	assert.ElementsMatch(t, []string{"existing-asset", "new-asset"}, client.untagCalls[tagID])
 }
 
 type reconcileTestAlbumClient struct {
@@ -121,8 +149,11 @@ type reconcileTestAlbumClient struct {
 	albumInfo        map[string]immich.AlbumContent
 	tags             []immich.TagSimplified
 	addCalls         map[string][]string
+	untagCalls       map[string][]string
 	addResponsesByID map[string][]immich.UpdateAlbumResult
+	untagResponsesByID map[string][]immich.TagAssetsResponse
 	addErr           error
+	untagErr         error
 }
 
 func (f *reconcileTestAlbumClient) GetAllAlbums(context.Context) ([]immich.AlbumSimplified, error) {
@@ -151,6 +182,24 @@ func (f *reconcileTestAlbumClient) AddAssetToAlbum(_ context.Context, albumID st
 	responses := make([]immich.UpdateAlbumResult, 0, len(assets))
 	for _, assetID := range assets {
 		responses = append(responses, immich.UpdateAlbumResult{ID: assetID, Success: true})
+	}
+	return responses, nil
+}
+
+func (f *reconcileTestAlbumClient) UntagAssets(_ context.Context, tagID string, assets []string) ([]immich.TagAssetsResponse, error) {
+	if f.untagErr != nil {
+		return nil, f.untagErr
+	}
+	if f.untagCalls == nil {
+		f.untagCalls = map[string][]string{}
+	}
+	f.untagCalls[tagID] = append([]string(nil), assets...)
+	if responses, ok := f.untagResponsesByID[tagID]; ok {
+		return responses, nil
+	}
+	responses := make([]immich.TagAssetsResponse, 0, len(assets))
+	for _, assetID := range assets {
+		responses = append(responses, immich.TagAssetsResponse{ID: assetID, Success: true})
 	}
 	return responses, nil
 }
@@ -193,7 +242,34 @@ func TestReconcilerPropagatesAssetListErrors(t *testing.T) {
 		userID: "user-1",
 	}
 
-	_, err = r.run(context.Background())
+	_, err = r.run(context.Background(), false)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "boom")
+}
+
+func TestReconcilerPropagatesCleanupErrors(t *testing.T) {
+	t.Parallel()
+
+	description, err := applyManagedAlbumState("", managedAlbumState{
+		Source:        managedAlbumStateSource,
+		SchemaVersion: 1,
+		AlbumID:       6,
+		OwnerUID:      "alice",
+	})
+	require.NoError(t, err)
+
+	r := reconciler{
+		albums: &reconcileTestAlbumClient{
+			albums: []immich.AlbumSimplified{{ID: "album-1", AlbumName: "A", Description: description}},
+			albumInfo: map[string]immich.AlbumContent{"album-1": {ID: "album-1", AlbumName: "A"}},
+			tags: []immich.TagSimplified{{ID: "tag-6", Value: memoriesAlbumMembershipTag(6)}},
+			untagErr: errors.New("cleanup failed"),
+		},
+		assets: reconcileTestAssetLister{assetsByTagID: map[string][]*immich.Asset{"tag-6": {{ID: "asset-1", OwnerID: "user-1"}}}},
+		userID: "user-1",
+	}
+
+	_, err = r.run(context.Background(), true)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "cleanup failed")
 }

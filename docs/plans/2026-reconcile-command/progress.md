@@ -8,7 +8,7 @@
 
 **Summary**:
 
-A new top-level `reconcile` command now includes a first functional implementation for Nextcloud Memories shared-album reconstruction. The command consumes server-stored migration state written during import via managed album description blocks and synthetic membership tags, then adds the current user's matching assets into destination albums they can access. Cleanup of migration tags remains deferred because the required tag-removal API support is not implemented in this branch.
+A new top-level `reconcile` command now includes a functional implementation for Nextcloud Memories shared-album reconstruction. The command consumes server-stored migration state written during import via managed album description blocks and synthetic album-membership tags, adds the current user's matching assets into destination albums they can access, and can optionally remove those same album-membership tags from all reconciled current-user assets for each matched source album.
 
 ## Step Tracking
 
@@ -47,5 +47,7 @@ A new top-level `reconcile` command now includes a first functional implementati
   - Added `docs/commands/reconcile.md`
   - Updated command reference to include `reconcile`
 
-- [ ] Implement synthetic tag cleanup
-  - Blocked on missing tag-removal client support in this branch
+- [x] Implement synthetic tag cleanup
+  - Added Immich client support for `DELETE /tags/{id}/assets`
+  - Cleanup now removes the specific synthetic album-membership tag consumed by reconciliation
+  - Cleanup includes already-present current-user assets in the matched destination album set, not only newly added assets

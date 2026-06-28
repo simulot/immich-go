@@ -93,6 +93,11 @@ type ImmichTagInterface interface {
 		tagID string,
 		assetIDs []string,
 	) ([]TagAssetsResponse, error)
+	UntagAssets(
+		ctx context.Context,
+		tagID string,
+		assetIDs []string,
+	) ([]TagAssetsResponse, error)
 	BulkTagAssets(
 		ctx context.Context,
 		tagIDs []string,

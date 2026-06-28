@@ -40,7 +40,7 @@ The reconciliation pass matches those two sources of state to add the current us
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--cleanup-migration-tags` | `false` | Reserved for future cleanup of synthetic membership tags after successful reconciliation |
+| `--cleanup-migration-tags` | `false` | Remove synthetic album-membership tags from all reconciled assets for each successfully matched source album |
 
 ### Current Behavior
 
@@ -51,13 +51,14 @@ The current implementation:
 3. Resolves synthetic membership tags for source album IDs.
 4. Lists current-user assets with those tags.
 5. Adds missing assets to matching albums.
-6. Reports malformed managed state, missing migration tags, permission failures, and albums with no matching user-owned assets.
+6. Optionally removes the synthetic album-membership tag for all reconciled current-user assets of each matched source album.
+7. Reports malformed managed state, missing migration tags, permission failures, and albums with no matching user-owned assets.
 
 ### Current Limitations
 
-- Cleanup of migration tags is not implemented yet; `--cleanup-migration-tags` currently returns an error.
 - The command only reconciles assets owned by the authenticated Immich user.
 - Assets from external libraries are skipped.
+- Cleanup only removes the specific synthetic album-membership tag consumed by reconciliation; it does not remove unrelated tags.
 
 ### Example
 

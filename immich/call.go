@@ -35,6 +35,7 @@ const (
 	EndPointGetAllAssets           = "GetAllAssets"
 	EndPointUpsertTags             = "UpsertTags"
 	EndPointTagAssets              = "TagAssets"
+	EndPointUntagAssets            = "UntagAssets"
 	EndPointBulkTagAssets          = "BulkTagAssets"
 	EndPointGetAllTags             = "GetAllTags"
 	EndPointAssetUpload            = "AssetUpload"

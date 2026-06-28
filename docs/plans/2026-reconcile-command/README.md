@@ -58,7 +58,7 @@ Additional current behavior details:
 
 Current limitation:
 
-- cleanup of synthetic migration tags remains deferred until tag-removal support exists in the Immich client layer
+- cleanup is scoped to the specific synthetic album-membership tags consumed by reconciliation; it does not attempt broader tag cleanup beyond that contract
 
 ## Architectural Direction
 

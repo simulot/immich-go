@@ -2,7 +2,6 @@ package nextcloudmemories
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,13 +10,12 @@ import (
 	"github.com/simulot/immich-go/immich"
 )
 
-var errCleanupMigrationTagsUnsupported = errors.New("cleanup of migration tags is not supported yet")
-
 type albumClient interface {
 	GetAllAlbums(ctx context.Context) ([]immich.AlbumSimplified, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (immich.AlbumContent, error)
 	GetAllTags(ctx context.Context) ([]immich.TagSimplified, error)
 	AddAssetToAlbum(ctx context.Context, albumID string, assets []string) ([]immich.UpdateAlbumResult, error)
+	UntagAssets(ctx context.Context, tagID string, assets []string) ([]immich.TagAssetsResponse, error)
 }
 
 type taggedAssetLister interface {
@@ -43,8 +41,10 @@ type managedAlbum struct {
 type reconciliationResult struct {
 	ManagedAlbums       int
 	MatchedAlbums       int
+	TaggedAssetsMatched int
 	AssetsAdded         int
 	AlreadyPresent      int
+	TagsRemoved         int
 	MalformedAlbums     []string
 	UnresolvedAlbumIDs  []int
 	PermissionFailures  []string
@@ -58,9 +58,6 @@ type reconciler struct {
 }
 
 func runNextcloudMemoriesReconcile(ctx context.Context, a *app.Application, client *app.Client, cleanup bool) error {
-	if cleanup {
-		return fmt.Errorf("%w: Immich tag removal endpoints are not implemented in immich-go yet", errCleanupMigrationTagsUnsupported)
-	}
 	if err := client.Open(ctx, a); err != nil {
 		return err
 	}
@@ -70,7 +67,7 @@ func runNextcloudMemoriesReconcile(ctx context.Context, a *app.Application, clie
 		assets: immichTaggedAssetLister{client: client.Immich},
 		userID: client.User.ID,
 	}
-	result, err := r.run(ctx)
+	result, err := r.run(ctx, cleanup)
 	if err != nil {
 		return err
 	}
@@ -78,7 +75,7 @@ func runNextcloudMemoriesReconcile(ctx context.Context, a *app.Application, clie
 	return nil
 }
 
-func (r reconciler) run(ctx context.Context) (reconciliationResult, error) {
+func (r reconciler) run(ctx context.Context, cleanup bool) (reconciliationResult, error) {
 	result := reconciliationResult{}
 
 	albums, err := r.albums.GetAllAlbums(ctx)
@@ -110,22 +107,40 @@ func (r reconciler) run(ctx context.Context) (reconciliationResult, error) {
 		if err != nil {
 			return result, err
 		}
+		result.TaggedAssetsMatched += len(candidateIDs) + alreadyPresent
 		result.AlreadyPresent += alreadyPresent
 		result.MatchedAlbums++
 
-		if len(candidateIDs) == 0 {
+		if len(candidateIDs) == 0 && alreadyPresent == 0 {
 			result.AlbumsWithoutAssets = append(result.AlbumsWithoutAssets, album.name)
 			continue
 		}
 
-		responses, err := r.albums.AddAssetToAlbum(ctx, album.album.ID, candidateIDs)
-		if err != nil {
-			return result, err
+		if len(candidateIDs) > 0 {
+			responses, err := r.albums.AddAssetToAlbum(ctx, album.album.ID, candidateIDs)
+			if err != nil {
+				return result, err
+			}
+			addedAssetIDs, permissionFailure := summarizeAddResults(responses, candidateIDs)
+			result.AssetsAdded += len(addedAssetIDs)
+			if permissionFailure {
+				result.PermissionFailures = append(result.PermissionFailures, album.name)
+			}
 		}
-		added, permissionFailure := summarizeAddResults(responses, candidateIDs)
-		result.AssetsAdded += added
-		if permissionFailure {
-			result.PermissionFailures = append(result.PermissionFailures, album.name)
+
+		if cleanup {
+			cleanupAssetIDs := append([]string(nil), candidateIDs...)
+			for existingAssetID := range albumExistingAssetIDs(album.info) {
+				cleanupAssetIDs = append(cleanupAssetIDs, existingAssetID)
+			}
+			cleanupAssetIDs = dedupeAssetIDs(cleanupAssetIDs)
+			if len(cleanupAssetIDs) > 0 {
+				removed, err := r.cleanupMigrationTags(ctx, album.tagID, cleanupAssetIDs)
+				if err != nil {
+					return result, err
+				}
+				result.TagsRemoved += removed
+			}
 		}
 	}
 
@@ -169,11 +184,25 @@ func (r reconciler) loadManagedAlbums(ctx context.Context, albums []immich.Album
 	return managed, nil
 }
 
-func (r reconciler) findCandidateAssets(ctx context.Context, album managedAlbum) ([]string, int, error) {
-	existing := make(map[string]struct{}, len(album.info.Assets))
-	for _, asset := range album.info.Assets {
-		existing[asset.ID] = struct{}{}
+func (r reconciler) cleanupMigrationTags(ctx context.Context, tagID string, assetIDs []string) (int, error) {
+	responses, err := r.albums.UntagAssets(ctx, tagID, assetIDs)
+	if err != nil {
+		return 0, err
 	}
+	removed := 0
+	for _, response := range responses {
+		if response.Success {
+			removed++
+		}
+	}
+	if len(responses) == 0 {
+		removed = len(assetIDs)
+	}
+	return removed, nil
+}
+
+func (r reconciler) findCandidateAssets(ctx context.Context, album managedAlbum) ([]string, int, error) {
+	existing := albumExistingAssetIDs(album.info)
 
 	seen := map[string]struct{}{}
 	assetIDs := make([]string, 0)
@@ -199,6 +228,14 @@ func (r reconciler) findCandidateAssets(ctx context.Context, album managedAlbum)
 	return assetIDs, alreadyPresent, nil
 }
 
+func albumExistingAssetIDs(info immich.AlbumContent) map[string]struct{} {
+	existing := make(map[string]struct{}, len(info.Assets))
+	for _, asset := range info.Assets {
+		existing[asset.ID] = struct{}{}
+	}
+	return existing
+}
+
 func managedAlbumDisplayName(album immich.AlbumSimplified, state managedAlbumState) string {
 	if strings.TrimSpace(album.AlbumName) != "" {
 		return fmt.Sprintf("%s (source album %d)", strings.TrimSpace(album.AlbumName), state.AlbumID)
@@ -209,15 +246,15 @@ func managedAlbumDisplayName(album immich.AlbumSimplified, state managedAlbumSta
 	return fmt.Sprintf("album %d", state.AlbumID)
 }
 
-func summarizeAddResults(responses []immich.UpdateAlbumResult, requested []string) (int, bool) {
+func summarizeAddResults(responses []immich.UpdateAlbumResult, requested []string) ([]string, bool) {
 	if len(responses) == 0 {
-		return len(requested), false
+		return append([]string(nil), requested...), false
 	}
-	added := 0
+	added := make([]string, 0, len(requested))
 	permissionFailure := false
 	for _, response := range responses {
 		if response.Success {
-			added++
+			added = append(added, response.ID)
 			continue
 		}
 		if response.Error == "duplicate" {
@@ -234,7 +271,13 @@ func printReconciliationSummary(a *app.Application, result reconciliationResult)
 	log := a.Log()
 	log.Message("Reconciled %d managed Nextcloud Memories albums", result.ManagedAlbums)
 	log.Message("Matched %d managed albums with migration tags", result.MatchedAlbums)
+	if result.TaggedAssetsMatched > 0 {
+		log.Message("Matched %d tagged assets across managed albums", result.TaggedAssetsMatched)
+	}
 	log.Message("Added %d assets to shared albums", result.AssetsAdded)
+	if result.TagsRemoved > 0 {
+		log.Message("Removed %d synthetic album-membership tags after reconciliation", result.TagsRemoved)
+	}
 	if result.AlreadyPresent > 0 {
 		log.Message("Skipped %d assets already present in destination albums", result.AlreadyPresent)
 	}
@@ -264,6 +307,26 @@ func dedupeStrings(values []string) []string {
 	result := make([]string, 0, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func dedupeAssetIDs(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
 		if value == "" {
 			continue
 		}
