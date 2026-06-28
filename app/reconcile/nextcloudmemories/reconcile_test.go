@@ -144,12 +144,75 @@ func TestReconcilerRunCleansUpMigrationTags(t *testing.T) {
 	assert.ElementsMatch(t, []string{"existing-asset", "new-asset"}, client.untagCalls[tagID])
 }
 
+func TestReconcilerRunCleanupIgnoresUnownedExternalOrUnrelatedAlbumAssets(t *testing.T) {
+	t.Parallel()
+
+	tagID := "tag-101"
+	description, err := applyManagedAlbumState("", managedAlbumState{
+		Source:        managedAlbumStateSource,
+		SchemaVersion: 1,
+		AlbumID:       101,
+		OwnerUID:      "alice",
+	})
+	require.NoError(t, err)
+
+	client := &reconcileTestAlbumClient{
+		albums: []immich.AlbumSimplified{{ID: "album-1", AlbumName: "Roadtrip", Description: description}},
+		albumInfo: map[string]immich.AlbumContent{
+			"album-1": {ID: "album-1", AlbumName: "Roadtrip", Assets: []*immich.Asset{{ID: "already-in-album-but-not-tagged"}}},
+		},
+		tags: []immich.TagSimplified{{ID: tagID, Value: memoriesAlbumMembershipTag(101), Name: "101"}},
+	}
+	assets := reconcileTestAssetLister{
+		assetsByTagID: map[string][]*immich.Asset{
+			tagID: {
+				{ID: "existing-asset", OwnerID: "user-1"},
+				{ID: "new-asset", OwnerID: "user-1"},
+				{ID: "foreign-asset", OwnerID: "user-2"},
+				{ID: "external-asset", OwnerID: "user-1", LibraryID: "lib-1"},
+			},
+		},
+	}
+
+	r := reconciler{albums: client, assets: assets, userID: "user-1"}
+	result, err := r.run(context.Background(), true)
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.TagsRemoved)
+	assert.ElementsMatch(t, []string{"existing-asset", "new-asset"}, client.untagCalls[tagID])
+	assert.NotContains(t, client.untagCalls[tagID], "foreign-asset")
+	assert.NotContains(t, client.untagCalls[tagID], "external-asset")
+	assert.NotContains(t, client.untagCalls[tagID], "already-in-album-but-not-tagged")
+}
+
+func TestLoadManagedAlbumsSkipsAlbumInfoWhenTagMissing(t *testing.T) {
+	t.Parallel()
+
+	description, err := applyManagedAlbumState("", managedAlbumState{
+		Source:        managedAlbumStateSource,
+		SchemaVersion: 1,
+		AlbumID:       202,
+		OwnerUID:      "alice",
+	})
+	require.NoError(t, err)
+
+	client := &reconcileTestAlbumClient{
+		albums: []immich.AlbumSimplified{{ID: "album-1", AlbumName: "Shared", Description: description}},
+	}
+
+	r := reconciler{albums: client, userID: "user-1"}
+	result, err := r.run(context.Background(), false)
+	require.NoError(t, err)
+	assert.Equal(t, 0, client.getAlbumInfoCalls)
+	assert.Equal(t, []int{202}, result.UnresolvedAlbumIDs)
+}
+
 type reconcileTestAlbumClient struct {
 	albums           []immich.AlbumSimplified
 	albumInfo        map[string]immich.AlbumContent
 	tags             []immich.TagSimplified
 	addCalls         map[string][]string
 	untagCalls       map[string][]string
+	getAlbumInfoCalls int
 	addResponsesByID map[string][]immich.UpdateAlbumResult
 	untagResponsesByID map[string][]immich.TagAssetsResponse
 	addErr           error
@@ -161,6 +224,7 @@ func (f *reconcileTestAlbumClient) GetAllAlbums(context.Context) ([]immich.Album
 }
 
 func (f *reconcileTestAlbumClient) GetAlbumInfo(_ context.Context, id string, _ bool) (immich.AlbumContent, error) {
+	f.getAlbumInfoCalls++
 	return f.albumInfo[id], nil
 }
 

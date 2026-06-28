@@ -103,7 +103,7 @@ func (r reconciler) run(ctx context.Context, cleanup bool) (reconciliationResult
 			continue
 		}
 
-		candidateIDs, alreadyPresent, err := r.findCandidateAssets(ctx, album)
+		candidateIDs, cleanupAssetIDs, alreadyPresent, err := r.findCandidateAssets(ctx, album)
 		if err != nil {
 			return result, err
 		}
@@ -129,11 +129,6 @@ func (r reconciler) run(ctx context.Context, cleanup bool) (reconciliationResult
 		}
 
 		if cleanup {
-			cleanupAssetIDs := append([]string(nil), candidateIDs...)
-			for existingAssetID := range albumExistingAssetIDs(album.info) {
-				cleanupAssetIDs = append(cleanupAssetIDs, existingAssetID)
-			}
-			cleanupAssetIDs = dedupeAssetIDs(cleanupAssetIDs)
 			if len(cleanupAssetIDs) > 0 {
 				removed, err := r.cleanupMigrationTags(ctx, album.tagID, cleanupAssetIDs)
 				if err != nil {
@@ -162,13 +157,16 @@ func (r reconciler) loadManagedAlbums(ctx context.Context, albums []immich.Album
 		if state == nil || state.Source != managedAlbumStateSource || state.SchemaVersion != 1 || state.AlbumID <= 0 {
 			continue
 		}
-		info, err := r.albums.GetAlbumInfo(ctx, album.ID, false)
-		if err != nil {
-			return nil, err
-		}
 		tagID := ""
 		if tag := tagsByValue[memoriesAlbumMembershipTag(state.AlbumID)]; tag.ID != "" {
 			tagID = tag.ID
+		}
+		var info immich.AlbumContent
+		if tagID != "" {
+			info, err = r.albums.GetAlbumInfo(ctx, album.ID, false)
+			if err != nil {
+				return nil, err
+			}
 		}
 		managed = append(managed, managedAlbum{
 			album: album,
@@ -201,11 +199,12 @@ func (r reconciler) cleanupMigrationTags(ctx context.Context, tagID string, asse
 	return removed, nil
 }
 
-func (r reconciler) findCandidateAssets(ctx context.Context, album managedAlbum) ([]string, int, error) {
+func (r reconciler) findCandidateAssets(ctx context.Context, album managedAlbum) ([]string, []string, int, error) {
 	existing := albumExistingAssetIDs(album.info)
 
 	seen := map[string]struct{}{}
 	assetIDs := make([]string, 0)
+	cleanupAssetIDs := make([]string, 0)
 	alreadyPresent := 0
 	err := r.assets.ListAssetsByTag(ctx, album.tagID, func(asset *immich.Asset) error {
 		if asset.OwnerID != r.userID || asset.LibraryID != "" {
@@ -215,6 +214,7 @@ func (r reconciler) findCandidateAssets(ctx context.Context, album managedAlbum)
 			return nil
 		}
 		seen[asset.ID] = struct{}{}
+		cleanupAssetIDs = append(cleanupAssetIDs, asset.ID)
 		if _, ok := existing[asset.ID]; ok {
 			alreadyPresent++
 			return nil
@@ -223,9 +223,9 @@ func (r reconciler) findCandidateAssets(ctx context.Context, album managedAlbum)
 		return nil
 	})
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
-	return assetIDs, alreadyPresent, nil
+	return assetIDs, cleanupAssetIDs, alreadyPresent, nil
 }
 
 func albumExistingAssetIDs(info immich.AlbumContent) map[string]struct{} {

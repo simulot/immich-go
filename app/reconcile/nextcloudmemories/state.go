@@ -69,6 +69,7 @@ func parseManagedAlbumState(description string) (string, *managedAlbumState, err
 		return "", nil, errMalformedManagedAlbumState
 	}
 	end := searchFrom + endOffset
+	footerEnd := end + len(memoriesManagedAlbumStateFooter)
 	payload := strings.TrimSpace(description[searchFrom:end])
 	if payload == "" {
 		return "", nil, errMalformedManagedAlbumState
@@ -77,6 +78,21 @@ func parseManagedAlbumState(description string) (string, *managedAlbumState, err
 	if err := json.Unmarshal([]byte(payload), &state); err != nil {
 		return "", nil, fmt.Errorf("%w: %v", errMalformedManagedAlbumState, err)
 	}
-	humanDescription := strings.TrimRight(description[:start], "\n")
+	prefix := strings.TrimRight(description[:start], "\n")
+	suffix := strings.TrimLeft(description[footerEnd:], "\n")
+	humanDescription := joinManagedAlbumDescription(prefix, suffix)
 	return humanDescription, &state, nil
+}
+
+func joinManagedAlbumDescription(prefix, suffix string) string {
+	prefix = strings.TrimRight(prefix, "\n")
+	suffix = strings.TrimLeft(suffix, "\n")
+	switch {
+	case prefix == "":
+		return suffix
+	case suffix == "":
+		return prefix
+	default:
+		return prefix + "\n\n" + suffix
+	}
 }
