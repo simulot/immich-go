@@ -319,23 +319,3 @@ func dedupeStrings(values []string) []string {
 	sort.Strings(result)
 	return result
 }
-
-func dedupeAssetIDs(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		result = append(result, value)
-	}
-	sort.Strings(result)
-	return result
-}
