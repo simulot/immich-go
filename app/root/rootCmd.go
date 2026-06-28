@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/app/archive"
 	"github.com/simulot/immich-go/app/reconcile"
 	"github.com/simulot/immich-go/app/stack"
 	"github.com/simulot/immich-go/app/upload"
 	"github.com/simulot/immich-go/app/version"
-	"github.com/spf13/cobra"
 )
 
 // RootImmichGoCommand creates and returns the root Cobra command for immich-go.
@@ -42,7 +43,7 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 		version.NewVersionCommand(ctx, a),     // Version command to display app version
 		upload.NewUploadCommand(ctx, a),       // Upload command for uploading assets
 		archive.NewArchiveCommand(ctx, a),     // Archive command for archiving assets
-		reconcile.NewCommand(ctx, a), // Reconcile command for post-import convergence workflows
+		reconcile.NewCommand(ctx, a),          // Reconcile command for post-import convergence workflows
 		stack.NewStackCommand(ctx, a),         // Stack command for managing stacks
 	)
 
