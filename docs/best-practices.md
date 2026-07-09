@@ -14,7 +14,7 @@ This guide provides recommendations for optimal performance, reliability, and or
 
 #### ⚠️ Common Pitfalls
 - **Incomplete Downloads**: Verify all `takeout-001.zip`, `takeout-002.zip`, etc. files are present
-- **Mixed Formats**: Don't mix ZIP and TGZ formats in the same import
+- **Archive Format**: Download takeouts as ZIP when possible. Immich-Go reads `.zip` archives directly but rejects `.tgz`/`.tar.gz`; extract TGZ takeouts first (all parts into the same folder tree) and import the extracted folder
 - **Partial Takeouts**: Some Google takeouts may be incomplete - request a new one if many files are missing
 
 ### Import Strategy
