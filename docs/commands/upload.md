@@ -128,6 +128,8 @@ Upload from Google Photos Takeout archives.
 immich-go upload from-google-photos [options] <takeout-path>
 ```
 
+> Note: `.tgz` takeout archives are not supported — extract them first. Import all parts in one command: pass each extracted `Takeout*` folder (or one merged tree), not their parent directory.
+
 ### Takeout Handling
 
 | Option                    | Default | Description                        |
