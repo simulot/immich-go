@@ -41,7 +41,7 @@ func ParsePath(args []string) ([]fs.FS, error) {
 			lowF := strings.ToLower(f)
 			switch {
 			case strings.HasSuffix(lowF, ".tgz") || strings.HasSuffix(lowF, ".tar.gz"):
-				errs = errors.Join(fmt.Errorf("immich-go can't use tgz archives: %s", filepath.Base(a)))
+				errs = errors.Join(errs, fmt.Errorf("immich-go can't use tgz archives: %s", filepath.Base(a)))
 			case strings.HasSuffix(lowF, ".zip"):
 				fsys, err := zipname.OpenReader(f) //   zip.OpenReader(f)
 				if err != nil {
