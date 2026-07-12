@@ -12,6 +12,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -197,22 +199,35 @@ func (e Code) String() string {
 // When a bus is attached via NewRecorderWithBus, events are published
 // non-blocking to all subscribers after incrementing counters.
 type Recorder struct {
-	counts counts
-	sizes  counts // Size tracking for each event code
-	log    *slog.Logger
-	bus    *Bus
+	counts         counts
+	sizes          counts // Size tracking for each event code
+	unknownByExtMu sync.Mutex
+	unknownByExt   map[string]eventTotal
+	log            *slog.Logger
+	bus            *Bus
 }
 
 type counts []int64
+
+type eventTotal struct {
+	count int64
+	size  int64
+}
+
+type extensionTotal struct {
+	extension string
+	eventTotal
+}
 
 // NewRecorder creates a Recorder that logs events to the provided slog.Logger.
 // Events are not published to a bus. Use NewRecorderWithBus for bus integration.
 func NewRecorder(l *slog.Logger) *Recorder {
 	r := &Recorder{
-		counts: make([]int64, MaxCode),
-		sizes:  make([]int64, MaxCode),
-		log:    l,
-		bus:    nil,
+		counts:       make([]int64, MaxCode),
+		sizes:        make([]int64, MaxCode),
+		unknownByExt: make(map[string]eventTotal),
+		log:          l,
+		bus:          nil,
 	}
 	return r
 }
@@ -228,10 +243,11 @@ func NewRecorder(l *slog.Logger) *Recorder {
 // (>1000 events/sec), the bus may drop oldest buffered events per subscriber.
 func NewRecorderWithBus(l *slog.Logger, bus *Bus) *Recorder {
 	r := &Recorder{
-		counts: make([]int64, MaxCode),
-		sizes:  make([]int64, MaxCode),
-		log:    l,
-		bus:    bus,
+		counts:       make([]int64, MaxCode),
+		sizes:        make([]int64, MaxCode),
+		unknownByExt: make(map[string]eventTotal),
+		log:          l,
+		bus:          bus,
 	}
 	return r
 }
@@ -255,6 +271,9 @@ func (r *Recorder) RecordWithSize(ctx context.Context, code Code, file slog.LogV
 	atomic.AddInt64(&r.counts[code], 1)
 	if fileSize > 0 {
 		atomic.AddInt64(&r.sizes[code], fileSize)
+	}
+	if code == DiscoveredUnknown && file != nil {
+		r.recordUnknownExtension(file, fileSize)
 	}
 	if r.log != nil {
 		level := _logLevels[code]
@@ -285,6 +304,41 @@ func (r *Recorder) RecordWithSize(ctx context.Context, code Code, file slog.LogV
 			Args: args,
 		})
 	}
+}
+
+func (r *Recorder) recordUnknownExtension(file slog.LogValuer, fileSize int64) {
+	named, ok := file.(interface{ Name() string })
+	if !ok {
+		return
+	}
+	ext := strings.ToLower(filepath.Ext(named.Name()))
+	if ext == "" {
+		ext = "[no extension]"
+	}
+
+	r.unknownByExtMu.Lock()
+	total := r.unknownByExt[ext]
+	total.count++
+	total.size += fileSize
+	r.unknownByExt[ext] = total
+	r.unknownByExtMu.Unlock()
+}
+
+func (r *Recorder) unknownExtensions() []extensionTotal {
+	r.unknownByExtMu.Lock()
+	entries := make([]extensionTotal, 0, len(r.unknownByExt))
+	for ext, total := range r.unknownByExt {
+		entries = append(entries, extensionTotal{extension: ext, eventTotal: total})
+	}
+	r.unknownByExtMu.Unlock()
+
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].size != entries[j].size {
+			return entries[i].size > entries[j].size
+		}
+		return entries[i].extension < entries[j].extension
+	})
+	return entries
 }
 
 func (r *Recorder) SetLogger(l *slog.Logger) {
@@ -361,6 +415,11 @@ func (r *Recorder) GenerateEventReport() string {
 		if count := eventCounts[c]; count > 0 {
 			size := eventSizes[c]
 			sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, FormatEventBytes(size)))
+			if c == DiscoveredUnknown {
+				for _, entry := range r.unknownExtensions() {
+					sb.WriteString(fmt.Sprintf("    %-33s: %7d  (%s)\n", entry.extension, entry.count, FormatEventBytes(entry.size)))
+				}
+			}
 		}
 	}
 

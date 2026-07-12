@@ -2,11 +2,17 @@ package fileevent
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"testing"
 )
+
+type namedLogValue string
+
+func (n namedLogValue) Name() string         { return string(n) }
+func (n namedLogValue) LogValue() slog.Value { return slog.StringValue(string(n)) }
 
 func TestRecorderSizeTracking(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -117,6 +123,53 @@ func TestGenerateEventReport(t *testing.T) {
 		t.Error("Report should mention 'uploaded successfully'")
 	}
 }
+
+func TestGenerateEventReportGroupsUnknownFilesByExtension(t *testing.T) {
+	recorder := NewRecorder(nil)
+	ctx := context.Background()
+
+	recorder.RecordWithSize(ctx, DiscoveredUnknown, namedLogValue("takeout/clip.MP"), 2048)
+	recorder.RecordWithSize(ctx, DiscoveredUnknown, namedLogValue("takeout/another.mp"), 1024)
+	recorder.RecordWithSize(ctx, DiscoveredUnknown, namedLogValue("takeout/video.3g2"), 4096)
+	recorder.RecordWithSize(ctx, DiscoveredUnknown, namedLogValue("takeout/MVIMG_123"), 512)
+	recorder.RecordWithSize(ctx, DiscoveredUnknown, namedLogValue("takeout/archive.asf"), 3072)
+
+	report := recorder.GenerateEventReport()
+	for _, want := range []string{
+		"discovered unknown file            :       5  (10.5 KB)",
+		".3g2                             :       1  (4.0 KB)",
+		".asf                             :       1  (3.0 KB)",
+		".mp                              :       2  (3.0 KB)",
+		"[no extension]                   :       1  (512 B)",
+	} {
+		if !strings.Contains(report, want) {
+			t.Errorf("report does not contain %q:\n%s", want, report)
+		}
+	}
+
+	last := -1
+	for _, extension := range []string{".3g2", ".asf", ".mp", "[no extension]"} {
+		index := strings.Index(report, fmt.Sprintf("    %-33s:", extension))
+		if index <= last {
+			t.Fatalf("extension %q is not in deterministic size/name order:\n%s", extension, report)
+		}
+		last = index
+	}
+}
+
+func TestUnknownExtensionGroupingIgnoresUnnamedLogValues(t *testing.T) {
+	recorder := NewRecorder(nil)
+	recorder.RecordWithSize(context.Background(), DiscoveredUnknown, unnamedLogValue{}, 42)
+
+	report := recorder.GenerateEventReport()
+	if strings.Contains(report, "[no extension]") {
+		t.Fatalf("unnamed log value should not be grouped as a filename:\n%s", report)
+	}
+}
+
+type unnamedLogValue struct{}
+
+func (unnamedLogValue) LogValue() slog.Value { return slog.StringValue("unknown") }
 
 func TestEmptyRecorder(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
