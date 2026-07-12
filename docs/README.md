@@ -53,7 +53,7 @@ immich-go upload from-folder --server=SERVER --api-key=KEY /path/to/photos
 immich-go upload from-google-photos --server=SERVER --api-key=KEY /path/to/takeout.zip
 
 # Archive from Immich server
-immich-go archive from-immich --server=SERVER --api-key=KEY --write-to-folder=/archive
+immich-go archive from-immich --from-server=SERVER --from-api-key=KEY --write-to-folder=/archive
 
 # Stack similar photos
 immich-go stack --server=SERVER --api-key=KEY

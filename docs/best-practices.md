@@ -23,8 +23,8 @@ This guide provides recommendations for optimal performance, reliability, and or
 ```bash
 # Conservative approach for maximum reliability
 immich-go upload from-google-photos \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --concurrent-tasks=4 \
   --client-timeout=60m \
   --pause-immich-jobs=true \
@@ -37,8 +37,8 @@ immich-go upload from-google-photos \
 ```bash
 # Balanced performance and reliability
 immich-go upload from-google-photos \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --concurrent-tasks=8 \
   --manage-raw-jpeg=StackCoverRaw \
   --manage-burst=Stack \
@@ -49,8 +49,8 @@ immich-go upload from-google-photos \
 ```bash
 # Fast import with full processing
 immich-go upload from-google-photos \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --concurrent-tasks=12 \
   --manage-raw-jpeg=StackCoverRaw \
   --manage-burst=Stack \
@@ -290,8 +290,8 @@ immich-go upload from-folder \
 ```bash
 # Local backup (Copy 2)
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --write-to-folder=/local-backup/immich
 
 # Offsite backup (Copy 3) - sync local backup to cloud
@@ -307,8 +307,8 @@ YESTERDAY=$(date -d '1 day ago' '+%Y-%m-%d')
 TODAY=$(date '+%Y-%m-%d')
 
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --from-date-range="$YESTERDAY,$TODAY" \
   --write-to-folder="/backup/incremental/$TODAY"
 ```
@@ -317,8 +317,8 @@ immich-go archive from-immich \
 ```bash
 # Monthly full backup
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --write-to-folder="/backup/full/$(date +%Y-%m)"
 ```
 
@@ -363,7 +363,7 @@ ADMIN_KEY="key-with-admin-permissions"
 immich-go upload from-folder --api-key="$UPLOAD_KEY" ...
 
 # Backup operations  
-immich-go archive from-immich --api-key="$BACKUP_KEY" ...
+immich-go archive from-immich --from-api-key="$BACKUP_KEY" ...
 ```
 
 #### Script Security

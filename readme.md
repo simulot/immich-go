@@ -27,7 +27,7 @@ immich-go upload from-folder --server=http://your-ip:2283 --api-key=your-api-key
 immich-go upload from-google-photos --server=http://your-ip:2283 --api-key=your-api-key /path/to/takeout-*.zip
 
 # Archive photos from Immich server
-immich-go archive from-immich --server=http://your-ip:2283 --api-key=your-api-key --write-to-folder=/path/to/archive
+immich-go archive from-immich --from-server=http://your-ip:2283 --from-api-key=your-api-key --write-to-folder=/path/to/archive
 ```
 
 ### 3. Requirements
