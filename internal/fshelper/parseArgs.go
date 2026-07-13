@@ -34,7 +34,8 @@ func ParsePath(args []string) ([]fs.FS, error) {
 		a = filepath.ToSlash(a)
 		files, err := expandNames(a)
 		if err != nil {
-			return nil, err
+			errs = errors.Join(errs, err)
+			continue
 		}
 
 		for _, f := range files {

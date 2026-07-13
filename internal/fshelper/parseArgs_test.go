@@ -54,3 +54,26 @@ func TestParsePathAccumulatesAcrossSources(t *testing.T) {
 		}
 	}
 }
+
+// A malformed glob pattern makes expandNames fail. That failure must not discard
+// errors already accumulated for earlier arguments; it should be recorded like any
+// other and processing should continue.
+func TestParsePathExpandFailureKeepsPriorErrors(t *testing.T) {
+	dir := t.TempDir()
+	tgz := filepath.Join(dir, "bad-archive.tgz")
+	if err := os.WriteFile(tgz, []byte("dummy"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// "[" is an unterminated character class: filepath.Glob returns ErrBadPattern.
+	_, err := ParsePath([]string{tgz, "bad["})
+	if err == nil {
+		t.Fatal("expected errors for a tgz and a malformed glob, got nil")
+	}
+	if !strings.Contains(err.Error(), "bad-archive.tgz") {
+		t.Errorf("tgz error must survive the glob-expansion failure, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "pattern") {
+		t.Errorf("glob-expansion error should also be reported, got: %v", err)
+	}
+}
