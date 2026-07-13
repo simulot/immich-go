@@ -20,8 +20,8 @@ This guide provides practical examples for common Immich-Go scenarios.
 ```bash
 # Upload entire photo collection
 immich-go upload from-folder \
-  --from-server=http://localhost:2283 \
-  --from-api-key=your-api-key \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
   /home/user/Pictures
 ```
 
@@ -29,8 +29,8 @@ immich-go upload from-folder \
 ```bash
 # Create albums from folder structure
 immich-go upload from-folder \
-  --from-server=http://localhost:2283 \
-  --from-api-key=your-api-key \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
   --folder-as-album=FOLDER \
   --manage-raw-jpeg=StackCoverRaw \
   /home/user/Pictures/Organized
@@ -392,8 +392,8 @@ Write-Host "Backup completed: $BackupDir\$Date"
 # Maximum debug information
 immich-go --log-level=DEBUG --api-trace \
   upload from-folder \
-  --from-server=http://localhost:2283 \
-  --from-api-key=your-api-key \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
   --dry-run \
   /test-photos
 ```

@@ -23,8 +23,8 @@ This guide provides recommendations for optimal performance, reliability, and or
 ```bash
 # Conservative approach for maximum reliability
 immich-go upload from-google-photos \
-  --from-server=http://localhost:2283 \
-  --from-api-key=your-api-key \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
   --concurrent-tasks=4 \
   --client-timeout=60m \
   --pause-immich-jobs=true \
@@ -37,8 +37,8 @@ immich-go upload from-google-photos \
 ```bash
 # Balanced performance and reliability
 immich-go upload from-google-photos \
-  --from-server=http://localhost:2283 \
-  --from-api-key=your-api-key \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
   --concurrent-tasks=8 \
   --manage-raw-jpeg=StackCoverRaw \
   --manage-burst=Stack \
@@ -49,8 +49,8 @@ immich-go upload from-google-photos \
 ```bash
 # Fast import with full processing
 immich-go upload from-google-photos \
-  --from-server=http://localhost:2283 \
-  --from-api-key=your-api-key \
+  --server=http://localhost:2283 \
+  --api-key=your-api-key \
   --concurrent-tasks=12 \
   --manage-raw-jpeg=StackCoverRaw \
   --manage-burst=Stack \
