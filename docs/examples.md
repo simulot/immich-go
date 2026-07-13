@@ -134,8 +134,8 @@ immich-go upload from-icloud \
 ```bash
 # Backup entire Immich server
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --write-to-folder=/backup/immich-complete
 ```
 
@@ -143,8 +143,8 @@ immich-go archive from-immich \
 ```bash
 # Backup only recent photos (last 30 days)
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --from-date-range=$(date -d '30 days ago' '+%Y-%m-%d'),$(date '+%Y-%m-%d') \
   --write-to-folder=/backup/immich-recent
 ```
@@ -153,10 +153,10 @@ immich-go archive from-immich \
 ```bash
 # Backup specific albums
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
-  --from-album="Family Photos" \
-  --from-album="Travel" \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
+  --from-albums="Family Photos" \
+  --from-albums="Travel" \
   --write-to-folder=/backup/immich-albums
 ```
 
@@ -165,8 +165,8 @@ immich-go archive from-immich \
 # Create separate archives by year
 for year in 2020 2021 2022 2023 2024; do
   immich-go archive from-immich \
-    --server=http://localhost:2283 \
-    --api-key=your-api-key \
+    --from-server=http://localhost:2283 \
+    --from-api-key=your-api-key \
     --from-date-range=$year \
     --write-to-folder=/backup/immich-$year
 done
@@ -340,8 +340,8 @@ mkdir -p "$BACKUP_DIR/$DATE"
 
 # Backup recent photos (last 7 days)
 immich-go archive from-immich \
-  --server="$IMMICH_SERVER" \
-  --api-key="$API_KEY" \
+  --from-server="$IMMICH_SERVER" \
+  --from-api-key="$API_KEY" \
   --from-date-range="$(date -d '7 days ago' '+%Y-%m-%d'),$(date '+%Y-%m-%d')" \
   --write-to-folder="$BACKUP_DIR/$DATE" \
   --log-file="$BACKUP_DIR/$DATE/backup.log"
@@ -365,8 +365,8 @@ New-Item -ItemType Directory -Path "$BackupDir\$Date" -Force
 
 # Backup recent photos
 & immich-go archive from-immich `
-  --server="$ImmichServer" `
-  --api-key="$ApiKey" `
+  --from-server="$ImmichServer" `
+  --from-api-key="$ApiKey" `
   --from-date-range="$(Get-Date (Get-Date).AddDays(-7) -Format 'yyyy-MM-dd'),$(Get-Date -Format 'yyyy-MM-dd')" `
   --write-to-folder="$BackupDir\$Date" `
   --log-file="$BackupDir\$Date\backup.log"
@@ -382,7 +382,7 @@ Write-Host "Backup completed: $BackupDir\$Date"
 0 2 * * * /home/user/scripts/backup-immich.sh
 
 # Weekly full backup on Sundays at 3 AM  
-0 3 * * 0 immich-go archive from-immich --server=http://localhost:2283 --api-key=your-key --write-to-folder=/backup/weekly/$(date +\%Y-\%m-\%d)
+0 3 * * 0 immich-go archive from-immich --from-server=http://localhost:2283 --from-api-key=your-key --write-to-folder=/backup/weekly/$(date +\%Y-\%m-\%d)
 ```
 
 ## Troubleshooting Examples
@@ -403,8 +403,8 @@ immich-go --log-level=DEBUG --api-trace \
 # Verify server connectivity
 immich-go --log-level=DEBUG \
   archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-api-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-api-key \
   --from-date-range=2024-01-01,2024-01-01 \
   --write-to-folder=/tmp/test \
   --dry-run

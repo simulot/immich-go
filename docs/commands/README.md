@@ -50,7 +50,7 @@ These options work with all commands:
 immich-go upload from-folder --server=http://localhost:2283 --api-key=your-key /photos
 
 # Archive from server
-immich-go archive from-immich --server=http://localhost:2283 --api-key=your-key --write-to-folder=/backup
+immich-go archive from-immich --from-server=http://localhost:2283 --from-api-key=your-key --write-to-folder=/backup
 
 # Stack photos on server
 immich-go stack --server=http://localhost:2283 --api-key=your-key --manage-burst=Stack
