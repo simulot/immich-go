@@ -77,3 +77,23 @@ func TestParsePathExpandFailureKeepsPriorErrors(t *testing.T) {
 		t.Errorf("glob-expansion error should also be reported, got: %v", err)
 	}
 }
+
+// The rejection/accumulation changes must not disturb normal parsing: a valid
+// path should still open as a filesystem and return no error.
+func TestParsePathOpensValidSource(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "photo.jpg"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fsyss, err := ParsePath([]string{dir})
+	if err != nil {
+		t.Fatalf("valid directory should not produce an error, got: %v", err)
+	}
+	if len(fsyss) != 1 {
+		t.Fatalf("expected 1 filesystem, got %d", len(fsyss))
+	}
+	if err := CloseFSs(fsyss); err != nil {
+		t.Errorf("closing filesystems failed: %v", err)
+	}
+}
