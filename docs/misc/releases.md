@@ -585,7 +585,7 @@ When the file name pattern returns no files, a message is printed, and the progr
 Any error is counted as upload error, and reported in the log file.
 
 ### fix: Error handling during multitasking
-Any error occurred during parallelized tasks cancels other as well.
+Any error that occurred during parallelized tasks cancels others as well.
 
 ### fix: Processed files count is displayed in no-ui mode
 The processed files counter is updated whenever a file for the source is processed.
