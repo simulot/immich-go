@@ -33,8 +33,15 @@ import (
 
 func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Application, runner adapters.Runner) error {
 	var err error
-	if ifc.ImportIntoAlbum != "" && ifc.UsePathAsAlbumName != FolderModeNone {
-		return errors.New("cannot use both --into-album and --folder-as-album flags")
+
+	if f := cmd.Flag("into-album"); f != nil {
+		intoAlbum, err := cmd.Flags().GetString("into-album")
+		if err != nil {
+			return err
+		}
+		if intoAlbum != "" && ifc.UsePathAsAlbumName != FolderModeNone {
+			return errors.New("cannot use both --into-album and --folder-as-album flags")
+		}
 	}
 
 	ifc.app = app
@@ -416,44 +423,40 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			}
 
 			// Manage albums
-			if ifc.ImportIntoAlbum != "" {
-				a.Albums = []assets.Album{{Title: ifc.ImportIntoAlbum}}
-			} else {
-				done := false
-				if ifc.PicasaAlbum {
-					if album, ok := ifc.picasaAlbums.Load(dir); ok {
-						a.Albums = []assets.Album{{Title: album.Name, Description: album.Description}}
-						done = true
-					}
+			done := false
+			if ifc.PicasaAlbum {
+				if album, ok := ifc.picasaAlbums.Load(dir); ok {
+					a.Albums = []assets.Album{{Title: album.Name, Description: album.Description}}
+					done = true
 				}
-				if ifc.ICloudTakeout {
-					if meta, ok := ifc.icloudMetas.Load(a.OriginalFileName); ok {
-						a.Albums = meta.albums
-						done = true
-					}
+			}
+			if ifc.ICloudTakeout {
+				if meta, ok := ifc.icloudMetas.Load(a.OriginalFileName); ok {
+					a.Albums = meta.albums
+					done = true
 				}
-				if !done && ifc.UsePathAsAlbumName != FolderModeNone && ifc.UsePathAsAlbumName != "" {
-					Album := ""
-					switch ifc.UsePathAsAlbumName {
-					case FolderModeFolder:
-						if dir == "." {
-							Album = fsName
-						} else {
-							Album = filepath.Base(dir)
-						}
-					case FolderModePath:
-						parts := []string{}
-						if fsName != "" {
-							parts = append(parts, fsName)
-						}
-						if dir != "." {
-							parts = append(parts, strings.Split(dir, "/")...)
-						}
-						Album = strings.Join(parts, ifc.AlbumNamePathSeparator)
+			}
+			if !done && ifc.UsePathAsAlbumName != FolderModeNone && ifc.UsePathAsAlbumName != "" {
+				Album := ""
+				switch ifc.UsePathAsAlbumName {
+				case FolderModeFolder:
+					if dir == "." {
+						Album = fsName
+					} else {
+						Album = filepath.Base(dir)
 					}
-					if Album != "" {
-						a.Albums = []assets.Album{{Title: Album}}
+				case FolderModePath:
+					parts := []string{}
+					if fsName != "" {
+						parts = append(parts, fsName)
 					}
+					if dir != "." {
+						parts = append(parts, strings.Split(dir, "/")...)
+					}
+					Album = strings.Join(parts, ifc.AlbumNamePathSeparator)
+				}
+				if Album != "" {
+					a.Albums = []assets.Album{{Title: Album}}
 				}
 			}
 

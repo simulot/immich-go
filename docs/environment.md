@@ -34,7 +34,6 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
-| `IMMICH_GO_ARCHIVE_FROM_FOLDER_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
 | `IMMICH_GO_ARCHIVE_FROM_FOLDER_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
 ## archive from-google-photos
@@ -71,7 +70,6 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
-| `IMMICH_GO_ARCHIVE_FROM_ICLOUD_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums |
 | `IMMICH_GO_ARCHIVE_FROM_ICLOUD_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
@@ -123,7 +121,6 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
-| `IMMICH_GO_ARCHIVE_FROM_PICASA_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
 | `IMMICH_GO_ARCHIVE_FROM_PICASA_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
 ## stack
@@ -156,6 +153,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set server calls timeout |
 | `IMMICH_GO_UPLOAD_DEVICE_UUID` | `--device-uuid` | `gl65` | Set a device UUID |
 | `IMMICH_GO_UPLOAD_DRY_RUN` | `--dry-run` | `false` | Simulate all actions |
+| `IMMICH_GO_UPLOAD_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
 | `IMMICH_GO_UPLOAD_MANAGE_BURST` | `--manage-burst` | `NoStack` | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG |
 | `IMMICH_GO_UPLOAD_MANAGE_EPSON_FASTFOTO` | `--manage-epson-fastfoto` | `false` | Manage Epson FastFoto file (default: false) |
 | `IMMICH_GO_UPLOAD_MANAGE_HEIC_JPEG` | `--manage-heic-jpeg` | `NoStack` | Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG |
@@ -183,7 +181,6 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
-| `IMMICH_GO_UPLOAD_FROM_FOLDER_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
 | `IMMICH_GO_UPLOAD_FROM_FOLDER_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
 ## upload from-google-photos
@@ -220,7 +217,6 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
-| `IMMICH_GO_UPLOAD_FROM_ICLOUD_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_MEMORIES` | `--memories` | `false` | Import icloud memories as albums |
 | `IMMICH_GO_UPLOAD_FROM_ICLOUD_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 
@@ -272,6 +268,5 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_PICASA_IGNORE_SIDECAR_FILES` | `--ignore-sidecar-files` | `false` | Don't upload sidecar with the photo. |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
-| `IMMICH_GO_UPLOAD_FROM_PICASA_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
 | `IMMICH_GO_UPLOAD_FROM_PICASA_RECURSIVE` | `--recursive` | `true` | Explore the folder and all its sub-folders |
 

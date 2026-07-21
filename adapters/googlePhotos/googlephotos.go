@@ -396,29 +396,24 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 
 		for _, a := range dirEntries {
 			if toc.CreateAlbums {
-				if toc.ImportIntoAlbum != "" {
-					// Force this album
-					a.Albums = []assets.Album{{Title: toc.ImportIntoAlbum}}
-				} else {
-					// check if its duplicates are in some albums, and push them all at once
-					key := fileKeyTracker{baseName: filepath.Base(a.File.Name()), size: int64(a.FileSize)}
-					track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
-					for _, p := range track.paths {
-						if album, ok := toc.albums[p]; ok {
-							title := album.Title
-							if title == "" {
-								if !toc.KeepUntitled {
-									continue
-								}
-								title = filepath.Base(p)
+				// check if its duplicates are in some albums, and push them all at once
+				key := fileKeyTracker{baseName: filepath.Base(a.File.Name()), size: int64(a.FileSize)}
+				track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
+				for _, p := range track.paths {
+					if album, ok := toc.albums[p]; ok {
+						title := album.Title
+						if title == "" {
+							if !toc.KeepUntitled {
+								continue
 							}
-							a.Albums = append(a.Albums, assets.Album{
-								Title:       title,
-								Description: album.Description,
-								Latitude:    album.Latitude,
-								Longitude:   album.Longitude,
-							})
+							title = filepath.Base(p)
 						}
+						a.Albums = append(a.Albums, assets.Album{
+							Title:       title,
+							Description: album.Description,
+							Latitude:    album.Latitude,
+							Longitude:   album.Longitude,
+						})
 					}
 				}
 
