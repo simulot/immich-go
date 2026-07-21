@@ -238,6 +238,11 @@ immich-go upload from-immich [source-options] [destination-options]
   | `--from-favorite`       | Include only favorite assets |
   | `--from-minimal-rating` | Minimum rating filter        |
 
+### Destination Options
+
+  | Option            | Description                                    |
+  | ----------------- | ---------------------------------------------- |
+  | `--into-album`    | Place all transferred assets into given album  |
 
 ### Examples
 ```bash
@@ -254,6 +259,12 @@ immich-go upload from-immich \
 # Transfer photos from a specific date range
 immich-go upload from-immich \
   --from-server=http://old-server:2283 --from-api-key=old-key --from-date-range=2023-01-01,2023-06-30 \
+  --server=http://new-server:2283 --api-key=new-key
+
+# Transfer all photos into a single album
+immich-go upload from-immich \
+  --into-album="Migrated Photos" \
+  --from-server=http://old-server:2283 --from-api-key=old-key \
   --server=http://new-server:2283 --api-key=new-key
 ```
 
