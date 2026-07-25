@@ -109,6 +109,7 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 
 	// Generate FileProcessor report
 	if uc.app.FileProcessor() != nil {
+		uc.app.FileProcessor().Finalize(ctx)
 		report := uc.app.FileProcessor().GenerateReport()
 		if len(report) > 0 {
 			lines := strings.Split(report, "\n")
