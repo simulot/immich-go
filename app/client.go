@@ -25,6 +25,9 @@ type Client struct {
 	AdminAPIKey               string         `mapstructure:"admin_api_key" json:"admin_api_key" toml:"admin_api_key" yaml:"admin_api_key"`                                                             // API Key for admin
 	APITrace                  bool           `mapstructure:"api_trace" json:"api_trace" toml:"api_trace" yaml:"api_trace"`                                                                             // Enable API call traces
 	SkipSSL                   bool           `mapstructure:"skip_ssl" json:"skip_ssl" toml:"skip_ssl" yaml:"skip_ssl"`                                                                                 // Skip SSL Verification
+	ClientCert                string         `mapstructure:"client_cert" json:"client_cert" toml:"client_cert" yaml:"client_cert"`                                                                     // Client certificate (PEM) for mTLS
+	ClientKey                 string         `mapstructure:"client_key" json:"client_key" toml:"client_key" yaml:"client_key"`                                                                         // Client private key (PEM) for mTLS
+	CACert                    string         `mapstructure:"ca_cert" json:"ca_cert" toml:"ca_cert" yaml:"ca_cert"`                                                                                     // CA certificate (PEM) to verify the server
 	ClientTimeout             time.Duration  `mapstructure:"client_timeout" json:"client_timeout" toml:"client_timeout" yaml:"client_timeout"`                                                         // Set the client request timeout
 	DeviceUUID                string         `mapstructure:"device_uuid" json:"device_uuid" toml:"device_uuid" yaml:"device_uuid"`                                                                     // Set a device UUID
 	TimeZone                  string         `mapstructure:"time_zone" json:"time_zone" toml:"time_zone" yaml:"time_zone"`                                                                             // Override default TZ
@@ -57,6 +60,9 @@ func (client *Client) RegisterFlags(flags *pflag.FlagSet, prefix string) {
 	flags.BoolVar(&client.APITrace, prefix+"api-trace", false, "Enable trace of api calls")
 	flags.BoolVar(&client.PauseImmichBackgroundJobs, prefix+"pause-immich-jobs", true, "Pause Immich background jobs during upload operations")
 	flags.BoolVar(&client.SkipSSL, prefix+"skip-verify-ssl", false, "Skip SSL verification")
+	flags.StringVar(&client.ClientCert, prefix+"client-cert", client.ClientCert, "Path to a PEM client certificate for mutual TLS (mTLS) authentication")
+	flags.StringVar(&client.ClientKey, prefix+"client-key", client.ClientKey, "Path to the PEM private key matching --client-cert")
+	flags.StringVar(&client.CACert, prefix+"ca-cert", client.CACert, "Path to a PEM CA certificate bundle used to verify the server")
 	flags.DurationVar(&client.ClientTimeout, prefix+"client-timeout", 20*time.Minute, "Set server calls timeout")
 	flags.StringVar(&client.DeviceUUID, prefix+"device-uuid", client.DeviceUUID, "Set a device UUID")
 	flags.BoolVar(&client.DryRun, prefix+"dry-run", false, "Simulate all actions")
@@ -137,6 +143,8 @@ func (client *Client) Open(ctx context.Context, app *Application) error {
 		client.Server,
 		client.APIKey,
 		immich.OptionVerifySSL(client.SkipSSL),
+		immich.OptionClientCertificate(client.ClientCert, client.ClientKey),
+		immich.OptionCACertificate(client.CACert),
 		immich.OptionConnectionTimeout(client.ClientTimeout),
 		immich.OptionDryRun(client.DryRun),
 	)
@@ -153,6 +161,8 @@ func (client *Client) Open(ctx context.Context, app *Application) error {
 		client.Server,
 		client.AdminAPIKey,
 		immich.OptionVerifySSL(client.SkipSSL),
+		immich.OptionClientCertificate(client.ClientCert, client.ClientKey),
+		immich.OptionCACertificate(client.CACert),
 		immich.OptionConnectionTimeout(adminTime),
 		// no trace pulling job status
 	)
