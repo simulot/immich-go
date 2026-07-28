@@ -62,7 +62,7 @@ func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Comma
 
 	flags.Var(&ifc.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	flags.StringVar(&ifc.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
-	flags.Var(&ifc.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
+	flags.Var(&ifc.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, 'PATH' to use the full path as the album name, or 'TOP' to use the top-level folder name as the album name for the whole sub-tree")
 	flags.StringVar(&ifc.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
 	flags.BoolVar(&ifc.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
 	flags.BoolVar(&ifc.IgnoreSideCarFiles, "ignore-sidecar-files", false, "Don't upload sidecar with the photo.")

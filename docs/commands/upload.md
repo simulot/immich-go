@@ -87,7 +87,7 @@ immich-go upload from-folder [options] <folder-path>
 
 | Option                | Default | Description                                             |
 | --------------------- | ------- | ------------------------------------------------------- |
-| `--folder-as-album`   | `NONE`  | Create albums from folders: `FOLDER`, `PATH`, or `NONE` |
+| `--folder-as-album`   | `NONE`  | Create albums from folders: `FOLDER`, `PATH`, `TOP`, or `NONE` |
 | `--folder-as-tags`    | `false` | Use folder structure as tags                            |
 | `--album-path-joiner` | `" / "` | String for joining folder names in album titles         |
 | `--album-picasa`      | `false` | Use Picasa album names from `.picasa.ini` files         |
