@@ -2,6 +2,9 @@ package immich
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -67,6 +70,52 @@ func OptionSetAPITrace(rtd RoundTripperDecorator) clientOption {
 func OptionVerifySSL(verify bool) clientOption {
 	return func(ic *ImmichClient) error {
 		ic.transport.TLSClientConfig.InsecureSkipVerify = verify
+		return nil
+	}
+}
+
+// OptionClientCertificate configures a client certificate and key for mutual TLS
+// (mTLS) authentication. The server will receive this certificate during the TLS
+// handshake. Both certFile and keyFile must point to PEM-encoded files. When both
+// are empty the option is a no-op.
+func OptionClientCertificate(certFile, keyFile string) clientOption {
+	return func(ic *ImmichClient) error {
+		if certFile == "" && keyFile == "" {
+			return nil
+		}
+		if certFile == "" || keyFile == "" {
+			return errors.New("mTLS requires both --client-cert and --client-key to be set")
+		}
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return fmt.Errorf("loading client certificate: %w", err)
+		}
+		ic.transport.TLSClientConfig.Certificates = append(ic.transport.TLSClientConfig.Certificates, cert)
+		return nil
+	}
+}
+
+// OptionCACertificate adds a PEM-encoded certificate authority bundle used to
+// verify the server's certificate. This is typically needed when the Immich
+// server presents a certificate signed by a private CA, as is common in mTLS
+// deployments. When caFile is empty the option is a no-op.
+func OptionCACertificate(caFile string) clientOption {
+	return func(ic *ImmichClient) error {
+		if caFile == "" {
+			return nil
+		}
+		caCert, err := os.ReadFile(caFile)
+		if err != nil {
+			return fmt.Errorf("reading CA certificate: %w", err)
+		}
+		pool, err := x509.SystemCertPool()
+		if err != nil || pool == nil {
+			pool = x509.NewCertPool()
+		}
+		if !pool.AppendCertsFromPEM(caCert) {
+			return fmt.Errorf("no valid certificate found in CA file %q", caFile)
+		}
+		ic.transport.TLSClientConfig.RootCAs = pool
 		return nil
 	}
 }
