@@ -28,6 +28,58 @@ All upload sub-commands require these connection parameters:
 | `-k, --api-key`     |    Y     | Your API key                                      |
 | `--skip-verify-ssl` |          | Skip SSL certificate verification                 |
 | `--client-timeout`  |          | Server call timeout (default: `20m`)              |
+| `--client-cert`     |          | PEM client certificate, for mTLS authentication   |
+| `--client-key`      |          | PEM private key matching `--client-cert`          |
+| `--ca-cert`         |          | PEM CA bundle used to verify the server           |
+
+### Mutual TLS (mTLS)
+
+If your Immich server is behind a reverse proxy that requires a client
+certificate, supply the certificate and its key. Both must be given together —
+providing only one is an error:
+
+```sh
+immich-go upload from-folder \
+  --server=https://immich.example.com --api-key=your-key \
+  --client-cert=client-cert.pem \
+  --client-key=client-key.pem \
+  /photos
+```
+
+When the server's own certificate is issued by a private CA, add `--ca-cert` so
+it can be verified. The CA is *added* to the system trust store rather than
+replacing it, so publicly-signed certificates keep working:
+
+```sh
+  --ca-cert=ca-cert.pem
+```
+
+Use `--ca-cert` in preference to `--skip-verify-ssl`, which disables server
+verification entirely.
+
+#### Converting a `.pfx` / `.p12` bundle
+
+`immich-go` reads PEM files. If your certificate was issued as a PKCS#12 bundle
+(common on Windows), split it first with `openssl`:
+
+```sh
+# Client certificate
+openssl pkcs12 -in client.pfx -clcerts -nokeys -out client-cert.pem
+
+# Private key, decrypted — immich-go cannot prompt for a passphrase
+openssl pkcs12 -in client.pfx -nocerts -nodes -out client-key.pem
+
+# CA chain, if the bundle contains one
+openssl pkcs12 -in client.pfx -cacerts -nokeys -out ca-cert.pem
+```
+
+Each command asks for the bundle's import password. The resulting key is
+unencrypted, so restrict access to it with `chmod 600 client-key.pem`.
+
+These options can also be set in the configuration file or through the
+`IMMICH_GO_UPLOAD_CLIENT_CERT`, `IMMICH_GO_UPLOAD_CLIENT_KEY` and
+`IMMICH_GO_UPLOAD_CA_CERT` environment variables, which avoids repeating them
+on every run.
 
 ## Upload Behavior Options
 
@@ -226,6 +278,9 @@ immich-go upload from-immich [source-options] [destination-options]
   | `--from-api-key`         | Source server API key            |
   | `--from-client-timeout`  | Source server timeout            |
   | `--from-skip-verify-ssl` | Skip SSL verification for source |
+  | `--from-client-cert`     | PEM client certificate for the source server (mTLS) |
+  | `--from-client-key`      | PEM private key matching `--from-client-cert`       |
+  | `--from-ca-cert`         | PEM CA bundle used to verify the source server      |
 
 ### Source Filtering
 
