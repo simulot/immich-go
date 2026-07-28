@@ -441,6 +441,12 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 						} else {
 							Album = filepath.Base(dir)
 						}
+					case FolderModeTop:
+						if dir == "." {
+							Album = fsName
+						} else {
+							Album = strings.Split(dir, "/")[0]
+						}
 					case FolderModePath:
 						parts := []string{}
 						if fsName != "" {
