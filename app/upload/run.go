@@ -313,7 +313,7 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	// Upload assets from the group
 	for _, a := range g.Assets {
 		err := uc.handleAsset(ctx, a)
-		errGroup = errors.Join(err)
+		errGroup = errors.Join(errGroup, err)
 	}
 
 	// Manage groups
@@ -321,7 +321,10 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
 		client := uc.client.Immich.(immich.ImmichStackInterface)
-		ids := []string{g.Assets[g.CoverIndex].ID}
+		var ids []string
+		if cover := g.Assets[g.CoverIndex]; cover.ID != "" {
+			ids = append(ids, cover.ID)
+		}
 		for i, a := range g.Assets {
 			// Record stacking event
 			uc.app.FileProcessor().RecordNonAsset(ctx, g.Assets[i].File, 0, fileevent.ProcessedStacked)
@@ -378,6 +381,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		return nil
 
 	case AlreadyProcessed: // SHA1 already processed
+		a.ID = advice.ServerAsset.ID
 		// Record as discarded - duplicate in input
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedLocalDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
