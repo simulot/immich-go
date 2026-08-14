@@ -112,6 +112,7 @@ Here is the list of translations for the "-edited" suffix in the requested langu
 | Language   | Translation      | Confirmed |
 | ---------- | ---------------- | --------- |
 | Spanish    | -editado         | [ ]       |
+| Catalan    | -editat          | [X]       |
 | French     | -modifié         | [X]       |
 | German     | -bearbeitet      | [X]       |
 | Italian    | -modificato      | [X]       |
