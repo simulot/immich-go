@@ -192,6 +192,51 @@ func Test_matchers(t *testing.T) {
 			jsonName: "Screenshot_2024-08-31-00-53-48-647_com.snapcha.json",
 			want:     "matchNormal",
 		},
+		// When (1) is part of the original filename, Google creates two groups with confusingly similar names:
+		//   groupA: no duplicate index — Negative0-36-35(1).jpg + sidecar ...supplemental-metadata.json
+		//   groupB: duplicate index (1) — Negative0-36-35(1)(1).jpg + sidecar ...supplemental-metadata(1).json
+		// These tests verify each sidecar only matches its own group's files.
+
+		{ // groupB original with its own sidecar
+			fileName: "Negative0-36-35(1)(1).jpg",
+			jsonName: "Negative0-36-35(1).jpg.supplemental-metadata(1).json",
+			want:     "matchNormal",
+		},
+		{ // groupB edited with its own sidecar
+			fileName: "Negative0-36-35(1)-editat(1).jpg",
+			jsonName: "Negative0-36-35(1).jpg.supplemental-metadata(1).json",
+			want:     "matchEditedName",
+		},
+		{ // groupA sidecar must NOT match groupB edited
+			fileName: "Negative0-36-35(1)-editat(1).jpg",
+			jsonName: "Negative0-36-35(1).jpg.supplemental-metadata.json",
+			want:     "",
+		},
+		{ // groupB sidecar must NOT match groupA edited
+			fileName: "Negative0-36-35(1)-editat.jpg",
+			jsonName: "Negative0-36-35(1).jpg.supplemental-metadata(1).json",
+			want:     "",
+		},
+		{ // groupA original with its own sidecar
+			fileName: "Negative0-36-35(1).jpg",
+			jsonName: "Negative0-36-35(1).jpg.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{ // groupA edited with its own sidecar
+			fileName: "Negative0-36-35(1)-editat.jpg",
+			jsonName: "Negative0-36-35(1).jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{ // groupA sidecar must NOT match groupB original
+			fileName: "Negative0-36-35(1)(1).jpg",
+			jsonName: "Negative0-36-35(1).jpg.supplemental-metadata.json",
+			want:     "",
+		},
+		{ // groupB sidecar must NOT match groupA original
+			fileName: "Negative0-36-35(1).jpg",
+			jsonName: "Negative0-36-35(1).jpg.supplemental-metadata(1).json",
+			want:     "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {

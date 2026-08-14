@@ -48,6 +48,33 @@ but one JSON
 
 Note that "edited" name is localized.
 
+### Duplicate index combined with edited suffix and supplemental-metadata
+When a file already has a duplicate index and is also edited, Google stacks both the duplicate index and the edited suffix. The supplemental-metadata sidecar keeps the duplicate index at the end of the JSON name, separate from the original filename's index.
+
+This creates an ambiguity: `(1)` in a filename can be part of the original name OR a duplicate index. When both groups coexist in the same folder, the sidecars look almost identical:
+
+Group A (no duplicate):
+  - Original: `Negative0-36-35(1).jpg`
+  - Sidecar: `Negative0-36-35(1).jpg.supplemental-metadata.json`
+  - Edited: `Negative0-36-35(1)-editat.jpg`
+
+Group B (duplicate):
+  - Original: `Negative0-36-35(1)(1).jpg`
+  - Sidecar: `Negative0-36-35(1).jpg.supplemental-metadata(1).json`
+  - Edited: `Negative0-36-35(1)-editat(1).jpg`
+
+Both sidecars share the same `"title": "Negative0-36-35(1).jpg"` inside the JSON. The only difference is the trailing `(1)` on the sidecar filename and the stacked `(1)(1)` on the image. The edited file inserts the localized edit suffix before the duplicate index.
+
+### Known ambiguity: (N) as part of a base name vs. duplicate index
+
+When a folder contains both `Negative0-36-35.jpg` and `Negative0-36-35(1).jpg`, their sidecars are:
+  - `Negative0-36-35.jpg.supplemental-metadata(1).json`  ← for the duplicate of `Negative0-36-35.jpg`
+  - `Negative0-36-35(1).jpg.supplemental-metadata.json`  ← for the original `Negative0-36-35(1).jpg`
+
+The file `Negative0-36-35(1).jpg` matches **both** sidecars by filename alone — the matcher cannot tell whether the `(1)` belongs to the base name or is a duplicate index. The current implementation resolves this by first-match on sorted JSON filenames, which may assign the wrong sidecar.
+
+The correct fix would be to read the `"title"` field inside each JSON and prefer the sidecar whose title matches the image filename exactly. This is not implemented yet.
+
 ## Images are duplicated with no apparent logic
 Example from the  [#380](https://github.com/simulot/immich-go/issues/380)
 ```sh
@@ -95,6 +122,7 @@ Here is the list of translations for the "-edited" suffix in the requested langu
 | Language   | Translation      | Confirmed |
 | ---------- | ---------------- | --------- |
 | Spanish    | -editado         | [ ]       |
+| Catalan    | -editat          | [X]       |
 | French     | -modifié         | [X]       |
 | German     | -bearbeitet      | [X]       |
 | Italian    | -modificato      | [X]       |
