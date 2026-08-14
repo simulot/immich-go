@@ -48,6 +48,23 @@ but one JSON
 
 Note that "edited" name is localized.
 
+### Duplicate index combined with edited suffix and supplemental-metadata
+When a file already has a duplicate index and is also edited, Google stacks both the duplicate index and the edited suffix. The supplemental-metadata sidecar keeps the duplicate index at the end of the JSON name, separate from the original filename's index.
+
+This creates an ambiguity: `(1)` in a filename can be part of the original name OR a duplicate index. When both groups coexist in the same folder, the sidecars look almost identical:
+
+Group A (no duplicate):
+  - Original: `Negative0-36-35(1).jpg`
+  - Sidecar: `Negative0-36-35(1).jpg.supplemental-metadata.json`
+  - Edited: `Negative0-36-35(1)-editat.jpg`
+
+Group B (duplicate):
+  - Original: `Negative0-36-35(1)(1).jpg`
+  - Sidecar: `Negative0-36-35(1).jpg.supplemental-metadata(1).json`
+  - Edited: `Negative0-36-35(1)-editat(1).jpg`
+
+Both sidecars share the same `"title": "Negative0-36-35(1).jpg"` inside the JSON. The only difference is the trailing `(1)` on the sidecar filename and the stacked `(1)(1)` on the image. The edited file inserts the localized edit suffix before the duplicate index.
+
 ## Images are duplicated with no apparent logic
 Example from the  [#380](https://github.com/simulot/immich-go/issues/380)
 ```sh
