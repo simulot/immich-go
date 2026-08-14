@@ -273,6 +273,8 @@ func Test_matchers(t *testing.T) {
 			fileName: "X-edi.jpg",
 			jsonName: "X.jpg.supplemental-metadata.json",
 			want:     "matchEditedName",
+		},
+
 		// When (1) is part of the original filename, Google creates two groups with confusingly similar names:
 		//   groupA: no duplicate index — Negative0-36-35(1).jpg + sidecar ...supplemental-metadata.json
 		//   groupB: duplicate index (1) — Negative0-36-35(1)(1).jpg + sidecar ...supplemental-metadata(1).json
