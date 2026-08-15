@@ -101,10 +101,15 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 	uc.albumsCache.Close()
 	uc.tagsCache.Close()
 
-	// Resume immich background jobs if requested
-	err := uc.resumeJobs(ctx)
-	if err != nil {
-		return err
+	// Resume immich background jobs, but only if this run actually paused
+	// them (pauseJobs is gated on PauseImmichBackgroundJobs; resumeJobs was
+	// being called unconditionally, which both requires job.create on keys
+	// that never needed it and, on failure, skips GenerateReport below).
+	if uc.client.PauseImmichBackgroundJobs {
+		err := uc.resumeJobs(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Generate FileProcessor report
