@@ -325,8 +325,10 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		ids := stackIDs(g)
 		if len(ids) > 1 {
 			for _, a := range g.Assets {
-				// Record stacking event
-				uc.app.FileProcessor().RecordNonAsset(ctx, a.File, 0, fileevent.ProcessedStacked)
+				if slices.Contains(ids, a.ID) {
+					// Record stacking event
+					uc.app.FileProcessor().RecordNonAsset(ctx, a.File, 0, fileevent.ProcessedStacked)
+				}
 			}
 			_, err := client.CreateStack(ctx, ids)
 			if err != nil {
