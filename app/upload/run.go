@@ -312,7 +312,7 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	// Upload assets from the group
 	for _, a := range g.Assets {
-		err := uc.handleAsset(ctx, a)
+		err := uc.handleAsset(ctx, a, g)
 		errGroup = errors.Join(err)
 	}
 
@@ -340,13 +340,19 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	return errGroup
 }
 
-func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
+// handleAsset uploads the asset a, or updates the server's copy of it, as advised by the asset
+// index. g is the group a belongs to; its other assets are never mistaken for server-side variants
+// of a.
+func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Group) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
-	// var status stri g
-	advice, err := uc.assetIndex.ShouldUpload(a, uc)
+	var siblings []*assets.Asset
+	if g != nil {
+		siblings = g.Assets
+	}
+	advice, err := uc.assetIndex.ShouldUpload(a, uc, siblings...)
 	if err != nil {
 		return err
 	}
