@@ -68,7 +68,8 @@ var backgroundJobs = []string{"thumbnailGeneration", "metadataExtraction", "vide
 
 // pauseJobs pauses the Immich background jobs that aren't already paused, and records them in
 // uc.pausedJobs so that resumeJobs resumes only those. Queues paused by the user before the run
-// are left alone.
+// are left alone. If pausing a queue fails, the queues paused so far are resumed (best effort)
+// before returning the error, since the upload is then aborted and finishing() never runs.
 func (uc *UpCmd) pauseJobs(ctx context.Context) error {
 	status, err := uc.client.AdminImmich.GetJobs(ctx)
 	if err != nil {
@@ -83,6 +84,7 @@ func (uc *UpCmd) pauseJobs(ctx context.Context) error {
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "pause", true)
 		if err != nil {
 			uc.app.Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
+			_ = uc.resumeJobs(ctx)
 			return err
 		}
 		uc.pausedJobs = append(uc.pausedJobs, name)
