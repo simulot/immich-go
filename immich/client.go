@@ -109,8 +109,12 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 	ic := ImmichClient{
 		endPoint: endPoint + "/api",
 		transport: &http.Transport{
-			MaxIdleConns:        100,
-			IdleConnTimeout:     90 * time.Second,
+			MaxIdleConns: 100,
+			// Immich (Node.js) closes an idle keep-alive connection after 5 seconds. Drop idle
+			// connections well before that, so that a request is never sent on a connection the
+			// server is closing at the same time, which fails with "EOF" and is not retried for
+			// uploads (their body can't be replayed).
+			IdleConnTimeout:     2 * time.Second,
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 			MaxIdleConnsPerHost: 100,
 			MaxConnsPerHost:     100,
