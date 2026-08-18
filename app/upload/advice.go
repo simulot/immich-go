@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -250,8 +251,13 @@ func (ii *immichIndex) adviceForceUpload(sa *assets.Asset) *Advice {
 // la - local asset
 // la.File.Name() is the full path to the file as it is on the source
 // la.OriginalFileName is the name of the file as it was on the device before it was uploaded to the server
+//
+// siblings are the other assets of la's group (burst, raw+jpg, edited pair...). They are never taken
+// for a server-side variant of la: a Google-edited "X-edited.jpg" is indexed under the title of its
+// sidecar, "X.jpg", with the same capture date as "X.jpg", and would otherwise be reported as a
+// smaller/bigger version of the original when it is uploaded first (issue #877, #1285).
 
-func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, error) {
+func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...*assets.Asset) (*Advice, error) {
 	checksum, err := la.GetChecksum()
 	if err != nil {
 		return nil, err
@@ -278,7 +284,7 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, er
 
 		for _, id := range ids {
 			sa, ok := ii.immichAssets.Load(id)
-			if !ok {
+			if !ok || sa == la || slices.Contains(siblings, sa) {
 				continue
 			}
 
