@@ -84,3 +84,31 @@ func TestShouldUpload_sameNameOutsideTheGroupIsStillAVariant(t *testing.T) {
 		t.Errorf("got %s for %v, want SmallerOnServer for the other directory's copy", advice.Advice, advice.ServerAsset)
 	}
 }
+
+func TestStackIDs(t *testing.T) {
+	a := func(id string) *assets.Asset { return &assets.Asset{ID: id} }
+	for _, tc := range []struct {
+		name  string
+		g     *assets.Group
+		cover int
+		want  []string
+	}{
+		{"cover first", assets.NewGroup(assets.GroupByBurst, a("1"), a("2"), a("3")), 1, []string{"2", "1", "3"}},
+		{"empty ids are left out", assets.NewGroup(assets.GroupByOther, a(""), a("2"), a("")), 0, []string{"2"}},
+		{"duplicate ids are listed once", assets.NewGroup(assets.GroupByOther, a("1"), a("1")), 0, []string{"1"}},
+		{"cover index out of range", assets.NewGroup(assets.GroupByOther, a("1"), a("2")), 5, []string{"1", "2"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.g.CoverIndex = tc.cover
+			got := stackIDs(tc.g)
+			if len(got) != len(tc.want) {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Fatalf("got %v, want %v", got, tc.want)
+				}
+			}
+		})
+	}
+}

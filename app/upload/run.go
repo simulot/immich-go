@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -337,18 +338,12 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
 		client := uc.client.Immich.(immich.ImmichStackInterface)
-		var ids []string
-		if cover := g.Assets[g.CoverIndex]; cover.ID != "" {
-			ids = append(ids, cover.ID)
-		}
-		for i, a := range g.Assets {
-			// Record stacking event
-			uc.app.FileProcessor().RecordNonAsset(ctx, g.Assets[i].File, 0, fileevent.ProcessedStacked)
-			if i != g.CoverIndex && a.ID != "" {
-				ids = append(ids, a.ID)
-			}
-		}
+		ids := stackIDs(g)
 		if len(ids) > 1 {
+			for _, a := range g.Assets {
+				// Record stacking event
+				uc.app.FileProcessor().RecordNonAsset(ctx, a.File, 0, fileevent.ProcessedStacked)
+			}
 			_, err := client.CreateStack(ctx, ids)
 			if err != nil {
 				uc.app.Log().Error("Can't create stack", "error", err)
@@ -357,6 +352,25 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	}
 
 	return errGroup
+}
+
+// stackIDs returns the distinct, non-empty server IDs of the group's assets, cover first.
+// An asset that was discarded, or that failed to upload, has no ID and is left out. The same server
+// asset can back several assets of the group (a local duplicate), and must be listed once.
+func stackIDs(g *assets.Group) []string {
+	ids := make([]string, 0, len(g.Assets))
+	add := func(id string) {
+		if id != "" && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	if g.CoverIndex >= 0 && g.CoverIndex < len(g.Assets) {
+		add(g.Assets[g.CoverIndex].ID)
+	}
+	for _, a := range g.Assets {
+		add(a.ID)
+	}
+	return ids
 }
 
 // handleAsset uploads the asset a, or updates the server's copy of it, as advised by the asset
