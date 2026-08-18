@@ -422,7 +422,8 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	return nil
 }
 
-// addCommandLineTags adds the --tag and --session-tag tags to the asset.
+// addCommandLineTags adds the --tag values and, if --session-tag is set, the session tag to the
+// asset. Tags are applied on the server later, by processUploadedAsset.
 func (uc *UpCmd) addCommandLineTags(a *assets.Asset) {
 	if uc.SessionTag {
 		a.AddTag(uc.session)
