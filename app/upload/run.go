@@ -63,25 +63,40 @@ func (uc *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) (as
 	return tag, err
 }
 
+// backgroundJobs lists the Immich job queues paused during the upload.
+var backgroundJobs = []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
+
+// pauseJobs pauses the Immich background jobs that aren't already paused, and records them in
+// uc.pausedJobs so that resumeJobs resumes only those. Queues paused by the user before the run
+// are left alone.
 func (uc *UpCmd) pauseJobs(ctx context.Context) error {
-	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
-	for _, name := range jobs {
+	status, err := uc.client.AdminImmich.GetJobs(ctx)
+	if err != nil {
+		uc.app.Log().Error("Immich Job status", "err", err.Error())
+		return err
+	}
+	for _, name := range backgroundJobs {
+		if status[name].QueueStatus.IsPaused {
+			uc.app.Log().Info("Immich Job already paused, leaving it as is", "job", name)
+			continue
+		}
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "pause", true)
 		if err != nil {
 			uc.app.Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
 			return err
 		}
+		uc.pausedJobs = append(uc.pausedJobs, name)
 		uc.app.Log().Info("Immich Job command sent", "pause", name)
 	}
 	return nil
 }
 
+// resumeJobs resumes the jobs paused by pauseJobs during this run. It does nothing when the
+// jobs weren't paused (--pause-immich-jobs=false), or for queues that were already paused before.
 func (uc *UpCmd) resumeJobs(_ context.Context) error {
-	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
-
 	// Start with a context not yet cancelled
 	ctx := context.Background() //nolint
-	for _, name := range jobs {
+	for _, name := range uc.pausedJobs {
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
 		if err != nil {
 			uc.app.Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
@@ -101,7 +116,7 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 	uc.albumsCache.Close()
 	uc.tagsCache.Close()
 
-	// Resume immich background jobs if requested
+	// Resume the immich background jobs paused by this run, if any
 	err := uc.resumeJobs(ctx)
 	if err != nil {
 		return err

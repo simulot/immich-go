@@ -76,6 +76,7 @@ type UpCmd struct {
 	albumsCache       *cache.CollectionCache[assets.Album] // List of albums present on the server
 	tagsCache         *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 	finished          bool                                 // the finish task has been run
+	pausedJobs        []string                             // Immich jobs paused by this run, to be resumed at the end
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
 }
 
