@@ -112,9 +112,7 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 			MaxIdleConns: 100,
 			// Immich (Node.js) closes a keep-alive connection that has been idle for 5 seconds. Drop
 			// idle connections well before that, so that a request is never sent on a connection the
-			// server is closing at the same time. Such a request fails with "EOF", and Go's transport
-			// retries that only for idempotent requests (GET etc.), not for the POST/PUT requests made
-			// here, least of all uploads, whose multipart body is streamed and can't be replayed.
+			// server is closing at the same time. Such a request fails with "EOF" and is not retried.
 			IdleConnTimeout:     2 * time.Second,
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 			MaxIdleConnsPerHost: 100,
