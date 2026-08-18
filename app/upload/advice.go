@@ -256,7 +256,6 @@ func (ii *immichIndex) adviceForceUpload(sa *assets.Asset) *Advice {
 // for a server-side variant of la: a Google-edited "X-edited.jpg" is indexed under the title of its
 // sidecar, "X.jpg", with the same capture date as "X.jpg", and would otherwise be reported as a
 // smaller/bigger version of the original when it is uploaded first (issue #877, #1285).
-
 func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...*assets.Asset) (*Advice, error) {
 	checksum, err := la.GetChecksum()
 	if err != nil {
