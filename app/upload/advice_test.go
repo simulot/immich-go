@@ -168,6 +168,40 @@ func TestShouldUpload_replacedAssetStandsForItsReplacement(t *testing.T) {
 	}
 }
 
+func TestShouldUpload_duplicateOfAReplacedUploadIsNotAlreadyProcessed(t *testing.T) {
+	date := time.Date(2023, 11, 14, 22, 13, 20, 0, time.UTC)
+	ii := newAssetIndex()
+	uc := &UpCmd{}
+
+	// a small X.jpg was uploaded earlier in this run, from another directory
+	small := localAsset("X.jpg", "X.jpg", 1000, "sha-small", date)
+	small.ID = "id-small"
+	ii.addLocalAsset(small)
+
+	// a bigger X.jpg replaces it
+	big := localAsset("X.jpg", "X.jpg", 2000, "sha-big", date)
+	advice, err := ii.ShouldUpload(big, uc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advice.Advice != SmallerOnServer || advice.ServerAsset != small {
+		t.Fatalf("big: got %s, want SmallerOnServer for the small copy", advice.Advice)
+	}
+	big.ID = "id-big"
+	ii.replaceAsset(big, small)
+
+	// a duplicate of the small copy is one of the replacement, not an "already processed" copy of
+	// the deleted upload
+	dup := localAsset("X(1).jpg", "X.jpg", 1000, "sha-small", date)
+	advice, err = ii.ShouldUpload(dup, uc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advice.Advice != BetterOnServer || advice.ServerAsset != big {
+		t.Errorf("got %s for %v, want BetterOnServer for the replacement", advice.Advice, advice.ServerAsset)
+	}
+}
+
 func TestStackIDs_resolvesReplacedIDs(t *testing.T) {
 	a := func(id string) *assets.Asset { return &assets.Asset{ID: id} }
 	replaced := map[string]string{"old": "new"}
