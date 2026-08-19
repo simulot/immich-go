@@ -65,6 +65,9 @@ type immichIndex struct {
 	// map of SHA1 to assetID
 	byChecksum *syncmap.SyncMap[string, *assets.Asset]
 
+	// map of the ID of a server asset that replaceAsset deleted to the asset that replaced it
+	replacedBy *syncmap.SyncMap[string, *assets.Asset]
+
 	assetNumber int64
 }
 
@@ -74,6 +77,7 @@ func newAssetIndex() *immichIndex {
 		byChecksum:      syncmap.New[string, *assets.Asset](),
 		byName:          syncmap.New[string, []string](),
 		uploadsChecksum: syncset.New[string](),
+		replacedBy:      syncmap.New[string, *assets.Asset](),
 	}
 }
 
@@ -158,6 +162,7 @@ func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *ass
 	ii.lock.Lock()
 	defer ii.lock.Unlock()
 	oldA.Trashed = true
+	ii.replacedBy.Store(oldA.ID, newA)
 	ii.immichAssets.Store(newA.ID, newA)     // Store the new asset
 	ii.byChecksum.Store(newA.Checksum, newA) // Store the new SHA1
 	ii.uploadsChecksum.Add(newA.Checksum)
@@ -167,6 +172,32 @@ func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *ass
 	l = append(l, newA.ID)
 	ii.byName.Store(filename, l)
 	return newA
+}
+
+// replacement returns the asset that replaced sa, following replacements of replacements, or sa
+// itself when it has not been replaced. A replaced asset has been deleted from the server, so its
+// ID must not be used any more; the asset that took its place stands for it.
+func (ii *immichIndex) replacement(sa *assets.Asset) *assets.Asset {
+	for sa.Trashed {
+		r, ok := ii.replacedBy.Load(sa.ID)
+		if !ok {
+			break
+		}
+		sa = r
+	}
+	return sa
+}
+
+// liveID returns the ID of the asset that stands for the asset with the given ID: the ID itself,
+// or, when that asset has been replaced and deleted, the ID of its replacement.
+func (ii *immichIndex) liveID(id string) string {
+	for {
+		r, ok := ii.replacedBy.Load(id)
+		if !ok {
+			return id
+		}
+		id = r.ID
+	}
 }
 
 func (ii *immichIndex) isAlreadyProcessed(checksum string) bool {
@@ -266,6 +297,11 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...
 		if ii.isAlreadyProcessed(checksum) {
 			return ii.adviceAlreadyProcessed(sa), nil
 		}
+		if r := ii.replacement(sa); r != sa {
+			// same content as a server asset that has been replaced by a bigger one: the
+			// replacement stands for it
+			return ii.adviceBetterOnServer(r), nil
+		}
 		return ii.adviceSameOnServer(sa), nil
 	}
 
@@ -283,7 +319,11 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...
 
 		for _, id := range ids {
 			sa, ok := ii.immichAssets.Load(id)
-			if !ok || sa == la || slices.Contains(siblings, sa) {
+			if !ok {
+				continue
+			}
+			sa = ii.replacement(sa)
+			if sa == la || slices.Contains(siblings, sa) {
 				continue
 			}
 

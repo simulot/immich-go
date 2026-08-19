@@ -322,6 +322,11 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
 		client := uc.client.Immich.(immich.ImmichStackInterface)
+		// an asset matched to a server asset that a later asset of the group replaced is now
+		// represented by the replacement
+		for _, a := range g.Assets {
+			a.ID = uc.assetIndex.liveID(a.ID)
+		}
 		ids := stackIDs(g)
 		if len(ids) > 1 {
 			for _, a := range g.Assets {
