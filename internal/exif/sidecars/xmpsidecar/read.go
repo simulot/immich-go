@@ -5,6 +5,7 @@ import (
 	"io"
 	"path"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/clbanning/mxj/v2"
@@ -27,25 +28,29 @@ func walk(m mxj.Map, md *assets.Metadata, path string) {
 		case map[string]interface{}:
 			walk(v, md, path+"/"+key)
 		case []interface{}:
-			path = path + "/" + key
+			listPath := path + "/" + key
 			for i, item := range v {
-				p := fmt.Sprintf("%s[%d]", path, i)
+				p := fmt.Sprintf("%s[%d]", listPath, i)
 				if itemMap, ok := item.(map[string]interface{}); ok {
 					walk(itemMap, md, p)
-				} else {
-					filter(md, p, item.(string))
+				} else if s, ok := item.(string); ok {
+					filter(md, p, s)
 				}
 			}
-		default:
-			filter(md, path+"/"+key, value.(string))
+		case string:
+			filter(md, path+"/"+key, v)
 		}
 	}
 }
 
-var reDescription = regexp.MustCompile(`/xmpmeta/RDF/Description\[\d+\]/`)
+// reIndex matches the index that walk appends to the elements of a list, such as the
+// rdf:Description elements of the document or the rdf:li items of a tag list. The same property
+// must be recognised whether it is the only element of its kind or one of several.
+var reIndex = regexp.MustCompile(`\[\d+\]`)
 
 func filter(md *assets.Metadata, p string, value string) {
-	p = reDescription.ReplaceAllString(p, "")
+	p = reIndex.ReplaceAllString(p, "")
+	p = strings.TrimPrefix(p, "/xmpmeta/RDF/Description/")
 	// debug 	fmt.Printf("%s: %s\n", p, value)
 	switch p {
 	case "DateTimeOriginal":
@@ -62,11 +67,11 @@ func filter(md *assets.Metadata, p string, value string) {
 				Name:  path.Base(value),
 				Value: value,
 			})
-	case "/xmpmeta/RDF/Description/GPSLatitude":
+	case "GPSLatitude":
 		if f, err := GPTStringToFloat(value); err == nil {
 			md.Latitude = f
 		}
-	case "/xmpmeta/RDF/Description/GPSLongitude":
+	case "GPSLongitude":
 		if f, err := GPTStringToFloat(value); err == nil {
 			md.Longitude = f
 		}
