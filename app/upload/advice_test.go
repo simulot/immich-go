@@ -100,7 +100,7 @@ func TestStackIDs(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.g.CoverIndex = tc.cover
-			got := stackIDs(tc.g)
+			got := stackIDs(tc.g, func(id string) string { return id })
 			if len(got) != len(tc.want) {
 				t.Fatalf("got %v, want %v", got, tc.want)
 			}
@@ -165,5 +165,25 @@ func TestShouldUpload_replacedAssetStandsForItsReplacement(t *testing.T) {
 	}
 	if advice.Advice != BetterOnServer || advice.ServerAsset != big {
 		t.Errorf("X by name: got %s for %v, want BetterOnServer for the replacement", advice.Advice, advice.ServerAsset)
+	}
+}
+
+func TestStackIDs_resolvesReplacedIDs(t *testing.T) {
+	a := func(id string) *assets.Asset { return &assets.Asset{ID: id} }
+	replaced := map[string]string{"old": "new"}
+	live := func(id string) string {
+		if r, ok := replaced[id]; ok {
+			return r
+		}
+		return id
+	}
+	g := assets.NewGroup(assets.GroupByOther, a("old"), a("new"), a("3"))
+	got := stackIDs(g, live)
+	want := []string{"new", "3"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if g.Assets[0].ID != "old" {
+		t.Errorf("stackIDs must not change the assets' IDs, got %q", g.Assets[0].ID)
 	}
 }

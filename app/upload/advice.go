@@ -65,7 +65,7 @@ type immichIndex struct {
 	// map of SHA1 to assetID
 	byChecksum *syncmap.SyncMap[string, *assets.Asset]
 
-	// map of the ID of a server asset that replaceAsset deleted to the asset that replaced it
+	// map of the ID of a replaced, deleted asset to the asset that replaced it
 	replacedBy *syncmap.SyncMap[string, *assets.Asset]
 
 	assetNumber int64
@@ -293,13 +293,13 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...
 	}
 
 	if sa, ok := ii.byChecksum.Load(checksum); ok {
+		if r := ii.replacement(sa); r != sa {
+			// same content as an asset that has been replaced by another one: the replacement
+			// stands for it
+			return ii.adviceBetterOnServer(r), nil
+		}
 		if ii.isAlreadyProcessed(checksum) {
 			return ii.adviceAlreadyProcessed(sa), nil
-		}
-		if r := ii.replacement(sa); r != sa {
-			// same content as a server asset that has been replaced by a bigger one: the
-			// replacement stands for it
-			return ii.adviceBetterOnServer(r), nil
 		}
 		return ii.adviceSameOnServer(sa), nil
 	}
