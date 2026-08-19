@@ -322,15 +322,10 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
 		client := uc.client.Immich.(immich.ImmichStackInterface)
-		// an asset matched to a server asset that a later asset of the group replaced is now
-		// represented by the replacement
-		for _, a := range g.Assets {
-			a.ID = uc.assetIndex.liveID(a.ID)
-		}
-		ids := stackIDs(g)
+		ids := stackIDs(g, uc.assetIndex.liveID)
 		if len(ids) > 1 {
 			for _, a := range g.Assets {
-				if slices.Contains(ids, a.ID) {
+				if slices.Contains(ids, uc.assetIndex.liveID(a.ID)) {
 					// Record stacking event
 					uc.app.FileProcessor().RecordNonAsset(ctx, a.File, 0, fileevent.ProcessedStacked)
 				}
@@ -345,12 +340,15 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	return errGroup
 }
 
-// stackIDs returns the distinct, non-empty server IDs of the group's assets, cover first.
-// An asset that was discarded, or that failed to upload, has no ID and is left out. The same server
-// asset can back several assets of the group (a local duplicate), and must be listed once.
-func stackIDs(g *assets.Group) []string {
+// stackIDs returns the distinct, non-empty server IDs of the group's assets, cover first, each
+// resolved through liveID (an asset matched to a server asset that a later asset of the group
+// replaced is represented by the replacement). An asset that was discarded, or that failed to
+// upload, has no ID and is left out. The same server asset can back several assets of the group
+// (a local duplicate), and must be listed once.
+func stackIDs(g *assets.Group, liveID func(string) string) []string {
 	ids := make([]string, 0, len(g.Assets))
 	add := func(id string) {
+		id = liveID(id)
 		if id != "" && !slices.Contains(ids, id) {
 			ids = append(ids, id)
 		}
