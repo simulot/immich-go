@@ -112,3 +112,58 @@ func TestStackIDs(t *testing.T) {
 		})
 	}
 }
+
+// serverAsset builds an asset as it is indexed from the server's asset list.
+func serverAsset(id, name string, size int64, checksum string, date time.Time) *assets.Asset {
+	return &assets.Asset{
+		ID:               id,
+		File:             fshelper.FSName(nil, name),
+		OriginalFileName: name,
+		FileSize:         int(size),
+		Checksum:         checksum,
+		CaptureDate:      date,
+	}
+}
+
+func TestShouldUpload_replacedAssetStandsForItsReplacement(t *testing.T) {
+	date := time.Date(2023, 11, 14, 22, 13, 20, 0, time.UTC)
+	ii := newAssetIndex()
+	uc := &UpCmd{}
+
+	// the server has a small copy of X.jpg
+	small := serverAsset("id-small", "X.jpg", 1000, "sha-small", date)
+	ii.add(small, false)
+
+	// a bigger X.jpg replaces it, and the server copy is deleted
+	big := localAsset("X.jpg", "X.jpg", 2000, "sha-big", date)
+	advice, err := ii.ShouldUpload(big, uc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advice.Advice != SmallerOnServer || advice.ServerAsset != small {
+		t.Fatalf("big: got %s, want SmallerOnServer for the small copy", advice.Advice)
+	}
+	big.ID = "id-big"
+	ii.replaceAsset(big, small)
+
+	// X(1).jpg, byte-identical to the deleted small copy, must not be matched to the deleted
+	// asset: the replacement stands for it
+	dup := localAsset("X(1).jpg", "X.jpg", 1000, "sha-small", date)
+	advice, err = ii.ShouldUpload(dup, uc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advice.Advice != BetterOnServer || advice.ServerAsset != big {
+		t.Errorf("X(1) by checksum: got %s for %v, want BetterOnServer for the replacement", advice.Advice, advice.ServerAsset)
+	}
+
+	// a same-named, same-dated copy found by name must be compared with the replacement too
+	other := localAsset("X.jpg", "X.jpg", 1000, "sha-other", date)
+	advice, err = ii.ShouldUpload(other, uc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advice.Advice != BetterOnServer || advice.ServerAsset != big {
+		t.Errorf("X by name: got %s for %v, want BetterOnServer for the replacement", advice.Advice, advice.ServerAsset)
+	}
+}
