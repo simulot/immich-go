@@ -36,6 +36,8 @@ func TestRead(t *testing.T) {
 			path: "DATA/multi-tags.jpg.xmp",
 			expect: assets.Metadata{
 				Description: "Three of us",
+				Latitude:    48.408376,
+				Longitude:   -3.090590,
 				Tags: []assets.Tag{
 					{Value: "ari", Name: "ari"},
 					{Value: "baldur", Name: "baldur"},

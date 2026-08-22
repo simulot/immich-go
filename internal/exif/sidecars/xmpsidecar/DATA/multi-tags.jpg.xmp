@@ -8,6 +8,10 @@
  <rdf:Description rdf:about='' xmlns:tiff='http://ns.adobe.com/tiff/1.0/'>
   <tiff:ImageDescription><rdf:Alt><rdf:li xml:lang='x-default'>Three of us</rdf:li></rdf:Alt></tiff:ImageDescription>
  </rdf:Description>
+ <rdf:Description rdf:about='' xmlns:exif='http://ns.adobe.com/exif/1.0/'>
+  <exif:GPSLatitude>48,24.50256879N</exif:GPSLatitude>
+  <exif:GPSLongitude>3,5.43538761W</exif:GPSLongitude>
+ </rdf:Description>
  <rdf:Description rdf:about='' xmlns:digiKam='http://www.digikam.org/ns/1.0/'>
   <digiKam:TagsList><rdf:Seq><rdf:li>ari</rdf:li><rdf:li>baldur</rdf:li><rdf:li>people/jakob</rdf:li></rdf:Seq></digiKam:TagsList>
  </rdf:Description>
