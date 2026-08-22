@@ -31,6 +31,41 @@ func TestRead(t *testing.T) {
 				Longitude: -3.090590,
 			},
 		},
+		{
+			// several tags in one list, properties spread over several rdf:Description elements
+			path: "DATA/multi-tags.jpg.xmp",
+			expect: assets.Metadata{
+				Description: "Three of us",
+				Latitude:    48.408376,
+				Longitude:   -3.090590,
+				Tags: []assets.Tag{
+					{Value: "ari", Name: "ari"},
+					{Value: "baldur", Name: "baldur"},
+					{Value: "people/jakob", Name: "jakob"},
+				},
+			},
+		},
+		{
+			// all properties in a single rdf:Description element
+			path: "DATA/single-description.jpg.xmp",
+			expect: assets.Metadata{
+				Description: "All in one",
+				DateTaken:   time.Date(2020, 2, 2, 10, 20, 30, 0, time.UTC),
+				Rating:      3,
+				Latitude:    48.408376,
+				Longitude:   -3.090590,
+				Tags: []assets.Tag{
+					{Value: "solo", Name: "solo"},
+				},
+			},
+		},
+		{
+			// the description in several languages: the x-default entry comes first
+			path: "DATA/multi-language.jpg.xmp",
+			expect: assets.Metadata{
+				Description: "Sunset over the bay",
+			},
+		},
 	}
 
 	for _, c := range tc {
