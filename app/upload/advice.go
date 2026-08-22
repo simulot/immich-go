@@ -176,7 +176,7 @@ func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *ass
 
 // replacement returns the asset that replaced sa, following replacements of replacements, or sa
 // itself when it has not been replaced. A replaced asset has been deleted from the server, so its
-// ID must not be used any more; the asset that took its place stands for it.
+// ID must not be used any more; callers use the replacement in its place.
 func (ii *immichIndex) replacement(sa *assets.Asset) *assets.Asset {
 	for {
 		r, ok := ii.replacedBy.Load(sa.ID)
@@ -187,8 +187,9 @@ func (ii *immichIndex) replacement(sa *assets.Asset) *assets.Asset {
 	}
 }
 
-// liveID returns the ID of the asset that stands for the asset with the given ID: the ID itself,
-// or, when that asset has been replaced and deleted, the ID of its replacement.
+// liveID resolves an asset ID to the ID of an asset that still exists on the server: an ID whose
+// asset was replaced (and deleted) resolves to the replacement's ID, through chains of
+// replacements; any other ID comes back unchanged.
 func (ii *immichIndex) liveID(id string) string {
 	for {
 		r, ok := ii.replacedBy.Load(id)
