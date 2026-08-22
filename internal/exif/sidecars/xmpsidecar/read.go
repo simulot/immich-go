@@ -58,7 +58,11 @@ func filter(md *assets.Metadata, p string, value string) {
 			md.DateTaken = d
 		}
 	case "ImageDescription/Alt/li/#text":
-		md.Description = value
+		// An Alt list may repeat the text in several languages; the XMP specification
+		// puts the x-default entry first, so the first item wins.
+		if md.Description == "" {
+			md.Description = value
+		}
 	case "Rating":
 		md.Rating = StringToByte(value)
 	case "TagsList/Seq/li":

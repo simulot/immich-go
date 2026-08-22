@@ -59,6 +59,13 @@ func TestRead(t *testing.T) {
 				},
 			},
 		},
+		{
+			// the description in several languages: the x-default entry comes first
+			path: "DATA/multi-language.jpg.xmp",
+			expect: assets.Metadata{
+				Description: "Sunset over the bay",
+			},
+		},
 	}
 
 	for _, c := range tc {
