@@ -62,6 +62,11 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 		return ar, err
 	}
 	defer f.Close()
+	la.OriginalFileName, err = fixExtension(la.OriginalFileName, f)
+	if err != nil {
+		return ar, err
+	}
+	ext = path.Ext(la.OriginalFileName)
 
 	s, err := f.Stat()
 	if err != nil {
@@ -117,6 +122,31 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 	gErr := <-errChan
 	err = errors.Join(err, errCall, gErr)
 	return ar, err
+}
+
+func fixExtension(originalFileName string, f io.ReadSeeker) (string, error) {
+	ext := path.Ext(originalFileName)
+
+	// Some photo export tools (e.g., google takeout) convert HEIC images to
+	// JPEG without changing the filename. Immich may then apply HEIF-specific
+	// metadata handling based on the stale suffix:
+	// https://github.com/immich-app/immich/pull/30393
+	if !strings.EqualFold(ext, ".heic") {
+		return originalFileName, nil
+	}
+
+	var header [512]byte
+	n, readErr := io.ReadFull(f, header[:])
+	if readErr != nil && !errors.Is(readErr, io.EOF) && !errors.Is(readErr, io.ErrUnexpectedEOF) {
+		return originalFileName, readErr
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return originalFileName, err
+	}
+	if http.DetectContentType(header[:n]) == "image/jpeg" {
+		return strings.TrimSuffix(originalFileName, ext) + ".jpg", nil
+	}
+	return originalFileName, nil
 }
 
 func (ic *ImmichClient) prepareCallValues(la *assets.Asset, s fs.FileInfo, ext, mtype string) map[string]string {
