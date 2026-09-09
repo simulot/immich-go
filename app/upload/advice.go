@@ -187,19 +187,6 @@ func (ii *immichIndex) replacement(sa *assets.Asset) *assets.Asset {
 	}
 }
 
-// liveID resolves an asset ID to the ID of an asset that still exists on the server: an ID whose
-// asset was replaced (and deleted) resolves to the replacement's ID, through chains of
-// replacements; any other ID comes back unchanged.
-func (ii *immichIndex) liveID(id string) string {
-	for {
-		r, ok := ii.replacedBy.Load(id)
-		if !ok {
-			return id
-		}
-		id = r.ID
-	}
-}
-
 func (ii *immichIndex) isAlreadyProcessed(checksum string) bool {
 	return ii.uploadsChecksum.Contains(checksum)
 }
