@@ -423,7 +423,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 }
 
 // addCommandLineTags adds the --tag values and, if --session-tag is set, the session tag to the
-// asset. Tags are applied on the server later, by processUploadedAsset.
+// asset, so that manageAssetTags applies them on the server.
 func (uc *UpCmd) addCommandLineTags(a *assets.Asset) {
 	if uc.SessionTag {
 		a.AddTag(uc.session)
@@ -438,8 +438,6 @@ func (uc *UpCmd) addCommandLineTags(a *assets.Asset) {
 // return the duplicate condition and error.
 func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, error) {
 	defer uc.app.Log().Debug("upload asset", "file", a)
-
-	uc.addCommandLineTags(a)
 
 	ar, err := uc.client.Immich.AssetUpload(ctx, a)
 	if err != nil {
@@ -496,8 +494,6 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 // replaceAsset replaces an asset on the server. It uploads the new asset, copies the metadata from the old one and deletes the old one.
 // https://github.com/immich-app/immich/pull/23172#issue-3542430029
 func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.Asset) (string, error) {
-	uc.addCommandLineTags(newAsset)
-
 	// 1. Upload the new asset
 	ar, err := uc.client.Immich.AssetUpload(ctx, newAsset)
 	if err != nil {
@@ -578,6 +574,7 @@ func (uc *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset, serv
 		// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
 		//       there is no mean to go the list of tagged assets for a given tag.
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		uc.addCommandLineTags(a)
 		uc.manageAssetTags(ctx, a)
 	}
 }
