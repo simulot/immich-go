@@ -110,7 +110,7 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 		endPoint: endPoint + "/api",
 		transport: &http.Transport{
 			MaxIdleConns:        100,
-			IdleConnTimeout:     90 * time.Second,
+			IdleConnTimeout:     2 * time.Second,
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 			MaxIdleConnsPerHost: 100,
 			MaxConnsPerHost:     100,
