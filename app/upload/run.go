@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -312,7 +313,7 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	// Upload assets from the group
 	for _, a := range g.Assets {
-		err := uc.handleAsset(ctx, a)
+		err := uc.handleAsset(ctx, a, g)
 		errGroup = errors.Join(err)
 	}
 
@@ -321,15 +322,14 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
 		client := uc.client.Immich.(immich.ImmichStackInterface)
-		ids := []string{g.Assets[g.CoverIndex].ID}
-		for i, a := range g.Assets {
-			// Record stacking event
-			uc.app.FileProcessor().RecordNonAsset(ctx, g.Assets[i].File, 0, fileevent.ProcessedStacked)
-			if i != g.CoverIndex && a.ID != "" {
-				ids = append(ids, a.ID)
-			}
-		}
+		ids := stackIDs(g, uc.assetIndex)
 		if len(ids) > 1 {
+			for _, a := range g.Assets {
+				if slices.Contains(ids, uc.assetIndex.replacement(a).ID) {
+					// Record stacking event
+					uc.app.FileProcessor().RecordNonAsset(ctx, a.File, 0, fileevent.ProcessedStacked)
+				}
+			}
 			_, err := client.CreateStack(ctx, ids)
 			if err != nil {
 				uc.app.Log().Error("Can't create stack", "error", err)
@@ -340,13 +340,41 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	return errGroup
 }
 
-func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
+// stackIDs returns the distinct, non-empty server IDs of the group's assets, cover first, each
+// resolved through ii.replacement (an asset matched to a server asset that a later asset of the
+// group replaced is represented by the replacement). An asset that was discarded, or that failed
+// to upload, has no ID and is left out. The same server asset can back several assets of the
+// group (a local duplicate), and must be listed once.
+func stackIDs(g *assets.Group, ii *immichIndex) []string {
+	ids := make([]string, 0, len(g.Assets))
+	add := func(a *assets.Asset) {
+		id := ii.replacement(a).ID
+		if id != "" && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	if g.CoverIndex >= 0 && g.CoverIndex < len(g.Assets) {
+		add(g.Assets[g.CoverIndex])
+	}
+	for _, a := range g.Assets {
+		add(a)
+	}
+	return ids
+}
+
+// handleAsset uploads the asset a, or updates the server's copy of it, as advised by the asset
+// index. g is the group a belongs to; its other assets are never mistaken for server-side variants
+// of a.
+func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Group) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
-	// var status stri g
-	advice, err := uc.assetIndex.ShouldUpload(a, uc)
+	var siblings []*assets.Asset
+	if g != nil {
+		siblings = g.Assets
+	}
+	advice, err := uc.assetIndex.ShouldUpload(a, uc, siblings...)
 	if err != nil {
 		return err
 	}
@@ -378,6 +406,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		return nil
 
 	case AlreadyProcessed: // SHA1 already processed
+		a.ID = advice.ServerAsset.ID
 		// Record as discarded - duplicate in input
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedLocalDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
