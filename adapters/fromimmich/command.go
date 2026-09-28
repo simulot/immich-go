@@ -2,10 +2,12 @@ package fromimmich
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/simulot/immich-go/adapters"
@@ -374,16 +376,50 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		so.WithPeople(fic.peopleIDs...)
 	}
 
-	return fic.client.Immich.GetFilteredAssetsFn(ctx, so, func(a *immich.Asset) error {
+	// Which assets are in a stack. GET /assets/{id} reports an asset's stack only while a member
+	// other than the primary is on the timeline and not trashed. GET /stacks (the key needs
+	// stack.read) lists every stack with its primary and its members that are not trashed or
+	// hidden, archived ones included; it places the others. The same search with withStacked=false
+	// lists only the assets in no stack, so an asset it leaves out is in one (checked once more for
+	// that asset alone, as paging can skip a row while the server changes). An asset in a stack
+	// that neither reports gets no stack in its sidecar (a stack is never guessed), and a warning.
+	listed, stackSize, err := fic.listStacks(ctx)
+	if err != nil {
+		return err
+	}
+	unstacked := map[string]bool{}
+	var mu sync.Mutex
+	uso := *so
+	err = fic.client.Immich.GetFilteredAssetsFn(ctx, uso.WithStacked(false), func(a *immich.Asset) error {
+		mu.Lock()
+		unstacked[a.ID] = true
+		mu.Unlock()
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// A lookup that fails for one asset (its details, its stack, its albums) is an error for that
+	// asset, which is left out: with --on-errors=continue, ProcessError returns nil and the others go
+	// on. It is never sent on with what the failed call left (an asset with no ID, no stack, no
+	// album); the next run archives it.
+	return fic.client.Immich.GetFilteredAssetsFn(ctx, so, func(item *immich.Asset) error {
 		// filters on data returned by the search API
-		if !fic.IncludePartners && a.OwnerID != fic.client.User.ID {
+		if !fic.IncludePartners && item.OwnerID != fic.client.User.ID {
 			return nil
+		}
+		if item.ID == "" {
+			return fic.app.ProcessError(errors.New("the search listed an asset with no ID"))
 		}
 
 		// Fetch details
-		a, err := fic.client.Immich.GetAssetInfo(ctx, a.ID)
-		if err = fic.app.ProcessError(err); err != nil {
-			return err
+		a, err := fic.client.Immich.GetAssetInfo(ctx, item.ID)
+		if err == nil && a.ID != item.ID {
+			err = fmt.Errorf("GET /assets/%s answered for asset %q", item.ID, a.ID)
+		}
+		if err != nil {
+			return fic.app.ProcessError(err)
 		}
 
 		asset := a.AsAsset()
@@ -400,8 +436,38 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			Rating:      byte(a.ExifInfo.Rating),
 			Tags:        asset.Tags,
 		}
+		// The stack, from the source server only, so that upload rebuilds exactly it.
+		var st *assets.Stack
+		if a.Stack != nil && a.Stack.ID != "" {
+			st = &assets.Stack{ID: a.Stack.ID, Primary: a.Stack.PrimaryAssetID == a.ID, AssetCount: a.Stack.AssetCount}
+		} else if l, ok := listed[a.ID]; ok {
+			st = &l
+		}
+		if st != nil {
+			st.AssetCount = max(st.AssetCount, stackSize[st.ID]) // GET /stacks counts archived members too
+			asset.FromApplication.Stack = st
+		} else if !unstacked[a.ID] {
+			inStack, err := fic.client.Immich.IsInStack(ctx, a.ID)
+			if err != nil {
+				return fic.app.ProcessError(err)
+			}
+			switch {
+			case inStack && a.IsTrashed:
+				fic.app.Log().Warn("trashed stack member that Immich does not report (GET /stacks leaves trashed members out): no stack in its sidecar",
+					"id", a.ID, "file", a.OriginalFileName)
+			case inStack:
+				fic.app.Log().Warn("asset in a stack that Immich does not report (it is hidden, or GET /stacks was refused): no stack in its sidecar",
+					"id", a.ID, "file", a.OriginalFileName)
+			}
+		}
 		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(fic.ifs, a.ID)
+
+		// Transfer the album
+		simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
+		if err != nil {
+			return fic.app.ProcessError(err)
+		}
 
 		// Record asset discovery
 		code := fileevent.DiscoveredImage
@@ -409,12 +475,6 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			code = fileevent.DiscoveredVideo
 		}
 		fic.processor.RecordAssetDiscovered(ctx, asset.File, int64(asset.FileSize), code)
-
-		// Transfer the album
-		simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
-		if err = fic.app.ProcessError(err); err != nil {
-			return err
-		}
 
 		albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
 		// clear the ID of the album that exists in from server, but not in to server
@@ -448,6 +508,32 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 		return nil
 	})
+}
+
+// listStacks reads GET /stacks: each listed asset's stack (the primary always, the other members
+// unless trashed or hidden), and each stack's size as listed. A key without stack.read gets a
+// warning and no list; the stacks GET /assets/{id} reports are archived all the same.
+func (fic *FromImmichCmd) listStacks(ctx context.Context) (map[string]assets.Stack, map[string]int, error) {
+	listed, size := map[string]assets.Stack{}, map[string]int{}
+	stacks, err := fic.client.Immich.GetAllStacks(ctx)
+	if immich.IsForbidden(err) {
+		fic.app.Log().Warn("the API key lacks stack.read: a stack whose members but the primary are all archived cannot be archived")
+		return listed, size, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, s := range stacks {
+		members := map[string]bool{s.PrimaryAssetID: true}
+		for _, m := range s.Assets {
+			members[m.ID] = true
+		}
+		size[s.ID] = len(members)
+		for id := range members {
+			listed[id] = assets.Stack{ID: s.ID, Primary: id == s.PrimaryAssetID, AssetCount: len(members)}
+		}
+	}
+	return listed, size, nil
 }
 
 func formatQuotedStrings(ss []string) string {

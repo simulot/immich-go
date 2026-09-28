@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -273,5 +274,54 @@ func TestSameContentUsesChecksum(t *testing.T) {
 	}
 	if _, err := sameContent(osfs.DirFS(dst), ".", []string{"IMG_4.JPG"}, r, ""); err == nil {
 		t.Fatal("without a checksum sameContent must read the download (and fail here)")
+	}
+}
+
+// A stack that changed on the source server rewrites only the sidecar; nothing is downloaded.
+func TestWriteAssetStackChangeRewritesOnlySidecar(t *testing.T) {
+	srcDir, dst := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(srcDir, "a"), []byte("first asset"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
+	w, err := NewLocalAssetWriter(osfs.DirFS(dst), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	write := func(st *assets.Stack) {
+		a := newAsset(src, "a", "IMG_1.JPG", len("first asset"), "")
+		a.FromApplication.Stack = st
+		if err := w.WriteAsset(context.Background(), a); err != nil {
+			t.Fatal(err)
+		}
+		_ = a.Close()
+	}
+	write(nil)
+	img, side := filepath.Join(dst, "2021/2021-07/IMG_1.JPG"), filepath.Join(dst, "2021/2021-07/IMG_1.JPG.JSON")
+	old := time.Now().Add(-time.Hour)
+	stamp := map[string]time.Time{}
+	for _, p := range []string{img, side} {
+		if err := os.Chtimes(p, old, old); err != nil {
+			t.Fatal(err)
+		}
+		fi, _ := os.Stat(p)
+		stamp[p] = fi.ModTime()
+	}
+	write(&assets.Stack{ID: "s1", Primary: true, AssetCount: 2})
+	if src.opens["a"] != 1 {
+		t.Fatalf("the stack change downloaded the asset again: opens %v", src.opens)
+	}
+	if fi, _ := os.Stat(img); !fi.ModTime().Equal(stamp[img]) {
+		t.Fatalf("the original was rewritten")
+	}
+	b, err := os.ReadFile(side)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Stat(side); fi.ModTime().Equal(stamp[side]) || !strings.Contains(string(b), `"id": "s1"`) {
+		t.Fatalf("the sidecar was not rewritten with the stack:\n%s", b)
+	}
+	if got := listFiles(t, dst); !equal(got, []string{"2021/2021-07/IMG_1.JPG", "2021/2021-07/IMG_1.JPG.JSON"}) {
+		t.Fatalf("files %v", got)
 	}
 }

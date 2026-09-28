@@ -295,6 +295,12 @@ func (uc *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) e
 		}
 	}
 
+	// Every asset is uploaded: rebuild the stacks the sidecars name, all members known.
+	if err == nil {
+		err = uc.rebuildSourceStacks(ctx)
+	} else if uc.stacks.len() > 0 {
+		uc.app.Log().Warn("stacks from the sidecars not made: the upload did not finish; run it again")
+	}
 	return err
 }
 
@@ -350,6 +356,15 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 	if err != nil {
 		return err
 	}
+	// Note the asset's source stack with the ID this very file has here (rebuildSourceStacks).
+	defer func() {
+		if id := stackMemberID(a, advice); id != "" {
+			uc.stacks.add(a, id)
+		} else if a.FromApplication != nil && a.FromApplication.Stack != nil && advice.ServerAsset != nil {
+			uc.app.Log().Warn("stack member not stacked: the server keeps another file with its name and capture time",
+				"file", a.File, "source stack", a.FromApplication.Stack.ID)
+		}
+	}()
 
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
@@ -519,6 +534,7 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorServerError, err)
 		return "", err // Must signal the error to the caller
 	}
+	uc.stacks.forget(oldAsset.ID) // no longer on the server: not a stack member here
 	uc.assetIndex.replaceAsset(newAsset, oldAsset)
 	// Record successful upgrade
 	// uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ProcessedUploadUpgraded)

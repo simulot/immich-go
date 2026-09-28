@@ -182,6 +182,9 @@ func (ic *ImmichClient) CreateAlbum(ctx context.Context, name string, descriptio
 
 func (ic *ImmichClient) GetAssetAlbums(ctx context.Context, assetID string) ([]AlbumSimplified, error) {
 	var r []AlbumSimplified
+	if assetID == "" {
+		return nil, errNoAssetID("GetAssetAlbums")
+	}
 	err := ic.newServerCall(ctx, EndPointGetAssetAlbums).do(
 		getRequest("/albums?assetId="+assetID, setAcceptJSON()),
 		responseJSON(&r))
