@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -422,6 +423,17 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 
 		asset.Albums = albums
+		// The .JSON sidecar is written from FromApplication, which was filled before the albums
+		// were known. Give it the albums too (title and description, in a stable order), so that
+		// `upload from-folder` re-creates them when an archive is restored. GET /albums?assetId=
+		// lists every album the user is a member of, owned or shared with them.
+		sort.SliceStable(albums, func(i, j int) bool {
+			if albums[i].Title != albums[j].Title {
+				return albums[i].Title < albums[j].Title
+			}
+			return albums[i].Description < albums[j].Description
+		})
+		asset.FromApplication.Albums = albums
 
 		// Transfer tags
 		for t := range asset.Tags {
