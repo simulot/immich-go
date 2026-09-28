@@ -27,6 +27,10 @@ type FSCanStat interface {
 	Stat(name string) (fs.FileInfo, error)
 }
 
+type FSCanRename interface {
+	Rename(oldname, newname string) error
+}
+
 type FSCanLink interface {
 	Lstat(name string) (fs.FileInfo, error)
 	Readlink(name string) (string, error)
@@ -81,6 +85,13 @@ func Remove(fsys fs.FS, name string) error {
 		return fsys.Remove(name)
 	}
 	return errors.New("remove not supported")
+}
+
+func Rename(fsys fs.FS, oldname, newname string) error {
+	if fsys, ok := fsys.(FSCanRename); ok {
+		return fsys.Rename(oldname, newname)
+	}
+	return errors.New("rename not supported")
 }
 
 func Stat(fsys fs.FS, name string) (fs.FileInfo, error) {
