@@ -12,6 +12,14 @@ Repeated paths with identical contents reuse their receipts. A changed file at t
 
 Before updating metadata, it compares current server values with the saved baseline and desired values. Changed values cause an error instead of overwriting a possible user edit. Failed updates stay pending and can be retried without a ZIP. An update that succeeded remotely but lost its response is safe to retry.
 
+## Immich version requirement
+
+**Minimum supported API baseline for this PoC: Immich v1.133.0.** Use a maintained Immich release at or above that version; the baseline is not a recommendation to downgrade.
+
+The capture-date and description update APIs predate v1.133.0. The limiting dependency is the existing shared uploader: it sends `visibility=timeline` in `POST /api/assets`. The upload DTO first includes `visibility` in [Immich v1.133.0](https://github.com/immich-app/immich/blob/v1.133.0/open-api/immich-openapi-specs.json); it is absent in the preceding [v1.132.0 specification](https://github.com/immich-app/immich/blob/v1.132.0/open-api/immich-openapi-specs.json). This draft does not provide a legacy upload-payload fallback.
+
+The endpoint and field contracts used here were checked in the v1.133.0, v2.0.0 and v3.0.0 specifications: server ping/about/media-types, authenticated user lookup, media upload and asset read/update with `dateTimeOriginal` and `description`. This is a schema-derived compatibility baseline, not a claim that the PoC has been tested against live servers running those releases. Future breaking API changes may require client updates. There is currently no explicit runtime version gate; a reported server version alone does not prove that all required API permissions and behavior are available.
+
 ## Try the vertical slice
 
 Build from this branch's repository root with the Go version specified in `go.mod` or newer:
