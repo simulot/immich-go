@@ -345,8 +345,11 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 					}
 				}
 			}
-			// check the presence of a XMP file
-			xmpName, err := checkExistSideCar(fsys, a.File.Name(), ".xmp")
+			// check the presence of a XMP file, unless sidecar files are ignored
+			xmpName, err := "", error(nil)
+			if !ifc.IgnoreSideCarFiles {
+				xmpName, err = checkExistSideCar(fsys, a.File.Name(), ".xmp")
+			}
 			if err == nil && xmpName != "" {
 				buf, err := fs.ReadFile(fsys, xmpName)
 				if err != nil {
