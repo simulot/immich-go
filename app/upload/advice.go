@@ -9,45 +9,25 @@ import (
 	"time"
 
 	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/assetmatch"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/gen/syncmap"
 	"github.com/simulot/immich-go/internal/gen/syncset"
 )
 
-// - - go:generate stringer -type=AdviceCode
-type AdviceCode int
-
-func (a AdviceCode) String() string {
-	switch a {
-	case IDontKnow:
-		return "IDontKnow"
-	// case SameNameOnServerButNotSure:
-	// 	return "SameNameOnServerButNotSure"
-	case SmallerOnServer:
-		return "SmallerOnServer"
-	case BetterOnServer:
-		return "BetterOnServer"
-	case SameOnServer:
-		return "SameOnServer"
-	case NotOnServer:
-		return "NotOnServer"
-	case AlreadyProcessed:
-		return "AlreadyProcessed"
-	case ForceUpload:
-		return "ForceUpload"
-	}
-	return fmt.Sprintf("advice(%d)", a)
-}
-
+// AdviceCode aliases for upload package — re-exported from assetmatch.
 const (
-	IDontKnow AdviceCode = iota
-	SmallerOnServer
-	BetterOnServer
-	SameOnServer
-	NotOnServer
-	AlreadyProcessed
-	ForceUpload
+	IDontKnow        = assetmatch.IDontKnow
+	SmallerOnServer  = assetmatch.SmallerOnServer
+	BetterOnServer   = assetmatch.BetterOnServer
+	SameOnServer     = assetmatch.SameOnServer
+	NotOnServer      = assetmatch.NotOnServer
+	AlreadyProcessed = assetmatch.AlreadyProcessed
+	ForceUpload      = assetmatch.ForceUpload
 )
+
+// AdviceCode is an alias for the shared type.
+type AdviceCode = assetmatch.AdviceCode
 
 type immichIndex struct {
 	lock sync.Mutex
@@ -282,7 +262,7 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, er
 				continue
 			}
 
-			compareDate := compareDate(dateTaken, sa.CaptureDate)
+			compareDate := assetmatch.CompareDate(dateTaken, sa.CaptureDate)
 			compareSize := size - int64(sa.FileSize)
 
 			switch {
@@ -298,16 +278,4 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, er
 		}
 	}
 	return ii.adviceNotOnServer(), nil
-}
-
-func compareDate(d1 time.Time, d2 time.Time) int {
-	diff := d1.Sub(d2)
-
-	switch {
-	case diff < -5*time.Second:
-		return -1
-	case diff >= 5*time.Second:
-		return +1
-	}
-	return 0
 }

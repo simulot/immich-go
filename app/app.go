@@ -42,7 +42,7 @@ type Application struct {
 }
 
 func (app *Application) RegisterFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&app.CfgFile, "config", "", "config file (default is ./immich-go.yaml)")
+	flags.StringVar(&app.CfgFile, "config", "", "config file (default: ~/.config/immich-go/config.yaml, then ./immich-go.*)")
 	flags.BoolVar(&app.DryRun, "dry-run", false, "dry run")
 	flags.BoolVar(&app.SaveConfig, "save-config", false, "Save the configuration to immich-go.yaml")
 	flags.Var(&app.OnErrors, "on-errors", "What to do when an error occurs (stop, continue, accept N errors at max)")

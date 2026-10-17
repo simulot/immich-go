@@ -7,7 +7,9 @@ import (
 
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/app/archive"
+	"github.com/simulot/immich-go/app/login"
 	"github.com/simulot/immich-go/app/stack"
+	"github.com/simulot/immich-go/app/sync"
 	"github.com/simulot/immich-go/app/upload"
 	"github.com/simulot/immich-go/app/version"
 	"github.com/spf13/cobra"
@@ -42,6 +44,8 @@ func RootImmichGoCommand(ctx context.Context) (*cobra.Command, *app.Application)
 		upload.NewUploadCommand(ctx, a),   // Upload command for uploading assets
 		archive.NewArchiveCommand(ctx, a), // Archive command for archiving assets
 		stack.NewStackCommand(ctx, a),     // Stack command for managing stacks
+		login.NewLoginCommand(ctx, a),     // Login command for storing credentials
+		sync.NewSyncCommand(ctx, a),       // Sync command for bidirectional sync
 	)
 
 	// PersistentPreRunE is executed before any command runs, used for initialization
