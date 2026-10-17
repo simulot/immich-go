@@ -114,11 +114,11 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 	cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, uc))
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Initialize the FileProcessor (tracker + logger)
+		// Initialize the FileProcessor (tracker + logger + event bus)
 		if app.FileProcessor() == nil {
-			recorder := fileevent.NewRecorder(app.Log().Logger)
-			tracker := assettracker.NewWithLogger(app.Log().Logger, app.DryRun) // Enable debug mode in dry-run
-			processor := fileprocessor.New(tracker, recorder)
+			bus := fileevent.NewBus()
+			tracker := assettracker.NewWithBus(app.Log().Logger, app.DryRun, bus) // Enable debug mode in dry-run
+			processor := fileprocessor.NewWithBus(tracker, app.Log().Logger, bus)
 			app.SetFileProcessor(processor)
 		}
 
@@ -151,9 +151,9 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 
 	// Initialize the FileProcessor if not already done
 	if uc.app.FileProcessor() == nil {
-		recorder := fileevent.NewRecorder(uc.app.Log().Logger)
-		tracker := assettracker.NewWithLogger(uc.app.Log().Logger, uc.app.DryRun)
-		processor := fileprocessor.New(tracker, recorder)
+		bus := fileevent.NewBus()
+		tracker := assettracker.NewWithBus(uc.app.Log().Logger, uc.app.DryRun, bus)
+		processor := fileprocessor.NewWithBus(tracker, uc.app.Log().Logger, bus)
 		uc.app.SetFileProcessor(processor)
 	}
 
