@@ -18,7 +18,7 @@ To get started with your contribution, please follow the standard GitHub workflo
     ```sh
     git remote add upstream https://github.com/simulot/immich-go.git
     ```
-    You can now use `git pull upstream develop` to fetch the latest changes from the main development branch.
+    You can now use `git pull upstream main` to fetch the latest changes from the main branch.
 
 ## Development Setup
 
@@ -131,19 +131,19 @@ Detects changes to `.github/workflows/**` or `CODEOWNERS` and:
 
 ## Our Git Branching Model
 
-Our repository uses a simple branching model:
+Our repository uses one integration branch:
 
-  * **`main`:** This branch always contains the code for the latest official release. It is considered stable.
-  * **`develop`:** This is the primary development branch. All new features and bug fixes should be integrated here.
+  * **`main`:** All new features and bug fixes are integrated here. Releases are tagged on `main`.
+  * **Retired:** The `develop` branch was the integration branch until 2025-12-29. It is retired. Its content is preserved as the tag `archive/gui-bus`.
 
 ## Your Contribution Workflow
 
-1.  **Sync with `develop`:** Ensure your local `develop` branch is up to date with the latest changes from the main repository.
+1.  **Sync with `main`:** Ensure your local `main` branch is up to date with the latest changes from the main repository.
     ```sh
-    git checkout develop
-    git pull upstream develop
+    git checkout main
+    git pull upstream main
     ```
-2.  **Create a New Branch:** Create a new branch for your work from the `develop` branch. Use a short, descriptive name (e.g., `fix-login-bug`, `add-album-feature`).
+2.  **Create a New Branch:** Create a new branch for your work from the `main` branch. Use a short, descriptive name (e.g., `fix-login-bug`, `add-album-feature`).
     ```sh
     git checkout -b my-new-feature
     ```
@@ -153,7 +153,7 @@ Our repository uses a simple branching model:
     git push origin my-new-feature
     ```
 5.  **Create a Pull Request:** Go to your fork on GitHub and open a new Pull Request.
-    *   The **base branch must be `develop`**.
+    *   The **base branch must be `main`**.
     *   Your Pull Request will automatically be checked by our CI system.
 
 ## Pull Request Guidelines
@@ -162,7 +162,7 @@ To make the review process as efficient as possible, please follow these guideli
 
   * **Descriptive Title and Body:** Provide a clear and concise title for your PR. In the description, explain the purpose of your changes, the problem they solve, and any relevant context.
   * **Pass CI Checks:** All Pull Requests must have a passing status from our automated checks before they can be merged.
-  * **Target the `develop` Branch:** All pull requests should target the `develop` branch. Hotfixes to `main` are handled by maintainers as an exception.
+  * **Target the `main` Branch:** All pull requests target `main`. Hotfixes are handled by maintainers as an exception.
 
 Thank you for your contribution!
 
