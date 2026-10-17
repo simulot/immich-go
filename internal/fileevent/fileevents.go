@@ -617,11 +617,12 @@ func (b *Bus) Subscribe(codes ...Code) Subscription {
 func (s *subscription) Receive() <-chan Event { return s.ch }
 
 func (s *subscription) Close() {
+	s.bus.mu.Lock()
 	if s.closed {
+		s.bus.mu.Unlock()
 		return
 	}
 	s.closed = true
-	s.bus.mu.Lock()
 	delete(s.bus.subs, s)
 	s.bus.mu.Unlock()
 	close(s.ch)

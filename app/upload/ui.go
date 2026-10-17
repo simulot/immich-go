@@ -62,6 +62,10 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	ui := uc.newUI(ctx, app)
 
 	defer cancel(nil)
+	bus := app.FileProcessor().Logger().Bus()
+	if bus == nil {
+		return errors.New("the UI requires an event bus")
+	}
 	pages := tview.NewPages()
 
 	var preparationDone atomic.Bool
@@ -129,7 +133,7 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 
 	// Subscribe to events and display logs in UI (batched every 200ms)
 	go func() {
-		sub := app.FileProcessor().Logger().Bus().Subscribe()
+		sub := bus.Subscribe()
 		defer sub.Close()
 
 		var logBuffer []string
@@ -171,7 +175,7 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 	// Subscribe to file events for real-time counter updates
 	// Adds a 250ms heartbeat refresh to avoid stale UI when events are dropped
 	go func() {
-		sub := app.FileProcessor().Logger().Bus().Subscribe()
+		sub := bus.Subscribe()
 		defer sub.Close()
 
 		// Heartbeat refresh to ensure counters progress smoothly even under heavy load
