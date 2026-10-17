@@ -2,6 +2,7 @@ package fileevent
 
 import (
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 )
@@ -89,5 +90,47 @@ func TestSubscriptionClose(t *testing.T) {
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("timeout waiting for closed channel")
+	}
+}
+
+// Close must be safe when called twice, and when called from several goroutines.
+func TestSubscriptionDoubleClose(t *testing.T) {
+	bus := NewBus()
+	sub := bus.Subscribe()
+	sub.Close()
+	sub.Close()
+}
+
+func TestSubscriptionConcurrentClose(t *testing.T) {
+	bus := NewBus()
+	sub := bus.Subscribe()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sub.Close()
+		}()
+	}
+	wg.Wait()
+}
+
+// A closed subscription is removed from the bus. Publishing after Close delivers
+// nothing and must not send on a closed channel.
+func TestPublishAfterCloseDeliversNothing(t *testing.T) {
+	bus := NewBus()
+	sub := bus.Subscribe()
+	sub.Close()
+
+	bus.Publish(Event{Code: DiscoveredImage, Time: time.Now()})
+
+	select {
+	case _, ok := <-sub.Receive():
+		if ok {
+			t.Fatal("event delivered after Close")
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("timeout waiting for the closed channel")
 	}
 }
