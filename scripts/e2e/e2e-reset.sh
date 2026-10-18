@@ -1,56 +1,44 @@
 #!/bin/bash
-# immich-reset.sh
-# Resets Immich database between e2e tests (preserves users and API keys)
+# Reset the e2e Immich data between test runs. Users and API keys are kept.
 #
-# Usage: immich-reset.sh [INSTALL_DIR]
-#   INSTALL_DIR: Immich installation directory (default: ./e2e-immich)
+# The database container is resolved from the e2e compose project. The script
+# never acts on another container.
 
 set -euo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+usage() {
+  cat <<'EOF'
+Usage: e2e-reset.sh [options]
 
-# Configuration
-INSTALL_DIR="${1:-./internal/e2e/testdata/immich-server}"
-TIMEOUT=60  # seconds to wait for API after restart
+Options:
+  --install-dir DIR   installation directory
+                      (default: internal/e2e/testdata/immich-server)
+  -h, --help          show this help
+EOF
+}
 
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  Immich Database Reset${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --install-dir) [ $# -ge 2 ] || e2e_die "--install-dir needs a value"; E2E_INSTALL_DIR="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; e2e_die "unknown argument: $1" ;;
+  esac
+done
+export E2E_INSTALL_DIR
 
-# Check if installation directory exists
-if [ ! -d "${INSTALL_DIR}" ]; then
-    echo -e "${RED}❌ Installation directory not found: ${INSTALL_DIR}${NC}"
-    exit 1
-fi
+e2e_require_docker
+e2e_require_cmd curl
 
-# Check if docker-compose.yml exists
-if [ ! -f "${INSTALL_DIR}/docker-compose.yml" ]; then
-    echo -e "${RED}❌ docker-compose.yml not found in ${INSTALL_DIR}${NC}"
-    exit 1
-fi
+[ -f "${E2E_INSTALL_DIR}/docker-compose.yml" ] ||
+  e2e_die "no e2e instance in ${E2E_INSTALL_DIR}; run scripts/e2e/e2e-provision.sh first"
 
-cd "${INSTALL_DIR}"
+container="$(e2e_compose ps --status running -q database)"
+[ -n "${container}" ] ||
+  e2e_die "the database service of project ${E2E_PROJECT} is not running; re-run scripts/e2e/e2e-provision.sh"
 
-# Get the port from docker-compose or default to 2283
-IMMICH_PORT=$(grep -E "^\s*-\s*['\"]?[0-9]+:2283['\"]?" docker-compose.yml | sed -E "s/.*['\"]?([0-9]+):2283.*/\1/" || echo "2283")
-IMMICH_URL="http://localhost:${IMMICH_PORT}"
-
-echo -e "${YELLOW}🛑 Stopping Immich server...${NC}"
-if ! docker compose stop immich-server; then
-    echo -e "${RED}❌ Failed to stop Immich server${NC}"
-    exit 1
-fi
-
-echo -e "${YELLOW}🗑️  Resetting database...${NC}"
-
-# SQL to reset the database (preserves users, API keys, sessions)
-# Based on Immich utils.ts https://github.com/immich-app/immich/blob/853d19dc2dcfb871edc03860ecc94aadad3b478a/e2e/src/utils.ts#L147-L187
+# Keep users, API keys and sessions. Based on Immich's own e2e reset:
+# https://github.com/immich-app/immich/blob/853d19dc2dcfb871edc03860ecc94aadad3b478a/e2e/src/utils.ts#L147-L187
 RESET_SQL='
 DELETE FROM "stack" CASCADE;
 DELETE FROM "library" CASCADE;
@@ -63,62 +51,19 @@ DELETE FROM "activity" CASCADE;
 DELETE FROM "tag" CASCADE;
 '
 
-# Execute SQL in PostgreSQL container
-if ! docker exec -i immich_postgres psql --dbname=immich --username=postgres -c "${RESET_SQL}" > /dev/null 2>&1; then
-    echo -e "${RED}❌ Failed to reset database${NC}"
-    echo -e "${YELLOW}Attempting alternative container name...${NC}"
-    
-    # Try alternative container name patterns
-    CONTAINER_NAME=$(docker ps --format '{{.Names}}' | grep -E 'postgres|database' | head -n 1)
-    if [ -z "${CONTAINER_NAME}" ]; then
-        echo -e "${RED}❌ Could not find PostgreSQL container${NC}"
-        exit 1
-    fi
-    
-    echo -e "${YELLOW}Found container: ${CONTAINER_NAME}${NC}"
-    if ! docker exec -i "${CONTAINER_NAME}" psql --dbname=immich --username=postgres -c "${RESET_SQL}"; then
-        echo -e "${RED}❌ Failed to reset database${NC}"
-        exit 1
-    fi
+e2e_info "stopping the Immich server"
+e2e_compose stop immich-server
+
+e2e_info "resetting the database"
+docker exec -i "${container}" psql --dbname=immich --username=postgres -c "${RESET_SQL}" >/dev/null ||
+  e2e_die "the database reset failed"
+
+e2e_info "restarting the Immich server"
+e2e_compose up -d immich-server
+
+if ! e2e_wait_ready 120; then
+  e2e_compose logs --tail=30 immich-server >&2 || true
+  e2e_die "Immich did not answer on $(e2e_immich_url) after the reset"
 fi
 
-echo -e "${GREEN}✅ Database reset complete${NC}"
-
-echo -e "${YELLOW}🚀 Restarting Immich server...${NC}"
-if ! docker compose up -d immich-server; then
-    echo -e "${RED}❌ Failed to restart Immich server${NC}"
-    exit 1
-fi
-
-# Wait for API to be ready
-echo -e "${YELLOW}⏳ Waiting for Immich API...${NC}"
-ELAPSED=0
-READY=false
-
-while [ $ELAPSED -lt $TIMEOUT ]; do
-    if curl -sf "${IMMICH_URL}/api/server/ping" > /dev/null 2>&1; then
-        READY=true
-        break
-    fi
-    
-    sleep 2
-    ELAPSED=$((ELAPSED + 2))
-done
-
-if [ "$READY" = false ]; then
-    echo -e "${RED}❌ Immich API did not become ready within ${TIMEOUT} seconds${NC}"
-    echo ""
-    echo -e "${YELLOW}Recent logs:${NC}"
-    docker compose logs --tail=30 immich-server
-    exit 1
-fi
-
-# Success!
-echo ""
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✅ Immich reset successfully!${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-echo -e "  ${BLUE}Immich URL:${NC} ${IMMICH_URL}"
-echo -e "  ${BLUE}Status:${NC} Ready for testing"
-echo ""
+e2e_info "database reset, $(e2e_immich_url) is ready"

@@ -1,35 +1,16 @@
 #!/bin/bash
-# e2e-start.sh
-# Spins up an Immich e2e test environment using existing provision and cleanup scripts.
+# Bring up the e2e Immich instance.
+#
+# Arguments are passed to e2e-provision.sh. See `e2e-start.sh --help`.
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  Spinning up Immich E2E Environment${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-
-# Determine the directory of the current script
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-
-# Call the provision script
-echo -e "${YELLOW}🚀 Provisioning Immich instance...${NC}"
 "${SCRIPT_DIR}/e2e-provision.sh" "$@"
 
-echo ""
-echo -e "${YELLOW}🔑 Updating VS Code launch configuration with admin API key...${NC}"
-"${SCRIPT_DIR}/../update-launch-with-key.sh"
-
-echo ""
-echo -e "${GREEN}✅ Immich E2E environment is ready!${NC}"
-echo ""
-echo -e "${BLUE}To clean up the environment, run:${NC}"
-echo -e "  ${YELLOW}${SCRIPT_DIR}/e2e-cleanup.sh${NC}"
-echo ""
+# Optional: point the local VS Code launch file at the new admin API key.
+# The updater skips when the file is absent, and refuses to touch a tracked file.
+if ! "${SCRIPT_DIR}/../update-launch-with-key.sh"; then
+  echo "warning: .vscode/launch.json was not updated; the instance is up" >&2
+fi
