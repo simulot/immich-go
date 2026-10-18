@@ -48,7 +48,26 @@ func NewGrouperPipeline(ctx context.Context, gs ...Grouper) *GrouperPipeline {
 func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset) chan *assets.Group {
 	// Create channels
 	gOut := make(chan *assets.Group) // output channel for groups
-	out := make(chan *assets.Asset)  // output channel for the last grouper
+
+	// Without groupers, each asset is its own group.
+	if len(p.groupers) == 0 {
+		go func() {
+			defer close(gOut)
+			for a := range in {
+				if a == nil {
+					continue
+				}
+				select {
+				case gOut <- assets.NewGroup(assets.GroupByNone, a):
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+		return gOut
+	}
+
+	out := make(chan *assets.Asset) // output channel for the last grouper
 
 	inChans := make([]chan *assets.Asset, len(p.groupers))
 	outChans := make([]chan *assets.Asset, len(p.groupers))

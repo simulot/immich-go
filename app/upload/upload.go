@@ -77,6 +77,7 @@ type UpCmd struct {
 	tagsCache         *cache.CollectionCache[assets.Tag]   // List of tags present on the server
 	finished          bool                                 // the finish task has been run
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
+	stacks            sourceStacks                         // Source stacks named by the sidecars, rebuilt after the uploads
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -139,6 +140,12 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 // Run is called back by the actual asset reader
 func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	uc.Mode = UpModeFolder // TODO
+	_, fromFolder := adapter.(*folder.ImportFolderCmd)
+	if fromFolder {
+		if err := noGuessedStacks(uc.StackOptions); err != nil {
+			return err
+		}
+	}
 
 	// ready to run
 	ctx := cmd.Context()
@@ -161,15 +168,17 @@ func (uc *UpCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 		uc.session = fmt.Sprintf("{immich-go}/%s", time.Now().Format("2006-01-02 15:04:05"))
 	}
 
-	if uc.ManageEpsonFastFoto {
-		g := epsonfastfoto.Group{}
-		uc.Groupers = append(uc.Groupers, g.Group)
+	if !fromFolder { // the folder sources group nothing, so no group filter applies
+		if uc.ManageEpsonFastFoto {
+			g := epsonfastfoto.Group{}
+			uc.Groupers = append(uc.Groupers, g.Group)
+		}
+		if uc.ManageBurst != filters.BurstNothing {
+			uc.Groupers = append(uc.Groupers, burst.Group)
+		}
+		uc.Groupers = append(uc.Groupers, series.Group)
+		uc.Filters = append(uc.Filters, uc.ManageBurst.GroupFilter(), uc.ManageRawJPG.GroupFilter(), uc.ManageHEICJPG.GroupFilter())
 	}
-	if uc.ManageBurst != filters.BurstNothing {
-		uc.Groupers = append(uc.Groupers, burst.Group)
-	}
-	uc.Groupers = append(uc.Groupers, series.Group)
-	uc.Filters = append(uc.Filters, uc.ManageBurst.GroupFilter(), uc.ManageRawJPG.GroupFilter(), uc.ManageHEICJPG.GroupFilter())
 	uc.infoCollector = filenames.NewInfoCollector(uc.tz, uc.app.GetSupportedMedia())
 
 	return uc.upload(ctx, adapter)

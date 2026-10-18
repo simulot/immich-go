@@ -190,7 +190,8 @@ func putRequest(url string, opts ...serverRequestOption) requestFunction {
 	}
 }
 
-func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
+// doOnce sends the call once (do, in retry.go, tries a failed read again).
+func (sc *serverCall) doOnce(fnRequest requestFunction, opts ...serverResponseOption) error {
 	var (
 		resp *http.Response
 		err  error

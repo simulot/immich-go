@@ -48,7 +48,8 @@ type Asset struct {
 	OwnerID string `json:"ownerId"`
 	// people
 	Resized bool `json:"resized"`
-	// stack
+	// stack, only in GET /assets/{id}
+	Stack     *AssetStack     `json:"stack"`
 	Tags      []TagSimplified `json:"tags"`
 	Thumbhash string          `json:"thumbhash"`
 	Type      string          `json:"type"`
@@ -60,6 +61,15 @@ type Asset struct {
 	Visibility string `json:"visibility"`
 
 	Albums []AlbumSimplified `json:"-"` // Albums that asset belong to, not in the API
+}
+
+// AssetStack is the stack an asset belongs to, as GET /assets/{id} reports it. Immich v3 reports it
+// only while a member other than the primary is on the timeline and not trashed, and AssetCount
+// counts those members plus one.
+type AssetStack struct {
+	ID             string `json:"id"`
+	PrimaryAssetID string `json:"primaryAssetId"`
+	AssetCount     int    `json:"assetCount"`
 }
 
 // NewAssetFromImmich creates an assets.Asset from an immich.Asset.
@@ -174,10 +184,20 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 	return ic.newServerCall(ctx, "DeleteAsset").do(deleteRequest("/assets", setJSONBody(&req)))
 }
 
+// errNoAssetID is what the calls that read one asset return, without calling the server, when
+// they are given no ID: GET /assets/, GET /albums?assetId= and a search with no ID ask for
+// something else.
+func errNoAssetID(call string) error {
+	return fmt.Errorf("%s: no asset ID", call)
+}
+
 // getAssetInfo
 // https://api.immich.app/endpoints/assets/getAssetInfo
 func (ic *ImmichClient) GetAssetInfo(ctx context.Context, id string) (*Asset, error) {
 	r := Asset{}
+	if id == "" {
+		return &r, errNoAssetID("GetAssetInfo")
+	}
 	err := ic.newServerCall(ctx, "GetAssetInfo").do(getRequest("/assets/"+id, setAcceptJSON()), responseJSON(&r))
 	return &r, err
 }
@@ -259,11 +279,13 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAss
 	return &r, err
 }
 
+// DownloadAsset returns a reader of the asset's original. A transfer that breaks off on the
+// network starts again from the first byte (downloadReader, in retry.go).
 func (ic *ImmichClient) DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error) {
-	var rc io.ReadCloser
-
-	err := ic.newServerCall(ctx, "DownloadAsset").do(getRequest(fmt.Sprintf("/assets/%s/original", id), setOctetStream()), responseOctetStream(&rc))
-	return rc, err
+	if id == "" {
+		return nil, errNoAssetID("DownloadAsset")
+	}
+	return ic.downloadOriginal(ctx, id)
 }
 
 // CopyAsset copy metadata from the sourceID to targeID
