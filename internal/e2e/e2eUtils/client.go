@@ -51,6 +51,26 @@ func do(method string, url string, body any, token Token) (*http.Response, error
 	return resp, nil
 }
 
+// get sends a GET request without a body
+func get(url string, token Token) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("can't get %s: %w", url, err)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+string(token))
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("can't get %s: %w", url, err)
+	}
+	if resp.StatusCode > 299 {
+		defer resp.Body.Close()
+		return nil, fmt.Errorf("can't get %s: %s", url, resp.Status)
+	}
+	return resp, nil
+}
+
 func post(url string, body any, token Token) (*http.Response, error) {
 	return do(http.MethodPost, url, body, token)
 }

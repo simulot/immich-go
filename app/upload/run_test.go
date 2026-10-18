@@ -89,7 +89,7 @@ func TestHandleAssetAlreadyProcessedJoinsAlbumsWithTheServerID(t *testing.T) {
 		t.Fatalf("expected the advice %v, got %v", AlreadyProcessed, advice.Advice)
 	}
 
-	if err := uc.handleAsset(ctx, duplicate); err != nil {
+	if err := uc.handleAsset(ctx, duplicate, nil); err != nil {
 		t.Fatalf("handleAsset: %v", err)
 	}
 	if duplicate.ID != serverID {
