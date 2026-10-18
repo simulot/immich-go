@@ -66,6 +66,16 @@ func TestRead(t *testing.T) {
 				Description: "Sunset over the bay",
 			},
 		},
+		{
+			// an empty keyword from a template that renders to nothing, like osxphotos
+			// "{favorite?Favorit,}" for a non-favorite photo (issue #1451)
+			path: "DATA/empty-keyword.jpg.xmp",
+			expect: assets.Metadata{
+				Tags: []assets.Tag{
+					{Value: "favorit", Name: "favorit"},
+				},
+			},
+		},
 	}
 
 	for _, c := range tc {
