@@ -87,22 +87,23 @@ Each photo gets a corresponding `.JSON` file containing:
 ### Archive from Immich Server
 ```bash
 # Archive all photos from server
+
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-key \
   --write-to-folder=/backup/photos
 
 # Archive specific date range
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-key \
   --from-date-range=2023 \
   --write-to-folder=/backup/2023-photos
 
 # Archive specific album
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-key \
   --from-albums="Family" \
   --write-to-folder=/backup/albums
 ```
@@ -136,8 +137,8 @@ immich-go archive from-folder \
 Create a complete backup of your Immich server:
 ```bash
 immich-go archive from-immich \
-  --server=http://localhost:2283 \
-  --api-key=your-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-key \
   --write-to-folder=/complete-backup
 ```
 
@@ -145,8 +146,8 @@ immich-go archive from-immich \
 Prepare photos for migration to another system:
 ```bash
 immich-go archive from-immich \
-  --server=http://old-server:2283 \
-  --api-key=old-key \
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-key \
   --write-to-folder=/migration-ready
 ```
 
@@ -165,13 +166,15 @@ Archive specific content based on criteria:
 immich-go archive from-immich \
   --from-date-range=2022-01-01,2022-12-31 \
   --write-to-folder=/archive-2022 \
-  --server=http://localhost:2283 --api-key=your-key
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-key \
 
 # Archive by album
 immich-go archive from-immich \
   --from-albums="Professional Photos" \
   --write-to-folder=/work-archive \
-  --server=http://localhost:2283 --api-key=your-key
+  --from-server=http://localhost:2283 \
+  --from-api-key=your-key \
 ```
 
 ## Important Notes

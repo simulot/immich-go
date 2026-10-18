@@ -1,38 +1,23 @@
 # Release Notes - v0.31.0
 
-We're excited to share this update, which brings improvements to the CI/CD pipeline, enhanced asset tracking in the UI, and several important bug fixes to ensure a smoother experience.
+This release focuses on richer visibility while uploading assets and a major refresh of the CI/CD system that keeps Immich Go healthy across every platform.
 
 ## ✨ New Features
 
-- **Enhanced Asset Tracking**: Introduced discovery and processing zones in the terminal UI, providing better visibility into asset processing status with size tracking and detailed counters.
+- **Live terminal tracking** – The TUI now exposes separate discovery and processing zones, FileArchived counters, and per-asset size tracking so you can immediately tell what is being scanned, uploaded, or archived.
+- **Better metadata insight** – FileProcessor records processed assets (including metadata-only updates) and publishes dedicated events, yielding more accurate progress reporting and easier troubleshooting.
 
 ## 🚀 Improvements
 
-- **Improved CI/CD Pipeline**: 
-  - Replaced API monitoring with comprehensive nightly E2E tests for better quality assurance.
-  - Implemented a two-stage CI workflow with fast feedback checks and secure E2E testing.
-  - Added approval system for E2E tests from external contributors to enhance security.
-- **Better Globbing Behavior**: Enhanced file globbing patterns with improved error handling and clearer documentation. The system now gracefully continues when encountering filesystem errors during glob traversal.
-- **Cleaner UI Layout**: Right-aligned size fields in the terminal UI processing status zone for improved readability.
+- **Globbing resilience** – Folder traversal keeps going when the filesystem throws access errors and now surfaces clearer documentation about supported patterns.
+- **Upload ergonomics** – Standardized error-handling flags across upload commands and improved UI layout by right-aligning size columns, making long-running jobs easier to read.
 
 ## 🐛 Bug Fixes
 
-- **Fixed `--folder-as-album=NONE` Conflict**: Resolved an issue where `--folder-as-album=NONE` would conflict with the `--into-album` option.
-- **Documentation Corrections**: 
-  - Updated documentation to show the correct value `NONE` (uppercase) instead of `none` for the `--folder-as-album` flag in configuration and environment files.
-  - Corrected references from `--concurrent-uploads` to `--concurrent-tasks` throughout the documentation.
-  - Clarified CI/CD workflows and job details in README.
+- **Album flag conflict** – `--folder-as-album=NONE` no longer clashes with `--into-album`, so you can explicitly skip derived album names while still targeting a destination album.
 
 ## 🔧 Internal Changes
 
-- **Code Cleanup**: 
-  - Removed legacy journal structure and unified FileProcessor usage across the codebase.
-  - Simplified the reporting system for better maintainability.
-  - Migrated legacy file event codes to the new standardized event system.
-  - Cleaned up test cases with more descriptive names and streamlined assertions.
-- **CI/CD Maintenance**: 
-  - Removed deprecated workflow files and outdated documentation.
-  - Simplified branching model in contribution guidelines.
-  - Fixed workflow failures when checking for non-document file changes in pull requests.
-  - Improved script robustness to handle empty diffs and prevent false failures.
-  - Corrected jq expressions in PR check workflows.
+- **Revamped CI/CD** – Introduced a two-stage fast-feedback + secure E2E workflow, nightly Immich E2E runs, fork-safe triggering, and far more robust helper scripts (doc-only detection, jq fixes, empty-diff handling, standardized formatting).
+- **Safer E2E workflow** – External contributors now rely on an approval gate (or `/run-e2e` comment), and the workflow dispatch code was hardened with better payload validation, environment routing, and completion reporting.
+- **Broader coverage** – Added an album-upload E2E test, refreshed dependency stack (tcell v2.11.0, crypto v0.45.0), and removed legacy journal/reporting structures in favor of a unified FileProcessor + new file-event codes.

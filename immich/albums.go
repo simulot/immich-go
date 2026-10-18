@@ -62,7 +62,7 @@ type AlbumContent struct {
 	// AlbumThumbnailAssetID      string    `json:"albumThumbnailAssetId"`
 	// SharedUsers                []string  `json:"sharedUsers"`
 	// Owner                      User      `json:"owner"`
-	// AssetCount                 int       `json:"assetCount"`
+	// AssetCount int `json:"assetCount"`
 	// LastModifiedAssetTimestamp time.Time `json:"lastModifiedAssetTimestamp"
 }
 
@@ -100,6 +100,21 @@ func (ic *ImmichClient) GetAlbumInfo(ctx context.Context, id string, withoutAsse
 	}
 	err := ic.newServerCall(ctx, EndPointGetAlbumInfo).do(getRequest("/albums/"+query, setAcceptJSON()), responseJSON(&album))
 	return album, err
+}
+
+func (ic *ImmichClient) GetAlbumAssetIDs(ctx context.Context, albumID string) ([]string, error) {
+	ids := []string{}
+	query := &SearchMetadataQuery{
+		AlbumIds: []string{albumID},
+	}
+	err := ic.callSearchMetadata(ctx, query, func(a *Asset) error {
+		ids = append(ids, a.ID)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
 
 func (ic *ImmichClient) GetAssetsAlbums(ctx context.Context, id string) ([]assets.Album, error) {

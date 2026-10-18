@@ -3,7 +3,6 @@ package immich
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -20,7 +19,10 @@ type Asset struct {
 	DeviceAssetID string `json:"deviceAssetId"`
 	DeviceID      string `json:"deviceId"`
 	// duplicateId
-	Duration       string     `json:"duration"`
+
+	// Not used and has changes in immich v3
+	// Duration       string     `json:"duration"`
+
 	ExifInfo       ExifInfo   `json:"exifInfo"`
 	FileCreatedAt  ImmichTime `json:"fileCreatedAt"`
 	FileModifiedAt ImmichTime `json:"fileModifiedAt"`
@@ -28,6 +30,7 @@ type Asset struct {
 	ID         string `json:"id"`
 	IsArchived bool   `json:"isArchived"`
 	IsFavorite bool   `json:"isFavorite"`
+	IsEdited   bool   `json:"isEdited"`
 	// isOffline
 	IsTrashed        bool   `json:"isTrashed"`
 	LibraryID        string `json:"libraryId,omitempty"`
@@ -47,6 +50,7 @@ type Asset struct {
 	// people
 	Resized bool `json:"resized"`
 	// stack
+	Stack     *AssetStack     `json:"stack,omitempty"`
 	Tags      []TagSimplified `json:"tags"`
 	Thumbhash string          `json:"thumbhash"`
 	Type      string          `json:"type"`
@@ -58,6 +62,13 @@ type Asset struct {
 	Visibility string `json:"visibility"`
 
 	Albums []AlbumSimplified `json:"-"` // Albums that asset belong to, not in the API
+}
+
+// AssetStack is the stack summary returned with an asset.
+type AssetStack struct {
+	ID             string `json:"id"`
+	PrimaryAssetID string `json:"primaryAssetId"`
+	AssetCount     int    `json:"assetCount"`
 }
 
 // NewAssetFromImmich creates an assets.Asset from an immich.Asset.
@@ -126,21 +137,6 @@ const (
 	UploadDuplicate = "duplicate"
 )
 
-func formatDuration(duration time.Duration) string {
-	hours := duration / time.Hour
-	duration -= hours * time.Hour
-
-	minutes := duration / time.Minute
-	duration -= minutes * time.Minute
-
-	seconds := duration / time.Second
-	duration -= seconds * time.Second
-
-	milliseconds := duration / time.Millisecond
-
-	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
-}
-
 const (
 	StatusCreated   = "created"
 	StatusReplaced  = "replaced"
@@ -149,12 +145,6 @@ const (
 
 func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (AssetResponse, error) {
 	return ic.uploadAsset(ctx, la, EndPointAssetUpload, "")
-}
-
-// ReplaceAsset is deprecated, use CopyAsset
-func (ic *ImmichClient) ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) {
-	return AssetResponse{}, errors.New("ReplaceAsset end point is deprecated, use CopyAsset")
-	// return ic.uploadAsset(ctx, la, EndPointAssetReplace, ID)
 }
 
 type GetAssetOptions struct {

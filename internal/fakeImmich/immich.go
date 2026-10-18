@@ -96,3 +96,7 @@ func (c *MockedCLient) GetJobs(ctx context.Context) (map[string]immich.Job, erro
 func (c *MockedCLient) GetAlbumInfo(context.Context, string, bool) (immich.AlbumContent, error) {
 	return immich.AlbumContent{}, nil
 }
+
+func (c *MockedCLient) GetAlbumAssetIDs(context.Context, string) ([]string, error) {
+	return []string{}, nil
+}

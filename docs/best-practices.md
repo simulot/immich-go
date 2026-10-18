@@ -14,7 +14,7 @@ This guide provides recommendations for optimal performance, reliability, and or
 
 #### ⚠️ Common Pitfalls
 - **Incomplete Downloads**: Verify all `takeout-001.zip`, `takeout-002.zip`, etc. files are present
-- **Mixed Formats**: Don't mix ZIP and TGZ formats in the same import
+- **Archive Format**: Prefer ZIP; `.tgz`/`.tar.gz` archives must be extracted first. Import all parts in one command: pass each extracted `Takeout*` folder (or one merged tree), not their parent directory
 - **Partial Takeouts**: Some Google takeouts may be incomplete - request a new one if many files are missing
 
 ### Import Strategy

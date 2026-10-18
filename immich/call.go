@@ -10,7 +10,6 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync/atomic"
 
 	"github.com/simulot/immich-go/internal/assets"
@@ -69,53 +68,6 @@ type serverCall struct {
 	hasResponseHandler bool
 }
 
-// callError represents errors returned by the server
-type callError struct {
-	endPoint string
-	method   string
-	url      string
-	status   int
-	err      error
-	message  *ServerErrorMessage
-}
-
-type ServerErrorMessage struct {
-	Error         string `json:"error"`
-	StatusCode    int    `json:"statusCode"`
-	Message       string `json:"message"`
-	CorrelationID string `json:"correlationId"`
-}
-
-func (ce callError) Is(target error) bool {
-	_, ok := target.(*callError)
-	return ok
-}
-
-func (ce callError) Error() string {
-	b := strings.Builder{}
-	b.WriteString(ce.endPoint)
-	b.WriteString(", ")
-	b.WriteString(ce.method)
-	b.WriteString(", ")
-	b.WriteString(ce.url)
-	if ce.status > 0 {
-		b.WriteString(", ")
-		b.WriteString(fmt.Sprintf("%d %s", ce.status, http.StatusText(ce.status)))
-	}
-	b.WriteRune('\n')
-	if ce.err != nil && !errors.Is(ce.err, &callError{}) {
-		b.WriteString(ce.err.Error())
-		b.WriteRune('\n')
-	}
-
-	if ce.message != nil {
-		b.WriteString(ce.message.Message)
-		b.WriteRune('\n')
-	}
-
-	return b.String()
-}
-
 func (ic *ImmichClient) newServerCall(ctx context.Context, api string) *serverCall {
 	sc := &serverCall{
 		endPoint: api,
@@ -125,7 +77,7 @@ func (ic *ImmichClient) newServerCall(ctx context.Context, api string) *serverCa
 	return sc
 }
 
-func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerErrorMessage) error {
+func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg serverError) error {
 	ce := callError{
 		endPoint: sc.endPoint,
 		err:      sc.err,
@@ -139,6 +91,27 @@ func (sc *serverCall) Err(req *http.Request, resp *http.Response, msg *ServerErr
 	}
 	ce.message = msg
 	return ce
+}
+
+// Builds the correct error message based on server version
+func (sc *serverCall) decodeServerError(resp *http.Response) serverError {
+	var body []byte
+	if resp.Body != nil {
+		defer resp.Body.Close()
+		if isJSON(resp.Header.Get("Content-Type")) {
+			body, _ = io.ReadAll(resp.Body)
+		}
+	}
+
+	if v := sc.ic.serverVersion; v != nil && v.Major() < 3 {
+		var e serverErrorV2
+		_ = json.Unmarshal(body, &e)
+		return e
+	}
+
+	e := serverErrorV3{CorrelationID: resp.Header.Get("X-Correlation-ID")}
+	_ = json.Unmarshal(body, &e)
+	return e
 }
 
 func (sc *serverCall) joinError(err error) error {
@@ -237,16 +210,7 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 
 	// Any StatusCode above 300 denotes a problem, we expect a JSON with the server's error
 	if resp.StatusCode >= 300 {
-		msg := ServerErrorMessage{}
-		if resp.Body != nil {
-			defer resp.Body.Close()
-			if isJSON(resp.Header.Get("Content-Type")) {
-				if json.NewDecoder(resp.Body).Decode(&msg) == nil {
-					return sc.Err(req, resp, &msg)
-				}
-			}
-		}
-		return sc.Err(req, resp, &msg)
+		return sc.Err(req, resp, sc.decodeServerError(resp))
 	}
 
 	// We have a success

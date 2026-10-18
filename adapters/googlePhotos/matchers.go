@@ -104,6 +104,54 @@ func matchForgottenDuplicates(jsonName string, fileName string, sm filetypes.Sup
 	return false
 }
 
+// matchLivePhotoVideo
+// Google Takeout writes a single supplemental-metadata JSON for a Live Photo
+// pair, named after the still image. The video half never gets a sidecar of
+// its own, which is most visible in duplicate-indexed sets:
+//
+//	IMG_4488.HEIC.supplemental-metadata(1).json   (JSON exists only for the still)
+//	IMG_4488(1).HEIC                              (still image, matched by matchNormal)
+//	IMG_4488(1).MP4                                (video half, no JSON of its own)
+//
+// It runs right after matchFastTrack/matchNormal, so a video that does have
+// its own sidecar is matched there first and never reaches this function.
+// It must stay ahead of matchForgottenDuplicates/matchEditedName: those use
+// loose prefix matching that can misfire on a plain video/image pair with no
+// index (see matchEditedName's own doc comment).
+func matchLivePhotoVideo(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
+	if sm.TypeFromExt(path.Ext(fileName)) != filetypes.TypeVideo {
+		return false
+	}
+
+	fileName, fileIndex := getFileIndex(fileName)
+	jsonName, jsonIndex := getFileIndex(jsonName)
+	if fileIndex != jsonIndex {
+		return false
+	}
+
+	// supplemental-metadata check, same as matchNormal
+	p2 := strings.LastIndex(jsonName, ".")
+	if p2 > 1 {
+		p1 := strings.LastIndex(jsonName[:p2], ".")
+		if p1 > 1 {
+			if strings.HasPrefix("supplemental-metadata", jsonName[p1+1:p2]) { //nolint:all
+				jsonName = jsonName[:p1] + jsonName[p2:]
+			}
+		}
+	}
+	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName)) // drop ".json", keeps the still image's extension
+
+	// the sidecar must belong to the still-image half of the pair
+	jsonExt := path.Ext(jsonName)
+	if sm.TypeFromExt(jsonExt) != filetypes.TypeImage {
+		return false
+	}
+	jsonName = strings.TrimSuffix(jsonName, jsonExt)
+
+	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
+	return jsonName == fileName
+}
+
 func getFileIndex(name string) (string, string) {
 	// Extract the index from the file name
 	p1File := strings.LastIndex(name, "(")

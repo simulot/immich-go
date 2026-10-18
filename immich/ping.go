@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/simulot/immich-go/internal/filetypes"
 )
 
@@ -94,6 +95,12 @@ type AboutInfo struct {
 func (ic *ImmichClient) GetAboutInfo(ctx context.Context) (AboutInfo, error) {
 	var a AboutInfo
 	err := ic.newServerCall(ctx, EndPointGetAboutInfo).do(getRequest("/server/about", setAcceptJSON()), responseJSON(&a))
+	if err == nil {
+		ic.serverVersion, err = semver.NewVersion(a.Version)
+		if err != nil {
+			return a, fmt.Errorf("error parsing server version: %w", err)
+		}
+	}
 	return a, err
 }
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/simulot/immich-go/internal/filetypes"
 )
 
@@ -29,6 +30,11 @@ type ImmichClient struct {
 
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
 	dryRun              bool                     //  If true, do not send any data to the server
+	serverVersion       *semver.Version          // Parsed version of the connected server, set by GetAboutInfo
+}
+
+func (ic *ImmichClient) Version() *semver.Version {
+	return ic.serverVersion
 }
 
 func (ic *ImmichClient) SetEndPoint(endPoint string) {
@@ -104,14 +110,14 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 		endPoint: endPoint + "/api",
 		transport: &http.Transport{
 			MaxIdleConns:        100,
-			IdleConnTimeout:     90 * time.Second,
+			IdleConnTimeout:     2 * time.Second,
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 			MaxIdleConnsPerHost: 100,
 			MaxConnsPerHost:     100,
-			Dial: (&net.Dialer{
+			DialContext: (&net.Dialer{
 				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
-			}).Dial,
+			}).DialContext,
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: 20 * time.Minute,
 		},

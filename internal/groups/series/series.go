@@ -72,6 +72,7 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 	gotMOV := false
 
 	cover := 0
+	coverIsEdited := false
 	// determine if the group is a burst
 	for i, a := range as {
 		gotMP4 = gotMP4 || a.Ext == ".mp4"
@@ -85,7 +86,10 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 				grouping = assets.GroupByBurst
 			}
 		}
-		if a.IsCover {
+		if a.Kind == assets.KindEdited && !coverIsEdited {
+			cover = i
+			coverIsEdited = true
+		} else if a.IsCover && !coverIsEdited {
 			cover = i
 		}
 	}
