@@ -19,7 +19,7 @@ func ConfirmYesNo(ctx context.Context, prompt string, defaultAnswer string) (str
 		other = "y"
 	}
 
-	runeChan := make(chan (rune))
+	runeChan := make(chan rune)
 
 	go func() {
 		for {

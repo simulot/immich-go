@@ -90,7 +90,7 @@ type ExtensionList []string
 
 // Validate validates the extension list by converting to lowercase.
 func (sl ExtensionList) Validate() ExtensionList {
-	vl := ExtensionList{}
+	vl := make(ExtensionList, 0, len(sl))
 	for _, e := range sl {
 		e = strings.ToLower(strings.TrimSpace(e))
 		if !strings.HasPrefix(e, ".") {

@@ -128,21 +128,6 @@ const (
 	UploadDuplicate = "duplicate"
 )
 
-func formatDuration(duration time.Duration) string {
-	hours := duration / time.Hour
-	duration -= hours * time.Hour
-
-	minutes := duration / time.Minute
-	duration -= minutes * time.Minute
-
-	seconds := duration / time.Second
-	duration -= seconds * time.Second
-
-	milliseconds := duration / time.Millisecond
-
-	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
-}
-
 const (
 	StatusCreated   = "created"
 	StatusReplaced  = "replaced"

@@ -181,8 +181,7 @@ func (uc *UpCmd) getImmichAlbums(ctx context.Context) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				ids := []string{}
-				ids, err = uc.client.Immich.GetAlbumAssetIDs(ctx, a.ID)
+				ids, err := uc.client.Immich.GetAlbumAssetIDs(ctx, a.ID)
 				if err != nil {
 					uc.app.Log().Error("can't get the album assets from the server", "album", a.AlbumName, "err", err)
 					continue
@@ -285,7 +284,7 @@ func (uc *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) e
 
 	// Cleanup: delete server assets if needed
 	if len(uc.deleteServerList) > 0 {
-		ids := []string{}
+		ids := make([]string, 0, len(uc.deleteServerList))
 		for _, da := range uc.deleteServerList {
 			ids = append(ids, da.ID)
 		}
