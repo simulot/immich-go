@@ -14,13 +14,17 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
+const (
+	albumTitle       = "BeReal"
+	albumDescription = "BeReal memories"
+)
+
 // BeRealAdapter imports BeReal memories from an export folder
 type BeRealAdapter struct {
 	fsys   fs.FS
 	logger *app.Log
 
-	memories       []BeRealMemory
-	perMemoryAlbum bool
+	memories []BeRealMemory
 }
 
 // BeRealMemory represents a single BeReal memory entry from memories.json
@@ -70,11 +74,6 @@ func NewBeRealAdapter(fsys fs.FS, logger *app.Log) (*BeRealAdapter, error) {
 	}
 
 	return adapter, nil
-}
-
-// SetPerMemoryAlbum enables grouping assets into per-memory albums when true.
-func (ba *BeRealAdapter) SetPerMemoryAlbum(v bool) {
-	ba.perMemoryAlbum = v
 }
 
 // loadMemories reads and parses memories.json
@@ -272,23 +271,12 @@ func (ba *BeRealAdapter) createAsset(memory BeRealMemory, isMain bool) *assets.A
 	// Add tag
 	asset.AddTag(tag)
 
-	// Add album
-	if ba.perMemoryAlbum {
-		// Use the capture date to create a per-memory album name
-		albumTitle := "BeReal"
-		asset.Albums = []assets.Album{
-			{
-				Title:       albumTitle,
-				Description: "BeReal memories",
-			},
-		}
-	} else {
-		asset.Albums = []assets.Album{
-			{
-				Title:       "BeReal",
-				Description: "BeReal memories",
-			},
-		}
+	// All BeReal assets go into the same album
+	asset.Albums = []assets.Album{
+		{
+			Title:       albumTitle,
+			Description: albumDescription,
+		},
 	}
 
 	ba.logger.Debug(fmt.Sprintf("created BeReal asset %s with tag %s dated %v, size %d", fileName, tag, captureDate, info.Size()))

@@ -93,7 +93,7 @@ This document describes the high-level architecture of `immich-go`, how its comp
   - Parses BeReal export structure and `memories.json`
   - Separates front (main) and back (selfie) camera images
   - Applies proper tags (`BeReal_Main`, `BeReal_Selfie`) and stacking
-  - Supports per-memory album grouping
+  - Adds every asset to a single `BeReal` album
 
 **Interface** (implicit):
 Each adapter is responsible for:
@@ -286,7 +286,7 @@ Implement the adapter to:
 - Normalize everything to the common `Asset` model
 - Yield assets on a channel for the upload pipeline
 
-**Example**: The BeReal adapter discovers back/front image pairs from `memories.json`, applies tags (`BeReal_Main`, `BeReal_Selfie`), stacks them together, and optionally groups them into per-memory albums.
+**Example**: The BeReal adapter discovers back/front image pairs from `memories.json`, applies tags (`BeReal_Main`, `BeReal_Selfie`), stacks them together, and adds them to a `BeReal` album.
 
 ### 2. Wire into CLI
 
@@ -304,7 +304,7 @@ Use existing client methods for tagging and albums — the upload orchestration 
 
 All I/O operations accept `context.Context` for cancellation and timeouts:
 ```go
-func (ba *BeRealAdapter) DiscoverAssets(ctx context.Context) (chan *assets.Asset, error)
+func (ba *BeRealAdapter) Browse(ctx context.Context) chan *assets.Group
 func (ic *ImmichClient) AssetUpload(ctx context.Context, la *assets.Asset) (AssetResponse, error)
 ```
 

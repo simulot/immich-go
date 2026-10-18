@@ -1,6 +1,6 @@
-# Release Notes - v0.32.0
+# Release Notes - v0.33.0
 
-**Release Date**: December 16, 2025
+**Release Date**: Unreleased
 
 ## Overview
 
@@ -23,7 +23,7 @@ A specialized import command for BeReal memories with complete support for the d
   - Capture date and time extracted from BeReal export
   - GPS location preserved when available
   - Photo captions imported as asset descriptions
-- **Album Organization**: Optional per-memory album grouping to organize photos by capture date
+- **Album Organization**: All BeReal assets are added to a single `BeReal` album
 - **Robust Export Handling**: Handles various BeReal export formats and path variations
 
 **Command**:
@@ -31,21 +31,11 @@ A specialized import command for BeReal memories with complete support for the d
 immich-go upload from-bereal [flags] <path>
 ```
 
-**Flags**:
-- `--bereal-album`: Group BeReal assets into the 'BeReal' album (optional)
-
 **Usage Example**:
 ```bash
 immich-go upload from-bereal \
   --server=http://your-ip:2283 \
   --api-key=your-api-key \
-  /path/to/bereal/export
-
-# With per-memory album grouping
-immich-go upload from-bereal \
-  --server=http://your-ip:2283 \
-  --api-key=your-api-key \
-  --bereal-album \
   /path/to/bereal/export
 ```
 
@@ -70,7 +60,7 @@ immich-go upload from-bereal \
 
 ## Compatibility
 
-- Requires Immich v1.106.0 or later
+- Same Immich server requirements as the rest of `immich-go` (see the [v0.32.0 release notes](release-notes-v0.32.0.md))
 - Works with BeReal export format from official BeReal application
 - Compatible with Windows, macOS, and Linux
 
@@ -78,14 +68,14 @@ immich-go upload from-bereal \
 
 ## Installation
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/simulot/immich-go/releases/tag/v0.32.0).
+Download the latest release for your platform from [GitHub Releases](https://github.com/simulot/immich-go/releases).
 
 ---
 
 ## Known Limitations
 
 - BeReal captions are imported as asset descriptions only (not as separate note assets)
-- Per-memory album grouping groups all BeReal assets into a single 'BeReal' album (not separate albums per date)
+- All BeReal assets go into a single `BeReal` album (no per-date albums)
 
 ---
 
@@ -95,7 +85,7 @@ Comprehensive E2E tests verify:
 - ✅ Correct asset upload (front and back images)
 - ✅ Proper tagging of both camera images
 - ✅ Stack creation with correct cover image
-- ✅ Album organization when enabled
+- ✅ All assets added to the `BeReal` album
 
 ---
 

@@ -8,18 +8,11 @@ import (
 	"github.com/simulot/immich-go/adapters"
 	"github.com/simulot/immich-go/app"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 // ImportBeRealCmd holds options for importing BeReal memories
 type ImportBeRealCmd struct {
-	app         *app.Application
-	BerealAlbum bool
-}
-
-func (ibc *ImportBeRealCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
-	// No additional flags for BeReal at this time
-	flags.BoolVar(&ibc.BerealAlbum, "bereal-album", false, "Group BeReal assets into per-memory albums named 'BeReal/YYYY-MM-DD'")
+	app *app.Application
 }
 
 // NewFromBeRealCommand creates the "from-bereal" subcommand for uploading BeReal memories
@@ -32,11 +25,9 @@ The folder should contain a 'memories.json' file and a 'Photos/bereal/' director
 		Args: cobra.ExactArgs(1),
 	}
 	cmd.SetContext(ctx)
-	flags := cmd.Flags()
 	o := ImportBeRealCmd{
 		app: app,
 	}
-	o.RegisterFlags(flags, cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error { //nolint:contextcheck
 		return o.run(cmd.Context(), cmd, args, runner)
 	}
@@ -68,9 +59,6 @@ func (ibc *ImportBeRealCmd) run(ctx context.Context, cmd *cobra.Command, args []
 	if err != nil {
 		return err
 	}
-
-	// Apply CLI options to adapter
-	adapter.SetPerMemoryAlbum(ibc.BerealAlbum)
 
 	// Report discovery results
 	if err := adapter.Report(ctx); err != nil {

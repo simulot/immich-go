@@ -165,3 +165,26 @@ func TestCaptionIsPushedAsDescription(t *testing.T) {
 	}
 	assert.Equal(t, 2, assetCount, "should have 2 assets with descriptions")
 }
+
+func TestAssetsAreAddedToBeRealAlbum(t *testing.T) {
+	dataDir := dataDirFromThisFile()
+
+	log := &app.Log{}
+	log.SetLogWriter(io.Discard)
+
+	ba, err := NewBeRealAdapter(os.DirFS(dataDir), log)
+	assert.NoError(t, err)
+
+	// Every asset belongs to the single "BeReal" album, no per-date album
+	ch := ba.Browse(context.Background())
+	assetCount := 0
+	for g := range ch {
+		for _, a := range g.Assets {
+			assetCount++
+			if assert.Len(t, a.Albums, 1, "asset %s should belong to exactly one album", a.OriginalFileName) {
+				assert.Equal(t, "BeReal", a.Albums[0].Title)
+			}
+		}
+	}
+	assert.Equal(t, 2, assetCount, "should have 2 assets in the BeReal album")
+}
