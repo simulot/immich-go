@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"path"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/simulot/immich-go/internal/fshelper/hash"
 	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/groups"
 )
@@ -40,11 +43,100 @@ func trackerKeySortFunc(a, b fileKeyTracker) int {
 	return int(a.size) - int(b.size)
 }
 
+// fileKey names a file or a sidecar in a directory catalog.
+//
+// Google Takeout splits a large export into series of zip parts
+// (takeout-<date>-1-001.zip, ..., takeout-<date>-2-001.zip, ...) and numbers name clashes
+// "(1)", "(2)"... separately in each series. The same name can therefore belong to two
+// different files, one per series, each with a sidecar of the same name in its own series.
+type fileKey struct {
+	series string // see takeoutSeries
+	base   string
+}
+
+// _reTakeoutPart matches the name fshelper gives a takeout zip part: takeout-<date>[-<series>]-<part>
+var _reTakeoutPart = regexp.MustCompile(`^takeout-\d{8}T\d{6}Z(-\d+)?-\d{3}$`)
+
+// takeoutSeries returns the series of a takeout part: its name without the part number.
+// "takeout-20251016T092000Z-2-001" gives "takeout-20251016T092000Z-2". Any other name gives "":
+// such parts share one series, and their files are matched together as before.
+func takeoutSeries(fsys fs.FS) string {
+	if n, ok := fsys.(fshelper.NameFS); ok {
+		if name := path.Base(n.Name()); _reTakeoutPart.MatchString(name) {
+			return _re3digits.ReplaceAllString(name, "")
+		}
+	}
+	return ""
+}
+
+func sortedFileKeys[V any](m map[fileKey]V) []fileKey {
+	keys := gen.MapKeys(m)
+	slices.SortFunc(keys, func(a, b fileKey) int {
+		if c := strings.Compare(a.base, b.base); c != 0 {
+			return c
+		}
+		return strings.Compare(a.series, b.series)
+	})
+	return keys
+}
+
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
-	jsons          map[string]*assets.Metadata // metadata in the catalog by base name
-	unMatchedFiles map[string]*assetFile       // files to be matched map  by base name
-	matchedFiles   map[string]*assets.Asset    // files matched by base name
+	jsons          map[fileKey]*assets.Metadata // metadata in the catalog by series and base name
+	unMatchedFiles map[fileKey]*assetFile       // files to be matched by series and base name
+	matchedFiles   map[fileKey]*assets.Asset    // files matched by series and base name
+}
+
+// seriesPerName counts, for each name of a file or a sidecar, the series of the directory that hold it.
+func (cat directoryCatalog) seriesPerName() map[string]int {
+	n := map[string]int{}
+	for k := range cat.jsons {
+		n[k.base]++
+	}
+	for k := range cat.unMatchedFiles {
+		n[k.base]++
+	}
+	return n
+}
+
+// borrowable tells whether the sidecar j can describe the file f of another series. Takeout numbers name
+// clashes "(1)", "(2)"... within a series, so an indexed name means nothing in another series, and a name
+// found in several series is ambiguous.
+func borrowable(j, f fileKey, seriesPerName map[string]int) bool {
+	if _, index := getFileIndex(j.base); index != "" {
+		return false
+	}
+	if _, index := getFileIndex(f.base); index != "" {
+		return false
+	}
+	return seriesPerName[j.base] == 1 && seriesPerName[f.base] == 1
+}
+
+// holdsSameFile tells whether the directory dir already holds a file named base with the content of name in w.
+func (cat directoryCatalog) holdsSameFile(dir, base string, size int64, w fs.FS, name string) bool {
+	for k, af := range cat.unMatchedFiles {
+		if k.base != base || int64(af.length) != size {
+			continue
+		}
+		h1, err1 := hash.FileSHA1Hash(af.fsys, path.Join(dir, base))
+		h2, err2 := hash.FileSHA1Hash(w, name)
+		if err1 == nil && err2 == nil && bytes.Equal(h1, h2) {
+			return true
+		}
+	}
+	return false
+}
+
+// spansSeries tells whether the directory holds files or sidecars of more than one series.
+func (cat directoryCatalog) spansSeries() bool {
+	series := map[string]bool{}
+	for k := range cat.jsons {
+		series[k.series] = true
+	}
+	for k := range cat.unMatchedFiles {
+		series[k.series] = true
+	}
+	return len(series) > 1
 }
 
 // assetFile keep information collected during pass one
@@ -95,6 +187,7 @@ func (toc *TakeoutCmd) Browse(ctx context.Context) chan *assets.Group {
 }
 
 func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
+	series := takeoutSeries(w)
 	err := fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -146,9 +239,9 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 
 			dirCatalog, ok := toc.catalogs[dir]
 			if !ok {
-				dirCatalog.jsons = map[string]*assets.Metadata{}
-				dirCatalog.unMatchedFiles = map[string]*assetFile{}
-				dirCatalog.matchedFiles = map[string]*assets.Asset{}
+				dirCatalog.jsons = map[fileKey]*assets.Metadata{}
+				dirCatalog.unMatchedFiles = map[fileKey]*assetFile{}
+				dirCatalog.matchedFiles = map[fileKey]*assets.Asset{}
 			}
 			switch ext {
 			case ".json":
@@ -173,7 +266,7 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 						switch {
 						case md.isAsset():
 							md := md.AsMetadata(fshelper.FSName(w, name), toc.PeopleTag) // Keep metadata
-							dirCatalog.jsons[base] = md
+							dirCatalog.jsons[fileKey{series: series, base: base}] = md
 							toc.app.Log().Debug("Asset JSON", "metadata", md)
 							toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), int64(len(b)), fileevent.DiscoveredSidecar, "type", "asset metadata", "title", md.FileName, "date", md.DateTaken)
 						case md.isAlbum():
@@ -230,17 +323,21 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				}
 
 				// TODO: remove debugging code
-				tracking, _ := toc.fileTracker.Load(key) // tracking := to.fileTracker[key]
+				tracking, _ := toc.fileTracker.Load(key)                // tracking := to.fileTracker[key]
+				sameNameAndSize := slices.Contains(tracking.paths, dir) // the duplicate check below relies on this tracking
 				tracking.paths = append(tracking.paths, dir)
 				tracking.count++
 				toc.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
 
-				if _, ok := dirCatalog.unMatchedFiles[base]; ok {
+				// A file of the same name in this series, or the same file from another part, is a duplicate.
+				// The same name and size alone is not proof: the content is compared.
+				if _, ok := dirCatalog.unMatchedFiles[fileKey{series: series, base: base}]; ok ||
+					sameNameAndSize && dirCatalog.holdsSameFile(dir, base, finfo.Size(), w, name) {
 					toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedLocalDuplicate, "duplicated in the directory")
 					return nil
 				}
 
-				dirCatalog.unMatchedFiles[base] = &assetFile{
+				dirCatalog.unMatchedFiles[fileKey{series: series, base: base}] = &assetFile{
 					fsys:   w,
 					base:   base,
 					length: int(finfo.Size()),
@@ -281,6 +378,8 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 // ++ Duplicates are presented to the next layer to allow the album handling
 //
 // To solve the puzzle, each directory is checked with all matchers in the order of the most common to the least.
+// Each matcher tries the sidecars of the file's own takeout series first, then a sidecar of another series
+// when neither name is indexed nor found in several series (see fileKey and borrowable).
 
 type matcherFn func(jsonName string, fileName string, sm filetypes.SupportedMedia) bool
 
@@ -300,23 +399,34 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 	dirs := gen.MapKeysSorted(toc.catalogs)
 	for _, dir := range dirs {
 		cat := toc.catalogs[dir]
-		jsons := gen.MapKeysSorted(cat.jsons)
+		jsons := sortedFileKeys(cat.jsons)
+		passes := []bool{true}
+		if cat.spansSeries() {
+			passes = append(passes, false)
+		}
+		seriesPerName := cat.seriesPerName()
 		for _, matcher := range matchers {
-			for _, json := range jsons {
-				md := cat.jsons[json]
-				for f := range cat.unMatchedFiles {
-					select {
-					case <-ctx.Done():
-						return ctx.Err()
-					default:
-						if matcher.fn(json, f, toc.supportedMedia) {
-							i := cat.unMatchedFiles[f]
-							i.matcher = matcher.name
-							i.md = md
-							a := toc.makeAsset(ctx, dir, i, md)
-							cat.matchedFiles[f] = a
-							toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedAssociatedMetadata, "json", json, "matcher", matcher.name)
-							delete(cat.unMatchedFiles, f)
+			// sidecars of the file's own series first, then a borrowable sidecar of another series
+			for _, sameSeries := range passes {
+				for _, json := range jsons {
+					md := cat.jsons[json]
+					for f := range cat.unMatchedFiles {
+						if (json.series == f.series) != sameSeries {
+							continue
+						}
+						select {
+						case <-ctx.Done():
+							return ctx.Err()
+						default:
+							if matcher.fn(json.base, f.base, toc.supportedMedia) && (sameSeries || borrowable(json, f, seriesPerName)) {
+								i := cat.unMatchedFiles[f]
+								i.matcher = matcher.name
+								i.md = md
+								a := toc.makeAsset(ctx, dir, i, md)
+								cat.matchedFiles[f] = a
+								toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedAssociatedMetadata, "json", md.File, "matcher", matcher.name)
+								delete(cat.unMatchedFiles, f)
+							}
 						}
 					}
 				}
@@ -324,9 +434,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 		}
 		toc.catalogs[dir] = cat
 		if len(cat.unMatchedFiles) > 0 {
-			files := gen.MapKeys(cat.unMatchedFiles)
-			sort.Strings(files)
-			for _, f := range files {
+			for _, f := range sortedFileKeys(cat.unMatchedFiles) {
 				i := cat.unMatchedFiles[f]
 				toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedMissingMetadata)
 				if toc.KeepJSONLess {
@@ -370,9 +478,9 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 	dirEntries := make([]*assets.Asset, 0, len(catalog.matchedFiles))
 
 	// Filter and sort the files
-	for name := range catalog.matchedFiles {
+	for _, name := range sortedFileKeys(catalog.matchedFiles) {
 		a := catalog.matchedFiles[name]
-		key := fileKeyTracker{baseName: name, size: int64(a.FileSize)}
+		key := fileKeyTracker{baseName: name.base, size: int64(a.FileSize)}
 		track, _ := toc.fileTracker.Load(key) // track := to.fileTracker[key]
 		if track.status == fileevent.ProcessedUploadSuccess {
 			a.Close()
@@ -392,7 +500,7 @@ func (toc *TakeoutCmd) handleDir(ctx context.Context, dir string, gOut chan *ass
 	go func() {
 		defer close(in)
 
-		sort.Slice(dirEntries, func(i, j int) bool {
+		sort.SliceStable(dirEntries, func(i, j int) bool {
 			// Sort by radical first
 			radicalI := dirEntries[i].Radical
 			radicalJ := dirEntries[j].Radical
