@@ -47,6 +47,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_FROM_ALBUM_NAME` | `--from-album-name` |  | Only import photos from the specified Google Photos album |
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_INCLUDE_ARCHIVED` | `--include-archived` | `true` | Import archived Google Photos |
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
+| `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_INCLUDE_LOCKED` | `--include-locked` | `true` | Import photos from the Google Photos locked folder, they are put in the Immich locked folder |
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_INCLUDE_PARTNER` | `--include-partner` | `true` | Import photos from your partner's Google Photos account |
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_INCLUDE_TRASHED` | `--include-trashed` | `false` | Import photos that are marked as trashed in Google Photos |
 | `IMMICH_GO_ARCHIVE_FROM_GOOGLE_PHOTOS_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |
@@ -196,6 +197,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_FROM_ALBUM_NAME` | `--from-album-name` |  | Only import photos from the specified Google Photos album |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_ARCHIVED` | `--include-archived` | `true` | Import archived Google Photos |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_EXTENSIONS` | `--include-extensions` |  | Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all) |
+| `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_LOCKED` | `--include-locked` | `true` | Import photos from the Google Photos locked folder, they are put in the Immich locked folder |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_PARTNER` | `--include-partner` | `true` | Import photos from your partner's Google Photos account |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_TRASHED` | `--include-trashed` | `false` | Import photos that are marked as trashed in Google Photos |
 | `IMMICH_GO_UPLOAD_FROM_GOOGLE_PHOTOS_INCLUDE_TYPE` | `--include-type` |  | Single file type to include. (VIDEO or IMAGE) (default: all) |

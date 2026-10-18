@@ -344,6 +344,12 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
+	// Immich doesn't accept locked assets in albums, and a rejected batch would hurt the other assets
+	if a.Visibility == assets.VisibilityLocked && len(a.Albums) > 0 {
+		uc.app.Log().Info("locked asset is not added to albums", "file", a.File, "albums", len(a.Albums))
+		a.Albums = nil
+	}
+
 	// var status stri g
 	advice, err := uc.assetIndex.ShouldUpload(a, uc)
 	if err != nil {
@@ -373,6 +379,10 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 
 		uc.processUploadedAsset(ctx, a, serverStatus)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedUploadUpgraded)
+		if serverStatus != immich.UploadDuplicate {
+			// the replacement endpoint may not apply the visibility sent with the upload
+			uc.ensureLocked(ctx, a, &assets.Asset{ID: a.ID})
+		}
 
 		return nil
 
@@ -389,12 +399,14 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		// Record as processed - duplicate on server
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedServerDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
+		uc.ensureLocked(ctx, a, advice.ServerAsset)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		// Record as discarded - server has better version
 		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated, advice.Message)
+		uc.ensureLocked(ctx, a, advice.ServerAsset)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 
 	case ForceUpload:
@@ -415,6 +427,9 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		}
 
 		uc.processUploadedAsset(ctx, a, serverStatus)
+		if advice.ServerAsset != nil && serverStatus != immich.UploadDuplicate {
+			uc.ensureLocked(ctx, a, &assets.Asset{ID: a.ID})
+		}
 		return nil
 	}
 

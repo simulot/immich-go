@@ -40,6 +40,7 @@ type TakeoutCmd struct {
 	KeepPartner        bool
 	KeepUntitled       bool
 	KeepArchived       bool
+	KeepLocked         bool
 	KeepJSONLess       bool
 	InclusionFlags     cliflags.InclusionFlags
 	BannedFiles        namematcher.List
@@ -73,6 +74,7 @@ func (toc *TakeoutCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
 	flags.BoolVarP(&toc.KeepPartner, "include-partner", "p", true, "Import photos from your partner's Google Photos account")
 	flags.StringVar(&toc.PartnerSharedAlbum, "partner-shared-album", "", "Add partner's photo to the specified album name")
 	flags.BoolVarP(&toc.KeepArchived, "include-archived", "a", true, "Import archived Google Photos")
+	flags.BoolVar(&toc.KeepLocked, "include-locked", true, "Import locked photos to the Immich locked folder")
 	flags.BoolVarP(&toc.KeepJSONLess, "include-unmatched", "u", false, "Import photos that do not have a matching JSON file in the takeout")
 	flags.Var(&toc.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
 	flags.BoolVar(&toc.TakeoutTag, "takeout-tag", true, "Tag uploaded photos with a tag \"{takeout}/takeout-YYYYMMDDTHHMMSSZ\"")

@@ -134,6 +134,7 @@ immich-go upload from-google-photos [options] <takeout-path>
 | ------------------------- | ------- | ---------------------------------- |
 | `-u, --include-unmatched` | `false` | Import files without JSON metadata |
 | `-a, --include-archived`  | `true`  | Import archived photos             |
+| `--include-locked`        | `true`  | Import locked photos               |
 | `-t, --include-trashed`   | `false` | Import trashed photos              |
 | `-p, --include-partner`   | `true`  | Import partner's photos            |
 
@@ -190,7 +191,7 @@ immich-go upload from-icloud [options] <icloud-path>
 # Basic iCloud import
 immich-go upload from-icloud --server=http://localhost:2283 --api-key=your-key /path/to/icloud-export
 
-# Include memories as albums  
+# Include memories as albums
 immich-go upload from-icloud --memories --server=http://localhost:2283 --api-key=your-key /path/to/icloud-export
 ```
 

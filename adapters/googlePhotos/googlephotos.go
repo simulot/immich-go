@@ -517,6 +517,11 @@ func (toc *TakeoutCmd) filterOnMetadata(ctx context.Context, a *assets.Asset) fi
 		a.Close()
 		return fileevent.DiscardedFiltered
 	}
+	if !toc.KeepLocked && a.Visibility == assets.VisibilityLocked {
+		toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedFiltered, "discarding locked file")
+		a.Close()
+		return fileevent.DiscardedFiltered
+	}
 	if !toc.KeepPartner && a.FromPartner {
 		toc.processor.RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.DiscardedFiltered, "discarding partner file")
 		a.Close()

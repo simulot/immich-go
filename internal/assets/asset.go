@@ -114,6 +114,7 @@ func (a *Asset) UseMetadata(md *Metadata) *Metadata {
 	a.FromPartner = md.FromPartner
 	a.Trashed = md.Trashed
 	a.Archived = md.Archived
+	a.Visibility = md.Visibility
 	a.Favorite = md.Favorited
 	a.Rating = int(md.Rating)
 	a.MergeAlbums(md.Albums)
@@ -137,6 +138,7 @@ func (a Asset) LogValue() slog.Value {
 		slog.Time("CaptureDate", a.CaptureDate),
 		slog.Bool("Trashed", a.Trashed),
 		slog.Bool("Archived", a.Archived),
+		slog.String("Visibility", string(a.Visibility)),
 		slog.Bool("FromPartner", a.FromPartner),
 		slog.Bool("Favorite", a.Favorite),
 		slog.Int("Stars", a.Rating),
