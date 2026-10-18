@@ -38,10 +38,11 @@ const (
 
 type Asset struct {
 	// File system and file name
-	File     fshelper.FSAndName
-	FileDate time.Time // File creation date
-	ID       string    // Immich ID after upload
-	Checksum string    // Hash of the file as delivered by Immich
+	File           fshelper.FSAndName
+	FileDate       time.Time // File creation date
+	ID             string    // Immich ID after upload
+	StackPrimaryID string    // ID of the primary asset of the server stack this asset belongs to, if any
+	Checksum       string    // Hash of the file as delivered by Immich
 
 	// Common fields
 	OriginalFileName string // File name as delivered to Immich/Google

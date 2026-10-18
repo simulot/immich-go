@@ -115,11 +115,11 @@ func TestStackIDs(t *testing.T) {
 }
 
 // serverAsset builds an asset as it is indexed from the server's asset list.
-func serverAsset(id, name string, size int64, checksum string, date time.Time) *assets.Asset {
+func serverAsset(id string, size int64, checksum string, date time.Time) *assets.Asset {
 	return &assets.Asset{
 		ID:               id,
-		File:             fshelper.FSName(nil, name),
-		OriginalFileName: name,
+		File:             fshelper.FSName(nil, "X.jpg"),
+		OriginalFileName: "X.jpg",
 		FileSize:         int(size),
 		Checksum:         checksum,
 		CaptureDate:      date,
@@ -132,7 +132,7 @@ func TestShouldUpload_replacedAssetStandsForItsReplacement(t *testing.T) {
 	uc := &UpCmd{}
 
 	// the server has a small copy of X.jpg
-	small := serverAsset("id-small", "X.jpg", 1000, "sha-small", date)
+	small := serverAsset("id-small", 1000, "sha-small", date)
 	ii.add(small, false)
 
 	// a bigger X.jpg replaces it, and the server copy is deleted

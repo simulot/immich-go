@@ -514,7 +514,27 @@ func (toc *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md
 		a.OriginalFileName = title
 	}
 	a.SetNameInfo(toc.infoCollector.GetInfo(a.OriginalFileName))
+	// Google Takeout names an edited version "X-edited.jpg" and matches it to the
+	// original's sidecar, so OriginalFileName is the original's name. Mark the file
+	// so the upload layer stacks it over the original and shows it as the cover.
+	if _, ok := editedBaseName(f.base); ok {
+		a.Kind = assets.KindEdited
+		a.IsModified = true
+		a.IsCover = true
+	}
 	return a
+}
+
+// editedBaseName reports whether name is a Google Takeout edited file
+// ("X-edited.jpg") and returns the original's file name ("X.jpg").
+func editedBaseName(name string) (string, bool) {
+	const suffix = "-edited"
+	ext := path.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	if len(stem) <= len(suffix) || !strings.EqualFold(stem[len(stem)-len(suffix):], suffix) {
+		return "", false
+	}
+	return stem[:len(stem)-len(suffix)] + ext, true
 }
 
 // filterOnMetadata, log discared files and closes the asset

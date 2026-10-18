@@ -187,6 +187,40 @@ func (ii *immichIndex) replacement(sa *assets.Asset) *assets.Asset {
 	}
 }
 
+// editBaseCandidates returns the server assets that can be the original of an edited asset: same
+// original file name (the sidecar title) and same capture date. When several match, it returns none
+// and a warning, because picking one would be a guess.
+func (ii *immichIndex) editBaseCandidates(a *assets.Asset) ([]*assets.Asset, string) {
+	if a.Kind != assets.KindEdited || a.OriginalFileName == "" {
+		return nil, ""
+	}
+	ids, ok := ii.byName.Load(a.OriginalFileName)
+	if !ok {
+		return nil, ""
+	}
+	var out []*assets.Asset
+	for _, id := range ids {
+		sa, ok := ii.immichAssets.Load(id)
+		if !ok {
+			continue
+		}
+		sa = ii.replacement(sa)
+		if sa == nil || sa.ID == "" || sa.ID == a.ID {
+			continue
+		}
+		if compareDate(a.CaptureDate, sa.CaptureDate) != 0 {
+			continue
+		}
+		if !slices.Contains(out, sa) {
+			out = append(out, sa)
+		}
+	}
+	if len(out) > 1 {
+		return nil, fmt.Sprintf("%d server assets match the original %q on the same date; not stacking the edited asset", len(out), a.OriginalFileName)
+	}
+	return out, ""
+}
+
 func (ii *immichIndex) isAlreadyProcessed(checksum string) bool {
 	return ii.uploadsChecksum.Contains(checksum)
 }
@@ -295,6 +329,26 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...
 
 	filename := path.Base(la.File.Name())
 
+	// Server assets that hold the bytes of one of the group's edited versions are not
+	// variants of this file: the versions are stacked, not compared by size. Without
+	// this, importing an edit pair over a server copy of the edit would replace or skip
+	// the original.
+	var editedChecksums []string
+	for _, s := range siblings {
+		if s == nil || s.Kind != assets.KindEdited {
+			continue
+		}
+		cs := s.Checksum
+		if cs == "" {
+			var err error
+			cs, err = s.GetChecksum()
+			if err != nil {
+				continue
+			}
+		}
+		editedChecksums = append(editedChecksums, cs)
+	}
+
 	// check all files with the same name
 	ids, ok := ii.byName.Load(filename)
 
@@ -312,6 +366,9 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...
 			}
 			sa = ii.replacement(sa)
 			if sa == la || slices.Contains(siblings, sa) {
+				continue
+			}
+			if slices.Contains(editedChecksums, sa.Checksum) {
 				continue
 			}
 

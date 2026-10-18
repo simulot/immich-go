@@ -49,6 +49,7 @@ type Asset struct {
 	// people
 	Resized bool `json:"resized"`
 	// stack
+	Stack     *AssetStack     `json:"stack,omitempty"`
 	Tags      []TagSimplified `json:"tags"`
 	Thumbhash string          `json:"thumbhash"`
 	Type      string          `json:"type"`
@@ -62,9 +63,21 @@ type Asset struct {
 	Albums []AlbumSimplified `json:"-"` // Albums that asset belong to, not in the API
 }
 
+// AssetStack is the stack summary returned with an asset.
+type AssetStack struct {
+	ID             string `json:"id"`
+	PrimaryAssetID string `json:"primaryAssetId"`
+	AssetCount     int    `json:"assetCount"`
+}
+
 // NewAssetFromImmich creates an assets.Asset from an immich.Asset.
 func (ia Asset) AsAsset() *assets.Asset {
+	stackPrimaryID := ""
+	if ia.Stack != nil {
+		stackPrimaryID = ia.Stack.PrimaryAssetID
+	}
 	a := &assets.Asset{
+		StackPrimaryID:   stackPrimaryID,
 		FileDate:         ia.FileModifiedAt.Time,
 		Description:      ia.ExifInfo.Description,
 		OriginalFileName: ia.OriginalFileName,

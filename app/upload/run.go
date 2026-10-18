@@ -336,7 +336,29 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	// Manage groups
 	// after the filtering and the upload, we can stack the assets
 
-	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
+	// A standalone edited file still needs a stack when the server holds the original.
+	editedAlone := len(g.Assets) == 1 && g.Assets[0].Kind == assets.KindEdited
+	if (len(g.Assets) > 1 && g.Grouping != assets.GroupByNone) || editedAlone {
+		for _, a := range g.Assets {
+			candidates, warning := uc.assetIndex.editBaseCandidates(a)
+			if warning != "" {
+				uc.app.Log().Warn(warning)
+				continue
+			}
+			if len(candidates) != 1 || candidates[0].ID == "" || candidates[0].StackPrimaryID != "" {
+				continue
+			}
+			// The search listing does not carry the stack summary. Read the server copy
+			// so the stack below merges an existing stack instead of splitting it.
+			info, err := uc.client.Immich.GetAssetInfo(ctx, candidates[0].ID)
+			if err != nil {
+				uc.app.Log().Warn("Can't read the server asset's stack", "asset", candidates[0].ID, "error", err)
+				continue
+			}
+			if info.Stack != nil {
+				candidates[0].StackPrimaryID = info.Stack.PrimaryAssetID
+			}
+		}
 		client := uc.client.Immich.(immich.ImmichStackInterface)
 		ids := stackIDs(g, uc.assetIndex)
 		if len(ids) > 1 {
@@ -362,18 +384,34 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 // to upload, has no ID and is left out. The same server asset can back several assets of the
 // group (a local duplicate), and must be listed once.
 func stackIDs(g *assets.Group, ii *immichIndex) []string {
-	ids := make([]string, 0, len(g.Assets))
-	add := func(a *assets.Asset) {
-		id := ii.replacement(a).ID
+	ids := make([]string, 0, len(g.Assets)+1)
+	addID := func(id string) {
 		if id != "" && !slices.Contains(ids, id) {
 			ids = append(ids, id)
 		}
+	}
+	add := func(a *assets.Asset) {
+		addID(ii.replacement(a).ID)
 	}
 	if g.CoverIndex >= 0 && g.CoverIndex < len(g.Assets) {
 		add(g.Assets[g.CoverIndex])
 	}
 	for _, a := range g.Assets {
 		add(a)
+	}
+	// An edited asset can be uploaded alone, while the server already holds the
+	// original. Stack it over the server's copy; include the stack's primary when the
+	// copy already belongs to a stack, so the server merges it instead of splitting it.
+	for _, a := range g.Assets {
+		candidates, _ := ii.editBaseCandidates(a)
+		if len(candidates) != 1 {
+			continue
+		}
+		base := candidates[0]
+		addID(base.ID)
+		if base.StackPrimaryID != "" && base.StackPrimaryID != base.ID {
+			addID(base.StackPrimaryID)
+		}
 	}
 	return ids
 }
