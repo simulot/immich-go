@@ -92,7 +92,8 @@ This document describes the high-level architecture of `immich-go`, how its comp
 - **`bereal/`** — Imports BeReal memories
   - Parses BeReal export structure and `memories.json`
   - Separates front (main) and back (selfie) camera images
-  - Applies proper tags (`BeReal_Main`, `BeReal_Selfie`) and stacking
+  - Applies proper tags (`BeReal_Main`, `BeReal_Selfie`, `BeReal_BTS`) and stacking
+  - Imports BeReal videos and behind-the-scenes clips; a silent back video is not the stack cover when the front video has sound
   - Adds every asset to a single `BeReal` album
 
 **Interface** (implicit):
@@ -286,7 +287,7 @@ Implement the adapter to:
 - Normalize everything to the common `Asset` model
 - Yield assets on a channel for the upload pipeline
 
-**Example**: The BeReal adapter discovers back/front image pairs from `memories.json`, applies tags (`BeReal_Main`, `BeReal_Selfie`), stacks them together, and adds them to a `BeReal` album.
+**Example**: The BeReal adapter discovers back/front image pairs from `memories.json`, applies tags (`BeReal_Main`, `BeReal_Selfie`, `BeReal_BTS`), stacks them together, and adds them to a `BeReal` album.
 
 ### 2. Wire into CLI
 

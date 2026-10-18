@@ -16,9 +16,12 @@ A specialized import command for BeReal memories with complete support for the d
 
 - **Automatic Camera Separation**: Separates back (main camera) and front (selfie camera) images into distinct assets
 - **Smart Stacking**: Back and front images are automatically stacked together with the back camera as the cover image for viewing
+- **BeReal Videos**: Memories recorded as videos are imported too. The back camera records no sound, only the front camera does. Immich shows the cover of a stack only, so when the back video is silent and the front video has sound, the front video becomes the cover and the sound is not hidden inside the stack
+- **Behind The Scenes (BTS)**: The BTS video of a memory (`btsMedia`) is imported and stacked with the memory
 - **Intelligent Tagging**: 
   - Back camera images tagged as `BeReal_Main`
   - Front camera images tagged as `BeReal_Selfie`
+  - Behind the scenes videos tagged as `BeReal_BTS`
 - **Metadata Preservation**:
   - Capture date and time extracted from BeReal export
   - GPS location preserved when available
@@ -75,6 +78,7 @@ Download the latest release for your platform from [GitHub Releases](https://git
 ## Known Limitations
 
 - BeReal captions are imported as asset descriptions only (not as separate note assets)
+- Videos are imported as they are in the export. A BTS video recorded without microphone access, or a back camera video, has no sound in the export, and stays silent in Immich
 - All BeReal assets go into a single `BeReal` album (no per-date albums)
 
 ---

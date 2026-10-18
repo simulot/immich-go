@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"path"
 	"strings"
@@ -17,6 +18,10 @@ import (
 const (
 	albumTitle       = "BeReal"
 	albumDescription = "BeReal memories"
+
+	tagMain   = "BeReal_Main"   // back camera
+	tagSelfie = "BeReal_Selfie" // front camera
+	tagBTS    = "BeReal_BTS"    // behind the scenes video
 )
 
 // BeRealAdapter imports BeReal memories from an export folder
@@ -31,6 +36,7 @@ type BeRealAdapter struct {
 type BeRealMemory struct {
 	FrontImage   ImageInfo `json:"frontImage"`
 	BackImage    ImageInfo `json:"backImage,omitempty"`
+	BtsMedia     ImageInfo `json:"btsMedia,omitempty"`
 	Caption      string    `json:"caption"`
 	IsLate       bool      `json:"isLate"`
 	Date         string    `json:"date"`
@@ -40,7 +46,7 @@ type BeRealMemory struct {
 	Music        Music     `json:"music,omitempty"`
 }
 
-// ImageInfo contains information about a single image (main or secondary/selfie)
+// ImageInfo contains information about a single image or video (main, secondary/selfie, or behind the scenes)
 type ImageInfo struct {
 	Path      string `json:"path"`
 	Height    int    `json:"height"`
@@ -97,39 +103,46 @@ func (ba *BeRealAdapter) loadMemories() error {
 
 // Browse implements the adapters.Reader interface
 // It returns a channel of asset groups for processing
-// Front and back images from the same memory are grouped together for stacking
+// Back, front and behind the scenes media from the same memory are grouped together for stacking
 func (ba *BeRealAdapter) Browse(ctx context.Context) chan *assets.Group {
 	out := make(chan *assets.Group)
 
 	go func() {
 		defer close(out)
 
-		// Create groups where main+selfie pairs are stacked together
+		// Create groups where the main, selfie and behind the scenes media are stacked together
 		for _, memory := range ba.memories {
 			var groupAssets []*assets.Asset
+			var mainAsset, selfieAsset *assets.Asset
 
-			// Add Main image (back camera) - this will be the cover (first in group)
+			// Add Main image (back camera) - this is the cover, unless the selfie video is the only one with sound
 			if memory.BackImage.Path != "" {
-				if asset := ba.createAsset(memory, true); asset != nil {
-					groupAssets = append(groupAssets, asset)
+				mainAsset = ba.createAsset(memory, memory.BackImage, tagMain)
+				if mainAsset != nil {
+					groupAssets = append(groupAssets, mainAsset)
 				}
 			}
 
 			// Add Selfie image (front camera) - this will be stacked
 			if memory.FrontImage.Path != "" {
-				if asset := ba.createAsset(memory, false); asset != nil {
+				selfieAsset = ba.createAsset(memory, memory.FrontImage, tagSelfie)
+				if selfieAsset != nil {
+					groupAssets = append(groupAssets, selfieAsset)
+				}
+			}
+
+			// Add the behind the scenes video - this will be stacked
+			if memory.BtsMedia.Path != "" {
+				if asset := ba.createAsset(memory, memory.BtsMedia, tagBTS); asset != nil {
 					groupAssets = append(groupAssets, asset)
 				}
 			}
 
-			// Create a group for this memory's main+selfie camera pair
-			// BeReal photos should ALWAYS be stacked with main camera as cover
+			// Create a group for this memory
+			// BeReal memories should ALWAYS be stacked with main camera as cover
 			if len(groupAssets) > 0 {
 				group := assets.NewGroup(assets.GroupByDualCamera, groupAssets...)
-				// The main (front) image is the cover (index 0)
-				if len(groupAssets) > 0 {
-					group.SetCover(0)
-				}
+				group.SetCover(ba.coverIndex(groupAssets, mainAsset, selfieAsset, memory))
 
 				select {
 				case out <- group:
@@ -143,20 +156,43 @@ func (ba *BeRealAdapter) Browse(ctx context.Context) chan *assets.Group {
 	return out
 }
 
-// createAsset converts a BeReal memory into an assets.Asset
-// isMain=true for main camera (back), false for selfie camera (front)
-func (ba *BeRealAdapter) createAsset(memory BeRealMemory, isMain bool) *assets.Asset {
-	var imageInfo ImageInfo
-	var tag string
-
-	if isMain {
-		imageInfo = memory.BackImage
-		tag = "BeReal_Main"
-	} else {
-		imageInfo = memory.FrontImage
-		tag = "BeReal_Selfie"
+// coverIndex returns the index in groupAssets of the asset that represents the memory in Immich.
+// This is the main (back camera) asset, which comes first in the group. The BeReal videos make an
+// exception: the back camera records no sound, only the front camera does. As Immich shows the
+// cover of a stack only, the selfie video becomes the cover when it is the only one with sound.
+func (ba *BeRealAdapter) coverIndex(groupAssets []*assets.Asset, mainAsset, selfieAsset *assets.Asset, memory BeRealMemory) int {
+	if mainAsset == nil || selfieAsset == nil {
+		return 0
 	}
+	if memory.BackImage.MediaType != "video" || memory.FrontImage.MediaType != "video" {
+		return 0
+	}
+	if hasAudio(mainAsset) || !hasAudio(selfieAsset) {
+		return 0
+	}
+	for i, a := range groupAssets {
+		if a == selfieAsset {
+			ba.logger.Debug(fmt.Sprintf("BeReal video %s has no sound, the selfie video %s is the cover", mainAsset.OriginalFileName, selfieAsset.OriginalFileName))
+			return i
+		}
+	}
+	return 0
+}
 
+// hasAudio tells if the video behind the asset holds an audio track.
+func hasAudio(a *assets.Asset) bool {
+	f, err := a.File.Open()
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	rs, ok := f.(io.ReadSeeker)
+	return ok && hasAudioTrack(rs)
+}
+
+// createAsset converts a BeReal image or video of a memory into an assets.Asset
+// tag identifies the role of the media: main camera (back), selfie camera (front) or behind the scenes
+func (ba *BeRealAdapter) createAsset(memory BeRealMemory, imageInfo ImageInfo, tag string) *assets.Asset {
 	if imageInfo.Path == "" {
 		return nil
 	}
@@ -294,6 +330,9 @@ func (ba *BeRealAdapter) CountAssets() (int, error) {
 		if memory.BackImage.Path != "" {
 			count++
 		}
+		if memory.BtsMedia.Path != "" {
+			count++
+		}
 	}
 	return count, nil
 }
@@ -302,6 +341,6 @@ func (ba *BeRealAdapter) CountAssets() (int, error) {
 func (ba *BeRealAdapter) Report(ctx context.Context) error {
 	total, _ := ba.CountAssets()
 	fmt.Printf("BeReal: %d memories found\n", len(ba.memories))
-	fmt.Printf("BeReal: %d total assets (main + selfie)\n", total)
+	fmt.Printf("BeReal: %d total assets (main + selfie + behind the scenes)\n", total)
 	return nil
 }

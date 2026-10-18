@@ -69,7 +69,7 @@ Here's a brief overview of the main upload commands:
 *   **`from-immich`**: A server-to-server migration tool that allows you to copy assets between two Immich instances with fine-grained filtering.
 *   **`from-picasa`**: A specialized version of `from-folder` that automatically reads `.picasa.ini` files to restore your Picasa album organization.
 *   **`from-icloud`**: Another specialized command that handles the complexity of an iCloud Photos takeout, correctly identifying creation dates and album structures from the included CSV files.
-*   **`from-bereal`**: A specialized command for importing BeReal memories. Automatically separates front and back camera images into distinct assets with proper tagging (`BeReal_Main` and `BeReal_Selfie`), stacks them together for viewing, and adds them all to a `BeReal` album. Supports robust path resolution for various BeReal export formats.
+*   **`from-bereal`**: A specialized command for importing BeReal memories. Automatically separates front and back camera images into distinct assets with proper tagging (`BeReal_Main`, `BeReal_Selfie`, and `BeReal_BTS` for behind-the-scenes videos), imports BeReal videos and BTS clips, stacks them together for viewing, and adds them all to a `BeReal` album. Supports robust path resolution for various BeReal export formats.
 
 ### Leveraging Immich's Features
 
