@@ -192,6 +192,54 @@ func Test_matchers(t *testing.T) {
 			jsonName: "Screenshot_2024-08-31-00-53-48-647_com.snapcha.json",
 			want:     "matchNormal",
 		},
+
+		// Live Photo pairs: Google Takeout only writes a JSON for the still image;
+		// the video half must be matched to the same sidecar.
+		{ // still image, base pair
+			fileName: "IMG_4488.HEIC",
+			jsonName: "IMG_4488.HEIC.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{ // video half, base pair, no JSON of its own
+			fileName: "IMG_4488.MP4",
+			jsonName: "IMG_4488.HEIC.supplemental-metadata.json",
+			want:     "matchLivePhotoVideo",
+		},
+		{ // still image, duplicate index 1
+			fileName: "IMG_4488(1).HEIC",
+			jsonName: "IMG_4488.HEIC.supplemental-metadata(1).json",
+			want:     "matchNormal",
+		},
+		{ // video half, duplicate index 1, no JSON of its own
+			fileName: "IMG_4488(1).MP4",
+			jsonName: "IMG_4488.HEIC.supplemental-metadata(1).json",
+			want:     "matchLivePhotoVideo",
+		},
+		{ // still image, duplicate index 2
+			fileName: "IMG_4488(2).HEIC",
+			jsonName: "IMG_4488.HEIC.supplemental-metadata(2).json",
+			want:     "matchNormal",
+		},
+		{ // video half, duplicate index 2, no JSON of its own
+			fileName: "IMG_4488(2).MP4",
+			jsonName: "IMG_4488.HEIC.supplemental-metadata(2).json",
+			want:     "matchLivePhotoVideo",
+		},
+		{ // video half must NOT bind to a sidecar of a different duplicate index
+			fileName: "IMG_4488(1).MP4",
+			jsonName: "IMG_4488.HEIC.supplemental-metadata(2).json",
+			want:     "",
+		},
+		{ // a video with its own dedicated sidecar keeps using it, not the live-photo fallback
+			fileName: "IMG_4488.MP4",
+			jsonName: "IMG_4488.MP4.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{ // video half where the "(1)" is part of the still image's base name, not a duplicate index
+			fileName: "PXL_20220615_101533000(1).MP4",
+			jsonName: "PXL_20220615_101533000(1).jpg.supplemental-metadata.json",
+			want:     "matchLivePhotoVideo",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
@@ -202,6 +250,7 @@ func Test_matchers(t *testing.T) {
 			}{
 				{name: "matchFastTrack", fn: matchFastTrack},
 				{name: "matchNormal", fn: matchNormal},
+				{name: "matchLivePhotoVideo", fn: matchLivePhotoVideo},
 				{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
 				{name: "matchEditedName", fn: matchEditedName},
 			}
