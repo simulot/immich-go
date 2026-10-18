@@ -37,15 +37,41 @@ func makeTakeout(t *testing.T, pair string, names ...string) string {
 	}
 	files := append([]string{pair + ".jpg.supplemental-metadata.json"}, names...)
 	for _, name := range files {
-		b, err := os.ReadFile(filepath.Join(editedPairData, name))
-		if err != nil {
-			t.Fatalf("read %s: %v", name, err)
-		}
-		if err := os.WriteFile(filepath.Join(dst, name), b, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dst, name), readData(t, name), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	return dir
+}
+
+// makeTakeoutRenamed copies one edited pair's files into a fresh takeout directory, writing
+// each source file under a different name. The sidecar keeps the original's name, as Google does.
+func makeTakeoutRenamed(t *testing.T, pair string, renames map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "Takeout", "Google Photos", "Pair")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sidecar := pair + ".jpg.supplemental-metadata.json"
+	if err := os.WriteFile(filepath.Join(dst, sidecar), readData(t, sidecar), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for src, name := range renames {
+		if err := os.WriteFile(filepath.Join(dst, name), readData(t, src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func readData(t *testing.T, name string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(editedPairData, name))
+	if err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	return b
 }
 
 func runTakeout(t *testing.T, dir string, u1, adm user, want map[fileevent.Code]int64) {
@@ -114,41 +140,7 @@ func Test_FromGooglePhotos_ServerVersion(t *testing.T) {
 				fileevent.ProcessedStacked:        tc.wantStacked,
 			})
 
-			assets, err := e2eutils.GetAllAssetList(u1.Email, u1.Password)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(assets) != 2 {
-				for _, a := range assets {
-					t.Logf("asset %s %s trashed=%v", a.ID, a.OriginalFileName, a.IsTrashed)
-				}
-				t.Fatalf("got %d assets on the server, want 2 (both versions kept)", len(assets))
-			}
-
-			editedChecksum := checksumOf(t, filepath.Join(editedPairData, tc.pair+"-edited.jpg"))
-			stacks, err := e2eutils.GetAllStacks(u1.Email, u1.Password)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(stacks) != 1 {
-				t.Fatalf("got %d stacks, want 1", len(stacks))
-			}
-			if len(stacks[0].Assets) != 2 {
-				t.Fatalf("stack has %d assets, want 2", len(stacks[0].Assets))
-			}
-			primaryFound := false
-			for _, a := range stacks[0].Assets {
-				if a.ID != stacks[0].PrimaryAssetID {
-					continue
-				}
-				primaryFound = true
-				if a.Checksum != editedChecksum {
-					t.Errorf("stack primary is %s (%s), want the edited version", a.OriginalFileName, a.Checksum)
-				}
-			}
-			if !primaryFound {
-				t.Errorf("stack primary %s is not among its assets", stacks[0].PrimaryAssetID)
-			}
+			checkEditStack(t, u1, checksumOf(t, filepath.Join(editedPairData, tc.pair+"-edited.jpg")))
 		})
 	}
 }
@@ -178,7 +170,12 @@ func Test_FromGooglePhotos_ServerVersion_NoSplit(t *testing.T) {
 		fileevent.ProcessedUploadSuccess: 0,
 		fileevent.ProcessedStacked:       0, // the base is already in the edit's stack: nothing to merge
 	})
+	checkEditStack(t, u1, checksumOf(t, filepath.Join(editedPairData, "pair_a1-edited.jpg")))
+}
 
+// checkEditStack asserts the server holds one stack of two, with the edited version as primary.
+func checkEditStack(t *testing.T, u1 user, editedChecksum string) {
+	t.Helper()
 	serverAssets, err := e2eutils.GetAllAssetList(u1.Email, u1.Password)
 	if err != nil {
 		t.Fatal(err)
@@ -187,9 +184,8 @@ func Test_FromGooglePhotos_ServerVersion_NoSplit(t *testing.T) {
 		for _, a := range serverAssets {
 			t.Logf("asset %s %s trashed=%v", a.ID, a.OriginalFileName, a.IsTrashed)
 		}
-		t.Fatalf("got %d assets on the server, want 2", len(serverAssets))
+		t.Fatalf("got %d assets on the server, want 2 (both versions kept)", len(serverAssets))
 	}
-
 	stacks, err := e2eutils.GetAllStacks(u1.Email, u1.Password)
 	if err != nil {
 		t.Fatal(err)
@@ -198,13 +194,11 @@ func Test_FromGooglePhotos_ServerVersion_NoSplit(t *testing.T) {
 		for _, s := range stacks {
 			t.Logf("stack %s primary=%s assets=%d", s.ID, s.PrimaryAssetID, len(s.Assets))
 		}
-		t.Fatalf("got %d stacks, want 1: the second import must not split the stack", len(stacks))
+		t.Fatalf("got %d stacks, want 1", len(stacks))
 	}
 	if len(stacks[0].Assets) != 2 {
 		t.Fatalf("stack has %d assets, want 2", len(stacks[0].Assets))
 	}
-
-	editedChecksum := checksumOf(t, filepath.Join(editedPairData, "pair_a1-edited.jpg"))
 	primaryFound := false
 	for _, a := range stacks[0].Assets {
 		if a.ID != stacks[0].PrimaryAssetID {
@@ -217,5 +211,46 @@ func Test_FromGooglePhotos_ServerVersion_NoSplit(t *testing.T) {
 	}
 	if !primaryFound {
 		t.Errorf("stack primary %s is not among its assets", stacks[0].PrimaryAssetID)
+	}
+}
+
+// A localized or truncated edited name is recognized through the sidecar title, not a suffix
+// list. The whole pipeline must still stack the edit over the server's original, with the edit
+// as the stack primary.
+func Test_FromGooglePhotos_ServerVersion_LocalizedName(t *testing.T) {
+	adm, err := getUser("admin@immich.app")
+	if err != nil {
+		t.Fatalf("can't get admin user: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name string
+		file string
+	}{
+		{"french", "pair_a1-modifié.jpg"},
+		{"german", "pair_a1-bearbeitet.jpg"},
+		{"truncated", "pair_a1-edi.jpg"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u1, err := createUser("minimal")
+			if err != nil {
+				t.Fatalf("can't create user: %v", err)
+			}
+
+			// seed the server with the original
+			serverDir := makeTakeout(t, "pair_a1", "pair_a1.jpg")
+			runTakeout(t, serverDir, u1, adm, map[fileevent.Code]int64{
+				fileevent.ProcessedUploadSuccess: 1,
+			})
+
+			// import the takeout with the localized name
+			takeoutDir := makeTakeoutRenamed(t, "pair_a1", map[string]string{"pair_a1-edited.jpg": tc.file})
+			runTakeout(t, takeoutDir, u1, adm, map[fileevent.Code]int64{
+				fileevent.ProcessedUploadSuccess: 1,
+				fileevent.ProcessedStacked:       1,
+			})
+
+			checkEditStack(t, u1, checksumOf(t, filepath.Join(editedPairData, "pair_a1-edited.jpg")))
+		})
 	}
 }
