@@ -66,6 +66,12 @@ func filter(md *assets.Metadata, p string, value string) {
 	case "Rating":
 		md.Rating = StringToByte(value)
 	case "TagsList/Seq/li":
+		if value == "" {
+			// An empty keyword, e.g. from a template that renders to nothing
+			// (osxphotos "{favorite?Favorit,}" on a non-favorite photo). The server
+			// would answer UpsertTags with an empty list for it (issue #1451).
+			return
+		}
 		md.Tags = append(md.Tags,
 			assets.Tag{
 				Name:  path.Base(value),
