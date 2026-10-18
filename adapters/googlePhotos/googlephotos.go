@@ -3,6 +3,7 @@ package gp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io/fs"
 	"log/slog"
 	"path"
@@ -95,6 +96,11 @@ func (toc *TakeoutCmd) Browse(ctx context.Context) chan *assets.Group {
 func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 	err := fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				// This branch can happen when you have symbolic links.
+				return nil
+			}
+
 			return err
 		}
 
