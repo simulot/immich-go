@@ -11,10 +11,11 @@ import (
 // localAsset builds an asset as the Google Photos adapter does for a takeout file: File is the name in
 // the archive, OriginalFileName the title of the sidecar (which is the original's name, also for
 // the "-edited" variant), and CaptureDate the sidecar's date.
-func localAsset(fileName, title string, size int64, checksum string, date time.Time) *assets.Asset {
+func localAsset(fileName string, size int64, checksum string, date time.Time) *assets.Asset {
 	return &assets.Asset{
-		File:             fshelper.FSName(nil, "Takeout/Google Photos/album/"+fileName),
-		OriginalFileName: title,
+		File: fshelper.FSName(nil, "Takeout/Google Photos/album/"+fileName),
+		// the sidecar's title is the original's name, also for the "-edited" variant
+		OriginalFileName: "X.jpg",
 		FileSize:         int(size),
 		Checksum:         checksum,
 		CaptureDate:      date,
@@ -33,8 +34,8 @@ func TestShouldUpload_editedSiblingIsNotAServerVariant(t *testing.T) {
 		{"original smaller than edited", 35565, 1148341},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			original := localAsset("X.jpg", "X.jpg", tc.originalSize, "sha-original", date)
-			edited := localAsset("X-edited.jpg", "X.jpg", tc.editedSize, "sha-edited", date)
+			original := localAsset("X.jpg", tc.originalSize, "sha-original", date)
+			edited := localAsset("X-edited.jpg", tc.editedSize, "sha-edited", date)
 			g := assets.NewGroup(assets.GroupByOther, edited, original)
 
 			ii := newAssetIndex()
@@ -67,13 +68,13 @@ func TestShouldUpload_sameNameOutsideTheGroupIsStillAVariant(t *testing.T) {
 	date := time.Date(2023, 11, 14, 22, 13, 20, 0, time.UTC)
 
 	// a copy of X.jpg from another directory of the takeout, uploaded earlier in the run
-	other := localAsset("X.jpg", "X.jpg", 1000, "sha-other", date)
+	other := localAsset("X.jpg", 1000, "sha-other", date)
 	other.ID = "id-other"
 	ii := newAssetIndex()
 	ii.addLocalAsset(other)
 
-	original := localAsset("X.jpg", "X.jpg", 2000, "sha-original", date)
-	sibling := localAsset("X-edited.jpg", "X.jpg", 500, "sha-edited", date)
+	original := localAsset("X.jpg", 2000, "sha-original", date)
+	sibling := localAsset("X-edited.jpg", 500, "sha-edited", date)
 	g := assets.NewGroup(assets.GroupByOther, sibling, original)
 
 	advice, err := ii.ShouldUpload(original, &UpCmd{}, g.Assets...)
@@ -135,7 +136,7 @@ func TestShouldUpload_replacedAssetStandsForItsReplacement(t *testing.T) {
 	ii.add(small, false)
 
 	// a bigger X.jpg replaces it, and the server copy is deleted
-	big := localAsset("X.jpg", "X.jpg", 2000, "sha-big", date)
+	big := localAsset("X.jpg", 2000, "sha-big", date)
 	advice, err := ii.ShouldUpload(big, uc)
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +149,7 @@ func TestShouldUpload_replacedAssetStandsForItsReplacement(t *testing.T) {
 
 	// X(1).jpg, byte-identical to the deleted small copy, must not be matched to the deleted
 	// asset: the replacement stands for it
-	dup := localAsset("X(1).jpg", "X.jpg", 1000, "sha-small", date)
+	dup := localAsset("X(1).jpg", 1000, "sha-small", date)
 	advice, err = ii.ShouldUpload(dup, uc)
 	if err != nil {
 		t.Fatal(err)
@@ -158,7 +159,7 @@ func TestShouldUpload_replacedAssetStandsForItsReplacement(t *testing.T) {
 	}
 
 	// a same-named, same-dated copy found by name must be compared with the replacement too
-	other := localAsset("X.jpg", "X.jpg", 1000, "sha-other", date)
+	other := localAsset("X.jpg", 1000, "sha-other", date)
 	advice, err = ii.ShouldUpload(other, uc)
 	if err != nil {
 		t.Fatal(err)
@@ -174,12 +175,12 @@ func TestShouldUpload_duplicateOfAReplacedUploadIsNotAlreadyProcessed(t *testing
 	uc := &UpCmd{}
 
 	// a small X.jpg was uploaded earlier in this run, from another directory
-	small := localAsset("X.jpg", "X.jpg", 1000, "sha-small", date)
+	small := localAsset("X.jpg", 1000, "sha-small", date)
 	small.ID = "id-small"
 	ii.addLocalAsset(small)
 
 	// a bigger X.jpg replaces it
-	big := localAsset("X.jpg", "X.jpg", 2000, "sha-big", date)
+	big := localAsset("X.jpg", 2000, "sha-big", date)
 	advice, err := ii.ShouldUpload(big, uc)
 	if err != nil {
 		t.Fatal(err)
@@ -192,7 +193,7 @@ func TestShouldUpload_duplicateOfAReplacedUploadIsNotAlreadyProcessed(t *testing
 
 	// a duplicate of the small copy is one of the replacement, not an "already processed" copy of
 	// the deleted upload
-	dup := localAsset("X(1).jpg", "X.jpg", 1000, "sha-small", date)
+	dup := localAsset("X(1).jpg", 1000, "sha-small", date)
 	advice, err = ii.ShouldUpload(dup, uc)
 	if err != nil {
 		t.Fatal(err)
