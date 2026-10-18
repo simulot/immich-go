@@ -8,8 +8,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/spf13/cobra"
-
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/assets/cache"
@@ -17,6 +15,7 @@ import (
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/spf13/cobra"
 )
 
 // newTestUpCmd returns an UpCmd wired with the collaborators handleAsset needs, and the
@@ -70,7 +69,7 @@ func TestHandleAssetAlreadyProcessedJoinsAlbumsWithTheServerID(t *testing.T) {
 	if _, err := uploaded.GetChecksum(); err != nil {
 		t.Fatalf("can't compute the checksum of the uploaded asset: %v", err)
 	}
-	if _, added := uc.assetIndex.addLocalAsset(uploaded); !added {
+	if added := uc.assetIndex.addLocalAsset(uploaded); !added {
 		t.Fatal("the uploaded asset should have been added to the index")
 	}
 

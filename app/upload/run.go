@@ -397,12 +397,12 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
-		serverStatus, err := uc.uploadAsset(ctx, a)
+		err = uc.uploadAsset(ctx, a)
 		if err != nil {
 			return err
 		}
 
-		uc.processUploadedAsset(ctx, a, serverStatus)
+		uc.processUploadedAsset(ctx, a)
 		return nil
 
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
@@ -411,12 +411,12 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 		// Upload the superior asset
-		serverStatus, err := uc.replaceAsset(ctx, a, advice.ServerAsset)
+		err = uc.replaceAsset(ctx, a, advice.ServerAsset)
 		if err != nil {
 			return err
 		}
 
-		uc.processUploadedAsset(ctx, a, serverStatus)
+		uc.processUploadedAsset(ctx, a)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedUploadUpgraded)
 
 		return nil
@@ -446,23 +446,20 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		uc.manageAssetTags(ctx, a)
 	case ForceUpload:
-		var serverStatus string
-		var err error
-
 		if advice.ServerAsset != nil {
 			// Remember existing asset's albums, if any
 			a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 			// Upload the superior asset
-			serverStatus, err = uc.replaceAsset(ctx, a, advice.ServerAsset)
+			err = uc.replaceAsset(ctx, a, advice.ServerAsset)
 		} else {
-			serverStatus, err = uc.uploadAsset(ctx, a)
+			err = uc.uploadAsset(ctx, a)
 		}
 		if err != nil {
 			return err
 		}
 
-		uc.processUploadedAsset(ctx, a, serverStatus)
+		uc.processUploadedAsset(ctx, a)
 		return nil
 	}
 
@@ -482,15 +479,14 @@ func (uc *UpCmd) addCommandLineTags(a *assets.Asset) {
 
 // uploadAsset uploads the asset to the server.
 // set the server's asset ID to the asset.
-// return the duplicate condition and error.
-func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, error) {
+func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 	defer uc.app.Log().Debug("upload asset", "file", a)
 
 	ar, err := uc.client.Immich.AssetUpload(ctx, a)
 	if err != nil {
 		// Record upload error
 		uc.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorServerError, err)
-		return "", err // Must signal the error to the caller
+		return err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
 		originalName := "unknown"
@@ -529,30 +525,30 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 		if err != nil {
 			// Record metadata update error
 			uc.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorServerError, err)
-			return "", err
+			return err
 		}
 		// Record successful metadata update
 		uc.app.FileProcessor().Logger().Record(ctx, fileevent.ProcessedMetadataUpdated, a.File)
 	}
 	uc.assetIndex.addLocalAsset(a)
-	return ar.Status, nil
+	return nil
 }
 
 // replaceAsset replaces an asset on the server. It uploads the new asset, copies the metadata from the old one and deletes the old one.
 // https://github.com/immich-app/immich/pull/23172#issue-3542430029
-func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.Asset) (string, error) {
+func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.Asset) error {
 	// 1. Upload the new asset
 	ar, err := uc.client.Immich.AssetUpload(ctx, newAsset)
 	if err != nil {
 		// Record upload error
 		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorServerError, err)
-		return "", err // Must signal the error to the caller
+		return err // Must signal the error to the caller
 	}
 	newAsset.ID = ar.ID
 	if ar.Status == immich.UploadDuplicate {
 		// Record as processed - server duplicate
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.DiscardedServerDuplicate)
-		return immich.UploadDuplicate, nil
+		return nil
 	}
 
 	// 2. copy metadata from existing asset to the new asset
@@ -560,7 +556,7 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 	if err != nil {
 		// Record copy error
 		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorServerError, err)
-		return "", err // Must signal the error to the caller
+		return err // Must signal the error to the caller
 	}
 
 	// 3. Delete the existing asset
@@ -568,12 +564,12 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 	if err != nil {
 		// Record delete error
 		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorServerError, err)
-		return "", err // Must signal the error to the caller
+		return err // Must signal the error to the caller
 	}
 	uc.assetIndex.replaceAsset(newAsset, oldAsset)
 	// Record successful upgrade
 	// uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ProcessedUploadUpgraded)
-	return "", nil
+	return nil
 }
 
 // manageAssetAlbums add the assets to the albums listed.
@@ -616,14 +612,12 @@ func (uc *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 	return uc.client.Immich.DeleteAssets(ctx, ids, false)
 }
 
-func (uc *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset, serverStatus string) {
-	//if serverStatus != immich.StatusDuplicate {
-		// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
-		//       there is no mean to go the list of tagged assets for a given tag.
-		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-		uc.addCommandLineTags(a)
-		uc.manageAssetTags(ctx, a)
-	//}
+func (uc *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset) {
+	// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
+	//       there is no mean to go the list of tagged assets for a given tag.
+	uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+	uc.addCommandLineTags(a)
+	uc.manageAssetTags(ctx, a)
 }
 
 /*

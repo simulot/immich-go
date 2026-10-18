@@ -99,17 +99,18 @@ func (ii *immichIndex) addImmichAsset(ia *immich.Asset) (*assets.Asset, bool) {
 	return ii.add(a, false), true
 }
 
-func (ii *immichIndex) addLocalAsset(ia *assets.Asset) (*assets.Asset, bool) {
+func (ii *immichIndex) addLocalAsset(ia *assets.Asset) bool {
 	ii.lock.Lock()
 	defer ii.lock.Unlock()
 
-	if existing, ok := ii.immichAssets.Load(ia.ID); ok {
-		return existing, false
+	if _, ok := ii.immichAssets.Load(ia.ID); ok {
+		return false
 	}
-	if existing, ok := ii.byChecksum.Load(ia.Checksum); ok {
-		return existing, false
+	if _, ok := ii.byChecksum.Load(ia.Checksum); ok {
+		return false
 	}
-	return ii.add(ia, true), true
+	ii.add(ia, true)
+	return true
 }
 
 func (ii *immichIndex) getByID(id string) *assets.Asset {
@@ -152,7 +153,7 @@ func (ii *immichIndex) add(a *assets.Asset, local bool) *assets.Asset {
 	return a
 }
 
-func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *assets.Asset {
+func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) {
 	if newA.ID == "" {
 		panic("asset ID is empty")
 	}
@@ -171,7 +172,6 @@ func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *ass
 	l, _ := ii.byName.Load(filename)
 	l = append(l, newA.ID)
 	ii.byName.Store(filename, l)
-	return newA
 }
 
 // replacement returns the asset that replaced sa, following replacements of replacements, or sa
