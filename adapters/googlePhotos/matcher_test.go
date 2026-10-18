@@ -1,8 +1,12 @@
 package gp
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/filenames"
 	"github.com/simulot/immich-go/internal/filetypes"
 )
 
@@ -240,6 +244,36 @@ func Test_matchers(t *testing.T) {
 			jsonName: "PXL_20220615_101533000(1).jpg.supplemental-metadata.json",
 			want:     "matchLivePhotoVideo",
 		},
+		{ // localized suffixes are matched through the sidecar title, not a suffix list
+			fileName: "X-bearbeitet.jpg",
+			jsonName: "X.jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "X-edytowany.jpg",
+			jsonName: "X.jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "X-editado.jpg",
+			jsonName: "X.jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "X-bewerkt.jpg",
+			jsonName: "X.jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "X-編集済み.jpg",
+			jsonName: "X.jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{ // a truncated suffix still matches; a fixed suffix list would miss it
+			fileName: "X-edi.jpg",
+			jsonName: "X.jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
@@ -263,6 +297,34 @@ func Test_matchers(t *testing.T) {
 			}
 			if matcher != tt.want {
 				t.Errorf("matcher is '%s', want %v", matcher, tt.want)
+			}
+		})
+	}
+}
+
+// The edited flag comes from the matcher that associated the file with the sidecar, not
+// from a suffix list: it covers every language and truncated names.
+func TestMakeAssetMarksTheEditedFileFromTheMatcher(t *testing.T) {
+	toc := &TakeoutCmd{infoCollector: filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)}
+
+	for _, tc := range []struct {
+		matcher string
+		base    string
+		want    bool
+	}{
+		{"matchEditedName", "X-bearbeitet.jpg", true},
+		{"matchEditedName", "X-edi.jpg", true},
+		{"matchNormal", "X(1).jpg", false},
+		{"matchLivePhotoVideo", "X.mp4", false},
+	} {
+		t.Run(tc.matcher+"/"+tc.base, func(t *testing.T) {
+			f := &assetFile{base: tc.base, matcher: tc.matcher}
+			a := toc.makeAsset(context.Background(), "", f, nil)
+			if (a.Kind == assets.KindEdited) != tc.want {
+				t.Errorf("%s matched by %s: Kind = %v, want edited = %v", tc.base, tc.matcher, a.Kind, tc.want)
+			}
+			if tc.want && !a.IsCover {
+				t.Errorf("%s matched by %s: not the cover", tc.base, tc.matcher)
 			}
 		})
 	}

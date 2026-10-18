@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fshelper"
 )
@@ -101,7 +102,10 @@ func TestStackIDs(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.g.CoverIndex = tc.cover
-			got := stackIDs(tc.g, newAssetIndex())
+			got, blocked := stackIDs(tc.g, newAssetIndex())
+			if blocked {
+				t.Fatalf("stackIDs reported an ambiguity")
+			}
 			if len(got) != len(tc.want) {
 				t.Fatalf("got %v, want %v", got, tc.want)
 			}
@@ -208,12 +212,42 @@ func TestStackIDs_resolvesReplacedIDs(t *testing.T) {
 	ii := newAssetIndex()
 	ii.replacedBy.Store("old", a("new"))
 	g := assets.NewGroup(assets.GroupByOther, a("old"), a("new"), a("3"))
-	got := stackIDs(g, ii)
+	got, blocked := stackIDs(g, ii)
+	if blocked {
+		t.Fatalf("stackIDs reported an ambiguity")
+	}
 	want := []string{"new", "3"}
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 	if g.Assets[0].ID != "old" {
 		t.Errorf("stackIDs must not change the assets' IDs, got %q", g.Assets[0].ID)
+	}
+}
+
+// A stacked server asset, or an asset edited on the server, is a version: it is kept and its
+// stack primary is remembered for the merge. A plain copy is not a version.
+func TestRecordVersionKeepsStackedAndEditedAssets(t *testing.T) {
+	ii := newAssetIndex()
+
+	ii.recordVersion(&immich.Asset{
+		ID:    "id-stacked",
+		Stack: &immich.AssetStack{ID: "stack-1", PrimaryAssetID: "id-primary"},
+	})
+	if !ii.serverVersions.Contains("id-stacked") {
+		t.Errorf("the stacked server asset is not kept as a version")
+	}
+	if p, ok := ii.stackPrimaryByID.Load("id-stacked"); !ok || p != "id-primary" {
+		t.Errorf("stack primary = %q, want id-primary", p)
+	}
+
+	ii.recordVersion(&immich.Asset{ID: "id-server-edit", IsEdited: true})
+	if !ii.serverVersions.Contains("id-server-edit") {
+		t.Errorf("the server-edited asset is not kept as a version")
+	}
+
+	ii.recordVersion(&immich.Asset{ID: "id-plain"})
+	if ii.serverVersions.Contains("id-plain") {
+		t.Errorf("a plain copy was classified as a version")
 	}
 }

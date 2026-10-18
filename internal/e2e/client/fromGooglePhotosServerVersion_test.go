@@ -152,3 +152,70 @@ func Test_FromGooglePhotos_ServerVersion(t *testing.T) {
 		})
 	}
 }
+
+// Re-importing only the edited file must not split the stack that already holds the
+// original and the edit: the server keeps one stack of two, with the edit as primary.
+func Test_FromGooglePhotos_ServerVersion_NoSplit(t *testing.T) {
+	adm, err := getUser("admin@immich.app")
+	if err != nil {
+		t.Fatalf("can't get admin user: %v", err)
+	}
+	u1, err := createUser("minimal")
+	if err != nil {
+		t.Fatalf("can't create user: %v", err)
+	}
+
+	// first import: the full pair
+	takeoutDir := makeTakeout(t, "pair_a1", "pair_a1.jpg", "pair_a1-edited.jpg")
+	runTakeout(t, takeoutDir, u1, adm, map[fileevent.Code]int64{
+		fileevent.ProcessedUploadSuccess: 2,
+		fileevent.ProcessedStacked:       2,
+	})
+
+	// second import: the edited file alone
+	secondDir := makeTakeout(t, "pair_a1", "pair_a1-edited.jpg")
+	runTakeout(t, secondDir, u1, adm, map[fileevent.Code]int64{
+		fileevent.ProcessedUploadSuccess: 0,
+		fileevent.ProcessedStacked:       0, // the base is already in the edit's stack: nothing to merge
+	})
+
+	serverAssets, err := e2eutils.GetAllAssetList(u1.Email, u1.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(serverAssets) != 2 {
+		for _, a := range serverAssets {
+			t.Logf("asset %s %s trashed=%v", a.ID, a.OriginalFileName, a.IsTrashed)
+		}
+		t.Fatalf("got %d assets on the server, want 2", len(serverAssets))
+	}
+
+	stacks, err := e2eutils.GetAllStacks(u1.Email, u1.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stacks) != 1 {
+		for _, s := range stacks {
+			t.Logf("stack %s primary=%s assets=%d", s.ID, s.PrimaryAssetID, len(s.Assets))
+		}
+		t.Fatalf("got %d stacks, want 1: the second import must not split the stack", len(stacks))
+	}
+	if len(stacks[0].Assets) != 2 {
+		t.Fatalf("stack has %d assets, want 2", len(stacks[0].Assets))
+	}
+
+	editedChecksum := checksumOf(t, filepath.Join(editedPairData, "pair_a1-edited.jpg"))
+	primaryFound := false
+	for _, a := range stacks[0].Assets {
+		if a.ID != stacks[0].PrimaryAssetID {
+			continue
+		}
+		primaryFound = true
+		if a.Checksum != editedChecksum {
+			t.Errorf("stack primary is %s (%s), want the edited version", a.OriginalFileName, a.Checksum)
+		}
+	}
+	if !primaryFound {
+		t.Errorf("stack primary %s is not among its assets", stacks[0].PrimaryAssetID)
+	}
+}

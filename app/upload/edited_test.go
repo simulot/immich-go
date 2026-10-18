@@ -29,7 +29,10 @@ func TestStackIDs_editedAssetStacksOverServerBase(t *testing.T) {
 	g := assets.NewGroup(assets.GroupByNone, edited) // a standalone file is a one-asset group
 	g.CoverIndex = 0
 
-	got := stackIDs(g, ii)
+	got, blocked := stackIDs(g, ii)
+	if blocked {
+		t.Fatalf("stackIDs reported an ambiguity")
+	}
 	want := []string{"id-edited", "id-base"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
@@ -41,22 +44,25 @@ func TestStackIDs_editedAssetStacksOverServerBase(t *testing.T) {
 	}
 }
 
-// When the server original already belongs to a stack, include that stack's
-// primary so the server merges the stacks instead of splitting them.
+// When the server original already belongs to a stack, the stack's primary is enough:
+// the server merges the whole existing stack, so the base itself is not listed.
 func TestStackIDs_editedAssetMergesAnExistingStack(t *testing.T) {
 	date := time.Date(2023, 11, 14, 22, 13, 20, 0, time.UTC)
 
 	ii := newAssetIndex()
 	base := serverAsset("id-base", 13749, "sha-base", date)
-	base.StackPrimaryID = "id-primary"
+	ii.stackPrimaryByID.Store("id-base", "id-primary")
 	ii.add(base, false)
 
 	edited := markEdited(localAsset("X-edited.jpg", 1131, "sha-edited", date))
 	edited.ID = "id-edited"
 	g := assets.NewGroup(assets.GroupByNone, edited)
 
-	got := stackIDs(g, ii)
-	want := []string{"id-edited", "id-base", "id-primary"}
+	got, blocked := stackIDs(g, ii)
+	if blocked {
+		t.Fatalf("stackIDs reported an ambiguity")
+	}
+	want := []string{"id-edited", "id-primary"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -79,7 +85,10 @@ func TestStackIDs_editedAssetDoesNotGuessBetweenServerCopies(t *testing.T) {
 	edited.ID = "id-edited"
 	g := assets.NewGroup(assets.GroupByNone, edited)
 
-	got := stackIDs(g, ii)
+	got, blocked := stackIDs(g, ii)
+	if !blocked {
+		t.Fatalf("stackIDs did not report the ambiguity between the server copies")
+	}
 	want := []string{"id-edited"}
 	if len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("got %v, want %v", got, want)
@@ -97,7 +106,10 @@ func TestStackIDs_editedAssetIgnoresOtherDates(t *testing.T) {
 	edited.ID = "id-edited"
 	g := assets.NewGroup(assets.GroupByNone, edited)
 
-	got := stackIDs(g, ii)
+	got, blocked := stackIDs(g, ii)
+	if blocked {
+		t.Fatalf("stackIDs reported an ambiguity")
+	}
 	want := []string{"id-edited"}
 	if len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("got %v, want %v", got, want)
@@ -158,5 +170,29 @@ func TestShouldUpload_editPairStillUpgradesAServerCopyOfTheOriginal(t *testing.T
 	}
 	if advice.Advice != SmallerOnServer || advice.ServerAsset != server {
 		t.Errorf("original: got %s for %v, want SmallerOnServer for the server copy", advice.Advice, advice.ServerAsset)
+	}
+}
+
+// A server asset that is a version (stacked, or edited on the server) is never a size
+// variant: the local original must upload and be stacked with it.
+func TestShouldUpload_editPairSkipsAStackedServerVersion(t *testing.T) {
+	date := time.Date(2023, 11, 14, 22, 13, 20, 0, time.UTC)
+
+	ii := newAssetIndex()
+	server := serverAsset("id-server", 500, "sha-old-edit", date)
+	ii.add(server, false)
+	ii.serverVersions.Add("id-server")
+	ii.stackPrimaryByID.Store("id-server", "id-primary")
+
+	edited := markEdited(localAsset("X-edited.jpg", 1131, "sha-edited", date))
+	original := localAsset("X.jpg", 13749, "sha-original", date)
+	g := assets.NewGroup(assets.GroupByOther, edited, original)
+
+	advice, err := ii.ShouldUpload(original, &UpCmd{}, g.Assets...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advice.Advice != NotOnServer {
+		t.Errorf("original: got %s for %v, want NotOnServer for the stacked server version", advice.Advice, advice.ServerAsset)
 	}
 }

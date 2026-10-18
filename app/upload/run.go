@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"slices"
 	"strings"
 	"sync"
@@ -327,6 +328,50 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.Asset.File, int64(a.Asset.FileSize), fileevent.DiscardedNotSelected, a.Reason)
 	}
 
+	// A standalone edited file still needs a stack when the server holds the original.
+	editedAlone := len(g.Assets) == 1 && g.Assets[0].Kind == assets.KindEdited
+
+	// Classify the server assets that match an edit pair's files before uploading, so
+	// ShouldUpload can skip versions and stackIDs can merge an existing stack.
+	stackBlocked := false
+	groupSet := make(map[*assets.Asset]bool, len(g.Assets))
+	hasEdit := false
+	for _, a := range g.Assets {
+		groupSet[a] = true
+		if a.Kind == assets.KindEdited {
+			hasEdit = true
+		}
+	}
+	if hasEdit {
+		for _, a := range g.Assets {
+			name := path.Base(a.File.Name())
+			if a.Kind == assets.KindEdited {
+				name = a.OriginalFileName
+			}
+			for _, sa := range uc.assetIndex.nameDateCandidates(a, name) {
+				if groupSet[sa] {
+					continue // uploaded in this run; cannot be in a stack yet
+				}
+				if uc.assetIndex.isAlreadyProcessed(sa.Checksum) {
+					continue // uploaded by this run; its ID can be a dry-run UUID, it is not a server stack
+				}
+				if uc.assetIndex.serverVersions.Contains(sa.ID) {
+					continue
+				}
+				if _, known := uc.assetIndex.stackPrimaryByID.Load(sa.ID); known {
+					continue
+				}
+				info, err := uc.client.Immich.GetAssetInfo(ctx, sa.ID)
+				if err != nil {
+					uc.app.Log().Warn("Can't classify the server asset's version", "asset", sa.ID, "error", err)
+					stackBlocked = true
+					continue
+				}
+				uc.assetIndex.recordVersion(info)
+			}
+		}
+	}
+
 	// Upload assets from the group
 	for _, a := range g.Assets {
 		err := uc.handleAsset(ctx, a, g)
@@ -335,32 +380,20 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 
 	// Manage groups
 	// after the filtering and the upload, we can stack the assets
-
-	// A standalone edited file still needs a stack when the server holds the original.
-	editedAlone := len(g.Assets) == 1 && g.Assets[0].Kind == assets.KindEdited
 	if (len(g.Assets) > 1 && g.Grouping != assets.GroupByNone) || editedAlone {
-		for _, a := range g.Assets {
-			candidates, warning := uc.assetIndex.editBaseCandidates(a)
-			if warning != "" {
-				uc.app.Log().Warn(warning)
-				continue
-			}
-			if len(candidates) != 1 || candidates[0].ID == "" || candidates[0].StackPrimaryID != "" {
-				continue
-			}
-			// The search listing does not carry the stack summary. Read the server copy
-			// so the stack below merges an existing stack instead of splitting it.
-			info, err := uc.client.Immich.GetAssetInfo(ctx, candidates[0].ID)
-			if err != nil {
-				uc.app.Log().Warn("Can't read the server asset's stack", "asset", candidates[0].ID, "error", err)
-				continue
-			}
-			if info.Stack != nil {
-				candidates[0].StackPrimaryID = info.Stack.PrimaryAssetID
-			}
-		}
 		client := uc.client.Immich.(immich.ImmichStackInterface)
-		ids := stackIDs(g, uc.assetIndex)
+		ids, blocked := stackIDs(g, uc.assetIndex)
+		if blocked {
+			for _, a := range g.Assets {
+				if a.Kind == assets.KindEdited {
+					uc.app.Log().Warn("Ambiguous server version for an edited asset; not stacking", "asset", a.File.Name())
+				}
+			}
+			return errGroup
+		}
+		if stackBlocked {
+			return errGroup // could not classify a version; do not risk splitting a stack
+		}
 		if len(ids) > 1 {
 			for _, a := range g.Assets {
 				if slices.Contains(ids, uc.assetIndex.replacement(a).ID) {
@@ -374,7 +407,6 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 			}
 		}
 	}
-
 	return errGroup
 }
 
@@ -383,7 +415,10 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 // group replaced is represented by the replacement). An asset that was discarded, or that failed
 // to upload, has no ID and is left out. The same server asset can back several assets of the
 // group (a local duplicate), and must be listed once.
-func stackIDs(g *assets.Group, ii *immichIndex) []string {
+// The second result reports an ambiguity: several server copies match an edited asset, or they
+// belong to different stacks. The caller must not stack then, because picking one would split an
+// existing stack.
+func stackIDs(g *assets.Group, ii *immichIndex) ([]string, bool) {
 	ids := make([]string, 0, len(g.Assets)+1)
 	addID := func(id string) {
 		if id != "" && !slices.Contains(ids, id) {
@@ -399,21 +434,44 @@ func stackIDs(g *assets.Group, ii *immichIndex) []string {
 	for _, a := range g.Assets {
 		add(a)
 	}
-	// An edited asset can be uploaded alone, while the server already holds the
-	// original. Stack it over the server's copy; include the stack's primary when the
-	// copy already belongs to a stack, so the server merges it instead of splitting it.
+	blocked := false
 	for _, a := range g.Assets {
-		candidates, _ := ii.editBaseCandidates(a)
-		if len(candidates) != 1 {
-			continue
+		if a.Kind != assets.KindEdited || ii.replacement(a).ID == "" {
+			continue // the edit has no server asset; nothing to stack it with
 		}
-		base := candidates[0]
-		addID(base.ID)
-		if base.StackPrimaryID != "" && base.StackPrimaryID != base.ID {
-			addID(base.StackPrimaryID)
+		var baseID, primaryID string
+		for _, sa := range ii.editBaseCandidates(a) {
+			if slices.Contains(g.Assets, sa) {
+				continue // the group's own original; already added
+			}
+			p, inStack := ii.stackPrimaryByID.Load(sa.ID)
+			if inStack && p != "" {
+				if primaryID == "" {
+					primaryID = p
+				} else if primaryID != p {
+					blocked = true
+					break
+				}
+			} else {
+				if baseID == "" {
+					baseID = sa.ID
+				} else if baseID != sa.ID {
+					blocked = true
+					break
+				}
+			}
+		}
+		if blocked {
+			break
+		}
+		if primaryID != "" {
+			addID(primaryID) // the server merges the whole existing stack
+		}
+		if baseID != "" {
+			addID(baseID)
 		}
 	}
-	return ids
+	return ids, blocked
 }
 
 // handleAsset uploads the asset a, or updates the server's copy of it, as advised by the asset

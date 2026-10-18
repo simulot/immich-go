@@ -67,17 +67,23 @@ type immichIndex struct {
 
 	// map of the ID of a replaced, deleted asset to the asset that replaced it
 	replacedBy *syncmap.SyncMap[string, *assets.Asset]
+	// server asset ID -> primary asset ID of the stack it belongs to ("" = none/unknown)
+	stackPrimaryByID *syncmap.SyncMap[string, string]
+	// server asset IDs that are versions (stacked or server-edited): never replace/skip
+	serverVersions *syncset.Set[string]
 
 	assetNumber int64
 }
 
 func newAssetIndex() *immichIndex {
 	return &immichIndex{
-		immichAssets:    syncmap.New[string, *assets.Asset](),
-		byChecksum:      syncmap.New[string, *assets.Asset](),
-		byName:          syncmap.New[string, []string](),
-		uploadsChecksum: syncset.New[string](),
-		replacedBy:      syncmap.New[string, *assets.Asset](),
+		immichAssets:     syncmap.New[string, *assets.Asset](),
+		byChecksum:       syncmap.New[string, *assets.Asset](),
+		byName:           syncmap.New[string, []string](),
+		uploadsChecksum:  syncset.New[string](),
+		replacedBy:       syncmap.New[string, *assets.Asset](),
+		stackPrimaryByID: syncmap.New[string, string](),
+		serverVersions:   syncset.New[string](),
 	}
 }
 
@@ -187,16 +193,15 @@ func (ii *immichIndex) replacement(sa *assets.Asset) *assets.Asset {
 	}
 }
 
-// editBaseCandidates returns the server assets that can be the original of an edited asset: same
-// original file name (the sidecar title) and same capture date. When several match, it returns none
-// and a warning, because picking one would be a guess.
-func (ii *immichIndex) editBaseCandidates(a *assets.Asset) ([]*assets.Asset, string) {
-	if a.Kind != assets.KindEdited || a.OriginalFileName == "" {
-		return nil, ""
+// nameDateCandidates returns the indexed assets whose OriginalFileName equals name and
+// whose capture date matches a's, excluding a itself.
+func (ii *immichIndex) nameDateCandidates(a *assets.Asset, name string) []*assets.Asset {
+	if name == "" {
+		return nil
 	}
-	ids, ok := ii.byName.Load(a.OriginalFileName)
+	ids, ok := ii.byName.Load(name)
 	if !ok {
-		return nil, ""
+		return nil
 	}
 	var out []*assets.Asset
 	for _, id := range ids {
@@ -215,10 +220,30 @@ func (ii *immichIndex) editBaseCandidates(a *assets.Asset) ([]*assets.Asset, str
 			out = append(out, sa)
 		}
 	}
-	if len(out) > 1 {
-		return nil, fmt.Sprintf("%d server assets match the original %q on the same date; not stacking the edited asset", len(out), a.OriginalFileName)
+	return out
+}
+
+// editBaseCandidates returns the assets that can be the original of an edited asset:
+// same sidecar title and capture date.
+func (ii *immichIndex) editBaseCandidates(a *assets.Asset) []*assets.Asset {
+	if a.Kind != assets.KindEdited {
+		return nil
 	}
-	return out, ""
+	return ii.nameDateCandidates(a, a.OriginalFileName)
+}
+
+// recordVersion classifies a server asset. A stacked asset, or an asset edited on the
+// server, is a version: it is never replaced by the size heuristic, and its stack primary
+// is kept so CreateStack merges the existing stack instead of splitting it.
+func (ii *immichIndex) recordVersion(info *immich.Asset) {
+	if info.Stack != nil && info.Stack.PrimaryAssetID != "" {
+		ii.serverVersions.Add(info.ID)
+		ii.stackPrimaryByID.Store(info.ID, info.Stack.PrimaryAssetID)
+		return
+	}
+	if info.IsEdited {
+		ii.serverVersions.Add(info.ID)
+	}
 }
 
 func (ii *immichIndex) isAlreadyProcessed(checksum string) bool {
@@ -369,6 +394,9 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...
 				continue
 			}
 			if slices.Contains(editedChecksums, sa.Checksum) {
+				continue
+			}
+			if ii.serverVersions.Contains(sa.ID) {
 				continue
 			}
 

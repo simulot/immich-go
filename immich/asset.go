@@ -30,6 +30,7 @@ type Asset struct {
 	ID         string `json:"id"`
 	IsArchived bool   `json:"isArchived"`
 	IsFavorite bool   `json:"isFavorite"`
+	IsEdited   bool   `json:"isEdited"`
 	// isOffline
 	IsTrashed        bool   `json:"isTrashed"`
 	LibraryID        string `json:"libraryId,omitempty"`
@@ -72,12 +73,7 @@ type AssetStack struct {
 
 // NewAssetFromImmich creates an assets.Asset from an immich.Asset.
 func (ia Asset) AsAsset() *assets.Asset {
-	stackPrimaryID := ""
-	if ia.Stack != nil {
-		stackPrimaryID = ia.Stack.PrimaryAssetID
-	}
 	a := &assets.Asset{
-		StackPrimaryID:   stackPrimaryID,
 		FileDate:         ia.FileModifiedAt.Time,
 		Description:      ia.ExifInfo.Description,
 		OriginalFileName: ia.OriginalFileName,
