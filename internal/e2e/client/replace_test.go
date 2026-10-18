@@ -125,6 +125,7 @@ func Test_Replace(t *testing.T) {
 		"--no-ui",
 		"--api-trace",
 		"--log-level=debug",
+		"--tag=replaced", // must also reach the replacement uploads
 		"DATA/replace/high_quality",
 	})
 	err = c.ExecuteContext(ctx)
@@ -140,7 +141,7 @@ func Test_Replace(t *testing.T) {
 	e2eutils.CheckResults(t, map[fileevent.Code]int64{
 		fileevent.ProcessedUploadSuccess:  0,
 		fileevent.ProcessedAlbumAdded:     0,
-		fileevent.ProcessedTagged:         0,
+		fileevent.ProcessedTagged:         5,
 		fileevent.ProcessedUploadUpgraded: 5,
 	}, false, a.FileProcessor())
 

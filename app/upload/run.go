@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
+	"slices"
 	"strings"
 	"sync"
 
@@ -63,25 +65,42 @@ func (uc *UpCmd) saveTags(ctx context.Context, tag assets.Tag, ids []string) (as
 	return tag, err
 }
 
+// backgroundJobs lists the Immich job queues paused during the upload.
+var backgroundJobs = []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
+
+// pauseJobs pauses the Immich background jobs that aren't already paused, and records them in
+// uc.pausedJobs so that resumeJobs resumes only those. Queues paused by the user before the run
+// are left alone. If pausing a queue fails, the queues paused so far are resumed (best effort)
+// before returning the error, since the upload is then aborted and finishing() never runs.
 func (uc *UpCmd) pauseJobs(ctx context.Context) error {
-	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
-	for _, name := range jobs {
+	status, err := uc.client.AdminImmich.GetJobs(ctx)
+	if err != nil {
+		uc.app.Log().Error("Immich Job status", "err", err.Error())
+		return err
+	}
+	for _, name := range backgroundJobs {
+		if status[name].QueueStatus.IsPaused {
+			uc.app.Log().Info("Immich Job already paused, leaving it as is", "job", name)
+			continue
+		}
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "pause", true)
 		if err != nil {
 			uc.app.Log().Error("Immich Job command sent", "pause", name, "err", err.Error())
+			_ = uc.resumeJobs(ctx)
 			return err
 		}
+		uc.pausedJobs = append(uc.pausedJobs, name)
 		uc.app.Log().Info("Immich Job command sent", "pause", name)
 	}
 	return nil
 }
 
+// resumeJobs resumes the jobs paused by pauseJobs during this run. It does nothing when the
+// jobs weren't paused (--pause-immich-jobs=false), or for queues that were already paused before.
 func (uc *UpCmd) resumeJobs(_ context.Context) error {
-	jobs := []string{"thumbnailGeneration", "metadataExtraction", "videoConversion", "faceDetection", "smartSearch"}
-
 	// Start with a context not yet cancelled
 	ctx := context.Background() //nolint
-	for _, name := range jobs {
+	for _, name := range uc.pausedJobs {
 		_, err := uc.client.AdminImmich.SendJobCommand(ctx, name, "resume", true) //nolint:contextcheck
 		if err != nil {
 			uc.app.Log().Error("Immich Job command sent", "resume", name, "err", err.Error())
@@ -101,7 +120,7 @@ func (uc *UpCmd) finishing(ctx context.Context) error {
 	uc.albumsCache.Close()
 	uc.tagsCache.Close()
 
-	// Resume immich background jobs if requested
+	// Resume the immich background jobs paused by this run, if any
 	err := uc.resumeJobs(ctx)
 	if err != nil {
 		return err
@@ -181,8 +200,7 @@ func (uc *UpCmd) getImmichAlbums(ctx context.Context) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				ids := []string{}
-				ids, err = uc.client.Immich.GetAlbumAssetIDs(ctx, a.ID)
+				ids, err := uc.client.Immich.GetAlbumAssetIDs(ctx, a.ID)
 				if err != nil {
 					uc.app.Log().Error("can't get the album assets from the server", "album", a.AlbumName, "err", err)
 					continue
@@ -285,7 +303,7 @@ func (uc *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) e
 
 	// Cleanup: delete server assets if needed
 	if len(uc.deleteServerList) > 0 {
-		ids := []string{}
+		ids := make([]string, 0, len(uc.deleteServerList))
 		for _, da := range uc.deleteServerList {
 			ids = append(ids, da.ID)
 		}
@@ -310,55 +328,177 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.Asset.File, int64(a.Asset.FileSize), fileevent.DiscardedNotSelected, a.Reason)
 	}
 
+	// A standalone edited file still needs a stack when the server holds the original.
+	editedAlone := len(g.Assets) == 1 && g.Assets[0].Kind == assets.KindEdited
+
+	// Classify the server assets that match an edit pair's files before uploading, so
+	// ShouldUpload can skip versions and stackIDs can merge an existing stack.
+	stackBlocked := false
+	groupSet := make(map[*assets.Asset]bool, len(g.Assets))
+	hasEdit := false
+	for _, a := range g.Assets {
+		groupSet[a] = true
+		if a.Kind == assets.KindEdited {
+			hasEdit = true
+		}
+	}
+	if hasEdit {
+		for _, a := range g.Assets {
+			name := path.Base(a.File.Name())
+			if a.Kind == assets.KindEdited {
+				name = a.OriginalFileName
+			}
+			for _, sa := range uc.assetIndex.nameDateCandidates(a, name) {
+				if groupSet[sa] {
+					continue // uploaded in this run; cannot be in a stack yet
+				}
+				if uc.assetIndex.isAlreadyProcessed(sa.Checksum) {
+					continue // uploaded by this run; its ID can be a dry-run UUID, it is not a server stack
+				}
+				if uc.assetIndex.serverVersions.Contains(sa.ID) {
+					continue
+				}
+				if _, known := uc.assetIndex.stackPrimaryByID.Load(sa.ID); known {
+					continue
+				}
+				info, err := uc.client.Immich.GetAssetInfo(ctx, sa.ID)
+				if err != nil {
+					uc.app.Log().Warn("Can't classify the server asset's version", "asset", sa.ID, "error", err)
+					stackBlocked = true
+					continue
+				}
+				uc.assetIndex.recordVersion(info)
+			}
+		}
+	}
+
 	// Upload assets from the group
 	for _, a := range g.Assets {
-		err := uc.handleAsset(ctx, a)
-		errGroup = errors.Join(err)
+		err := uc.handleAsset(ctx, a, g)
+		errGroup = errors.Join(errGroup, err)
 	}
 
 	// Manage groups
 	// after the filtering and the upload, we can stack the assets
-
-	if len(g.Assets) > 1 && g.Grouping != assets.GroupByNone {
+	if (len(g.Assets) > 1 && g.Grouping != assets.GroupByNone) || editedAlone {
 		client := uc.client.Immich.(immich.ImmichStackInterface)
-		ids := []string{g.Assets[g.CoverIndex].ID}
-		for i, a := range g.Assets {
-			// Record stacking event
-			uc.app.FileProcessor().RecordNonAsset(ctx, g.Assets[i].File, 0, fileevent.ProcessedStacked)
-			if i != g.CoverIndex && a.ID != "" {
-				ids = append(ids, a.ID)
+		ids, blocked := stackIDs(g, uc.assetIndex)
+		if blocked {
+			for _, a := range g.Assets {
+				if a.Kind == assets.KindEdited {
+					uc.app.Log().Warn("Ambiguous server version for an edited asset; not stacking", "asset", a.File.Name())
+				}
 			}
+			return errGroup
+		}
+		if stackBlocked {
+			return errGroup // could not classify a version; do not risk splitting a stack
 		}
 		if len(ids) > 1 {
+			for _, a := range g.Assets {
+				if slices.Contains(ids, uc.assetIndex.replacement(a).ID) {
+					// Record stacking event
+					uc.app.FileProcessor().RecordNonAsset(ctx, a.File, 0, fileevent.ProcessedStacked)
+				}
+			}
 			_, err := client.CreateStack(ctx, ids)
 			if err != nil {
 				uc.app.Log().Error("Can't create stack", "error", err)
 			}
 		}
 	}
-
 	return errGroup
 }
 
-func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
+// stackIDs returns the distinct, non-empty server IDs of the group's assets, cover first, each
+// resolved through ii.replacement (an asset matched to a server asset that a later asset of the
+// group replaced is represented by the replacement). An asset that was discarded, or that failed
+// to upload, has no ID and is left out. The same server asset can back several assets of the
+// group (a local duplicate), and must be listed once.
+// The second result reports an ambiguity: several server copies match an edited asset, or they
+// belong to different stacks. The caller must not stack then, because picking one would split an
+// existing stack.
+func stackIDs(g *assets.Group, ii *immichIndex) ([]string, bool) {
+	ids := make([]string, 0, len(g.Assets)+1)
+	addID := func(id string) {
+		if id != "" && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	add := func(a *assets.Asset) {
+		addID(ii.replacement(a).ID)
+	}
+	if g.CoverIndex >= 0 && g.CoverIndex < len(g.Assets) {
+		add(g.Assets[g.CoverIndex])
+	}
+	for _, a := range g.Assets {
+		add(a)
+	}
+	blocked := false
+	for _, a := range g.Assets {
+		if a.Kind != assets.KindEdited || ii.replacement(a).ID == "" {
+			continue // the edit has no server asset; nothing to stack it with
+		}
+		var baseID, primaryID string
+		for _, sa := range ii.editBaseCandidates(a) {
+			if slices.Contains(g.Assets, sa) {
+				continue // the group's own original; already added
+			}
+			p, inStack := ii.stackPrimaryByID.Load(sa.ID)
+			if inStack && p != "" {
+				if primaryID == "" {
+					primaryID = p
+				} else if primaryID != p {
+					blocked = true
+					break
+				}
+			} else {
+				if baseID == "" {
+					baseID = sa.ID
+				} else if baseID != sa.ID {
+					blocked = true
+					break
+				}
+			}
+		}
+		if blocked {
+			break
+		}
+		if primaryID != "" {
+			addID(primaryID) // the server merges the whole existing stack
+		}
+		if baseID != "" {
+			addID(baseID)
+		}
+	}
+	return ids, blocked
+}
+
+// handleAsset uploads the asset a, or updates the server's copy of it, as advised by the asset
+// index. g is the group a belongs to; its other assets are never mistaken for server-side variants
+// of a.
+func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Group) error {
 	defer func() {
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
-	// var status stri g
-	advice, err := uc.assetIndex.ShouldUpload(a, uc)
+	var siblings []*assets.Asset
+	if g != nil {
+		siblings = g.Assets
+	}
+	advice, err := uc.assetIndex.ShouldUpload(a, uc, siblings...)
 	if err != nil {
 		return err
 	}
 
 	switch advice.Advice {
 	case NotOnServer: // Upload and manage albums
-		serverStatus, err := uc.uploadAsset(ctx, a)
+		err = uc.uploadAsset(ctx, a)
 		if err != nil {
 			return err
 		}
 
-		uc.processUploadedAsset(ctx, a, serverStatus)
+		uc.processUploadedAsset(ctx, a)
 		return nil
 
 	case SmallerOnServer: // Upload, manage albums and delete the server's asset
@@ -367,21 +507,23 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 		// Upload the superior asset
-		serverStatus, err := uc.replaceAsset(ctx, a, advice.ServerAsset)
+		err = uc.replaceAsset(ctx, a, advice.ServerAsset)
 		if err != nil {
 			return err
 		}
 
-		uc.processUploadedAsset(ctx, a, serverStatus)
+		uc.processUploadedAsset(ctx, a)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedUploadUpgraded)
 
 		return nil
 
 	case AlreadyProcessed: // SHA1 already processed
+		a.ID = advice.ServerAsset.ID
 		// Record as discarded - duplicate in input
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedLocalDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		uc.manageAssetTags(ctx, a)
 		return nil
 
 	case SameOnServer:
@@ -391,55 +533,56 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset) error {
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedServerDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+		uc.manageAssetTags(ctx, a)
 
 	case BetterOnServer: // and manage albums
 		a.ID = advice.ServerAsset.ID
 		// Record as discarded - server has better version
 		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated, advice.Message)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-
+		uc.manageAssetTags(ctx, a)
 	case ForceUpload:
-		var serverStatus string
-		var err error
-
 		if advice.ServerAsset != nil {
 			// Remember existing asset's albums, if any
 			a.Albums = append(a.Albums, advice.ServerAsset.Albums...)
 
 			// Upload the superior asset
-			serverStatus, err = uc.replaceAsset(ctx, a, advice.ServerAsset)
+			err = uc.replaceAsset(ctx, a, advice.ServerAsset)
 		} else {
-			serverStatus, err = uc.uploadAsset(ctx, a)
+			err = uc.uploadAsset(ctx, a)
 		}
 		if err != nil {
 			return err
 		}
 
-		uc.processUploadedAsset(ctx, a, serverStatus)
+		uc.processUploadedAsset(ctx, a)
 		return nil
 	}
 
 	return nil
 }
 
-// uploadAsset uploads the asset to the server.
-// set the server's asset ID to the asset.
-// return the duplicate condition and error.
-func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, error) {
-	defer uc.app.Log().Debug("upload asset", "file", a)
-
+// addCommandLineTags adds the --tag values and, if --session-tag is set, the session tag to the
+// asset, so that manageAssetTags applies them on the server.
+func (uc *UpCmd) addCommandLineTags(a *assets.Asset) {
 	if uc.SessionTag {
 		a.AddTag(uc.session)
 	}
 	for _, tag := range uc.Tags {
 		a.AddTag(tag)
 	}
+}
+
+// uploadAsset uploads the asset to the server.
+// set the server's asset ID to the asset.
+func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
+	defer uc.app.Log().Debug("upload asset", "file", a)
 
 	ar, err := uc.client.Immich.AssetUpload(ctx, a)
 	if err != nil {
 		// Record upload error
 		uc.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorServerError, err)
-		return "", err // Must signal the error to the caller
+		return err // Must signal the error to the caller
 	}
 	if ar.Status == immich.UploadDuplicate {
 		originalName := "unknown"
@@ -478,30 +621,30 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) (string, erro
 		if err != nil {
 			// Record metadata update error
 			uc.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorServerError, err)
-			return "", err
+			return err
 		}
 		// Record successful metadata update
 		uc.app.FileProcessor().Logger().Record(ctx, fileevent.ProcessedMetadataUpdated, a.File)
 	}
 	uc.assetIndex.addLocalAsset(a)
-	return ar.Status, nil
+	return nil
 }
 
 // replaceAsset replaces an asset on the server. It uploads the new asset, copies the metadata from the old one and deletes the old one.
 // https://github.com/immich-app/immich/pull/23172#issue-3542430029
-func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.Asset) (string, error) {
+func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.Asset) error {
 	// 1. Upload the new asset
 	ar, err := uc.client.Immich.AssetUpload(ctx, newAsset)
 	if err != nil {
 		// Record upload error
 		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorServerError, err)
-		return "", err // Must signal the error to the caller
+		return err // Must signal the error to the caller
 	}
 	newAsset.ID = ar.ID
 	if ar.Status == immich.UploadDuplicate {
 		// Record as processed - server duplicate
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.DiscardedServerDuplicate)
-		return immich.UploadDuplicate, nil
+		return nil
 	}
 
 	// 2. copy metadata from existing asset to the new asset
@@ -509,7 +652,7 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 	if err != nil {
 		// Record copy error
 		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorServerError, err)
-		return "", err // Must signal the error to the caller
+		return err // Must signal the error to the caller
 	}
 
 	// 3. Delete the existing asset
@@ -517,12 +660,12 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 	if err != nil {
 		// Record delete error
 		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorServerError, err)
-		return "", err // Must signal the error to the caller
+		return err // Must signal the error to the caller
 	}
 	uc.assetIndex.replaceAsset(newAsset, oldAsset)
 	// Record successful upgrade
 	// uc.app.FileProcessor().RecordAssetProcessed(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ProcessedUploadUpgraded)
-	return "", nil
+	return nil
 }
 
 // manageAssetAlbums add the assets to the albums listed.
@@ -565,13 +708,12 @@ func (uc *UpCmd) DeleteServerAssets(ctx context.Context, ids []string) error {
 	return uc.client.Immich.DeleteAssets(ctx, ids, false)
 }
 
-func (uc *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset, serverStatus string) {
-	if serverStatus != immich.StatusDuplicate {
-		// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
-		//       there is no mean to go the list of tagged assets for a given tag.
-		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
-		uc.manageAssetTags(ctx, a)
-	}
+func (uc *UpCmd) processUploadedAsset(ctx context.Context, a *assets.Asset) {
+	// TODO: current version of Immich doesn't allow to add same tag to an asset already tagged.
+	//       there is no mean to go the list of tagged assets for a given tag.
+	uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
+	uc.addCommandLineTags(a)
+	uc.manageAssetTags(ctx, a)
 }
 
 /*

@@ -279,7 +279,7 @@ func (r *Recorder) GenerateEventReport() string {
 	for _, c := range []Code{DiscoveredImage, DiscoveredVideo} {
 		if count := eventCounts[c]; count > 0 {
 			size := eventSizes[c]
-			sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size)))
+			fmt.Fprintf(&sb, "  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size))
 		}
 	}
 
@@ -294,7 +294,7 @@ func (r *Recorder) GenerateEventReport() string {
 	} {
 		if count := eventCounts[c]; count > 0 {
 			size := eventSizes[c]
-			sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size)))
+			fmt.Fprintf(&sb, "  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size))
 		}
 	}
 
@@ -311,9 +311,9 @@ func (r *Recorder) GenerateEventReport() string {
 		for _, c := range []Code{ProcessedUploadSuccess, ProcessedUploadUpgraded, ProcessedMetadataUpdated, ProcessedFileArchived} {
 			if count := eventCounts[c]; count > 0 {
 				if size := eventSizes[c]; size > 0 {
-					sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size)))
+					fmt.Fprintf(&sb, "  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size))
 				} else {
-					sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))
+					fmt.Fprintf(&sb, "  %-35s: %7d\n", c.String(), count)
 				}
 			}
 		}
@@ -348,9 +348,9 @@ func (r *Recorder) GenerateEventReport() string {
 		} {
 			if count := eventCounts[c]; count > 0 {
 				if size := eventSizes[c]; size > 0 {
-					sb.WriteString(fmt.Sprintf("  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size)))
+					fmt.Fprintf(&sb, "  %-35s: %7d  (%s)\n", c.String(), count, formatEventBytes(size))
 				} else {
-					sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))
+					fmt.Fprintf(&sb, "  %-35s: %7d\n", c.String(), count)
 				}
 			}
 		}
@@ -368,7 +368,7 @@ func (r *Recorder) GenerateEventReport() string {
 		sb.WriteString("\nAsset Lifecycle (ERROR):\n")
 		for _, c := range []Code{ErrorUploadFailed, ErrorServerError, ErrorFileAccess, ErrorIncomplete} {
 			if count := eventCounts[c]; count > 0 {
-				sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))
+				fmt.Fprintf(&sb, "  %-35s: %7d\n", c.String(), count)
 			}
 		}
 	}
@@ -399,7 +399,7 @@ func (r *Recorder) GenerateEventReport() string {
 			ProcessedLivePhoto,
 		} {
 			if count := eventCounts[c]; count > 0 {
-				sb.WriteString(fmt.Sprintf("  %-35s: %7d\n", c.String(), count))
+				fmt.Fprintf(&sb, "  %-35s: %7d\n", c.String(), count)
 			}
 		}
 	}

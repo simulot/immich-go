@@ -110,14 +110,14 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 		endPoint: endPoint + "/api",
 		transport: &http.Transport{
 			MaxIdleConns:        100,
-			IdleConnTimeout:     90 * time.Second,
+			IdleConnTimeout:     2 * time.Second,
 			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 			MaxIdleConnsPerHost: 100,
 			MaxConnsPerHost:     100,
-			Dial: (&net.Dialer{
+			DialContext: (&net.Dialer{
 				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
-			}).Dial,
+			}).DialContext,
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: 20 * time.Minute,
 		},

@@ -330,18 +330,6 @@ archive-folder/
 - **Usage**: Minimal temporary storage needed
 - **Cleanup**: Automatic cleanup on exit
 
-
-## 🔍 API Monitoring
-
-This project includes automated monitoring of the Immich API specifications to ensure compatibility:
-
-- **Automated Alerts**: GitHub Actions workflow monitors daily for API changes
-- **Manual Checking**: Run `./scripts/check-immich-api.sh` to check for updates
-- **Issue Tracking**: Automatic GitHub issues when API changes are detected
-- **Documentation**: See [API Monitoring Guide](.github/immich-api-monitor/README.md) for details
-
-
-
 ## See Also
 
 - [Configuration](configuration.md) - All configuration options

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -64,15 +65,25 @@ type immichIndex struct {
 	// map of SHA1 to assetID
 	byChecksum *syncmap.SyncMap[string, *assets.Asset]
 
+	// map of the ID of a replaced, deleted asset to the asset that replaced it
+	replacedBy *syncmap.SyncMap[string, *assets.Asset]
+	// server asset ID -> primary asset ID of the stack it belongs to ("" = none/unknown)
+	stackPrimaryByID *syncmap.SyncMap[string, string]
+	// server asset IDs that are versions (stacked or server-edited): never replace/skip
+	serverVersions *syncset.Set[string]
+
 	assetNumber int64
 }
 
 func newAssetIndex() *immichIndex {
 	return &immichIndex{
-		immichAssets:    syncmap.New[string, *assets.Asset](),
-		byChecksum:      syncmap.New[string, *assets.Asset](),
-		byName:          syncmap.New[string, []string](),
-		uploadsChecksum: syncset.New[string](),
+		immichAssets:     syncmap.New[string, *assets.Asset](),
+		byChecksum:       syncmap.New[string, *assets.Asset](),
+		byName:           syncmap.New[string, []string](),
+		uploadsChecksum:  syncset.New[string](),
+		replacedBy:       syncmap.New[string, *assets.Asset](),
+		stackPrimaryByID: syncmap.New[string, string](),
+		serverVersions:   syncset.New[string](),
 	}
 }
 
@@ -94,17 +105,18 @@ func (ii *immichIndex) addImmichAsset(ia *immich.Asset) (*assets.Asset, bool) {
 	return ii.add(a, false), true
 }
 
-func (ii *immichIndex) addLocalAsset(ia *assets.Asset) (*assets.Asset, bool) {
+func (ii *immichIndex) addLocalAsset(ia *assets.Asset) bool {
 	ii.lock.Lock()
 	defer ii.lock.Unlock()
 
-	if existing, ok := ii.immichAssets.Load(ia.ID); ok {
-		return existing, false
+	if _, ok := ii.immichAssets.Load(ia.ID); ok {
+		return false
 	}
-	if existing, ok := ii.byChecksum.Load(ia.Checksum); ok {
-		return existing, false
+	if _, ok := ii.byChecksum.Load(ia.Checksum); ok {
+		return false
 	}
-	return ii.add(ia, true), true
+	ii.add(ia, true)
+	return true
 }
 
 func (ii *immichIndex) getByID(id string) *assets.Asset {
@@ -147,7 +159,7 @@ func (ii *immichIndex) add(a *assets.Asset, local bool) *assets.Asset {
 	return a
 }
 
-func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *assets.Asset {
+func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) {
 	if newA.ID == "" {
 		panic("asset ID is empty")
 	}
@@ -157,6 +169,7 @@ func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *ass
 	ii.lock.Lock()
 	defer ii.lock.Unlock()
 	oldA.Trashed = true
+	ii.replacedBy.Store(oldA.ID, newA)
 	ii.immichAssets.Store(newA.ID, newA)     // Store the new asset
 	ii.byChecksum.Store(newA.Checksum, newA) // Store the new SHA1
 	ii.uploadsChecksum.Add(newA.Checksum)
@@ -165,7 +178,72 @@ func (ii *immichIndex) replaceAsset(newA *assets.Asset, oldA *assets.Asset) *ass
 	l, _ := ii.byName.Load(filename)
 	l = append(l, newA.ID)
 	ii.byName.Store(filename, l)
-	return newA
+}
+
+// replacement returns the asset that replaced sa, following replacements of replacements, or sa
+// itself when it has not been replaced. A replaced asset has been deleted from the server, so its
+// ID must not be used any more; callers use the replacement in its place.
+func (ii *immichIndex) replacement(sa *assets.Asset) *assets.Asset {
+	for {
+		r, ok := ii.replacedBy.Load(sa.ID)
+		if !ok {
+			return sa
+		}
+		sa = r
+	}
+}
+
+// nameDateCandidates returns the indexed assets whose OriginalFileName equals name and
+// whose capture date matches a's, excluding a itself.
+func (ii *immichIndex) nameDateCandidates(a *assets.Asset, name string) []*assets.Asset {
+	if name == "" {
+		return nil
+	}
+	ids, ok := ii.byName.Load(name)
+	if !ok {
+		return nil
+	}
+	var out []*assets.Asset
+	for _, id := range ids {
+		sa, ok := ii.immichAssets.Load(id)
+		if !ok {
+			continue
+		}
+		sa = ii.replacement(sa)
+		if sa == nil || sa.ID == "" || sa.ID == a.ID {
+			continue
+		}
+		if compareDate(a.CaptureDate, sa.CaptureDate) != 0 {
+			continue
+		}
+		if !slices.Contains(out, sa) {
+			out = append(out, sa)
+		}
+	}
+	return out
+}
+
+// editBaseCandidates returns the assets that can be the original of an edited asset:
+// same sidecar title and capture date.
+func (ii *immichIndex) editBaseCandidates(a *assets.Asset) []*assets.Asset {
+	if a.Kind != assets.KindEdited {
+		return nil
+	}
+	return ii.nameDateCandidates(a, a.OriginalFileName)
+}
+
+// recordVersion classifies a server asset. A stacked asset, or an asset edited on the
+// server, is a version: it is never replaced by the size heuristic, and its stack primary
+// is kept so CreateStack merges the existing stack instead of splitting it.
+func (ii *immichIndex) recordVersion(info *immich.Asset) {
+	if info.Stack != nil && info.Stack.PrimaryAssetID != "" {
+		ii.serverVersions.Add(info.ID)
+		ii.stackPrimaryByID.Store(info.ID, info.Stack.PrimaryAssetID)
+		return
+	}
+	if info.IsEdited {
+		ii.serverVersions.Add(info.ID)
+	}
 }
 
 func (ii *immichIndex) isAlreadyProcessed(checksum string) bool {
@@ -250,14 +328,24 @@ func (ii *immichIndex) adviceForceUpload(sa *assets.Asset) *Advice {
 // la - local asset
 // la.File.Name() is the full path to the file as it is on the source
 // la.OriginalFileName is the name of the file as it was on the device before it was uploaded to the server
-
-func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, error) {
+//
+// siblings are the assets of la's group (burst, raw+jpg, edited pair...), la itself possibly among
+// them. They are never taken for a server-side variant of la: a Google-edited "X-edited.jpg" is
+// indexed under the title of its sidecar, "X.jpg", with the same capture date as "X.jpg", and would
+// otherwise be reported as a smaller/bigger version of the original when it is uploaded first
+// (issue #877, #1285).
+func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...*assets.Asset) (*Advice, error) {
 	checksum, err := la.GetChecksum()
 	if err != nil {
 		return nil, err
 	}
 
 	if sa, ok := ii.byChecksum.Load(checksum); ok {
+		if r := ii.replacement(sa); r != sa {
+			// same content as an asset that has been replaced by another one: the replacement
+			// stands for it
+			return ii.adviceBetterOnServer(r), nil
+		}
 		if ii.isAlreadyProcessed(checksum) {
 			return ii.adviceAlreadyProcessed(sa), nil
 		}
@@ -265,6 +353,26 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, er
 	}
 
 	filename := path.Base(la.File.Name())
+
+	// Server assets that hold the bytes of one of the group's edited versions are not
+	// variants of this file: the versions are stacked, not compared by size. Without
+	// this, importing an edit pair over a server copy of the edit would replace or skip
+	// the original.
+	var editedChecksums []string
+	for _, s := range siblings {
+		if s == nil || s.Kind != assets.KindEdited {
+			continue
+		}
+		cs := s.Checksum
+		if cs == "" {
+			var err error
+			cs, err = s.GetChecksum()
+			if err != nil {
+				continue
+			}
+		}
+		editedChecksums = append(editedChecksums, cs)
+	}
 
 	// check all files with the same name
 	ids, ok := ii.byName.Load(filename)
@@ -279,6 +387,16 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd) (*Advice, er
 		for _, id := range ids {
 			sa, ok := ii.immichAssets.Load(id)
 			if !ok {
+				continue
+			}
+			sa = ii.replacement(sa)
+			if sa == la || slices.Contains(siblings, sa) {
+				continue
+			}
+			if slices.Contains(editedChecksums, sa.Checksum) {
+				continue
+			}
+			if ii.serverVersions.Contains(sa.ID) {
 				continue
 			}
 

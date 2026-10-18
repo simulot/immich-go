@@ -195,6 +195,7 @@ var permissions map[string][]string = map[string][]string{
 		`stack.create`,
 		`tag.asset`,
 		`tag.create`,
+		`tag.read`,
 		`user.read`,
 	},
 	"all": {

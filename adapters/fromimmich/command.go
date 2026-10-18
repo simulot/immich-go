@@ -386,6 +386,7 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 
 		asset := a.AsAsset()
+		asset.SetNameInfo(fic.ic.GetInfo(a.OriginalFileName))
 		asset.FromApplication = &assets.Metadata{
 			FileName:    a.OriginalFileName,
 			Latitude:    a.ExifInfo.Latitude,

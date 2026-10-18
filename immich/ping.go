@@ -97,7 +97,6 @@ func (ic *ImmichClient) GetAboutInfo(ctx context.Context) (AboutInfo, error) {
 	err := ic.newServerCall(ctx, EndPointGetAboutInfo).do(getRequest("/server/about", setAcceptJSON()), responseJSON(&a))
 	if err == nil {
 		ic.serverVersion, err = semver.NewVersion(a.Version)
-
 		if err != nil {
 			return a, fmt.Errorf("error parsing server version: %w", err)
 		}
