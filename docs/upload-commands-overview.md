@@ -220,4 +220,5 @@ The strength of `from-immich` lies in its extensive filtering options, allowing 
 When migrating assets, `from-immich` ensures that all metadata is preserved:
 
 *   **Albums and Tags**: The assets' associations with albums and tags are fetched from the source server. When they are uploaded to the destination server, `immich-go` will recreate those albums and tags.
+*   **Destination Album**: Use `--into-album` to override album preservation and place all transferred assets into a single destination album instead.
 *   **Other Metadata**: Descriptions, GPS coordinates, ratings, and other EXIF/XMP information are all carried over to the destination server.

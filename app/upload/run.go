@@ -372,6 +372,12 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		}
 	}
 
+	if uc.ImportIntoAlbum != "" {
+		for _, a := range g.Assets {
+			a.Albums = []assets.Album{{Title: uc.ImportIntoAlbum}}
+		}
+	}
+
 	// Upload assets from the group
 	for _, a := range g.Assets {
 		err := uc.handleAsset(ctx, a, g)
