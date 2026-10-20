@@ -10,7 +10,7 @@ Immich-go supports same formats as Immich supports, among them:
 #### Image Formats
 - **JPEG**: `.jpg`, `.jpeg`
 - **HEIC/HEIF**: `.heic`, `.heif` (Apple formats)
-- **RAW Formats**: `.dng`, `.cr2`, `.cr3`, `.arw`, `.raf`, `.nef`, `.rw2`, `.orf`
+- **RAW Formats**: `.dng`, `.cr2`, `.cr3`, `.arw`, `.raf`, `.nef`, `.nrw`, `.rw2`, `.orf`
 - **Other**: `.png`, `.gif`, `.bmp`, `.tiff`, `.webp`
 
 #### Video Formats
