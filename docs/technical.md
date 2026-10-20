@@ -205,7 +205,7 @@ Example: 00001IMG_00001_BURST1723801037429_COVER.jpg
 
 #### Supported RAW Extensions
 - **Canon**: `.cr2`, `.cr3`
-- **Nikon**: `.nef`
+- **Nikon**: `.nef`, `.nrw`
 - **Sony**: `.arw`
 - **Fujifilm**: `.raf`
 - **Olympus**: `.orf`
