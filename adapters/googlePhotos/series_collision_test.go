@@ -407,6 +407,63 @@ func TestPartsWithoutTakeoutNamesAreMatchedTogether(t *testing.T) {
 	}
 }
 
+// A part without a takeout name (here a folder some parts were unzipped into, passed
+// along with the remaining zips) may be of any series, so an indexed name does not cross
+// between it and a takeout part either. By names alone this case cannot be told from a
+// Live Photo split over the two parts; a missing date is reported, another photo's date
+// would not be.
+func TestIndexedNameDoesNotCrossAPartWithoutTakeoutName(t *testing.T) {
+	takenStill := time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC)
+	extracted := namedMapFS{name: "unzipped", MapFS: fstest.MapFS{
+		collisionDir + "/IMG_0001(1).HEIC":                            {Data: []byte(strings.Repeat("h", 100))},
+		collisionDir + "/IMG_0001.HEIC.supplemental-metadata(1).json": {Data: sidecarJSON("IMG_0001.HEIC", takenStill)},
+	}}
+	s2 := namedMapFS{name: "takeout-20251016T092000Z-2-001", MapFS: fstest.MapFS{
+		collisionDir + "/IMG_0001(1).MP4": {Data: []byte(strings.Repeat("m", 300))}, // an unrelated video
+	}}
+	toc, _ := newCollisionTakeoutCmd(t, extracted, s2)
+
+	all := browseAll(t, toc)
+
+	if got := dateOf(t, all, 100); !got.Equal(takenStill) {
+		t.Errorf("still: date %v, want %v from its own sidecar", got, takenStill)
+	}
+	v := bySize(all, 300)
+	if len(v) != 1 {
+		t.Fatalf("video: got %d assets, want 1 (KeepJSONLess)", len(v))
+	}
+	if v[0].FromApplication != nil {
+		t.Errorf("video got the extracted still's metadata %+v", v[0].FromApplication)
+	}
+}
+
+// One path can be in more than two series (one path of the real exports is in four).
+// A copy is compared with every earlier one: the fourth copy here equals the second,
+// neither the first nor the latest, and is the only duplicate.
+func TestFourthCopyOfAPathIsComparedWithEachEarlierOne(t *testing.T) {
+	taken := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
+	part := func(name string, content byte) namedMapFS {
+		return namedMapFS{name: name, MapFS: fstest.MapFS{
+			collisionDir + "/DSC_0100(1).ARW":                            {Data: []byte(strings.Repeat(string(content), 400))},
+			collisionDir + "/DSC_0100.ARW.supplemental-metadata(1).json": {Data: sidecarJSON("DSC_0100.ARW", taken)},
+		}}
+	}
+	toc, rec := newCollisionTakeoutCmd(t,
+		part("takeout-20251016T092000Z-1-001", 'x'),
+		part("takeout-20251016T092000Z-2-001", 'y'),
+		part("takeout-20251016T092000Z-3-001", 'z'),
+		part("takeout-20251016T092000Z-4-001", 'y'))
+
+	all := browseAll(t, toc)
+
+	if got := len(bySize(all, 400)); got != 3 {
+		t.Errorf("got %d assets, want 3: the three different files, the fourth being a copy of the second", got)
+	}
+	if n := rec.GetCounts()[fileevent.DiscardedLocalDuplicate]; n != 1 {
+		t.Errorf("%d local duplicate(s), want 1", n)
+	}
+}
+
 // Parts of one series share their sidecars: the video half of a Live Photo in part
 // -1-002 gets the sidecar of its still in part -1-001.
 func TestLivePhotoSplitOverTwoPartsOfOneSeries(t *testing.T) {

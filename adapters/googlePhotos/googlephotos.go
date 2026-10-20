@@ -85,6 +85,7 @@ type directoryCatalog struct {
 	jsons          map[fileKey]*assets.Metadata // metadata in the catalog by series and base name
 	unMatchedFiles map[fileKey]*assetFile       // files to be matched by series and base name
 	matchedFiles   map[fileKey]*assets.Asset    // files matched by series and base name
+	series         []string                     // series of the files found in the directory during pass one
 }
 
 // seriesPerName counts, for each name of a file or a sidecar, the series of the directory that hold it.
@@ -112,15 +113,21 @@ func borrowable(j, f fileKey, seriesPerName map[string]int) bool {
 	return seriesPerName[j.base] == 1 && seriesPerName[f.base] == 1
 }
 
-// holdsSameFile tells whether the directory dir already holds a file named base with the content of name in w.
-func (cat directoryCatalog) holdsSameFile(dir, base string, size int64, w fs.FS, name string) bool {
-	for k, af := range cat.unMatchedFiles {
-		if k.base != base || int64(af.length) != size {
+// holdsSameFile tells whether the directory dir already holds a file with the name, the size and the content of af.
+// Contents are read only for files of the same name and size, and kept on the files so that each is read once.
+func (cat directoryCatalog) holdsSameFile(dir string, af *assetFile) bool {
+	sum := func(f *assetFile) []byte { // nil if the file can't be read, then tried again next time
+		if f.sum == nil {
+			f.sum, _ = hash.FileSHA1Hash(f.fsys, path.Join(dir, f.base))
+		}
+		return f.sum
+	}
+	for _, s := range cat.series {
+		other, ok := cat.unMatchedFiles[fileKey{series: s, base: af.base}]
+		if !ok || other.length != af.length {
 			continue
 		}
-		h1, err1 := hash.FileSHA1Hash(af.fsys, path.Join(dir, base))
-		h2, err2 := hash.FileSHA1Hash(w, name)
-		if err1 == nil && err2 == nil && bytes.Equal(h1, h2) {
+		if h := sum(other); h != nil && bytes.Equal(h, sum(af)) {
 			return true
 		}
 	}
@@ -147,6 +154,7 @@ type assetFile struct {
 	date    time.Time        // file modification date
 	md      *assets.Metadata // will point to the associated metadata
 	matcher string           // name of the matcher that associated the file with its metadata
+	sum     []byte           // SHA1 of the content, read by holdsSameFile when a file of the same name and size shows up
 }
 
 // Implement slog.LogValuer for assetFile
@@ -323,26 +331,29 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				}
 
 				// TODO: remove debugging code
-				tracking, _ := toc.fileTracker.Load(key)                // tracking := to.fileTracker[key]
-				sameNameAndSize := slices.Contains(tracking.paths, dir) // the duplicate check below relies on this tracking
+				tracking, _ := toc.fileTracker.Load(key) // tracking := to.fileTracker[key]
 				tracking.paths = append(tracking.paths, dir)
 				tracking.count++
 				toc.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
 
-				// A file of the same name in this series, or the same file from another part, is a duplicate.
-				// The same name and size alone is not proof: the content is compared.
-				if _, ok := dirCatalog.unMatchedFiles[fileKey{series: series, base: base}]; ok ||
-					sameNameAndSize && dirCatalog.holdsSameFile(dir, base, finfo.Size(), w, name) {
-					toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedLocalDuplicate, "duplicated in the directory")
-					return nil
-				}
-
-				dirCatalog.unMatchedFiles[fileKey{series: series, base: base}] = &assetFile{
+				af := &assetFile{
 					fsys:   w,
 					base:   base,
 					length: int(finfo.Size()),
 					date:   finfo.ModTime(),
 				}
+
+				// A file of the same name in this series, or the same file from another series, is a duplicate.
+				// The same name and size alone is not proof: the content is compared.
+				if _, ok := dirCatalog.unMatchedFiles[fileKey{series: series, base: base}]; ok || dirCatalog.holdsSameFile(dir, af) {
+					toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedLocalDuplicate, "duplicated in the directory")
+					return nil
+				}
+
+				if !slices.Contains(dirCatalog.series, series) {
+					dirCatalog.series = append(dirCatalog.series, series)
+				}
+				dirCatalog.unMatchedFiles[fileKey{series: series, base: base}] = af
 			}
 			toc.catalogs[dir] = dirCatalog
 			return nil
