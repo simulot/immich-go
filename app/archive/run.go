@@ -50,10 +50,8 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 				return nil
 			}
 			for _, a := range g.Assets {
-				err := ac.dest.WriteAsset(ctx, a)
-				if err == nil {
-					err = a.Close()
-				}
+				// Closed even when it is refused: closing removes the cache reader's copy of the download.
+				err := errors.Join(ac.dest.WriteAsset(ctx, a), a.Close())
 				if err != nil {
 					ac.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorFileAccess, err)
 					errCount++
