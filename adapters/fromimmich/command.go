@@ -390,7 +390,6 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		asset.SetNameInfo(fic.ic.GetInfo(a.OriginalFileName))
 		asset.FromApplication = &assets.Metadata{
 			FileName:    a.OriginalFileName,
-			Checksum:    a.Checksum, // the archive identifies its files by it
 			Latitude:    a.ExifInfo.Latitude,
 			Longitude:   a.ExifInfo.Longitude,
 			Description: a.ExifInfo.Description,
@@ -400,6 +399,10 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			Favorited:   a.IsFavorite,
 			Rating:      byte(a.ExifInfo.Rating),
 			Tags:        asset.Tags,
+		}
+		// Not for an external-library asset: its Immich checksum hashes its path, not its bytes.
+		if a.LibraryID == "" {
+			asset.FromApplication.Checksum = a.Checksum
 		}
 		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(fic.ifs, a.ID)

@@ -75,10 +75,15 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	default:
 	}
 
-	// The asset's checksum as its source gives it, before the asset is opened: Immich's SHA-1 of
-	// the original file, base64. Sources other than from-immich give none. Asset.OpenFile replaces
-	// a.Checksum with the SHA-1 of the bytes it reads, so the two are kept apart.
-	knownChecksum := a.Checksum
+	// The asset's checksum as its source gives it, before the asset is opened, when its sidecar
+	// records the same one: Immich's SHA-1 of the original file, base64. Sources other than
+	// from-immich give none, and from-immich records none for an external-library asset (its Immich
+	// checksum hashes its path). Asset.OpenFile replaces a.Checksum with the SHA-1 of the bytes it
+	// reads, so the two are kept apart.
+	knownChecksum := ""
+	if a.FromApplication != nil && a.FromApplication.Checksum == a.Checksum {
+		knownChecksum = a.Checksum
+	}
 
 	// Choose the file name before the asset is opened: opening it is what downloads it. The name is
 	// the first of base, radical~1.ext, radical~2.ext, ... that is free, or that already holds this
