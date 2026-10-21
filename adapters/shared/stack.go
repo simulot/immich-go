@@ -1,6 +1,9 @@
 package shared
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/simulot/immich-go/internal/filters"
 	"github.com/simulot/immich-go/internal/groups"
 	"github.com/spf13/pflag"
@@ -28,4 +31,26 @@ func (so *StackOptions) RegisterFlags(flags *pflag.FlagSet) {
 	flags.Var(&so.ManageRawJPG, "manage-raw-jpeg", "Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG")
 	flags.Var(&so.ManageBurst, "manage-burst", "Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG")
 	flags.BoolVar(&so.ManageEpsonFastFoto, "manage-epson-fastfoto", false, "Manage Epson FastFoto file (default: false)")
+}
+
+// ReadFlags sets so from the --manage-* flags found in flags. upload registers them as persistent
+// flags; once a sub-command's command line is parsed, its flag set holds them with the values
+// given on the command line or in the configuration. A source adapter reads them there when it
+// runs: when its own flags are registered, it is not yet a sub-command of upload. A flag that is
+// not in flags (archive has none) leaves its option as it is.
+func (so *StackOptions) ReadFlags(flags *pflag.FlagSet) error {
+	// A flag set of our own, bound to so's fields: the flag names are RegisterFlags' only.
+	keep := *so
+	own := pflag.NewFlagSet("", pflag.ContinueOnError)
+	so.RegisterFlags(own)
+	*so = keep // RegisterFlags sets the bool to its default
+	var err error
+	own.VisitAll(func(f *pflag.Flag) {
+		if given := flags.Lookup(f.Name); given != nil {
+			if e := f.Value.Set(given.Value.String()); e != nil {
+				err = errors.Join(err, fmt.Errorf("--%s: %w", f.Name, e))
+			}
+		}
+	})
+	return err
 }

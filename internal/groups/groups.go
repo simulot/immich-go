@@ -45,10 +45,13 @@ func NewGrouperPipeline(ctx context.Context, gs ...Grouper) *GrouperPipeline {
 
 // PipeGrouper groups assets in a pipeline of groupers.
 // Group opens and closes intermediate channels as required.
+// An asset restored from an immich-go archive (FromArchive) skips the groupers: it is sent alone,
+// its stack comes from its sidecar, never from its name or capture time.
 func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset) chan *assets.Group {
 	// Create channels
-	gOut := make(chan *assets.Group) // output channel for groups
-	out := make(chan *assets.Asset)  // output channel for the last grouper
+	gOut := make(chan *assets.Group)    // output channel for groups
+	out := make(chan *assets.Asset)     // output channel for the last grouper
+	toGroup := make(chan *assets.Asset) // the assets the groupers see
 
 	inChans := make([]chan *assets.Asset, len(p.groupers))
 	outChans := make([]chan *assets.Asset, len(p.groupers))
@@ -56,7 +59,7 @@ func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset
 	// initialize channels for each grouper
 	for i := range p.groupers {
 		if i == 0 {
-			inChans[i] = in
+			inChans[i] = toGroup
 		} else {
 			inChans[i] = outChans[i-1]
 		}
@@ -67,8 +70,37 @@ func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset
 		}
 	}
 
-	// call groupers with the appropriate channels
 	wg := sync.WaitGroup{}
+
+	// send the assets restored from an archive alone, the others to the groupers
+	wg.Go(func() {
+		defer close(toGroup)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case a, ok := <-in:
+				if !ok {
+					return
+				}
+				if a.FromArchive {
+					select {
+					case gOut <- assets.NewGroup(assets.GroupByNone, a):
+					case <-ctx.Done():
+						return
+					}
+					continue
+				}
+				select {
+				case toGroup <- a:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	})
+
+	// call groupers with the appropriate channels
 	for i := range p.groupers {
 		wg.Add(1)
 		go func(i int) {
