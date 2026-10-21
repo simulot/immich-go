@@ -11,6 +11,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/http"
+	"sync"
 	"syscall"
 	"time"
 
@@ -18,22 +19,29 @@ import (
 )
 
 // A read of the server (a GET, or a POST that only searches) that fails on the network, or gets
-// 502, 503 or 504 from a proxy in front of Immich, is tried again: 5 tries in all, with waits of
-// about 15 s, 30 s, 1 min and 2 min between them (each scaled by a random factor from 0.75 to
-// 1.25), so about 4 minutes of waits, or about 6 when every try waits out a 30 s connect timeout.
-// Any other answer is the server's answer and is not tried again, and neither is a write (an
-// upload, an album, stack or asset change, a job command): it may have reached the server.
-// Failures are tried again only while the server is reachable (ImmichClient.reachable): from the
-// first answer the client gets, until a call gives up after all its tries, and again from the next
-// answer. So a server never reached, more likely a wrong address, still fails at once, and an
-// outage longer than the tries costs one round of them, not one round per call. A download that
-// breaks off midway starts again from its first byte (downloadReader). Each new try is logged as
-// a warning.
+// 502, 503 or 504 from a proxy in front of Immich, is tried again (OptionRetries). By default: 5
+// tries in all, with waits of about 15 s, 30 s, 1 min and 2 min between them, so about 4 minutes
+// of waits. Each wait doubles the one before, up to MaxRetryWait, and is scaled by a random factor
+// from 0.75 to 1.25. Each try is bounded by the client's timeout (OptionConnectionTimeout); the
+// waits are not. Any other answer is the server's answer and is not tried again, and neither is a
+// write (an upload, an album, stack or asset change, a job command): it may have reached the
+// server.
+// A call gets retries only while the server is reachable for it (reachability): when the server
+// has answered since the last call that gave up before this call started. So a server never
+// reached, more likely a wrong address, still fails at once; a call that gives up after all its
+// tries stops the retries of the calls that start after it, until the next answer, so an outage
+// longer than the tries costs one round of them, not one per call; and the calls already running
+// keep all their tries. A download that breaks off midway starts again from its first byte
+// (downloadReader). Each new try is logged as a warning.
 
 // readOnlyPosts are the POST endpoints that only read: Immich's metadata search.
 var readOnlyPosts = map[string]bool{
 	EndPointGetAllAssets: true, // POST /search/metadata
 }
+
+// MaxRetryWait is the longest wait between two tries, before the random factor: the doubling of
+// the waits stops there.
+const MaxRetryWait = time.Hour
 
 // retryPolicy says how a failed read is tried again.
 type retryPolicy struct {
@@ -49,10 +57,10 @@ func defaultRetryPolicy() retryPolicy {
 
 // OptionRetries sets how a read that failed on the network, or with 502, 503 or 504, is tried
 // again: attempts tries in all (1: never again), waiting wait before the second one and twice as
-// long before each next one. The default is 5 tries, waiting about 15 s first.
+// long before each next one, up to MaxRetryWait. The default is 5 tries, waiting about 15 s first.
 func OptionRetries(attempts int, wait time.Duration) clientOption {
 	return func(ic *ImmichClient) error {
-		if attempts < 1 || wait < 0 {
+		if attempts < 1 || wait < 0 || wait > MaxRetryWait {
 			return fmt.Errorf("invalid retries: %d tries, first wait %s", attempts, wait)
 		}
 		ic.retry.attempts, ic.retry.wait = attempts, wait
@@ -60,9 +68,52 @@ func OptionRetries(attempts int, wait time.Duration) clientOption {
 	}
 }
 
-// delay is the wait after the n-th try (n from 1).
+// delay is the wait after the n-th try (n from 1): the first wait doubled n-1 times, but no more
+// than MaxRetryWait, then scaled by the random factor.
 func (p retryPolicy) delay(n int) time.Duration {
-	return time.Duration(float64(p.wait<<(n-1)) * (0.75 + p.jitter()/2))
+	d := min(p.wait, MaxRetryWait)
+	for ; n > 1 && d > 0 && d < MaxRetryWait; n-- {
+		d *= 2
+	}
+	return time.Duration(float64(min(d, MaxRetryWait)) * (0.75 + p.jitter()/2))
+}
+
+// reachability tells which calls get retries: a call that started with mark (from start) may try
+// again when the server has answered since the last call that gave up before it started. So a
+// give-up stops the retries of the calls that start after it, until the next answer, never those
+// of the calls already running; and a server that has never answered gets none.
+type reachability struct {
+	mu       sync.Mutex
+	giveUps  int // calls that gave up after trying again, so far
+	answered int // giveUps at the server's last answer, plus 1; 0: it has not answered yet
+}
+
+// start returns the mark of a call that starts now.
+func (r *reachability) start() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.giveUps
+}
+
+// answer records an answer from the server: every call gets retries again.
+func (r *reachability) answer() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.answered = r.giveUps + 1
+}
+
+// giveUp records a call that gave up after trying again.
+func (r *reachability) giveUp() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.giveUps++
+}
+
+// retries tells whether the call that started with mark may try again.
+func (r *reachability) retries(mark int) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.answered > mark
 }
 
 func pause(ctx context.Context, d time.Duration) error {
@@ -77,20 +128,21 @@ func pause(ctx context.Context, d time.Duration) error {
 }
 
 // do sends the call. When it is a read that failed on the network or with a gateway error, and the
-// server is reachable, it is tried again as the client's retry policy says, and the last error is
-// returned.
+// server is reachable for this call, it is tried again as the client's retry policy says, and the
+// last error is returned.
 func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption) error {
+	mark := sc.ic.reach.start()
 	for try := 1; ; try++ {
 		err := sc.doOnce(fnRequest, opts...)
 		if err == nil || answered(err) {
-			sc.ic.reachable.Store(true)
+			sc.ic.reach.answer()
 		}
 		if err == nil {
 			return nil
 		}
 		var ce callError
 		errors.As(err, &ce)
-		if !sc.ic.tryAgain(sc.ctx, try, err, "Immich call failed, trying again",
+		if !sc.ic.tryAgain(sc.ctx, mark, try, err, "Immich call failed, trying again",
 			"call", sc.endPoint, "method", ce.method, "url", ce.url) {
 			return err
 		}
@@ -98,23 +150,23 @@ func (sc *serverCall) do(fnRequest requestFunction, opts ...serverResponseOption
 	}
 }
 
-// tryAgain is the retry gate of do and downloadReader: after the try-th try failed with cause,
-// it tells whether to try again, and then logs msg with args (and the try, the wait and the
-// cause) and waits. It says no when cause is not retryable, ctx has ended, the server is not
-// reachable, or the tries are spent; a give-up after two or more tries turns reachable off, so
-// later failures fail at once until the server answers again.
-func (ic *ImmichClient) tryAgain(ctx context.Context, try int, cause error, msg string, args ...any) bool {
+// tryAgain is the retry gate of do and downloadReader: after the try-th try of the call that
+// started with mark failed with cause, it tells whether to try again, and then logs msg with args
+// (and the try, the wait and the cause) and waits. It says no when cause is not retryable, ctx has
+// ended, the server is not reachable for this call, or the tries are spent; a give-up after two or
+// more tries stops the retries of the calls that start after it, until the server answers again.
+func (ic *ImmichClient) tryAgain(ctx context.Context, mark, try int, cause error, msg string, args ...any) bool {
 	p := ic.retry
 	if ctx.Err() != nil || !retryable(cause) {
 		return false
 	}
 	if try >= p.attempts {
 		if try > 1 {
-			ic.reachable.Store(false)
+			ic.reach.giveUp()
 		}
 		return false
 	}
-	if !ic.reachable.Load() {
+	if !ic.reach.retries(mark) {
 		return false
 	}
 	wait := p.delay(try)
@@ -206,11 +258,12 @@ func (ic *ImmichClient) warn(msg string, args ...any) {
 // downloadOriginal requests the asset's original (GET /assets/{id}/original, tried again as any
 // read) and returns a reader of it that starts the download again when it breaks off.
 func (ic *ImmichClient) downloadOriginal(ctx context.Context, id string) (io.ReadCloser, error) {
+	mark := ic.reach.start()
 	body, err := ic.requestOriginal(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return &downloadReader{ctx: ctx, ic: ic, id: id, body: body, sum: sha1.New(), try: 1}, nil
+	return &downloadReader{ctx: ctx, ic: ic, id: id, body: body, sum: sha1.New(), mark: mark, try: 1}, nil
 }
 
 // requestOriginal sends GET /assets/{id}/original, with the retries of do.
@@ -246,8 +299,8 @@ func bodyUnlessError(rc io.ReadCloser, err error) (io.ReadCloser, error) {
 // reader gets the whole original, or an error: never a mix of two, nor one cut short where the
 // transport sees the cut (a body shorter than its Content-Length or its chunked framing says). A
 // body with no length framing that the server closes early still reads as a normal end. The
-// transfer gets the retry policy's tries, apart from those of its first request, while the server
-// is reachable.
+// transfer gets the retry policy's tries, apart from those of its first request, and keeps them
+// when other calls give up meanwhile: the download started before those give-ups.
 type downloadReader struct {
 	ctx  context.Context
 	ic   *ImmichClient
@@ -255,6 +308,7 @@ type downloadReader struct {
 	body io.ReadCloser
 	n    int64     // bytes read so far
 	sum  hash.Hash // their SHA-1
+	mark int       // the download's mark (reachability)
 	try  int       // transfers started
 }
 
@@ -278,7 +332,7 @@ func (d *downloadReader) Read(p []byte) (int, error) {
 // restart starts the transfer again after it failed with cause, and skips the bytes already read.
 func (d *downloadReader) restart(cause error) error {
 	for {
-		if !d.ic.tryAgain(d.ctx, d.try, cause, "Immich download broke off, trying again", "id", d.id, "bytes", d.n) {
+		if !d.ic.tryAgain(d.ctx, d.mark, d.try, cause, "Immich download broke off, trying again", "id", d.id, "bytes", d.n) {
 			return cause
 		}
 		d.body.Close()
@@ -286,7 +340,7 @@ func (d *downloadReader) restart(cause error) error {
 		d.try++
 		body, err := d.ic.requestOriginalOnce(d.ctx, d.id)
 		if err == nil || answered(err) {
-			d.ic.reachable.Store(true)
+			d.ic.reach.answer()
 		}
 		if err != nil {
 			cause = err

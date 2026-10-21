@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -41,7 +42,7 @@ func retryClient(t *testing.T, url string) (*ImmichClient, *syncBuffer, *[]time.
 	ic.log = slog.New(slog.NewTextHandler(logs, nil))
 	waits := &[]time.Duration{}
 	var mu sync.Mutex
-	ic.reachable.Store(true)
+	ic.reach.answer()
 	ic.retry.jitter = func() float64 { return 0.5 }
 	ic.retry.pause = func(ctx context.Context, d time.Duration) error {
 		mu.Lock()
@@ -333,7 +334,7 @@ func TestNoRetryBeforeTheServerAnswered(t *testing.T) {
 	addr := ln.Addr().String()
 	ln.Close()
 	ic, logs, waits := retryClient(t, "http://"+addr)
-	ic.reachable.Store(false)
+	ic.reach = reachability{} // as a new client's: no answer yet
 	if _, err := ic.GetAssetInfo(context.Background(), testAssetID); err == nil {
 		t.Fatal("GetAssetInfo: no error")
 	}
@@ -344,21 +345,26 @@ func TestNoRetryBeforeTheServerAnswered(t *testing.T) {
 	}))
 	defer srv.Close()
 	gw, gwLogs, gwWaits := retryClient(t, srv.URL)
-	gw.reachable.Store(false)
+	gw.reach = reachability{}
 	if _, err := gw.GetAssetInfo(context.Background(), testAssetID); err == nil {
 		t.Fatal("GetAssetInfo: no error")
 	}
 	if len(*waits) != 0 || logs.count(callRetried) != 0 || len(*gwWaits) != 0 || gwLogs.count(callRetried) != 0 || calls.Load() != 1 {
 		t.Errorf("waits %v and %v, %d calls; want none, none and 1; logs:\n%s%s", *waits, *gwWaits, calls.Load(), logs, gwLogs)
 	}
-	if fresh, err := NewImmichClient(srv.URL, "test-key"); err != nil || fresh.reachable.Load() {
-		t.Errorf("a new client is reachable: %v, %v", fresh.reachable.Load(), err)
+	fresh, err := NewImmichClient(srv.URL, "test-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh.reach.retries(fresh.reach.start()) {
+		t.Error("a new client gives a call retries before the server answered")
 	}
 }
 
-// A call that gives up after all its tries turns the retries off: the next failure fails at once,
-// so a long outage costs one round of tries, not one per call. The next answer turns them on.
-func TestRetriesOffAfterAGiveUp(t *testing.T) {
+// A call that starts after another one gave up, with no answer from the server since, fails at
+// once: a long outage costs one round of tries, not one per call. The next answer turns the
+// retries on again for the calls that start after it.
+func TestCallAfterGiveUpDoesNotRetry(t *testing.T) {
 	var calls, down atomic.Int32
 	down.Store(1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -391,27 +397,103 @@ func TestRetriesOffAfterAGiveUp(t *testing.T) {
 	if len(*waits) != 8 || logs.count(callRetried) != 8 {
 		t.Errorf("waits %v; want two rounds of 4; log:\n%s", *waits, logs)
 	}
+}
 
-	// The same for a download: after a give-up, a transfer cut midway is not started again.
-	content := bigContent(7)
-	dsrv, dcalls := original(t, func(int) []byte { return content }, func(n int) int {
-		if n == 1 {
-			return len(content) / 2
+// Two calls during an outage: when one gives up, the other, which started before, keeps its
+// tries, and gets through once the server is back. The same for a download whose transfer breaks
+// off after another call gave up: it is started again.
+func TestGiveUpDoesNotStopOtherCallsRetries(t *testing.T) {
+	t.Run("call", func(t *testing.T) {
+		var calls atomic.Int32
+		var down atomic.Bool
+		down.Store(true)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls.Add(1)
+			if down.Load() {
+				http.Error(w, "busy", http.StatusServiceUnavailable)
+				return
+			}
+			assetJSON(w)
+		}))
+		defer srv.Close()
+		ic, logs, _ := retryClient(t, srv.URL)
+
+		// Call 2 fails, then waits until call 1 has given up. Its next try fails too (the
+		// server is still down), and while it waits again the server comes back.
+		type callKey struct{}
+		ctx2 := context.WithValue(context.Background(), callKey{}, 2)
+		waiting, release := make(chan struct{}), make(chan struct{})
+		releaseOnce := sync.OnceFunc(func() { close(release) })
+		defer releaseOnce()
+		var pauses2 atomic.Int32
+		pause := ic.retry.pause
+		ic.retry.pause = func(ctx context.Context, d time.Duration) error {
+			if ctx.Value(callKey{}) == 2 {
+				switch pauses2.Add(1) {
+				case 1:
+					close(waiting)
+					<-release
+				case 2:
+					down.Store(false)
+				}
+			}
+			return pause(ctx, d)
 		}
-		return -1
+		done := make(chan error, 1)
+		go func() {
+			_, err := ic.GetAssetInfo(ctx2, testAssetID)
+			done <- err
+		}()
+		<-waiting
+		calls.Store(0)
+		if _, err := ic.GetAssetInfo(context.Background(), testAssetID); err == nil || calls.Load() != 5 {
+			t.Fatalf("call 1: %v after %d tries; want an error after 5", err, calls.Load())
+		}
+		releaseOnce()
+		if err := <-done; err != nil {
+			t.Fatalf("call 2: %v; want the asset once the server is back; log:\n%s", err, logs)
+		}
+		if pauses2.Load() != 2 {
+			t.Errorf("call 2 waited %d times; want 2", pauses2.Load())
+		}
 	})
-	defer dsrv.Close()
-	dc, dlogs, _ := retryClient(t, dsrv.URL)
-	rc, err := dc.DownloadAsset(ctx, testAssetID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dc.reachable.Store(false) // as when another call gave up meanwhile
-	_, err = io.ReadAll(rc)
-	rc.Close()
-	if err == nil || dcalls.Load() != 1 || dlogs.count(downRetried) != 0 {
-		t.Errorf("download after a give-up: %v, %d requests; want an error after 1; log:\n%s", err, dcalls.Load(), dlogs)
-	}
+
+	t.Run("download", func(t *testing.T) {
+		content := bigContent(7)
+		var transfers atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/assets/"+testAssetID+"/original" {
+				http.Error(w, "busy", http.StatusServiceUnavailable) // the other call meets a gateway error
+				return
+			}
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Length", strconv.Itoa(len(content)))
+			if transfers.Add(1) == 1 {
+				_, _ = w.Write(content[:len(content)/2])
+				w.(http.Flusher).Flush()
+				panic(http.ErrAbortHandler)
+			}
+			_, _ = w.Write(content)
+		}))
+		defer srv.Close()
+		ic, logs, _ := retryClient(t, srv.URL)
+		ctx := context.Background()
+		rc, err := ic.DownloadAsset(ctx, testAssetID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rc.Close()
+		if _, err := ic.GetAssetInfo(ctx, testAssetID); err == nil || logs.count(callRetried) != 4 {
+			t.Fatalf("other call: %v; want an error after 5 tries; log:\n%s", err, logs)
+		}
+		got, err := io.ReadAll(rc)
+		if err != nil || !bytes.Equal(got, content) {
+			t.Fatalf("read %d bytes, %v; want the %d of the original; log:\n%s", len(got), err, len(content), logs)
+		}
+		if transfers.Load() != 2 || logs.count(downRetried) != 1 {
+			t.Errorf("%d transfers; want 2; log:\n%s", transfers.Load(), logs)
+		}
+	})
 }
 
 // A body cut short while its JSON is read is a network failure too: the read is tried again.
@@ -475,7 +557,7 @@ func TestOptionRetries(t *testing.T) {
 			t.Fatal(err)
 		}
 		ic.log = slog.New(slog.DiscardHandler)
-		ic.reachable.Store(true)
+		ic.reach.answer()
 		start := time.Now()
 		if _, err := ic.GetAssetInfo(context.Background(), testAssetID); err == nil {
 			t.Fatal("GetAssetInfo: no error")
@@ -483,13 +565,47 @@ func TestOptionRetries(t *testing.T) {
 		if int(calls.Load()) != tc.calls || time.Since(start) > 5*time.Second {
 			t.Errorf("OptionRetries(%d, 1ms): %d calls in %s; want %d", tc.attempts, calls.Load(), time.Since(start), tc.calls)
 		}
-		// Only a give-up after a try again turns the retries off: with 1 try there is none.
-		if want := tc.attempts == 1; ic.reachable.Load() != want {
-			t.Errorf("OptionRetries(%d, 1ms): reachable %v after the failure, want %v", tc.attempts, ic.reachable.Load(), want)
+		// Only a give-up after a try again stops the retries of the next calls: with 1 try there
+		// is none.
+		if want := tc.attempts == 1; ic.reach.retries(ic.reach.start()) != want {
+			t.Errorf("OptionRetries(%d, 1ms): the next call gets retries: %v, want %v", tc.attempts, !want, want)
 		}
 	}
-	if _, err := NewImmichClient(srv.URL, "test-key", OptionRetries(0, time.Second)); err == nil {
-		t.Error("OptionRetries(0, 1s): no error")
+	for _, bad := range []struct {
+		attempts int
+		wait     time.Duration
+	}{{0, time.Second}, {5, -time.Second}, {5, MaxRetryWait + time.Second}} {
+		if _, err := NewImmichClient(srv.URL, "test-key", OptionRetries(bad.attempts, bad.wait)); err == nil {
+			t.Errorf("OptionRetries(%d, %s): no error", bad.attempts, bad.wait)
+		}
+	}
+}
+
+// The waits double up to MaxRetryWait (1 h) and stay there, however many tries: never a wait that
+// overflows into a negative or a zero one.
+func TestRetryDelayCapped(t *testing.T) {
+	p := defaultRetryPolicy()
+	p.jitter = func() float64 { return 0.5 }
+	if d := p.delay(8); d != 32*time.Minute {
+		t.Errorf("wait 8 is %s, want 32m0s (15 s doubled 7 times)", d)
+	}
+	for _, n := range []int{9, 10, 40, 63, 64, 65, 1000, math.MaxInt} {
+		if d := p.delay(n); d != time.Hour {
+			t.Errorf("wait %d is %s, want 1h0m0s", n, d)
+		}
+	}
+	p.jitter = func() float64 { return 0.999 }
+	if d := p.delay(math.MaxInt); d < time.Hour || d > time.Hour*5/4 {
+		t.Errorf("last wait with the largest random factor is %s, want 1 h to 1 h 15 min", d)
+	}
+	p.jitter = func() float64 { return 0.5 }
+	p.wait = time.Hour
+	if d := p.delay(1); d != time.Hour {
+		t.Errorf("first wait %s, want 1h0m0s", d)
+	}
+	p.wait = 0
+	if d := p.delay(math.MaxInt); d != 0 {
+		t.Errorf("wait with a first wait of 0 is %s, want 0", d)
 	}
 }
 

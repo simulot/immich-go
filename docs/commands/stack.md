@@ -25,11 +25,13 @@ Stacking groups related photos together for better organization:
 
 ## Connection Options
 
-| Option              | Default | Description                       |
-| ------------------- | ------- | --------------------------------- |
-| `--skip-verify-ssl` | `false` | Skip SSL certificate verification |
-| `--client-timeout`  | `20m`   | Server call timeout               |
-| `--api-trace`       | `false` | Enable API call tracing           |
+| Option              | Default | Description                                                                                         |
+| ------------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| `--skip-verify-ssl` | `false` | Skip SSL certificate verification                                                                   |
+| `--client-timeout`  | `20m`   | Server call timeout, for each try                                                                   |
+| `--retries`         | `5`     | Tries in all for a failed read (`1`: no retry), see [retries](upload.md#network-errors-and-retries) |
+| `--retry-wait`      | `15s`   | Wait before the second try, doubled for each next one up to `1h`                                    |
+| `--api-trace`       | `false` | Enable API call tracing                                                                             |
 
 ## Behavior Options
 

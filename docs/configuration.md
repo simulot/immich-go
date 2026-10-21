@@ -86,6 +86,8 @@ from-model = ''
 from-no-album = false
 from-partners = false
 from-pause-immich-jobs = true
+from-retries = 5
+from-retry-wait = '15s'
 from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
 from-state = ''
@@ -123,6 +125,8 @@ manage-epson-fastfoto = false
 manage-heic-jpeg = 'NoStack'
 manage-raw-jpeg = 'NoStack'
 pause-immich-jobs = true
+retries = 5
+retry-wait = '15s'
 server = 'https://immich.app'
 skip-verify-ssl = false
 time-zone = ''
@@ -141,6 +145,8 @@ manage-raw-jpeg = 'NoStack'
 no-ui = false
 overwrite = false
 pause-immich-jobs = true
+retries = 5
+retry-wait = '15s'
 server = 'https://immich.app'
 session-tag = false
 skip-verify-ssl = false
@@ -213,6 +219,8 @@ from-model = ''
 from-no-album = false
 from-partners = false
 from-pause-immich-jobs = true
+from-retries = 5
+from-retry-wait = '15s'
 from-server = 'https://old.immich.app'
 from-skip-verify-ssl = false
 from-state = ''
@@ -313,6 +321,8 @@ archive:
     from-partners: false
     from-pause-immich-jobs: true
     from-people: {}
+    from-retries: 5
+    from-retry-wait: 15s
     from-server: https://old.immich.app
     from-skip-verify-ssl: false
     from-state: ""
@@ -354,6 +364,8 @@ stack:
   manage-heic-jpeg: NoStack
   manage-raw-jpeg: NoStack
   pause-immich-jobs: true
+  retries: 5
+  retry-wait: 15s
   server: https://immich.app
   skip-verify-ssl: false
   time-zone: ""
@@ -430,6 +442,8 @@ upload:
     from-partners: false
     from-pause-immich-jobs: true
     from-people: {}
+    from-retries: 5
+    from-retry-wait: 15s
     from-server: https://old.immich.app
     from-skip-verify-ssl: false
     from-state: ""
@@ -457,6 +471,8 @@ upload:
   no-ui: false
   overwrite: false
   pause-immich-jobs: true
+  retries: 5
+  retry-wait: 15s
   server: https://immich.app
   session-tag: false
   skip-verify-ssl: false
@@ -541,6 +557,8 @@ upload:
       "from-partners": false,
       "from-pause-immich-jobs": true,
       "from-people": {},
+      "from-retries": 5,
+      "from-retry-wait": "15s",
       "from-server": "https://old.immich.app",
       "from-skip-verify-ssl": false,
       "from-state": "",
@@ -585,6 +603,8 @@ upload:
     "manage-heic-jpeg": "NoStack",
     "manage-raw-jpeg": "NoStack",
     "pause-immich-jobs": true,
+    "retries": 5,
+    "retry-wait": "15s",
     "server": "https://immich.app",
     "skip-verify-ssl": false,
     "time-zone": ""
@@ -665,6 +685,8 @@ upload:
       "from-partners": false,
       "from-pause-immich-jobs": true,
       "from-people": {},
+      "from-retries": 5,
+      "from-retry-wait": "15s",
       "from-server": "https://old.immich.app",
       "from-skip-verify-ssl": false,
       "from-state": "",
@@ -694,6 +716,8 @@ upload:
     "no-ui": false,
     "overwrite": false,
     "pause-immich-jobs": true,
+    "retries": 5,
+    "retry-wait": "15s",
     "server": "https://immich.app",
     "session-tag": false,
     "skip-verify-ssl": false,

@@ -22,12 +22,14 @@ immich-go upload <sub-command> [options] <source-path>
 
 All upload sub-commands require these connection parameters:
 
-| Option              | Required | Description                                       |
-| ------------------- | :------: | ------------------------------------------------- |
-| `-s, --server`      |    Y     | Immich server URL (e.g., `http://localhost:2283`) |
-| `-k, --api-key`     |    Y     | Your API key                                      |
-| `--skip-verify-ssl` |          | Skip SSL certificate verification                 |
-| `--client-timeout`  |          | Server call timeout (default: `20m`)              |
+| Option              | Required | Description                                                                                              |
+| ------------------- | :------: | -------------------------------------------------------------------------------------------------------- |
+| `-s, --server`      |    Y     | Immich server URL (e.g., `http://localhost:2283`)                                                        |
+| `-k, --api-key`     |    Y     | Your API key                                                                                             |
+| `--skip-verify-ssl` |          | Skip SSL certificate verification                                                                        |
+| `--client-timeout`  |          | Server call timeout, for each try (default: `20m`)                                                       |
+| `--retries`         |          | Tries in all for a failed read (default: `5`, `1`: no retry), see [retries](#network-errors-and-retries) |
+| `--retry-wait`      |          | Wait before the second try, doubled for each next one up to `1h` (default: `15s`)                        |
 
 ## Upload Behavior Options
 
@@ -38,6 +40,25 @@ All upload sub-commands require these connection parameters:
 | `--overwrite`         | `false`   | Replace existing files on server                                    |
 | `--pause-immich-jobs` | `true`    | Pause server jobs during upload                                     |
 | `--on-errors`         | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors |
+
+## Network Errors and Retries
+
+**What is tried again:** a read of the server (a `GET`, or a metadata search) that fails on the network (connection refused or reset, name lookup, timeout, connection closed before the whole answer), or that gets `502`, `503` or `504` from a proxy in front of Immich. A download that breaks off midway starts again from its first byte. The bytes already read must come again the same, or the download fails.
+
+**What is never tried again:**
+- A write: an upload, an album, stack, tag or asset change, a job command. It may have reached the server.
+- Any other answer from the server (`400`, `401`, `404`, `500`, ...). That is the server's answer.
+- A TLS or certificate error, or a cancel (`Ctrl+C`).
+
+**`--retries` and `--retry-wait`:** `--retries` is the number of tries in all, the first one included. `1` turns the retries off. `--retry-wait` is the wait before the second try. Each next wait doubles, up to `1h`, and each is scaled by a random factor from 0.75 to 1.25, so parallel tasks do not all try again at the same moment. The defaults (`5` and `15s`) give waits of about 15 s, 30 s, 1 min and 2 min.
+
+**Retries first, then `--on-errors`:** a call that still fails after its last try counts as one error, and `--on-errors` decides what happens next: `stop` ends the run, `continue` goes on with the next asset, and a number N stops after N errors.
+
+**`--client-timeout`:** it bounds each try on its own: connecting, waiting for the answer, and reading it. The waits between tries are not counted in it. A try that runs out of time is tried again like any network failure. A download that cannot finish within `--client-timeout` starts again from its first byte each time, so it fails after `--retries` tries: raise `--client-timeout` for large videos on a slow link.
+
+**Worst case for one read, with the defaults:** waits of 15 s + 30 s + 1 min + 2 min = 3.75 min, so 2.8 to 4.7 min with the random factor, plus up to 5 x `--client-timeout` when the tries hang instead of failing at once. A download whose transfer breaks off midway can take up to about twice that: the transfer gets its own 5 tries, after those of its first request.
+
+**When the server stays down:** a call that gives up after all its tries turns the retries off for the calls that start after it, until the server answers again. The calls already running keep their tries. So with `--on-errors=continue` and a dead server, only the calls that were running when the server went away wait out their tries. The next ones fail at once, and the outage costs one round of waits, not one per asset. A server that has not answered yet (a wrong address, for example) gets no retries: the first call fails at once.
 
 ## Tagging and Organization
 
@@ -222,12 +243,14 @@ immich-go upload from-immich [source-options] [destination-options]
 
 ### Source Server Options
 
-  | Option                   | Description                      |
-  | ------------------------ | -------------------------------- |
-  | `--from-server`          | Source Immich server URL         |
-  | `--from-api-key`         | Source server API key            |
-  | `--from-client-timeout`  | Source server timeout            |
-  | `--from-skip-verify-ssl` | Skip SSL verification for source |
+  | Option                   | Description                                                                              |
+  | ------------------------ | ---------------------------------------------------------------------------------------- |
+  | `--from-server`          | Source Immich server URL                                                                 |
+  | `--from-api-key`         | Source server API key                                                                    |
+  | `--from-client-timeout`  | Source server timeout, for each try                                                      |
+  | `--from-retries`         | Tries in all for a failed read of the source, see [retries](#network-errors-and-retries) |
+  | `--from-retry-wait`      | Wait before the second try of a failed read of the source                                |
+  | `--from-skip-verify-ssl` | Skip SSL verification for source                                                         |
 
 ### Source Filtering
 
@@ -265,7 +288,7 @@ immich-go upload from-immich \
 
 - **Concurrent Tasks**: Start with default (CPU cores), adjust based on network/server capacity
 - **Large Files**: Increase `--client-timeout` for large video files
-- **Network Issues**: Use lower `--concurrent-tasks` for unstable connections
+- **Network Issues**: Use lower `--concurrent-tasks` for unstable connections, and see [Network Errors and Retries](#network-errors-and-retries)
 - **Server Load**: Enable `--pause-immich-jobs` during large uploads
 
 ## See Also

@@ -26,6 +26,8 @@ type Client struct {
 	APITrace                  bool           `mapstructure:"api_trace" json:"api_trace" toml:"api_trace" yaml:"api_trace"`                                                                             // Enable API call traces
 	SkipSSL                   bool           `mapstructure:"skip_ssl" json:"skip_ssl" toml:"skip_ssl" yaml:"skip_ssl"`                                                                                 // Skip SSL Verification
 	ClientTimeout             time.Duration  `mapstructure:"client_timeout" json:"client_timeout" toml:"client_timeout" yaml:"client_timeout"`                                                         // Set the client request timeout
+	Retries                   int            `mapstructure:"retries" json:"retries" toml:"retries" yaml:"retries"`                                                                                     // Tries in all for a read that fails on the network or with 502, 503, 504 (1: no retry)
+	RetryWait                 time.Duration  `mapstructure:"retry_wait" json:"retry_wait" toml:"retry_wait" yaml:"retry_wait"`                                                                         // Wait before the second try, doubled before each next one
 	DeviceUUID                string         `mapstructure:"device_uuid" json:"device_uuid" toml:"device_uuid" yaml:"device_uuid"`                                                                     // Set a device UUID
 	TimeZone                  string         `mapstructure:"time_zone" json:"time_zone" toml:"time_zone" yaml:"time_zone"`                                                                             // Override default TZ
 	APITraceWriter            io.WriteCloser `mapstructure:"api_trace_writer" json:"api_trace_writer" toml:"api_trace_writer" yaml:"api_trace_writer"`                                                 // API tracer
@@ -38,13 +40,15 @@ type Client struct {
 	AdminImmich immich.ImmichInterface // Immich client for admin
 	ClientLog   *slog.Logger           // Logger
 	app         *Application
-	DryRun      bool // Protect the server from changes
+	DryRun      bool   // Protect the server from changes
+	flagPrefix  string // The prefix of the client's flags, for the messages
 }
 
 // RegisterFlags adds client-related command-line flags to the provided flag set.
 // These flags control server connection, authentication, and client behavior.
 func (client *Client) RegisterFlags(flags *pflag.FlagSet, prefix string) {
 	client.DeviceUUID, _ = os.Hostname()
+	client.flagPrefix = prefix
 
 	if prefix == "" {
 		flags.StringVarP(&client.Server, prefix+"server", "s", client.Server, "Immich server address (example http://your-ip:2283 or https://your-domain)")
@@ -58,6 +62,8 @@ func (client *Client) RegisterFlags(flags *pflag.FlagSet, prefix string) {
 	flags.BoolVar(&client.PauseImmichBackgroundJobs, prefix+"pause-immich-jobs", true, "Pause Immich background jobs during upload operations")
 	flags.BoolVar(&client.SkipSSL, prefix+"skip-verify-ssl", false, "Skip SSL verification")
 	flags.DurationVar(&client.ClientTimeout, prefix+"client-timeout", 20*time.Minute, "Set server calls timeout")
+	flags.IntVar(&client.Retries, prefix+"retries", 5, "Tries in all for a server read that fails on the network or with 502, 503 or 504 (1: no retry)")
+	flags.DurationVar(&client.RetryWait, prefix+"retry-wait", 15*time.Second, "Wait before the second try of a failed read; each next wait doubles, up to 1h, and is scaled by a random 0.75 to 1.25")
 	flags.StringVar(&client.DeviceUUID, prefix+"device-uuid", client.DeviceUUID, "Set a device UUID")
 	flags.BoolVar(&client.DryRun, prefix+"dry-run", false, "Simulate all actions")
 	flags.StringVar(&client.TimeZone, prefix+"time-zone", client.TimeZone, "Override the system time zone")
@@ -68,6 +74,14 @@ func (client *Client) RegisterFlags(flags *pflag.FlagSet, prefix string) {
 // and performs initial server validation including ping and authentication.
 func (client *Client) Open(ctx context.Context, app *Application) error {
 	var err error
+
+	if client.Retries < 1 {
+		return fmt.Errorf("--%sretries is %d: it must be 1 or more (1: no retry)", client.flagPrefix, client.Retries)
+	}
+	if client.RetryWait < 0 || client.RetryWait > immich.MaxRetryWait {
+		return fmt.Errorf("--%sretry-wait is %s: it must be from 0 to %s", client.flagPrefix, client.RetryWait, immich.MaxRetryWait)
+	}
+	retries := immich.OptionRetries(client.Retries, client.RetryWait)
 
 	if client.Server != "" {
 		client.Server = strings.TrimSuffix(client.Server, "/")
@@ -138,6 +152,7 @@ func (client *Client) Open(ctx context.Context, app *Application) error {
 		client.APIKey,
 		immich.OptionVerifySSL(client.SkipSSL),
 		immich.OptionConnectionTimeout(client.ClientTimeout),
+		retries,
 		immich.OptionDryRun(client.DryRun),
 	)
 	if err != nil {
@@ -154,6 +169,7 @@ func (client *Client) Open(ctx context.Context, app *Application) error {
 		client.AdminAPIKey,
 		immich.OptionVerifySSL(client.SkipSSL),
 		immich.OptionConnectionTimeout(adminTime),
+		retries,
 		// no trace pulling job status
 	)
 	if err != nil {
