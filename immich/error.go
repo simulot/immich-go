@@ -53,6 +53,20 @@ func (e serverErrorV3) lines() []string {
 	return out
 }
 
+// errNoAssetID is what the calls that read one asset return, without calling the server, when
+// they are given no ID: GET /assets/, GET /albums?assetId= and a search with no ID ask for
+// something else.
+func errNoAssetID(call string) error {
+	return fmt.Errorf("%s: no asset ID", call)
+}
+
+// IsForbidden tells whether the server refused the call (HTTP 403), as it does when the API key
+// lacks the permission the endpoint needs.
+func IsForbidden(err error) bool {
+	var ce callError
+	return errors.As(err, &ce) && ce.status == http.StatusForbidden
+}
+
 func (ce callError) Is(target error) bool {
 	_, ok := target.(*callError)
 	return ok

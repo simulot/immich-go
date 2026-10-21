@@ -49,7 +49,7 @@ type Asset struct {
 	OwnerID string `json:"ownerId"`
 	// people
 	Resized bool `json:"resized"`
-	// stack
+	// stack, only in GET /assets/{id}
 	Stack     *AssetStack     `json:"stack,omitempty"`
 	Tags      []TagSimplified `json:"tags"`
 	Thumbhash string          `json:"thumbhash"`
@@ -64,7 +64,9 @@ type Asset struct {
 	Albums []AlbumSimplified `json:"-"` // Albums that asset belong to, not in the API
 }
 
-// AssetStack is the stack summary returned with an asset.
+// AssetStack is the stack an asset belongs to, as GET /assets/{id} reports it. Immich v3 reports it
+// only while a member other than the primary is on the timeline and not trashed, and AssetCount
+// counts those members plus one.
 type AssetStack struct {
 	ID             string `json:"id"`
 	PrimaryAssetID string `json:"primaryAssetId"`
@@ -187,6 +189,9 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 // https://api.immich.app/endpoints/assets/getAssetInfo
 func (ic *ImmichClient) GetAssetInfo(ctx context.Context, id string) (*Asset, error) {
 	r := Asset{}
+	if id == "" {
+		return &r, errNoAssetID("GetAssetInfo")
+	}
 	err := ic.newServerCall(ctx, "GetAssetInfo").do(getRequest("/assets/"+id, setAcceptJSON()), responseJSON(&r))
 	return &r, err
 }

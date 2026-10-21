@@ -18,6 +18,7 @@ type Metadata struct {
 	FileDate    time.Time          `json:"fileDate,omitzero"`     // Date of the file
 	DateTaken   time.Time          `json:"dateTaken,omitzero"`    // Date of exposure
 	Description string             `json:"description,omitempty"` // Long description
+	Stack       *Stack             `json:"stack,omitempty"`       // The asset's stack on the server it was archived from
 	Albums      []Album            `json:"albums,omitempty"`      // Used to list albums that contain the file
 	Tags        []Tag              `json:"tags,omitempty"`        // Used to list tags
 	Rating      byte               `json:"rating,omitempty"`      // 0 to 5
@@ -48,6 +49,7 @@ func (m Metadata) LogValue() slog.Value {
 		slog.Bool("fromPartner", m.FromPartner),
 		slog.Any("albums", m.Albums),
 		slog.Any("tags", m.Tags),
+		slog.Any("stack", m.Stack),
 	)
 }
 
