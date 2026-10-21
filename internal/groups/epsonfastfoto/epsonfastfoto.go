@@ -44,6 +44,10 @@ func (g Group) Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *a
 
 			if dontGroupMe {
 				g.sendGroup(ctx, out, gOut)
+				select {
+				case out <- a:
+				case <-ctx.Done():
+				}
 				continue
 			}
 			if g.lastRadical != radical {
