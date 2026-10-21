@@ -430,6 +430,77 @@ func TestRebuildStacksLeavesOtherStacks(t *testing.T) {
 	}
 }
 
+// The same when the other stack's primary is in the trash (or hidden): GET /stacks names it as the
+// primary but lists only our member. It is still another stack, left as it is.
+func TestRebuildStacksLeavesOtherStacksWithATrashedPrimary(t *testing.T) {
+	f := newFakeStacks()
+	if _, err := f.CreateStack(context.Background(), []string{"x1", "b1"}); err != nil {
+		t.Fatal(err)
+	}
+	f.trashed["x1"] = true
+	src := collect(
+		m("IMG_1.JPG", "b1", "S2", false, 2),
+		m("IMG_2.JPG", "b2", "S2", true, 2),
+	)
+	var logBuf bytes.Buffer
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := f.snapshot()
+	if f.creates != 1 || r.created != 0 || r.notMade != 1 || len(got) != 1 {
+		t.Fatalf("stacks %v, result %+v", got, r)
+	}
+	for _, ms := range got {
+		if !equalStrings(ms, []string{"x1", "b1"}) {
+			t.Fatalf("the other stack changed: %v", ms)
+		}
+	}
+	if !strings.Contains(logBuf.String(), "a member is in another stack") {
+		t.Fatalf("not logged:\n%s", logBuf.String())
+	}
+}
+
+// stackServer is a server that keeps its stacks as fakeStacks does.
+type stackServer struct {
+	immich.ImmichInterface
+	f *fakeStacks
+}
+
+func (s stackServer) GetAllStacks(ctx context.Context) ([]immich.Stack, error) {
+	return s.f.GetAllStacks(ctx)
+}
+
+func (s stackServer) CreateStack(ctx context.Context, ids []string) (string, error) {
+	return s.f.CreateStack(ctx, ids)
+}
+
+func (s stackServer) GetAssetInfo(ctx context.Context, id string) (*immich.Asset, error) {
+	return s.f.GetAssetInfo(ctx, id)
+}
+
+// The summary line holds for both sources of stacks: an archive's sidecars, and the source server
+// of upload from-immich, which has no sidecars.
+func TestRebuildSourceStacksSummary(t *testing.T) {
+	uc, _ := newTestUpCmd(t)
+	uc.client.Immich = stackServer{f: newFakeStacks()}
+	var logBuf bytes.Buffer
+	uc.app.Log().Logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+	for _, p := range []func() (*assets.Asset, string){
+		m("IMG_1.JPG", "b1", "S1", true, 2),
+		m("IMG_2.JPG", "b2", "S1", false, 2),
+	} {
+		uc.stacks.add(p())
+	}
+	if err := uc.rebuildSourceStacks(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	logs := logBuf.String()
+	if !strings.Contains(logs, `msg="stacks from the source" made=1`) || strings.Contains(logs, "sidecar") {
+		t.Fatalf("summary line:\n%s", logs)
+	}
+}
+
 // A member counts only as the server asset that holds this very file.
 func TestStackMemberID(t *testing.T) {
 	a := func(id, ck string) *assets.Asset { return &assets.Asset{ID: id, Checksum: ck} }

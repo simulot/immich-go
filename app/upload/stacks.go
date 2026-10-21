@@ -18,7 +18,7 @@ import (
 // `archive from-immich` writes each asset's stack on the source server into its .JSON sidecar
 // (assets.Metadata.Stack); upload notes, for each uploaded asset, the ID it has on this server,
 // and after the last upload rebuilds exactly those stacks, with the same primary. Members can sit
-// in different folders.
+// in different folders. upload from-immich reads the same stacks from the source server.
 
 type stackMember struct {
 	id      string // the asset's ID on this server
@@ -225,15 +225,17 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 				continue
 			}
 		}
-		// A member in a stack with other assets: not ours to change.
+		// A member in a stack with other assets: not ours to change. GET /stacks leaves out trashed
+		// and hidden assets, so a primary that is not ours makes it another stack too.
 		var other []string
 		for _, id := range order {
 			if i, ok := stackOf[id]; ok {
+				mixed := !members[existing[i].PrimaryAssetID]
 				for _, a := range existing[i].Assets {
-					if !members[a.ID] {
-						other = append(other, existing[i].ID)
-						break
-					}
+					mixed = mixed || !members[a.ID]
+				}
+				if mixed {
+					other = append(other, existing[i].ID)
 				}
 			}
 		}
@@ -286,7 +288,8 @@ func sameStack(ctx context.Context, api stackAPI, st immich.Stack, order []strin
 	return true, nil
 }
 
-// rebuildSourceStacks runs rebuildStacks when the sidecars named stacks, and logs the result.
+// rebuildSourceStacks runs rebuildStacks when the source named stacks (the .JSON sidecars of an
+// archive, or the source server for upload from-immich), and logs the result.
 func (uc *UpCmd) rebuildSourceStacks(ctx context.Context) error {
 	if uc.stacks.len() == 0 {
 		return nil
@@ -300,7 +303,7 @@ func (uc *UpCmd) rebuildSourceStacks(ctx context.Context) error {
 			uc.app.FileProcessor().RecordNonAsset(ctx, f, 0, fileevent.ProcessedStacked)
 		}
 	}
-	uc.app.Log().Info("stacks from the sidecars", "made", r.created, "already there", r.present, "not made", r.notMade, "failed", r.failed)
+	uc.app.Log().Info("stacks from the source", "made", r.created, "already there", r.present, "not made", r.notMade, "failed", r.failed)
 	if r.failed > 0 {
 		return fmt.Errorf("%d stacks could not be made", r.failed)
 	}

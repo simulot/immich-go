@@ -313,11 +313,11 @@ func (uc *UpCmd) uploadLoop(ctx context.Context, groupChan chan *assets.Group) e
 		}
 	}
 
-	// Every asset is uploaded: rebuild the stacks the sidecars name, all members known.
+	// Every asset is uploaded: rebuild the stacks the source names, all members known.
 	if err == nil {
 		err = uc.rebuildSourceStacks(ctx)
 	} else if uc.stacks.len() > 0 {
-		uc.app.Log().Warn("stacks from the sidecars not made: the upload did not finish; run it again")
+		uc.app.Log().Warn("stacks from the source not made: the upload did not finish; run it again")
 	}
 	return err
 }
