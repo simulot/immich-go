@@ -572,40 +572,47 @@ func TestOldSidecarWithoutChecksum(t *testing.T) {
 	checkUnchanged(t, dst, stamps)
 }
 
-// Other content under the asset's name, whose sidecar has another checksum (and here another
-// size), is another file: the asset goes to ~1, and that file and its sidecar are left as they
-// are. The sidecar decides; the file is not read.
+// Other content under the asset's name, whose sidecar has another checksum, is another file, of
+// another size or of the same size: the asset goes to ~1, and that file and its sidecar are left
+// as they are. The sidecar decides; the file is not read.
 func TestChangedContentGoesToNextName(t *testing.T) {
-	t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
-	body := "the asset, longer than the file there"
-	srcDir, dst := t.TempDir(), t.TempDir()
-	writeSources(t, srcDir, map[string]string{"n": body})
-	src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
-	writeArchived(t, dst, "2021/2021-07/IMG_1.jpg", "other content", sha1Base64("other content"))
-	stamps := ageFiles(t, dst)
+	body := "the asset's bytes"
+	for _, tc := range []struct{ name, other string }{
+		{"another size", "other content"},
+		{"same size", strings.Repeat("x", len(body))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
+			srcDir, dst := t.TempDir(), t.TempDir()
+			writeSources(t, srcDir, map[string]string{"n": body})
+			src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
+			writeArchived(t, dst, "2021/2021-07/IMG_1.jpg", tc.other, sha1Base64(tc.other))
+			stamps := ageFiles(t, dst)
 
-	archive := newArchiveFS(dst)
-	writeAll(t, archive, newImmichAsset(src, "n", "IMG_1.jpg", len(body), sha1Base64(body)))
-	if src.opens["n"] != 1 {
-		t.Fatalf("opens %v, want n once", src.opens)
+			archive := newArchiveFS(dst)
+			writeAll(t, archive, newImmichAsset(src, "n", "IMG_1.jpg", len(body), sha1Base64(body)))
+			if src.opens["n"] != 1 {
+				t.Fatalf("opens %v, want n once", src.opens)
+			}
+			if len(archive.reads) != 0 {
+				t.Fatalf("read archived originals: %v", archive.reads)
+			}
+			want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
+			if got := listFiles(t, dst); !equal(got, want) {
+				t.Fatalf("wrote %v, want %v", got, want)
+			}
+			if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_1~1.jpg")); string(b) != body {
+				t.Fatalf("IMG_1~1.jpg holds %q", b)
+			}
+			if got := sidecarChecksum(t, dst, "2021/2021-07/IMG_1~1.jpg"); got != sha1Base64(body) {
+				t.Fatalf("IMG_1~1.jpg sidecar checksum %q, want %q", got, sha1Base64(body))
+			}
+			if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_1.jpg")); string(b) != tc.other {
+				t.Fatalf("IMG_1.jpg holds %q", b)
+			}
+			checkUnchanged(t, dst, stamps)
+		})
 	}
-	if len(archive.reads) != 0 {
-		t.Fatalf("read archived originals: %v", archive.reads)
-	}
-	want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
-		t.Fatalf("wrote %v, want %v", got, want)
-	}
-	if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_1~1.jpg")); string(b) != body {
-		t.Fatalf("IMG_1~1.jpg holds %q", b)
-	}
-	if got := sidecarChecksum(t, dst, "2021/2021-07/IMG_1~1.jpg"); got != sha1Base64(body) {
-		t.Fatalf("IMG_1~1.jpg sidecar checksum %q, want %q", got, sha1Base64(body))
-	}
-	if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_1.jpg")); string(b) != "other content" {
-		t.Fatalf("IMG_1.jpg holds %q", b)
-	}
-	checkUnchanged(t, dst, stamps)
 }
 
 // A download whose SHA-1 is not the asset's checksum is refused with an error, and nothing is
