@@ -26,6 +26,15 @@ type Metadata struct {
 	Archived    bool               `json:"archived,omitempty"`    // Flag to indicate if the image has been archived
 	Favorited   bool               `json:"favorited,omitempty"`   // Flag to indicate if the image has been favorited
 	FromPartner bool               `json:"fromPartner,omitempty"` // Flag to indicate if the image is from a partner
+	Stack       *Stack             `json:"stack,omitempty"`       // The asset's stack on the server it was archived from
+}
+
+// Stack is an asset's membership of a stack on the Immich server it was archived from
+// (archive from-immich). upload rebuilds exactly these stacks.
+type Stack struct {
+	ID         string `json:"id"`                   // the stack's ID on the source server
+	Primary    bool   `json:"primary"`              // this asset is the stack's primary asset
+	AssetCount int    `json:"assetCount,omitempty"` // the stack's size as the source server reported it
 }
 
 func (m Metadata) LogValue() slog.Value {
@@ -49,6 +58,7 @@ func (m Metadata) LogValue() slog.Value {
 		slog.Bool("fromPartner", m.FromPartner),
 		slog.Any("albums", m.Albums),
 		slog.Any("tags", m.Tags),
+		slog.Any("stack", m.Stack),
 	)
 }
 

@@ -53,6 +53,13 @@ func (e serverErrorV3) lines() []string {
 	return out
 }
 
+// IsForbidden tells whether the server refused the call (HTTP 403), as it does when the API key
+// lacks the permission the endpoint needs.
+func IsForbidden(err error) bool {
+	var ce callError
+	return errors.As(err, &ce) && ce.status == http.StatusForbidden
+}
+
 func (ce callError) Is(target error) bool {
 	_, ok := target.(*callError)
 	return ok

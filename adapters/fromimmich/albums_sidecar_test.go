@@ -76,6 +76,8 @@ func fakeImmich(t *testing.T, edit func(asset map[string]any)) *fakeServer {
 			_ = json.NewEncoder(w).Encode(map[string]any{"assets": map[string]any{
 				"total": len(items), "count": len(items), "items": items, "nextPage": nil,
 			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/stacks":
+			_, _ = io.WriteString(w, "[]")
 		case r.Method == http.MethodGet && r.URL.Path == "/api/assets/"+testAsset:
 			_ = json.NewEncoder(w).Encode(asset)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/albums" && r.URL.Query().Get("assetId") == testAsset:

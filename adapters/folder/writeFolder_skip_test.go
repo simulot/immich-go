@@ -344,8 +344,8 @@ func writeAll(t *testing.T, dst fs.FS, as ...*assets.Asset) {
 	}
 }
 
-// sidecarChecksum is the checksum in the .JSON sidecar of name.
-func sidecarChecksum(t *testing.T, root, name string) string {
+// readSidecar is the metadata in the .JSON sidecar of name.
+func readSidecar(t *testing.T, root, name string) assets.Metadata {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)+".JSON"))
 	if err != nil {
@@ -355,7 +355,13 @@ func sidecarChecksum(t *testing.T, root, name string) string {
 	if err := jsonsidecar.Read(bytes.NewReader(b), &md); err != nil {
 		t.Fatal(err)
 	}
-	return md.Checksum
+	return md
+}
+
+// sidecarChecksum is the checksum in the .JSON sidecar of name.
+func sidecarChecksum(t *testing.T, root, name string) string {
+	t.Helper()
+	return readSidecar(t, root, name).Checksum
 }
 
 // ageFiles sets the modification time of every file under root an hour back, so that a rewrite
@@ -647,6 +653,56 @@ func TestDownloadChecksumMismatch(t *testing.T) {
 			want := []string{"2021/2021-07/IMG_2.jpg", "2021/2021-07/IMG_2.jpg.JSON"}
 			if got := listFiles(t, dst); err != nil || !equal(got, want) {
 				t.Fatalf("WriteAsset: %v, files %v; want %v", err, got, want)
+			}
+		})
+	}
+}
+
+// A stack that changed on the source server rewrites only the sidecar: nothing is downloaded and
+// the archived original is not read. With a checksum, the one in the sidecar decides; an
+// external-library asset has none and is recognized by its size.
+func TestWriteAssetStackChangeRewritesOnlySidecar(t *testing.T) {
+	body := "first asset"
+	for _, tc := range []struct{ name, checksum string }{
+		{"checksum", sha1Base64(body)},
+		{"no checksum", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
+			srcDir, dst := t.TempDir(), t.TempDir()
+			writeSources(t, srcDir, map[string]string{"a": body})
+			src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
+			write := func(archive fs.FS, st *assets.Stack) {
+				a := newImmichAsset(src, "a", "IMG_1.JPG", len(body), tc.checksum)
+				a.FromApplication.Stack = st
+				writeAll(t, archive, a)
+			}
+
+			write(osfs.DirFS(dst), nil)
+			want := []string{"2021/2021-07/IMG_1.JPG", "2021/2021-07/IMG_1.JPG.JSON"}
+			if got := listFiles(t, dst); !equal(got, want) {
+				t.Fatalf("run 1 wrote %v, want %v", got, want)
+			}
+			if st := readSidecar(t, dst, "2021/2021-07/IMG_1.JPG").Stack; st != nil {
+				t.Fatalf("an asset in no stack got a stack in its sidecar: %+v", st)
+			}
+			stamps := ageFiles(t, dst)
+
+			archive := newArchiveFS(dst)
+			stack := assets.Stack{ID: "s1", Primary: true, AssetCount: 2}
+			write(archive, &stack)
+			if src.opens["a"] != 1 {
+				t.Fatalf("the stack change downloaded the asset again: opens %v", src.opens)
+			}
+			if len(archive.reads) != 0 {
+				t.Fatalf("the stack change read archived originals: %v", archive.reads)
+			}
+			checkUnchanged(t, dst, stamps, "2021/2021-07/IMG_1.JPG.JSON")
+			if got := readSidecar(t, dst, "2021/2021-07/IMG_1.JPG").Stack; got == nil || *got != stack {
+				t.Fatalf("sidecar stack %+v, want %+v", got, stack)
+			}
+			if got := listFiles(t, dst); !equal(got, want) {
+				t.Fatalf("run 2 left %v, want %v", got, want)
 			}
 		})
 	}
