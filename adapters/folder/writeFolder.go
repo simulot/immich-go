@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path"
 
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/exif/sidecars"
 	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
+	"github.com/simulot/immich-go/internal/exif/sidecars/xmpsidecar"
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
 )
@@ -24,17 +27,21 @@ type closer interface {
 	Close() error
 }
 type LocalAssetWriter struct {
-	WriteToFS  fs.FS
-	createdDir map[string]struct{}
+	WriteToFS     fs.FS
+	createdDir    map[string]struct{}
+	SidecarFormat sidecars.SidecarFormat
+	Log           *slog.Logger
 }
 
-func NewLocalAssetWriter(fsys fs.FS, writeToPath string) (*LocalAssetWriter, error) {
+func NewLocalAssetWriter(fsys fs.FS, writeToPath string, format sidecars.SidecarFormat, log *slog.Logger) (*LocalAssetWriter, error) {
 	if _, ok := fsys.(fshelper.FSCanWrite); !ok {
 		return nil, errors.New("FS does not support writing")
 	}
 	return &LocalAssetWriter{
-		WriteToFS:  fsys,
-		createdDir: make(map[string]struct{}),
+		WriteToFS:     fsys,
+		createdDir:    make(map[string]struct{}),
+		SidecarFormat: format,
+		Log:           log,
 	}, nil
 }
 
@@ -110,28 +117,59 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 			if err != nil {
 				return err
 			}
-			// XMP?
-			if a.FromSideCar != nil {
-				// Sidecar file is set, copy it
-				var scr fs.File
-				scr, err = a.FromSideCar.File.Open()
-				if err != nil {
-					return err
+
+			// Warn about data loss when using XMP-only format
+			if w.SidecarFormat == sidecars.FormatXMP && a.FromApplication != nil {
+				var lostFields []string
+				if a.FromApplication.Trashed {
+					lostFields = append(lostFields, "Trashed")
 				}
-				debugfiles.TrackOpenFile(scr, a.FromSideCar.File.Name())
-				defer scr.Close()
-				defer debugfiles.TrackCloseFile(scr)
-				var scw fshelper.WFile
-				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".XMP"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
-				if err != nil {
-					return err
+				if a.FromApplication.Archived {
+					lostFields = append(lostFields, "Archived")
 				}
-				_, err = io.Copy(scw, scr)
-				scw.Close()
+				if a.FromApplication.FromPartner {
+					lostFields = append(lostFields, "FromPartner")
+				}
+				if len(lostFields) > 0 && w.Log != nil {
+					w.Log.Warn("XMP format cannot preserve some metadata",
+						"file", a.OriginalFileName,
+						"lost_fields", lostFields)
+				}
 			}
 
-			// Having metadata from an Application or immich-go JSON?
-			if a.FromApplication != nil {
+			// Write XMP sidecar if format requires it
+			if w.SidecarFormat.CreatesXMP() {
+				if a.FromSideCar != nil && a.FromSideCar.File.FS() != nil {
+					// Existing XMP sidecar file - copy it
+					var scr fs.File
+					scr, err = a.FromSideCar.File.Open()
+					if err != nil {
+						return err
+					}
+					debugfiles.TrackOpenFile(scr, a.FromSideCar.File.Name())
+					defer scr.Close()
+					defer debugfiles.TrackCloseFile(scr)
+					var scw fshelper.WFile
+					scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".xmp"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+					if err != nil {
+						return err
+					}
+					_, err = io.Copy(scw, scr)
+					scw.Close()
+				} else if a.FromApplication != nil {
+					// Generate XMP from FromApplication metadata
+					var scw fshelper.WFile
+					scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".xmp"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+					if err != nil {
+						return err
+					}
+					err = xmpsidecar.Write(a.FromApplication, scw)
+					scw.Close()
+				}
+			}
+
+			// Write JSON sidecar if format requires it
+			if w.SidecarFormat.CreatesJSON() && a.FromApplication != nil {
 				var scw fshelper.WFile
 				scw, err = fshelper.OpenFile(w.WriteToFS, path.Join(dir, base+".JSON"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 				if err != nil {

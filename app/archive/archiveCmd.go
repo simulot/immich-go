@@ -9,13 +9,15 @@ import (
 	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/app"
 	"github.com/simulot/immich-go/internal/assettracker"
+	"github.com/simulot/immich-go/internal/exif/sidecars"
 	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/spf13/cobra"
 )
 
 type ArchiveCmd struct {
-	ArchivePath string
+	ArchivePath   string
+	SidecarFormat sidecars.SidecarFormat
 
 	app  *app.Application
 	dest *folder.LocalAssetWriter
@@ -27,11 +29,13 @@ func NewArchiveCommand(ctx context.Context, app *app.Application) *cobra.Command
 		Short: "Archive various sources of photos to a file system",
 	}
 	ac := &ArchiveCmd{
-		app: app,
+		app:           app,
+		SidecarFormat: sidecars.FormatJSON, // Default to JSON for backward compatibility
 	}
 
 	cmd.PersistentFlags().StringVarP(&ac.ArchivePath, "write-to-folder", "w", "", "Path where to write the archive")
 	_ = cmd.MarkPersistentFlagRequired("write-to-folder")
+	cmd.PersistentFlags().Var(&ac.SidecarFormat, "sidecar-format", "Sidecar format: json (default), xmp, or both")
 
 	cmd.AddCommand(folder.NewFromFolderCommand(ctx, cmd, app, ac))
 	cmd.AddCommand(folder.NewFromICloudCommand(ctx, cmd, app, ac))
