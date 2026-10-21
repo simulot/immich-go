@@ -3,9 +3,11 @@ package immich
 import (
 	"crypto/tls"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -27,6 +29,9 @@ type ImmichClient struct {
 	Retries        int           // Number of attempts on 500 errors
 	RetriesDelay   time.Duration // Duration between retries
 	apiTraceWriter io.Writer     // If not nil, logs API calls to this writer
+	retry          retryPolicy   // How a failed read is tried again (retry.go)
+	reachable      atomic.Bool   // The server answered the last call that ended: failures are tried again (retry.go)
+	log            *slog.Logger  // Where the retries are logged; nil: the global logger
 
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
 	dryRun              bool                     //  If true, do not send any data to the server
@@ -125,6 +130,7 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 		DeviceUUID:   deviceUUID,
 		Retries:      1,
 		RetriesDelay: time.Second * 1,
+		retry:        defaultRetryPolicy(),
 	}
 
 	ic.client = &http.Client{

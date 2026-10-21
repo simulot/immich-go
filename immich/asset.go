@@ -3,7 +3,6 @@ package immich
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/url"
 	"time"
@@ -268,11 +267,10 @@ func (ic *ImmichClient) UpdateAsset(ctx context.Context, id string, param UpdAss
 	return &r, err
 }
 
+// DownloadAsset returns a reader of the asset's original. A transfer that breaks off on the
+// network starts again from the first byte (downloadReader, in retry.go).
 func (ic *ImmichClient) DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error) {
-	var rc io.ReadCloser
-
-	err := ic.newServerCall(ctx, "DownloadAsset").do(getRequest(fmt.Sprintf("/assets/%s/original", id), setOctetStream()), responseOctetStream(&rc))
-	return rc, err
+	return ic.downloadOriginal(ctx, id)
 }
 
 // CopyAsset copy metadata from the sourceID to targeID
