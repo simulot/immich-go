@@ -240,7 +240,7 @@ func unknownSize(t *testing.T, plain bool) {
 	}
 
 	write("y")
-	want = append(want, "2021/2021-07/IMG_3~1.JPG", "2021/2021-07/IMG_3~1.JPG.JSON")
+	want = []string{"2021/2021-07/IMG_3.JPG", "2021/2021-07/IMG_3.JPG.JSON", "2021/2021-07/IMG_3~1.JPG", "2021/2021-07/IMG_3~1.JPG.JSON"}
 	if got := listFiles(t, dst); !equal(got, want) {
 		t.Fatalf("a different unsized asset: %v, want %v", got, want)
 	}
