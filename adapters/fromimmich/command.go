@@ -390,6 +390,7 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		asset.SetNameInfo(fic.ic.GetInfo(a.OriginalFileName))
 		asset.FromApplication = &assets.Metadata{
 			FileName:    a.OriginalFileName,
+			Checksum:    a.Checksum, // the archive identifies its files by it
 			Latitude:    a.ExifInfo.Latitude,
 			Longitude:   a.ExifInfo.Longitude,
 			Description: a.ExifInfo.Description,
@@ -422,7 +423,6 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			albums[i].ID = ""
 		}
 
-		asset.Albums = albums
 		// The .JSON sidecar is written from FromApplication, which was filled before the albums
 		// were known. Give it the albums too (title and description, in a stable order), so that
 		// `upload from-folder` re-creates them when an archive is restored. GET /albums?assetId=
@@ -433,6 +433,7 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			}
 			return albums[i].Description < albums[j].Description
 		})
+		asset.Albums = albums
 		asset.FromApplication.Albums = albums
 
 		// Transfer tags

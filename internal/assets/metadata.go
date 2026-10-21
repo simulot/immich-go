@@ -13,6 +13,7 @@ import (
 type Metadata struct {
 	File        fshelper.FSAndName `json:"-"`                     // File name and file system that holds the metadata. Could be empty
 	FileName    string             `json:"fileName,omitempty"`    // File name as presented to users
+	Checksum    string             `json:"checksum,omitempty"`    // Immich's checksum of the original file: SHA-1, base64
 	Latitude    float64            `json:"latitude,omitempty"`    // GPS
 	Longitude   float64            `json:"longitude,omitempty"`   // GPS
 	FileDate    time.Time          `json:"fileDate,omitzero"`     // Date of the file

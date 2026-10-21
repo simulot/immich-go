@@ -75,13 +75,26 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	default:
 	}
 
+	// The asset's checksum as its source gives it, before the asset is opened: Immich's SHA-1 of
+	// the original file, base64. Sources other than from-immich give none. Asset.OpenFile replaces
+	// a.Checksum with the SHA-1 of the bytes it reads, so the two are kept apart.
+	knownChecksum := a.Checksum
+
 	// Choose the file name before the asset is opened: opening it is what downloads it. The name is
-	// the first of base, radical~1.ext, radical~2.ext, ... that is free, or that already holds a
-	// regular file of the asset's size. Such a file is this asset, written by an earlier run, so it
-	// is not downloaded again and no ~N copy is made. A different asset with the same name (another
-	// size) still gets the next free ~N. Immich originals never change in place.
-	// When the asset's size is not known (0: the server has not read the file yet), the files
-	// already under those names are kept in taken, and compared with the download below.
+	// the first of base, radical~1.ext, radical~2.ext, ... that is free, or that already holds this
+	// asset, written by an earlier run: then it is not downloaded again and no ~N copy is made.
+	//
+	// With a known checksum, the file there is this asset when its .JSON sidecar has the same
+	// checksum. A sidecar from a release that wrote none (or no sidecar) leaves the file itself to
+	// be hashed; when it is the asset, its sidecar is rewritten with the checksum. An asset's
+	// checksum never changes: Immich edits are non-destructive, /original returns the original
+	// bytes, and the checksum is the original's. Other content under the same name is by definition
+	// another file, and the asset goes to the next free ~N: the archive never deletes or overwrites
+	// a file.
+	//
+	// Without a checksum, a regular file of the asset's size is taken for it. When the size is not
+	// known either (0: the server has not read the file yet), the files already under those names
+	// are kept in taken, and compared with the download below.
 	ext := path.Ext(base)
 	radical := base[:len(base)-len(ext)]
 	name, present := base, false
@@ -92,12 +105,19 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		}
 		if fi, err := fs.Stat(w.WriteToFS, path.Join(dir, name)); err == nil {
 			if fi.Mode().IsRegular() {
-				if a.FileSize > 0 && fi.Size() == int64(a.FileSize) {
-					present = true
-					break
-				}
-				if a.FileSize <= 0 {
+				switch {
+				case knownChecksum != "":
+					present, err = isArchived(w.WriteToFS, path.Join(dir, name), fi, a.FileSize, knownChecksum)
+					if err != nil {
+						return err
+					}
+				case a.FileSize > 0:
+					present = fi.Size() == int64(a.FileSize)
+				default:
 					taken = append(taken, name)
+				}
+				if present {
+					break
 				}
 			}
 			continue
@@ -112,6 +132,9 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	}
 
 	if !present {
+		// Cleared, a.Checksum after OpenFile is the SHA-1 the cache reader computed while it copied
+		// a streamed source (an Immich download), or "" for a local file opened in place.
+		a.Checksum = ""
 		r, err := a.OpenFile()
 		if err != nil {
 			return err
@@ -121,6 +144,22 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
+		}
+		// The download must be the asset: its SHA-1 must be the known checksum, or nothing is
+		// written.
+		if knownChecksum != "" {
+			downloadChecksum := a.Checksum
+			if downloadChecksum == "" {
+				sum, err := sha1Of(r)
+				if err != nil {
+					return err
+				}
+				downloadChecksum = base64.StdEncoding.EncodeToString(sum)
+				a.Checksum = downloadChecksum
+			}
+			if downloadChecksum != knownChecksum {
+				return fmt.Errorf("%s: the downloaded bytes have the SHA-1 %s, the asset's checksum is %s", path.Join(dir, name), downloadChecksum, knownChecksum)
+			}
 		}
 		// Size unknown: the asset is already here if one of the taken names holds the same bytes.
 		// Only then is the download compared; the cost is one download per run until the size is
@@ -181,16 +220,41 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	return nil
 }
 
+// isArchived tells whether the regular file name (fi) is the asset of the given size and checksum
+// (Immich's SHA-1, base64). The checksum in name's .JSON sidecar decides. Without one (a sidecar
+// from an older release, or none), the file is hashed, unless its size already tells it apart.
+func isArchived(fsys fs.FS, name string, fi fs.FileInfo, size int, checksum string) (bool, error) {
+	if b, err := fs.ReadFile(fsys, name+".JSON"); err == nil {
+		var md assets.Metadata
+		if jsonsidecar.Read(bytes.NewReader(b), &md) == nil && md.Checksum != "" {
+			return md.Checksum == checksum, nil
+		}
+	}
+	if size > 0 && fi.Size() != int64(size) {
+		return false, nil
+	}
+	f, err := fsys.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	sum, err := sha1Of(f)
+	if err != nil {
+		return false, err
+	}
+	return base64.StdEncoding.EncodeToString(sum) == checksum, nil
+}
+
 // sameContent returns the first of names (in dir) whose bytes equal r's, or "". r is rewound.
-// checksum is the asset's SHA-1, base64 (a.Checksum): after Asset.OpenFile it is the SHA-1 the
-// cache reader computed while it copied the download to r, so r is not read again. Without a
-// valid one (a local file opened in place, where OpenFile computes none), r is hashed here.
-func sameContent(fsys fs.FS, dir string, names []string, r osfs.OSFS, checksum string) (string, error) {
+// downloadChecksum is the SHA-1 of r, base64: a.Checksum after Asset.OpenFile, which the cache
+// reader computed while it copied the download to r, so r is not read again. Without a valid one
+// (a local file opened in place, where OpenFile computes none), r is hashed here.
+func sameContent(fsys fs.FS, dir string, names []string, r osfs.OSFS, downloadChecksum string) (string, error) {
 	fi, err := r.Stat()
 	if err != nil {
 		return "", err
 	}
-	want, err := base64.StdEncoding.DecodeString(checksum)
+	want, err := base64.StdEncoding.DecodeString(downloadChecksum)
 	if err != nil || len(want) != sha1.Size {
 		want = nil
 	}

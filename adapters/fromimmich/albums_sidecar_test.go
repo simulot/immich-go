@@ -25,8 +25,9 @@ import (
 )
 
 const (
-	testOwner = "11111111-0000-4000-8000-000000000000"
-	testAsset = "aaaaaaaa-0000-4000-8000-000000000001"
+	testOwner    = "11111111-0000-4000-8000-000000000000"
+	testAsset    = "aaaaaaaa-0000-4000-8000-000000000001"
+	testChecksum = "c2hhMQ=="
 )
 
 // fakeImmich answers the calls getAssets makes: one asset on the timeline, in two albums (one of
@@ -34,7 +35,7 @@ const (
 func fakeImmich(t *testing.T) *httptest.Server {
 	asset := map[string]any{
 		"id": testAsset, "ownerId": testOwner, "type": "IMAGE", "originalFileName": "IMG_0001.JPG",
-		"checksum": "c2hhMQ==", "visibility": "timeline",
+		"checksum": testChecksum, "visibility": "timeline",
 		"exifInfo": map[string]any{"dateTimeOriginal": "2021-07-04T18:30:00+00:00", "fileSizeInByte": 11},
 	}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +65,10 @@ func fakeImmich(t *testing.T) *httptest.Server {
 	}))
 }
 
-func TestSidecarCarriesAlbums(t *testing.T) {
+// sidecarMetadata runs getAssets against fakeImmich and returns the metadata the asset's .JSON
+// sidecar is written from.
+func sidecarMetadata(t *testing.T) *assets.Metadata {
+	t.Helper()
 	srv := fakeImmich(t)
 	defer srv.Close()
 	ctx := context.Background()
@@ -95,6 +99,11 @@ func TestSidecarCarriesAlbums(t *testing.T) {
 	if md == nil {
 		t.Fatal("no sidecar metadata")
 	}
+	return md
+}
+
+func TestSidecarCarriesAlbums(t *testing.T) {
+	md := sidecarMetadata(t)
 	want := []assets.Album{{Title: "Shared with Jon"}, {Title: "Summer", Description: "Lake trip"}}
 	if len(md.Albums) != len(want) {
 		t.Fatalf("sidecar albums %+v, want %+v", md.Albums, want)
@@ -119,5 +128,28 @@ func TestSidecarCarriesAlbums(t *testing.T) {
 	}
 	if len(back.Albums) != 2 || back.Albums[1].Title != "Summer" || back.Albums[1].Description != "Lake trip" {
 		t.Fatalf("read back %+v", back.Albums)
+	}
+}
+
+// The sidecar carries the asset's checksum as the API gives it (SHA-1, base64): the archive
+// identifies its files by it. The reader gets it back.
+func TestSidecarCarriesChecksum(t *testing.T) {
+	md := sidecarMetadata(t)
+	if md.Checksum != testChecksum {
+		t.Fatalf("sidecar checksum %q, want %q", md.Checksum, testChecksum)
+	}
+	var buf bytes.Buffer
+	if err := jsonsidecar.Write(md, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `"checksum": "`+testChecksum+`"`) {
+		t.Fatalf("sidecar JSON has no checksum:\n%s", buf.String())
+	}
+	var back assets.Metadata
+	if err := jsonsidecar.Read(&buf, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.Checksum != testChecksum {
+		t.Fatalf("read back checksum %q, want %q", back.Checksum, testChecksum)
 	}
 }
