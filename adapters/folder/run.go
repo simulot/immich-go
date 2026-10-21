@@ -346,7 +346,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 				}
 			}
 			// check the presence of a XMP file, unless sidecar files are ignored
-			xmpName, err := "", error(nil)
+			xmpName := ""
 			if !ifc.IgnoreSideCarFiles {
 				xmpName, err = checkExistSideCar(fsys, a.File.Name(), ".xmp")
 			}
