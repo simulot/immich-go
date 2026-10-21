@@ -134,8 +134,9 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		}
 		if !present {
 			// Under a temporary name first: a download cut short never sits under the asset's
-			// name, where the next run would take it for another asset.
-			err = writeAtomic(w.WriteToFS, path.Join(dir, name), r)
+			// name, where the next run would take it for another asset. With the size known, the
+			// bytes must be exactly that many, whatever the transport said.
+			err = writeAtomic(w.WriteToFS, path.Join(dir, name), r, int64(a.FileSize))
 			if err != nil {
 				return err
 			}
@@ -174,7 +175,7 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		jsonName := path.Join(dir, name+".JSON")
 		old, err := fs.ReadFile(w.WriteToFS, jsonName)
 		if err != nil || !bytes.Equal(old, buf.Bytes()) {
-			return writeAtomic(w.WriteToFS, jsonName, &buf)
+			return writeAtomic(w.WriteToFS, jsonName, &buf, 0)
 		}
 	}
 	return nil
@@ -231,14 +232,19 @@ func sha1Of(r io.Reader) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// writeAtomic writes r to ".<name>.partial" beside name, syncs it, then renames it to name.
-func writeAtomic(fsys fs.FS, name string, r io.Reader) error {
+// writeAtomic writes r to ".<name>.partial" beside name, syncs it, then renames it to name. With
+// size > 0, r must give exactly size bytes; otherwise the .partial file is removed and name is not
+// written.
+func writeAtomic(fsys fs.FS, name string, r io.Reader, size int64) error {
 	tmp := path.Join(path.Dir(name), "."+path.Base(name)+".partial")
 	f, err := fshelper.OpenFile(fsys, tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(f, r)
+	n, err := io.Copy(f, r)
+	if err == nil && size > 0 && n != size {
+		err = fmt.Errorf("%s: %d bytes written, the asset has %d", name, n, size)
+	}
 	if err == nil {
 		if s, ok := f.(interface{ Sync() error }); ok {
 			err = s.Sync()
