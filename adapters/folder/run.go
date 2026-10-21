@@ -36,6 +36,10 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 	if ifc.ImportIntoAlbum != "" && ifc.UsePathAsAlbumName != FolderModeNone {
 		return errors.New("cannot use both --into-album and --folder-as-album flags")
 	}
+	// The --manage-* values given to upload, on the command line or in the configuration
+	if err := ifc.ReadFlags(cmd.Flags()); err != nil {
+		return err
+	}
 
 	ifc.app = app
 	ifc.processor = app.FileProcessor()
@@ -119,6 +123,9 @@ func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
 		}
 		ifc.wg.Wait()
 		ifc.pool.Stop()
+		if n := ifc.archived.Load(); n > 0 {
+			ifc.app.Log().Info("files restored from an immich-go archive are not grouped: their stacks come from their .JSON sidecars", "files", n)
+		}
 	}()
 	return gOut
 }
@@ -338,6 +345,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 							md.File = fshelper.FSName(fsys, jsonName)
 							a.FromApplication = a.UseMetadata(md) // Force the use of the metadata coming from immich export
 							a.OriginalFileName = md.FileName      // Force the name of the file to be the one from the JSON file
+							a.FromArchive = true                  // Its stack is the sidecar's: never grouped
 						}
 					} else {
 						ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, jsonName), 0, fileevent.DiscoveredSidecar)
@@ -460,8 +468,12 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 				}
 			}
 
+			fromArchive := a.FromArchive
 			select {
 			case in <- a:
+				if fromArchive {
+					ifc.archived.Add(1)
+				}
 			case <-ctx.Done():
 				return
 			}

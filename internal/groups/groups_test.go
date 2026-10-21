@@ -2,6 +2,7 @@ package groups_test
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -184,5 +185,53 @@ func TestGroup(t *testing.T) {
 				t.Errorf("Expected asset \n%#v got asset \n%#v", expectedAssets[i], gotAssets[i])
 			}
 		}
+	}
+}
+
+// An asset restored from an immich-go archive is sent alone, also beside assets the groupers
+// stack: an archived frame between two frames of a burst, and an archived JPEG next to a fresh
+// RAW of the same name and capture time.
+func TestPipeGrouperSendsArchivedAssetsAlone(t *testing.T) {
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+	archived := func(a *assets.Asset) *assets.Asset {
+		a.FromArchive = true
+		return a
+	}
+
+	in := make(chan *assets.Asset)
+	go func() {
+		defer close(in)
+		for _, a := range []*assets.Asset{
+			mockAsset(ic, "IMG_001.jpg", t0),
+			archived(mockAsset(ic, "IMG_002.jpg", t0.Add(200*time.Millisecond))),
+			mockAsset(ic, "IMG_003.jpg", t0.Add(400*time.Millisecond)),
+			archived(mockAsset(ic, "IMG_010.jpg", t0.Add(time.Hour))),
+			mockAsset(ic, "IMG_010.raw", t0.Add(time.Hour)),
+		} {
+			in <- a
+		}
+	}()
+
+	var got []string
+	ctx := context.Background()
+	for g := range groups.NewGrouperPipeline(ctx, burst.Group, series.Group).PipeGrouper(ctx, in) {
+		names := make([]string, 0, len(g.Assets))
+		for _, a := range g.Assets {
+			names = append(names, a.File.Name())
+		}
+		sort.Strings(names)
+		got = append(got, fmt.Sprintf("%d %v", g.Grouping, names))
+	}
+	sort.Strings(got)
+	want := []string{
+		fmt.Sprintf("%d [IMG_001.jpg IMG_003.jpg]", assets.GroupByBurst),
+		fmt.Sprintf("%d [IMG_002.jpg]", assets.GroupByNone),
+		fmt.Sprintf("%d [IMG_010.jpg]", assets.GroupByNone),
+		fmt.Sprintf("%d [IMG_010.raw]", assets.GroupByNone),
+	}
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("groups:\n got  %v\n want %v", got, want)
 	}
 }
