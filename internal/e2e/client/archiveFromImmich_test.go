@@ -102,8 +102,9 @@ func TestArchiveInterruptedRunResumes(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	cutting := newDownloadProxy(t, cutAt, cancel)
-	// Whether the cancelled run returns an error is not checked: it stops either way.
-	_, _ = archiveFromImmich(ctx, cutting.URL, u, adm, dir)
+	if _, err := archiveFromImmich(ctx, cutting.URL, u, adm, dir); !errors.Is(err, context.Canceled) {
+		t.Fatalf("interrupted run returned %v, want %v", err, context.Canceled)
+	}
 	if got := cutting.downloads.Load(); got != cutAt {
 		t.Fatalf("interrupted run: %d downloads, want %d, the last one cut short", got, cutAt)
 	}
