@@ -195,7 +195,8 @@ stack can be in different date folders.
 When the archive is uploaded with `upload from-folder`, the same stacks are made, with the same
 primary, once every file is uploaded. The `--manage-*` options never group or drop these files
 (see [upload from-folder](upload.md#file-management)). Running the upload again makes no new
-stack. The API key of the upload needs the `stack.read` and `stack.create` permissions.
+stack. The API key of the upload needs the `stack.read` and `stack.create` permissions. Without
+them, the upload logs a warning and the stacks are not made.
 
 The archive reads the stacks with the API key's `stack.read` permission. Without it, the archive
 logs a warning, and a stack whose assets other than its primary are all archived is not recorded.

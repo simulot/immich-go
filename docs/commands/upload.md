@@ -110,6 +110,7 @@ file that `archive` wrote for it. Such a file is never grouped with another file
 in a folder that also holds fresh files. Its stack is the one its `.JSON` file records: once every
 file is uploaded, those stacks are made again with the same primary (see
 [archive Stacks](archive.md#stacks)). This needs the `stack.read` permission on the API key.
+Without it, the upload logs a warning and the stacks are not made.
 
 ### Examples
 ```bash
@@ -252,7 +253,8 @@ immich-go upload from-immich [source-options] [destination-options]
 ### Stacks
 
 The stacks of the source server are made again on the destination, with the same primary, once
-every asset is transferred. Both API keys need the `stack.read` permission.
+every asset is transferred. Both API keys need the `stack.read` permission. Without it, a warning
+is logged and some or all of the stacks are not made.
 
 ### Examples
 ```bash
