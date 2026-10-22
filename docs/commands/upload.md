@@ -112,6 +112,12 @@ file is uploaded, those stacks are made again with the same primary (see
 [archive Stacks](archive.md#stacks)). This needs the `stack.read` permission on the API key.
 Without it, the upload logs a warning and the stacks are not made.
 
+This holds for an archive written by an older release of immich-go too, whose `.JSON` files
+record no stack (no `stack` field): its files are never grouped, so restoring it makes no stacks.
+To get the source's stacks back, run `archive from-immich` with this release into the same folder
+first. It downloads none of the files already there and rewrites only their `.JSON` files. Then
+restore the archive.
+
 ### Examples
 ```bash
 # Basic folder upload
