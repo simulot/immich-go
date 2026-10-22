@@ -12,7 +12,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"testing"
 
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
 )
@@ -23,15 +22,6 @@ var (
 	ImmichURL  = getEnv("e2e_url", "http://localhost:2283")
 	// sshHost    = getEnv("e2e_ssh", "")
 )
-
-func debug(t *testing.T) {
-	e := os.Environ()
-	for _, v := range e {
-		if strings.HasPrefix(v, "e2e") {
-			t.Logf("Env: %s", v)
-		}
-	}
-}
 
 // getEnv returns environment variable value or default
 func getEnv(key, defaultValue string) string {
@@ -105,11 +95,11 @@ func writeUsers(users map[string]user) error {
 		return err
 	}
 	for email, u := range users {
-		_, err := f.WriteString(fmt.Sprintf("E2E_%s_PASSWORD=%s\n", email, u.Password))
+		_, err := fmt.Fprintf(f, "E2E_%s_PASSWORD=%s\n", email, u.Password)
 		if err != nil {
 			return err
 		}
-		_, err = f.WriteString(fmt.Sprintf("E2E_%s_APIKEY=%s\n", email, u.APIKey))
+		_, err = fmt.Fprintf(f, "E2E_%s_APIKEY=%s\n", email, u.APIKey)
 		if err != nil {
 			return err
 		}
@@ -117,7 +107,7 @@ func writeUsers(users map[string]user) error {
 	return nil
 }
 
-func getUser(email string) (user, error) {
+func getUser(email string) (user, error) { //nolint:unparam // the e2eusers.env file can hold other users than the admin
 	us, err := readUsers()
 	if err != nil {
 		return user{}, err
@@ -128,7 +118,7 @@ func getUser(email string) (user, error) {
 	return user{}, errors.New("not found")
 }
 
-func createUser(keyName string) (user, error) {
+func createUser(keyName string) (user, error) { //nolint:unparam // the permissions map has other key names than "minimal"
 	adm, err := getUser("admin@immich.app")
 	if err != nil {
 		return user{}, err
