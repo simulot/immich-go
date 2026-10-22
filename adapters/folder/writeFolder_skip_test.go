@@ -621,6 +621,74 @@ func TestChangedContentGoesToNextName(t *testing.T) {
 	}
 }
 
+// A file under the asset's name whose size is not the asset's is not the asset, even when its
+// sidecar has the asset's checksum (here the file was cut short after it was archived): the asset
+// goes to ~1, and that file and its sidecar are left as they are.
+func TestSidecarChecksumWrongSize(t *testing.T) {
+	t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
+	body := "the asset's bytes"
+	srcDir, dst := t.TempDir(), t.TempDir()
+	writeSources(t, srcDir, map[string]string{"n": body})
+	src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
+	writeArchived(t, dst, "2021/2021-07/IMG_1.jpg", body[:len(body)/2], sha1Base64(body))
+	stamps := ageFiles(t, dst)
+
+	archive := newArchiveFS(dst)
+	writeAll(t, archive, newImmichAsset(src, "n", "IMG_1.jpg", len(body), sha1Base64(body)))
+	if src.opens["n"] != 1 {
+		t.Fatalf("opens %v, want n once", src.opens)
+	}
+	if len(archive.reads) != 0 {
+		t.Fatalf("read archived originals: %v", archive.reads)
+	}
+	want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
+	if got := listFiles(t, dst); !equal(got, want) {
+		t.Fatalf("wrote %v, want %v", got, want)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_1~1.jpg")); string(b) != body {
+		t.Fatalf("IMG_1~1.jpg holds %q", b)
+	}
+	checkUnchanged(t, dst, stamps)
+}
+
+// An XMP sidecar is rewritten only when its content changed, as the .JSON sidecar is: a rerun
+// writes nothing, and a changed XMP rewrites the .XMP file only.
+func TestXMPRewrittenOnlyWhenChanged(t *testing.T) {
+	t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
+	body := "the asset's bytes"
+	srcDir, dst := t.TempDir(), t.TempDir()
+	writeSources(t, srcDir, map[string]string{"a": body, "a.xmp": "<x:xmpmeta>one</x:xmpmeta>"})
+	src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
+	run := func() {
+		a := newAsset(src, "a", "IMG_1.JPG", len(body), "")
+		a.FromSideCar = &assets.Metadata{File: fshelper.FSName(os.DirFS(srcDir), "a.xmp")}
+		writeAll(t, osfs.DirFS(dst), a)
+	}
+
+	run()
+	want := []string{"2021/2021-07/IMG_1.JPG", "2021/2021-07/IMG_1.JPG.JSON", "2021/2021-07/IMG_1.JPG.XMP"}
+	if got := listFiles(t, dst); !equal(got, want) {
+		t.Fatalf("run 1 wrote %v, want %v", got, want)
+	}
+	stamps := ageFiles(t, dst)
+
+	run()
+	if got := listFiles(t, dst); !equal(got, want) {
+		t.Fatalf("run 2 left %v, want %v", got, want)
+	}
+	checkUnchanged(t, dst, stamps)
+
+	writeSources(t, srcDir, map[string]string{"a.xmp": "<x:xmpmeta>two</x:xmpmeta>"})
+	run()
+	if got := listFiles(t, dst); !equal(got, want) {
+		t.Fatalf("run 3 left %v, want %v", got, want)
+	}
+	checkUnchanged(t, dst, stamps, "2021/2021-07/IMG_1.JPG.XMP")
+	if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_1.JPG.XMP")); string(b) != "<x:xmpmeta>two</x:xmpmeta>" {
+		t.Fatalf("IMG_1.JPG.XMP holds %q", b)
+	}
+}
+
 // A download whose SHA-1 is not the asset's checksum is refused with an error, and nothing is
 // left: no original, no .partial, no sidecar. A download with the right SHA-1 is written. The
 // SHA-1 is the cache reader's for a streamed source; a local file opened in place is hashed.

@@ -90,8 +90,9 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	// asset, written by an earlier run: then it is not downloaded again and no ~N copy is made.
 	//
 	// With a known checksum, the file there is this asset when its .JSON sidecar has the same
-	// checksum. A sidecar from a release that wrote none (or no sidecar) leaves the file itself to
-	// be hashed; when it is the asset, its sidecar is rewritten with the checksum. An asset's
+	// checksum, and the file has the asset's size when that is known. A sidecar from a release that
+	// wrote none (or no sidecar) leaves the file itself to be hashed; when it is the asset, its
+	// sidecar is rewritten with the checksum. An asset's
 	// checksum never changes: Immich edits are non-destructive, /original returns the original
 	// bytes, and the checksum is the original's. Other content under the same name is by definition
 	// another file, and the asset goes to the next free ~N: the archive never deletes or overwrites
@@ -187,9 +188,9 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		}
 	}
 
-	// XMP?
+	// XMP? Sidecar file is set, copy it. Written only when its content changed, through a
+	// temporary file, as the .JSON below.
 	if a.FromSideCar != nil {
-		// Sidecar file is set, copy it
 		scr, err := a.FromSideCar.File.Open()
 		if err != nil {
 			return err
@@ -197,14 +198,16 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		debugfiles.TrackOpenFile(scr, a.FromSideCar.File.Name())
 		defer scr.Close()
 		defer debugfiles.TrackCloseFile(scr)
-		scw, err := fshelper.OpenFile(w.WriteToFS, path.Join(dir, name+".XMP"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+		xmp, err := io.ReadAll(scr)
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(scw, scr)
-		scw.Close()
-		if err != nil {
-			return err
+		xmpName := path.Join(dir, name+".XMP")
+		old, err := fs.ReadFile(w.WriteToFS, xmpName)
+		if err != nil || !bytes.Equal(old, xmp) {
+			if err := writeAtomic(w.WriteToFS, xmpName, bytes.NewReader(xmp), 0); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -226,17 +229,18 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 }
 
 // isArchived tells whether the regular file name (fi) is the asset of the given size and checksum
-// (Immich's SHA-1, base64). The checksum in name's .JSON sidecar decides. Without one (a sidecar
-// from an older release, or none), the file is hashed, unless its size already tells it apart.
+// (Immich's SHA-1, base64). With the size known (> 0), a file of another size is not the asset,
+// whatever its sidecar says. Otherwise the checksum in name's .JSON sidecar decides. Without one (a
+// sidecar from an older release, or none), the file is hashed.
 func isArchived(fsys fs.FS, name string, fi fs.FileInfo, size int, checksum string) (bool, error) {
+	if size > 0 && fi.Size() != int64(size) {
+		return false, nil
+	}
 	if b, err := fs.ReadFile(fsys, name+".JSON"); err == nil {
 		var md assets.Metadata
 		if jsonsidecar.Read(bytes.NewReader(b), &md) == nil && md.Checksum != "" {
 			return md.Checksum == checksum, nil
 		}
-	}
-	if size > 0 && fi.Size() != int64(size) {
-		return false, nil
 	}
 	f, err := fsys.Open(name)
 	if err != nil {

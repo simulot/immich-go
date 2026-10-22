@@ -113,15 +113,16 @@ asset under its name in its date folder, then under `name~1.ext`, `name~2.ext`, 
 
 - **The asset is already there**: it is skipped. It is not downloaded or copied again, and no `~N`
   copy is made. Its `.JSON` file is rewritten only when the metadata has changed (an album, a
-  description, a rating...).
+  description, a rating...), and its `.XMP` file, if any, only when the source's XMP has changed.
 - **Another file has that name**: the asset is written under the next free `~N` name.
 
 How an asset already there is recognized depends on the source:
 
 - **`from-immich`**: the `.JSON` file holds the asset's Immich checksum, the SHA-1 of the original
-  file. The file is the asset when the checksum matches. A `.JSON` file written by an older release
-  of immich-go has no checksum: the file is read once to compute its SHA-1, and when it matches, the
-  checksum is added to the `.JSON` file.
+  file. The file is the asset when the checksum matches and, when Immich knows the asset's size, the
+  file has that size. A `.JSON` file written by an older release of immich-go has no checksum: the
+  file is read once to compute its SHA-1, and when it matches, the checksum is added to the `.JSON`
+  file.
 - **`from-immich`, assets of an external library**: Immich computes their checksum from the file's
   path, not its content. No checksum is written, and a file with the same name and size is taken
   as the asset.
@@ -237,6 +238,7 @@ immich-go archive from-immich \
 - **Metadata Preservation**: JSON files ensure no metadata is lost
 - **Cross-Platform**: Archived photos can be imported to any compatible system
 - **Space Efficient**: No unnecessary duplication during incremental updates
+- **Immich edits are not archived**: Immich keeps edits (non-destructive, since Immich v2.5.0) apart from the original. `from-immich` downloads each asset's original file (`/original`), and the edited version is not downloaded.
 
 ## Options Reference
 

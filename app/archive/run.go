@@ -54,7 +54,16 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 			for _, a := range g.Assets {
 				// Closed even when it is refused: closing removes the cache reader's copy of the download.
 				err := errors.Join(ac.dest.WriteAsset(ctx, a), a.Close())
-				if err != nil {
+				switch {
+				case err == nil:
+					// Asset successfully archived
+					ac.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedFileArchived)
+				case ctx.Err() != nil && errors.Is(err, ctx.Err()):
+					// The run is cancelled, and the asset with it: that is not an error of the
+					// asset, and it does not count toward the error limit. The run ends with the
+					// context's error.
+					return ctx.Err()
+				default:
 					ac.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorFileAccess, err)
 					errCount++
 					if errCount > 5 {
@@ -62,9 +71,6 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 						log.Error(err.Error())
 						return err
 					}
-				} else {
-					// Asset successfully archived
-					ac.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedFileArchived)
 				}
 			}
 		}
