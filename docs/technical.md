@@ -119,6 +119,7 @@ Immich-Go generates comprehensive JSON metadata for archived photos:
 ```json
 {
   "fileName": "example.jpg",
+  "checksum": "87AALqWKhRpRT+x3LYq361bAZyU=",
   "latitude": 37.7749,
   "longitude": -122.4194,
   "dateTaken": "2023-10-01T12:34:56Z",
@@ -148,6 +149,11 @@ Immich-Go generates comprehensive JSON metadata for archived photos:
   "livePhoto": false
 }
 ```
+
+`checksum` is Immich's checksum of the original file (SHA-1, base64). Only `archive from-immich`
+writes it, and not for assets of an external library, whose Immich checksum is computed from the
+file's path rather than its content. A later run of the archive uses it to recognize the files it
+has already written (see [Running the archive again](commands/archive.md#running-the-archive-again)).
 
 ## File Pairing and Stacking
 
@@ -308,7 +314,7 @@ archive-folder/
 
 #### Original Names
 - **Primary Files**: Keep original filenames where possible
-- **Conflict Resolution**: Append numbers for duplicates (`IMG_001(1).jpg`)
+- **Conflict Resolution**: Append numbers for duplicates (`IMG_001~1.jpg`)
 - **Character Sanitization**: Replace filesystem-incompatible characters
 
 #### Metadata Files
@@ -319,8 +325,8 @@ archive-folder/
 
 #### Update Logic
 1. **New Files**: Added to appropriate date folders
-2. **Existing Files**: Checked for changes, updated if different
-3. **Metadata Updates**: JSON files refreshed with current server state
+2. **Existing Files**: Never overwritten. An asset already in the archive is skipped; a different file with the same name is written as `name~1.ext`, `name~2.ext`, ... (see [Running the archive again](commands/archive.md#running-the-archive-again))
+3. **Metadata Updates**: A JSON file is rewritten when the asset's metadata has changed
 4. **Deletions**: Files not removed from archive (archive-only operation)
 
 ### Storage Patterns
