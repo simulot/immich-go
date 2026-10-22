@@ -132,9 +132,8 @@ func (r *stackResult) refuse(log *slog.Logger, permission string, n int, err err
 // (Immich merges a stack whose primary is among the new stack's assets). A member in a stack with
 // other assets is left as it is, and that source stack is not made, with a warning: it does not
 // fail the upload. Missing members are logged once the stack is made; a stack with 1 member here
-// is not made. When the server refuses GET /stacks (stack.read) or
-// POST /stacks (stack.create) with 403, the stacks left are not rebuilt, with one warning and no
-// error.
+// is not made. When the server refuses GET /stacks (stack.read) or POST /stacks (stack.create)
+// with 403, the stacks left are not rebuilt, with one warning and no error.
 func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *slog.Logger) (stackResult, error) {
 	var r stackResult
 	src.mu.Lock()
