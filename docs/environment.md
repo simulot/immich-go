@@ -85,7 +85,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_TRACE` | `--from-api-trace` | `false` | Enable trace of api calls |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ARCHIVED` | `--from-archived` | `false` | Get only archived assets |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_CITY` | `--from-city` |  | Get only assets from this city |
-| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set the timeout of each try of a server call |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_COUNTRY` | `--from-country` |  | Get only assets from this country |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_DATE_RANGE` | `--from-date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_DEVICE_UUID` | `--from-device-uuid` | `gl65` | Set a device UUID |
@@ -101,6 +101,8 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_PARTNERS` | `--from-partners` | `false` | Get partner's assets as well |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_PAUSE_IMMICH_JOBS` | `--from-pause-immich-jobs` | `true` | Pause Immich background jobs during upload operations |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_PEOPLE` | `--from-people` | `[]` | Get assets only with those people, can be used multiple times |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_RETRIES` | `--from-retries` | `5` | Tries in all for a server read that fails on the network or with 502, 503 or 504 (1: no retry) |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_RETRY_WAIT` | `--from-retry-wait` | `15s` | Wait before the second try of a failed read; each next wait doubles, up to 1h, and is scaled by a random 0.75 to 1.25 |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER` | `--from-server` |  | Immich server address (example http://your-ip:2283 or https://your-domain) |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SKIP_VERIFY_SSL` | `--from-skip-verify-ssl` | `false` | Skip SSL verification |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_STATE` | `--from-state` |  | Get only assets from this state |
@@ -133,7 +135,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_STACK_ADMIN_API_KEY` | `--admin-api-key` |  | Admin's API Key for managing server's jobs |
 | `IMMICH_GO_STACK_API_KEY` | `--api-key` |  | API Key |
 | `IMMICH_GO_STACK_API_TRACE` | `--api-trace` | `false` | Enable trace of api calls |
-| `IMMICH_GO_STACK_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_STACK_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set the timeout of each try of a server call |
 | `IMMICH_GO_STACK_DATE_RANGE` | `--date-range` | `unset` | photos must be taken in the date range |
 | `IMMICH_GO_STACK_DEVICE_UUID` | `--device-uuid` | `gl65` | Set a device UUID |
 | `IMMICH_GO_STACK_DRY_RUN` | `--dry-run` | `false` | Simulate all actions |
@@ -142,6 +144,8 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_STACK_MANAGE_HEIC_JPEG` | `--manage-heic-jpeg` | `NoStack` | Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG |
 | `IMMICH_GO_STACK_MANAGE_RAW_JPEG` | `--manage-raw-jpeg` | `NoStack` | Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG |
 | `IMMICH_GO_STACK_PAUSE_IMMICH_JOBS` | `--pause-immich-jobs` | `true` | Pause Immich background jobs during upload operations |
+| `IMMICH_GO_STACK_RETRIES` | `--retries` | `5` | Tries in all for a server read that fails on the network or with 502, 503 or 504 (1: no retry) |
+| `IMMICH_GO_STACK_RETRY_WAIT` | `--retry-wait` | `15s` | Wait before the second try of a failed read; each next wait doubles, up to 1h, and is scaled by a random 0.75 to 1.25 |
 | `IMMICH_GO_STACK_SERVER` | `--server` |  | Immich server address (example http://your-ip:2283 or https://your-domain) |
 | `IMMICH_GO_STACK_SKIP_VERIFY_SSL` | `--skip-verify-ssl` | `false` | Skip SSL verification |
 | `IMMICH_GO_STACK_TIME_ZONE` | `--time-zone` |  | Override the system time zone |
@@ -153,7 +157,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_ADMIN_API_KEY` | `--admin-api-key` |  | Admin's API Key for managing server's jobs |
 | `IMMICH_GO_UPLOAD_API_KEY` | `--api-key` |  | API Key |
 | `IMMICH_GO_UPLOAD_API_TRACE` | `--api-trace` | `false` | Enable trace of api calls |
-| `IMMICH_GO_UPLOAD_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_UPLOAD_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set the timeout of each try of a server call |
 | `IMMICH_GO_UPLOAD_DEVICE_UUID` | `--device-uuid` | `gl65` | Set a device UUID |
 | `IMMICH_GO_UPLOAD_DRY_RUN` | `--dry-run` | `false` | Simulate all actions |
 | `IMMICH_GO_UPLOAD_MANAGE_BURST` | `--manage-burst` | `NoStack` | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG |
@@ -163,6 +167,8 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_NO_UI` | `--no-ui` | `false` | Disable the user interface |
 | `IMMICH_GO_UPLOAD_OVERWRITE` | `--overwrite` | `false` | Always overwrite files on the server with local versions |
 | `IMMICH_GO_UPLOAD_PAUSE_IMMICH_JOBS` | `--pause-immich-jobs` | `true` | Pause Immich background jobs during upload operations |
+| `IMMICH_GO_UPLOAD_RETRIES` | `--retries` | `5` | Tries in all for a server read that fails on the network or with 502, 503 or 504 (1: no retry) |
+| `IMMICH_GO_UPLOAD_RETRY_WAIT` | `--retry-wait` | `15s` | Wait before the second try of a failed read; each next wait doubles, up to 1h, and is scaled by a random 0.75 to 1.25 |
 | `IMMICH_GO_UPLOAD_SERVER` | `--server` |  | Immich server address (example http://your-ip:2283 or https://your-domain) |
 | `IMMICH_GO_UPLOAD_SESSION_TAG` | `--session-tag` | `false` | Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS" |
 | `IMMICH_GO_UPLOAD_SKIP_VERIFY_SSL` | `--skip-verify-ssl` | `false` | Skip SSL verification |
@@ -234,7 +240,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_TRACE` | `--from-api-trace` | `false` | Enable trace of api calls |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ARCHIVED` | `--from-archived` | `false` | Get only archived assets |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_CITY` | `--from-city` |  | Get only assets from this city |
-| `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set the timeout of each try of a server call |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_COUNTRY` | `--from-country` |  | Get only assets from this country |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_DATE_RANGE` | `--from-date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_DEVICE_UUID` | `--from-device-uuid` | `gl65` | Set a device UUID |
@@ -250,6 +256,8 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_PARTNERS` | `--from-partners` | `false` | Get partner's assets as well |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_PAUSE_IMMICH_JOBS` | `--from-pause-immich-jobs` | `true` | Pause Immich background jobs during upload operations |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_PEOPLE` | `--from-people` | `[]` | Get assets only with those people, can be used multiple times |
+| `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_RETRIES` | `--from-retries` | `5` | Tries in all for a server read that fails on the network or with 502, 503 or 504 (1: no retry) |
+| `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_RETRY_WAIT` | `--from-retry-wait` | `15s` | Wait before the second try of a failed read; each next wait doubles, up to 1h, and is scaled by a random 0.75 to 1.25 |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER` | `--from-server` |  | Immich server address (example http://your-ip:2283 or https://your-domain) |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SKIP_VERIFY_SSL` | `--from-skip-verify-ssl` | `false` | Skip SSL verification |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_STATE` | `--from-state` |  | Get only assets from this state |

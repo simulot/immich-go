@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	exampleTimeout = "20m"
+	exampleTimeout   = "20m"
+	exampleRetryWait = "15s"
 )
 
 type EnvVarInfo struct {
@@ -141,6 +142,7 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, p string) {
 			upload["server"] = "https://immich.app"
 			upload["api-key"] = "YOUR-API-KEY"
 			upload["client-timeout"] = exampleTimeout
+			upload["retry-wait"] = exampleRetryWait
 			upload["device-uuid"] = "HOSTNAME"
 		}
 		// Set server and API key in stack section
@@ -148,6 +150,7 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, p string) {
 			stack["server"] = "https://immich.app"
 			stack["api-key"] = "YOUR-API-KEY"
 			stack["client-timeout"] = exampleTimeout
+			stack["retry-wait"] = exampleRetryWait
 			stack["device-uuid"] = "HOSTNAME"
 		}
 		// Set server and API key in archive.from-immich section
@@ -156,12 +159,14 @@ func generateConfigurationFileExamples(rootCmd *cobra.Command, p string) {
 				fromImmich["from-server"] = "https://old.immich.app"
 				fromImmich["from-api-key"] = "OLD-API-KEY"
 				fromImmich["from-client-timeout"] = exampleTimeout
+				fromImmich["from-retry-wait"] = exampleRetryWait
 			}
 		}
 		// Set timeout in upload.from-immich section
 		if upload, ok := configMap["upload"].(map[string]interface{}); ok {
 			if fromImmich, ok := upload["from-immich"].(map[string]interface{}); ok {
 				fromImmich["from-client-timeout"] = exampleTimeout
+				fromImmich["from-retry-wait"] = exampleRetryWait
 				fromImmich["from-server"] = "https://old.immich.app"
 				fromImmich["from-api-key"] = "OLD-API-KEY"
 			}
