@@ -235,3 +235,44 @@ func TestPipeGrouperSendsArchivedAssetsAlone(t *testing.T) {
 		t.Errorf("groups:\n got  %v\n want %v", got, want)
 	}
 }
+
+// A pipeline without a grouper does not hang: every asset, archived or not, is sent alone, and
+// the output is closed once the input is.
+func TestPipeGrouperWithoutGroupers(t *testing.T) {
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	t0 := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+	archived := mockAsset(ic, "IMG_002.jpg", t0)
+	archived.FromArchive = true
+	in := make(chan *assets.Asset, 3)
+	in <- mockAsset(ic, "IMG_001.jpg", t0)
+	in <- archived
+	in <- mockAsset(ic, "IMG_003.jpg", t0)
+	close(in)
+
+	ctx := context.Background()
+	gOut := groups.NewGrouperPipeline(ctx).PipeGrouper(ctx, in)
+	done := make(chan []string)
+	go func() {
+		var got []string
+		for g := range gOut {
+			for _, a := range g.Assets {
+				got = append(got, fmt.Sprintf("%d %s", g.Grouping, a.File.Name()))
+			}
+		}
+		done <- got
+	}()
+	select {
+	case got := <-done:
+		sort.Strings(got)
+		want := []string{
+			fmt.Sprintf("%d IMG_001.jpg", assets.GroupByNone),
+			fmt.Sprintf("%d IMG_002.jpg", assets.GroupByNone),
+			fmt.Sprintf("%d IMG_003.jpg", assets.GroupByNone),
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("groups:\n got  %v\n want %v", got, want)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("a pipeline without a grouper hangs")
+	}
+}
