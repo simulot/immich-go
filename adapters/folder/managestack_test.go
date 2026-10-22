@@ -172,6 +172,13 @@ type uploadResult struct {
 // --manage-* options as persistent flags (as app/upload), and from-folder under it.
 func upload(t *testing.T, args ...string) uploadResult {
 	t.Helper()
+	return fromFolder(t, "upload", args...)
+}
+
+// fromFolder runs `immich-go <parent> from-folder args...` as upload does. Only an `upload` parent
+// registers the --manage-* options, as only app/upload does.
+func fromFolder(t *testing.T, parent string, args ...string) uploadResult {
+	t.Helper()
 	t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
 	ctx := context.Background()
 
@@ -189,13 +196,15 @@ func upload(t *testing.T, args ...string) uploadResult {
 		return a.Config.ProcessCommand(cmd)
 	}
 
-	up := &cobra.Command{Use: "upload"}
+	up := &cobra.Command{Use: parent}
 	r := &uploadRunner{}
-	r.RegisterFlags(up.PersistentFlags())
+	if parent == "upload" {
+		r.RegisterFlags(up.PersistentFlags())
+	}
 	up.AddCommand(NewFromFolderCommand(ctx, up, a, r))
 	root.AddCommand(up)
 
-	root.SetArgs(append([]string{"upload", "from-folder"}, args...))
+	root.SetArgs(append([]string{parent, "from-folder"}, args...))
 	root.SetOut(io.Discard)
 	if err := root.ExecuteContext(ctx); err != nil {
 		t.Fatal(err)
@@ -361,6 +370,16 @@ func TestMixedArchiveAndFreshNotGroupedTogether(t *testing.T) {
 				t.Errorf("%d info lines counting 1 archived file, want 1; log:\n%s", n, got.log)
 			}
 		})
+	}
+}
+
+// `archive from-folder` makes no stack: it does not log upload's line about the archived files
+// whose stacks come from their sidecars. Those files are still sent alone.
+func TestArchiveFromFolderNoStackInfoLine(t *testing.T) {
+	got := fromFolder(t, "archive", fixture(t, archived(t, rawJPEG)))
+	checkGroups(t, got, alone("IMG_1.CR2", "IMG_1.JPG")...)
+	if strings.Contains(got.log, "immich-go archive") {
+		t.Errorf("archive from-folder logged upload's line about archived files:\n%s", got.log)
 	}
 }
 
