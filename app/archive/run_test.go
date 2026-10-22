@@ -3,6 +3,8 @@ package archive
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -93,6 +95,48 @@ func (r cancelledBrowse) Browse(context.Context) chan *assets.Group {
 	c := make(chan *assets.Group)
 	close(c)
 	return c
+}
+
+// cancellingFS cancels the run when a file is opened, and fails with err, as a download cut short
+// by the cancellation does.
+type cancellingFS struct {
+	cancel context.CancelFunc
+	err    error
+}
+
+func (c cancellingFS) Open(string) (fs.File, error) {
+	c.cancel()
+	return nil, c.err
+}
+
+// After a cancel, the errors of the assets that are only the cancellation do not count toward the
+// error limit: the run ends with the context's error, never with "too many errors". The first
+// download is cut short by the cancel, with the context's error or another one; every other asset
+// of the group, more than the limit, then fails with the context's error.
+func TestRunCancelledMidGroupIsNotTooManyErrors(t *testing.T) {
+	for name, cutErr := range map[string]error{"context error": context.Canceled, "other error": io.ErrUnexpectedEOF} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			src := cancellingFS{cancel: cancel, err: cutErr}
+			g := assets.NewGroup(assets.GroupByNone)
+			for i := range 10 {
+				a := &assets.Asset{
+					File:        fshelper.FSName(src, fmt.Sprintf("a%d", i)),
+					CaptureDate: time.Date(2021, 7, 4, 12, 30, 0, 0, time.UTC),
+				}
+				a.SetNameInfo(assets.NameInfo{Base: fmt.Sprintf("IMG_%d.JPG", i)})
+				g.AddAsset(a)
+			}
+			ac := &ArchiveCmd{ArchivePath: t.TempDir(), app: app.New(ctx, nil)}
+			ac.app.Log().Logger = slog.New(slog.DiscardHandler)
+			cmd := &cobra.Command{}
+			cmd.SetContext(ctx)
+			if err := ac.Run(cmd, oneGroup{g}); !errors.Is(err, context.Canceled) {
+				t.Fatalf("a run cancelled mid-group returned %v, want %v", err, context.Canceled)
+			}
+		})
+	}
 }
 
 // A cancelled run is an error, also when the adapter has closed its channel by the time Run reads
