@@ -109,8 +109,8 @@ They never apply to a file restored from an immich-go archive, that is a file wi
 file that `archive` wrote for it. Such a file is never grouped with another file or dropped, even
 in a folder that also holds fresh files. Its stack is the one its `.JSON` file records: once every
 file is uploaded, those stacks are made again with the same primary (see
-[archive Stacks](archive.md#stacks)). This needs the `stack.read` permission on the API key.
-Without it, the upload logs a warning and the stacks are not made.
+[archive Stacks](archive.md#stacks)). This needs the `stack.read` and `stack.create` permissions on
+the API key. Without them, the upload logs a warning and the stacks are not made.
 
 This holds for an archive written by an older release of immich-go too, whose `.JSON` files
 record no stack (no `stack` field): its files are never grouped, so restoring it makes no stacks.
@@ -259,8 +259,9 @@ immich-go upload from-immich [source-options] [destination-options]
 ### Stacks
 
 The stacks of the source server are made again on the destination, with the same primary, once
-every asset is transferred. Both API keys need the `stack.read` permission. Without it, a warning
-is logged and some or all of the stacks are not made.
+every asset is transferred. The source API key needs the `stack.read` permission, and the
+destination API key the `stack.read` and `stack.create` permissions. Without them, a warning is
+logged and some or all of the stacks are not made.
 
 ### Examples
 ```bash
