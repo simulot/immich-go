@@ -438,6 +438,109 @@ func TestRebuildStacksLeavesOtherStacks(t *testing.T) {
 	if !strings.Contains(logBuf.String(), "S2") {
 		t.Fatalf("not logged:\n%s", logBuf.String())
 	}
+	// Someone else's stack is no failure of the run: a warning, not an error.
+	if r.failed != 0 || strings.Contains(logBuf.String(), "level=ERROR") || !strings.Contains(logBuf.String(), "level=WARN") {
+		t.Fatalf("result %+v; want a warning and no error, logged:\n%s", r, logBuf.String())
+	}
+}
+
+// "stack made without its missing members" is logged only for a stack that is made: not when
+// POST /stacks fails, not when a member is in another stack, and not on a rerun that finds the
+// stack already there.
+func TestRebuildStacksMissingMembersLoggedOnlyWhenMade(t *testing.T) {
+	const missing = "stack made without its missing members"
+	src := func() *sourceStacks {
+		return collect(
+			m("IMG_1.JPG", "b1", "S2", false, 4),
+			m("IMG_2.JPG", "b2", "S2", true, 4),
+			m("IMG_3.JPG", "b3", "S2", false, 4),
+		)
+	}
+	rebuild := func(f *fakeStacks) string {
+		var logBuf bytes.Buffer
+		if _, err := rebuildStacks(context.Background(), f, src(), slog.New(slog.NewTextHandler(&logBuf, nil))); err != nil {
+			t.Fatal(err)
+		}
+		return logBuf.String()
+	}
+
+	f := newFakeStacks()
+	if logs := rebuild(f); !strings.Contains(logs, missing) {
+		t.Errorf("made: %q not logged:\n%s", missing, logs)
+	}
+	if logs := rebuild(f); strings.Contains(logs, missing) {
+		t.Errorf("already there: %q logged:\n%s", missing, logs)
+	}
+
+	f = newFakeStacks()
+	f.createErr = errors.New("POST /stacks fails on purpose")
+	if logs := rebuild(f); strings.Contains(logs, missing) {
+		t.Errorf("POST /stacks fails: %q logged:\n%s", missing, logs)
+	}
+
+	f = newFakeStacks()
+	if _, err := f.CreateStack(context.Background(), []string{"x1", "b1"}); err != nil {
+		t.Fatal(err)
+	}
+	if logs := rebuild(f); strings.Contains(logs, missing) {
+		t.Errorf("a member in another stack: %q logged:\n%s", missing, logs)
+	}
+}
+
+// createsThenRefuses lets n POST /stacks calls through, then returns err for the next ones.
+type createsThenRefuses struct {
+	*fakeStacks
+	n   int
+	err error
+}
+
+func (c *createsThenRefuses) CreateStack(ctx context.Context, ids []string) (string, error) {
+	if c.n == 0 {
+		return "", c.err
+	}
+	c.n--
+	return c.fakeStacks.CreateStack(ctx, ids)
+}
+
+// When the server refuses POST /stacks midway (stack.create), its one warning still gives the
+// stacks made and the stacks already there by then.
+func TestRebuildStacksRefusedMidRunLogsCounts(t *testing.T) {
+	f := newFakeStacks()
+	if _, err := f.CreateStack(context.Background(), []string{"a1", "a2"}); err != nil {
+		t.Fatal(err)
+	}
+	refused := forbidden(t, "stack.create", func(ctx context.Context, ic *immich.ImmichClient) error {
+		_, err := ic.CreateStack(ctx, []string{"c1", "c2"})
+		return err
+	})
+	api := &createsThenRefuses{fakeStacks: f, n: 1, err: refused}
+	src := collect(
+		m("IMG_1.JPG", "a1", "S1", true, 2), // already there
+		m("IMG_2.JPG", "a2", "S1", false, 2),
+		m("IMG_3.JPG", "b1", "S2", true, 2), // made
+		m("IMG_4.JPG", "b2", "S2", false, 2),
+		m("IMG_5.JPG", "c1", "S3", true, 2), // refused
+		m("IMG_6.JPG", "c2", "S3", false, 2),
+	)
+	var logBuf bytes.Buffer
+	r, err := rebuildStacks(context.Background(), api, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.present != 1 || r.created != 1 || r.refused != "stack.create" {
+		t.Fatalf("result %+v; want 1 already there, 1 made, then stack.create refused", r)
+	}
+	var warning string
+	for line := range strings.Lines(logBuf.String()) {
+		if strings.Contains(line, "not rebuilt") {
+			warning = line
+		}
+	}
+	for _, s := range []string{"level=WARN", "stacks=1", "made=1", `"already there"=1`} {
+		if !strings.Contains(warning, s) {
+			t.Errorf("the warning does not hold %s:\n%s", s, logBuf.String())
+		}
+	}
 }
 
 // The same when the other stack's primary is in the trash (or hidden): GET /stacks names it as the

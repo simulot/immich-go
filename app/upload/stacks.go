@@ -116,11 +116,12 @@ type stackResult struct {
 }
 
 // refuse notes that the server refused a call with 403 because the API key lacks permission, and
-// logs that the n stacks left are not rebuilt. It is no reason to fail the upload: every file is
-// on the server, only the stacks are missing.
+// logs that the n stacks left are not rebuilt, with the stacks made and already there by then. It
+// is no reason to fail the upload: every file is on the server, only the stacks are missing.
 func (r *stackResult) refuse(log *slog.Logger, permission string, n int, err error) {
 	r.refused = permission
-	log.Warn("stacks from the source not rebuilt: the API key lacks the "+permission+" permission", "stacks", n, "err", err)
+	log.Warn("stacks from the source not rebuilt: the API key lacks the "+permission+" permission", "stacks", n,
+		"made", r.created, "already there", r.present, "err", err)
 }
 
 // rebuildStacks makes, for each source stack with 2 or more members here, one stack of exactly
@@ -129,8 +130,9 @@ func (r *stackResult) refuse(log *slog.Logger, permission string, n int, err err
 // duplicate. A stack whose members are all in this one, left by a run that was cut short or made
 // by the groupers (series, burst, RAW+JPEG...) earlier in this run, is taken over by the new stack
 // (Immich merges a stack whose primary is among the new stack's assets). A member in a stack with
-// other assets is left as it is, and that source stack is not made. A missing member is logged; a
-// stack with 1 member here is not made. When the server refuses GET /stacks (stack.read) or
+// other assets is left as it is, and that source stack is not made, with a warning: it does not
+// fail the upload. Missing members are logged once the stack is made; a stack with 1 member here
+// is not made. When the server refuses GET /stacks (stack.read) or
 // POST /stacks (stack.create) with 403, the stacks left are not rebuilt, with one warning and no
 // error.
 func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *slog.Logger) (stackResult, error) {
@@ -192,10 +194,6 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			r.notMade++
 			continue
 		}
-		if want > len(ms) {
-			log.Warn("stack made without its missing members", "source stack", sid,
-				"members here", len(ms), "members on the source", want)
-		}
 		p, np := -1, 0
 		for i, m := range ms {
 			if m.primary {
@@ -255,7 +253,7 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			}
 		}
 		if len(other) > 0 {
-			log.Error("stack not made: a member is in another stack, with assets that are not in this one", "source stack", sid,
+			log.Warn("stack not made: a member is in another stack, with assets that are not in this one", "source stack", sid,
 				"other stacks", strings.Join(other, ","))
 			r.notMade++
 			continue
@@ -271,6 +269,10 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			continue
 		}
 		log.Debug("stack made", "source stack", sid, "stack", newID, "primary", ms[p].file, "members", len(order))
+		if want > len(ms) {
+			log.Warn("stack made without its missing members", "source stack", sid,
+				"members here", len(ms), "members on the source", want)
+		}
 		r.created++
 		for _, m := range ms {
 			r.stacked = append(r.stacked, m.file)
