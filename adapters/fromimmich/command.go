@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -399,6 +400,10 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			Rating:      byte(a.ExifInfo.Rating),
 			Tags:        asset.Tags,
 		}
+		// Not for an external-library asset: its Immich checksum hashes its path, not its bytes.
+		if a.LibraryID == "" {
+			asset.FromApplication.Checksum = a.Checksum
+		}
 		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(fic.ifs, a.ID)
 
@@ -421,7 +426,18 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			albums[i].ID = ""
 		}
 
+		// The .JSON sidecar is written from FromApplication, which was filled before the albums
+		// were known. Give it the albums too (title and description, in a stable order), so that
+		// `upload from-folder` re-creates them when an archive is restored. GET /albums?assetId=
+		// lists every album the user is a member of, owned or shared with them.
+		sort.SliceStable(albums, func(i, j int) bool {
+			if albums[i].Title != albums[j].Title {
+				return albums[i].Title < albums[j].Title
+			}
+			return albums[i].Description < albums[j].Description
+		})
 		asset.Albums = albums
+		asset.FromApplication.Albums = albums
 
 		// Transfer tags
 		for t := range asset.Tags {
