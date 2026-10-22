@@ -351,8 +351,9 @@ func listFiles(t *testing.T, dir string) map[string]time.Time {
 	return files
 }
 
-// serverAsset is an asset as /search/metadata returns it.
+// serverAsset is an asset as /search/metadata and GET /stacks return it.
 type serverAsset struct {
+	ID               string `json:"id"`
 	OriginalFileName string `json:"originalFileName"`
 	Checksum         string `json:"checksum"`
 	ExifInfo         *struct {

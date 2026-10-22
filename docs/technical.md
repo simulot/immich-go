@@ -146,7 +146,12 @@ Immich-Go generates comprehensive JSON metadata for archived photos:
   "favorited": true,
   "fromPartner": false,
   "motion": false,
-  "livePhoto": false
+  "livePhoto": false,
+  "stack": {
+    "id": "8f2c4e6a-1b3d-4f5a-9c7e-0d2b4f6a8c1e",
+    "primary": true,
+    "assetCount": 3
+  }
 }
 ```
 
@@ -155,12 +160,19 @@ writes it, and not for assets of an external library, whose Immich checksum is c
 file's path rather than its content. A later run of the archive uses it to recognize the files it
 has already written (see [Running the archive again](commands/archive.md#running-the-archive-again)).
 
+`stack` is the asset's stack on the Immich server: the stack's ID there, whether the asset is its
+primary, and the number of assets in it. Only `archive from-immich` writes it, for the assets in a
+stack; reading the stacks needs the API key's `stack.read` permission. When the archive is
+uploaded, `upload` makes these stacks again with the same primary. A file with a `.JSON` file
+written by `archive` is never grouped by the `--manage-*` options (see
+[Stacks](commands/archive.md#stacks)).
+
 ## File Pairing and Stacking
 
 ### Burst Detection
 
 #### Time-Based Detection
-- **Threshold**: Photos taken within 900ms
+- **Threshold**: Photos taken within 500ms
 - **Algorithm**: Groups consecutive photos below threshold
 - **Limitations**: May group unrelated rapid shots
 
