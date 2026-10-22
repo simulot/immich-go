@@ -92,11 +92,10 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	// With a known checksum, the file there is this asset when its .JSON sidecar has the same
 	// checksum, and the file has the asset's size when that is known. A sidecar from a release that
 	// wrote none (or no sidecar) leaves the file itself to be hashed; when it is the asset, its
-	// sidecar is rewritten with the checksum. An asset's
-	// checksum never changes: Immich edits are non-destructive, /original returns the original
-	// bytes, and the checksum is the original's. Other content under the same name is by definition
-	// another file, and the asset goes to the next free ~N: the archive never deletes or overwrites
-	// a file.
+	// sidecar is rewritten with the checksum. An asset's checksum never changes: Immich edits are
+	// non-destructive, /original returns the original bytes, and the checksum is the original's.
+	// Other content under the same name is by definition another file, and the asset goes to the
+	// next free ~N: the archive never deletes or overwrites a file.
 	//
 	// Without a checksum, a regular file of the asset's size is taken for it. When the size is not
 	// known either (0: the server has not read the file yet), the files already under those names
