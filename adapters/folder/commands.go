@@ -54,6 +54,7 @@ type ImportFolderCmd struct {
 	icloudMetas             *gen.SyncMap[string, iCloudMeta]
 	icloudMetaPass          bool
 	archived                atomic.Int64 // files sent with an immich-go .JSON sidecar (FromArchive)
+	uploading               bool         // run by upload, which makes the stacks: not by archive
 }
 
 func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {

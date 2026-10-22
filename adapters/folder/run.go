@@ -44,6 +44,7 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 	ifc.app = app
 	ifc.processor = app.FileProcessor()
 	ifc.tz = app.GetTZ()
+	ifc.uploading = cmd.Parent() != nil && cmd.Parent().Name() == "upload"
 	// ifc.InclusionFlags.SetIncludeTypeExtensions()
 
 	// parse arguments and generate a fs.FS per argument
@@ -123,7 +124,7 @@ func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
 		}
 		ifc.wg.Wait()
 		ifc.pool.Stop()
-		if n := ifc.archived.Load(); n > 0 {
+		if n := ifc.archived.Load(); n > 0 && ifc.uploading {
 			ifc.app.Log().Info("files restored from an immich-go archive are not grouped: their stacks come from their .JSON sidecars", "files", n)
 		}
 	}()
