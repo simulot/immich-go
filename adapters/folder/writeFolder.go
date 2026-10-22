@@ -188,9 +188,9 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		}
 	}
 
-	// XMP?
+	// XMP? Sidecar file is set, copy it. Written only when its content changed, through a
+	// temporary file, as the .JSON below.
 	if a.FromSideCar != nil {
-		// Sidecar file is set, copy it
 		scr, err := a.FromSideCar.File.Open()
 		if err != nil {
 			return err
@@ -198,14 +198,16 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		debugfiles.TrackOpenFile(scr, a.FromSideCar.File.Name())
 		defer scr.Close()
 		defer debugfiles.TrackCloseFile(scr)
-		scw, err := fshelper.OpenFile(w.WriteToFS, path.Join(dir, name+".XMP"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+		xmp, err := io.ReadAll(scr)
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(scw, scr)
-		scw.Close()
-		if err != nil {
-			return err
+		xmpName := path.Join(dir, name+".XMP")
+		old, err := fs.ReadFile(w.WriteToFS, xmpName)
+		if err != nil || !bytes.Equal(old, xmp) {
+			if err := writeAtomic(w.WriteToFS, xmpName, bytes.NewReader(xmp), 0); err != nil {
+				return err
+			}
 		}
 	}
 

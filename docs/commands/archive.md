@@ -92,7 +92,7 @@ asset under its name in its date folder, then under `name~1.ext`, `name~2.ext`, 
 
 - **The asset is already there**: it is skipped. It is not downloaded or copied again, and no `~N`
   copy is made. Its `.JSON` file is rewritten only when the metadata has changed (an album, a
-  description, a rating...).
+  description, a rating...), and its `.XMP` file, if any, only when the source's XMP has changed.
 - **Another file has that name**: the asset is written under the next free `~N` name.
 
 How an asset already there is recognized depends on the source:
