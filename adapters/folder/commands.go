@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/simulot/immich-go/adapters"
@@ -52,6 +53,8 @@ type ImportFolderCmd struct {
 	picasaAlbums            *gen.SyncMap[string, PicasaAlbum] // ap[string]PicasaAlbum
 	icloudMetas             *gen.SyncMap[string, iCloudMeta]
 	icloudMetaPass          bool
+	archived                atomic.Int64 // files sent with an immich-go .JSON sidecar (FromArchive)
+	uploading               bool         // run by upload, which makes the stacks: not by archive
 }
 
 func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
@@ -69,9 +72,7 @@ func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Comma
 	flags.BoolVar(&ifc.FolderAsTags, "folder-as-tags", false, "Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)")
 	flags.BoolVar(&ifc.TakeDateFromFilename, "date-from-name", true, "Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov)")
 
-	if cmd.Parent() != nil && cmd.Parent().Name() == "upload" {
-		ifc.StackOptions.RegisterFlags(flags)
-	}
+	// The --manage-* flags are upload's persistent flags: run reads them (StackOptions.ReadFlags).
 
 	ifc.InclusionFlags.RegisterFlags(flags, "") // selection per extension
 	ifc.ICloudTakeout = false

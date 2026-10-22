@@ -78,6 +78,7 @@ type UpCmd struct {
 	finished          bool                                 // the finish task has been run
 	pausedJobs        []string                             // Immich jobs paused by this run, to be resumed at the end
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
+	stacks            sourceStacks                         // Stacks the source names (sidecars or source server), rebuilt after the uploads
 }
 
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {

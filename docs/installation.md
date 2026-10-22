@@ -32,6 +32,7 @@ Create an Immich API key for each user account you plan to use with `Immich-Go` 
 - `albumAsset.create`
 - `server.about`
 - `stack.create`
+- `stack.read`
 - `tag.asset`
 - `tag.create`
 - `user.read`

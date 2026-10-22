@@ -102,6 +102,24 @@ immich-go upload from-folder [options] <folder-path>
 | `--manage-heic-jpeg`      | `NoStack`, `KeepHeic`, `KeepJPG`, `StackCoverHeic`, `StackCoverJPG` | [HEIC+JPEG handling](../technical.md#heic-jpeg-management) |
 | `--manage-epson-fastfoto` | `false`                                                             | Handle Epson FastFoto scanned photos                       |
 
+These options group fresh files, such as the content of a camera card or of a phone export. They
+apply to `from-folder`, `from-icloud` and `from-picasa`.
+
+They never apply to a file restored from an immich-go archive, that is a file with the `.JSON`
+file that `archive` wrote for it. Such a file is never grouped with another file or dropped, even
+in a folder that also holds fresh files. Its stack is the one its `.JSON` file records: once every
+file is uploaded, those stacks are made again with the same primary (see
+[archive Stacks](archive.md#stacks)). This needs the `stack.read` and `stack.create` permissions on
+the API key. Without them, the upload logs a warning and the stacks are not made. Any other error
+of the server while the stacks are made fails the upload, once every file is uploaded. Running the
+upload again is safe: it uploads no file twice and makes no stack twice.
+
+The files of an archive written by an older release of immich-go are never grouped either, but
+their `.JSON` files record no stack (no `stack` field): restoring such an archive makes no stacks.
+To get the source's stacks back, run `archive from-immich` with this release into the same folder
+first. It downloads none of the files already there and rewrites only their `.JSON` files. Then
+restore the archive.
+
 ### Examples
 ```bash
 # Basic folder upload
@@ -240,6 +258,14 @@ immich-go upload from-immich [source-options] [destination-options]
   | `--from-favorite`       | Include only favorite assets |
   | `--from-minimal-rating` | Minimum rating filter        |
 
+### Stacks
+
+The stacks of the source server are made again on the destination, with the same primary, once
+every asset is transferred. The source API key needs the `stack.read` permission, and the
+destination API key the `stack.read` and `stack.create` permissions. Without them, a warning is
+logged and some or all of the stacks are not made. Any other error of the destination server while
+the stacks are made fails the upload, once every asset is transferred. Running the upload again is
+safe: it transfers no asset twice and makes no stack twice.
 
 ### Examples
 ```bash

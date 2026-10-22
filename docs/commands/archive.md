@@ -51,16 +51,19 @@ All `upload` sub-commands are available for `archive`:
 
 Each photo gets a corresponding `.JSON` file containing:
 - Original filename and capture date
+- Immich checksum of the original file (`from-immich` only, see [Running the archive again](#running-the-archive-again))
 - GPS coordinates (latitude/longitude)  
 - Album associations
 - Tags and descriptions
 - Rating and favorite status
 - Archive/trash status
+- The asset's stack on the Immich server (`from-immich` only, see [Stacks](#stacks))
 
 ### Example Metadata
 ```json
 {
   "fileName": "example.jpg",
+  "checksum": "87AALqWKhRpRT+x3LYq361bAZyU=",
   "latitude": 37.7749,
   "longitude": -122.4194,
   "dateTaken": "2023-10-01T12:34:56Z",
@@ -78,9 +81,61 @@ Each photo gets a corresponding `.JSON` file containing:
   "trashed": false,
   "archived": false,
   "favorited": true,
-  "fromPartner": false
+  "fromPartner": false,
+  "stack": {
+    "id": "8f2c4e6a-1b3d-4f5a-9c7e-0d2b4f6a8c1e",
+    "primary": true,
+    "assetCount": 3
+  }
 }
 ```
+
+## Stacks
+
+With `from-immich`, the `.JSON` file of each asset in a stack records that stack: its ID on the
+server, whether the asset is the stack's primary, and the number of assets in it. The assets of a
+stack can be in different date folders.
+
+When the archive is uploaded with `upload from-folder`, the same stacks are made, with the same
+primary, once every file is uploaded. The `--manage-*` options never group or drop these files
+(see [upload from-folder](upload.md#file-management)). Running the upload again makes no new
+stack. The API key of the upload needs the `stack.read` and `stack.create` permissions. Without
+them, the upload logs a warning and the stacks are not made.
+
+The archive reads the stacks with the API key's `stack.read` permission. Without it, the archive
+logs a warning, and a stack whose assets other than its primary are all archived is not recorded.
+
+## Running the archive again
+
+The archive can be run again into the same folder, for example on a schedule, or after an
+interrupted run. It never deletes or overwrites a photo already in the folder. It looks for each
+asset under its name in its date folder, then under `name~1.ext`, `name~2.ext`, and so on:
+
+- **The asset is already there**: it is skipped. It is not downloaded or copied again, and no `~N`
+  copy is made. Its `.JSON` file is rewritten only when the metadata has changed (an album, a
+  description, a rating...), and its `.XMP` file, if any, only when the source's XMP has changed.
+- **Another file has that name**: the asset is written under the next free `~N` name.
+
+How an asset already there is recognized depends on the source:
+
+- **`from-immich`**: the `.JSON` file holds the asset's Immich checksum, the SHA-1 of the original
+  file. The file is the asset when the checksum matches and, when Immich knows the asset's size, the
+  file has that size. A `.JSON` file written by an older release of immich-go has no checksum: the
+  file is read once to compute its SHA-1, and when it matches, the checksum is added to the `.JSON`
+  file.
+- **`from-immich`, assets of an external library**: Immich computes their checksum from the file's
+  path, not its content. No checksum is written, and a file with the same name and size is taken
+  as the asset.
+- **Other sources**: a file with the same name and size is taken as the asset.
+
+Immich keeps edits apart from the original. The archive holds the original file of each asset, and
+editing a photo in Immich does not change its checksum: the next run does not download it again.
+
+A download is written to a hidden `.<name>.partial` file first. It gets its real name only once it
+is complete: it must have the asset's size, when known, and with `from-immich` its SHA-1 must be
+the asset's checksum. An interrupted run leaves no truncated photo behind, and the next run
+downloads the missing assets. A `.partial` file left by a run that was killed is replaced the next
+time that asset is downloaded, and can be deleted.
 
 ## Examples
 
@@ -179,10 +234,11 @@ immich-go archive from-immich \
 
 ## Important Notes
 
-- **Incremental**: Archives can be updated - new photos are added without affecting existing ones
+- **Incremental**: Archives can be updated - new photos are added without affecting existing ones (see [Running the archive again](#running-the-archive-again))
 - **Metadata Preservation**: JSON files ensure no metadata is lost
 - **Cross-Platform**: Archived photos can be imported to any compatible system
 - **Space Efficient**: No unnecessary duplication during incremental updates
+- **Immich edits are not archived**: Immich keeps edits (non-destructive, since Immich v2.5.0) apart from the original. `from-immich` downloads each asset's original file (`/original`), and the edited version is not downloaded.
 
 ## Options Reference
 

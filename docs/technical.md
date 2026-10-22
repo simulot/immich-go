@@ -119,6 +119,7 @@ Immich-Go generates comprehensive JSON metadata for archived photos:
 ```json
 {
   "fileName": "example.jpg",
+  "checksum": "87AALqWKhRpRT+x3LYq361bAZyU=",
   "latitude": 37.7749,
   "longitude": -122.4194,
   "dateTaken": "2023-10-01T12:34:56Z",
@@ -145,16 +146,33 @@ Immich-Go generates comprehensive JSON metadata for archived photos:
   "favorited": true,
   "fromPartner": false,
   "motion": false,
-  "livePhoto": false
+  "livePhoto": false,
+  "stack": {
+    "id": "8f2c4e6a-1b3d-4f5a-9c7e-0d2b4f6a8c1e",
+    "primary": true,
+    "assetCount": 3
+  }
 }
 ```
+
+`checksum` is Immich's checksum of the original file (SHA-1, base64). Only `archive from-immich`
+writes it, and not for assets of an external library, whose Immich checksum is computed from the
+file's path rather than its content. A later run of the archive uses it to recognize the files it
+has already written (see [Running the archive again](commands/archive.md#running-the-archive-again)).
+
+`stack` is the asset's stack on the Immich server: the stack's ID there, whether the asset is its
+primary, and the number of assets in it. Only `archive from-immich` writes it, for the assets in a
+stack; reading the stacks needs the API key's `stack.read` permission. When the archive is
+uploaded, `upload` makes these stacks again with the same primary. A file with a `.JSON` file
+written by `archive` is never grouped by the `--manage-*` options (see
+[Stacks](commands/archive.md#stacks)).
 
 ## File Pairing and Stacking
 
 ### Burst Detection
 
 #### Time-Based Detection
-- **Threshold**: Photos taken within 900ms
+- **Threshold**: Photos taken within 500ms
 - **Algorithm**: Groups consecutive photos below threshold
 - **Limitations**: May group unrelated rapid shots
 
@@ -308,7 +326,7 @@ archive-folder/
 
 #### Original Names
 - **Primary Files**: Keep original filenames where possible
-- **Conflict Resolution**: Append numbers for duplicates (`IMG_001(1).jpg`)
+- **Conflict Resolution**: Append numbers for duplicates (`IMG_001~1.jpg`)
 - **Character Sanitization**: Replace filesystem-incompatible characters
 
 #### Metadata Files
@@ -319,8 +337,8 @@ archive-folder/
 
 #### Update Logic
 1. **New Files**: Added to appropriate date folders
-2. **Existing Files**: Checked for changes, updated if different
-3. **Metadata Updates**: JSON files refreshed with current server state
+2. **Existing Files**: Never overwritten. An asset already in the archive is skipped; a different file with the same name is written as `name~1.ext`, `name~2.ext`, ... (see [Running the archive again](commands/archive.md#running-the-archive-again))
+3. **Metadata Updates**: A JSON file is rewritten when the asset's metadata has changed
 4. **Deletions**: Files not removed from archive (archive-only operation)
 
 ### Storage Patterns
