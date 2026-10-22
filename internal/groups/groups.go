@@ -46,7 +46,8 @@ func NewGrouperPipeline(ctx context.Context, gs ...Grouper) *GrouperPipeline {
 // PipeGrouper groups assets in a pipeline of groupers.
 // Group opens and closes intermediate channels as required.
 // An asset restored from an immich-go archive (FromArchive) skips the groupers: it is sent alone,
-// its stack comes from its sidecar, never from its name or capture time.
+// its stack comes from its sidecar, never from its name or capture time. Without a grouper, every
+// asset is sent alone.
 func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset) chan *assets.Group {
 	// Create channels
 	gOut := make(chan *assets.Group)    // output channel for groups
@@ -72,7 +73,8 @@ func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset
 
 	wg := sync.WaitGroup{}
 
-	// send the assets restored from an archive alone, the others to the groupers
+	// send the assets restored from an archive alone, the others to the groupers; without a
+	// grouper, nothing reads toGroup: every asset is sent alone
 	wg.Go(func() {
 		defer close(toGroup)
 		for {
@@ -83,7 +85,7 @@ func (p *GrouperPipeline) PipeGrouper(ctx context.Context, in chan *assets.Asset
 				if !ok {
 					return
 				}
-				if a.FromArchive {
+				if a.FromArchive || len(p.groupers) == 0 {
 					select {
 					case gOut <- assets.NewGroup(assets.GroupByNone, a):
 					case <-ctx.Done():
