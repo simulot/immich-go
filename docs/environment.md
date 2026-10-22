@@ -85,7 +85,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_TRACE` | `--from-api-trace` | `false` | Enable trace of api calls |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ARCHIVED` | `--from-archived` | `false` | Get only archived assets |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_CITY` | `--from-city` |  | Get only assets from this city |
-| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set the timeout of each try of a server call |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_COUNTRY` | `--from-country` |  | Get only assets from this country |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_DATE_RANGE` | `--from-date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_DEVICE_UUID` | `--from-device-uuid` | `gl65` | Set a device UUID |
@@ -135,7 +135,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_STACK_ADMIN_API_KEY` | `--admin-api-key` |  | Admin's API Key for managing server's jobs |
 | `IMMICH_GO_STACK_API_KEY` | `--api-key` |  | API Key |
 | `IMMICH_GO_STACK_API_TRACE` | `--api-trace` | `false` | Enable trace of api calls |
-| `IMMICH_GO_STACK_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_STACK_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set the timeout of each try of a server call |
 | `IMMICH_GO_STACK_DATE_RANGE` | `--date-range` | `unset` | photos must be taken in the date range |
 | `IMMICH_GO_STACK_DEVICE_UUID` | `--device-uuid` | `gl65` | Set a device UUID |
 | `IMMICH_GO_STACK_DRY_RUN` | `--dry-run` | `false` | Simulate all actions |
@@ -157,7 +157,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_ADMIN_API_KEY` | `--admin-api-key` |  | Admin's API Key for managing server's jobs |
 | `IMMICH_GO_UPLOAD_API_KEY` | `--api-key` |  | API Key |
 | `IMMICH_GO_UPLOAD_API_TRACE` | `--api-trace` | `false` | Enable trace of api calls |
-| `IMMICH_GO_UPLOAD_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_UPLOAD_CLIENT_TIMEOUT` | `--client-timeout` | `20m0s` | Set the timeout of each try of a server call |
 | `IMMICH_GO_UPLOAD_DEVICE_UUID` | `--device-uuid` | `gl65` | Set a device UUID |
 | `IMMICH_GO_UPLOAD_DRY_RUN` | `--dry-run` | `false` | Simulate all actions |
 | `IMMICH_GO_UPLOAD_MANAGE_BURST` | `--manage-burst` | `NoStack` | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG |
@@ -240,7 +240,7 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_TRACE` | `--from-api-trace` | `false` | Enable trace of api calls |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ARCHIVED` | `--from-archived` | `false` | Get only archived assets |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_CITY` | `--from-city` |  | Get only assets from this city |
-| `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set server calls timeout |
+| `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_CLIENT_TIMEOUT` | `--from-client-timeout` | `20m0s` | Set the timeout of each try of a server call |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_COUNTRY` | `--from-country` |  | Get only assets from this country |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_DATE_RANGE` | `--from-date-range` | `unset` | Only import photos taken within the specified date range |
 | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_DEVICE_UUID` | `--from-device-uuid` | `gl65` | Set a device UUID |

@@ -124,6 +124,22 @@ func TestRetriesFlag(t *testing.T) {
 	})
 }
 
+// The help of --client-timeout (and --from-client-timeout) says that it bounds each try, as it does.
+func TestClientTimeoutHelpSaysEachTry(t *testing.T) {
+	for _, prefix := range []string{"", "from-"} {
+		var c Client
+		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		c.RegisterFlags(flags, prefix)
+		f := flags.Lookup(prefix + "client-timeout")
+		if f == nil {
+			t.Fatalf("no --%sclient-timeout flag", prefix)
+		}
+		if !strings.Contains(f.Usage, "each try") {
+			t.Errorf("--%sclient-timeout help %q; want it to say each try", prefix, f.Usage)
+		}
+	}
+}
+
 // --client-timeout bounds each try, not the whole call: against a server that stalls 200 ms
 // before it answers, each try ends after about 50 ms, and the call is tried again as --retries says.
 func TestClientTimeoutBoundsEachTry(t *testing.T) {

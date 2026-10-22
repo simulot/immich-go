@@ -61,7 +61,7 @@ func (client *Client) RegisterFlags(flags *pflag.FlagSet, prefix string) {
 	flags.BoolVar(&client.APITrace, prefix+"api-trace", false, "Enable trace of api calls")
 	flags.BoolVar(&client.PauseImmichBackgroundJobs, prefix+"pause-immich-jobs", true, "Pause Immich background jobs during upload operations")
 	flags.BoolVar(&client.SkipSSL, prefix+"skip-verify-ssl", false, "Skip SSL verification")
-	flags.DurationVar(&client.ClientTimeout, prefix+"client-timeout", 20*time.Minute, "Set server calls timeout")
+	flags.DurationVar(&client.ClientTimeout, prefix+"client-timeout", 20*time.Minute, "Set the timeout of each try of a server call")
 	flags.IntVar(&client.Retries, prefix+"retries", 5, "Tries in all for a server read that fails on the network or with 502, 503 or 504 (1: no retry)")
 	flags.DurationVar(&client.RetryWait, prefix+"retry-wait", 15*time.Second, "Wait before the second try of a failed read; each next wait doubles, up to 1h, and is scaled by a random 0.75 to 1.25")
 	flags.StringVar(&client.DeviceUUID, prefix+"device-uuid", client.DeviceUUID, "Set a device UUID")
