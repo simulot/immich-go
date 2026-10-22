@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strings"
 	"testing"
@@ -29,6 +31,8 @@ type fakeStacks struct {
 	trashed    map[string]bool   // members GET /stacks leaves out
 	unreported map[string]bool   // members GET /assets/{id} shows in no stack
 	infoFails  map[string]bool   // members whose GET /assets/{id} fails
+	listErr    error             // what GET /stacks returns instead of the stacks
+	createErr  error             // what POST /stacks returns instead of making the stack
 	creates    int
 }
 
@@ -51,6 +55,9 @@ func (f *fakeStacks) GetAssetInfo(_ context.Context, id string) (*immich.Asset, 
 }
 
 func (f *fakeStacks) GetAllStacks(context.Context) ([]immich.Stack, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
 	out := make([]immich.Stack, 0, len(f.primary))
 	for id, p := range f.primary {
 		s := immich.Stack{ID: id, PrimaryAssetID: p}
@@ -68,6 +75,9 @@ func (f *fakeStacks) GetAllStacks(context.Context) ([]immich.Stack, error) {
 
 func (f *fakeStacks) CreateStack(_ context.Context, ids []string) (string, error) {
 	f.creates++
+	if f.createErr != nil {
+		return "", f.createErr
+	}
 	all := map[string]bool{}
 	for _, id := range ids {
 		all[id] = true
@@ -498,6 +508,117 @@ func TestRebuildSourceStacksSummary(t *testing.T) {
 	logs := logBuf.String()
 	if !strings.Contains(logs, `msg="stacks from the source" made=1`) || strings.Contains(logs, "sidecar") {
 		t.Fatalf("summary line:\n%s", logs)
+	}
+}
+
+// forbidden is the error the immich client returns when the server refuses the call with 403, as
+// Immich does when the API key lacks the permission the endpoint needs.
+func forbidden(t *testing.T, permission string, call func(context.Context, *immich.ImmichClient) error) error {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"message": "Missing required permission: ` + permission + `"}`))
+	}))
+	defer srv.Close()
+	ic, err := immich.NewImmichClient(srv.URL, "test-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = call(context.Background(), ic)
+	if !immich.IsForbidden(err) {
+		t.Fatalf("the refused call returned %v, want a 403", err)
+	}
+	return err
+}
+
+// A key without a stack permission: the server refuses GET /stacks (stack.read) or POST /stacks
+// (stack.create) with 403. The upload does not fail for it: one warning names the permission and
+// says the stacks were not rebuilt, and no stack is made.
+func TestRebuildSourceStacksWithoutStackPermission(t *testing.T) {
+	for _, tc := range []struct {
+		permission string
+		call       func(context.Context, *immich.ImmichClient) error
+		refuse     func(*fakeStacks, error)
+		creates    int // POST /stacks calls: none after the first refused
+	}{
+		{
+			permission: "stack.read",
+			call: func(ctx context.Context, ic *immich.ImmichClient) error {
+				_, err := ic.GetAllStacks(ctx)
+				return err
+			},
+			refuse:  func(f *fakeStacks, err error) { f.listErr = err },
+			creates: 0,
+		},
+		{
+			permission: "stack.create",
+			call: func(ctx context.Context, ic *immich.ImmichClient) error {
+				_, err := ic.CreateStack(ctx, []string{"b1", "b2"})
+				return err
+			},
+			refuse:  func(f *fakeStacks, err error) { f.createErr = err },
+			creates: 1,
+		},
+	} {
+		t.Run(tc.permission, func(t *testing.T) {
+			f := newFakeStacks()
+			tc.refuse(f, forbidden(t, tc.permission, tc.call))
+			uc, _ := newTestUpCmd(t)
+			uc.client.Immich = stackServer{f: f}
+			var logBuf bytes.Buffer
+			uc.app.Log().Logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+			for _, p := range []func() (*assets.Asset, string){
+				m("IMG_1.JPG", "b1", "S1", true, 2),
+				m("IMG_2.JPG", "b2", "S1", false, 2),
+				m("IMG_3.JPG", "b3", "S2", true, 2),
+				m("IMG_4.JPG", "b4", "S2", false, 2),
+			} {
+				uc.stacks.add(p())
+			}
+
+			if err := uc.rebuildSourceStacks(context.Background()); err != nil {
+				t.Fatalf("the upload fails: %v", err)
+			}
+			if got := f.snapshot(); len(got) != 0 || f.creates != tc.creates {
+				t.Errorf("stacks %v after %d POST /stacks, want none after %d", got, f.creates, tc.creates)
+			}
+			var warnings []string
+			for line := range strings.Lines(logBuf.String()) {
+				if strings.Contains(line, "level=WARN") || strings.Contains(line, "level=ERROR") {
+					warnings = append(warnings, line)
+				}
+			}
+			if len(warnings) != 1 || !strings.Contains(warnings[0], "level=WARN") ||
+				!strings.Contains(warnings[0], "not rebuilt") || !strings.Contains(warnings[0], "lacks the "+tc.permission+" permission") {
+				t.Errorf("want one warning that names %s and says the stacks were not rebuilt, got:\n%s", tc.permission, logBuf.String())
+			}
+		})
+	}
+}
+
+// Any other failure of GET /stacks or POST /stacks still fails the upload.
+func TestRebuildSourceStacksOtherErrorsFail(t *testing.T) {
+	for name, refuse := range map[string]func(*fakeStacks, error){
+		"GET /stacks":  func(f *fakeStacks, err error) { f.listErr = err },
+		"POST /stacks": func(f *fakeStacks, err error) { f.createErr = err },
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFakeStacks()
+			refuse(f, errors.New("connection reset on purpose"))
+			uc, _ := newTestUpCmd(t)
+			uc.client.Immich = stackServer{f: f}
+			uc.app.Log().Logger = slog.New(slog.DiscardHandler)
+			for _, p := range []func() (*assets.Asset, string){
+				m("IMG_1.JPG", "b1", "S1", true, 2),
+				m("IMG_2.JPG", "b2", "S1", false, 2),
+			} {
+				uc.stacks.add(p())
+			}
+			if err := uc.rebuildSourceStacks(context.Background()); err == nil {
+				t.Fatal("the upload does not fail")
+			}
+		})
 	}
 }
 
