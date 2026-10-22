@@ -217,6 +217,7 @@ immich-go archive from-immich \
 - **Metadata Preservation**: JSON files ensure no metadata is lost
 - **Cross-Platform**: Archived photos can be imported to any compatible system
 - **Space Efficient**: No unnecessary duplication during incremental updates
+- **Immich edits are not archived**: Immich keeps edits (non-destructive, since Immich v2.5.0) apart from the original. `from-immich` downloads each asset's original file (`/original`), and the edited version is not downloaded.
 
 ## Options Reference
 
