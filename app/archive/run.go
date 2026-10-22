@@ -47,7 +47,9 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 			return ctx.Err()
 		case g, ok := <-gChan:
 			if !ok {
-				return nil
+				// The adapter closes its channel at the end, and also when the run is cancelled:
+				// then the run did not finish.
+				return ctx.Err()
 			}
 			for _, a := range g.Assets {
 				// Closed even when it is refused: closing removes the cache reader's copy of the download.

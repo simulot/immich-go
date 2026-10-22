@@ -2,6 +2,7 @@ package archive
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -80,5 +81,33 @@ func TestRunClosesAssetOnWriteError(t *testing.T) {
 	}
 	if len(left) != 0 {
 		t.Fatalf("cache files left after a refused asset: %v", left)
+	}
+}
+
+// cancelledBrowse cancels the run as it starts, and closes its channel, as an adapter does when
+// the run is cancelled.
+type cancelledBrowse struct{ cancel context.CancelFunc }
+
+func (r cancelledBrowse) Browse(context.Context) chan *assets.Group {
+	r.cancel()
+	c := make(chan *assets.Group)
+	close(c)
+	return c
+}
+
+// A cancelled run is an error, also when the adapter has closed its channel by the time Run reads
+// it. Run's select then has two ready cases, ctx.Done() and the closed channel, and Go picks one
+// at random: 100 runs take the closed channel at least once, but for a chance of 2^-100.
+func TestRunCancelledIsAnError(t *testing.T) {
+	archive := t.TempDir()
+	for range 100 {
+		ctx, cancel := context.WithCancel(context.Background())
+		ac := &ArchiveCmd{ArchivePath: archive, app: app.New(ctx, nil)}
+		ac.app.Log().Logger = slog.New(slog.DiscardHandler)
+		cmd := &cobra.Command{}
+		cmd.SetContext(ctx)
+		if err := ac.Run(cmd, cancelledBrowse{cancel}); !errors.Is(err, context.Canceled) {
+			t.Fatalf("a cancelled run returned %v, want %v", err, context.Canceled)
+		}
 	}
 }
