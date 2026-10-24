@@ -34,7 +34,6 @@ type TakeoutCmd struct {
 	// CLI FLags
 	CreateAlbums       bool
 	ImportFromAlbum    string
-	ImportIntoAlbum    string
 	PartnerSharedAlbum string
 	KeepTrashed        bool
 	KeepPartner        bool
