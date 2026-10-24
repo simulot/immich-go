@@ -81,6 +81,47 @@ type UpCmd struct {
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
 }
 
+var legacyIntoAlbumKeys = map[string]string{
+	"from-folder": "upload.from-folder.into-album",
+	"from-icloud": "upload.from-icloud.into-album",
+	"from-picasa": "upload.from-picasa.into-album",
+}
+
+func (uc *UpCmd) applyLegacyIntoAlbumSetting(cmd *cobra.Command) {
+	if uc.ImportIntoAlbum != "" {
+		return
+	}
+
+	key, ok := legacyIntoAlbumKeys[cmd.Name()]
+	if !ok {
+		return
+	}
+	if value := uc.app.Config.GetString(key); value != "" {
+		uc.ImportIntoAlbum = value
+		uc.app.Log().Warn(
+			"into-album moved to [upload]; IMMICH_GO_UPLOAD_INTO_ALBUM replaces IMMICH_GO_UPLOAD_FROM_*_INTO_ALBUM",
+			"key", key,
+		)
+	}
+}
+
+func (uc *UpCmd) validateAlbumFlags(cmd *cobra.Command) error {
+	if uc.ImportIntoAlbum == "" {
+		return nil
+	}
+
+	flag := cmd.Flags().Lookup("folder-as-album")
+	if flag == nil {
+		return nil
+	}
+
+	folderMode := flag.Value.String()
+	if folderMode != "" && folderMode != string(folder.FolderModeNone) {
+		return fmt.Errorf("cannot use both --into-album and --folder-as-album flags")
+	}
+	return nil
+}
+
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
 	uc.client.RegisterFlags(flags, "")
 	flags.BoolVar(&uc.NoUI, "no-ui", false, "Disable the user interface")
@@ -117,6 +158,12 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 	cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, uc))
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// Keep old per-source settings working after --into-album moved to upload.
+		uc.applyLegacyIntoAlbumSetting(cmd)
+		if err := uc.validateAlbumFlags(cmd); err != nil {
+			return err
+		}
+
 		// Initialize the FileProcessor (tracker + logger)
 		if app.FileProcessor() == nil {
 			recorder := fileevent.NewRecorder(app.Log().Logger)

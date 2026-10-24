@@ -34,16 +34,6 @@ import (
 func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Application, runner adapters.Runner) error {
 	var err error
 
-	if f := cmd.Flag("into-album"); f != nil {
-		intoAlbum, err := cmd.Flags().GetString("into-album")
-		if err != nil {
-			return err
-		}
-		if intoAlbum != "" && ifc.UsePathAsAlbumName != FolderModeNone {
-			return errors.New("cannot use both --into-album and --folder-as-album flags")
-		}
-	}
-
 	ifc.app = app
 	ifc.processor = app.FileProcessor()
 	ifc.tz = app.GetTZ()

@@ -2,6 +2,11 @@
 
 The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immich-go` looks for a file named `immich-go.toml` in the current directory.
 
+The shared `upload.into-album` setting applies to every upload source. The
+legacy keys under `[upload.from-folder]`, `[upload.from-icloud]`, and
+`[upload.from-picasa]` remain accepted with a warning for backward
+compatibility.
+
 ## Configuration file structure
 
 <details>

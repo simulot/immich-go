@@ -375,6 +375,12 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 	if uc.ImportIntoAlbum != "" {
 		for _, a := range g.Assets {
 			a.Albums = []assets.Album{{Title: uc.ImportIntoAlbum}}
+			if a.FromApplication != nil {
+				// UseMetadata merges application albums back into a.Albums after
+				// upload. Clear them so --into-album also suppresses source albums
+				// from Google Photos and immich-go JSON sidecars.
+				a.FromApplication.Albums = nil
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/simulot/immich-go/app/root"
+	"github.com/simulot/immich-go/immich"
 	e2eutils "github.com/simulot/immich-go/internal/e2e/e2eUtils"
 	"github.com/simulot/immich-go/internal/fileevent"
 )
@@ -35,6 +36,7 @@ func Test_FromImmich_IntoAlbum(t *testing.T) {
 		"--server=" + ImmichURL,
 		"--api-key=" + u1.APIKey,
 		"--admin-api-key=" + adm.APIKey,
+		"--folder-as-album=FOLDER",
 		"--no-ui",
 		"--log-level=debug",
 		"DATA/fromFolder/recursive",
@@ -78,4 +80,28 @@ func Test_FromImmich_IntoAlbum(t *testing.T) {
 		fileevent.ProcessedAlbumAdded:    40,
 		fileevent.ProcessedTagged:        0,
 	}, false, e2u)
+
+	// The destination must contain only the requested album. In particular,
+	// source folder albums must not be recreated by the transfer.
+	ic, err := immich.NewImmichClient(ImmichURL, u2.APIKey)
+	if err != nil {
+		t.Fatalf("can't create destination client: %v", err)
+	}
+	albums, err := ic.GetAllAlbums(ctx)
+	if err != nil {
+		t.Fatalf("can't get destination albums: %v", err)
+	}
+	if len(albums) != 1 {
+		t.Fatalf("expected exactly one destination album, got %d: %v", len(albums), albums)
+	}
+	if albums[0].AlbumName != "bananas" {
+		t.Errorf("expected destination album bananas, got %q", albums[0].AlbumName)
+	}
+	ids, err := ic.GetAlbumAssetIDs(ctx, albums[0].ID)
+	if err != nil {
+		t.Fatalf("can't get destination album assets: %v", err)
+	}
+	if len(ids) != 40 {
+		t.Errorf("expected 40 assets in destination album, got %d", len(ids))
+	}
 }

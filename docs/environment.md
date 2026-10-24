@@ -154,6 +154,9 @@ The following environment variables can be used to configure `immich-go`.
 | `IMMICH_GO_UPLOAD_DEVICE_UUID` | `--device-uuid` | `gl65` | Set a device UUID |
 | `IMMICH_GO_UPLOAD_DRY_RUN` | `--dry-run` | `false` | Simulate all actions |
 | `IMMICH_GO_UPLOAD_INTO_ALBUM` | `--into-album` |  | Specify an album to import all files into |
+| `IMMICH_GO_UPLOAD_FROM_FOLDER_INTO_ALBUM` | `--into-album` (legacy) |  | Deprecated; emits a warning; use `IMMICH_GO_UPLOAD_INTO_ALBUM` |
+| `IMMICH_GO_UPLOAD_FROM_ICLOUD_INTO_ALBUM` | `--into-album` (legacy) |  | Deprecated; emits a warning; use `IMMICH_GO_UPLOAD_INTO_ALBUM` |
+| `IMMICH_GO_UPLOAD_FROM_PICASA_INTO_ALBUM` | `--into-album` (legacy) |  | Deprecated; emits a warning; use `IMMICH_GO_UPLOAD_INTO_ALBUM` |
 | `IMMICH_GO_UPLOAD_MANAGE_BURST` | `--manage-burst` | `NoStack` | Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG |
 | `IMMICH_GO_UPLOAD_MANAGE_EPSON_FASTFOTO` | `--manage-epson-fastfoto` | `false` | Manage Epson FastFoto file (default: false) |
 | `IMMICH_GO_UPLOAD_MANAGE_HEIC_JPEG` | `--manage-heic-jpeg` | `NoStack` | Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG |

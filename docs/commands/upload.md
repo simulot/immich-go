@@ -31,13 +31,19 @@ All upload sub-commands require these connection parameters:
 
 ## Upload Behavior Options
 
-| Option                | Default   | Description                                                         |
-| --------------------- | --------- | ------------------------------------------------------------------- |
-| `--dry-run`           | `false`   | Simulate upload without actual transfers                            |
-| `--concurrent-tasks`  | CPU cores | Number of parallel tasks (1-20)                                     |
-| `--overwrite`         | `false`   | Replace existing files on server                                    |
-| `--pause-immich-jobs` | `true`    | Pause server jobs during upload                                     |
+| Option                | Default   | Description                                                        |
+| --------------------- | --------- | ------------------------------------------------------------------ |
+| `--dry-run`           | `false`   | Simulate upload without actual transfers                           |
+| `--concurrent-tasks`  | CPU cores | Number of parallel tasks (1-20)                                    |
+| `--overwrite`         | `false`   | Replace existing files on server                                   |
+| `--into-album`        | -         | Put assets in the target album; retain existing destination memberships |
+| `--pause-immich-jobs` | `true`    | Pause server jobs during upload                                    |
 | `--on-errors`         | `stop`    | Action on errors: `stop`, `continue`, or tolerated number of errors |
+
+`--into-album` creates the target album even when a source-specific album
+option such as `--sync-albums=false` disables source album synchronization.
+It controls album membership only; other metadata, including GPS data, is
+preserved.
 
 ## Tagging and Organization
 
@@ -91,7 +97,6 @@ immich-go upload from-folder [options] <folder-path>
 | `--folder-as-tags`    | `false` | Use folder structure as tags                            |
 | `--album-path-joiner` | `" / "` | String for joining folder names in album titles         |
 | `--album-picasa`      | `false` | Use Picasa album names from `.picasa.ini` files         |
-| `--into-album`        | -       | Put all photos into specified album                     |
 
 ### File Management
 
@@ -239,12 +244,6 @@ immich-go upload from-immich [source-options] [destination-options]
   | `--from-trash`          | Include trashed assets       |
   | `--from-favorite`       | Include only favorite assets |
   | `--from-minimal-rating` | Minimum rating filter        |
-
-### Destination Options
-
-  | Option            | Description                                    |
-  | ----------------- | ---------------------------------------------- |
-  | `--into-album`    | Place all transferred assets into given album  |
 
 ### Examples
 ```bash

@@ -47,6 +47,10 @@ All `upload` sub-commands are available for `archive`:
 | `from-picasa` | Picasa | Archive from Picasa collections |
 | `from-immich` | Immich server | Archive from Immich server |
 
+For compatibility, the folder-based archive commands retain a hidden,
+deprecated `--into-album` option. It is ignored because archive output does not
+create albums.
+
 ## Metadata Files
 
 Each photo gets a corresponding `.JSON` file containing:
