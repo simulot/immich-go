@@ -43,13 +43,14 @@ type FromImmichCmd struct {
 	InclusionFlags  cliflags.InclusionFlags
 
 	// internal fields
-	albumIDs  []string
-	tagIDs    []string
-	peopleIDs []string
-	ifs       *immichfs.ImmichFS
-	ic        *filenames.InfoCollector
-	app       *app.Application
-	processor *fileprocessor.FileProcessor
+	albumIDs         []string
+	tagIDs           []string
+	peopleIDs        []string
+	ifs              *immichfs.ImmichFS
+	ic               *filenames.InfoCollector
+	app              *app.Application
+	processor        *fileprocessor.FileProcessor
+	skipSourceAlbums bool // Skip source album lookups when --into-album is set.
 }
 
 func (fic *FromImmichCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -99,6 +100,9 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 	err := fic.client.Open(ctx, app)
 	if err != nil {
 		return err
+	}
+	if flag := cmd.Flag("into-album"); flag != nil {
+		fic.skipSourceAlbums = flag.Value.String() != ""
 	}
 
 	fic.processor = app.FileProcessor()
@@ -409,19 +413,21 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 		fic.processor.RecordAssetDiscovered(ctx, asset.File, int64(asset.FileSize), code)
 
-		// Transfer the album
-		simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
-		if err = fic.app.ProcessError(err); err != nil {
-			return err
-		}
+		if !fic.skipSourceAlbums {
+			// Transfer the album unless --into-album replaces source album associations.
+			simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
+			if err = fic.app.ProcessError(err); err != nil {
+				return err
+			}
 
-		albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
-		// clear the ID of the album that exists in from server, but not in to server
-		for i := range albums {
-			albums[i].ID = ""
-		}
+			albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
+			// clear the ID of the album that exists in from server, but not in to server
+			for i := range albums {
+				albums[i].ID = ""
+			}
 
-		asset.Albums = albums
+			asset.Albums = albums
+		}
 
 		// Transfer tags
 		for t := range asset.Tags {

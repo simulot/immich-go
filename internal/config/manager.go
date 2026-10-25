@@ -185,6 +185,12 @@ func (cm *ConfigurationManager) GetConfigFile() string {
 	return cm.v.ConfigFileUsed()
 }
 
+// GetString returns a configuration value using Viper's normal precedence
+// rules, including environment variables and configuration files.
+func (cm *ConfigurationManager) GetString(key string) string {
+	return cm.v.GetString(key)
+}
+
 // Save writes the current configuration to the specified file.
 // The file format is determined by the file extension (e.g., .toml, .yaml, .json).
 func (cm *ConfigurationManager) Save(fileName string) error {

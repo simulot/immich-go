@@ -2,6 +2,11 @@
 
 The configuration file can be a `TOML`, `YAML` or `JSON` file. By default, `immich-go` looks for a file named `immich-go.toml` in the current directory.
 
+The shared `upload.into-album` setting applies to every upload source. The
+legacy keys under `[upload.from-folder]`, `[upload.from-icloud]`, and
+`[upload.from-picasa]` remain accepted with a warning for backward
+compatibility.
+
 ## Configuration file structure
 
 <details>
@@ -29,7 +34,6 @@ folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
-into-album = ''
 recursive = true
 
 [archive.from-folder.ban-file]
@@ -60,7 +64,6 @@ folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
-into-album = ''
 memories = false
 recursive = true
 
@@ -106,7 +109,6 @@ folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
-into-album = ''
 recursive = true
 
 [archive.from-picasa.ban-file]
@@ -134,6 +136,7 @@ api-trace = false
 client-timeout = '20m'
 device-uuid = 'HOSTNAME'
 dry-run = false
+into-album = ''
 manage-burst = 'NoStack'
 manage-epson-fastfoto = false
 manage-heic-jpeg = 'NoStack'
@@ -156,7 +159,6 @@ folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
-into-album = ''
 recursive = true
 
 [upload.from-folder.ban-file]
@@ -187,7 +189,6 @@ folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
-into-album = ''
 memories = false
 recursive = true
 
@@ -233,7 +234,6 @@ folder-as-tags = false
 ignore-sidecar-files = false
 include-extensions = []
 include-type = ''
-into-album = ''
 recursive = true
 
 [upload.from-picasa.ban-file]
@@ -258,7 +258,6 @@ archive:
     ignore-sidecar-files: false
     include-extensions: []
     include-type: ""
-    into-album: ""
     recursive: true
   from-google-photos:
     ban-file: {}
@@ -287,7 +286,6 @@ archive:
     ignore-sidecar-files: false
     include-extensions: []
     include-type: ""
-    into-album: ""
     memories: false
     recursive: true
   from-immich:
@@ -331,7 +329,6 @@ archive:
     ignore-sidecar-files: false
     include-extensions: []
     include-type: ""
-    into-album: ""
     recursive: true
   write-to-folder: ""
 concurrent-tasks: 12
@@ -375,7 +372,6 @@ upload:
     ignore-sidecar-files: false
     include-extensions: []
     include-type: ""
-    into-album: ""
     recursive: true
   from-google-photos:
     ban-file: {}
@@ -404,7 +400,6 @@ upload:
     ignore-sidecar-files: false
     include-extensions: []
     include-type: ""
-    into-album: ""
     memories: false
     recursive: true
   from-immich:
@@ -448,8 +443,8 @@ upload:
     ignore-sidecar-files: false
     include-extensions: []
     include-type: ""
-    into-album: ""
     recursive: true
+  into-album: ""
   manage-burst: NoStack
   manage-epson-fastfoto: false
   manage-heic-jpeg: NoStack
@@ -483,7 +478,6 @@ upload:
       "ignore-sidecar-files": false,
       "include-extensions": null,
       "include-type": "",
-      "into-album": "",
       "recursive": true
     },
     "from-google-photos": {
@@ -514,7 +508,6 @@ upload:
       "ignore-sidecar-files": false,
       "include-extensions": null,
       "include-type": "",
-      "into-album": "",
       "memories": false,
       "recursive": true
     },
@@ -560,7 +553,6 @@ upload:
       "ignore-sidecar-files": false,
       "include-extensions": null,
       "include-type": "",
-      "into-album": "",
       "recursive": true
     },
     "write-to-folder": ""
@@ -607,7 +599,6 @@ upload:
       "ignore-sidecar-files": false,
       "include-extensions": null,
       "include-type": "",
-      "into-album": "",
       "recursive": true
     },
     "from-google-photos": {
@@ -638,7 +629,6 @@ upload:
       "ignore-sidecar-files": false,
       "include-extensions": null,
       "include-type": "",
-      "into-album": "",
       "memories": false,
       "recursive": true
     },
@@ -684,9 +674,9 @@ upload:
       "ignore-sidecar-files": false,
       "include-extensions": null,
       "include-type": "",
-      "into-album": "",
       "recursive": true
     },
+    "into-album": "",
     "manage-burst": "NoStack",
     "manage-epson-fastfoto": false,
     "manage-heic-jpeg": "NoStack",

@@ -26,7 +26,6 @@ type ImportFolderCmd struct {
 	// CLI flags
 	UsePathAsAlbumName     AlbumFolderMode
 	AlbumNamePathSeparator string
-	ImportIntoAlbum        string
 	BannedFiles            namematcher.List
 	Recursive              bool
 	InclusionFlags         cliflags.InclusionFlags
@@ -54,14 +53,13 @@ type ImportFolderCmd struct {
 	icloudMetaPass          bool
 }
 
-func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Command) {
+func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd, parent *cobra.Command) {
 	ifc.Recursive = true
 	ifc.supportedMedia = filetypes.DefaultSupportedMedia
 	ifc.UsePathAsAlbumName = FolderModeNone
 	ifc.BannedFiles, _ = namematcher.New(shared.DefaultBannedFiles...)
 
 	flags.Var(&ifc.BannedFiles, "ban-file", "Exclude a file based on a pattern (case-insensitive). Can be specified multiple times.")
-	flags.StringVar(&ifc.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
 	flags.Var(&ifc.UsePathAsAlbumName, "folder-as-album", "Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name")
 	flags.StringVar(&ifc.AlbumNamePathSeparator, "album-path-joiner", " / ", "Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ')")
 	flags.BoolVar(&ifc.Recursive, "recursive", true, "Explore the folder and all its sub-folders")
@@ -69,8 +67,11 @@ func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Comma
 	flags.BoolVar(&ifc.FolderAsTags, "folder-as-tags", false, "Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)")
 	flags.BoolVar(&ifc.TakeDateFromFilename, "date-from-name", true, "Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov)")
 
-	if cmd.Parent() != nil && cmd.Parent().Name() == "upload" {
-		ifc.StackOptions.RegisterFlags(flags)
+	if parent != nil && parent.Name() == "archive" {
+		// Keep the removed upload option accepted for existing archive scripts.
+		flags.String("into-album", "", "Specify an album to import all files into")
+		_ = flags.MarkDeprecated("into-album", "ignored by archive; use it with upload instead")
+		_ = flags.MarkHidden("into-album")
 	}
 
 	ifc.InclusionFlags.RegisterFlags(flags, "") // selection per extension
@@ -82,7 +83,7 @@ func (ifc *ImportFolderCmd) RegisterFlags(flags *pflag.FlagSet, cmd *cobra.Comma
 	case "from-icloud":
 		ifc.ICloudTakeout = true
 		ifc.PicasaAlbum = false
-		cmd.Flags().BoolVar(&ifc.ICloudMemoriesAsAlbums, "memories", false, "Import icloud memories as albums")
+		flags.BoolVar(&ifc.ICloudMemoriesAsAlbums, "memories", false, "Import icloud memories as albums")
 	}
 }
 
@@ -95,7 +96,7 @@ func NewFromFolderCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	cmd.SetContext(ctx)
 	flags := cmd.Flags()
 	o := ImportFolderCmd{}
-	o.RegisterFlags(flags, cmd)
+	o.RegisterFlags(flags, cmd, parent)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		return o.run(cmd, args, app, runner)
 	}
@@ -112,7 +113,7 @@ func NewFromICloudCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	cmd.SetContext(ctx)
 	flags := cmd.Flags()
 	o := ImportFolderCmd{}
-	o.RegisterFlags(flags, cmd)
+	o.RegisterFlags(flags, cmd, parent)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		return o.run(cmd, args, app, runner)
 	}
@@ -128,7 +129,7 @@ func NewFromPicasaCommand(ctx context.Context, parent *cobra.Command, app *app.A
 	cmd.SetContext(ctx)
 	flags := cmd.Flags()
 	o := ImportFolderCmd{}
-	o.RegisterFlags(flags, cmd)
+	o.RegisterFlags(flags, cmd, parent)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		return o.run(cmd, args, app, runner)
 	}

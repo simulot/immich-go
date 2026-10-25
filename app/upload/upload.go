@@ -55,12 +55,13 @@ type UpCmd struct {
 	// Cli flags
 
 	shared.StackOptions
-	client     app.Client
-	NoUI       bool // Disable UI
-	Overwrite  bool // Always overwrite files on the server with local versions
-	Tags       []string
-	SessionTag bool
-	session    string // Session tag value
+	client          app.Client
+	NoUI            bool   // Disable UI
+	Overwrite       bool   // Always overwrite files on the server with local versions
+	ImportIntoAlbum string // Specify an album to import all files into
+	Tags            []string
+	SessionTag      bool
+	session         string // Session tag value
 
 	// Upload command state
 	// Filters           []filters.Filter
@@ -80,12 +81,54 @@ type UpCmd struct {
 	infoCollector     *filenames.InfoCollector             // Collects information about the files being processed
 }
 
+var legacyIntoAlbumKeys = map[string]string{
+	"from-folder": "upload.from-folder.into-album",
+	"from-icloud": "upload.from-icloud.into-album",
+	"from-picasa": "upload.from-picasa.into-album",
+}
+
+func (uc *UpCmd) applyLegacyIntoAlbumSetting(cmd *cobra.Command) {
+	if uc.ImportIntoAlbum != "" {
+		return
+	}
+
+	key, ok := legacyIntoAlbumKeys[cmd.Name()]
+	if !ok {
+		return
+	}
+	if value := uc.app.Config.GetString(key); value != "" {
+		uc.ImportIntoAlbum = value
+		uc.app.Log().Warn(
+			"into-album moved to [upload]; IMMICH_GO_UPLOAD_INTO_ALBUM replaces IMMICH_GO_UPLOAD_FROM_*_INTO_ALBUM",
+			"key", key,
+		)
+	}
+}
+
+func (uc *UpCmd) validateAlbumFlags(cmd *cobra.Command) error {
+	if uc.ImportIntoAlbum == "" {
+		return nil
+	}
+
+	flag := cmd.Flags().Lookup("folder-as-album")
+	if flag == nil {
+		return nil
+	}
+
+	folderMode := flag.Value.String()
+	if folderMode != "" && folderMode != string(folder.FolderModeNone) {
+		return fmt.Errorf("cannot use both --into-album and --folder-as-album flags")
+	}
+	return nil
+}
+
 func (uc *UpCmd) RegisterFlags(flags *pflag.FlagSet) {
 	uc.client.RegisterFlags(flags, "")
 	flags.BoolVar(&uc.NoUI, "no-ui", false, "Disable the user interface")
 	flags.BoolVar(&uc.Overwrite, "overwrite", false, "Always overwrite files on the server with local versions")
 	flags.StringSliceVar(&uc.Tags, "tag", nil, "Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')")
 	flags.BoolVar(&uc.SessionTag, "session-tag", false, "Tag uploaded photos with a tag \"{immich-go}/YYYY-MM-DD HH-MM-SS\"")
+	flags.StringVar(&uc.ImportIntoAlbum, "into-album", "", "Specify an album to import all files into")
 
 	uc.StackOptions.RegisterFlags(flags)
 }
@@ -115,6 +158,12 @@ func NewUploadCommand(ctx context.Context, app *app.Application) *cobra.Command 
 	cmd.AddCommand(fromimmich.NewFromImmichCommand(ctx, cmd, app, uc))
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// Keep old per-source settings working after --into-album moved to upload.
+		uc.applyLegacyIntoAlbumSetting(cmd)
+		if err := uc.validateAlbumFlags(cmd); err != nil {
+			return err
+		}
+
 		// Initialize the FileProcessor (tracker + logger)
 		if app.FileProcessor() == nil {
 			recorder := fileevent.NewRecorder(app.Log().Logger)
