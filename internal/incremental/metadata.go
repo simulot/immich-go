@@ -51,9 +51,16 @@ func (i *Importer) catalogSidecar(z *zip.Reader, f *zip.File, duplicate bool) {
 	}
 	md := i.state.Metadata[target]
 	retain := true
+	clearedReadFailure := false
 	defer func() {
 		if retain {
 			i.state.Metadata[target] = md
+		} else if clearedReadFailure {
+			if len(md.Names)+len(md.Dates)+len(md.Descriptions)+len(md.Problems) == 0 {
+				delete(i.state.Metadata, target)
+			} else {
+				i.state.Metadata[target] = md
+			}
 		}
 	}()
 	reject := func(reason string) {
@@ -81,6 +88,11 @@ func (i *Importer) catalogSidecar(z *zip.Reader, f *zip.File, duplicate bool) {
 		reject("sidecar too large")
 		return
 	}
+	previousProblems := len(md.Problems)
+	md.Problems = slices.DeleteFunc(slices.Clone(md.Problems), func(reason string) bool {
+		return strings.HasPrefix(reason, f.Name+": cannot read sidecar: ")
+	})
+	clearedReadFailure = len(md.Problems) != previousProblems
 	var google gp.GoogleMetaData
 	if err = json.Unmarshal(data, &google); err != nil {
 		reject("invalid sidecar JSON: " + err.Error())
@@ -183,7 +195,11 @@ func (i *Importer) resolve(checksum string) (string, Values, string) {
 	} else if len(names) > 1 {
 		reasons = addString(reasons, fmt.Sprintf("conflicting canonical filenames %q; originalFileName cannot be renamed", names))
 	} else {
-		reasons = addString(reasons, "canonical filename unresolved; re-present/re-download media ZIP after sidecar discovery")
+		if i.state.Media[checksum].Staged {
+			reasons = addString(reasons, "canonical filename unresolved; staged media awaits sidecar discovery")
+		} else {
+			reasons = addString(reasons, "canonical filename unresolved; re-present/re-download media ZIP after sidecar discovery")
+		}
 	}
 	if len(dates) == 1 {
 		desired.Date = dates[0]
@@ -240,7 +256,11 @@ func (i *Importer) Issues() []Issue {
 			reason = joinReason(reason, m.Reason)
 		}
 		if m.AssetID == "" {
-			reason = joinReason(reason, "media deferred; re-present/re-download media ZIP after metadata discovery")
+			if m.Staged {
+				reason = joinReason(reason, "media retained in staging; ready assets upload automatically on import/reconcile")
+			} else {
+				reason = joinReason(reason, "media deferred; re-present/re-download media ZIP after metadata discovery")
+			}
 		} else if !m.Owned {
 			reason = joinReason(reason, "unowned logical asset; metadata withheld")
 		} else if desired.Date.IsZero() {

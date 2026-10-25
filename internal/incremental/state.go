@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const stateVersion = 2
+const stateVersion = 3
 
 type Scope struct {
 	Server   string
@@ -29,6 +29,7 @@ type Media struct {
 	Baseline      *Values
 	Applied       *Values
 	Reason        string
+	Staged        bool `json:",omitempty"`
 }
 
 type Occurrence struct {
@@ -57,14 +58,26 @@ type State struct {
 	Occurrences map[string]Occurrence
 	Metadata    map[string]Metadata
 	Problems    map[string][]string
+	Staging     *Staging     `json:",omitempty"`
+	Archives    *ArchivePlan `json:",omitempty"`
 }
 
 // Open exclusively locks an export state, binding it to one server and account.
-func Open(filename string, scope Scope, client Client) (*Importer, error) {
+func Open(filename string, scope Scope, client Client, options ...Option) (*Importer, error) {
+	var config stagingOptions
+	for _, option := range options {
+		if err := option(&config); err != nil {
+			return nil, err
+		}
+	}
 	if scope.Server == "" || scope.UserID == "" || scope.ExportID == "" {
 		return nil, errors.New("server, user and export ID must be set")
 	}
 	if err := os.MkdirAll(filepath.Dir(filename), 0o700); err != nil {
+		return nil, err
+	}
+	filename, err := canonicalLocation(filename)
+	if err != nil {
 		return nil, err
 	}
 	lock, err := os.OpenFile(filename+".lock", os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
@@ -75,12 +88,17 @@ func Open(filename string, scope Scope, client Client) (*Importer, error) {
 		Version: stateVersion, Scope: scope, Media: map[string]Media{}, Occurrences: map[string]Occurrence{},
 		Metadata: map[string]Metadata{}, Problems: map[string][]string{},
 	}}
+	i.availableBytes, i.storageObserver = config.available, config.observer
+	if i.availableBytes == nil {
+		i.availableBytes = availableStagingBytes
+	}
+	i.storageLevels = map[string]bool{}
 	data, err := os.ReadFile(filename)
 	if err == nil {
 		// Check the version before decoding the changed receipt and metadata shapes.
 		var header struct{ Version int }
 		err = json.Unmarshal(data, &header)
-		if err == nil && header.Version != stateVersion {
+		if err == nil && header.Version != stateVersion && header.Version != 2 {
 			err = fmt.Errorf("unsupported incremental state version %d; version 1 lacks canonical filenames and may contain permanently misnamed uploads. Preserve this state, audit existing uploads manually, and use a new state file/export ID; automatic migration is unsafe", header.Version)
 		}
 		if err == nil {
@@ -91,7 +109,29 @@ func Open(filename string, scope Scope, client Client) (*Importer, error) {
 		if err == nil {
 			err = i.validate(scope)
 		}
+		if err == nil && header.Version == 2 {
+			if i.state.Staging != nil {
+				err = errors.New("version 2 state must not contain staging configuration")
+			}
+			i.state.Version = stateVersion
+		}
 	} else if errors.Is(err, os.ErrNotExist) {
+		err = i.save()
+	}
+	if err == nil {
+		err = i.openStaging(config)
+	}
+	if err == nil && i.staging != nil {
+		var free uint64
+		free, err = i.observeStorage()
+		if err == nil && free <= storageReserve {
+			err = i.selectFallback(fmt.Sprintf("available storage is %d bytes, at or below the 10 GB reserve; catalog/re-present remaining media. Second-pass uploads require guarded workspace with the media size plus 10 GB free", free))
+			if isStorageFallback(err) {
+				err = nil
+			}
+		}
+	}
+	if err == nil {
 		err = i.save()
 	}
 	if err != nil {
@@ -110,6 +150,9 @@ func (i *Importer) validate(scope Scope) error {
 			(m.Attempted && m.CanonicalName == "") || (m.AssetID != "" && !m.Attempted) ||
 			(m.Owned && (m.AssetID == "" || m.Baseline == nil)) || (m.Applied != nil && (!m.Owned || !validDate(m.Applied.Date))) {
 			return fmt.Errorf("invalid persisted logical media receipt for %q", checksum)
+		}
+		if m.Staged && (i.state.Version != stateVersion || i.state.Staging == nil) {
+			return fmt.Errorf("staged media %q has no valid staging binding", checksum)
 		}
 	}
 	for name, occurrence := range i.state.Occurrences {
@@ -138,7 +181,19 @@ func (i *Importer) validate(scope Scope) error {
 	return nil
 }
 
-func (i *Importer) Close() error { return errors.Join(i.lock.Close(), os.Remove(i.filename+".lock")) }
+func (i *Importer) Close() error {
+	if i.lock == nil {
+		return nil
+	}
+	var stageErr error
+	if i.staging != nil {
+		stageErr = i.staging.close()
+		i.staging = nil
+	}
+	err := errors.Join(stageErr, i.lock.Close(), os.Remove(i.filename+".lock"))
+	i.lock = nil
+	return err
+}
 
 func (i *Importer) save() error {
 	data, err := json.MarshalIndent(i.state, "", "  ")

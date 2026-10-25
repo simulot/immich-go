@@ -13,9 +13,13 @@ func values(a *immich.Asset) Values {
 	return Values{Date: a.ExifInfo.DateTimeOriginal.UTC(), Description: a.ExifInfo.Description}
 }
 
-// Reconcile retries patches without media, combining all known source occurrences.
+// Reconcile uploads ready staged media and retries patches without source ZIPs.
 // Preexisting/unknown-outcome duplicates never gain ownership from another path.
 func (i *Importer) Reconcile(ctx context.Context) error {
+	return errors.Join(i.drainStaged(ctx), i.reconcileMetadata(ctx))
+}
+
+func (i *Importer) reconcileMetadata(ctx context.Context) error {
 	var failures []error
 	for _, checksum := range sortedKeys(i.state.Media) {
 		if err := ctx.Err(); err != nil {
@@ -97,11 +101,29 @@ func (v Values) equal(other Values) bool {
 type Summary struct {
 	Uploaded, Enriched, Unowned, PendingMedia, PendingMetadata       int
 	LogicalAssets, Occurrences, Deferred, Conflicts, UnownedMetadata int
+	StagedBytes, PendingStagedBytes, MaxStagingBytes                 int64
+	StagedAssets                                                     int
+	Fallback                                                         bool
 }
 
 func (i *Importer) Summary() Summary {
 	s := Summary{LogicalAssets: len(i.state.Media), Occurrences: len(i.state.Occurrences)}
+	if i.staging != nil {
+		s.StagedBytes, s.MaxStagingBytes = i.staging.used, i.state.Staging.MaxBytes
+		s.Fallback = i.state.Staging.Fallback
+	}
 	for checksum, m := range i.state.Media {
+		if m.Staged {
+			s.StagedAssets++
+			if m.AssetID == "" && i.staging != nil {
+				name, err := payloadName(checksum)
+				if err == nil {
+					if info, err := regularStageFile(i.staging.root, name); err == nil {
+						s.PendingStagedBytes += info.Size()
+					}
+				}
+			}
+		}
 		_, desired, reason := i.resolve(checksum)
 		if strings.Contains(reason, "conflict") || strings.Contains(reason, "ambiguous") || strings.Contains(m.Reason, "refusing to overwrite") {
 			s.Conflicts++
