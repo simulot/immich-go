@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -20,6 +21,10 @@ type fakeClient struct {
 	failUpdate, loseReceipt, loseUpdateReceipt bool
 	failBaseline                               bool
 	asset                                      immich.Asset
+	byBytes                                    map[string]string
+	others                                     map[string]immich.Asset
+	names                                      []string
+	patches                                    []immich.UpdAssetField
 }
 
 func (f *fakeClient) AssetUpload(_ context.Context, a *assets.Asset) (immich.AssetResponse, error) {
@@ -28,43 +33,75 @@ func (f *fakeClient) AssetUpload(_ context.Context, a *assets.Asset) (immich.Ass
 		return immich.AssetResponse{}, err
 	}
 	defer r.Close()
-	_, err = io.Copy(io.Discard, r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return immich.AssetResponse{}, err
 	}
 	f.uploads++
+	f.names = append(f.names, a.OriginalFileName)
+	if f.byBytes == nil {
+		f.byBytes = map[string]string{}
+		f.others = map[string]immich.Asset{}
+	}
+	id, exists := f.byBytes[string(data)]
+	status := immich.UploadDuplicate
+	if !exists {
+		status = immich.UploadCreated
+		id = fmt.Sprintf("asset-%d", len(f.byBytes)+1)
+		f.byBytes[string(data)] = id
+		if id == "asset-1" {
+			f.asset.OriginalFileName = a.OriginalFileName
+		} else {
+			f.others[id] = immich.Asset{ID: id, OriginalFileName: a.OriginalFileName}
+		}
+	}
 	if f.loseReceipt {
 		f.loseReceipt = false
 		return immich.AssetResponse{}, errors.New("lost upload acknowledgement")
 	}
-	status := immich.UploadCreated
-	if f.uploads > 1 {
-		status = immich.UploadDuplicate
-	}
-	return immich.AssetResponse{ID: "asset-1", Status: status}, nil
+	return immich.AssetResponse{ID: id, Status: status}, nil
 }
-func (f *fakeClient) GetAssetInfo(context.Context, string) (*immich.Asset, error) {
+
+func (f *fakeClient) GetAssetInfo(_ context.Context, id string) (*immich.Asset, error) {
 	if f.failBaseline {
 		return nil, errors.New("baseline unavailable")
 	}
 	a := f.asset
+	if id != "asset-1" {
+		a = f.others[id]
+	}
 	return &a, nil
 }
-func (f *fakeClient) UpdateAsset(_ context.Context, _ string, p immich.UpdAssetField) (*immich.Asset, error) {
+
+func (f *fakeClient) UpdateAsset(_ context.Context, id string, p immich.UpdAssetField) (*immich.Asset, error) {
 	f.updates++
+	f.patches = append(f.patches, p)
 	if f.failUpdate {
 		return nil, errors.New("temporary failure")
 	}
-	f.asset.ExifInfo.DateTimeOriginal.Time = p.DateTimeOriginal
+	if p.DateTimeOriginal.IsZero() {
+		return nil, errors.New("zero date would corrupt metadata")
+	}
+	a := f.asset
+	if id != "asset-1" {
+		a = f.others[id]
+	}
+	a.ExifInfo.DateTimeOriginal.Time = p.DateTimeOriginal
 	if p.Description != "" {
-		f.asset.ExifInfo.Description = p.Description
+		a.ExifInfo.Description = p.Description
+	}
+	if id == "asset-1" {
+		f.asset = a
+	} else {
+		f.others[id] = a
 	}
 	if f.loseUpdateReceipt {
 		f.loseUpdateReceipt = false
 		return nil, errors.New("lost patch acknowledgement")
 	}
-	return &f.asset, nil
+	return &a, nil
 }
+
 func archive(t *testing.T, files map[string]string) string {
 	t.Helper()
 	name := filepath.Join(t.TempDir(), "part.zip")
@@ -82,12 +119,15 @@ func archive(t *testing.T, files map[string]string) string {
 	return name
 }
 
-const mediaPath = "Takeout/Google Photos/Photos from 2020/photo.jpg"
-const sidecar = `{"title":"photo.jpg","description":"from Google","photoTakenTime":{"timestamp":"1577836800"}}`
+const (
+	mediaPath = "Takeout/Google Photos/Photos from 2020/photo.jpg"
+	sidecar   = `{"title":"photo.jpg","description":"from Google","photoTakenTime":{"timestamp":"1577836800"}}`
+)
 
 func scope() Scope {
 	return Scope{Server: "https://immich.example", UserID: "user-1", ExportID: "export-1"}
 }
+
 func TestSeparateZIPsRestartAndIdempotence(t *testing.T) {
 	ctx := context.Background()
 	state := filepath.Join(t.TempDir(), "state.json")
@@ -97,21 +137,24 @@ func TestSeparateZIPsRestartAndIdempotence(t *testing.T) {
 	i, err := Open(state, scope(), client)
 	require.NoError(t, err)
 	require.NoError(t, i.ImportZIP(ctx, first))
-	require.Equal(t, 1, client.uploads)
+	require.Zero(t, client.uploads)
 	require.Zero(t, client.updates)
 	require.NoError(t, i.Close())
 	i, err = Open(state, scope(), client)
 	require.NoError(t, err)
 	defer i.Close()
 	require.NoError(t, i.ImportZIP(ctx, second))
+	require.Zero(t, client.uploads)
+	require.NoError(t, i.ImportZIP(ctx, first))
 	require.Equal(t, 1, client.updates)
 	require.Equal(t, "from Google", client.asset.ExifInfo.Description)
-	require.True(t, client.asset.ExifInfo.DateTimeOriginal.Time.Equal(time.Unix(1577836800, 0)))
+	require.True(t, client.asset.ExifInfo.DateTimeOriginal.Equal(time.Unix(1577836800, 0)))
 	require.NoError(t, i.ImportZIP(ctx, first))
 	require.NoError(t, i.ImportZIP(ctx, second))
 	require.Equal(t, 1, client.uploads)
 	require.Equal(t, 1, client.updates)
 }
+
 func TestFailedPatchRetriedWithoutZIP(t *testing.T) {
 	ctx := context.Background()
 	state := filepath.Join(t.TempDir(), "state.json")
@@ -128,6 +171,7 @@ func TestFailedPatchRetriedWithoutZIP(t *testing.T) {
 	require.Equal(t, 1, client.uploads)
 	require.Equal(t, 2, client.updates)
 }
+
 func TestMetadataBeforeMedia(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeClient{}
@@ -139,6 +183,7 @@ func TestMetadataBeforeMedia(t *testing.T) {
 	require.NoError(t, i.ImportZIP(ctx, archive(t, map[string]string{mediaPath: "photo"})))
 	require.Equal(t, 1, client.updates)
 }
+
 func TestLostUploadReceiptNeverEnrichesDuplicate(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeClient{loseReceipt: true}
@@ -149,8 +194,9 @@ func TestLostUploadReceiptNeverEnrichesDuplicate(t *testing.T) {
 	require.ErrorContains(t, i.ImportZIP(ctx, zip), "unknown outcomes")
 	require.NoError(t, i.ImportZIP(ctx, zip))
 	require.Zero(t, client.updates)
-	require.False(t, i.state.Media[mediaPath].Owned)
+	require.False(t, i.state.Media[i.state.Occurrences[mediaPath].Checksum].Owned)
 }
+
 func TestScopeAndConcurrentLock(t *testing.T) {
 	state := filepath.Join(t.TempDir(), "state.json")
 	i, err := Open(state, scope(), &fakeClient{})
@@ -163,23 +209,27 @@ func TestScopeAndConcurrentLock(t *testing.T) {
 	_, err = Open(state, other, &fakeClient{})
 	require.ErrorContains(t, err, "scope")
 }
+
 func TestConflictsDoNotOverwrite(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeClient{}
 	i, err := Open(filepath.Join(t.TempDir(), "state.json"), scope(), client)
 	require.NoError(t, err)
 	defer i.Close()
-	require.NoError(t, i.ImportZIP(ctx, archive(t, map[string]string{mediaPath: "photo"})))
+	require.NoError(t, i.ImportZIP(ctx, archive(t, map[string]string{mediaPath: "photo", mediaPath + ".json": `{"title":"photo.jpg"}`})))
 	client.asset.ExifInfo.Description = "user edit"
 	require.ErrorContains(t, i.ImportZIP(ctx, archive(t, map[string]string{mediaPath + ".json": sidecar})), "refusing to overwrite")
 	require.Zero(t, client.updates)
-	require.ErrorContains(t, i.ImportZIP(ctx, archive(t, map[string]string{mediaPath: "different bytes"})), "ambiguous original path")
+	require.NoError(t, i.ImportZIP(ctx, archive(t, map[string]string{mediaPath: "different bytes"})))
+	require.Contains(t, fmt.Sprint(i.Issues()), "ambiguous original path")
 }
-func TestUnsupportedMatchingFailsLoudly(t *testing.T) {
+
+func TestUnsupportedMatchingIsReported(t *testing.T) {
 	i, err := Open(filepath.Join(t.TempDir(), "state.json"), scope(), &fakeClient{})
 	require.NoError(t, err)
 	defer i.Close()
-	require.ErrorContains(t, i.ImportZIP(context.Background(), archive(t, map[string]string{"Takeout/photo.jp.json": sidecar})), "unsupported renamed/truncated")
+	require.NoError(t, i.ImportZIP(context.Background(), archive(t, map[string]string{"Takeout/photo.jp.json": sidecar})))
+	require.Contains(t, fmt.Sprint(i.Issues()), "unsupported duplicate/truncated")
 }
 
 func TestLostPatchReceiptRetryIsIdempotent(t *testing.T) {
@@ -204,7 +254,9 @@ func TestDirectoryEntriesAndInvalidTimestamp(t *testing.T) {
 	require.NoError(t, err)
 	defer i.Close()
 	require.NoError(t, i.ImportZIP(context.Background(), archive(t, map[string]string{"Takeout/": "", mediaPath: "photo"})))
-	require.ErrorContains(t, i.ImportZIP(context.Background(), archive(t, map[string]string{mediaPath + ".json": `{"title":"photo.jpg","photoTakenTime":{"timestamp":"not-a-time"}}`})), "invalid capture timestamp")
+	require.NoError(t, i.ImportZIP(context.Background(), archive(t, map[string]string{mediaPath + ".json": `{"title":"photo.jpg","photoTakenTime":{"timestamp":"not-a-time"}}`})))
+	require.Contains(t, fmt.Sprint(i.Issues()), "invalid capture timestamp")
+	require.Zero(t, client.uploads)
 }
 
 func TestAppliedMetadataDriftIsReported(t *testing.T) {
@@ -223,7 +275,7 @@ func TestFailedBaselineReceiptRemainsUnowned(t *testing.T) {
 	ctx := context.Background()
 	client := &fakeClient{failBaseline: true}
 	state := filepath.Join(t.TempDir(), "state.json")
-	first := archive(t, map[string]string{mediaPath: "photo"})
+	first := archive(t, map[string]string{mediaPath: "photo", mediaPath + ".json": `{"title":"photo.jpg"}`})
 	i, err := Open(state, scope(), client)
 	require.NoError(t, err)
 	require.ErrorContains(t, i.ImportZIP(ctx, first), "receipt retained as unowned")
@@ -236,5 +288,5 @@ func TestFailedBaselineReceiptRemainsUnowned(t *testing.T) {
 	require.NoError(t, i.ImportZIP(ctx, first))
 	require.Zero(t, client.updates)
 	require.Equal(t, 1, client.uploads)
-	require.False(t, i.state.Media[mediaPath].Owned)
+	require.False(t, i.state.Media[i.state.Occurrences[mediaPath].Checksum].Owned)
 }

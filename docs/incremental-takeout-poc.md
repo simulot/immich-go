@@ -1,96 +1,115 @@
 # Incremental Takeout import proof of concept
 
-Tracks [issue #1453](https://github.com/simulot/immich-go/issues/1453). This draft demonstrates local ZIP ingestion with persistent state. It is not a production migration tool.
+Tracks [issue #1453](https://github.com/simulot/immich-go/issues/1453) and [draft PR #1454](https://github.com/simulot/immich-go/pull/1454). This draft demonstrates local ZIP ingestion with persistent state. It is not a production migration tool.
 
-## What is implemented
+## Filename safety and incremental enrichment
 
-The separate `experimental-takeout` command uploads complete media files before their supplemental JSON is available. It stores original paths, checksums, Immich asset IDs and metadata in a private state file. A later invocation can apply an exact-path sidecar's capture date and nonempty description to the original asset without the previous media ZIP. Sidecars can also arrive before media.
+Immich stores `originalFileName` during upload, and its update DTO has no filename field. A wrong provisional name cannot be repaired through the metadata update API. This is visible in the pinned [v3.3.5 upload service](https://github.com/immich-app/immich/blob/v3.3.5/server/src/services/asset-media.service.ts) and [update DTO](https://github.com/immich-app/immich/blob/v3.3.5/server/src/dtos/asset.dto.ts).
 
-The state is scoped to one server URL, authenticated user and operator-chosen export ID. An exclusive lock prevents simultaneous writers. Receipts and metadata are saved through a synced temporary file and durable replacement. The catalog contains no API keys. It contains private filenames and descriptions, so protect it like the original export.
+The `experimental-takeout` command therefore waits for an unambiguous sidecar association before uploading a new logical asset. It uses the sidecar's original title with upstream filename normalization for the upload, rather than assuming the archived filename is correct. An exact sidecar-stem association can restore a longer original title even when Google shortened the archived filename. Unsupported or ambiguous naming remains deferred and reported per item so unrelated files can proceed. This PoC does not implement the normal importer's complete matching puzzle solver. Media checksum/read failures are also recorded per source: healthy items continue and their progress is saved before the command returns the collected errors. A repaired or re-downloaded item can be retried without re-uploading healthy receipts.
 
-Repeated paths with identical contents reuse their receipts. A changed file at the same original path, conflicting sidecars or renamed/truncated sidecars produce errors instead of guessed associations. Preexisting assets and uploads whose acknowledgement or baseline could not be established are recorded as unowned. The PoC does not enrich those assets automatically.
+The importer retains metadata and source-path/checksum records. It does not spool unresolved media bytes or retain ZIPs. If a sidecar arrives after an unnamed media item, provide that media ZIP again after metadata discovery, downloading it again if necessary. Running through an export and then re-presenting deferred media trades network traffic for bounded media storage. A single pass with one local ZIP and no ability to retrieve deferred media cannot guarantee original names.
 
-Before updating metadata, it compares current server values with the saved baseline and desired values. Changed values cause an error instead of overwriting a possible user edit. Failed updates stay pending and can be retried without a ZIP. An update that succeeded remotely but lost its response is safe to retry.
+Capture dates and descriptions can be enriched after the canonical name is established. A later source occurrence can supply more metadata without the old media ZIP or another upload.
+
+## One asset, multiple source occurrences
+
+A logical asset is identified by its checksum and owns one upload receipt, canonical name, baseline and applied metadata. The catalog separately records every original year/album path. The same bytes at two paths reuse the logical asset; they do not become an independently unowned duplicate merely because the second path was discovered later.
+
+Metadata is reconciled across all known occurrences. Missing fields do not clear known fields, and conflicts are reported instead of silently selecting an occurrence. Sidecars associated with another copy can enrich the existing owned asset. A genuinely preexisting asset or an upload with an uncertain acknowledgement/baseline remains unowned and is not modified automatically. Pending metadata for such assets remains visible.
+
+The state is scoped to one server URL, authenticated user and operator-chosen export ID. An exclusive lock prevents simultaneous writers. State is saved through a synced private temporary file and durable replacement. The catalog contains no API keys, but does contain private filenames and descriptions.
+
+Before updating, the importer compares server values with its baseline and desired metadata. Changed values cause a conflict instead of overwriting a possible user edit. Failed updates remain pending and can be retried without media. Reconciliation also detects drift after a previously acknowledged update. This does not make read/update atomic or eliminate background-job races.
 
 ## Immich version requirement
 
-**Minimum supported API baseline for this PoC: Immich v1.133.0.** Use a maintained Immich release at or above that version; the baseline is not a recommendation to downgrade.
+**Minimum API baseline: Immich v1.133.0.** Use a maintained Immich release rather than downgrading to that baseline.
 
-The capture-date and description update APIs predate v1.133.0. The limiting dependency is the existing shared uploader: it sends `visibility=timeline` in `POST /api/assets`. The upload DTO first includes `visibility` in [Immich v1.133.0](https://github.com/immich-app/immich/blob/v1.133.0/open-api/immich-openapi-specs.json); it is absent in the preceding [v1.132.0 specification](https://github.com/immich-app/immich/blob/v1.132.0/open-api/immich-openapi-specs.json). This draft does not provide a legacy upload-payload fallback.
+The capture-date and description update APIs predate v1.133.0. The existing shared uploader sends `visibility=timeline` in `POST /api/assets`; the upload DTO includes `visibility` in [v1.133.0](https://github.com/immich-app/immich/blob/v1.133.0/open-api/immich-openapi-specs.json), whereas it is absent in [v1.132.0](https://github.com/immich-app/immich/blob/v1.132.0/open-api/immich-openapi-specs.json). The draft has no legacy payload fallback or explicit version gate.
 
-The endpoint and field contracts used here were checked in the v1.133.0, v2.0.0 and v3.0.0 specifications: server ping/about/media-types, authenticated user lookup, media upload and asset read/update with `dateTimeOriginal` and `description`. This is a schema-derived compatibility baseline, not a claim that the PoC has been tested against live servers running those releases. Future breaking API changes may require client updates. There is currently no explicit runtime version gate; a reported server version alone does not prove that all required API permissions and behavior are available.
+Endpoint and field contracts were checked in the v1.133.0, v2.0.0 and v3.0.0 specifications. The immutable-name constraint was checked against v3.3.5. These are source/schema checks, not live-server compatibility tests. Future breaking changes may require client updates.
 
 ## Try the vertical slice
 
-Build from this branch's repository root with the Go version specified in `go.mod` or newer:
+Build from the branch's repository root using the Go version in `go.mod` or newer:
 
 ```sh
 go build -o ./immich-go-poc .
 ./immich-go-poc experimental-takeout --help
 ```
 
-Use a disposable Immich account and a small test export. Supply the API key through the existing configuration environment variable, `IMMICH_GO_EXPERIMENTAL_TAKEOUT_API_KEY`, or a private config file. Required permissions include asset upload/read/update and the connection checks used by the normal client (`/users/me`, server ping/about/media-types). See the project's [API key guidance](./installation.md) for supported versions.
+Use a disposable Immich account and a small export. Supply the API key through `IMMICH_GO_EXPERIMENTAL_TAKEOUT_API_KEY` or a private config file. Required access includes asset upload/read/update and normal client connection checks (`/users/me`, server ping/about/media-types). See [API key guidance](./installation.md).
 
-Process one archive at a time using the same state and export ID:
+Process one ZIP at a time with the same state and export ID:
 
 ```sh
 ./immich-go-poc experimental-takeout \
   --server=https://immich.example \
   --state=./import-state/export-state.json \
-  --export-id=my-export-2026-10-09 \
+  --export-id=my-export \
   --acknowledge-incomplete-import \
   ./takeout/takeout-001.zip
 
 ./immich-go-poc experimental-takeout \
   --server=https://immich.example \
   --state=./import-state/export-state.json \
-  --export-id=my-export-2026-10-09 \
+  --export-id=my-export \
   --acknowledge-incomplete-import \
   ./takeout/takeout-002.zip
 ```
 
-A successful invocation reports media receipts, enriched media, unowned duplicates, media awaiting metadata and sidecars awaiting media. ZIP processing finishing is not proof that the full export has been reconciled. Keep the original archives available remotely or on backup storage.
-
-Retry pending updates, or check previously enriched values, without downloading old archives:
+If ZIP 001 had media without a sidecar and ZIP 002 supplied that sidecar, the first invocation defers the media and the second records metadata. Re-present ZIP 001 to perform the upload with the original name:
 
 ```sh
 ./immich-go-poc experimental-takeout \
   --server=https://immich.example \
   --state=./import-state/export-state.json \
-  --export-id=my-export-2026-10-09 \
+  --export-id=my-export \
+  --acknowledge-incomplete-import \
+  ./takeout/takeout-001.zip
+```
+
+Later metadata for an already uploaded asset can be retried without any source ZIP:
+
+```sh
+./immich-go-poc experimental-takeout \
+  --server=https://immich.example \
+  --state=./import-state/export-state.json \
+  --export-id=my-export \
   --acknowledge-incomplete-import
 ```
 
-If a process crashes, its `.lock` file deliberately remains. Confirm that no importer is using this exact state before removing the lock and retrying. Never remove a live process's lock. Keep the state file: losing it loses ownership and matching information.
+The output distinguishes logical assets and source occurrences, pending uploads/metadata, unowned assets and deferred items. Review the reasons for deferred items; finishing ZIP processing is not proof of a fully reconciled export. Keep original archives available remotely or on backup storage. No command here deletes them or certifies them safe to delete.
 
-## Boundaries of this draft
+## State compatibility and recovery
 
-- Only exact original-directory matches for `photo.jpg.json` or `photo.jpg.supplemental-metadata.json` with the corresponding JSON title are supported. It does not implement the existing importer's complete naming puzzle solver.
-- A nonzero valid capture timestamp is required for enrichment. Empty descriptions do not clear existing descriptions. GPS, favorites, archive status, albums, tags, stacks and relationship reconciliation are not implemented.
-- Selection filters are not implemented. Media can arrive before information identifying trashed or partner-shared photos; the acknowledgement flag is required for this reason.
-- Server background jobs are not paused. Extraction changes can cause conflicts, and metadata can change after an invocation finishes. A later reconciliation checks for drift; this is not an atomic compare-and-set or a guarantee against concurrent edits. Real Immich job behavior still needs validation.
-- The catalog rewrites JSON on every durable operation and scans the accumulated catalog on reconciliation. This is intentionally a small PoC, with quadratic cumulative write/scan cost. Large exports need a transactional store and performance measurements.
-- Unknown upload outcomes and baseline failures are handled conservatively, leaving unowned receipts for operator investigation rather than silently claiming complete metadata.
-- No downloader, Google authentication, automatic export creation, automatic source deletion, dry-run mode or safe-to-delete archive marker is implemented. Existing import commands keep their default behavior.
+The revised catalog uses a new state version. The old per-path state lacks an authoritative canonical name and may describe media already uploaded with irreversible provisional names. It is refused explicitly instead of silently migrating or changing ownership. Keep the old state and original sources for investigation; use a separate state file and disposable account to test the new PoC. Reusing a fresh state against an existing library does not make existing assets owned.
 
-## Follow-on design
+A crash deliberately leaves the exclusive `.lock` file. Confirm that no importer is using that exact state before removing the stale lock. Never remove a live process's lock or discard its state to bypass a conflict.
 
-The issue documents a transactional catalog, full upstream matching, field provenance and user-edit protection, checksummed duplicate occurrence tracking, relationship updates, crash recovery and completion accounting.
+## Boundaries and follow-on work
 
-For downloading, begin with a user-created Takeout delivered to Google Drive. A downloader can authorize through rclone or an established OAuth library and feed one verified ZIP at a time into this importer. Use the system browser with PKCE and a loopback callback, not an embedded Google login webview. Automatic Google Photos export creation needs its own feasibility and API eligibility investigation.
+- Only supported unambiguous sidecar associations establish names. Missing, unsafe, truncated or duplicate-index associations that cannot be proven remain deferred; no fuzzy guess is uploaded.
+- A valid nonzero capture timestamp is required for date/description patching with the shared client. Empty descriptions do not clear server values. GPS, favorites, archive status, albums, tags and stacks are not reconciled.
+- Selection-filter parity is not implemented. The acknowledgement flag remains required; the PoC does not provide the normal importer's trash/partner filtering guarantees.
+- Server jobs are not paused. Concurrent edits and asynchronous extraction still require live-server validation.
+- The JSON catalog is rewritten on durable operations and accumulated state is rescanned. Large-export performance and transactional storage remain follow-on work.
+- No downloader, OAuth, automatic export creation, source cleanup, dry-run mode or safe-to-delete marker is implemented. Other import commands retain their existing behavior.
 
-## Validation handoff
+A downloader can eventually feed a user-created Google Drive Takeout into this flow using rclone or an established OAuth library. Use the system browser with PKCE and a loopback callback, not an embedded Google login webview. It must be able to retrieve deferred media again. Automatic Google Photos export creation remains a separate feasibility investigation.
 
-Regression coverage exercises separate ZIP invocations and reopening state, metadata arriving first, retries without old media, duplicate receipts, lost acknowledgements, user-edit conflicts, state scope/locking and invalid inputs. The CLI test uses the real HTTP client against a local test server and verifies multipart media bytes and update payloads.
+## Review and validation handoff
 
-Local mocked tests establish the mechanism. They do not establish compatibility with a deployed Immich server's asynchronous jobs or complete Takeout fidelity. This PR stays draft pending those checks and broader feature work.
+The maintainer's [matching review](https://github.com/simulot/immich-go/pull/1454#issuecomment-6400152762) exposed two correctness gaps in the initial draft: immutable provisional names and per-path ownership losing metadata from duplicate occurrences. The revised design addresses both through code and regression coverage.
 
-Local validation for this draft:
+The branch is rebased onto `main`. Its existing duplicate closed-pipe fix from [upstream PR #1391](https://github.com/simulot/immich-go/pull/1391) is preserved; this draft no longer modifies the shared uploader to duplicate that fix.
 
-- `go test -race ./...`: passed, including the real CLI/HTTP flow and early-response duplicate regression.
-- Native macOS build and Linux/Windows amd64 cross-builds: passed. Windows runtime filesystem behavior was not exercised.
-- `golangci-lint` v2.11.3: full run reports the same 12 findings as unmodified `develop` at `6223e548a586b30dc6d714d3f435f2b9f817e1a7`; no new findings. The pre-existing findings are in unrelated code.
-- Independent review: initial portability, duplicate-response and drift findings addressed, with no unresolved findings within this PoC scope.
-- Live Immich and Google download/authentication checks: not run.
+Regression evidence includes the real CLI/HTTP naming gate and canonical multipart filename, same bytes in year/album paths in both arrival orders, metadata only on a duplicate occurrence, restart/idempotence, failed-update retries, uncertain ownership, per-item deferral, conflicts, locking and state-version refusal. Tests use local fake clients or HTTP fixtures. They do not establish real Immich job behavior, complete Takeout fidelity or Windows runtime filesystem behavior.
 
-The uploader regression initially failed with `io: read/write on closed pipe` when the test server returned a checksum duplicate without consuming multipart bytes. It now accepts the confirmed duplicate receipt while preserving genuine transport errors.
+Local validation after the review fixes:
+
+- `go test -p 2 -parallel 2 -race ./...`: passed, including importer, real CLI/HTTP and duplicate-upload regressions.
+- `golangci-lint` v2.15.0: zero issues, matching the clean `main` baseline at `bc54ad2`.
+- Native macOS and Linux/Windows amd64 builds: passed. Windows runtime behavior remains untested.
+- Independent re-review: the corrupt-media progress finding was reproduced, fixed and regression-tested; no remaining correctness findings within this PoC scope.

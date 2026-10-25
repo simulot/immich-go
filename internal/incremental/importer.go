@@ -1,22 +1,16 @@
-// Package incremental implements an experimental, exact-path Takeout importer.
+// Package incremental implements an experimental, conservatively matched Takeout importer.
 package incremental
 
 import (
 	"archive/zip"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"io/fs"
 	"os"
 	"path"
-	"path/filepath"
-	"strconv"
+	"slices"
 	"strings"
-	"time"
 
-	gp "github.com/simulot/immich-go/adapters/googlePhotos"
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
@@ -29,29 +23,6 @@ type Client interface {
 	UpdateAsset(context.Context, string, immich.UpdAssetField) (*immich.Asset, error)
 }
 
-type Scope struct {
-	Server   string
-	UserID   string
-	ExportID string
-}
-type Media struct {
-	Checksum string
-	AssetID  string
-	Owned    bool
-	Baseline *Values
-	Applied  *Values
-}
-type Values struct {
-	Date        time.Time
-	Description string
-}
-type State struct {
-	Version  int
-	Scope    Scope
-	Media    map[string]Media
-	Metadata map[string]Values
-}
-
 type Importer struct {
 	filename string
 	state    State
@@ -59,71 +30,8 @@ type Importer struct {
 	lock     *os.File
 }
 
-// Open exclusively locks an export state, binding it to one server and account.
-func Open(filename string, scope Scope, client Client) (*Importer, error) {
-	if scope.Server == "" || scope.UserID == "" || scope.ExportID == "" {
-		return nil, errors.New("server, user and export ID must be set")
-	}
-	if err := os.MkdirAll(filepath.Dir(filename), 0o700); err != nil {
-		return nil, err
-	}
-	lock, err := os.OpenFile(filename+".lock", os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("state is locked (after a crash, verify no importer is running before removing %s.lock): %w", filename, err)
-	}
-	i := &Importer{filename: filename, client: client, lock: lock, state: State{Version: 1, Scope: scope, Media: map[string]Media{}, Metadata: map[string]Values{}}}
-	data, err := os.ReadFile(filename)
-	if err == nil {
-		err = json.Unmarshal(data, &i.state)
-		if err == nil && (i.state.Version != 1 || i.state.Scope != scope || i.state.Media == nil || i.state.Metadata == nil) {
-			err = errors.New("state version, scope, or contents do not match this import")
-		}
-	} else if errors.Is(err, os.ErrNotExist) {
-		err = i.save()
-	}
-	if err == nil {
-		for name, m := range i.state.Media {
-			if !fs.ValidPath(name) || m.AssetID == "" || m.Checksum == "" || (m.Owned && m.Baseline == nil) {
-				err = fmt.Errorf("invalid persisted media receipt for %q", name)
-				break
-			}
-		}
-	}
-	if err != nil {
-		_ = i.Close()
-		return nil, err
-	}
-	return i, nil
-}
-
-func (i *Importer) Close() error { return errors.Join(i.lock.Close(), os.Remove(i.filename+".lock")) }
-
-func (i *Importer) save() error {
-	data, err := json.MarshalIndent(i.state, "", "  ")
-	if err != nil {
-		return err
-	}
-	f, err := os.CreateTemp(filepath.Dir(i.filename), ".incremental-*")
-	if err != nil {
-		return err
-	}
-	name := f.Name()
-	defer func() { _ = os.Remove(name) }()
-	if _, err = f.Write(data); err != nil {
-		_ = f.Close()
-		return err
-	}
-	if err = f.Sync(); err != nil {
-		_ = f.Close()
-		return err
-	}
-	if err = f.Close(); err != nil {
-		return err
-	}
-	return replaceState(name, i.filename)
-}
-
-// ImportZIP retains only metadata and receipts; media is opened one item at a time.
+// ImportZIP scans metadata and checksums before uploading anything. Only small
+// metadata and receipts survive the call; deferred media must be presented again.
 // ZIP files and source media are never deleted by this package.
 func (i *Importer) ImportZIP(ctx context.Context, filename string) error {
 	z, err := zip.OpenReader(filename)
@@ -131,7 +39,12 @@ func (i *Importer) ImportZIP(ctx context.Context, filename string) error {
 		return err
 	}
 	defer z.Close()
-	// Catalog all sidecars first, independent of their order within this archive.
+	counts := map[string]int{}
+	for _, f := range z.File {
+		if !f.FileInfo().IsDir() {
+			counts[f.Name]++
+		}
+	}
 	for _, f := range z.File {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -139,175 +52,131 @@ func (i *Importer) ImportZIP(ctx context.Context, filename string) error {
 		if f.FileInfo().IsDir() {
 			continue
 		}
-		if !fs.ValidPath(f.Name) {
-			return fmt.Errorf("invalid archive path %q", f.Name)
-		}
-		if !strings.HasSuffix(f.Name, ".json") {
+		if !safePath(f.Name) {
+			i.problem(f.Name, "unsafe archive path; item deferred")
 			continue
 		}
-		if f.UncompressedSize64 > 4<<20 {
-			return fmt.Errorf("sidecar too large: %s", f.Name)
+		if isSidecar(f.Name) {
+			i.catalogSidecar(&z.Reader, f, counts[f.Name] > 1)
 		}
-		r, err := f.Open()
-		if err != nil {
-			return err
-		}
-		data, err := io.ReadAll(io.LimitReader(r, (4<<20)+1))
-		closeErr := r.Close()
-		if err = errors.Join(err, closeErr); err != nil {
-			return err
-		}
-		if len(data) > 4<<20 {
-			return fmt.Errorf("sidecar too large: %s", f.Name)
-		}
-		var md gp.GoogleMetaData
-		if err = json.Unmarshal(data, &md); err != nil {
-			return fmt.Errorf("sidecar %s: %w", f.Name, err)
-		}
-		if md.PhotoTakenTime == nil {
-			continue
-		} // Album metadata is outside this PoC.
-		if _, err := strconv.ParseInt(md.PhotoTakenTime.Timestamp, 10, 64); err != nil {
-			return fmt.Errorf("invalid capture timestamp in %s: %w", f.Name, err)
-		}
-		target := strings.TrimSuffix(strings.TrimSuffix(f.Name, ".json"), ".supplemental-metadata")
-		if path.Base(target) != md.Title {
-			return fmt.Errorf("unsupported renamed/truncated sidecar %s (title %q); no fuzzy match attempted", f.Name, md.Title)
-		}
-		metadata := md.AsMetadata(fshelper.FSName(&z.Reader, f.Name), false)
-		if metadata.DateTaken.IsZero() || metadata.DateTaken.Year() < 1 || metadata.DateTaken.Year() > 9999 {
-			return fmt.Errorf("missing or invalid capture time: %s", f.Name)
-		}
-		v := Values{Date: metadata.DateTaken.UTC(), Description: metadata.Description}
-		if old, ok := i.state.Metadata[target]; ok && !old.equal(v) {
-			return fmt.Errorf("conflicting sidecars for %s", target)
-		}
-		i.state.Metadata[target] = v
 	}
-	if err = i.save(); err != nil {
-		return err
-	}
+	// Keep ZIP entry pointers only during this call. Hash every occurrence before
+	// deciding names so duplicate paths within this archive contribute metadata.
+	media := map[string]*zip.File{}
+	var failures []error
 	for _, f := range z.File {
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-		if f.FileInfo().IsDir() || !filetypes.DefaultSupportedMedia.IsMedia(path.Ext(f.Name)) {
-			continue
-		}
-		a := &assets.Asset{File: fshelper.FSName(&z.Reader, f.Name), OriginalFileName: path.Base(f.Name)}
-		checksum, err := a.GetChecksum()
-		if err != nil {
-			return err
-		}
-		m, ok := i.state.Media[f.Name]
-		if ok && m.Checksum != checksum {
-			return fmt.Errorf("ambiguous original path %s has different media; use a separate export state", f.Name)
-		}
-		if !ok {
-			result, err := i.client.AssetUpload(ctx, a)
-			closeErr := a.Close()
-			if err = errors.Join(err, closeErr); err != nil {
-				return fmt.Errorf("upload %s (retry this ZIP; unknown outcomes are treated as unowned duplicates): %w", f.Name, err)
-			}
-			if result.ID == "" || (result.Status != immich.UploadCreated && result.Status != immich.UploadDuplicate) {
-				return fmt.Errorf("invalid upload receipt for %s", f.Name)
-			}
-			m = Media{Checksum: checksum, AssetID: result.ID, Owned: false}
-			i.state.Media[f.Name] = m
-			if err = i.save(); err != nil {
-				return err
-			}
-			if result.Status == immich.UploadCreated {
-				current, err := i.client.GetAssetInfo(ctx, result.ID)
-				if err != nil {
-					return fmt.Errorf("uploaded %s but baseline unavailable; receipt retained as unowned for safety: %w", f.Name, err)
-				}
-				baseline := values(current)
-				m.Baseline = &baseline
-				m.Owned = true
-				i.state.Media[f.Name] = m
-				if err = i.save(); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return i.Reconcile(ctx)
-}
-
-func values(a *immich.Asset) Values {
-	return Values{Date: a.ExifInfo.DateTimeOriginal.UTC(), Description: a.ExifInfo.Description}
-}
-
-// Reconcile retries pending patches without requiring previous ZIPs.
-// Preexisting/unknown-outcome duplicates are never changed automatically.
-func (i *Importer) Reconcile(ctx context.Context) error {
-	for name, m := range i.state.Media {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if !m.Owned {
+		if f.FileInfo().IsDir() || !safePath(f.Name) || !filetypes.DefaultSupportedMedia.IsMedia(path.Ext(f.Name)) {
 			continue
 		}
-		if m.Baseline == nil {
-			return fmt.Errorf("missing baseline for managed asset %s", name)
-		}
-		desired, ok := i.state.Metadata[name]
-		if !ok {
+		if counts[f.Name] > 1 {
+			i.problem(f.Name, "duplicate ZIP entry path; association ambiguous, item deferred")
 			continue
 		}
-		current, err := i.client.GetAssetInfo(ctx, m.AssetID)
+		a := &assets.Asset{File: fshelper.FSName(&z.Reader, f.Name)}
+		checksum, err := a.GetChecksum()
 		if err != nil {
+			i.problem(f.Name, "cannot checksum media: "+err.Error()+"; item deferred")
+			failures = append(failures, fmt.Errorf("checksum %s: %w", f.Name, err))
+			continue
+		}
+		// A repaired or re-downloaded source can be retried without retaining a
+		// transient read failure as a permanent matching conflict.
+		i.state.Problems[f.Name] = slices.DeleteFunc(i.state.Problems[f.Name], func(reason string) bool {
+			return strings.HasPrefix(reason, "cannot checksum media: ")
+		})
+		if len(i.state.Problems[f.Name]) == 0 {
+			delete(i.state.Problems, f.Name)
+		}
+		if old, ok := i.state.Occurrences[f.Name]; ok && old.Checksum != checksum {
+			old.ConflictingChecksums = addString(old.ConflictingChecksums, checksum)
+			i.state.Occurrences[f.Name] = old
+			i.problem(f.Name, "ambiguous original path has different media; use a separate export state")
+			continue
+		}
+		if old, ok := i.state.Media[checksum]; ok && old.Size != f.UncompressedSize64 {
+			i.problem(f.Name, "checksum matches media with a different size; item deferred")
+			continue
+		}
+		i.state.Occurrences[f.Name] = Occurrence{Checksum: checksum, ConflictingChecksums: i.state.Occurrences[f.Name].ConflictingChecksums}
+		if _, ok := i.state.Media[checksum]; !ok {
+			i.state.Media[checksum] = Media{Checksum: checksum, Size: f.UncompressedSize64}
+		}
+		if _, ok := media[checksum]; !ok {
+			media[checksum] = f
+		}
+	}
+	// The deferred occurrences and sidecars are durable even if an upload fails.
+	if err := i.save(); err != nil {
+		return err
+	}
+	for _, checksum := range sortedKeys(media) {
+		if err := ctx.Err(); err != nil {
+			return errors.Join(append(failures, err)...)
+		}
+		m := i.state.Media[checksum]
+		name, _, reason := i.resolve(checksum)
+		if m.AssetID != "" || reason != "" {
+			continue
+		}
+		if m.Attempted && name != m.CanonicalName {
+			continue // resolve reports this as an immutable-name conflict.
+		}
+		previousAttempt := m.Attempted
+		m.CanonicalName, m.Attempted = name, true
+		m.Reason = "upload outcome unknown; receipt must remain unowned on retry"
+		i.state.Media[checksum] = m
+		if err := i.save(); err != nil {
 			return err
 		}
-		actual := values(current)
-		if m.Applied != nil && m.Applied.equal(desired) {
-			if !actual.Date.Equal(desired.Date) || (desired.Description != "" && actual.Description != desired.Description) {
-				return fmt.Errorf("asset %s metadata drifted after enrichment for %s; refusing to overwrite", m.AssetID, name)
+		f := media[checksum]
+		a := &assets.Asset{File: fshelper.FSName(&z.Reader, f.Name), OriginalFileName: name, Checksum: checksum}
+		result, uploadErr := i.client.AssetUpload(ctx, a)
+		closeErr := a.Close()
+		if uploadErr != nil || result.ID == "" || (result.Status != immich.UploadCreated && result.Status != immich.UploadDuplicate) {
+			if uploadErr == nil {
+				uploadErr = errors.New("invalid upload receipt")
 			}
+			failures = append(failures, fmt.Errorf("upload %s (retry this ZIP; unknown outcomes remain unowned): %w", f.Name, errors.Join(uploadErr, closeErr)))
 			continue
 		}
-		if (!actual.Date.Equal(m.Baseline.Date) && !actual.Date.Equal(desired.Date)) || (desired.Description != "" && actual.Description != m.Baseline.Description && actual.Description != desired.Description) {
-			return fmt.Errorf("asset %s changed since baseline; refusing to overwrite metadata for %s", m.AssetID, name)
-		}
-		_, err = i.client.UpdateAsset(ctx, m.AssetID, immich.UpdAssetField{DateTimeOriginal: desired.Date, Description: desired.Description})
-		if err != nil {
-			return fmt.Errorf("pending metadata for %s: %w", name, err)
-		}
-		m.Applied = &desired
-		i.state.Media[name] = m
-		if err = i.save(); err != nil {
+		m.AssetID = result.ID
+		m.Reason = "preexisting or unknown-outcome duplicate; metadata withheld"
+		// Save a known receipt as unowned before fetching a baseline.
+		i.state.Media[checksum] = m
+		if err := i.save(); err != nil {
 			return err
 		}
+		if result.Status == immich.UploadCreated && !previousAttempt {
+			current, err := i.client.GetAssetInfo(ctx, result.ID)
+			if err != nil || current == nil {
+				if err == nil {
+					err = errors.New("empty asset response")
+				}
+				m.Reason = "uploaded but baseline unavailable; receipt retained as unowned"
+				i.state.Media[checksum] = m
+				if saveErr := i.save(); saveErr != nil {
+					return saveErr
+				}
+				failures = append(failures, fmt.Errorf("%s for %s: %w", m.Reason, f.Name, err))
+				continue
+			}
+			baseline := values(current)
+			m.Baseline, m.Owned, m.Reason = &baseline, true, ""
+			i.state.Media[checksum] = m
+			if err := i.save(); err != nil {
+				return err
+			}
+		}
+		if closeErr != nil {
+			failures = append(failures, closeErr)
+		}
 	}
-	return nil
+	return errors.Join(append(failures, i.Reconcile(ctx))...)
 }
 
-func (v Values) equal(other Values) bool {
-	return v.Date.Equal(other.Date) && v.Description == other.Description
-}
-
-// Summary describes persisted work, including items requiring operator attention.
-type Summary struct{ Uploaded, Enriched, Unowned, PendingMedia, PendingMetadata int }
-
-func (i *Importer) Summary() Summary {
-	var s Summary
-	for _, m := range i.state.Media {
-		s.Uploaded++
-		if !m.Owned {
-			s.Unowned++
-			continue
-		}
-		if m.Applied != nil {
-			s.Enriched++
-		} else {
-			s.PendingMetadata++
-		}
-	}
-	for name := range i.state.Metadata {
-		if _, ok := i.state.Media[name]; !ok {
-			s.PendingMedia++
-		}
-	}
-	return s
+func (i *Importer) problem(name, reason string) {
+	i.state.Problems[name] = addString(i.state.Problems[name], reason)
 }
