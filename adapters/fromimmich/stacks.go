@@ -15,8 +15,9 @@ import (
 // others. The same search with withStacked=false lists only the assets in no stack, so an asset
 // it leaves out is in one (checked once more for that asset alone, as paging can skip a row while
 // the server changes). An asset in a stack that neither reports gets no stack in its sidecar (a
-// stack is never guessed), and a warning. When GET /stacks is refused, those assets are only
-// counted, with no search for each: one warning gives their number (warnRefused).
+// stack is never guessed), and a warning. When GET /stacks is refused, the assets that neither
+// GET /assets/{id} nor the withStacked=false search places are only counted, with no search for
+// each: one warning gives the number of assets whose stack could not be checked (warnRefused).
 type stackIndex struct {
 	listed  map[string]assets.Stack // asset ID -> its stack, as GET /stacks lists it
 	size    map[string]int          // stack ID -> its size, as GET /stacks lists it
@@ -26,7 +27,7 @@ type stackIndex struct {
 	// these two are written under mu.
 	mu        sync.Mutex
 	unstacked map[string]bool // the assets the withStacked=false search lists: in no stack
-	unplaced  int             // with refused: the assets left out of unstacked whose stack is not reported
+	unplaced  int             // with refused: the assets whose stack could not be checked
 }
 
 // noteUnstacked records an asset the withStacked=false search lists.
@@ -64,7 +65,9 @@ func (fic *FromImmichCmd) listStacks(ctx context.Context) (*stackIndex, error) {
 }
 
 // warnRefused logs, when GET /stacks was refused, the one warning about it, with the number of
-// assets in a stack that Immich did not report, archived with no stack.
+// assets whose stack could not be checked, archived with no stack: those in a stack that
+// GET /assets/{id} does not report, and any in no stack that paging left out of the
+// withStacked=false search. It is called once the search is done, not when it was cut short.
 func (fic *FromImmichCmd) warnRefused(idx *stackIndex) {
 	if !idx.refused {
 		return
@@ -72,7 +75,7 @@ func (fic *FromImmichCmd) warnRefused(idx *stackIndex) {
 	idx.mu.Lock()
 	n := idx.unplaced
 	idx.mu.Unlock()
-	fic.app.Log().Warn("the API key lacks stack.read: the assets in a stack that Immich does not report are archived with no stack",
+	fic.app.Log().Warn("the API key lacks stack.read: the assets whose stack could not be checked are archived with no stack",
 		"assets", n)
 }
 

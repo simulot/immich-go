@@ -380,7 +380,6 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 	if err != nil {
 		return err
 	}
-	defer fic.warnRefused(stacks)
 	uso := *so
 	err = fic.client.Immich.GetFilteredAssetsFn(ctx, uso.WithStacked(false), func(a *immich.Asset) error {
 		stacks.noteUnstacked(a.ID)
@@ -394,7 +393,7 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 	// asset, which is left out: with --on-errors=continue, ProcessError returns nil and the others go
 	// on. It is never sent on with what the failed call left (an asset with no ID, no stack, no
 	// album); the next run archives it.
-	return fic.client.Immich.GetFilteredAssetsFn(ctx, so, func(item *immich.Asset) error {
+	err = fic.client.Immich.GetFilteredAssetsFn(ctx, so, func(item *immich.Asset) error {
 		// filters on data returned by the search API
 		if !fic.IncludePartners && item.OwnerID != fic.client.User.ID {
 			return nil
@@ -471,6 +470,12 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	// The count is complete only now: a search cut short gives none.
+	fic.warnRefused(stacks)
+	return nil
 }
 
 func formatQuotedStrings(ss []string) string {
