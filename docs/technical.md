@@ -157,6 +157,18 @@ file's path (the SHA-1 of `path:` followed by the path), not from its content, a
 is that checksum. A later run of the archive uses both to recognize the files it has already
 written (see [Running the archive again](commands/archive.md#running-the-archive-again)).
 
+`edits` is written only for a photo edited in Immich. Immich does not change the original: it keeps
+the edits apart, as a list of actions (crop, rotate, mirror) that it applies in order to render the
+edited photo. The archive holds the original, and `edits` that list, each action with its
+parameters as Immich gives them, without the id Immich gives each action:
+
+```json
+"edits": [
+  { "action": "crop", "parameters": { "x": 39, "y": 49, "width": 78, "height": 99 } },
+  { "action": "rotate", "parameters": { "angle": 90 } }
+]
+```
+
 A `.JSON` file is rewritten only when its content changes. `archive from-immich` sorts the albums
 and the tags, so the order the server lists them in does not count. The file also records the
 version of immich-go that wrote it, in a `software` field: the first run after an upgrade of

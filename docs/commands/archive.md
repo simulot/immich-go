@@ -129,7 +129,8 @@ size is not the asset's, is not the asset when the asset's size is known: the as
 under `~1`, and the truncated file stays.
 
 Immich keeps edits apart from the original. The archive holds the original file of each asset, and
-editing a photo in Immich does not change its checksum: the next run does not download it again.
+its `.JSON` file the edit list. Editing a photo in Immich does not change its checksum: the next
+run does not download it again, and rewrites only its `.JSON` file.
 
 ### Duplicates
 
@@ -290,7 +291,7 @@ immich-go archive from-immich \
 - **Metadata Preservation**: JSON files ensure no metadata is lost
 - **Cross-Platform**: Archived photos can be imported to any compatible system
 - **Space Efficient**: No unnecessary duplication during incremental updates
-- **Immich edits are not archived**: Immich keeps edits (non-destructive, since Immich v2.5.0) apart from the original. `from-immich` downloads each asset's original file (`/original`), and the edited version is not downloaded.
+- **Immich edits**: Immich keeps edits (non-destructive, since Immich v2.5.0) apart from the original. `from-immich` downloads each asset's original file (`/original`), not the edited version, and writes the edit list (crop, rotate, mirror) in the asset's `.JSON` file. The API key needs the `asset.edit.get` permission. `upload` does not apply the edits when it restores an archive.
 
 ## Options Reference
 
