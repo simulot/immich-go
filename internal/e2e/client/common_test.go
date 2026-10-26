@@ -186,6 +186,7 @@ var permissions map[string][]string = map[string][]string{
 		`asset.copy`,
 		`asset.delete`,
 		`asset.download`,
+		`asset.edit.get`,
 		`album.create`,
 		`album.read`,
 		`albumAsset.create`,

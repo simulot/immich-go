@@ -44,6 +44,8 @@ const (
 type fakeServer struct {
 	*httptest.Server
 	downloads atomic.Int32 // GET /api/assets/{id}/original
+	editCalls atomic.Int32 // GET /api/assets/{id}/edits
+	editList  string       // the answer to GET /api/assets/{id}/edits; when empty, the call fails
 }
 
 // fakeImmich answers the calls getAssets and a download make: one asset on the timeline, in two
@@ -78,6 +80,13 @@ func fakeImmich(t *testing.T, edit func(asset map[string]any)) *fakeServer {
 			}})
 		case r.Method == http.MethodGet && r.URL.Path == "/api/assets/"+testAsset:
 			_ = json.NewEncoder(w).Encode(asset)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/assets/"+testAsset+"/edits":
+			s.editCalls.Add(1)
+			if s.editList == "" {
+				http.Error(w, `{"message":"edits unavailable"}`, http.StatusInternalServerError)
+				return
+			}
+			_, _ = io.WriteString(w, s.editList)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/albums" && r.URL.Query().Get("assetId") == testAsset:
 			_, _ = io.WriteString(w, `[
 				{"id": "bbbbbbbb-0000-4000-8000-000000000002", "albumName": "Summer", "description": "Lake trip"},

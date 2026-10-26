@@ -413,6 +413,15 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(fic.ifs, a.ID)
 
+		// An edited photo: Immich keeps the original as it is, and the edits apart. The archive holds
+		// the original, and its sidecar the edit list, asked for only then. A failed lookup is an
+		// error for the asset, which is left out: it is never archived without its edits.
+		if a.IsEdited {
+			if asset.FromApplication.Edits, err = fic.editList(ctx, a.ID); err != nil {
+				return fic.app.ProcessError(err)
+			}
+		}
+
 		// Record asset discovery
 		code := fileevent.DiscoveredImage
 		if a.Type == "VIDEO" {

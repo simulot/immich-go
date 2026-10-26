@@ -22,6 +22,7 @@ type Metadata struct {
 	Description  string             `json:"description,omitempty"`  // Long description
 	Albums       []Album            `json:"albums,omitempty"`       // Used to list albums that contain the file
 	Tags         []Tag              `json:"tags,omitempty"`         // Used to list tags
+	Edits        json.RawMessage    `json:"edits,omitempty"`        // Immich edit actions (crop, rotate, mirror) of the original, in order, without their ids
 	Rating       byte               `json:"rating,omitempty"`       // 0 to 5
 	Trashed      bool               `json:"trashed,omitempty"`      // Flag to indicate if the image has been trashed
 	Archived     bool               `json:"archived,omitempty"`     // Flag to indicate if the image has been archived
