@@ -117,7 +117,7 @@ upload again is safe: it uploads no file twice and makes no stack twice.
 The files of an archive written by an older release of immich-go are never grouped either, but
 their `.JSON` files record no stack (no `stack` field): restoring such an archive makes no stacks.
 To get the source's stacks back, archive the server again with `archive from-immich` of this
-release, then restore that archive.
+release into a new, empty folder, then restore that archive.
 
 ### Examples
 ```bash
