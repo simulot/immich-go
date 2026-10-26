@@ -112,8 +112,8 @@ file is uploaded, those stacks are made again with the same primary (see
 [archive Stacks](archive.md#stacks)). This needs the `stack.read` and `stack.create` permissions on
 the API key. Without them, the upload logs a warning and the stacks are not made.
 
-This holds for an archive written by an older release of immich-go too, whose `.JSON` files
-record no stack (no `stack` field): its files are never grouped, so restoring it makes no stacks.
+The files of an archive written by an older release of immich-go are never grouped either, but
+their `.JSON` files record no stack (no `stack` field): restoring such an archive makes no stacks.
 To get the source's stacks back, archive the server again with `archive from-immich` of this
 release, then restore that archive.
 
