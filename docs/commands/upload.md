@@ -102,6 +102,15 @@ immich-go upload from-folder [options] <folder-path>
 | `--manage-heic-jpeg`      | `NoStack`, `KeepHeic`, `KeepJPG`, `StackCoverHeic`, `StackCoverJPG` | [HEIC+JPEG handling](../technical.md#heic-jpeg-management) |
 | `--manage-epson-fastfoto` | `false`                                                             | Handle Epson FastFoto scanned photos                       |
 
+These options group fresh files, such as the content of a camera card or of a phone export. They
+apply to `from-folder`, `from-icloud` and `from-picasa`.
+
+They never apply to a file restored from an immich-go archive, that is a file with the `.JSON`
+file that `archive` wrote for it. Such a file is never grouped with another file or dropped, even
+in a folder that also holds fresh files. Its stack is the one its `.JSON` file records: once every
+file is uploaded, those stacks are made again with the same primary (see
+[archive Stacks](archive.md#stacks)). This needs the `stack.read` permission on the API key.
+
 ### Examples
 ```bash
 # Basic folder upload
@@ -240,6 +249,10 @@ immich-go upload from-immich [source-options] [destination-options]
   | `--from-favorite`       | Include only favorite assets |
   | `--from-minimal-rating` | Minimum rating filter        |
 
+### Stacks
+
+The stacks of the source server are made again on the destination, with the same primary, once
+every asset is transferred. Both API keys need the `stack.read` permission.
 
 ### Examples
 ```bash

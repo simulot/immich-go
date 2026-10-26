@@ -154,7 +154,7 @@ Immich-Go generates comprehensive JSON metadata for archived photos:
 ### Burst Detection
 
 #### Time-Based Detection
-- **Threshold**: Photos taken within 900ms
+- **Threshold**: Photos taken within 500ms
 - **Algorithm**: Groups consecutive photos below threshold
 - **Limitations**: May group unrelated rapid shots
 
@@ -245,6 +245,25 @@ Files:
 
 Stacking: All grouped with corrected (_a) as cover
 ```
+
+### Stacks from an Archive
+
+The `.JSON` file that `archive from-immich` writes for an asset in a stack records the asset's
+stack on the Immich server, in a `stack` field: the stack's ID there, whether the asset is its
+primary, and the number of assets in it.
+
+```json
+"stack": {
+  "id": "8f2c4e6a-1b3d-4f5a-9c7e-0d2b4f6a8c1e",
+  "primary": true,
+  "assetCount": 3
+}
+```
+
+Only `archive from-immich` writes it, for the assets in a stack; reading the stacks needs the API
+key's `stack.read` permission. When the archive is uploaded, `upload` makes these stacks again with
+the same primary. A file with a `.JSON` file written by `archive` is never grouped by the
+`--manage-*` options (see [Stacks](commands/archive.md#stacks)).
 
 ## Upload Processing
 

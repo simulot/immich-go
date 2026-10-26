@@ -193,6 +193,7 @@ var permissions map[string][]string = map[string][]string{
 		`job.read`,
 		`server.about`,
 		`stack.create`,
+		`stack.read`,
 		`tag.asset`,
 		`tag.create`,
 		`tag.read`,

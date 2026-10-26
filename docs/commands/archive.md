@@ -53,6 +53,7 @@ Each photo gets a corresponding `.JSON` file containing:
 - Original filename and capture date
 - GPS coordinates (latitude/longitude)  
 - Album associations
+- The asset's stack on the Immich server (`from-immich` only, see [Stacks](#stacks))
 - Tags and descriptions
 - Rating and favorite status
 - Archive/trash status
@@ -176,6 +177,28 @@ immich-go archive from-immich \
   --from-server=http://localhost:2283 \
   --from-api-key=your-key \
 ```
+
+## Stacks
+
+With `from-immich`, the `.JSON` file of each asset in a stack records that stack: its ID on the
+server, whether the asset is the stack's primary, and the number of assets in it. The assets of a
+stack can be in different date folders.
+
+```json
+"stack": {
+  "id": "8f2c4e6a-1b3d-4f5a-9c7e-0d2b4f6a8c1e",
+  "primary": true,
+  "assetCount": 3
+}
+```
+
+When the archive is uploaded with `upload from-folder`, the same stacks are made, with the same
+primary, once every file is uploaded. The `--manage-*` options never group or drop these files
+(see [upload from-folder](upload.md#file-management)). Running the upload again makes no new
+stack. The API key of the upload needs the `stack.read` and `stack.create` permissions.
+
+The archive reads the stacks with the API key's `stack.read` permission. Without it, the archive
+logs a warning, and a stack whose assets other than its primary are all archived is not recorded.
 
 ## Important Notes
 
