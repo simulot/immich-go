@@ -353,7 +353,7 @@ func sha1Of(r io.Reader) ([]byte, error) {
 // renames it to name, and returns the SHA-1 of the bytes it wrote, base64. Each call writes its
 // own .partial file: two runs that write the same name never write into the same file. With
 // size > 0, r must give exactly size bytes, and with checksum set, their SHA-1 must be checksum.
-// On any error, the rename's included, the .partial file is removed and name is not written.
+// On any error, including the rename's, the .partial file is removed and name is not written.
 func writeAtomic(fsys fs.FS, name string, r io.Reader, size int64, checksum string) (string, error) {
 	f, tmp, err := createPartial(fsys, name)
 	if err != nil {
