@@ -80,7 +80,7 @@ func TestWriteAssetSkipsPresentFiles(t *testing.T) {
 		}
 	}
 	src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
-	w, err := NewLocalAssetWriter(osfs.DirFS(dst), ".")
+	w, err := NewLocalAssetWriter(osfs.DirFS(dst))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func unknownSize(t *testing.T, plain bool) {
 		}
 	}
 	src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}, plain: plain}
-	w, err := NewLocalAssetWriter(osfs.DirFS(dst), ".")
+	w, err := NewLocalAssetWriter(osfs.DirFS(dst))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +311,7 @@ func writeArchived(t *testing.T, root, name, body, checksum string) {
 // writeAll writes the assets with a new writer, as one archive run does, and closes them.
 func writeAll(t *testing.T, dst fs.FS, as ...*assets.Asset) {
 	t.Helper()
-	w, err := NewLocalAssetWriter(dst, ".")
+	w, err := NewLocalAssetWriter(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -674,7 +674,7 @@ func TestDownloadChecksumMismatch(t *testing.T) {
 			srcDir, dst := t.TempDir(), t.TempDir()
 			writeSources(t, srcDir, map[string]string{"m": body})
 			src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}, plain: plain}
-			w, err := NewLocalAssetWriter(osfs.DirFS(dst), ".")
+			w, err := NewLocalAssetWriter(osfs.DirFS(dst))
 			if err != nil {
 				t.Fatal(err)
 			}

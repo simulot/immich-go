@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
@@ -26,16 +27,19 @@ import (
 // 	fshelper.FSCanWrite
 // }
 
-type closer interface {
-	Close() error
-}
+// LocalAssetWriter writes assets into the folder WriteToFS, one folder per month. WriteAsset can be
+// called from several goroutines for assets of different names. Two assets that can get the same
+// name must be written one after the other: each takes the first name that is free.
 type LocalAssetWriter struct {
-	WriteToFS  fs.FS
-	createdDir map[string]struct{}
-	hashed     map[string]string // SHA-1, base64, of the archived files read in this run, by path
+	WriteToFS fs.FS
+
+	mu         sync.Mutex          // guards createdDir and hashed
+	createdDir map[string]struct{} // the folders made in this run
+	hashed     map[string]string   // SHA-1, base64, of the archived files read in this run, by path
+	// hashed grows by one entry per archived file read (see isArchived): at most one per file.
 }
 
-func NewLocalAssetWriter(fsys fs.FS, writeToPath string) (*LocalAssetWriter, error) {
+func NewLocalAssetWriter(fsys fs.FS) (*LocalAssetWriter, error) {
 	if _, ok := fsys.(fshelper.FSCanWrite); !ok {
 		return nil, errors.New("FS does not support writing")
 	}
@@ -46,32 +50,11 @@ func NewLocalAssetWriter(fsys fs.FS, writeToPath string) (*LocalAssetWriter, err
 	}, nil
 }
 
-func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) error {
-	var err error
-
-	if fsys, ok := w.WriteToFS.(closer); ok {
-		defer fsys.Close()
-	}
-	for _, a := range group.Assets {
-		select {
-		case <-ctx.Done():
-			return errors.Join(err, ctx.Err())
-		default:
-			err = errors.Join(err, w.WriteAsset(ctx, a))
-		}
-	}
-	return err
-}
-
 func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
 	base := a.Base
 	dir := w.pathOfAsset(a)
-	if _, ok := w.createdDir[dir]; !ok {
-		err := fshelper.MkdirAll(w.WriteToFS, dir, 0o755)
-		if err != nil {
-			return err
-		}
-		w.createdDir[dir] = struct{}{}
+	if err := w.makeDir(dir); err != nil {
+		return err
 	}
 	select {
 	case <-ctx.Done():
@@ -272,9 +255,26 @@ func (w *LocalAssetWriter) isArchived(p string, fi fs.FileInfo, id identity) (st
 	return got, nil
 }
 
+// makeDir makes the folder dir, once per run.
+func (w *LocalAssetWriter) makeDir(dir string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if _, ok := w.createdDir[dir]; ok {
+		return nil
+	}
+	if err := fshelper.MkdirAll(w.WriteToFS, dir, 0o755); err != nil {
+		return err
+	}
+	w.createdDir[dir] = struct{}{}
+	return nil
+}
+
 // sha1OfArchived returns the SHA-1 of the archived file p, base64. p is read once per run.
 func (w *LocalAssetWriter) sha1OfArchived(p string) (string, error) {
-	if sum, ok := w.hashed[p]; ok {
+	w.mu.Lock()
+	sum, ok := w.hashed[p]
+	w.mu.Unlock()
+	if ok {
 		return sum, nil
 	}
 	f, err := w.WriteToFS.Open(p)
@@ -282,12 +282,15 @@ func (w *LocalAssetWriter) sha1OfArchived(p string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	sum, err := sha1Of(f)
+	b, err := sha1Of(f)
 	if err != nil {
 		return "", err
 	}
-	w.hashed[p] = base64.StdEncoding.EncodeToString(sum)
-	return w.hashed[p], nil
+	sum = base64.StdEncoding.EncodeToString(b)
+	w.mu.Lock()
+	w.hashed[p] = sum
+	w.mu.Unlock()
+	return sum, nil
 }
 
 // source is the asset being written. It is opened at most once, and only when needed: opening an

@@ -26,7 +26,7 @@ func TestWriteAssetRenameErrorRemovesPartial(t *testing.T) {
 	srcDir, dst := t.TempDir(), t.TempDir()
 	writeSources(t, srcDir, map[string]string{"a": body})
 	src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
-	w, err := NewLocalAssetWriter(noRenameFS{newArchiveFS(dst)}, ".")
+	w, err := NewLocalAssetWriter(noRenameFS{newArchiveFS(dst)})
 	if err != nil {
 		t.Fatal(err)
 	}

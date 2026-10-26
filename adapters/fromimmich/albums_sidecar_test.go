@@ -204,7 +204,7 @@ func TestSidecarTagsSorted(t *testing.T) {
 			}
 			asset["tags"] = tags
 		})
-		w, err := folder.NewLocalAssetWriter(osfs.DirFS(dst), ".")
+		w, err := folder.NewLocalAssetWriter(osfs.DirFS(dst))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -258,7 +258,7 @@ func TestExternalLibraryAssetSidecarChecksums(t *testing.T) {
 	defer srv.Close()
 	dst := t.TempDir()
 	for run := 1; run <= 2; run++ {
-		w, err := folder.NewLocalAssetWriter(osfs.DirFS(dst), ".")
+		w, err := folder.NewLocalAssetWriter(osfs.DirFS(dst))
 		if err != nil {
 			t.Fatal(err)
 		}

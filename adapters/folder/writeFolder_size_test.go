@@ -33,7 +33,7 @@ func TestWriteAssetRefusesWrongSize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dst := t.TempDir()
 			src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
-			w, err := NewLocalAssetWriter(osfs.DirFS(dst), ".")
+			w, err := NewLocalAssetWriter(osfs.DirFS(dst))
 			if err != nil {
 				t.Fatal(err)
 			}
