@@ -51,6 +51,7 @@ type FromImmichCmd struct {
 	ic        *filenames.InfoCollector
 	app       *app.Application
 	processor *fileprocessor.FileProcessor
+	edits     editLists // what the run knows of the edit lists it reads
 }
 
 func (fic *FromImmichCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -309,6 +310,7 @@ func (fic *FromImmichCmd) Browse(ctx context.Context) chan *assets.Group {
 }
 
 func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
+	defer fic.warnUnreadEditLists()
 	fic.MinimalRating = min(max(0, fic.MinimalRating), 5)
 
 	so := immich.SearchOptions()
@@ -415,9 +417,10 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 
 		// An edited photo: Immich keeps the original as it is, and the edits apart. The archive holds
 		// the original, and its sidecar the edit list, asked for only then. A failed lookup is an
-		// error for the asset, which is left out: it is never archived without its edits.
+		// error for the asset, which is left out: it is never archived without its edits. A key
+		// without asset.edit.get is not an error (see readEditList).
 		if a.IsEdited {
-			if asset.FromApplication.Edits, err = fic.editList(ctx, a.ID); err != nil {
+			if err := fic.readEditList(ctx, a.ID, asset.FromApplication); err != nil {
 				return fic.app.ProcessError(err)
 			}
 		}

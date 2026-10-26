@@ -291,7 +291,7 @@ immich-go archive from-immich \
 - **Metadata Preservation**: JSON files ensure no metadata is lost
 - **Cross-Platform**: Archived photos can be imported to any compatible system
 - **Space Efficient**: No unnecessary duplication during incremental updates
-- **Immich edits**: Immich keeps edits (non-destructive, since Immich v2.5.0) apart from the original. `from-immich` downloads each asset's original file (`/original`), not the edited version, and writes the edit list (crop, rotate, mirror) in the asset's `.JSON` file. The API key needs the `asset.edit.get` permission. `upload` does not apply the edits when it restores an archive.
+- **Immich edits**: Immich keeps edits (non-destructive, since Immich v2.5.0) apart from the original. `from-immich` downloads each asset's original file (`/original`), not the edited version, and writes the edit list (crop, rotate, mirror) in the asset's `.JSON` file. The API key needs the `asset.edit.get` permission for the edit list. Without it, the run goes on: edited photos are archived without their edit list, one warning gives their count at the end of the run, and a `.JSON` file already written keeps the edit list it has. `upload` does not apply the edits when it restores an archive.
 
 ## Options Reference
 

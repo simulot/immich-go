@@ -169,6 +169,9 @@ parameters as Immich gives them, without the id Immich gives each action:
 ]
 ```
 
+When the API key lacks the `asset.edit.get` permission, the list cannot be read: a new `.JSON` file
+has no `edits`, and one already written keeps its own.
+
 A `.JSON` file is rewritten only when its content changes. `archive from-immich` sorts the albums
 and the tags, so the order the server lists them in does not count. The file also records the
 version of immich-go that wrote it, in a `software` field: the first run after an upgrade of

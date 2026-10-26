@@ -23,6 +23,7 @@ type Metadata struct {
 	Albums       []Album            `json:"albums,omitempty"`       // Used to list albums that contain the file
 	Tags         []Tag              `json:"tags,omitempty"`         // Used to list tags
 	Edits        json.RawMessage    `json:"edits,omitempty"`        // Immich edit actions (crop, rotate, mirror) of the original, in order, without their ids
+	EditsUnread  bool               `json:"-"`                      // The edit list could not be read: a sidecar already written keeps its own
 	Rating       byte               `json:"rating,omitempty"`       // 0 to 5
 	Trashed      bool               `json:"trashed,omitempty"`      // Flag to indicate if the image has been trashed
 	Archived     bool               `json:"archived,omitempty"`     // Flag to indicate if the image has been archived

@@ -168,14 +168,23 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	if a.FromApplication != nil {
 		md := *a.FromApplication
 		md.Checksum, md.PathChecksum = archived, id.pathChecksum
+		jsonName := path.Join(dir, name+".JSON")
+		old, oldErr := fs.ReadFile(w.WriteToFS, jsonName)
+		// An edit list that could not be read (archive from-immich with a key without
+		// asset.edit.get) is not an empty one: the .JSON file keeps the list it has. name holds
+		// this asset or was free, so a .JSON file there is this asset's.
+		if md.EditsUnread && oldErr == nil {
+			var prev assets.Metadata
+			if jsonsidecar.Read(bytes.NewReader(old), &prev) == nil {
+				md.Edits = prev.Edits
+			}
+		}
 		var buf bytes.Buffer
 		err := jsonsidecar.Write(&md, &buf)
 		if err != nil {
 			return err
 		}
-		jsonName := path.Join(dir, name+".JSON")
-		old, err := fs.ReadFile(w.WriteToFS, jsonName)
-		if err != nil || !bytes.Equal(old, buf.Bytes()) {
+		if oldErr != nil || !bytes.Equal(old, buf.Bytes()) {
 			_, err = writeAtomic(w.WriteToFS, jsonName, &buf, 0, "")
 			return err
 		}

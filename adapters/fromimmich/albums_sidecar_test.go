@@ -45,7 +45,8 @@ type fakeServer struct {
 	*httptest.Server
 	downloads atomic.Int32 // GET /api/assets/{id}/original
 	editCalls atomic.Int32 // GET /api/assets/{id}/edits
-	editList  string       // the answer to GET /api/assets/{id}/edits; when empty, the call fails
+	editList  string       // the answer to GET /api/assets/{id}/edits
+	editErr   int          // when set, GET /api/assets/{id}/edits fails with this HTTP status
 }
 
 // fakeImmich answers the calls getAssets and a download make: one asset on the timeline, in two
@@ -82,8 +83,8 @@ func fakeImmich(t *testing.T, edit func(asset map[string]any)) *fakeServer {
 			_ = json.NewEncoder(w).Encode(asset)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/assets/"+testAsset+"/edits":
 			s.editCalls.Add(1)
-			if s.editList == "" {
-				http.Error(w, `{"message":"edits unavailable"}`, http.StatusInternalServerError)
+			if s.editErr != 0 {
+				http.Error(w, `{"message":"edits refused"}`, s.editErr)
 				return
 			}
 			_, _ = io.WriteString(w, s.editList)
