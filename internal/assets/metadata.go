@@ -11,24 +11,25 @@ import (
 )
 
 type Metadata struct {
-	File         fshelper.FSAndName `json:"-"`                      // File name and file system that holds the metadata. Could be empty
-	FileName     string             `json:"fileName,omitempty"`     // File name as presented to users
-	Checksum     string             `json:"checksum,omitempty"`     // SHA-1 of the file's bytes, base64: in an archive, of the archived file
-	PathChecksum string             `json:"pathChecksum,omitempty"` // Immich's checksum of an external-library asset: SHA-1 of "path:" and its path, base64
-	Latitude     float64            `json:"latitude,omitempty"`     // GPS
-	Longitude    float64            `json:"longitude,omitempty"`    // GPS
-	FileDate     time.Time          `json:"fileDate,omitzero"`      // Date of the file
-	DateTaken    time.Time          `json:"dateTaken,omitzero"`     // Date of exposure
-	Description  string             `json:"description,omitempty"`  // Long description
-	Albums       []Album            `json:"albums,omitempty"`       // Used to list albums that contain the file
-	Tags         []Tag              `json:"tags,omitempty"`         // Used to list tags
-	Edits        json.RawMessage    `json:"edits,omitempty"`        // Immich edit actions (crop, rotate, mirror) of the original, in order, without their ids
-	EditsUnread  bool               `json:"-"`                      // The edit list could not be read: a sidecar already written keeps its own
-	Rating       byte               `json:"rating,omitempty"`       // 0 to 5
-	Trashed      bool               `json:"trashed,omitempty"`      // Flag to indicate if the image has been trashed
-	Archived     bool               `json:"archived,omitempty"`     // Flag to indicate if the image has been archived
-	Favorited    bool               `json:"favorited,omitempty"`    // Flag to indicate if the image has been favorited
-	FromPartner  bool               `json:"fromPartner,omitempty"`  // Flag to indicate if the image is from a partner
+	File        fshelper.FSAndName `json:"-"`                     // File name and file system that holds the metadata. Could be empty
+	FileName    string             `json:"fileName,omitempty"`    // File name as presented to users
+	Checksum    string             `json:"checksum,omitempty"`    // SHA-1 of the file's bytes, base64: in an archive, of the archived file
+	Latitude    float64            `json:"latitude,omitempty"`    // GPS
+	Longitude   float64            `json:"longitude,omitempty"`   // GPS
+	FileDate    time.Time          `json:"fileDate,omitzero"`     // Date of the file
+	DateTaken   time.Time          `json:"dateTaken,omitzero"`    // Date of exposure
+	Description string             `json:"description,omitempty"` // Long description
+	Albums      []Album            `json:"albums,omitempty"`      // Used to list albums that contain the file
+	Tags        []Tag              `json:"tags,omitempty"`        // Used to list tags
+	Edits       json.RawMessage    `json:"edits,omitempty"`       // Immich edit actions (crop, rotate, mirror) of the original, in order, without their ids
+	EditsUnread bool               `json:"-"`                     // The edit list could not be read: a sidecar already written keeps its own
+	Rating      byte               `json:"rating,omitempty"`      // 0 to 5
+	Trashed     bool               `json:"trashed,omitempty"`     // Flag to indicate if the image has been trashed
+	Archived    bool               `json:"archived,omitempty"`    // Flag to indicate if the image has been archived
+	Favorited   bool               `json:"favorited,omitempty"`   // Flag to indicate if the image has been favorited
+	FromPartner bool               `json:"fromPartner,omitempty"` // Flag to indicate if the image is from a partner
+
+	PathChecksum string `json:"pathChecksum,omitempty"` // Immich's checksum of an external-library asset: SHA-1 of "path:" and its path, base64
 }
 
 func (m Metadata) LogValue() slog.Value {
