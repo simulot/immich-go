@@ -300,7 +300,9 @@ type SearchMetadataQuery struct {
 	Visibility       assets.Visibility `json:"visibility,omitempty"`
 	Order            string            `json:"order,omitempty"`
 	WithStacked      *bool             `json:"withStacked,omitempty"`
-	ID               string            `json:"id,omitempty"`
+	// ID is a flat field that Immich v3 deprecates (since v3.2.0): the server rejects it next to
+	// the new filter, orderBy or cursor fields, which this query never sends.
+	ID string `json:"id,omitempty"`
 }
 
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {

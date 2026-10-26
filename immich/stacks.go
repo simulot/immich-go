@@ -24,7 +24,7 @@ func (ic *ImmichClient) IsInStack(ctx context.Context, id string) (bool, error) 
 		return false, errNoAssetID("IsInStack")
 	}
 	unstacked := false
-	q := SearchMetadataQuery{ID: id, WithStacked: new(bool), WithDeleted: true}
+	q := SearchMetadataQuery{ID: id, WithStacked: new(false), WithDeleted: true}
 	err := ic.callSearchMetadata(ctx, &q, func(a *Asset) error {
 		unstacked = unstacked || a.ID == id
 		return nil
@@ -38,7 +38,7 @@ func (ic *ImmichClient) IsInStack(ctx context.Context, id string) (bool, error) 
 // GetAllStacks lists the user's stacks (GET /stacks).
 func (ic *ImmichClient) GetAllStacks(ctx context.Context) ([]Stack, error) {
 	var result []Stack
-	err := ic.newServerCall(ctx, "getAllStacks").do(getRequest("/stacks", setAcceptJSON()), responseJSON(&result))
+	err := ic.newServerCall(ctx, "GetAllStacks").do(getRequest("/stacks", setAcceptJSON()), responseJSON(&result))
 	return result, err
 }
 

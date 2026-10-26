@@ -187,6 +187,8 @@ func (ic *ImmichClient) DeleteAssets(ctx context.Context, id []string, forceDele
 
 // getAssetInfo
 // https://api.immich.app/endpoints/assets/getAssetInfo
+// When the error is not nil, the returned asset is not usable: it is empty, or holds what the
+// failed call left in it.
 func (ic *ImmichClient) GetAssetInfo(ctx context.Context, id string) (*Asset, error) {
 	r := Asset{}
 	if id == "" {

@@ -19,6 +19,7 @@ import (
 
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/fileevent"
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
@@ -124,7 +125,7 @@ func TestRebuildStacks(t *testing.T) {
 	var logBuf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&logBuf, nil))
 	f := &fakeStacks{}
-	r, err := rebuildStacks(context.Background(), f, src, log)
+	r, err := rebuildStacks(context.Background(), f, src, log, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +156,7 @@ func TestRebuildStacks(t *testing.T) {
 		stack("n2", "b2", "b2", "b1", "b3"),
 		stack("n3", "d2", "d2", "d1"),
 	}}
-	r, err = rebuildStacks(context.Background(), f, src, log)
+	r, err = rebuildStacks(context.Background(), f, src, log, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +175,7 @@ func TestRebuildStacksCompletesAPartialStack(t *testing.T) {
 		m("2006/2006-05/IMG_2.JPG", "b2", "S2", true, 3),
 		m("2006/2006-05/IMG_3.JPG", "b3", "S2", false, 3),
 	)
-	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.DiscardHandler))
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.DiscardHandler), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +210,7 @@ func TestRebuildStacksOverAGrouperStack(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &fakeStacks{stacks: []immich.Stack{stack("grouper", tc.grouper[0], tc.grouper...)}}
-			r, err := rebuildStacks(context.Background(), f, collect(tc.source...), slog.New(slog.DiscardHandler))
+			r, err := rebuildStacks(context.Background(), f, collect(tc.source...), slog.New(slog.DiscardHandler), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -233,7 +234,7 @@ func TestRebuildTwoSourceStacksShareServerAsset(t *testing.T) {
 	)
 	f := &fakeStacks{}
 	var logBuf bytes.Buffer
-	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +266,7 @@ func TestRebuildFailedLookupOnExistingStack(t *testing.T) {
 		infoFails: map[string]bool{"b3": true},
 	}
 	var logBuf bytes.Buffer
-	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +287,7 @@ func TestRebuildStacksLeavesOtherStacks(t *testing.T) {
 		m("IMG_2.JPG", "b2", "S2", true, 2),
 	)
 	var logBuf bytes.Buffer
-	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +317,7 @@ func TestRebuildStacksMissingMembersLoggedOnlyWhenMade(t *testing.T) {
 	}
 	rebuild := func(f *fakeStacks) string {
 		var logBuf bytes.Buffer
-		if _, err := rebuildStacks(context.Background(), f, src(), slog.New(slog.NewTextHandler(&logBuf, nil))); err != nil {
+		if _, err := rebuildStacks(context.Background(), f, src(), slog.New(slog.NewTextHandler(&logBuf, nil)), nil); err != nil {
 			t.Fatal(err)
 		}
 		return logBuf.String()
@@ -369,11 +370,11 @@ func TestRebuildStacksRefusedMidRunLogsCounts(t *testing.T) {
 		m("IMG_6.JPG", "c2", "S3", false, 2),
 	)
 	var logBuf bytes.Buffer
-	r, err := rebuildStacks(context.Background(), api, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	r, err := rebuildStacks(context.Background(), api, src, slog.New(slog.NewTextHandler(&logBuf, nil)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.present != 1 || r.created != 1 || r.refused != "stack.create" {
+	if r.present != 1 || r.created != 1 || r.refusedPermission != "stack.create" {
 		t.Fatalf("result %+v; want 1 already there, 1 made, then stack.create refused", r)
 	}
 	var warning string
@@ -382,7 +383,7 @@ func TestRebuildStacksRefusedMidRunLogsCounts(t *testing.T) {
 			warning = line
 		}
 	}
-	for _, s := range []string{"level=WARN", "stacks=1", "made=1", `"already there"=1`} {
+	for _, s := range []string{"level=WARN", "stacks=1", "made=1", "present=1"} {
 		if !strings.Contains(warning, s) {
 			t.Errorf("the warning does not hold %s:\n%s", s, logBuf.String())
 		}
@@ -398,7 +399,7 @@ func TestRebuildStacksLeavesOtherStacksWithATrashedPrimary(t *testing.T) {
 		m("IMG_2.JPG", "b2", "S2", true, 2),
 	)
 	var logBuf bytes.Buffer
-	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -447,6 +448,9 @@ func TestRebuildSourceStacksSummary(t *testing.T) {
 	logs := logBuf.String()
 	if !strings.Contains(logs, `msg="stacks from the source" made=1`) || strings.Contains(logs, "sidecar") {
 		t.Fatalf("summary line:\n%s", logs)
+	}
+	if n := uc.app.FileProcessor().Logger().GetEventCounts()[fileevent.ProcessedStacked]; n != 2 {
+		t.Errorf("%d files recorded as stacked, want the 2 of the stack made", n)
 	}
 }
 

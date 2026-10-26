@@ -12,6 +12,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/fileprocessor"
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
@@ -198,21 +199,30 @@ func (s *serverStacks) applyCreate(id string, order []string) {
 }
 
 type stackResult struct {
-	created int    // stacks made
-	present int    // stacks already there, exactly (a rerun)
-	notMade int    // source stacks with 1 member here, or whose members are in other stacks
-	failed  int    // CreateStack errors, and stacks there that could not be checked
-	refused string // the stack permission the API key lacks: the stacks left were not rebuilt
-	stacked []fshelper.FSAndName
+	created           int    // stacks made
+	present           int    // stacks already there, exactly (a rerun)
+	notMade           int    // source stacks with 1 member here, or whose members are in other stacks
+	failed            int    // CreateStack errors, and stacks there that could not be checked
+	refusedPermission string // the stack permission the API key lacks: the stacks left were not rebuilt
 }
 
 // refuse notes that the server refused a call with 403 because the API key lacks permission, and
 // logs that the n stacks left are not rebuilt, with the stacks made and already there by then. It
 // is no reason to fail the upload: every file is on the server, only the stacks are missing.
 func (r *stackResult) refuse(log *slog.Logger, permission string, n int, err error) {
-	r.refused = permission
+	r.refusedPermission = permission
 	log.Warn("stacks from the source not rebuilt: the API key lacks the "+permission+" permission", "stacks", n,
-		"made", r.created, "already there", r.present, "err", err)
+		"made", r.created, "present", r.present, "err", err)
+}
+
+// recordStacked records the files of a stack made or already there; fp is nil in tests.
+func recordStacked(ctx context.Context, fp *fileprocessor.FileProcessor, ms []stackMember) {
+	if fp == nil {
+		return
+	}
+	for _, m := range ms {
+		fp.RecordNonAsset(ctx, m.file, 0, fileevent.ProcessedStacked)
+	}
 }
 
 // rebuildStacks makes, for each source stack with 2 or more members here, one stack of exactly
@@ -225,8 +235,9 @@ func (r *stackResult) refuse(log *slog.Logger, permission string, n int, err err
 // stack included, is left as it is, and that source stack is not made, with a warning: it does not
 // fail the upload. Missing members are logged once the stack is made; a stack with 1 member here
 // is not made. When the server refuses GET /stacks (stack.read) or POST /stacks (stack.create)
-// with 403, the stacks left are not rebuilt, with one warning and no error.
-func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *slog.Logger) (stackResult, error) {
+// with 403, the stacks left are not rebuilt, with one warning and no error. The files of each
+// stack made or already there are recorded with fp as stacked.
+func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *slog.Logger, fp *fileprocessor.FileProcessor) (stackResult, error) {
 	var r stackResult
 	src.mu.Lock()
 	byStack := make(map[string][]stackMember, len(src.m))
@@ -313,9 +324,7 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			}
 			if same {
 				r.present++
-				for _, m := range ms {
-					r.stacked = append(r.stacked, m.file)
-				}
+				recordStacked(ctx, fp, ms)
 				continue
 			}
 		}
@@ -355,9 +364,7 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 				"members here", len(ms), "members on the source", want)
 		}
 		r.created++
-		for _, m := range ms {
-			r.stacked = append(r.stacked, m.file)
-		}
+		recordStacked(ctx, fp, ms)
 	}
 	return r, nil
 }
@@ -393,17 +400,12 @@ func (uc *UpCmd) rebuildSourceStacks(ctx context.Context) error {
 	if uc.stacks.len() == 0 {
 		return nil
 	}
-	r, err := rebuildStacks(ctx, uc.client.Immich, &uc.stacks, uc.app.Log().Logger)
+	r, err := rebuildStacks(ctx, uc.client.Immich, &uc.stacks, uc.app.Log().Logger, uc.app.FileProcessor())
 	if err != nil {
 		return err
 	}
-	if uc.app.FileProcessor() != nil {
-		for _, f := range r.stacked {
-			uc.app.FileProcessor().RecordNonAsset(ctx, f, 0, fileevent.ProcessedStacked)
-		}
-	}
-	if r.refused == "" { // otherwise the warning says the stacks were not rebuilt
-		uc.app.Log().Info("stacks from the source", "made", r.created, "already there", r.present, "not made", r.notMade, "failed", r.failed)
+	if r.refusedPermission == "" { // otherwise the warning says the stacks were not rebuilt
+		uc.app.Log().Info("stacks from the source", "made", r.created, "present", r.present, "not made", r.notMade, "failed", r.failed)
 	}
 	if r.failed > 0 {
 		return fmt.Errorf("%d stacks could not be made", r.failed)
