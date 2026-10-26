@@ -150,10 +150,17 @@ Immich-Go generates comprehensive JSON metadata for archived photos:
 }
 ```
 
-`checksum` is Immich's checksum of the original file (SHA-1, base64). Only `archive from-immich`
-writes it, and not for assets of an external library, whose Immich checksum is computed from the
-file's path rather than its content. A later run of the archive uses it to recognize the files it
-has already written (see [Running the archive again](commands/archive.md#running-the-archive-again)).
+`checksum` is the SHA-1 of the archived file, base64, whatever the source. For an asset of the
+Immich timeline, it is also Immich's checksum of the original. `pathChecksum` is written only for
+an asset of an Immich external library: Immich computes the checksum of such an asset from its
+file's path (the SHA-1 of `path:` followed by the path), not from its content, and `pathChecksum`
+is that checksum. A later run of the archive uses both to recognize the files it has already
+written (see [Running the archive again](commands/archive.md#running-the-archive-again)).
+
+A `.JSON` file is rewritten only when its content changes. `archive from-immich` sorts the albums
+and the tags, so the order the server lists them in does not count. The file also records the
+version of immich-go that wrote it, in a `software` field: the first run after an upgrade of
+immich-go rewrites every `.JSON` file once.
 
 ## File Pairing and Stacking
 
@@ -326,7 +333,7 @@ archive-folder/
 #### Update Logic
 1. **New Files**: Added to appropriate date folders
 2. **Existing Files**: Never overwritten. An asset already in the archive is skipped; a different file with the same name is written as `name~1.ext`, `name~2.ext`, ... (see [Running the archive again](commands/archive.md#running-the-archive-again))
-3. **Metadata Updates**: A JSON file is rewritten when the asset's metadata has changed
+3. **Metadata Updates**: A JSON file is rewritten when the asset's metadata, or the version of immich-go, has changed
 4. **Deletions**: Files not removed from archive (archive-only operation)
 
 ### Storage Patterns

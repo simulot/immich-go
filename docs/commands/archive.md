@@ -49,14 +49,19 @@ All `upload` sub-commands are available for `archive`:
 
 ## Metadata Files
 
-Each photo gets a corresponding `.JSON` file containing:
+Each photo gets a `.JSON` file when its source gives metadata for it: always with `from-immich`,
+and with the other sources when the photo comes with metadata (a Google Photos JSON file, an
+immich-go `.JSON` file, an iCloud date...). A photo with none, as from a plain folder, gets no
+`.JSON` file. The `.JSON` file contains:
 - Original filename and capture date
-- Immich checksum of the original file (`from-immich` only, see [Running the archive again](#running-the-archive-again))
+- `checksum`, the SHA-1 of the archived file, and for an asset of an Immich external library,
+  `pathChecksum` (see [Running the archive again](#running-the-archive-again))
 - GPS coordinates (latitude/longitude)  
 - Album associations
 - Tags and descriptions
 - Rating and favorite status
 - Archive/trash status
+- `software`, the version of immich-go that wrote it
 
 ### Example Metadata
 ```json
@@ -93,28 +98,86 @@ asset under its name in its date folder, then under `name~1.ext`, `name~2.ext`, 
 - **The asset is already there**: it is skipped. It is not downloaded or copied again, and no `~N`
   copy is made. Its `.JSON` file is rewritten only when the metadata has changed (an album, a
   description, a rating...), and its `.XMP` file, if any, only when the source's XMP has changed.
-- **Another file has that name**: the asset is written under the next free `~N` name.
+- **Another file has that name**: the asset is written under the next free `~N` name. That file
+  and its `.JSON` file are left as they are.
 
-How an asset already there is recognized depends on the source:
+### How an asset already there is recognized
 
-- **`from-immich`**: the `.JSON` file holds the asset's Immich checksum, the SHA-1 of the original
-  file. The file is the asset when the checksum matches and, when Immich knows the asset's size, the
-  file has that size. A `.JSON` file written by an older release of immich-go has no checksum: the
-  file is read once to compute its SHA-1, and when it matches, the checksum is added to the `.JSON`
-  file.
-- **`from-immich`, assets of an external library**: Immich computes their checksum from the file's
-  path, not its content. No checksum is written, and a file with the same name and size is taken
-  as the asset.
-- **Other sources**: a file with the same name and size is taken as the asset.
+A file is the asset only when its content is proven to be, never on its name and size alone. The
+`.JSON` file keeps two values for that:
+
+- `checksum`: the SHA-1 of the archived file, base64, whatever the source.
+- `pathChecksum`: only for an asset of an Immich external library. Immich computes the checksum of
+  such an asset from its file's path, not from its content: `pathChecksum` is that checksum.
+
+A file whose size is not the asset's, when the asset's size is known, is not the asset. A file
+whose `.JSON` file has a `pathChecksum` can only be that external-library asset. Then:
+
+| Source | `.JSON` file with a `checksum` | `.JSON` file without a `checksum` (written by an older release), or none |
+|---|---|---|
+| `from-immich`, timeline asset | The file is the asset when `checksum` is the asset's Immich checksum, the SHA-1 of its original. Nothing is read or downloaded. | The file is read once. It is the asset when its SHA-1 is the asset's Immich checksum. Nothing is downloaded. |
+| `from-immich`, external-library asset | The file is the asset when `pathChecksum` is the asset's Immich checksum. Nothing is read or downloaded. | The asset is downloaded once and the file is read once. The file is the asset when both have the same SHA-1. |
+| Other sources | The source file is read (a file in a ZIP archive is extracted). The file is the asset when the SHA-1 of the source file is `checksum`. | The source file and the file are read once each. The file is the asset when both have the same SHA-1. |
+
+When the file is the asset, the values its `.JSON` file lacked are added to it: the next run of
+`from-immich` reads and downloads nothing for that asset. With the other sources,
+each run reads the source file of each asset already archived, and, for a photo with no `.JSON`
+file (from a plain folder), the archived file too.
+
+A file cut short after it was archived, whose `.JSON` file has the asset's `checksum` but whose
+size is not the asset's, is not the asset: the asset is written under `~1`, and the truncated file
+stays.
 
 Immich keeps edits apart from the original. The archive holds the original file of each asset, and
 editing a photo in Immich does not change its checksum: the next run does not download it again.
 
-A download is written to a hidden `.<name>.partial` file first. It gets its real name only once it
-is complete: it must have the asset's size, when known, and with `from-immich` its SHA-1 must be
-the asset's checksum. An interrupted run leaves no truncated photo behind, and the next run
-downloads the missing assets. A `.partial` file left by a run that was killed is replaced the next
-time that asset is downloaded, and can be deleted.
+### Duplicates
+
+A run looks for an asset only under its name in its date folder. It does not search the rest of
+the archive, so:
+
+- Copies such as `name~1.ext` or `name~2.ext`, written by older releases of immich-go for an asset
+  already archived, stay where they are and are not reported.
+- An asset archived under another name or in another date folder is not found: it is written
+  again, and the old copy stays. This happens after a rename in Immich, a change of the file name
+  rules, or a change of the capture date or time zone.
+- Two source files of `from-folder` with the same name, date and bytes share one archived file.
+  The `.JSON` file has the metadata of the one archived last: when their metadata differ, it is
+  rewritten on every run.
+- A file of an Immich external library archived by an older release (no `checksum` in its `.JSON`
+  file) can be taken by a timeline asset with the same name and the same bytes. Its `.JSON` file
+  then describes the timeline asset, and the external-library asset is written under `~1`. Nothing
+  is lost: the bytes are the same.
+
+These copies cost space, not photos. Restoring the archive does not duplicate them on the server:
+`upload from-folder` indexes the server by checksum, so one copy is uploaded and the others are
+reported as already there. Removing the copies from the archive is not automated.
+
+### Upgrades of immich-go
+
+The `.JSON` file records the version of immich-go that wrote it (`software`). The first run after
+an upgrade of immich-go rewrites every `.JSON` file once. The photos are not written again.
+
+### Interrupted runs
+
+A download is written to a hidden `.<name>.<random>.partial` file first, beside its final name. It
+gets its real name only once it is complete: it must have the asset's size, when known, and for an
+Immich timeline asset its SHA-1 must be the asset's checksum. Otherwise, or when the rename fails,
+the `.partial` file is removed. An interrupted run leaves no truncated photo behind, and the next
+run downloads the missing assets. A `.partial` file left by a run that was killed stays: it can be
+deleted when no archive is running into that folder.
+
+Each run writes its own `.partial` files. Still, run one archive at a time into a folder: when two
+runs write the same name at the same time, each renames its file to that name, and the later one
+replaces the other.
+
+## Errors
+
+An asset that cannot be archived (a failed download, a full disk...) is logged as an error.
+`--on-errors` says when the run stops: at the first error (`stop`, the default), never
+(`continue`), or when there are more than N errors (`--on-errors=N`). A run with an asset not
+archived, or with an error reported by its source, exits with a non-zero status, also with
+`--on-errors=continue`: a scheduled archive with photos missing does not report success.
 
 ## Examples
 
