@@ -445,10 +445,13 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		asset.Albums = albums
 		asset.FromApplication.Albums = albums
 
-		// Transfer tags
+		// Transfer tags, in a stable order as the albums: the sidecar is rewritten only when they
+		// change, not when the server lists them in another order.
 		for t := range asset.Tags {
 			asset.Tags[t].ID = ""
 		}
+		sort.SliceStable(asset.Tags, func(i, j int) bool { return asset.Tags[i].Value < asset.Tags[j].Value })
+		asset.FromApplication.Tags = asset.Tags
 
 		g := assets.NewGroup(assets.GroupByNone, asset)
 		select {

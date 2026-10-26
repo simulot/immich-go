@@ -187,6 +187,62 @@ func TestSidecarCarriesChecksum(t *testing.T) {
 	}
 }
 
+// The sidecar lists the tags sorted, as it does the albums: a rerun where the server lists them in
+// another order rewrites nothing.
+func TestSidecarTagsSorted(t *testing.T) {
+	t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
+	sum := sha1.Sum([]byte(testOriginal))
+	dst := t.TempDir()
+	sidecar := filepath.Join(dst, "2021", "2021-07", "IMG_0001.JPG.JSON")
+	var stamp time.Time
+	for run, order := range [][]string{{"b/x", "a/y", "c"}, {"c", "a/y", "b/x"}} {
+		srv := fakeImmich(t, func(asset map[string]any) {
+			asset["checksum"] = base64.StdEncoding.EncodeToString(sum[:])
+			tags := make([]map[string]any, 0, len(order))
+			for _, v := range order {
+				tags = append(tags, map[string]any{"id": "tag-" + v, "name": filepath.Base(v), "value": v})
+			}
+			asset["tags"] = tags
+		})
+		w, err := folder.NewLocalAssetWriter(osfs.DirFS(dst), ".")
+		if err != nil {
+			t.Fatal(err)
+		}
+		a := archivedAsset(t, srv)
+		err = w.WriteAsset(context.Background(), a)
+		_ = a.Close()
+		srv.Close()
+		if err != nil {
+			t.Fatalf("run %d: %v", run+1, err)
+		}
+		b, err := os.ReadFile(sidecar)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var md assets.Metadata
+		if err := jsonsidecar.Read(bytes.NewReader(b), &md); err != nil {
+			t.Fatal(err)
+		}
+		got := make([]string, 0, len(md.Tags))
+		for _, tag := range md.Tags {
+			got = append(got, tag.Value)
+		}
+		if want := []string{"a/y", "b/x", "c"}; !slices.Equal(got, want) {
+			t.Fatalf("run %d: sidecar tags %v, want %v", run+1, got, want)
+		}
+		if run == 0 {
+			stamp = time.Now().Add(-time.Hour).Truncate(time.Second)
+			if err := os.Chtimes(sidecar, stamp, stamp); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		if fi, err := os.Stat(sidecar); err != nil || !fi.ModTime().Equal(stamp) {
+			t.Fatalf("run 2 rewrote the sidecar (%v)", err)
+		}
+	}
+}
+
 // An external-library asset's Immich checksum is a hash of its path, not of its bytes (Immich's
 // library service, checksum algorithm sha1-path). Its sidecar records it as the path checksum, and
 // the SHA-1 of the archived bytes as the checksum. A rerun recognizes the file by the path
