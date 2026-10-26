@@ -400,9 +400,15 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			Rating:      byte(a.ExifInfo.Rating),
 			Tags:        asset.Tags,
 		}
-		// Not for an external-library asset: its Immich checksum hashes its path, not its bytes.
+		// The asset's Immich checksum, as its sidecar records it. For a timeline asset it is the
+		// SHA-1 of the original: the archive checks the download against it. An external-library
+		// asset's hashes its path, not its bytes: it is kept apart, and a rerun recognizes the
+		// archived file by it with no download. Either way the sidecar's checksum ends up the SHA-1
+		// of the archived bytes, which the archive computes as it writes them.
 		if a.LibraryID == "" {
 			asset.FromApplication.Checksum = a.Checksum
+		} else {
+			asset.FromApplication.PathChecksum = a.Checksum
 		}
 		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(fic.ifs, a.ID)

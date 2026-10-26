@@ -188,14 +188,16 @@ func TestSidecarCarriesChecksum(t *testing.T) {
 }
 
 // An external-library asset's Immich checksum is a hash of its path, not of its bytes (Immich's
-// library service, checksum algorithm sha1-path). The archive keeps it by the size rule: written
-// once, its sidecar records no checksum, and a rerun does not download it again.
-func TestExternalLibraryAssetArchivedBySize(t *testing.T) {
+// library service, checksum algorithm sha1-path). Its sidecar records it as the path checksum, and
+// the SHA-1 of the archived bytes as the checksum. A rerun recognizes the file by the path
+// checksum and does not download it again.
+func TestExternalLibraryAssetSidecarChecksums(t *testing.T) {
 	t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
 	pathSum := sha1.Sum([]byte("path:/mnt/photos/IMG_0001.JPG"))
+	pathChecksum := base64.StdEncoding.EncodeToString(pathSum[:])
 	srv := fakeImmich(t, func(asset map[string]any) {
 		asset["libraryId"] = testLibrary
-		asset["checksum"] = base64.StdEncoding.EncodeToString(pathSum[:])
+		asset["checksum"] = pathChecksum
 	})
 	defer srv.Close()
 	dst := t.TempDir()
@@ -237,7 +239,12 @@ func TestExternalLibraryAssetArchivedBySize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(sidecar, []byte(`"checksum"`)) {
-		t.Fatalf("the sidecar records the path checksum:\n%s", sidecar)
+	var md assets.Metadata
+	if err := jsonsidecar.Read(bytes.NewReader(sidecar), &md); err != nil {
+		t.Fatal(err)
+	}
+	bytesSum := sha1.Sum([]byte(testOriginal))
+	if want := base64.StdEncoding.EncodeToString(bytesSum[:]); md.Checksum != want || md.PathChecksum != pathChecksum {
+		t.Fatalf("sidecar checksum %q, path checksum %q; want %q, %q:\n%s", md.Checksum, md.PathChecksum, want, pathChecksum, sidecar)
 	}
 }

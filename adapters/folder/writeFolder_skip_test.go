@@ -68,6 +68,9 @@ func listFiles(t *testing.T, root string) []string {
 	return out
 }
 
+// Immich timeline assets, whose Open is a download: a rerun downloads nothing and writes nothing,
+// a changed description rewrites the sidecar only, and a file of another size under the name is
+// not taken for the asset.
 func TestWriteAssetSkipsPresentFiles(t *testing.T) {
 	t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
 	srcDir, dst := t.TempDir(), t.TempDir()
@@ -82,9 +85,11 @@ func TestWriteAssetSkipsPresentFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := func(descA string) {
+		a := newImmichAsset(src, "a", "IMG_1.JPG", len("first asset"), sha1Base64("first asset"))
+		a.FromApplication.Description = descA
 		for _, a := range []*assets.Asset{
-			newAsset(src, "a", "IMG_1.JPG", len("first asset"), descA),
-			newAsset(src, "b", "IMG_1.JPG", len("a different asset, same name"), ""),
+			a,
+			newImmichAsset(src, "b", "IMG_1.JPG", len("a different asset, same name"), sha1Base64("a different asset, same name")),
 		} {
 			if err := w.WriteAsset(context.Background(), a); err != nil {
 				t.Fatal(err)
@@ -142,7 +147,7 @@ func TestWriteAssetSkipsPresentFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dst, "2021/2021-07/IMG_2.JPG"), []byte("short"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a := newAsset(src, "a", "IMG_2.JPG", len("first asset"), "")
+	a := newImmichAsset(src, "a", "IMG_2.JPG", len("first asset"), sha1Base64("first asset"))
 	if err := w.WriteAsset(context.Background(), a); err != nil {
 		t.Fatal(err)
 	}
@@ -207,10 +212,10 @@ func TestOpenFileReturnsChecksum(t *testing.T) {
 	}
 }
 
-// An asset whose size the server does not know yet (FileSize 0) is downloaded again to be
-// compared, but never written a second time as ~N; another unknown-size asset with the same name
-// and other bytes still gets ~1. Run with a streamed source (the SHA-1 comes from the cache
-// reader) and with a local file opened in place (sameContent hashes it itself).
+// An asset with no checksum from its source and no known size (FileSize 0) is read again on a
+// rerun, to compare its SHA-1 with its sidecar's, but never written a second time as ~N; another
+// such asset with the same name and other bytes still gets ~1. Run with a streamed source (the
+// SHA-1 comes from the cache reader) and with a local file opened in place (read to hash it).
 func TestWriteAssetUnknownSizeMakesNoCopy(t *testing.T) {
 	for _, plain := range []bool{false, true} {
 		t.Run(map[bool]string{false: "streamed", true: "local"}[plain], func(t *testing.T) { unknownSize(t, plain) })
@@ -258,7 +263,7 @@ func unknownSize(t *testing.T, plain bool) {
 		t.Fatal("run 2 rewrote the original")
 	}
 	if src.opens["z"] != 2 {
-		t.Fatalf("an unsized asset is downloaded once per run to compare: opens %d, want 2", src.opens["z"])
+		t.Fatalf("the asset is read once per run to compare: opens %d, want 2", src.opens["z"])
 	}
 
 	write("y")
@@ -268,33 +273,6 @@ func unknownSize(t *testing.T, plain bool) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_3~1.JPG")); string(b) != "another, also unsized" {
 		t.Fatalf("IMG_3~1.JPG holds %q", b)
-	}
-}
-
-// With a valid checksum, sameContent compares by it and does not read the download again: here the
-// download is open write-only, so any read of it would fail.
-func TestSameContentUsesChecksum(t *testing.T) {
-	dst := t.TempDir()
-	body := []byte("the same bytes")
-	if err := os.WriteFile(filepath.Join(dst, "IMG_4.JPG"), body, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	dl := filepath.Join(t.TempDir(), "download")
-	if err := os.WriteFile(dl, body, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	r, err := os.OpenFile(dl, os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.Close()
-	sum := sha1.Sum(body)
-	match, err := sameContent(osfs.DirFS(dst), ".", []string{"IMG_4.JPG"}, r, base64.StdEncoding.EncodeToString(sum[:]))
-	if err != nil || match != "IMG_4.JPG" {
-		t.Fatalf("sameContent = %q, %v; want IMG_4.JPG without reading the download", match, err)
-	}
-	if _, err := sameContent(osfs.DirFS(dst), ".", []string{"IMG_4.JPG"}, r, ""); err == nil {
-		t.Fatal("without a checksum sameContent must read the download (and fail here)")
 	}
 }
 
