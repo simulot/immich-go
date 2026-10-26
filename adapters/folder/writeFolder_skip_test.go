@@ -169,27 +169,41 @@ func equal(a, b []string) bool {
 	return true
 }
 
-// The premise of sameContent: after Asset.OpenFile on a streamed source (an Immich download),
-// a.Checksum is the base64 SHA-1 of the bytes the cache reader wrote.
-func TestOpenFileChecksumIsDownloadSHA1(t *testing.T) {
+// Asset.OpenFile on a streamed source (an Immich download) returns the base64 SHA-1 of the bytes
+// the cache reader wrote, on every call, and leaves a.Checksum, what the source declares, as it
+// is. A local file opened in place gives no checksum.
+func TestOpenFileReturnsChecksum(t *testing.T) {
 	t.Setenv("IMMICHGO_TEMPDIR", t.TempDir())
 	srcDir := t.TempDir()
 	body := "streamed bytes"
 	if err := os.WriteFile(filepath.Join(srcDir, "s"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}}
-	a := newAsset(src, "s", "S.JPG", 0, "")
-	a.Checksum = "stale"
-	r, err := a.OpenFile()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer a.Close()
-	defer r.Close()
-	sum := sha1.Sum([]byte(body))
-	if want := base64.StdEncoding.EncodeToString(sum[:]); a.Checksum != want {
-		t.Fatalf("a.Checksum after OpenFile is %q, want %q (the download's SHA-1)", a.Checksum, want)
+	for _, plain := range []bool{false, true} {
+		src := &countingFS{FS: os.DirFS(srcDir), opens: map[string]int{}, plain: plain}
+		a := newAsset(src, "s", "S.JPG", 0, "")
+		a.Checksum = "declared"
+		want := sha1Base64(body)
+		if plain {
+			want = ""
+		}
+		for call := 1; call <= 2; call++ {
+			r, sum, err := a.OpenFile()
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = r.Close()
+			if sum != want {
+				t.Fatalf("plain %v, call %d: OpenFile returned the checksum %q, want %q", plain, call, sum, want)
+			}
+			if a.Checksum != "declared" {
+				t.Fatalf("plain %v, call %d: a.Checksum after OpenFile is %q, want %q", plain, call, a.Checksum, "declared")
+			}
+		}
+		if src.opens["s"] != 1 {
+			t.Fatalf("plain %v: the source was opened %d times, want once", plain, src.opens["s"])
+		}
+		_ = a.Close()
 	}
 }
 

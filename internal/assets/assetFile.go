@@ -12,26 +12,32 @@ import (
 
 // OpenFile return an os.File whatever the type of source reader is.
 // It can be called several times for the same asset.
-
-func (a *Asset) OpenFile() (osfs.OSFS, error) {
+//
+// It also returns the SHA-1 of the asset's bytes, base64, when it computed one: a source that is
+// not an os.File (an Immich download, a file in a zip) is copied once into a temporary file, and
+// hashed during that copy. A local file is opened in place, and the checksum is "". a.Checksum,
+// what the source declares, is left as it is.
+func (a *Asset) OpenFile() (osfs.OSFS, string, error) {
 	if a.cacheReader == nil {
 		// get a FS.File from of the asset
 		f, err := a.File.Open()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		debugfiles.TrackOpenFile(f, a.File.FullName())
 		// Create a cache reader from the FS.File
 		cr, sha1, err := cachereader.NewCacheReader(a.File.FullName(), f)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		a.cacheReader = cr
-		if sha1 != "" {
-			a.Checksum = sha1
-		}
+		a.cacheChecksum = sha1
 	}
-	return a.cacheReader.OpenFile()
+	f, err := a.cacheReader.OpenFile()
+	if err != nil {
+		return nil, "", err
+	}
+	return f, a.cacheChecksum, nil
 }
 
 // Close close the temporary file  and close the source

@@ -75,11 +75,9 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	default:
 	}
 
-	// The asset's checksum as its source gives it, before the asset is opened, when its sidecar
-	// records the same one: Immich's SHA-1 of the original file, base64. Sources other than
-	// from-immich give none, and from-immich records none for an external-library asset (its Immich
-	// checksum hashes its path). Asset.OpenFile replaces a.Checksum with the SHA-1 of the bytes it
-	// reads, so the two are kept apart.
+	// The asset's checksum as its source gives it, when its sidecar records the same one: Immich's
+	// SHA-1 of the original file, base64. Sources other than from-immich give none, and from-immich
+	// records none for an external-library asset (its Immich checksum hashes its path).
 	knownChecksum := ""
 	if a.FromApplication != nil && a.FromApplication.Checksum == a.Checksum {
 		knownChecksum = a.Checksum
@@ -137,10 +135,9 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 	}
 
 	if !present {
-		// Cleared, a.Checksum after OpenFile is the SHA-1 the cache reader computed while it copied
-		// a streamed source (an Immich download), or "" for a local file opened in place.
-		a.Checksum = ""
-		r, err := a.OpenFile()
+		// downloadChecksum is the SHA-1 the cache reader computed while it copied a streamed
+		// source (an Immich download), or "" for a local file opened in place.
+		r, downloadChecksum, err := a.OpenFile()
 		if err != nil {
 			return err
 		}
@@ -153,14 +150,12 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		// The download must be the asset: its SHA-1 must be the known checksum, or nothing is
 		// written.
 		if knownChecksum != "" {
-			downloadChecksum := a.Checksum
 			if downloadChecksum == "" {
 				sum, err := sha1Of(r)
 				if err != nil {
 					return err
 				}
 				downloadChecksum = base64.StdEncoding.EncodeToString(sum)
-				a.Checksum = downloadChecksum
 			}
 			if downloadChecksum != knownChecksum {
 				return fmt.Errorf("%s: the downloaded bytes have the SHA-1 %s, the asset's checksum is %s", path.Join(dir, name), downloadChecksum, knownChecksum)
@@ -170,7 +165,7 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		// Only then is the download compared; the cost is one download per run until the size is
 		// known, and never a ~N copy.
 		if len(taken) > 0 {
-			if match, err := sameContent(w.WriteToFS, dir, taken, r, a.Checksum); err != nil {
+			if match, err := sameContent(w.WriteToFS, dir, taken, r, downloadChecksum); err != nil {
 				return err
 			} else if match != "" {
 				name, present = match, true
@@ -254,8 +249,8 @@ func isArchived(fsys fs.FS, name string, fi fs.FileInfo, size int, checksum stri
 }
 
 // sameContent returns the first of names (in dir) whose bytes equal r's, or "". r is rewound.
-// downloadChecksum is the SHA-1 of r, base64: a.Checksum after Asset.OpenFile, which the cache
-// reader computed while it copied the download to r, so r is not read again. Without a valid one
+// downloadChecksum is the SHA-1 of r, base64, as Asset.OpenFile returned it: the cache reader
+// computed it while it copied the download to r, so r is not read again. Without a valid one
 // (a local file opened in place, where OpenFile computes none), r is hashed here.
 func sameContent(fsys fs.FS, dir string, names []string, r osfs.OSFS, downloadChecksum string) (string, error) {
 	fi, err := r.Stat()
