@@ -252,6 +252,103 @@ func TestRebuildTwoSourceStacksShareServerAsset(t *testing.T) {
 	}
 }
 
+// applyCreate applies a new stack as Immich makes it (stack.repository.ts, create): a stack whose
+// primary is among the new stack's assets is deleted and all its assets join the new stack; an
+// asset that is another stack's member, not its primary, leaves that stack, which stays with the
+// rest. The checks of the next source stacks then see the result.
+func TestServerStacksApplyCreate(t *testing.T) {
+	type foreignCheck struct {
+		id   string
+		ours []string
+		want string // the stack foreign returns, "" for none
+	}
+	for _, tc := range []struct {
+		name    string
+		before  []immich.Stack
+		create  []string            // the new stack "new", its primary first
+		want    map[string][]string // each stack after: its primary first, then its other assets by ID
+		there   map[string]string   // alreadyThere: an order (IDs joined by ",") -> the stack it finds, "" for none
+		foreign []foreignCheck
+	}{
+		{
+			name:   "merges a stack whose primary is in the new set",
+			before: []immich.Stack{stack("grouper", "g1", "g1", "g2"), stack("other", "o1", "o1", "o2")},
+			create: []string{"x", "g1"},
+			want:   map[string][]string{"new": {"x", "g1", "g2"}, "other": {"o1", "o2"}},
+			there: map[string]string{
+				"x,g1":    "", // g2 joined it too
+				"x,g1,g2": "new",
+				"g1,g2":   "", // the grouper's stack is gone
+				"o1,o2":   "other",
+			},
+			foreign: []foreignCheck{
+				{"g2", []string{"x", "g1"}, "new"},
+				{"g2", []string{"x", "g1", "g2"}, ""},
+				{"g1", []string{"g1", "g2"}, "new"},
+			},
+		},
+		{
+			name:   "moves a member out of an unrelated stack",
+			before: []immich.Stack{stack("other", "o1", "o1", "o2", "m")},
+			create: []string{"a", "m"},
+			want:   map[string][]string{"new": {"a", "m"}, "other": {"o1", "o2"}},
+			there: map[string]string{
+				"a,m":   "new",
+				"o1,o2": "other", // m is no longer in it
+			},
+			foreign: []foreignCheck{
+				{"m", []string{"a", "m"}, ""},
+				{"m", []string{"o1", "o2", "m"}, "new"},
+				{"o2", []string{"o1", "o2"}, ""},
+				{"o2", []string{"o2", "m"}, "other"},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newServerStacks(tc.before)
+			s.applyCreate("new", tc.create)
+			got := map[string][]string{}
+			for sid, ms := range s.members {
+				order := []string{s.primary[sid]}
+				for id := range ms {
+					if s.of[id] != sid {
+						t.Errorf("asset %s is listed in stack %s, but of says %q", id, sid, s.of[id])
+					}
+					if id != s.primary[sid] {
+						order = append(order, id)
+					}
+				}
+				sort.Strings(order[1:])
+				got[sid] = order
+			}
+			if len(got) != len(tc.want) {
+				t.Errorf("stacks %v, want %v", got, tc.want)
+			}
+			for sid, w := range tc.want {
+				if !equalStrings(got[sid], w) {
+					t.Errorf("stack %s: %v, want %v (all: %v)", sid, got[sid], w, got)
+				}
+			}
+			for order, w := range tc.there {
+				st, ok := s.alreadyThere(strings.Split(order, ","))
+				if ok != (w != "") || st.ID != w {
+					t.Errorf("alreadyThere(%s): %q %v, want %q", order, st.ID, ok, w)
+				}
+			}
+			for _, c := range tc.foreign {
+				ours := map[string]bool{}
+				for _, id := range c.ours {
+					ours[id] = true
+				}
+				sid, ok := s.foreign(c.id, ours)
+				if ok != (c.want != "") || sid != c.want {
+					t.Errorf("foreign(%s, %v): %q %v, want %q", c.id, c.ours, sid, ok, c.want)
+				}
+			}
+		})
+	}
+}
+
 // A member GET /stacks does not list (trashed or hidden), whose GET /assets/{id} then fails while
 // the stack that is there is checked: the stack cannot be checked, so it is an error for that
 // stack, and nothing is made (a failed lookup is no reason to make the stack again).
