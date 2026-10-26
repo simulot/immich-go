@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -106,6 +107,96 @@ type stackAPI interface {
 	GetAssetInfo(ctx context.Context, id string) (*immich.Asset, error)
 }
 
+// serverStacks is the server's stacks as the rebuild knows them: listed once with GET /stacks, then
+// each stack the rebuild makes applied the way Immich applies it, so that the checks of a source
+// stack see the stacks made before it in the run. GET /stacks names every stack's primary but
+// leaves out its trashed and hidden members.
+type serverStacks struct {
+	primary map[string]string          // stack ID -> its primary asset
+	of      map[string]string          // asset ID -> its stack
+	members map[string]map[string]bool // stack ID -> its assets known here, the primary included
+}
+
+func newServerStacks(list []immich.Stack) *serverStacks {
+	s := &serverStacks{primary: map[string]string{}, of: map[string]string{}, members: map[string]map[string]bool{}}
+	for _, st := range list {
+		ms := map[string]bool{st.PrimaryAssetID: true}
+		for _, a := range st.Assets {
+			ms[a.ID] = true
+		}
+		s.primary[st.ID] = st.PrimaryAssetID
+		s.members[st.ID] = ms
+		for id := range ms {
+			s.of[id] = st.ID
+		}
+	}
+	return s
+}
+
+// alreadyThere returns the stack whose primary is order[0] when every asset known in it is in order:
+// it may be this very stack, if the members of order it does not list are in it too (sameStack).
+func (s *serverStacks) alreadyThere(order []string) (immich.Stack, bool) {
+	sid, ok := s.of[order[0]]
+	if !ok || s.primary[sid] != order[0] {
+		return immich.Stack{}, false
+	}
+	ours := make(map[string]bool, len(order))
+	for _, id := range order {
+		ours[id] = true
+	}
+	st := immich.Stack{ID: sid, PrimaryAssetID: order[0]}
+	for id := range s.members[sid] {
+		if !ours[id] {
+			return immich.Stack{}, false
+		}
+		st.Assets = append(st.Assets, struct {
+			ID string `json:"id"`
+		}{id})
+	}
+	return st, true
+}
+
+// foreign returns the stack that id is in when that stack holds an asset that is not in ours,
+// its primary included: a stack that is not ours to change.
+func (s *serverStacks) foreign(id string, ours map[string]bool) (stackID string, ok bool) {
+	sid, ok := s.of[id]
+	if !ok {
+		return "", false
+	}
+	for a := range s.members[sid] {
+		if !ours[a] {
+			return sid, true
+		}
+	}
+	return "", false
+}
+
+// applyCreate applies the stack id that POST /stacks made of order the way Immich makes it
+// (server/src/repositories/stack.repository.ts, create): every stack whose primary is in order is
+// deleted and its assets join the new stack, the assets of order leave any other stack, and
+// order[0] is the primary.
+func (s *serverStacks) applyCreate(id string, order []string) {
+	all := map[string]bool{}
+	for _, a := range order {
+		all[a] = true
+	}
+	for _, a := range order {
+		if sid, ok := s.of[a]; ok && s.primary[sid] == a {
+			for m := range s.members[sid] {
+				all[m] = true
+			}
+			delete(s.primary, sid)
+			delete(s.members, sid)
+		}
+	}
+	for a := range all {
+		delete(s.members[s.of[a]], a)
+		s.of[a] = id
+	}
+	s.primary[id] = order[0]
+	s.members[id] = all
+}
+
 type stackResult struct {
 	created int    // stacks made
 	present int    // stacks already there, exactly (a rerun)
@@ -125,12 +216,13 @@ func (r *stackResult) refuse(log *slog.Logger, permission string, n int, err err
 }
 
 // rebuildStacks makes, for each source stack with 2 or more members here, one stack of exactly
-// those members, its source primary first. It lists the server's stacks once: a stack that is
-// already there with the same members and primary is left alone, so reruns and resumes make no
-// duplicate. A stack whose members are all in this one, left by a run that was cut short or made
-// by the groupers (series, burst, RAW+JPEG...) earlier in this run, is taken over by the new stack
-// (Immich merges a stack whose primary is among the new stack's assets). A member in a stack with
-// other assets is left as it is, and that source stack is not made, with a warning: it does not
+// those members, its source primary first. It lists the server's stacks once, and applies to that
+// list each stack it makes (serverStacks): a stack that is already there with the same members and
+// primary is left alone, so reruns and resumes make no duplicate. A stack whose members are all in
+// this one, left by a run that was cut short or made by the groupers (series, burst, RAW+JPEG...)
+// earlier in this run, is taken over by the new stack (Immich merges a stack whose primary is among
+// the new stack's assets). A member in a stack with other assets, one made for another source
+// stack included, is left as it is, and that source stack is not made, with a warning: it does not
 // fail the upload. Missing members are logged once the stack is made; a stack with 1 member here
 // is not made. When the server refuses GET /stacks (stack.read) or POST /stacks (stack.create)
 // with 403, the stacks left are not rebuilt, with one warning and no error.
@@ -154,13 +246,7 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 	if err != nil {
 		return r, fmt.Errorf("can't list the server's stacks: %w", err)
 	}
-	stackOf := map[string]int{} // asset ID -> index in existing (its primary, and the members listed)
-	for i := range existing {
-		stackOf[existing[i].PrimaryAssetID] = i
-		for _, a := range existing[i].Assets {
-			stackOf[a.ID] = i
-		}
-	}
+	live := newServerStacks(existing)
 
 	ids := make([]string, 0, len(byStack))
 	for k := range byStack {
@@ -215,17 +301,13 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 				order = append(order, m.id)
 			}
 		}
-		members := map[string]bool{}
-		for _, id := range order {
-			members[id] = true
-		}
 
 		// Already there, exactly? A lookup that fails is an error for this stack, never a reason
 		// to make it again.
-		if i, ok := stackOf[order[0]]; ok && existing[i].PrimaryAssetID == order[0] {
-			same, err := sameStack(ctx, api, existing[i], order, members)
+		if st, ok := live.alreadyThere(order); ok {
+			same, err := sameStack(ctx, api, st, order)
 			if err != nil {
-				log.Error("stack not made: can't check the stack that is there", "source stack", sid, "stack", existing[i].ID, "err", err)
+				log.Error("stack not made: can't check the stack that is there", "source stack", sid, "stack", st.ID, "err", err)
 				r.failed++
 				continue
 			}
@@ -237,18 +319,17 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 				continue
 			}
 		}
-		// A member in a stack with other assets: not ours to change. GET /stacks leaves out trashed
-		// and hidden assets, so a primary that is not ours makes it another stack too.
+		// A member in a stack with other assets, made earlier in this run or not: not ours to
+		// change. GET /stacks leaves out trashed and hidden assets, so a primary that is not ours
+		// makes it another stack too.
+		ours := make(map[string]bool, len(order))
+		for _, id := range order {
+			ours[id] = true
+		}
 		var other []string
 		for _, id := range order {
-			if i, ok := stackOf[id]; ok {
-				mixed := !members[existing[i].PrimaryAssetID]
-				for _, a := range existing[i].Assets {
-					mixed = mixed || !members[a.ID]
-				}
-				if mixed {
-					other = append(other, existing[i].ID)
-				}
+			if s, ok := live.foreign(id, ours); ok && !slices.Contains(other, s) {
+				other = append(other, s)
 			}
 		}
 		if len(other) > 0 {
@@ -267,6 +348,7 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			r.failed++
 			continue
 		}
+		live.applyCreate(newID, order)
 		log.Debug("stack made", "source stack", sid, "stack", newID, "primary", ms[p].file, "members", len(order))
 		if want > len(ms) {
 			log.Warn("stack made without its missing members", "source stack", sid,
@@ -280,17 +362,14 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 	return r, nil
 }
 
-// sameStack tells whether st is the stack of exactly these members, with order[0] its primary.
-// GET /stacks leaves out trashed and hidden members, so a member it does not list is looked up
-// with GET /assets/{id} (which reports its stack while another member is on the timeline); a
-// member neither shows in st means it is not (and the stack is made again: Immich merges it). A
-// failed GET /assets/{id} is returned as the error: it tells nothing about the stack.
-func sameStack(ctx context.Context, api stackAPI, st immich.Stack, order []string, members map[string]bool) (bool, error) {
+// sameStack tells whether st, the stack alreadyThere returns for order, is the stack of exactly
+// these members. GET /stacks leaves out trashed and hidden members, so a member st does not list
+// is looked up with GET /assets/{id} (which reports its stack while another member is on the
+// timeline); a member neither shows in st means it is not (and the stack is made again: Immich
+// merges it). A failed GET /assets/{id} is returned as the error: it tells nothing about the stack.
+func sameStack(ctx context.Context, api stackAPI, st immich.Stack, order []string) (bool, error) {
 	listed := map[string]bool{st.PrimaryAssetID: true}
 	for _, a := range st.Assets {
-		if !members[a.ID] {
-			return false, nil
-		}
 		listed[a.ID] = true
 	}
 	for _, id := range order {

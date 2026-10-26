@@ -220,6 +220,37 @@ func TestRebuildStacksOverAGrouperStack(t *testing.T) {
 	}
 }
 
+// Two source stacks share one asset here (two files with the same content end as one server
+// asset). POST /stacks for the second would move that asset out of the stack just made for the
+// first, without a word. The checks see the stacks made earlier in the run: the second source
+// stack is not made, with the warning of a member in another stack.
+func TestRebuildTwoSourceStacksShareServerAsset(t *testing.T) {
+	src := collect(
+		m("2006/2006-05/IMG_1.JPG", "x", "S1", true, 2),
+		m("2006/2006-05/IMG_2.JPG", "shared", "S1", false, 2),
+		m("2007/2007-01/IMG_8.JPG", "y", "S2", true, 2),
+		m("2007/2007-01/IMG_9.JPG", "shared", "S2", false, 2),
+	)
+	f := &fakeStacks{}
+	var logBuf bytes.Buffer
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := [][]string{{"x", "shared"}}; !slices.EqualFunc(f.creates, want, equalStrings) || r.created != 1 || r.notMade != 1 {
+		t.Fatalf("POST /stacks %v, result %+v; want only %v, and S2 not made", f.creates, r, want)
+	}
+	var warning string
+	for line := range strings.Lines(logBuf.String()) {
+		if strings.Contains(line, "a member is in another stack") {
+			warning = line
+		}
+	}
+	if !strings.Contains(warning, "level=WARN") || !strings.Contains(warning, "S2") || !strings.Contains(warning, "stack-1") {
+		t.Errorf("want a warning that a member of S2 is in stack-1, made for S1; log:\n%s", logBuf.String())
+	}
+}
+
 // A member GET /stacks does not list (trashed or hidden), whose GET /assets/{id} then fails while
 // the stack that is there is checked: the stack cannot be checked, so it is an error for that
 // stack, and nothing is made (a failed lookup is no reason to make the stack again).
