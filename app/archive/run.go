@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"context"
 	"errors"
 	"os"
 
@@ -14,8 +15,10 @@ import (
 )
 
 func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
-	// ready to run
-	ctx := cmd.Context()
+	// The run's context. An error that stops the run cancels it, which stops the adapter too, and
+	// the run ends with that error, its cause, as upload does.
+	ctx, cancel := context.WithCancelCause(cmd.Context())
+	defer cancel(nil)
 	log := ac.app.Log()
 	log.Info("in ArchiveCmd.Run", "archivePath", ac.ArchivePath)
 
@@ -40,16 +43,18 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	}
 
 	gChan := adapter.Browse(ctx)
-	errCount := 0
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case g, ok := <-gChan:
 			if !ok {
-				// The adapter closes its channel at the end, and also when the run is cancelled:
-				// then the run did not finish.
-				return ctx.Err()
+				// The adapter closes its channel at the end, and also when the run is cancelled
+				// or when it fails.
+				if ctx.Err() != nil {
+					return context.Cause(ctx)
+				}
+				return ac.runErrors()
 			}
 			for _, a := range g.Assets {
 				// Closed even when it is refused: closing removes the cache reader's copy of the download.
@@ -60,19 +65,31 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 					ac.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedFileArchived)
 				case ctx.Err() != nil && errors.Is(err, ctx.Err()):
 					// The run is cancelled, and the asset with it: that is not an error of the
-					// asset, and it does not count toward the error limit. The run ends with the
-					// context's error.
-					return ctx.Err()
+					// asset, and it does not count against --on-errors. The run ends with the
+					// cancellation.
+					return context.Cause(ctx)
 				default:
 					ac.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorFileAccess, err)
-					errCount++
-					if errCount > 5 {
-						err := errors.New("too many errors, aborting")
-						log.Error(err.Error())
-						return err
+					// --on-errors tells whether the run goes on. When it stops, the run ends with
+					// this error, or with the cancellation when the run was cancelled first (a
+					// download cut short by it): a cancelled context keeps its first cause.
+					if err := ac.app.ProcessError(err); err != nil {
+						cancel(err)
+						return context.Cause(ctx)
 					}
 				}
 			}
 		}
 	}
+}
+
+// runErrors returns an error when the run had one, even when --on-errors let it go on: an asset
+// not archived, or an error the adapter counted against --on-errors or recorded as an event.
+func (ac *ArchiveCmd) runErrors() error {
+	counts := ac.app.FileProcessor().Logger().GetCounts()
+	if counts[fileevent.ErrorUploadFailed]+counts[fileevent.ErrorServerError]+counts[fileevent.ErrorFileAccess]+counts[fileevent.ErrorIncomplete] > 0 ||
+		ac.app.NumErrors() > 0 {
+		return errors.New("some errors have occurred, look at the log for details")
+	}
+	return nil
 }

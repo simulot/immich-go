@@ -42,7 +42,7 @@ func (r oneGroup) Browse(context.Context) chan *assets.Group {
 }
 
 // An asset the writer refuses (here, a download that is not the asset) is closed all the same:
-// the cache reader's temporary copy of the download is removed.
+// the cache reader's temporary copy of the download is removed. The run ends with an error.
 func TestRunClosesAssetOnWriteError(t *testing.T) {
 	cache := t.TempDir()
 	t.Setenv("IMMICHGO_TEMPDIR", cache)
@@ -64,8 +64,8 @@ func TestRunClosesAssetOnWriteError(t *testing.T) {
 	ac.app.Log().Logger = slog.New(slog.DiscardHandler)
 	cmd := &cobra.Command{}
 	cmd.SetContext(ctx)
-	if err := ac.Run(cmd, oneGroup{assets.NewGroup(assets.GroupByNone, a)}); err != nil {
-		t.Fatal(err)
+	if err := ac.Run(cmd, oneGroup{assets.NewGroup(assets.GroupByNone, a)}); err == nil {
+		t.Fatal("the run returned no error; want the refused asset's")
 	}
 
 	err := filepath.WalkDir(archive, func(p string, d fs.DirEntry, err error) error {
@@ -109,11 +109,11 @@ func (c cancellingFS) Open(string) (fs.File, error) {
 	return nil, c.err
 }
 
-// After a cancel, the errors of the assets that are only the cancellation do not count toward the
-// error limit: the run ends with the context's error, never with "too many errors". The first
-// download is cut short by the cancel, with the context's error or another one; every other asset
-// of the group, more than the limit, then fails with the context's error.
-func TestRunCancelledMidGroupIsNotTooManyErrors(t *testing.T) {
+// After a cancel, the errors of the assets are the cancellation's: they do not count against
+// --on-errors (stop, here), and the run ends with the context's error, never with an asset's. The
+// first download is cut short by the cancel, with the context's error or another one; every other
+// asset of the group then fails with the context's error.
+func TestRunCancelledMidGroupEndsWithTheCancel(t *testing.T) {
 	for name, cutErr := range map[string]error{"context error": context.Canceled, "other error": io.ErrUnexpectedEOF} {
 		t.Run(name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
