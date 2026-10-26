@@ -125,8 +125,8 @@ each run reads the source file of each asset already archived, and, for a photo 
 file (from a plain folder), the archived file too.
 
 A file cut short after it was archived, whose `.JSON` file has the asset's `checksum` but whose
-size is not the asset's, is not the asset: the asset is written under `~1`, and the truncated file
-stays.
+size is not the asset's, is not the asset when the asset's size is known: the asset is written
+under `~1`, and the truncated file stays.
 
 Immich keeps edits apart from the original. The archive holds the original file of each asset, and
 editing a photo in Immich does not change its checksum: the next run does not download it again.
@@ -175,9 +175,19 @@ replaces the other.
 
 An asset that cannot be archived (a failed download, a full disk...) is logged as an error.
 `--on-errors` says when the run stops: at the first error (`stop`, the default), never
-(`continue`), or when there are more than N errors (`--on-errors=N`). A run with an asset not
-archived, or with an error reported by its source, exits with a non-zero status, also with
-`--on-errors=continue`: a scheduled archive with photos missing does not report success.
+(`continue`), or when there are more than N errors (`--on-errors=N`).
+
+The run exits with a non-zero status, also with `--on-errors=continue`, when:
+
+- an asset was not archived;
+- the source counted an error through `--on-errors`, as `from-immich` does when the server fails;
+- the source logged a file it could not read as an error, as `from-folder` does for a `.JSON`,
+  `.XMP` or album file.
+
+A folder that cannot be read does not change the exit status yet: `from-folder` logs it as an
+error (`<folder>: file does not exist`), and `from-google-photos` skips it without a message. A
+failure of `from-google-photos` while it walks the takeout as a whole does not change it either,
+and is not logged.
 
 ## Examples
 
