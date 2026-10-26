@@ -91,7 +91,8 @@ func TestArchiveSecondRunDownloadsNothing(t *testing.T) {
 
 // TestArchiveInterruptedRunResumes cuts a download short halfway and cancels the run, then leaves
 // one archived file as a run killed while writing it would. The next run downloads only what is
-// missing, and every asset ends up archived once, under its own name.
+// missing, every asset ends up archived once, under its own name, and the killed run's .partial
+// file is left alone.
 func TestArchiveInterruptedRunResumes(t *testing.T) {
 	const assetCount, cutAt = 40, 6
 	adm, u := e2eAdmin(t), e2eNewUser(t)
@@ -115,14 +116,14 @@ func TestArchiveInterruptedRunResumes(t *testing.T) {
 		t.Fatalf("interrupted run: %d assets archived, want %d", len(archived), cutAt-1)
 	}
 
-	// A run killed while it writes a file leaves the bytes it got in .<name>.partial, and neither
-	// the file nor its .JSON sidecar.
+	// A run killed while it writes a file leaves the bytes it got in .<name>.<random>.partial, and
+	// neither the file nor its .JSON sidecar.
 	killed := archived[slices.Sorted(maps.Keys(archived))[0]]
 	b, err := os.ReadFile(killed)
 	if err != nil {
 		t.Fatal(err)
 	}
-	partial := filepath.Join(filepath.Dir(killed), "."+filepath.Base(killed)+".partial")
+	partial := filepath.Join(filepath.Dir(killed), "."+filepath.Base(killed)+".1234567890.partial")
 	if err := os.WriteFile(partial, b[:len(b)/2], 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -143,6 +144,13 @@ func TestArchiveInterruptedRunResumes(t *testing.T) {
 		fileevent.ProcessedFileArchived: assetCount,
 		fileevent.ErrorFileAccess:       0,
 	}, false, a.FileProcessor())
+	// The killed run's .partial file is left as it is: it could be another run's, still writing.
+	if got, err := os.ReadFile(partial); err != nil || !bytes.Equal(got, b[:len(b)/2]) {
+		t.Errorf("%s: %d bytes (%v), want the killed run's %d, untouched", partial, len(got), err, len(b)/2)
+	}
+	if err := os.Remove(partial); err != nil {
+		t.Fatal(err)
+	}
 	archived = checkArchivedFiles(t, dir, checksums)
 	for name := range checksums {
 		if _, ok := archived[name]; !ok {

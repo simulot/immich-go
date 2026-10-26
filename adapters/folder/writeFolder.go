@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math/rand/v2"
 	"os"
 	"path"
+	"strconv"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
@@ -344,13 +346,13 @@ func sha1Of(r io.Reader) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// writeAtomic writes r to ".<name>.partial" beside name, syncs it, then renames it to name, and
-// returns the SHA-1 of the bytes it wrote, base64. With size > 0, r must give exactly size bytes,
-// and with checksum set, their SHA-1 must be checksum; otherwise the .partial file is removed and
-// name is not written.
+// writeAtomic writes r to a new ".<name>.<random>.partial" file beside name, syncs it, then
+// renames it to name, and returns the SHA-1 of the bytes it wrote, base64. Each call writes its
+// own .partial file: two runs that write the same name never write into the same file. With
+// size > 0, r must give exactly size bytes, and with checksum set, their SHA-1 must be checksum.
+// On any error, the rename's included, the .partial file is removed and name is not written.
 func writeAtomic(fsys fs.FS, name string, r io.Reader, size int64, checksum string) (string, error) {
-	tmp := path.Join(path.Dir(name), "."+path.Base(name)+".partial")
-	f, err := fshelper.OpenFile(fsys, tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	f, tmp, err := createPartial(fsys, name)
 	if err != nil {
 		return "", err
 	}
@@ -371,14 +373,28 @@ func writeAtomic(fsys fs.FS, name string, r io.Reader, size int64, checksum stri
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}
+	if err == nil {
+		err = fshelper.Rename(fsys, tmp, name)
+	}
 	if err != nil {
 		_ = fshelper.Remove(fsys, tmp)
 		return "", err
 	}
-	if err := fshelper.Rename(fsys, tmp, name); err != nil {
-		return "", err
-	}
 	return sum, nil
+}
+
+// createPartial creates the .partial file of name, ".<name>.<random>.partial" in name's folder,
+// under a name no file has yet, as os.CreateTemp does, and returns it with its name.
+func createPartial(fsys fs.FS, name string) (fshelper.WFile, string, error) {
+	dir, base := path.Split(name)
+	for range 10000 {
+		tmp := path.Join(dir, "."+base+"."+strconv.FormatUint(uint64(rand.Uint32()), 10)+".partial")
+		f, err := fshelper.OpenFile(fsys, tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if !errors.Is(err, fs.ErrExist) {
+			return f, tmp, err
+		}
+	}
+	return nil, "", fmt.Errorf("%s: no free name for its .partial file", name)
 }
 
 func (w *LocalAssetWriter) pathOfAsset(a *assets.Asset) string {
