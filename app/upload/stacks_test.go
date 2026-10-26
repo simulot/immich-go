@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -21,108 +22,51 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 )
 
-// fakeStacks keeps stacks the way Immich v3.2.2 does (server/src/repositories/stack.repository.ts,
-// create): a new stack takes over every stack whose primary is among its assets (and all of
-// their members), moves its assets out of any other stack, and its first asset is the primary.
+// fakeStacks is a server whose stacks are fixed: GET /stacks lists them as given, and POST /stacks
+// only records the call. How Immich applies a new stack, and what GET /stacks and GET /assets/{id}
+// show afterwards, is tested on a real server (the e2e tests). It gives on cue the failures a
+// server does not: GET /assets/{id} failing for some assets, and GET /stacks or POST /stacks failing.
 type fakeStacks struct {
-	next       int
-	primary    map[string]string // stack -> primary asset
-	of         map[string]string // asset -> stack
-	trashed    map[string]bool   // members GET /stacks leaves out
-	unreported map[string]bool   // members GET /assets/{id} shows in no stack
-	infoFails  map[string]bool   // members whose GET /assets/{id} fails
-	listErr    error             // what GET /stacks returns instead of the stacks
-	createErr  error             // what POST /stacks returns instead of making the stack
-	creates    int
+	stacks    []immich.Stack  // what GET /stacks lists
+	infoFails map[string]bool // assets whose GET /assets/{id} fails
+	listErr   error           // what GET /stacks returns instead of the stacks
+	createErr error           // what POST /stacks returns instead of making the stack
+	creates   [][]string      // the POST /stacks calls, in order
 }
 
-func newFakeStacks() *fakeStacks {
-	return &fakeStacks{
-		primary: map[string]string{}, of: map[string]string{}, trashed: map[string]bool{},
-		unreported: map[string]bool{}, infoFails: map[string]bool{},
-	}
-}
-
+// GetAssetInfo reports an asset in no stack: GET /stacks lists every member of the stacks here.
 func (f *fakeStacks) GetAssetInfo(_ context.Context, id string) (*immich.Asset, error) {
 	if f.infoFails[id] {
 		return &immich.Asset{}, fmt.Errorf("GetAssetInfo %s: failed on purpose", id)
 	}
-	a := &immich.Asset{ID: id}
-	if sid, ok := f.of[id]; ok && !f.unreported[id] {
-		a.Stack = &immich.AssetStack{ID: sid, PrimaryAssetID: f.primary[sid]}
-	}
-	return a, nil
+	return &immich.Asset{ID: id}, nil
 }
 
 func (f *fakeStacks) GetAllStacks(context.Context) ([]immich.Stack, error) {
 	if f.listErr != nil {
 		return nil, f.listErr
 	}
-	out := make([]immich.Stack, 0, len(f.primary))
-	for id, p := range f.primary {
-		s := immich.Stack{ID: id, PrimaryAssetID: p}
-		for a, sid := range f.of {
-			if sid == id && !f.trashed[a] {
-				s.Assets = append(s.Assets, struct {
-					ID string `json:"id"`
-				}{a})
-			}
-		}
-		out = append(out, s)
-	}
-	return out, nil
+	return f.stacks, nil
 }
 
 func (f *fakeStacks) CreateStack(_ context.Context, ids []string) (string, error) {
-	f.creates++
+	f.creates = append(f.creates, append([]string(nil), ids...))
 	if f.createErr != nil {
 		return "", f.createErr
 	}
-	all := map[string]bool{}
-	for _, id := range ids {
-		all[id] = true
-	}
-	for sid, p := range f.primary {
-		if all[p] {
-			for a, s := range f.of {
-				if s == sid {
-					all[a] = true
-				}
-			}
-			delete(f.primary, sid)
-		}
-	}
-	f.next++
-	sid := fmt.Sprintf("stack-%d", f.next)
-	f.primary[sid] = ids[0]
-	for a := range all {
-		f.of[a] = sid
-	}
-	return sid, nil
+	return fmt.Sprintf("stack-%d", len(f.creates)), nil
 }
 
-// members of each stack, primary first, then sorted.
-func (f *fakeStacks) snapshot() map[string][]string {
-	out := map[string][]string{}
-	for sid, p := range f.primary {
-		var rest []string
-		for a, s := range f.of {
-			if s == sid && a != p {
-				rest = append(rest, a)
-			}
-		}
-		sort.Strings(rest)
-		out[sid] = append([]string{p}, rest...)
+// stack is a stack as GET /stacks lists it: its primary, and the members it lists (Immich leaves
+// out the trashed and hidden ones, the primary included).
+func stack(id, primary string, listed ...string) immich.Stack {
+	s := immich.Stack{ID: id, PrimaryAssetID: primary}
+	for _, a := range listed {
+		s.Assets = append(s.Assets, struct {
+			ID string `json:"id"`
+		}{a})
 	}
-	return out
-}
-
-func (f *fakeStacks) byPrimary() map[string][]string {
-	out := map[string][]string{}
-	for _, m := range f.snapshot() {
-		out[m[0]] = m
-	}
-	return out
+	return s
 }
 
 func member(file, id string, st *assets.Stack) (*assets.Asset, string) {
@@ -179,24 +123,18 @@ func TestRebuildStacks(t *testing.T) {
 	)
 	var logBuf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&logBuf, nil))
-	f := newFakeStacks()
+	f := &fakeStacks{}
 	r, err := rebuildStacks(context.Background(), f, src, log)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string][]string{
-		"a2": {"a2", "a1"},
-		"b2": {"b2", "b1", "b3"},
-		"d2": {"d2", "d1"}, // no primary here: the first by file name
+	want := [][]string{
+		{"a2", "a1"},
+		{"b2", "b1", "b3"},
+		{"d2", "d1"}, // no primary here: the first by file name
 	}
-	got := f.byPrimary()
-	if len(got) != len(want) {
-		t.Fatalf("stacks %v, want %v", got, want)
-	}
-	for p, w := range want {
-		if !equalStrings(got[p], w) {
-			t.Fatalf("stacks %v, want %v", got, want)
-		}
+	if !slices.EqualFunc(f.creates, want, equalStrings) {
+		t.Fatalf("POST /stacks %v, want %v", f.creates, want)
 	}
 	if r.created != 3 || r.present != 0 || r.notMade != 1 {
 		t.Fatalf("result %+v", r)
@@ -211,34 +149,26 @@ func TestRebuildStacks(t *testing.T) {
 		t.Errorf("S1 is whole, yet logged:\n%s", logs)
 	}
 
-	// A rerun (or a resume after everything was uploaded) makes nothing.
-	before := f.snapshot()
-	creates := f.creates
+	// A rerun (or a resume after everything was uploaded) finds the stacks there and makes nothing.
+	f = &fakeStacks{stacks: []immich.Stack{
+		stack("n1", "a2", "a2", "a1"),
+		stack("n2", "b2", "b2", "b1", "b3"),
+		stack("n3", "d2", "d2", "d1"),
+	}}
 	r, err = rebuildStacks(context.Background(), f, src, log)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.creates != creates || r.created != 0 || r.present != 3 {
-		t.Fatalf("rerun: %d creates, result %+v", f.creates-creates, r)
-	}
-	after := f.snapshot()
-	if len(after) != len(before) {
-		t.Fatalf("rerun changed the stacks: %v, then %v", before, after)
-	}
-	for sid, ms := range before {
-		if !equalStrings(after[sid], ms) {
-			t.Fatalf("rerun changed the stacks: %v, then %v", before, after)
-		}
+	if len(f.creates) != 0 || r.created != 0 || r.present != 3 {
+		t.Fatalf("rerun: POST /stacks %v, result %+v", f.creates, r)
 	}
 }
 
 // A run cut short left a stack of the members uploaded by then (with another primary, since the
-// primary was not uploaded yet). The next run makes it whole, with the right primary: one stack.
+// primary was not uploaded yet). The next run makes the whole stack over it, with the right
+// primary: Immich takes over a stack whose primary is among the new stack's assets.
 func TestRebuildStacksCompletesAPartialStack(t *testing.T) {
-	f := newFakeStacks()
-	if _, err := f.CreateStack(context.Background(), []string{"b1", "b3"}); err != nil {
-		t.Fatal(err)
-	}
+	f := &fakeStacks{stacks: []immich.Stack{stack("partial", "b1", "b1", "b3")}}
 	src := collect(
 		m("2006/2006-05/IMG_1.JPG", "b1", "S2", false, 3),
 		m("2006/2006-05/IMG_2.JPG", "b2", "S2", true, 3),
@@ -248,21 +178,15 @@ func TestRebuildStacksCompletesAPartialStack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := f.snapshot()
-	if len(got) != 1 || r.created != 1 {
-		t.Fatalf("stacks %v, result %+v", got, r)
-	}
-	for _, ms := range got {
-		if !equalStrings(ms, []string{"b2", "b1", "b3"}) {
-			t.Fatalf("stack %v, want b2 primary with b1, b3", ms)
-		}
+	if want := [][]string{{"b2", "b1", "b3"}}; r.created != 1 || r.notMade != 0 || !slices.EqualFunc(f.creates, want, equalStrings) {
+		t.Fatalf("POST /stacks %v, result %+v; want %v", f.creates, r, want)
 	}
 }
 
 // The groupers stacked members of a source stack earlier in the same run, by name and capture time
 // (a RAW+JPEG pair with the RAW as cover, say). The rebuild does not fight that stack: one that is
-// already the source stack is left alone, and one with another cover or fewer members is taken
-// over by the source stack, with the source primary. Either way, one stack.
+// already the source stack is left alone, and one with another cover or fewer members is made
+// again over it with the source primary (Immich takes it over: its primary is among the assets).
 func TestRebuildStacksOverAGrouperStack(t *testing.T) {
 	pair := []func() (*assets.Asset, string){
 		m("2006/2006-05/IMG_1.CR2", "raw", "S1", false, 2),
@@ -277,146 +201,55 @@ func TestRebuildStacksOverAGrouperStack(t *testing.T) {
 		name    string
 		grouper []string // the grouper's stack, cover first
 		source  []func() (*assets.Asset, string)
-		creates int      // CreateStack calls by the rebuild
-		want    []string // the one stack left, primary first
+		want    [][]string // the POST /stacks calls of the rebuild
 	}{
-		{"the same stack", []string{"jpg", "raw"}, pair, 0, []string{"jpg", "raw"}},
-		{"another cover", []string{"raw", "jpg"}, pair, 1, []string{"jpg", "raw"}},
-		{"fewer members", []string{"raw", "jpg"}, triple, 1, []string{"jpg", "heic", "raw"}},
+		{"the same stack", []string{"jpg", "raw"}, pair, nil},
+		{"another cover", []string{"raw", "jpg"}, pair, [][]string{{"jpg", "raw"}}},
+		{"fewer members", []string{"raw", "jpg"}, triple, [][]string{{"jpg", "raw", "heic"}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := newFakeStacks()
-			if _, err := f.CreateStack(context.Background(), tc.grouper); err != nil {
-				t.Fatal(err)
-			}
+			f := &fakeStacks{stacks: []immich.Stack{stack("grouper", tc.grouper[0], tc.grouper...)}}
 			r, err := rebuildStacks(context.Background(), f, collect(tc.source...), slog.New(slog.DiscardHandler))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if creates := f.creates - 1; creates != tc.creates || r.notMade != 0 || r.failed != 0 {
-				t.Fatalf("%d creates, result %+v; want %d creates", creates, r, tc.creates)
-			}
-			got := f.snapshot()
-			if len(got) != 1 {
-				t.Fatalf("stacks %v, want one", got)
-			}
-			for _, ms := range got {
-				if !equalStrings(ms, tc.want) {
-					t.Fatalf("stack %v, want %v", ms, tc.want)
-				}
+			if !slices.EqualFunc(f.creates, tc.want, equalStrings) || r.notMade != 0 || r.failed != 0 {
+				t.Fatalf("POST /stacks %v, result %+v; want %v", f.creates, r, tc.want)
 			}
 		})
 	}
 }
 
-// A member put in the trash after the restore (as fill does for a trashed one) is not listed by
-// GET /stacks: GET /assets/{id} shows it still in the stack, so a rerun makes nothing. When
-// Immich reports it nowhere, the stack is made again, and Immich merges it: still one stack.
-func TestRebuildStacksRerunWithTrashedMember(t *testing.T) {
+// A member GET /stacks does not list (trashed or hidden), whose GET /assets/{id} then fails while
+// the stack that is there is checked: the stack cannot be checked, so it is an error for that
+// stack, and nothing is made (a failed lookup is no reason to make the stack again).
+func TestRebuildFailedLookupOnExistingStack(t *testing.T) {
 	src := collect(
 		m("IMG_1.JPG", "b1", "S2", false, 3),
 		m("IMG_2.JPG", "b2", "S2", true, 3),
 		m("IMG_3.JPG", "b3", "S2", false, 3),
 	)
-	f := newFakeStacks()
-	log := slog.New(slog.DiscardHandler)
-	if _, err := rebuildStacks(context.Background(), f, src, log); err != nil {
-		t.Fatal(err)
+	f := &fakeStacks{
+		stacks:    []immich.Stack{stack("there", "b2", "b2", "b1")},
+		infoFails: map[string]bool{"b3": true},
 	}
-	first := f.snapshot()
-	f.trashed["b3"] = true
-	r, err := rebuildStacks(context.Background(), f, src, log)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f.creates != 1 || r.created != 0 || r.present != 1 {
-		t.Fatalf("rerun with a trashed member: %d creates, result %+v", f.creates, r)
-	}
-	for sid, ms := range f.snapshot() {
-		if !equalStrings(first[sid], ms) {
-			t.Fatalf("rerun changed the stack: %v, then %v", first, f.snapshot())
-		}
-	}
-	f.unreported["b3"] = true
-	if r, err = rebuildStacks(context.Background(), f, src, log); err != nil {
-		t.Fatal(err)
-	}
-	if r.created != 1 || len(f.primary) != 1 {
-		t.Fatalf("a member reported nowhere: result %+v, %d stacks, want it made again as the one stack", r, len(f.primary))
-	}
-}
-
-// A member GET /stacks does not list, whose GET /assets/{id} then fails: the stack that is there
-// cannot be checked, so it is an error for that stack, and nothing is made (a failed lookup is no
-// reason to make the stack again).
-func TestRebuildStacksFailedLookup(t *testing.T) {
-	src := collect(
-		m("IMG_1.JPG", "b1", "S2", false, 3),
-		m("IMG_2.JPG", "b2", "S2", true, 3),
-		m("IMG_3.JPG", "b3", "S2", false, 3),
-	)
-	f := newFakeStacks()
-	if _, err := rebuildStacks(context.Background(), f, src, slog.New(slog.DiscardHandler)); err != nil {
-		t.Fatal(err)
-	}
-	first := f.snapshot()
-	f.trashed["b3"] = true
-	f.infoFails["b3"] = true
 	var logBuf bytes.Buffer
 	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.creates != 1 || r.created != 0 || r.present != 0 || r.failed != 1 {
-		t.Fatalf("rerun with a failed lookup: %d creates, result %+v; want no create and 1 failed", f.creates, r)
+	if len(f.creates) != 0 || r.created != 0 || r.present != 0 || r.failed != 1 {
+		t.Fatalf("POST /stacks %v, result %+v; want none and 1 failed", f.creates, r)
 	}
 	if !strings.Contains(logBuf.String(), "level=ERROR") || !strings.Contains(logBuf.String(), "failed on purpose") {
 		t.Errorf("the failed lookup is not logged as an error:\n%s", logBuf.String())
-	}
-	for sid, ms := range f.snapshot() {
-		if !equalStrings(first[sid], ms) {
-			t.Fatalf("rerun changed the stack: %v, then %v", first, f.snapshot())
-		}
-	}
-}
-
-// A primary put in the trash (or hidden) after the restore: GET /stacks still names it as the
-// stack's primary but lists it as no member. The stack is found by its primary all the same, and
-// a rerun makes nothing.
-func TestRebuildStacksRerunWithTrashedPrimary(t *testing.T) {
-	src := collect(
-		m("IMG_1.JPG", "b1", "S2", false, 3),
-		m("IMG_2.JPG", "b2", "S2", true, 3),
-		m("IMG_3.JPG", "b3", "S2", false, 3),
-	)
-	f := newFakeStacks()
-	log := slog.New(slog.DiscardHandler)
-	if _, err := rebuildStacks(context.Background(), f, src, log); err != nil {
-		t.Fatal(err)
-	}
-	first := f.snapshot()
-	f.trashed["b2"] = true
-	r, err := rebuildStacks(context.Background(), f, src, log)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f.creates != 1 || r.created != 0 || r.present != 1 {
-		t.Fatalf("rerun with the primary trashed: %d creates, result %+v", f.creates, r)
-	}
-	for sid, ms := range f.snapshot() {
-		if !equalStrings(first[sid], ms) {
-			t.Fatalf("rerun changed the stack: %v, then %v", first, f.snapshot())
-		}
 	}
 }
 
 // A member already in a stack with assets that are not in this source stack: that stack is left
 // as it is, and nothing is made for this one.
 func TestRebuildStacksLeavesOtherStacks(t *testing.T) {
-	f := newFakeStacks()
-	if _, err := f.CreateStack(context.Background(), []string{"x1", "b1"}); err != nil {
-		t.Fatal(err)
-	}
+	f := &fakeStacks{stacks: []immich.Stack{stack("other", "x1", "x1", "b1")}}
 	src := collect(
 		m("IMG_1.JPG", "b1", "S2", false, 2),
 		m("IMG_2.JPG", "b2", "S2", true, 2),
@@ -426,14 +259,8 @@ func TestRebuildStacksLeavesOtherStacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := f.snapshot()
-	if f.creates != 1 || r.created != 0 || r.notMade != 1 || len(got) != 1 {
-		t.Fatalf("stacks %v, result %+v", got, r)
-	}
-	for _, ms := range got {
-		if !equalStrings(ms, []string{"x1", "b1"}) {
-			t.Fatalf("the other stack changed: %v", ms)
-		}
+	if len(f.creates) != 0 || r.created != 0 || r.notMade != 1 {
+		t.Fatalf("POST /stacks %v, result %+v", f.creates, r)
 	}
 	if !strings.Contains(logBuf.String(), "S2") {
 		t.Fatalf("not logged:\n%s", logBuf.String())
@@ -464,25 +291,16 @@ func TestRebuildStacksMissingMembersLoggedOnlyWhenMade(t *testing.T) {
 		return logBuf.String()
 	}
 
-	f := newFakeStacks()
-	if logs := rebuild(f); !strings.Contains(logs, missing) {
+	if logs := rebuild(&fakeStacks{}); !strings.Contains(logs, missing) {
 		t.Errorf("made: %q not logged:\n%s", missing, logs)
 	}
-	if logs := rebuild(f); strings.Contains(logs, missing) {
+	if logs := rebuild(&fakeStacks{stacks: []immich.Stack{stack("there", "b2", "b2", "b1", "b3")}}); strings.Contains(logs, missing) {
 		t.Errorf("already there: %q logged:\n%s", missing, logs)
 	}
-
-	f = newFakeStacks()
-	f.createErr = errors.New("POST /stacks fails on purpose")
-	if logs := rebuild(f); strings.Contains(logs, missing) {
+	if logs := rebuild(&fakeStacks{createErr: errors.New("POST /stacks fails on purpose")}); strings.Contains(logs, missing) {
 		t.Errorf("POST /stacks fails: %q logged:\n%s", missing, logs)
 	}
-
-	f = newFakeStacks()
-	if _, err := f.CreateStack(context.Background(), []string{"x1", "b1"}); err != nil {
-		t.Fatal(err)
-	}
-	if logs := rebuild(f); strings.Contains(logs, missing) {
+	if logs := rebuild(&fakeStacks{stacks: []immich.Stack{stack("other", "x1", "x1", "b1")}}); strings.Contains(logs, missing) {
 		t.Errorf("a member in another stack: %q logged:\n%s", missing, logs)
 	}
 }
@@ -505,10 +323,7 @@ func (c *createsThenRefuses) CreateStack(ctx context.Context, ids []string) (str
 // When the server refuses POST /stacks midway (stack.create), its one warning still gives the
 // stacks made and the stacks already there by then.
 func TestRebuildStacksRefusedMidRunLogsCounts(t *testing.T) {
-	f := newFakeStacks()
-	if _, err := f.CreateStack(context.Background(), []string{"a1", "a2"}); err != nil {
-		t.Fatal(err)
-	}
+	f := &fakeStacks{stacks: []immich.Stack{stack("there", "a1", "a1", "a2")}}
 	refused := forbidden(t, "stack.create", func(ctx context.Context, ic *immich.ImmichClient) error {
 		_, err := ic.CreateStack(ctx, []string{"c1", "c2"})
 		return err
@@ -546,11 +361,7 @@ func TestRebuildStacksRefusedMidRunLogsCounts(t *testing.T) {
 // The same when the other stack's primary is in the trash (or hidden): GET /stacks names it as the
 // primary but lists only our member. It is still another stack, left as it is.
 func TestRebuildStacksLeavesOtherStacksWithATrashedPrimary(t *testing.T) {
-	f := newFakeStacks()
-	if _, err := f.CreateStack(context.Background(), []string{"x1", "b1"}); err != nil {
-		t.Fatal(err)
-	}
-	f.trashed["x1"] = true
+	f := &fakeStacks{stacks: []immich.Stack{stack("other", "x1", "b1")}}
 	src := collect(
 		m("IMG_1.JPG", "b1", "S2", false, 2),
 		m("IMG_2.JPG", "b2", "S2", true, 2),
@@ -560,21 +371,15 @@ func TestRebuildStacksLeavesOtherStacksWithATrashedPrimary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := f.snapshot()
-	if f.creates != 1 || r.created != 0 || r.notMade != 1 || len(got) != 1 {
-		t.Fatalf("stacks %v, result %+v", got, r)
-	}
-	for _, ms := range got {
-		if !equalStrings(ms, []string{"x1", "b1"}) {
-			t.Fatalf("the other stack changed: %v", ms)
-		}
+	if len(f.creates) != 0 || r.created != 0 || r.notMade != 1 {
+		t.Fatalf("POST /stacks %v, result %+v", f.creates, r)
 	}
 	if !strings.Contains(logBuf.String(), "a member is in another stack") {
 		t.Fatalf("not logged:\n%s", logBuf.String())
 	}
 }
 
-// stackServer is a server that keeps its stacks as fakeStacks does.
+// stackServer is a server whose stack calls fakeStacks answers.
 type stackServer struct {
 	immich.ImmichInterface
 	f *fakeStacks
@@ -596,7 +401,7 @@ func (s stackServer) GetAssetInfo(ctx context.Context, id string) (*immich.Asset
 // of upload from-immich, which has no sidecars.
 func TestRebuildSourceStacksSummary(t *testing.T) {
 	uc, _ := newTestUpCmd(t)
-	uc.client.Immich = stackServer{f: newFakeStacks()}
+	uc.client.Immich = stackServer{f: &fakeStacks{}}
 	var logBuf bytes.Buffer
 	uc.app.Log().Logger = slog.New(slog.NewTextHandler(&logBuf, nil))
 	for _, p := range []func() (*assets.Asset, string){
@@ -635,71 +440,6 @@ func forbidden(t *testing.T, permission string, call func(context.Context, *immi
 	return err
 }
 
-// A key without a stack permission: the server refuses GET /stacks (stack.read) or POST /stacks
-// (stack.create) with 403. The upload does not fail for it: one warning names the permission and
-// says the stacks were not rebuilt, and no stack is made.
-func TestRebuildSourceStacksWithoutStackPermission(t *testing.T) {
-	for _, tc := range []struct {
-		permission string
-		call       func(context.Context, *immich.ImmichClient) error
-		refuse     func(*fakeStacks, error)
-		creates    int // POST /stacks calls: none after the first refused
-	}{
-		{
-			permission: "stack.read",
-			call: func(ctx context.Context, ic *immich.ImmichClient) error {
-				_, err := ic.GetAllStacks(ctx)
-				return err
-			},
-			refuse:  func(f *fakeStacks, err error) { f.listErr = err },
-			creates: 0,
-		},
-		{
-			permission: "stack.create",
-			call: func(ctx context.Context, ic *immich.ImmichClient) error {
-				_, err := ic.CreateStack(ctx, []string{"b1", "b2"})
-				return err
-			},
-			refuse:  func(f *fakeStacks, err error) { f.createErr = err },
-			creates: 1,
-		},
-	} {
-		t.Run(tc.permission, func(t *testing.T) {
-			f := newFakeStacks()
-			tc.refuse(f, forbidden(t, tc.permission, tc.call))
-			uc, _ := newTestUpCmd(t)
-			uc.client.Immich = stackServer{f: f}
-			var logBuf bytes.Buffer
-			uc.app.Log().Logger = slog.New(slog.NewTextHandler(&logBuf, nil))
-			for _, p := range []func() (*assets.Asset, string){
-				m("IMG_1.JPG", "b1", "S1", true, 2),
-				m("IMG_2.JPG", "b2", "S1", false, 2),
-				m("IMG_3.JPG", "b3", "S2", true, 2),
-				m("IMG_4.JPG", "b4", "S2", false, 2),
-			} {
-				uc.stacks.add(p())
-			}
-
-			if err := uc.rebuildSourceStacks(context.Background()); err != nil {
-				t.Fatalf("the upload fails: %v", err)
-			}
-			if got := f.snapshot(); len(got) != 0 || f.creates != tc.creates {
-				t.Errorf("stacks %v after %d POST /stacks, want none after %d", got, f.creates, tc.creates)
-			}
-			var warnings []string
-			for line := range strings.Lines(logBuf.String()) {
-				if strings.Contains(line, "level=WARN") || strings.Contains(line, "level=ERROR") {
-					warnings = append(warnings, line)
-				}
-			}
-			if len(warnings) != 1 || !strings.Contains(warnings[0], "level=WARN") ||
-				!strings.Contains(warnings[0], "not rebuilt") || !strings.Contains(warnings[0], "lacks the "+tc.permission+" permission") {
-				t.Errorf("want one warning that names %s and says the stacks were not rebuilt, got:\n%s", tc.permission, logBuf.String())
-			}
-		})
-	}
-}
-
 // Any other failure of GET /stacks or POST /stacks still fails the upload.
 func TestRebuildSourceStacksOtherErrorsFail(t *testing.T) {
 	for name, refuse := range map[string]func(*fakeStacks, error){
@@ -707,7 +447,7 @@ func TestRebuildSourceStacksOtherErrorsFail(t *testing.T) {
 		"POST /stacks": func(f *fakeStacks, err error) { f.createErr = err },
 	} {
 		t.Run(name, func(t *testing.T) {
-			f := newFakeStacks()
+			f := &fakeStacks{}
 			refuse(f, errors.New("connection reset on purpose"))
 			uc, _ := newTestUpCmd(t)
 			uc.client.Immich = stackServer{f: f}

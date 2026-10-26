@@ -25,12 +25,145 @@ import (
 	"github.com/simulot/immich-go/internal/immichfs"
 )
 
+const (
+	stackOwner = "11111111-0000-4000-8000-000000000000" // the user whose assets are archived
+
+	s1 = "cccccccc-0000-4000-8000-000000000001" // primary and one member on the timeline, one archived
+	s2 = "cccccccc-0000-4000-8000-000000000002" // its only other member archived
+	s3 = "cccccccc-0000-4000-8000-000000000003" // its only other member trashed
+
+	p1, m1, a1 = "aaaaaaaa-0000-4000-8000-0000000000a1", "aaaaaaaa-0000-4000-8000-0000000000a2", "aaaaaaaa-0000-4000-8000-0000000000a3"
+	p2, a2     = "aaaaaaaa-0000-4000-8000-0000000000b1", "aaaaaaaa-0000-4000-8000-0000000000b2"
+	p3, t3     = "aaaaaaaa-0000-4000-8000-0000000000c1", "aaaaaaaa-0000-4000-8000-0000000000c2"
+	h4         = "aaaaaaaa-0000-4000-8000-0000000000d2" // hidden, in a stack of which nothing is served
+	lone       = "aaaaaaaa-0000-4000-8000-0000000000e1" // in no stack
+	skipped    = "aaaaaaaa-0000-4000-8000-0000000000e2" // in no stack; the withStacked=false listing skipped it
+)
+
+type fakeAsset struct {
+	id, name, visibility string
+	trashed              bool
+	stack                map[string]any // what GET /assets/{id} reports
+}
+
+// fakeStackImmich is the server the lookups below fail on. It serves the assets above as Immich
+// v3.2.2 does (checked on a scratch server): GET /assets/{id} reports S1 only (its member on the
+// timeline); GET /stacks lists every stack's primary and its members that are not trashed or
+// hidden; search/metadata with withStacked=false lists only the assets in no stack (and here
+// skips one).
+func fakeStackImmich(t *testing.T) *httptest.Server {
+	rep := map[string]any{"id": s1, "primaryAssetId": p1, "assetCount": 2}
+	all := []fakeAsset{
+		{p1, "IMG_0001.JPG", "timeline", false, rep},
+		{m1, "IMG_0001.CR2", "timeline", false, rep},
+		{a1, "IMG_0001.HEIC", "archive", false, rep},
+		{p2, "IMG_0002.JPG", "timeline", false, nil},
+		{a2, "IMG_0002.CR2", "archive", false, nil},
+		{p3, "IMG_0003.JPG", "timeline", false, nil},
+		{t3, "IMG_0003.CR2", "timeline", true, nil},
+		{h4, "IMG_0004.MP4", "hidden", false, nil},
+		{lone, "IMG_0005.JPG", "timeline", false, nil},
+		{skipped, "IMG_0006.JPG", "timeline", false, nil},
+	}
+	byID := map[string]fakeAsset{}
+	for _, a := range all {
+		byID[a.id] = a
+	}
+	js := func(a fakeAsset, withStack bool) map[string]any {
+		out := map[string]any{
+			"id": a.id, "ownerId": stackOwner, "type": "IMAGE", "originalFileName": a.name,
+			"checksum": "c2hhMQ==", "visibility": a.visibility, "isTrashed": a.trashed,
+			"isArchived": a.visibility == "archive",
+			"exifInfo":   map[string]any{"dateTimeOriginal": "2021-07-04T18:30:00+00:00", "fileSizeInByte": 11},
+		}
+		if withStack && a.stack != nil {
+			out["stack"] = a.stack
+		}
+		return out
+	}
+	stacks := `[
+		{"id": "` + s1 + `", "primaryAssetId": "` + p1 + `", "assets": [{"id": "` + p1 + `"}, {"id": "` + m1 + `"}, {"id": "` + a1 + `"}]},
+		{"id": "` + s2 + `", "primaryAssetId": "` + p2 + `", "assets": [{"id": "` + p2 + `"}, {"id": "` + a2 + `"}]},
+		{"id": "` + s3 + `", "primaryAssetId": "` + p3 + `", "assets": [{"id": "` + p3 + `"}]}
+	]`
+	inNoStack := map[string]bool{lone: true, skipped: true}
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/search/metadata":
+			var q map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&q)
+			unstackedOnly := q["withStacked"] == false
+			items := []any{}
+			for _, a := range all {
+				if id, ok := q["id"].(string); ok {
+					if id == a.id && (!unstackedOnly || inNoStack[a.id]) {
+						items = append(items, js(a, false))
+					}
+					continue
+				}
+				if q["visibility"] != a.visibility || (q["trashedAfter"] != nil) != a.trashed {
+					continue
+				}
+				if unstackedOnly && (!inNoStack[a.id] || a.id == skipped) {
+					continue
+				}
+				items = append(items, js(a, false))
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"assets": map[string]any{
+				"total": len(items), "count": len(items), "items": items, "nextPage": nil,
+			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/stacks":
+			_, _ = w.Write([]byte(stacks))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/assets/"):
+			a, ok := byID[strings.TrimPrefix(r.URL.Path, "/api/assets/")]
+			if !ok {
+				http.Error(w, "no such asset", http.StatusBadRequest)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(js(a, true))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/albums":
+			_, _ = w.Write([]byte("[]"))
+		default:
+			t.Errorf("unexpected call %s %s", r.Method, r.URL)
+			http.Error(w, "unexpected", http.StatusNotFound)
+		}
+	}))
+}
+
+func checkStacks(t *testing.T, got map[string]*assets.Metadata, want map[string]*assets.Stack) {
+	t.Helper()
+	for id, w := range want {
+		s := got[id].Stack
+		if (s == nil) != (w == nil) || (s != nil && *s != *w) {
+			t.Errorf("asset %s: stack %+v, want %+v", id, s, w)
+		}
+	}
+}
+
+// logged tells which of the ids have a log line containing msg.
+func logged(logs, msg string, ids ...string) map[string]bool {
+	out := map[string]bool{}
+	for _, l := range strings.Split(logs, "\n") {
+		if strings.Contains(l, msg) {
+			for _, id := range ids {
+				if strings.Contains(l, id) {
+					out[id] = true
+				}
+			}
+		}
+	}
+	return out
+}
+
+const unreported = "asset in a stack that Immich does not report"
+
 // A lookup that fails for one asset (its GET /assets/{id}, the search that tells whether it is in
 // a stack, or its albums) is an error for that asset, which is left out: it is never sent on with
 // the empty asset a failed GET /assets/{id} leaves, nor with a stack or album list guessed from
 // a call that did not answer. The other assets go on (--on-errors=continue).
 func TestFailedLookupLeavesAssetOut(t *testing.T) {
-	stackSrv := fakeStackImmich(t, true)
+	stackSrv := fakeStackImmich(t)
 	defer stackSrv.Close()
 	var mu sync.Mutex
 	var phantom []string
