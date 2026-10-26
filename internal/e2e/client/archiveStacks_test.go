@@ -138,8 +138,8 @@ func updateAsset(t *testing.T, tk e2eutils.Token, id string, fields map[string]a
 	callAPI(t, tk, http.MethodPut, "/assets/"+id, fields, &struct{}{})
 }
 
-// makeStack stacks the assets, the first one its primary.
-func makeStack(t *testing.T, tk e2eutils.Token, ids []string) {
+// makeStack stacks the assets, the first one its primary, and returns the stack's ID.
+func makeStack(t *testing.T, tk e2eutils.Token, ids []string) string {
 	t.Helper()
 	var st struct {
 		ID string `json:"id"`
@@ -148,6 +148,7 @@ func makeStack(t *testing.T, tk e2eutils.Token, ids []string) {
 	if st.ID == "" {
 		t.Fatalf("POST /stacks %v: no stack ID", ids)
 	}
+	return st.ID
 }
 
 // waitForCaptureDates waits until the server reports the capture date of each asset, given by
