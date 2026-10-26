@@ -265,7 +265,7 @@ func TestFailedLookupLeavesAssetOut(t *testing.T) {
 	if w := logged(logs, unreported, p2, skipped, lone); len(w) != 0 {
 		t.Errorf("warned %v for %q after a failed lookup; log:\n%s", w, unreported, logs)
 	}
-	if strings.Contains(logs, unreported+" (it is hidden, or GET /stacks was refused): no stack in its sidecar id= ") {
+	if strings.Contains(logs, unreported+" (it is hidden): no stack in its sidecar id= ") {
 		t.Errorf("warned about an asset with no ID; log:\n%s", logs)
 	}
 	mu.Lock()

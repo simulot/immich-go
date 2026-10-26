@@ -380,6 +380,7 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 	if err != nil {
 		return err
 	}
+	defer fic.warnRefused(stacks)
 	uso := *so
 	err = fic.client.Immich.GetFilteredAssetsFn(ctx, uso.WithStacked(false), func(a *immich.Asset) error {
 		stacks.noteUnstacked(a.ID)
