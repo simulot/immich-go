@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/simulot/immich-go/internal/assets"
@@ -76,7 +77,7 @@ func TestFromFolderSameNameSameSizeOtherFile(t *testing.T) {
 
 			writeAll(t, osfs.DirFS(dst), newAsset(src, "s", "IMG_1.jpg", len(body), "a description"))
 			want = append(want, "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON")
-			if got := listFiles(t, dst); !equal(got, want) {
+			if got := listFiles(t, dst); !slices.Equal(got, want) {
 				t.Fatalf("files %v, want %v", got, want)
 			}
 			checkHolds(t, dst, map[string]string{"2021/2021-07/IMG_1.jpg": other, "2021/2021-07/IMG_1~1.jpg": body})
@@ -113,7 +114,7 @@ func TestFromFolderRerunWritesNothing(t *testing.T) {
 		"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON",
 		"2021/2021-07/IMG_2.jpg", "2021/2021-07/IMG_2.jpg.JSON",
 	}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 1 wrote %v, want %v", got, want)
 	}
 	for name, file := range map[string]string{"2021/2021-07/IMG_1.jpg": "a", "2021/2021-07/IMG_1~1.jpg": "b", "2021/2021-07/IMG_2.jpg": "c"} {
@@ -132,7 +133,7 @@ func TestFromFolderRerunWritesNothing(t *testing.T) {
 	if src.opens["a"] != 2 || src.opens["b"] != 2 || src.opens["c"] != 2 {
 		t.Fatalf("opens %v, want each source read once per run", src.opens)
 	}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 2 left %v, want %v", got, want)
 	}
 	checkUnchanged(t, dst, stamps)
@@ -158,7 +159,7 @@ func TestExternalLibraryRerunNoDownload(t *testing.T) {
 
 	run(osfs.DirFS(dst))
 	want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 1 wrote %v, want %v", got, want)
 	}
 	for name, file := range map[string]string{"2021/2021-07/IMG_1.jpg": "x", "2021/2021-07/IMG_1~1.jpg": "y"} {
@@ -177,7 +178,7 @@ func TestExternalLibraryRerunNoDownload(t *testing.T) {
 	if len(archive.reads) != 0 {
 		t.Fatalf("run 2 read archived originals: %v", archive.reads)
 	}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 2 left %v, want %v", got, want)
 	}
 	checkUnchanged(t, dst, stamps)
@@ -213,7 +214,7 @@ func TestExternalLibraryOldSidecarDownloadsOnce(t *testing.T) {
 		t.Fatalf("archived originals read %v, want IMG_1.jpg once", archive.reads)
 	}
 	want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("wrote %v, want %v", got, want)
 	}
 	checkHolds(t, dst, map[string]string{"2021/2021-07/IMG_1.jpg": bodies["x"], "2021/2021-07/IMG_1~1.jpg": bodies["y"]})
@@ -261,7 +262,7 @@ func TestOldSidecarFromFolderHashedOnce(t *testing.T) {
 		t.Fatalf("archived originals read %v, want IMG_1.jpg once", archive.reads)
 	}
 	want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("wrote %v, want %v", got, want)
 	}
 	checkHolds(t, dst, map[string]string{"2021/2021-07/IMG_1.jpg": bodies["a"], "2021/2021-07/IMG_1~1.jpg": bodies["b"]})
@@ -306,7 +307,7 @@ func TestTimelineAndExternalLibrarySameBytes(t *testing.T) {
 
 			run(osfs.DirFS(dst))
 			want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
-			if got := listFiles(t, dst); !equal(got, want) {
+			if got := listFiles(t, dst); !slices.Equal(got, want) {
 				t.Fatalf("run 1 wrote %v, want %v", got, want)
 			}
 			external, timeline := "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1.jpg"

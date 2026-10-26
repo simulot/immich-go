@@ -100,7 +100,7 @@ func TestWriteAssetSkipsPresentFiles(t *testing.T) {
 
 	run("one")
 	want := []string{"2021/2021-07/IMG_1.JPG", "2021/2021-07/IMG_1.JPG.JSON", "2021/2021-07/IMG_1~1.JPG", "2021/2021-07/IMG_1~1.JPG.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 1 wrote %v, want %v", got, want)
 	}
 	if src.opens["a"] != 1 || src.opens["b"] != 1 {
@@ -121,7 +121,7 @@ func TestWriteAssetSkipsPresentFiles(t *testing.T) {
 	if src.opens["a"] != 1 || src.opens["b"] != 1 {
 		t.Fatalf("run 2 downloaded again: opens %v", src.opens)
 	}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 2 left %v, want %v", got, want)
 	}
 	for _, f := range want {
@@ -160,18 +160,6 @@ func TestWriteAssetSkipsPresentFiles(t *testing.T) {
 			t.Fatalf("temporary file left: %s", f)
 		}
 	}
-}
-
-func equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // Asset.OpenFile on a streamed source (an Immich download) returns the base64 SHA-1 of the bytes
@@ -245,7 +233,7 @@ func unknownSize(t *testing.T, plain bool) {
 
 	write("z")
 	want := []string{"2021/2021-07/IMG_3.JPG", "2021/2021-07/IMG_3.JPG.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 1 wrote %v, want %v", got, want)
 	}
 	old := time.Now().Add(-time.Hour)
@@ -256,7 +244,7 @@ func unknownSize(t *testing.T, plain bool) {
 	before, _ := os.Stat(p)
 
 	write("z")
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 2 made a copy: %v", got)
 	}
 	if after, _ := os.Stat(p); !after.ModTime().Equal(before.ModTime()) {
@@ -268,7 +256,7 @@ func unknownSize(t *testing.T, plain bool) {
 
 	write("y")
 	want = []string{"2021/2021-07/IMG_3.JPG", "2021/2021-07/IMG_3.JPG.JSON", "2021/2021-07/IMG_3~1.JPG", "2021/2021-07/IMG_3~1.JPG.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("a different unsized asset: %v, want %v", got, want)
 	}
 	if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_3~1.JPG")); string(b) != "another, also unsized" {
@@ -439,7 +427,7 @@ func TestSameNameSameSizeDifferentChecksum(t *testing.T) {
 
 	run()
 	want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("wrote %v, want %v", got, want)
 	}
 	for name, file := range map[string]string{"2021/2021-07/IMG_1.jpg": "a", "2021/2021-07/IMG_1~1.jpg": "b"} {
@@ -455,7 +443,7 @@ func TestSameNameSameSizeDifferentChecksum(t *testing.T) {
 	if src.opens["a"] != 1 || src.opens["b"] != 1 {
 		t.Fatalf("the rerun downloaded again: opens %v", src.opens)
 	}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("the rerun left %v, want %v", got, want)
 	}
 }
@@ -481,7 +469,7 @@ func TestRerunWithChecksumOpensNothing(t *testing.T) {
 		"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON",
 		"2021/2021-07/IMG_2.jpg", "2021/2021-07/IMG_2.jpg.JSON",
 	}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 1 wrote %v, want %v", got, want)
 	}
 	stamps := ageFiles(t, dst)
@@ -494,7 +482,7 @@ func TestRerunWithChecksumOpensNothing(t *testing.T) {
 	if len(archive.reads) != 0 {
 		t.Fatalf("run 2 read archived originals: %v", archive.reads)
 	}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 2 left %v, want %v", got, want)
 	}
 	checkUnchanged(t, dst, stamps)
@@ -538,7 +526,7 @@ func TestOldSidecarWithoutChecksum(t *testing.T) {
 		"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_2.jpg", "2021/2021-07/IMG_2.jpg.JSON",
 		"2021/2021-07/IMG_3.jpg", "2021/2021-07/IMG_3.jpg.JSON", "2021/2021-07/IMG_3~1.jpg", "2021/2021-07/IMG_3~1.jpg.JSON",
 	}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("wrote %v, want %v", got, want)
 	}
 	for name, file := range map[string]string{"IMG_1.jpg": "a", "IMG_2.jpg": "c", "IMG_3.jpg": "x", "IMG_3~1.jpg": "b"} {
@@ -590,7 +578,7 @@ func TestChangedContentGoesToNextName(t *testing.T) {
 				t.Fatalf("read archived originals: %v", archive.reads)
 			}
 			want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
-			if got := listFiles(t, dst); !equal(got, want) {
+			if got := listFiles(t, dst); !slices.Equal(got, want) {
 				t.Fatalf("wrote %v, want %v", got, want)
 			}
 			if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_1~1.jpg")); string(b) != body {
@@ -628,7 +616,7 @@ func TestSidecarChecksumWrongSize(t *testing.T) {
 		t.Fatalf("read archived originals: %v", archive.reads)
 	}
 	want := []string{"2021/2021-07/IMG_1.jpg", "2021/2021-07/IMG_1.jpg.JSON", "2021/2021-07/IMG_1~1.jpg", "2021/2021-07/IMG_1~1.jpg.JSON"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("wrote %v, want %v", got, want)
 	}
 	if b, _ := os.ReadFile(filepath.Join(dst, "2021/2021-07/IMG_1~1.jpg")); string(b) != body {
@@ -653,20 +641,20 @@ func TestXMPRewrittenOnlyWhenChanged(t *testing.T) {
 
 	run()
 	want := []string{"2021/2021-07/IMG_1.JPG", "2021/2021-07/IMG_1.JPG.JSON", "2021/2021-07/IMG_1.JPG.XMP"}
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 1 wrote %v, want %v", got, want)
 	}
 	stamps := ageFiles(t, dst)
 
 	run()
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 2 left %v, want %v", got, want)
 	}
 	checkUnchanged(t, dst, stamps)
 
 	writeSources(t, srcDir, map[string]string{"a.xmp": "<x:xmpmeta>two</x:xmpmeta>"})
 	run()
-	if got := listFiles(t, dst); !equal(got, want) {
+	if got := listFiles(t, dst); !slices.Equal(got, want) {
 		t.Fatalf("run 3 left %v, want %v", got, want)
 	}
 	checkUnchanged(t, dst, stamps, "2021/2021-07/IMG_1.JPG.XMP")
@@ -705,7 +693,7 @@ func TestDownloadChecksumMismatch(t *testing.T) {
 			err = w.WriteAsset(context.Background(), a)
 			_ = a.Close()
 			want := []string{"2021/2021-07/IMG_2.jpg", "2021/2021-07/IMG_2.jpg.JSON"}
-			if got := listFiles(t, dst); err != nil || !equal(got, want) {
+			if got := listFiles(t, dst); err != nil || !slices.Equal(got, want) {
 				t.Fatalf("WriteAsset: %v, files %v; want %v", err, got, want)
 			}
 		})
