@@ -106,6 +106,7 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 	fic.processor = app.FileProcessor()
 	fic.ifs = immichfs.NewImmichFS(ctx, fic.client.Server, fic.client.Immich)
 	fic.ic = filenames.NewInfoCollector(time.Local, fic.client.Immich.SupportedMedia())
+	fic.edits.runUnder(cmd)
 
 	// check filters values against immich suggestions
 	if fic.Make != "" {
@@ -416,10 +417,10 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		asset.File = fshelper.FSName(fic.ifs, a.ID)
 
 		// An edited photo: Immich keeps the original as it is, and the edits apart. The archive holds
-		// the original, and its sidecar the edit list, asked for only then. A failed lookup is an
-		// error for the asset, which is left out: it is never archived without its edits. A key
-		// without asset.edit.get is not an error (see readEditList).
-		if a.IsEdited {
+		// the original, and its sidecar the edit list, asked for only then, and only under archive
+		// (see runUnder). A failed lookup is an error for the asset, which is left out: it is never
+		// archived without its edits. A key without asset.edit.get is not an error (see readEditList).
+		if a.IsEdited && !fic.edits.skip {
 			if err := fic.readEditList(ctx, a.ID, asset.FromApplication); err != nil {
 				return fic.app.ProcessError(err)
 			}

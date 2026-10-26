@@ -9,13 +9,22 @@ import (
 
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/spf13/cobra"
 )
 
 // editLists is what a run knows of the edit lists it reads. The search calls getAssets' function
 // from several goroutines.
 type editLists struct {
+	skip    bool         // the run does not keep the edit lists (upload): they are not asked for
 	refused atomic.Bool  // the API key lacks asset.edit.get: GET /edits is not called again in the run
 	unread  atomic.Int64 // edited assets sent on without their edit list, because of that
+}
+
+// runUnder sets which command from-immich runs under, cmd's parent, before the search starts. Only
+// archive keeps the edit lists. upload never uses them: it does not ask for them, and runs as it
+// did before the edit lists.
+func (e *editLists) runUnder(cmd *cobra.Command) {
+	e.skip = cmd.Parent() == nil || cmd.Parent().Name() != "archive"
 }
 
 // readEditList puts the edit list of the edited asset id in md, as its sidecar records it: the

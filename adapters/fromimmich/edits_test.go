@@ -30,6 +30,7 @@ import (
 	"github.com/simulot/immich-go/internal/filetypes"
 	"github.com/simulot/immich-go/internal/fshelper/osfs"
 	"github.com/simulot/immich-go/internal/immichfs"
+	"github.com/spf13/cobra"
 )
 
 // testEditList is GET /assets/{id}/edits for an asset cropped, then rotated: the actions in the
@@ -146,7 +147,7 @@ func TestEditListLookupFails(t *testing.T) {
 			srv := fakeImmich(t, func(asset map[string]any) { asset["isEdited"] = true })
 			defer srv.Close()
 			srv.editErr = http.StatusInternalServerError
-			got, a, err := browseAssets(t, srv.URL, tc.onErrors, io.Discard)
+			got, a, err := browseAssets(t, srv.URL, "archive", tc.onErrors, io.Discard)
 			if tc.wantErr != (err != nil) || err != nil && !strings.Contains(err.Error(), "/assets/"+testAsset+"/edits") {
 				t.Fatalf("getAssets returned %v, want an error: %v", err, tc.wantErr)
 			}
@@ -168,7 +169,7 @@ func TestEditListRefused(t *testing.T) {
 	const n = 3
 	srv, editCalls := fakeEditedImmich(t, n)
 	var log bytes.Buffer
-	got, a, err := browseAssets(t, srv.URL, "stop", &log)
+	got, a, err := browseAssets(t, srv.URL, "archive", "stop", &log)
 	if err != nil {
 		t.Fatalf("getAssets: %v", err)
 	}
@@ -232,7 +233,7 @@ func TestEditListRefusedKeepsSidecarEdits(t *testing.T) {
 		if refused {
 			srv.editErr = http.StatusForbidden
 		}
-		got, _, err := browseAssets(t, srv.URL, "stop", io.Discard)
+		got, _, err := browseAssets(t, srv.URL, "archive", "stop", io.Discard)
 		if err != nil || len(got) != 1 {
 			t.Fatalf("run %d: %d assets sent (%v), want 1", run+1, len(got), err)
 		}
@@ -328,9 +329,42 @@ func fakeEditedImmich(t *testing.T, n int) (*httptest.Server, *atomic.Int32) {
 	return srv, editCalls
 }
 
-// browseAssets runs getAssets against the server at url with --on-errors set to onErrors, its log
-// written to log, and returns the assets it sends, the application and getAssets' error.
-func browseAssets(t *testing.T, url, onErrors string, log io.Writer) ([]*assets.Asset, *app.Application, error) {
+// Only archive keeps the edit list. Under upload from-immich, which never uses it, an edited asset is
+// sent on as before: no GET /edits call, no edit list, no warning. Under archive, it gets its list.
+func TestEditListOnlyUnderArchive(t *testing.T) {
+	for _, tc := range []struct {
+		parent    string
+		editCalls int32
+	}{
+		{"archive", 1},
+		{"upload", 0},
+	} {
+		t.Run(tc.parent, func(t *testing.T) {
+			srv := fakeImmich(t, func(asset map[string]any) { asset["isEdited"] = true })
+			defer srv.Close()
+			srv.editList = testEditList("dddddddd-0000-4000-8000-000000000001", "dddddddd-0000-4000-8000-000000000002")
+			var log bytes.Buffer
+			got, a, err := browseAssets(t, srv.URL, tc.parent, "stop", &log)
+			if err != nil || len(got) != 1 {
+				t.Fatalf("%d assets sent (%v), want 1", len(got), err)
+			}
+			if n := srv.editCalls.Load(); n != tc.editCalls {
+				t.Fatalf("%d calls to GET /edits, want %d", n, tc.editCalls)
+			}
+			if md := got[0].FromApplication; (md.Edits != nil) != (tc.editCalls > 0) || md.EditsUnread {
+				t.Fatalf("edit list %s (unread: %v), want one: %v", md.Edits, md.EditsUnread, tc.editCalls > 0)
+			}
+			if n := a.NumErrors(); n != 0 || strings.Contains(log.String(), "asset.edit.get") {
+				t.Fatalf("%d errors, log:\n%s", n, log.String())
+			}
+		})
+	}
+}
+
+// browseAssets runs getAssets against the server at url, as from-immich does under the command
+// parent (archive, upload), with --on-errors set to onErrors, its log written to log, and returns
+// the assets it sends, the application and getAssets' error.
+func browseAssets(t *testing.T, url, parent, onErrors string, log io.Writer) ([]*assets.Asset, *app.Application, error) {
 	t.Helper()
 	ctx := context.Background()
 	ic, err := immich.NewImmichClient(url, "test-key")
@@ -348,6 +382,9 @@ func browseAssets(t *testing.T, url, onErrors string, log io.Writer) ([]*assets.
 	fic.processor = fileprocessor.New(assettracker.New(), fileevent.NewRecorder(slog.New(slog.DiscardHandler)))
 	fic.ifs = immichfs.NewImmichFS(ctx, url, ic)
 	fic.ic = filenames.NewInfoCollector(time.UTC, filetypes.DefaultSupportedMedia)
+	cmd := &cobra.Command{Use: "from-immich"}
+	(&cobra.Command{Use: parent}).AddCommand(cmd)
+	fic.edits.runUnder(cmd)
 
 	ch := make(chan *assets.Group, 10)
 	err = fic.getAssets(ctx, ch)
