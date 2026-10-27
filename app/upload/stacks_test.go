@@ -324,6 +324,9 @@ func TestServerStacksApplyCreate(t *testing.T) {
 			if len(got) != len(tc.want) {
 				t.Errorf("stacks %v, want %v", got, tc.want)
 			}
+			if len(s.primary) != len(tc.want) { // a merged stack's primary is gone too
+				t.Errorf("primaries %v, want one per stack of %v", s.primary, tc.want)
+			}
 			for sid, w := range tc.want {
 				if !equalStrings(got[sid], w) {
 					t.Errorf("stack %s: %v, want %v (all: %v)", sid, got[sid], w, got)
