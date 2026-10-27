@@ -418,7 +418,7 @@ func (uc *UpCmd) rebuildSourceStacks(ctx context.Context) error {
 		return err
 	}
 	if r.refusedPermission == "" { // otherwise the warning says the stacks were not rebuilt
-		uc.app.Log().Info("stacks from the source", "made", r.created, "present", r.present, "not made", r.notMade, "failed", r.failed)
+		uc.app.Log().Info("stacks from the source", "made", r.created, "present", r.present, "skipped", r.notMade, "failed", r.failed)
 	}
 	if r.failed > 0 {
 		return fmt.Errorf("%d stacks could not be made", r.failed)

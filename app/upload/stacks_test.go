@@ -546,7 +546,7 @@ func TestRebuildSourceStacksSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	logs := logBuf.String()
-	if !strings.Contains(logs, `msg="stacks from the source" made=1`) || strings.Contains(logs, "sidecar") {
+	if !strings.Contains(logs, `msg="stacks from the source" made=1 present=0 skipped=0 failed=0`+"\n") || strings.Contains(logs, "sidecar") {
 		t.Fatalf("summary line:\n%s", logs)
 	}
 	if n := uc.app.FileProcessor().Logger().GetEventCounts()[fileevent.ProcessedStacked]; n != 2 {
