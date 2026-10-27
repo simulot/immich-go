@@ -41,6 +41,7 @@ func (ac *ArchiveCmd) Run(cmd *cobra.Command, adapter adapters.Reader) error {
 	if err != nil {
 		return err
 	}
+	ac.dest.SetLogger(log.Logger)
 
 	gChan := adapter.Browse(ctx)
 	for {

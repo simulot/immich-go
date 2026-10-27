@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"math/rand/v2"
 	"os"
 	"path"
@@ -35,6 +36,8 @@ import (
 type LocalAssetWriter struct {
 	WriteToFS fs.FS
 
+	log *slog.Logger // where WriteAsset warns of what it cannot keep; see SetLogger
+
 	mu         sync.Mutex          // guards createdDir and hashed
 	createdDir map[string]struct{} // the folders made in this run
 	hashed     map[string]string   // SHA-1, base64, of the archived files read in this run, by path
@@ -47,9 +50,15 @@ func NewLocalAssetWriter(fsys fs.FS) (*LocalAssetWriter, error) {
 	}
 	return &LocalAssetWriter{
 		WriteToFS:  fsys,
+		log:        slog.New(slog.DiscardHandler),
 		createdDir: make(map[string]struct{}),
 		hashed:     make(map[string]string),
 	}, nil
+}
+
+// SetLogger sets where WriteAsset warns of what it cannot keep. A new writer logs nothing.
+func (w *LocalAssetWriter) SetLogger(l *slog.Logger) {
+	w.log = l
 }
 
 func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
@@ -174,11 +183,19 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 		old, oldErr := fs.ReadFile(w.WriteToFS, jsonName)
 		// An edit list that could not be read (archive from-immich with a key without
 		// asset.edit.get) is not an empty one: the .JSON file keeps the list it has. name holds
-		// this asset or was free, so a .JSON file there is this asset's.
-		if md.EditsUnread && oldErr == nil {
+		// this asset or was free, so a .JSON file there is this asset's. When that file cannot be
+		// read, its list, if it has one, is lost with the rewrite: the writer says so.
+		if md.EditsUnread {
 			var prev assets.Metadata
-			if jsonsidecar.Read(bytes.NewReader(old), &prev) == nil {
+			err := oldErr
+			if err == nil {
+				err = jsonsidecar.Read(bytes.NewReader(old), &prev)
+			}
+			switch {
+			case err == nil:
 				md.Edits = prev.Edits
+			case !errors.Is(err, fs.ErrNotExist):
+				w.log.Warn("the .JSON file cannot be read: its edit list, if it has one, is not kept", "file", fshelper.FSName(w.WriteToFS, jsonName), "err", err)
 			}
 		}
 		var buf bytes.Buffer
