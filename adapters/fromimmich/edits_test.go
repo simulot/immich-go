@@ -134,7 +134,9 @@ func TestSidecarWithoutEditList(t *testing.T) {
 }
 
 // A failed GET /edits, other than refused, is an error for the asset, which is left out: it is never
-// archived without its edits. --on-errors decides whether the run goes on.
+// archived without its edits. --on-errors decides whether the run goes on. Whatever it says, the
+// failure is logged as an error that names the asset, and recorded as a server error: under
+// --on-errors=N, ProcessError logs nothing until the limit is passed.
 func TestEditListLookupFails(t *testing.T) {
 	for _, tc := range []struct {
 		onErrors string
@@ -142,12 +144,14 @@ func TestEditListLookupFails(t *testing.T) {
 	}{
 		{"stop", true},
 		{"continue", false},
+		{"3", false},
 	} {
 		t.Run(tc.onErrors, func(t *testing.T) {
 			srv := fakeImmich(t, func(asset map[string]any) { asset["isEdited"] = true })
 			defer srv.Close()
 			srv.editErr = http.StatusInternalServerError
-			got, a, err := browseAssets(t, srv.URL, "archive", tc.onErrors, io.Discard)
+			var log bytes.Buffer
+			got, a, err := browseAssets(t, srv.URL, "archive", tc.onErrors, &log)
 			if tc.wantErr != (err != nil) || err != nil && !strings.Contains(err.Error(), "/assets/"+testAsset+"/edits") {
 				t.Fatalf("getAssets returned %v, want an error: %v", err, tc.wantErr)
 			}
@@ -156,6 +160,16 @@ func TestEditListLookupFails(t *testing.T) {
 			}
 			if n := a.NumErrors(); n != 1 {
 				t.Fatalf("%d errors counted, want 1", n)
+			}
+			if n := a.FileProcessor().GetEventCounts()[fileevent.ErrorServerError]; n != 1 {
+				t.Errorf("%d server errors recorded, want 1", n)
+			}
+			logged := false
+			for line := range strings.Lines(log.String()) {
+				logged = logged || strings.Contains(line, "level=ERROR") && strings.Contains(line, "the edits of asset "+testAsset)
+			}
+			if !logged {
+				t.Errorf("no error logged for the edits of asset %s:\n%s", testAsset, log.String())
 			}
 		})
 	}
@@ -365,7 +379,7 @@ func TestEditListOnlyUnderArchive(t *testing.T) {
 
 // browseAssets runs getAssets against the server at url, as from-immich does under the command
 // parent (archive, upload), with --on-errors set to onErrors, its log written to log, and returns
-// the assets it sends, the application and getAssets' error.
+// the assets it sends, the application (its file processor is the run's) and getAssets' error.
 func browseAssets(t *testing.T, url, parent, onErrors string, log io.Writer) ([]*assets.Asset, *app.Application, error) {
 	t.Helper()
 	ctx := context.Background()
@@ -381,7 +395,9 @@ func browseAssets(t *testing.T, url, parent, onErrors string, log io.Writer) ([]
 	fic := &FromImmichCmd{app: a}
 	fic.client.Immich = ic
 	fic.client.User.ID = testOwner
-	fic.processor = fileprocessor.New(assettracker.New(), fileevent.NewRecorder(slog.New(slog.DiscardHandler)))
+	// As archive sets it up: the events are logged to the run's log.
+	a.SetFileProcessor(fileprocessor.New(assettracker.New(), fileevent.NewRecorder(a.Log().Logger)))
+	fic.processor = a.FileProcessor()
 	fic.ifs = immichfs.NewImmichFS(ctx, url, ic)
 	fic.ic = filenames.NewInfoCollector(time.UTC, filetypes.DefaultSupportedMedia)
 	cmd := &cobra.Command{Use: "from-immich"}

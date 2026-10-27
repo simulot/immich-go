@@ -51,7 +51,7 @@ func (fic *FromImmichCmd) readEditList(ctx context.Context, id string, md *asset
 		md.EditsUnread = true
 		return nil
 	case err != nil:
-		return err
+		return fmt.Errorf("the edits of asset %s: %w", id, err)
 	}
 	if md.Edits, err = withoutIDs(raw); err != nil {
 		return fmt.Errorf("the edits of asset %s: %w", id, err)

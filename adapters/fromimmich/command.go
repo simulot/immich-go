@@ -420,8 +420,12 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		// the original, and its sidecar the edit list, asked for only then, and only under archive
 		// (see runUnder). A failed lookup is an error for the asset, which is left out: it is never
 		// archived without its edits. A key without asset.edit.get is not an error (see readEditList).
+		// The failure is logged and recorded as a server error here: under --on-errors=N,
+		// ProcessError logs nothing until the limit is passed. The asset is not discovered yet, so it
+		// is recorded as an event only, not in the asset tracker.
 		if a.IsEdited && !fic.edits.skip {
 			if err := fic.readEditList(ctx, a.ID, asset.FromApplication); err != nil {
+				fic.processor.Logger().RecordWithSize(ctx, fileevent.ErrorServerError, asset.File, int64(asset.FileSize), "error", err.Error())
 				return fic.app.ProcessError(err)
 			}
 		}
