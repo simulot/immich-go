@@ -314,7 +314,10 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 		}
 
 		// Already there, exactly? A lookup that fails is an error for this stack, never a reason
-		// to make it again.
+		// to make it again. A stack whose members other than its primary are all trashed is never
+		// found the same: GET /stacks lists none of them, and GET /assets/{id} reports their stack
+		// only while one of them is on the timeline. Each rerun makes it again, and Immich merges
+		// the old one into it: there is still only one stack (TestStacksTrashedMember).
 		if st, ok := live.alreadyThere(order); ok {
 			same, err := sameStack(ctx, api, st, order)
 			if err != nil {
