@@ -132,7 +132,8 @@ func fakeStackImmich(t *testing.T) *httptest.Server {
 }
 
 // newStackTestCmd is a FromImmichCmd for the user stackOwner on the server at url, as the stack
-// tests run getAssets: with --on-errors=continue, and its log written to log.
+// tests run getAssets: with --on-errors=continue, and its log written to log. As archive sets it
+// up, the run's events are logged there too.
 func newStackTestCmd(t *testing.T, url string, log io.Writer) *FromImmichCmd {
 	t.Helper()
 	ctx := context.Background()
@@ -146,7 +147,7 @@ func newStackTestCmd(t *testing.T, url string, log io.Writer) *FromImmichCmd {
 	fic := &FromImmichCmd{app: a}
 	fic.client.Immich = ic
 	fic.client.User.ID = stackOwner
-	fic.processor = fileprocessor.New(assettracker.New(), fileevent.NewRecorder(slog.New(slog.DiscardHandler)))
+	fic.processor = fileprocessor.New(assettracker.New(), fileevent.NewRecorder(a.Log().Logger))
 	fic.ifs = immichfs.NewImmichFS(ctx, url, ic)
 	fic.ic = filenames.NewInfoCollector(time.UTC, filetypes.DefaultSupportedMedia)
 	return fic
@@ -267,8 +268,8 @@ func TestFailedLookupLeavesAssetOut(t *testing.T) {
 		p3: {ID: s3, Primary: true, AssetCount: 1},
 		t3: nil, h4: nil,
 	})
-	if n := strings.Count(logs, "level=ERROR"); n != 3 {
-		t.Errorf("%d errors logged, want 3 (one per failed lookup); log:\n%s", n, logs)
+	if n := strings.Count(logs, "level=ERROR"); n != 4 {
+		t.Errorf("%d errors logged, want 4 (one per failed lookup, and the server error recorded for the stack lookup); log:\n%s", n, logs)
 	}
 	if w := logged(logs, unreported, p2, skipped, lone); len(w) != 0 {
 		t.Errorf("warned %v for %q after a failed lookup; log:\n%s", w, unreported, logs)
@@ -280,5 +281,77 @@ func TestFailedLookupLeavesAssetOut(t *testing.T) {
 	defer mu.Unlock()
 	if len(phantom) > 0 {
 		t.Errorf("calls made for an asset with no ID: %q", phantom)
+	}
+}
+
+// A failed stack lookup (the search that tells whether the asset is in a stack) is an error for the
+// asset, which is left out. --on-errors decides whether the run goes on. Whatever it says, the
+// failure is logged as an error that names the asset, and recorded as a server error: under
+// --on-errors=N, ProcessError logs nothing until the limit is passed.
+func TestFailedStackLookupIsLogged(t *testing.T) {
+	const id = "aaaaaaaa-0000-4000-8000-0000000000f4" // on the timeline, in no stack GET /stacks lists
+	for _, tc := range []struct {
+		onErrors string
+		wantErr  bool
+	}{
+		{"stop", true},
+		{"continue", false},
+		{"3", false},
+	} {
+		t.Run(tc.onErrors, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.Method == http.MethodGet && r.URL.Path == "/api/stacks":
+					_, _ = w.Write([]byte("[]"))
+				case r.Method == http.MethodPost && r.URL.Path == "/api/search/metadata":
+					var q map[string]any
+					_ = json.NewDecoder(r.Body).Decode(&q)
+					if q["id"] != nil { // the asset's stack lookup
+						w.WriteHeader(http.StatusInternalServerError)
+						_, _ = io.WriteString(w, `{"message": "failed on purpose"}`)
+						return
+					}
+					items := []any{}
+					if q["withStacked"] == nil && q["visibility"] == "timeline" && q["trashedAfter"] == nil {
+						items = append(items, refusedAsset(id))
+					}
+					_ = json.NewEncoder(w).Encode(map[string]any{"assets": map[string]any{
+						"total": len(items), "count": len(items), "items": items, "nextPage": nil,
+					}})
+				case r.Method == http.MethodGet && r.URL.Path == "/api/assets/"+id:
+					_ = json.NewEncoder(w).Encode(refusedAsset(id))
+				default:
+					t.Errorf("unexpected call %s %s", r.Method, r.URL)
+					http.Error(w, "unexpected", http.StatusNotFound)
+				}
+			}))
+			defer srv.Close()
+
+			var logBuf bytes.Buffer
+			fic := newStackTestCmd(t, srv.URL, &logBuf)
+			if err := fic.app.OnErrors.Set(tc.onErrors); err != nil {
+				t.Fatal(err)
+			}
+			ch := make(chan *assets.Group, 10)
+			err := fic.getAssets(context.Background(), ch)
+			close(ch)
+			if tc.wantErr != (err != nil) || err != nil && !strings.Contains(err.Error(), "the stack of asset "+id) {
+				t.Fatalf("getAssets returned %v, want an error that names the asset: %v", err, tc.wantErr)
+			}
+			if len(ch) != 0 {
+				t.Errorf("the asset was sent on although its stack lookup failed")
+			}
+			if n := fic.processor.GetEventCounts()[fileevent.ErrorServerError]; n != 1 {
+				t.Errorf("%d server errors recorded, want 1", n)
+			}
+			logged := false
+			for line := range strings.Lines(logBuf.String()) {
+				logged = logged || strings.Contains(line, "level=ERROR") && strings.Contains(line, "the stack of asset "+id)
+			}
+			if !logged {
+				t.Errorf("no error logged for the stack of asset %s:\n%s", id, logBuf.String())
+			}
+		})
 	}
 }

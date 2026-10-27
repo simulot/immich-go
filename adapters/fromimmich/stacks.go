@@ -2,6 +2,7 @@ package fromimmich
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/simulot/immich-go/immich"
@@ -83,7 +84,7 @@ func (fic *FromImmichCmd) warnRefused(idx *stackIndex) {
 // lists it, or nil. An asset the withStacked=false search left out and that neither places is
 // looked up once more: still in a stack, it gets a warning and no stack. When GET /stacks was
 // refused, it is counted for warnRefused instead, with no lookup. A failed lookup is returned as
-// the error.
+// the error, which names the asset.
 func (fic *FromImmichCmd) stackOf(ctx context.Context, idx *stackIndex, a *immich.Asset) (*assets.Stack, error) {
 	var st *assets.Stack
 	if a.Stack != nil && a.Stack.ID != "" {
@@ -106,7 +107,7 @@ func (fic *FromImmichCmd) stackOf(ctx context.Context, idx *stackIndex, a *immic
 	}
 	inStack, err := fic.client.Immich.IsInStack(ctx, a.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("the stack of asset %s: %w", a.ID, err)
 	}
 	// The cause is given only when it is known. Another asset GET /stacks does not list can be a
 	// partner's (--from-partners): GET /stacks lists only the user's own stacks.

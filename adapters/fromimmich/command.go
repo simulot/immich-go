@@ -411,9 +411,13 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			return fic.app.ProcessError(err)
 		}
 
-		// The stack, from the source server only, so that upload rebuilds exactly it.
+		// The stack, from the source server only, so that upload rebuilds exactly it. A failed lookup
+		// is logged and recorded as a server error here: under --on-errors=N, ProcessError logs
+		// nothing until the limit is passed. The asset is not discovered yet, so it is recorded as an
+		// event only, not in the asset tracker.
 		stack, err := fic.stackOf(ctx, stacks, a)
 		if err != nil {
+			fic.processor.Logger().RecordWithSize(ctx, fileevent.ErrorServerError, fshelper.FSName(fic.ifs, a.ID), a.ExifInfo.FileSizeInByte, "error", err.Error())
 			return fic.app.ProcessError(err)
 		}
 
