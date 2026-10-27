@@ -154,6 +154,10 @@ These copies cost space, not photos. Restoring the archive does not duplicate th
 `upload from-folder` indexes the server by checksum, so one copy is uploaded and the others are
 reported as already there. Removing the copies from the archive is not automated.
 
+A file of an Immich external library changed in place without changing its size keeps the same
+Immich checksum, computed from its path: it is not archived again, and the archive keeps the old
+version.
+
 ### Upgrades of immich-go
 
 The `.JSON` file records the version of immich-go that wrote it (`software`). The first run after
