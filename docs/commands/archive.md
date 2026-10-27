@@ -199,7 +199,11 @@ stack. The API key of the upload needs the `stack.read` and `stack.create` permi
 them, the upload logs a warning and the stacks are not made.
 
 The archive reads the stacks with the API key's `stack.read` permission. Without it, the archive
-logs a warning, and a stack whose assets other than its primary are all archived is not recorded.
+logs a warning, and a stack whose assets other than its primary are all archived, hidden or trashed
+is not recorded. A hidden or trashed member of a stack that neither `GET /assets/{id}` nor
+`GET /stacks` reports is archived without its stack, and a warning is given. So is a partner's
+asset (`--from-partners`) in a stack that `GET /assets/{id}` does not report: `GET /stacks` lists
+only the user's own stacks.
 
 ## Important Notes
 
