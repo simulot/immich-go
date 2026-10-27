@@ -27,9 +27,11 @@ import (
 // 	fshelper.FSCanWrite
 // }
 
-// LocalAssetWriter writes assets into the folder WriteToFS, one folder per month. WriteAsset can be
-// called from several goroutines for assets of different names. Two assets that can get the same
-// name must be written one after the other: each takes the first name that is free.
+// LocalAssetWriter writes assets into the folder WriteToFS, one folder per month. The archive writes
+// one asset at a time (see app/archive/run.go): each asset takes the first name that is free. Two
+// assets written at once could take the same file even when their names differ: through the ~N
+// names (IMG_1.jpg's second name is IMG_1~1.jpg, which can be another asset's own), or on a
+// case-insensitive file system. mu only keeps the writer's maps safe.
 type LocalAssetWriter struct {
 	WriteToFS fs.FS
 

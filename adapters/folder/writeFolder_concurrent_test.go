@@ -16,10 +16,10 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper/osfs"
 )
 
-// WriteAsset can be called from several goroutines for assets of different names: the folders the
-// writer created and the archived files it hashed are recorded safely. Half of the assets were
-// archived by an older release (no checksum in their sidecar): their files are hashed. Run it with
-// -race.
+// The writer's maps, the folders it created and the archived files it hashed, are safe when
+// WriteAsset runs from several goroutines, here for assets whose names cannot collide. Half of the
+// assets were archived by an older release (no checksum in their sidecar): their files are hashed.
+// Run it with -race.
 func TestWriteAssetConcurrent(t *testing.T) {
 	srcDir, dst := t.TempDir(), t.TempDir()
 	w, err := NewLocalAssetWriter(osfs.DirFS(dst))
