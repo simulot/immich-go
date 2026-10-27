@@ -186,13 +186,14 @@ The run exits with a non-zero status, also with `--on-errors=continue`, when:
 
 - an asset was not archived;
 - the source counted an error through `--on-errors`, as `from-immich` does when the server fails;
-- the source logged a file it could not read as an error, as `from-folder` does for a `.JSON`,
-  `.XMP` or album file.
+- the source logged a file it could not read as an error, as `from-folder` does for a photo or
+  video, a `.JSON`, `.XMP` or album file.
 
 A folder that cannot be read does not change the exit status yet: `from-folder` logs it as an
 error (`<folder>: file does not exist`), and `from-google-photos` skips it without a message. A
-failure of `from-google-photos` while it walks the takeout as a whole does not change it either,
-and is not logged.
+failure that stops the walk of `from-google-photos` through the takeout does not change it either,
+and is not logged. A single file of the takeout that it cannot read is logged as an error, and
+does change it.
 
 ## Examples
 
