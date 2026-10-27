@@ -5,23 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/simulot/immich-go/app"
-	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
-	"github.com/simulot/immich-go/internal/assettracker"
-	cliflags "github.com/simulot/immich-go/internal/cliFlags"
-	"github.com/simulot/immich-go/internal/fileevent"
-	"github.com/simulot/immich-go/internal/filenames"
-	"github.com/simulot/immich-go/internal/fileprocessor"
-	"github.com/simulot/immich-go/internal/filetypes"
-	"github.com/simulot/immich-go/internal/immichfs"
 )
 
 // A key without stack.read: GET /stacks is refused, and the one warning gives the number of assets
@@ -70,23 +59,10 @@ func TestRefusedStackReadWarnsOnlyWhenTheSearchEnds(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			ctx := context.Background()
-			ic, err := immich.NewImmichClient(srv.URL, "test-key")
-			if err != nil {
-				t.Fatal(err)
-			}
 			var logBuf bytes.Buffer
-			a := app.New(ctx, nil)
-			a.OnErrors = cliflags.OnErrorsNeverStop
-			a.SetLog(&app.Log{Logger: slog.New(slog.NewTextHandler(&logBuf, nil))})
-			fic := &FromImmichCmd{app: a}
-			fic.client.Immich = ic
-			fic.client.User.ID = stackOwner
-			fic.processor = fileprocessor.New(assettracker.New(), fileevent.NewRecorder(slog.New(slog.DiscardHandler)))
-			fic.ifs = immichfs.NewImmichFS(ctx, srv.URL, ic)
-			fic.ic = filenames.NewInfoCollector(time.UTC, filetypes.DefaultSupportedMedia)
+			fic := newStackTestCmd(t, srv.URL, &logBuf)
 			ch := make(chan *assets.Group, 10)
-			err = fic.getAssets(ctx, ch)
+			err := fic.getAssets(context.Background(), ch)
 			close(ch)
 			if (err != nil) != tc.searchFails {
 				t.Fatalf("getAssets: %v, want an error: %v", err, tc.searchFails)

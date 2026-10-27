@@ -131,6 +131,27 @@ func fakeStackImmich(t *testing.T) *httptest.Server {
 	}))
 }
 
+// newStackTestCmd is a FromImmichCmd for the user stackOwner on the server at url, as the stack
+// tests run getAssets: with --on-errors=continue, and its log written to log.
+func newStackTestCmd(t *testing.T, url string, log io.Writer) *FromImmichCmd {
+	t.Helper()
+	ctx := context.Background()
+	ic, err := immich.NewImmichClient(url, "test-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := app.New(ctx, nil)
+	a.OnErrors = cliflags.OnErrorsNeverStop
+	a.SetLog(&app.Log{Logger: slog.New(slog.NewTextHandler(log, nil))})
+	fic := &FromImmichCmd{app: a}
+	fic.client.Immich = ic
+	fic.client.User.ID = stackOwner
+	fic.processor = fileprocessor.New(assettracker.New(), fileevent.NewRecorder(slog.New(slog.DiscardHandler)))
+	fic.ifs = immichfs.NewImmichFS(ctx, url, ic)
+	fic.ic = filenames.NewInfoCollector(time.UTC, filetypes.DefaultSupportedMedia)
+	return fic
+}
+
 func checkStacks(t *testing.T, got map[string]*assets.Metadata, want map[string]*assets.Stack) {
 	t.Helper()
 	for id, w := range want {
@@ -211,23 +232,10 @@ func TestFailedLookupLeavesAssetOut(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	ctx := context.Background()
-	ic, err := immich.NewImmichClient(srv.URL, "test-key")
-	if err != nil {
-		t.Fatal(err)
-	}
 	var logBuf bytes.Buffer
-	a := app.New(ctx, nil)
-	a.OnErrors = cliflags.OnErrorsNeverStop
-	a.SetLog(&app.Log{Logger: slog.New(slog.NewTextHandler(&logBuf, nil))})
-	fic := &FromImmichCmd{app: a}
-	fic.client.Immich = ic
-	fic.client.User.ID = stackOwner
-	fic.processor = fileprocessor.New(assettracker.New(), fileevent.NewRecorder(slog.New(slog.DiscardHandler)))
-	fic.ifs = immichfs.NewImmichFS(ctx, srv.URL, ic)
-	fic.ic = filenames.NewInfoCollector(time.UTC, filetypes.DefaultSupportedMedia)
+	fic := newStackTestCmd(t, srv.URL, &logBuf)
 	ch := make(chan *assets.Group, 20)
-	if err := fic.getAssets(ctx, ch); err != nil {
+	if err := fic.getAssets(context.Background(), ch); err != nil {
 		t.Fatal(err)
 	}
 	close(ch)
