@@ -383,7 +383,8 @@ func trashAssets(t *testing.T, tk e2eutils.Token, ids ...string) {
 	}
 	req.Header.Set("Authorization", "Bearer "+string(tk))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: time.Minute} // a server that hangs fails the test, not the run
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("DELETE /assets: %v", err)
 	}
