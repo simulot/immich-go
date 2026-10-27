@@ -335,7 +335,9 @@ func fakeEditedImmich(t *testing.T, n int) (*httptest.Server, *atomic.Int32) {
 			editCalls.Add(1)
 			http.Error(w, `{"message":"Missing required permission: asset.edit.get"}`, http.StatusForbidden)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/stacks":
-			_, _ = io.WriteString(w, "[]") // the server has no stacks
+			// The server has no stacks. This keeps the tests passing once #1480 (which lists the
+			// source's stacks) is merged.
+			_, _ = io.WriteString(w, "[]")
 		default:
 			t.Errorf("unexpected call %s %s", r.Method, r.URL)
 			http.Error(w, "unexpected", http.StatusNotFound)
