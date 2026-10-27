@@ -175,8 +175,9 @@ func (s *serverStacks) foreign(id string, ours map[string]bool) (stackID string,
 // applyCreate applies the stack id that POST /stacks made of order the way Immich makes it
 // (server/src/repositories/stack.repository.ts, create): every stack whose primary is in order is
 // deleted and its assets join the new stack, the assets of order leave any other stack, and
-// order[0] is the primary. Only the members known here move: Immich also takes the hidden members
-// of a deleted stack into the new one, and its trashed members leave it (see rebuildStacks).
+// order[0] is the primary. Only the members known here move: Immich also takes the hidden (or
+// locked) members of a deleted stack that are not in order into the new one, and its trashed ones
+// leave it (see rebuildStacks).
 func (s *serverStacks) applyCreate(id string, order []string) {
 	all := map[string]bool{}
 	for _, a := range order {
@@ -352,12 +353,13 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			continue
 		}
 		// Not checked, as no call shows it reliably: a stack this one takes over (its primary is in
-		// order) can have members not known here. Immich takes its hidden members into the new
-		// stack, and its trashed members leave it. GET /stacks lists only the members on the
-		// timeline or archived. GET /assets/{id} counts in assetCount only the members other than
-		// the primary that are on the timeline, and reports no stack when there is none. A stack
-		// listed with its primary alone is no sign either: DELETE /stacks/{id}/assets/{assetId}
-		// leaves a stack with one member. docs/commands/upload.md says so.
+		// order) can have members not known here, which are not in order. Immich takes those that
+		// are hidden (or locked) into the new stack, and those that are trashed leave it. GET /stacks
+		// lists only the members on the timeline or archived. GET /assets/{id} counts in assetCount
+		// only the members other than the primary that are on the timeline, and reports no stack
+		// when there is none. A stack listed with its primary alone is no sign either:
+		// DELETE /stacks/{id}/assets/{assetId} leaves a stack with one member.
+		// docs/commands/upload.md says so.
 		newID, err := api.CreateStack(ctx, order)
 		if immich.IsForbidden(err) { // the next ones would be refused too
 			r.refuse(log, "stack.create", len(ids)-n, err)

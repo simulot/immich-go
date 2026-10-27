@@ -116,8 +116,9 @@ upload again is safe: it uploads no file twice and makes no stack twice.
 
 One case is not checked, as the Immich API does not show it reliably. When the server already has
 a stack whose primary is a file of a stack being made, and whose other members on the timeline or
-archived are files of it too, Immich merges that stack into the new one: its hidden members join
-the new stack, and its trashed members leave it.
+archived are files of it too, Immich merges that stack into the new one. Its other members, those
+that are not files of the new stack, join it when they are hidden or in the locked folder, and
+leave their stack when they are in the trash.
 
 The files of an archive written by an older release of immich-go are never grouped either, but
 their `.JSON` files record no stack (no `stack` field): restoring such an archive makes no stacks.
@@ -271,8 +272,8 @@ logged and some or all of the stacks are not made. Any other error of the destin
 the stacks are made fails the upload, once every asset is transferred. Running the upload again is
 safe: it transfers no asset twice and makes no stack twice. The case `from-folder` does not check
 applies here too: a stack already on the destination that Immich merges into a new stack brings
-its hidden members along, and its trashed members leave it (see
-[File Management](#file-management)).
+along its members that are hidden or in the locked folder, and its members in the trash leave
+their stack (see [File Management](#file-management)).
 
 ### Examples
 ```bash
