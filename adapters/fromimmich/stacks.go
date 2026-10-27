@@ -108,12 +108,17 @@ func (fic *FromImmichCmd) stackOf(ctx context.Context, idx *stackIndex, a *immic
 	if err != nil {
 		return nil, err
 	}
+	// The cause is given only when it is known. Another asset GET /stacks does not list can be a
+	// partner's (--from-partners): GET /stacks lists only the user's own stacks.
 	switch {
 	case inStack && a.IsTrashed:
 		fic.app.Log().Warn("trashed stack member that Immich does not report (GET /stacks leaves trashed members out): no stack in its sidecar",
 			"id", a.ID, "file", a.OriginalFileName)
-	case inStack:
+	case inStack && a.Visibility == string(assets.VisibilityHidden):
 		fic.app.Log().Warn("asset in a stack that Immich does not report (it is hidden): no stack in its sidecar",
+			"id", a.ID, "file", a.OriginalFileName)
+	case inStack:
+		fic.app.Log().Warn("asset in a stack that Immich does not report (GET /stacks does not list it): no stack in its sidecar",
 			"id", a.ID, "file", a.OriginalFileName)
 	}
 	return nil, nil
