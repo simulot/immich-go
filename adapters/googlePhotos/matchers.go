@@ -16,13 +16,28 @@ func matchFastTrack(jsonName string, fileName string, _ filetypes.SupportedMedia
 }
 
 func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) bool {
-	// Extract the index from the file name
-	fileName, fileIndex := getFileIndex(fileName)
-	// Extract the index from the JSON name
+	return normalMatch(jsonName, fileName, false)
+}
+
+// matchTitleWithoutExtension matches a title without extension: Mail.supplemental-metadata(3).json for Mail(3).jpg.
+// It runs after matchNormal, so 2013-12-14.webp keeps 2013-12-14.webp.supplemental-metadata.json
+// when 2013-12-14.supplemental-metadata.json (the JSON of 2013-12-14.png) is in the same folder.
+func matchTitleWithoutExtension(jsonName string, fileName string, _ filetypes.SupportedMedia) bool {
+	return normalMatch(jsonName, fileName, true)
+}
+
+func normalMatch(jsonName string, fileName string, withoutExtension bool) bool {
+	base, fileIndex := getFileIndex(fileName)
 	jsonName, jsonIndex := getFileIndex(jsonName)
 
-	// Check if the indexes are the same
-	if fileIndex != jsonIndex {
+	literal := false
+	switch {
+	case fileIndex == jsonIndex:
+		fileName = base
+	case fileIndex != "" && jsonIndex == "":
+		// the "(n)" is part of the original name: image(2).jpg
+		literal = true
+	default:
 		return false
 	}
 
@@ -39,8 +54,20 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 
 	// Check if the file name is the same as the JSON name
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	if jsonName == fileName {
+	name := fileName
+	if withoutExtension {
+		name = strings.TrimSuffix(fileName, path.Ext(fileName))
+	}
+	if jsonName == name {
 		return true
+	}
+	// Google replaces the trailing "." of the title by "_" in the media file name, not in the JSON name
+	if t, ok := strings.CutSuffix(jsonName, "."); ok && t+"_" == name {
+		return true
+	}
+	// the truncation rule would bind X…(1).jpg to the JSON of X….jpg
+	if literal || withoutExtension {
+		return false
 	}
 
 	if len(fileName) > 46 {
@@ -65,10 +92,13 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 //   PXL_20220405_090123740.PORTRAIT.jpg.json
 //   PXL_20220405_090123740.PORTRAIT.jpg
 //   PXL_20220405_090123740.PORTRAIT-modifié.jpg
+//   X-edited(1).jpg with X.jpg.supplemental-metadata(1).json
 // but not DSC_0104.JPG.json with DSC_0104(1).JPG
 
 func matchEditedName(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
-	if _, index := getFileIndex(fileName); index != "" {
+	fileName, fileIndex := getFileIndex(fileName)
+	jsonName, jsonIndex := getFileIndex(jsonName)
+	if fileIndex != jsonIndex {
 		return false
 	}
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
@@ -123,9 +153,14 @@ func matchLivePhotoVideo(jsonName string, fileName string, sm filetypes.Supporte
 		return false
 	}
 
-	fileName, fileIndex := getFileIndex(fileName)
+	base, fileIndex := getFileIndex(fileName)
 	jsonName, jsonIndex := getFileIndex(jsonName)
-	if fileIndex != jsonIndex {
+	switch {
+	case fileIndex == jsonIndex:
+		fileName = base
+	case fileIndex != "" && jsonIndex == "":
+		// the "(n)" is part of the original name: PXL_20220615_101533000(1).MP4
+	default:
 		return false
 	}
 
@@ -152,17 +187,54 @@ func matchLivePhotoVideo(jsonName string, fileName string, sm filetypes.Supporte
 	return jsonName == fileName
 }
 
+// getFileIndex splits the duplicate index "(n)" that Google appends right before the extension:
+// X(1).jpg, X.jpg.supplemental-metadata(1).json. A "(n)" elsewhere belongs to the original name.
 func getFileIndex(name string) (string, string) {
-	// Extract the index from the file name
-	p1File := strings.LastIndex(name, "(")
-	if p1File >= 0 {
-		p2File := strings.LastIndex(name, ")")
-		if p2File >= 0 && p2File > p1File {
-			fileIndex := name[p1File+1 : p2File]
-			if _, err := strconv.Atoi(fileIndex); err == nil {
-				return name[:p1File] + name[p2File+1:], fileIndex
-			}
+	ext := path.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	if !strings.HasSuffix(stem, ")") {
+		return name, ""
+	}
+	p := strings.LastIndex(stem, "(")
+	if p < 0 {
+		return name, ""
+	}
+	index := stem[p+1 : len(stem)-1]
+	if _, err := strconv.Atoi(index); err != nil {
+		return name, ""
+	}
+	return stem[:p] + ext, index
+}
+
+// editedByTitleBase finds the JSON of an edited copy named after the text following the last "/" of the title:
+// "13 - 1-edited.png" for the title "5/8/13 - 1", whose original is "5_8_13 - 1.png".
+// titles maps JSON names to titles containing "/"; used holds the JSONs already associated with a file.
+func editedByTitleBase(fileName string, titles map[string]string, used map[string]bool) (string, bool) {
+	fileName, fileIndex := getFileIndex(fileName)
+	stem := strings.TrimSuffix(fileName, path.Ext(fileName))
+
+	var candidates []string
+	for json, title := range titles {
+		if _, jsonIndex := getFileIndex(json); jsonIndex != fileIndex {
+			continue
+		}
+		base := path.Base(title)
+		if strings.HasPrefix(stem, base+"-") || strings.HasPrefix(stem, strings.TrimSuffix(base, path.Ext(base))+"-") {
+			candidates = append(candidates, json)
 		}
 	}
-	return name, ""
+	if len(candidates) > 1 {
+		// an edited copy comes with its original
+		var withOriginal []string
+		for _, c := range candidates {
+			if used[c] {
+				withOriginal = append(withOriginal, c)
+			}
+		}
+		candidates = withOriginal
+	}
+	if len(candidates) == 1 {
+		return candidates[0], true
+	}
+	return "", false
 }

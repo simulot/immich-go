@@ -274,6 +274,125 @@ func Test_matchers(t *testing.T) {
 			jsonName: "X.jpg.supplemental-metadata.json",
 			want:     "matchEditedName",
 		},
+
+		// "(n)" that is part of the original name, not a duplicate index
+		{
+			fileName: "image(2)-edited.jpg",
+			jsonName: "image(2).jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "(25219)(3)1368646893405-edited.jpg",
+			jsonName: "(25219)(3)1368646893405.jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "HI (3)-edited.jpg",
+			jsonName: "HI (3).jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "image(2).jpg",
+			jsonName: "image(2).jpg.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{ // the literal name must not use the 46-character truncation rule
+			fileName: "Backyard_ceremony_wedding_photography_xxxxxxx_m(1).jpg",
+			jsonName: "Backyard_ceremony_wedding_photography_xxxxxxx_.json",
+			want:     "matchForgottenDuplicates",
+		},
+
+		// title without extension
+		{
+			fileName: "Mail(3).jpg",
+			jsonName: "Mail.supplemental-metadata(3).json",
+			want:     "matchTitleWithoutExtension",
+		},
+		{
+			fileName: "Mail(3).jpg",
+			jsonName: "Mail.supplemental-metadata(2).json",
+			want:     "",
+		},
+		{ // an original, not an edited copy
+			fileName: "Mail.jpg",
+			jsonName: "Mail.supplemental-metadata.json",
+			want:     "matchTitleWithoutExtension",
+		},
+		{
+			fileName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0(1).jpg",
+			jsonName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0.supplemental-metadata(1).json",
+			want:     "matchTitleWithoutExtension",
+		},
+		{
+			fileName: "image(2).jpg",
+			jsonName: "image(2).supplemental-metadata.json",
+			want:     "matchTitleWithoutExtension",
+		},
+		// the JSON titled with the extension is matched first, by matchNormal
+		{
+			fileName: "2013-12-14.webp",
+			jsonName: "2013-12-14.webp.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{
+			fileName: "2013-12-14.webp",
+			jsonName: "2013-12-14.supplemental-metadata.json",
+			want:     "matchTitleWithoutExtension",
+		},
+		{
+			fileName: "Mail-edited.jpg",
+			jsonName: "Mail.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+
+		// edited copy of a duplicate
+		{
+			fileName: "IMG_20131117_164736-edited(1).jpg",
+			jsonName: "IMG_20131117_164736.jpg.supplemental-metadata(1).json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "IMG_20131117_164736-edited(1).jpg",
+			jsonName: "IMG_20131117_164736.jpg.supplemental-metadata.json",
+			want:     "",
+		},
+		{
+			fileName: "IMG_20131117_164736-edited.jpg",
+			jsonName: "IMG_20131117_164736.jpg.supplemental-metadata(1).json",
+			want:     "",
+		},
+		{
+			fileName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0-edited(1).jpg",
+			jsonName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0.supplemental-metadata(1).json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "DSC_0105-edited(1).JPG",
+			jsonName: "DSC_0105.JPG(1).json",
+			want:     "matchEditedName",
+		},
+
+		// title ending with ".", replaced by "_" in the media file name only
+		{
+			fileName: "In honor of our first employee_.jpg",
+			jsonName: "In honor of our first employee..supplemental-metadata.json",
+			want:     "matchTitleWithoutExtension",
+		},
+		{
+			fileName: "In honor of our first employee_(1).jpg",
+			jsonName: "In honor of our first employee..supplemental-metadata(1).json",
+			want:     "matchTitleWithoutExtension",
+		},
+		{
+			fileName: "In honor of our first employee_.jpg",
+			jsonName: "In honor of our first employee..supplemental-metadata(1).json",
+			want:     "",
+		},
+		{ // "?" is replaced in both names
+			fileName: "what would it be_.jpg",
+			jsonName: "what would it be_.supplemental-metadata.json",
+			want:     "matchTitleWithoutExtension",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
@@ -284,6 +403,7 @@ func Test_matchers(t *testing.T) {
 			}{
 				{name: "matchFastTrack", fn: matchFastTrack},
 				{name: "matchNormal", fn: matchNormal},
+				{name: "matchTitleWithoutExtension", fn: matchTitleWithoutExtension},
 				{name: "matchLivePhotoVideo", fn: matchLivePhotoVideo},
 				{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
 				{name: "matchEditedName", fn: matchEditedName},
@@ -302,6 +422,79 @@ func Test_matchers(t *testing.T) {
 	}
 }
 
+func Test_getFileIndex(t *testing.T) {
+	for _, tc := range []struct {
+		name, wantName, wantIndex string
+	}{
+		{"X(1).jpg", "X.jpg", "1"},
+		{"X-edited(1).jpg", "X-edited.jpg", "1"},
+		{"X(12)", "X", "12"},
+		{"X.jpg(1).json", "X.jpg.json", "1"},
+		{"X.jpg.supplemental-metadata(1).json", "X.jpg.supplemental-metadata.json", "1"},
+		{"X.jpg", "X.jpg", ""},
+		{"image(2)-edited.jpg", "image(2)-edited.jpg", ""},
+		{"(25219)(3)1368646893405-edited.jpg", "(25219)(3)1368646893405-edited.jpg", ""},
+		{"X(1).jpg.supplemental-metadata.json", "X(1).jpg.supplemental-metadata.json", ""},
+		{"X(a).jpg", "X(a).jpg", ""},
+		{"X().jpg", "X().jpg", ""},
+		{"X).jpg", "X).jpg", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			name, index := getFileIndex(tc.name)
+			if name != tc.wantName || index != tc.wantIndex {
+				t.Errorf("getFileIndex(%q) = (%q, %q), want (%q, %q)", tc.name, name, index, tc.wantName, tc.wantIndex)
+			}
+		})
+	}
+}
+
+func Test_editedByTitleBase(t *testing.T) {
+	const (
+		j58  = "5_8_13 - 1.supplemental-metadata.json"
+		j58i = "5_8_13 - 1.supplemental-metadata(1).json"
+		j59  = "5_9_13 - 1.supplemental-metadata.json"
+		j514 = "5_14_13 - 1.supplemental-metadata.json"
+		j515 = "5_15_13 - 1.supplemental-metadata.json"
+		j517 = "5_17_13 - 1.supplemental-metadata.json"
+	)
+	titles := map[string]string{
+		j58: "5/8/13 - 1", j58i: "5/8/13 - 1", j59: "5/9/13 - 1",
+		j514: "5/14/13 - 1", j515: "5/15/13 - 1", j517: "5/17/13 - 1",
+	}
+	pick := func(names ...string) map[string]string {
+		m := map[string]string{}
+		for _, n := range names {
+			m[n] = titles[n]
+		}
+		return m
+	}
+
+	for _, tc := range []struct {
+		name   string
+		file   string
+		titles map[string]string
+		used   map[string]bool
+		want   string
+	}{
+		{"unique", "13 - 1-edited.png", pick(j58, j58i), nil, j58},
+		{"duplicate index", "13 - 1-edited(1).png", pick(j58, j58i), nil, j58i},
+		{"localized suffix", "13 - 1-bearbeitet.png", pick(j58), nil, j58},
+		{"title with extension", "b-edited.jpg", map[string]string{"a_b.jpg.supplemental-metadata.json": "a/b.jpg"}, nil, "a_b.jpg.supplemental-metadata.json"},
+		{"other number", "13 - 10-edited.png", pick(j58), nil, ""},
+		{"not an edited copy", "13 - 1.png", pick(j58), nil, ""},
+		{"original present", "13 - 1-edited.jpg", pick(j59, j517), map[string]bool{j59: true}, j59},
+		{"ambiguous", "13 - 1-edited.jpg", pick(j514, j515, j517), map[string]bool{j514: true, j515: true, j517: true}, ""},
+		{"ambiguous without original", "13 - 1-edited.jpg", pick(j514, j515), nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := editedByTitleBase(tc.file, tc.titles, tc.used)
+			if got != tc.want || ok != (tc.want != "") {
+				t.Errorf("editedByTitleBase(%q) = (%q, %v), want %q", tc.file, got, ok, tc.want)
+			}
+		})
+	}
+}
+
 // The edited flag comes from the matcher that associated the file with the sidecar, not
 // from a suffix list: it covers every language and truncated names.
 func TestMakeAssetMarksTheEditedFileFromTheMatcher(t *testing.T) {
@@ -314,6 +507,8 @@ func TestMakeAssetMarksTheEditedFileFromTheMatcher(t *testing.T) {
 	}{
 		{"matchEditedName", "X-bearbeitet.jpg", true},
 		{"matchEditedName", "X-edi.jpg", true},
+		{"matchEditedName", "X-edited(1).jpg", true},
+		{"matchEditedTitleBase", "13 - 1-edited.png", true},
 		{"matchNormal", "X(1).jpg", false},
 		{"matchLivePhotoVideo", "X.mp4", false},
 	} {
