@@ -158,6 +158,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 
 	for _, entry := range entries {
 		base := entry.Name()
+		lowerBase := strings.ToLower(base)
 		name := path.Join(dir, base)
 		ext := filepath.Ext(base)
 
@@ -207,17 +208,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 			continue
 		}
 
-		if matchesBanned(ifc.BannedFiles, name, entry.IsDir()) {
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredBanned, "reason", "banned file")
-			continue
-		}
-
-		if ifc.supportedMedia.IsUseLess(name) {
-			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredUnknown, "reason", "useless file")
-			continue
-		}
-
-		if ifc.PicasaAlbum && (strings.ToLower(base) == ".picasa.ini" || strings.ToLower(base) == "picasa.ini") {
+		if ifc.PicasaAlbum && (lowerBase == ".picasa.ini" || lowerBase == "picasa.ini") {
 			a, err := ReadPicasaIni(fsys, name)
 			if err != nil {
 				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.ErrorFileAccess, "error", err.Error())
@@ -225,6 +216,16 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 				ifc.picasaAlbums.Store(dir, a)
 				ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, name), 0, fileevent.DiscoveredMetadata, "album", a.Name)
 			}
+			continue
+		}
+
+		if matchesBanned(ifc.BannedFiles, name, entry.IsDir()) {
+			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredBanned, "reason", "banned file")
+			continue
+		}
+
+		if ifc.supportedMedia.IsUseLess(name) {
+			ifc.processor.RecordNonAsset(ctx, fshelper.FSName(fsys, entry.Name()), 0, fileevent.DiscoveredUnknown, "reason", "useless file")
 			continue
 		}
 
@@ -344,8 +345,11 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 					}
 				}
 			}
-			// check the presence of a XMP file
-			xmpName, err := checkExistSideCar(fsys, a.File.Name(), ".xmp")
+			// check the presence of a XMP file, unless sidecar files are ignored
+			xmpName := ""
+			if !ifc.IgnoreSideCarFiles {
+				xmpName, err = checkExistSideCar(fsys, a.File.Name(), ".xmp")
+			}
 			if err == nil && xmpName != "" {
 				buf, err := fs.ReadFile(fsys, xmpName)
 				if err != nil {

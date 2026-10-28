@@ -33,7 +33,6 @@ into-album = ''
 recursive = true
 
 [archive.from-folder.ban-file]
-
 [archive.from-google-photos]
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
@@ -52,7 +51,6 @@ sync-albums = true
 takeout-tag = true
 
 [archive.from-google-photos.ban-file]
-
 [archive.from-icloud]
 album-path-joiner = ' / '
 date-from-name = true
@@ -68,7 +66,6 @@ memories = false
 recursive = true
 
 [archive.from-icloud.ban-file]
-
 [archive.from-immich]
 from-admin-api-key = ''
 from-api-key = 'OLD-API-KEY'
@@ -97,11 +94,8 @@ from-time-zone = ''
 from-trash = false
 
 [archive.from-immich.from-albums]
-
 [archive.from-immich.from-people]
-
 [archive.from-immich.from-tags]
-
 [archive.from-picasa]
 album-path-joiner = ' / '
 album-picasa = true
@@ -117,7 +111,6 @@ into-album = ''
 recursive = true
 
 [archive.from-picasa.ban-file]
-
 [stack]
 admin-api-key = ''
 api-key = 'YOUR-API-KEY'
@@ -168,7 +161,6 @@ into-album = ''
 recursive = true
 
 [upload.from-folder.ban-file]
-
 [upload.from-google-photos]
 date-range = '2024-01-15,2024-03-31'
 exclude-extensions = []
@@ -187,7 +179,6 @@ sync-albums = true
 takeout-tag = true
 
 [upload.from-google-photos.ban-file]
-
 [upload.from-icloud]
 album-path-joiner = ' / '
 date-from-name = true
@@ -203,7 +194,6 @@ memories = false
 recursive = true
 
 [upload.from-icloud.ban-file]
-
 [upload.from-immich]
 from-admin-api-key = ''
 from-api-key = 'OLD-API-KEY'
@@ -232,11 +222,8 @@ from-time-zone = ''
 from-trash = false
 
 [upload.from-immich.from-albums]
-
 [upload.from-immich.from-people]
-
 [upload.from-immich.from-tags]
-
 [upload.from-picasa]
 album-path-joiner = ' / '
 album-picasa = true
@@ -252,7 +239,6 @@ into-album = ''
 recursive = true
 
 [upload.from-picasa.ban-file]
-
 [upload.tag]
 ```
 

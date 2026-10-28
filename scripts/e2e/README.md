@@ -1,184 +1,100 @@
-# E2E Infrastructure Scripts
+# E2E Immich instance
 
-This directory contains bash scripts for managing Immich instances during e2e testing.
+Scripts that bring up a disposable Immich instance for the end-to-end tests.
 
-## Scripts
+The instance has its own compose project (`immich-e2e`) and its own container
+names. It never touches another Immich install on the machine. Its API listens
+on `127.0.0.1` only, because the test credentials are well known.
 
-### immich-provision.sh
-Provisions a fresh Immich instance for e2e testing.
+The containers run **rootless** by default: they use the developer's uid/gid,
+drop `NET_RAW` and set `no-new-privileges`, as in Immich's
+`docker/docker-compose.rootless.yml`. The bind mounts stay owned by the
+developer, so `e2e-cleanup.sh` does not need `sudo`.
 
-**Usage:**
+## Prerequisites
+
+- Docker with Compose v2 (`docker compose version`)
+- `curl`
+- Go, to build the user creation tool
+- Network access to `github.com/immich-app/immich` for the compose file and images
+
+## Quick start
+
 ```bash
-./scripts/e2e/immich-provision.sh [INSTALL_DIR] [PORT]
+# Provision the instance, create the test users, and wait for the API
+scripts/e2e/e2e-start.sh
+
+# Run the e2e tests
+e2e_url=http://localhost:2283 go test -v -tags=e2e -timeout=30m ./internal/e2e/client/...
+
+# Reset the data between runs (users and API keys are kept)
+scripts/e2e/e2e-reset.sh
+
+# Remove the instance and its volumes
+scripts/e2e/e2e-cleanup.sh
 ```
 
-**Arguments:**
-- `INSTALL_DIR`: Directory for Immich installation (default: `./internal/e2e/testdata/immich-server`)
-- `PORT`: Port for Immich server (default: `2283`)
+The tests read the credentials from
+`internal/e2e/testdata/immich-server/e2eusers.env`. The directory is
+git-ignored, so the file cannot be committed. The scripts never print the
+passwords or the API keys.
 
-**What it does:**
-1. Creates installation directory
-2. Downloads latest docker-compose.yml and .env from Immich releases
-3. Transforms docker-compose.yml to use internal Docker volumes
-4. Pulls Docker images
-5. Starts Immich services
-6. Waits for API to become ready
-7. Prints Immich URL
+## Options
 
-**Example:**
+| Option | Environment variable | Default |
+|---|---|---|
+| `--install-dir DIR` | `E2E_INSTALL_DIR` | `internal/e2e/testdata/immich-server` |
+| `--port PORT` | `E2E_PORT` | `2283` |
+| `--version TAG` | `E2E_VERSION` | `v3.2.4` |
+| `--force` (provision) | | refuse to replace an existing instance |
+| `--no-rootless` (provision) | `E2E_ROOTLESS=false` | containers run as the current uid/gid |
+| | `E2E_UID`, `E2E_GID` | `id -u`, `id -g` |
+| `--yes` (cleanup) | | ask for confirmation |
+
+`e2e_start.sh` passes its arguments to `e2e-provision.sh`.
+
+The compose file and the images both come from the pinned release tag, so they
+cannot drift apart. To test another Immich version:
+
 ```bash
-./scripts/e2e/immich-provision.sh ./internal/e2e/testdata/immich-server 3000
+scripts/e2e/e2e-start.sh --version v3.3.3
 ```
 
----
+## What each script does
 
-### immich-provision-users.sh
-Provisions test users and API keys in an Immich instance.
+| Script | Purpose |
+|---|---|
+| `e2e-start.sh` | Calls `e2e-provision.sh`, then updates `.vscode/launch.json` when it exists |
+| `e2e-provision.sh` | Downloads the compose file for the pinned release, writes a compose override, pulls the images, starts the services, waits for the API, creates the admin user |
+| `e2e-reset.sh` | Stops the server, deletes assets, albums, stacks, tags and people from the database, restarts the server |
+| `e2e-cleanup.sh` | Removes the e2e containers and the volumes of the e2e project, then removes the install directory |
+| `lib/e2e-provision-users.sh` | Creates `admin@immich.app` and its API key through the Go tool in `internal/e2e/e2eUtils/cmd/createUser` |
+| `lib/common.sh` | Shared settings and helpers, sourced by the other scripts |
 
-**Usage:**
-```bash
-./scripts/e2e/immich-provision-users.sh [IMMICH_URL] [OUTPUT_FILE]
-```
+## Safety
 
-**Arguments:**
-- `IMMICH_URL`: Immich server URL (default: `http://localhost:2283`)
-- `OUTPUT_FILE`: Output file for credentials (default: `./internal/e2e/testdata/immich-server/e2eusers.yml`)
-
-**What it does:**
-1. Verifies Immich is accessible
-2. Calls Go program to create users via API
-3. Creates credentials file with user tokens and API keys
-
-**Users created:**
-- `admin@immich.app` - Admin with all permissions
-- `user1@immich.app` - Regular user with minimal permissions
-- `user2@immich.app` - Regular user with minimal permissions
-
-**Example:**
-```bash
-./scripts/e2e/immich-provision-users.sh http://localhost:2283 ./internal/e2e/testdata/immich-server/e2eusers.yml
-```
-
----
-
-- `INSTALL_DIR`: Immich installation directory (default: `./internal/e2e/testdata/immich-server`)
-
-**What it does:**
-1. Stops Immich server container
-2. Executes SQL to delete assets, albums, tags, etc.
-3. Preserves users, API keys, and sessions
-4. Restarts Immich server
-5. Waits for API to become ready
-
-**Example:**
-./scripts/e2e/immich-reset.sh ./internal/e2e/testdata/immich-server
-```
-
----
-
-### immich-cleanup.sh
-Complete cleanup of Immich e2e test instance (including root-owned volumes).
-
-**Usage:**
-```bash
-./scripts/e2e/immich-cleanup.sh [INSTALL_DIR]
-```
-
-**Arguments:**
-- `INSTALL_DIR`: Immich installation directory (default: `./internal/e2e/testdata/immich-server`)
-
-**What it does:**
-1. Stops and removes all containers
-2. Removes Docker volumes (including root-owned)
-3. Prunes Docker system
-4. Removes installation directory (uses sudo if needed)
-
-**Example:**
-```bash
-./scripts/e2e/immich-cleanup.sh ./internal/e2e/testdata/immich-server
-```
-
----
-
-## Complete Workflow
-
-### Local Development
-```bash
-# 1. Provision Immich
-./scripts/e2e/immich-provision.sh ./internal/e2e/testdata/immich-server 2283
-
-# 2. Create users
-./scripts/e2e/immich-provision-users.sh http://localhost:2283 ./internal/e2e/testdata/immich-server/e2eusers.yml
-
-# 3. Run tests (explicitly setting env vars)
-E2E_SERVER=http://localhost:2283 \
-E2E_USERS=./internal/e2e/testdata/immich-server/e2eusers.yml \
-go test -v -tags=e2e ./internal/e2e/client/...
-
-# Or simply use defaults (same as above):
-go test -v -tags=e2e ./internal/e2e/client/...
-
-# 4. Reset between test runs
-./scripts/e2e/immich-reset.sh ./internal/e2e/testdata/immich-server
-
-# 5. Cleanup when done
-./scripts/e2e/immich-cleanup.sh ./internal/e2e/testdata/immich-server
-```
-
-### GitHub Actions
-See `.github/workflows/e2e-tests.yml` for CI usage.
-
----
-
-## Requirements
-
-- **Docker** and **Docker Compose** (v2)
-- **curl** for downloading files
-- **jq** (optional, for JSON processing)
-- **Python 3** (optional, for docker-compose transformation)
-- **Go** (for user provisioning)
-- **sudo** (optional, for cleaning root-owned volumes)
-
----
+- Every compose call uses `-p immich-e2e` and explicit `-f` files. The scripts
+  never act on the `immich` project of a real installation.
+- The container names are prefixed with the project name.
+- `e2e-cleanup.sh` removes only the volumes attached to the e2e project, selected
+  by their `com.docker.compose.project` label. It does not run
+  `docker system prune` and does not remove volumes by name pattern.
+- `e2e-reset.sh` resolves the database container from the e2e project. It has no
+  fallback to other Postgres containers.
+- `e2e-provision.sh` refuses to delete an existing instance without `--force`.
+- `e2e-cleanup.sh` asks for confirmation unless `--yes` is given.
+- Files created by the containers may be owned by root. The cleanup script then
+  prints the `sudo rm -rf` command instead of running `sudo` itself.
 
 ## Troubleshooting
 
-### Script fails with "Permission denied"
-Make sure scripts are executable:
 ```bash
-chmod +x scripts/e2e/*.sh
+# Status of the e2e containers
+docker compose -p immich-e2e ps
+
+# Logs of the server
+docker compose -p immich-e2e logs --tail=100 immich-server
+
+# Check the API
+curl -s http://localhost:2283/api/server/ping
 ```
-
-### Docker volumes can't be removed
-The cleanup script will attempt to use sudo. If it fails:
-```bash
-sudo rm -rf ./internal/e2e/testdata/immich-server
-```
-
-### Immich API doesn't become ready
-Check container logs:
-```bash
-docker compose -f ./internal/e2e/testdata/immich-server/docker-compose.yml logs immich-server
-```
-
-### Port already in use
-Use a different port:
-```bash
-./scripts/e2e/immich-provision.sh ./internal/e2e/testdata/immich-server 3000
-```
-
-### Windows: bash not found
-Use Git Bash or WSL. Ensure scripts have LF line endings:
-```bash
-dos2unix scripts/e2e/*.sh
-```
-
----
-
-## Notes
-
-- Scripts use internal Docker volumes (not host paths) for portability
-- Database resets preserve user accounts and API keys for speed
-- Cleanup handles root-owned files automatically
-- All scripts provide colored output and progress indication
-- Scripts are idempotent where possible (safe to re-run)

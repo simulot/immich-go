@@ -3,6 +3,7 @@ package gp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io/fs"
 	"log/slog"
 	"path"
@@ -48,11 +49,12 @@ type directoryCatalog struct {
 
 // assetFile keep information collected during pass one
 type assetFile struct {
-	fsys   fs.FS            // Remember in which part of the archive the file is located
-	base   string           // Remember the original file name
-	length int              // file length in bytes
-	date   time.Time        // file modification date
-	md     *assets.Metadata // will point to the associated metadata
+	fsys    fs.FS            // Remember in which part of the archive the file is located
+	base    string           // Remember the original file name
+	length  int              // file length in bytes
+	date    time.Time        // file modification date
+	md      *assets.Metadata // will point to the associated metadata
+	matcher string           // name of the matcher that associated the file with its metadata
 }
 
 // Implement slog.LogValuer for assetFile
@@ -95,6 +97,11 @@ func (toc *TakeoutCmd) Browse(ctx context.Context) chan *assets.Group {
 func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 	err := fs.WalkDir(w, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				// This branch can happen when you have symbolic links.
+				return nil
+			}
+
 			return err
 		}
 
@@ -284,6 +291,7 @@ var matchers = []struct {
 }{
 	{name: "matchFastTrack", fn: matchFastTrack},
 	{name: "matchNormal", fn: matchNormal},
+	{name: "matchLivePhotoVideo", fn: matchLivePhotoVideo},
 	{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
 	{name: "matchEditedName", fn: matchEditedName},
 }
@@ -303,6 +311,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 					default:
 						if matcher.fn(json, f, toc.supportedMedia) {
 							i := cat.unMatchedFiles[f]
+							i.matcher = matcher.name
 							i.md = md
 							a := toc.makeAsset(ctx, dir, i, md)
 							cat.matchedFiles[f] = a
@@ -507,6 +516,15 @@ func (toc *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md
 		a.OriginalFileName = title
 	}
 	a.SetNameInfo(toc.infoCollector.GetInfo(a.OriginalFileName))
+	// Google Takeout names an edited copy with a localized, possibly truncated suffix
+	// (e.g. "-edited", "-modifié") and matches it to the original's sidecar through
+	// matchEditedName. Mark it so the upload layer stacks it over the original and
+	// shows it as the cover.
+	if f.matcher == "matchEditedName" {
+		a.Kind = assets.KindEdited
+		a.IsModified = true
+		a.IsCover = true
+	}
 	return a
 }
 

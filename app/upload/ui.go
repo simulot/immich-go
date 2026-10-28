@@ -249,7 +249,7 @@ func (uc *UpCmd) runUI(ctx context.Context, app *app.Application) error {
 
 	// Time to leave
 	if messages.Len() > 0 {
-		return (errors.New(messages.String()))
+		return errors.New(messages.String())
 	}
 	return err
 }

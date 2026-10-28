@@ -46,7 +46,7 @@ func (gmd *GoogleMetaData) UnmarshalJSON(data []byte) error {
 	var t album
 	err := json.Unmarshal(data, &t)
 	if err == nil && t.AlbumData != nil {
-		*gmd = GoogleMetaData(*(t.AlbumData))
+		*gmd = GoogleMetaData(*t.AlbumData)
 		return nil
 	}
 
