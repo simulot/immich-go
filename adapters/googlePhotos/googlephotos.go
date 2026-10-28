@@ -43,6 +43,7 @@ func trackerKeySortFunc(a, b fileKeyTracker) int {
 // directoryCatalog captures all files in a given directory
 type directoryCatalog struct {
 	jsons          map[string]*assets.Metadata // metadata in the catalog by base name
+	titles         map[string]string           // raw JSON titles containing "/", by JSON base name
 	unMatchedFiles map[string]*assetFile       // files to be matched map  by base name
 	matchedFiles   map[string]*assets.Asset    // files matched by base name
 }
@@ -147,6 +148,7 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			dirCatalog, ok := toc.catalogs[dir]
 			if !ok {
 				dirCatalog.jsons = map[string]*assets.Metadata{}
+				dirCatalog.titles = map[string]string{}
 				dirCatalog.unMatchedFiles = map[string]*assetFile{}
 				dirCatalog.matchedFiles = map[string]*assets.Asset{}
 			}
@@ -172,6 +174,9 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					if err == nil {
 						switch {
 						case md.isAsset():
+							if strings.Contains(md.Title, "/") {
+								dirCatalog.titles[base] = md.Title
+							}
 							md := md.AsMetadata(fshelper.FSName(w, name), toc.PeopleTag) // Keep metadata
 							dirCatalog.jsons[base] = md
 							toc.app.Log().Debug("Asset JSON", "metadata", md)
@@ -301,24 +306,34 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 	for _, dir := range dirs {
 		cat := toc.catalogs[dir]
 		jsons := gen.MapKeysSorted(cat.jsons)
+		used := map[string]bool{}
+		associate := func(f, json, matcher string) {
+			i := cat.unMatchedFiles[f]
+			i.matcher = matcher
+			i.md = cat.jsons[json]
+			cat.matchedFiles[f] = toc.makeAsset(ctx, dir, i, i.md)
+			toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedAssociatedMetadata, "json", json, "matcher", matcher)
+			delete(cat.unMatchedFiles, f)
+			used[json] = true
+		}
 		for _, matcher := range matchers {
 			for _, json := range jsons {
-				md := cat.jsons[json]
 				for f := range cat.unMatchedFiles {
 					select {
 					case <-ctx.Done():
 						return ctx.Err()
 					default:
 						if matcher.fn(json, f, toc.supportedMedia) {
-							i := cat.unMatchedFiles[f]
-							i.matcher = matcher.name
-							i.md = md
-							a := toc.makeAsset(ctx, dir, i, md)
-							cat.matchedFiles[f] = a
-							toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedAssociatedMetadata, "json", json, "matcher", matcher.name)
-							delete(cat.unMatchedFiles, f)
+							associate(f, json, matcher.name)
 						}
 					}
+				}
+			}
+		}
+		if len(cat.titles) > 0 {
+			for _, f := range gen.MapKeysSorted(cat.unMatchedFiles) {
+				if json, ok := editedByTitleBase(f, cat.titles, used); ok {
+					associate(f, json, "matchEditedTitleBase")
 				}
 			}
 		}
@@ -520,7 +535,7 @@ func (toc *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md
 	// (e.g. "-edited", "-modifié") and matches it to the original's sidecar through
 	// matchEditedName. Mark it so the upload layer stacks it over the original and
 	// shows it as the cover.
-	if f.matcher == "matchEditedName" {
+	if f.matcher == "matchEditedName" || f.matcher == "matchEditedTitleBase" {
 		a.Kind = assets.KindEdited
 		a.IsModified = true
 		a.IsCover = true

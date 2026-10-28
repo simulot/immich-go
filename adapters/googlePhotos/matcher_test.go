@@ -436,6 +436,53 @@ func Test_getFileIndex(t *testing.T) {
 	}
 }
 
+func Test_editedByTitleBase(t *testing.T) {
+	const (
+		j58  = "5_8_13 - 1.supplemental-metadata.json"
+		j58i = "5_8_13 - 1.supplemental-metadata(1).json"
+		j59  = "5_9_13 - 1.supplemental-metadata.json"
+		j514 = "5_14_13 - 1.supplemental-metadata.json"
+		j515 = "5_15_13 - 1.supplemental-metadata.json"
+		j517 = "5_17_13 - 1.supplemental-metadata.json"
+	)
+	titles := map[string]string{
+		j58: "5/8/13 - 1", j58i: "5/8/13 - 1", j59: "5/9/13 - 1",
+		j514: "5/14/13 - 1", j515: "5/15/13 - 1", j517: "5/17/13 - 1",
+	}
+	pick := func(names ...string) map[string]string {
+		m := map[string]string{}
+		for _, n := range names {
+			m[n] = titles[n]
+		}
+		return m
+	}
+
+	for _, tc := range []struct {
+		name   string
+		file   string
+		titles map[string]string
+		used   map[string]bool
+		want   string
+	}{
+		{"unique", "13 - 1-edited.png", pick(j58, j58i), nil, j58},
+		{"duplicate index", "13 - 1-edited(1).png", pick(j58, j58i), nil, j58i},
+		{"localized suffix", "13 - 1-bearbeitet.png", pick(j58), nil, j58},
+		{"title with extension", "b-edited.jpg", map[string]string{"a_b.jpg.supplemental-metadata.json": "a/b.jpg"}, nil, "a_b.jpg.supplemental-metadata.json"},
+		{"other number", "13 - 10-edited.png", pick(j58), nil, ""},
+		{"not an edited copy", "13 - 1.png", pick(j58), nil, ""},
+		{"original present", "13 - 1-edited.jpg", pick(j59, j517), map[string]bool{j59: true}, j59},
+		{"ambiguous", "13 - 1-edited.jpg", pick(j514, j515, j517), map[string]bool{j514: true, j515: true, j517: true}, ""},
+		{"ambiguous without original", "13 - 1-edited.jpg", pick(j514, j515), nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := editedByTitleBase(tc.file, tc.titles, tc.used)
+			if got != tc.want || ok != (tc.want != "") {
+				t.Errorf("editedByTitleBase(%q) = (%q, %v), want %q", tc.file, got, ok, tc.want)
+			}
+		})
+	}
+}
+
 // The edited flag comes from the matcher that associated the file with the sidecar, not
 // from a suffix list: it covers every language and truncated names.
 func TestMakeAssetMarksTheEditedFileFromTheMatcher(t *testing.T) {
@@ -449,6 +496,7 @@ func TestMakeAssetMarksTheEditedFileFromTheMatcher(t *testing.T) {
 		{"matchEditedName", "X-bearbeitet.jpg", true},
 		{"matchEditedName", "X-edi.jpg", true},
 		{"matchEditedName", "X-edited(1).jpg", true},
+		{"matchEditedTitleBase", "13 - 1-edited.png", true},
 		{"matchNormal", "X(1).jpg", false},
 		{"matchLivePhotoVideo", "X.mp4", false},
 	} {

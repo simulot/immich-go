@@ -192,3 +192,36 @@ func getFileIndex(name string) (string, string) {
 	}
 	return stem[:p] + ext, index
 }
+
+// editedByTitleBase finds the JSON of an edited copy named after the text following the last "/" of the title:
+// "13 - 1-edited.png" for the title "5/8/13 - 1", whose original is "5_8_13 - 1.png".
+// titles maps JSON names to titles containing "/"; used holds the JSONs already associated with a file.
+func editedByTitleBase(fileName string, titles map[string]string, used map[string]bool) (string, bool) {
+	fileName, fileIndex := getFileIndex(fileName)
+	stem := strings.TrimSuffix(fileName, path.Ext(fileName))
+
+	var candidates []string
+	for json, title := range titles {
+		if _, jsonIndex := getFileIndex(json); jsonIndex != fileIndex {
+			continue
+		}
+		base := path.Base(title)
+		if strings.HasPrefix(stem, base+"-") || strings.HasPrefix(stem, strings.TrimSuffix(base, path.Ext(base))+"-") {
+			candidates = append(candidates, json)
+		}
+	}
+	if len(candidates) > 1 {
+		// an edited copy comes with its original
+		var withOriginal []string
+		for _, c := range candidates {
+			if used[c] {
+				withOriginal = append(withOriginal, c)
+			}
+		}
+		candidates = withOriginal
+	}
+	if len(candidates) == 1 {
+		return candidates[0], true
+	}
+	return "", false
+}
