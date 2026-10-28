@@ -43,7 +43,8 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 
 	// Check if the file name is the same as the JSON name
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	if jsonName == fileName {
+	// the title can have no extension: Mail.supplemental-metadata(3).json for Mail(3).jpg
+	if jsonName == fileName || jsonName == strings.TrimSuffix(fileName, path.Ext(fileName)) {
 		return true
 	}
 	// the truncation rule would bind X…(1).jpg to the JSON of X….jpg

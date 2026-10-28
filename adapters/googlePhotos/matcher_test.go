@@ -301,6 +301,38 @@ func Test_matchers(t *testing.T) {
 			jsonName: "Backyard_ceremony_wedding_photography_xxxxxxx_.json",
 			want:     "matchForgottenDuplicates",
 		},
+
+		// title without extension
+		{
+			fileName: "Mail(3).jpg",
+			jsonName: "Mail.supplemental-metadata(3).json",
+			want:     "matchNormal",
+		},
+		{
+			fileName: "Mail(3).jpg",
+			jsonName: "Mail.supplemental-metadata(2).json",
+			want:     "",
+		},
+		{ // an original, not an edited copy
+			fileName: "Mail.jpg",
+			jsonName: "Mail.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{
+			fileName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0(1).jpg",
+			jsonName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0.supplemental-metadata(1).json",
+			want:     "matchNormal",
+		},
+		{
+			fileName: "image(2).jpg",
+			jsonName: "image(2).supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{
+			fileName: "Mail-edited.jpg",
+			jsonName: "Mail.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
