@@ -43,8 +43,13 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 
 	// Check if the file name is the same as the JSON name
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
+	stem := strings.TrimSuffix(fileName, path.Ext(fileName))
 	// the title can have no extension: Mail.supplemental-metadata(3).json for Mail(3).jpg
-	if jsonName == fileName || jsonName == strings.TrimSuffix(fileName, path.Ext(fileName)) {
+	if jsonName == fileName || jsonName == stem {
+		return true
+	}
+	// Google replaces the trailing "." of the title by "_" in the media file name, not in the JSON name
+	if t, ok := strings.CutSuffix(jsonName, "."); ok && (t+"_" == fileName || t+"_" == stem) {
 		return true
 	}
 	// the truncation rule would bind X…(1).jpg to the JSON of X….jpg

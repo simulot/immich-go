@@ -360,6 +360,28 @@ func Test_matchers(t *testing.T) {
 			jsonName: "DSC_0105.JPG(1).json",
 			want:     "matchEditedName",
 		},
+
+		// title ending with ".", replaced by "_" in the media file name only
+		{
+			fileName: "In honor of our first employee_.jpg",
+			jsonName: "In honor of our first employee..supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{
+			fileName: "In honor of our first employee_(1).jpg",
+			jsonName: "In honor of our first employee..supplemental-metadata(1).json",
+			want:     "matchNormal",
+		},
+		{
+			fileName: "In honor of our first employee_.jpg",
+			jsonName: "In honor of our first employee..supplemental-metadata(1).json",
+			want:     "",
+		},
+		{ // "?" is replaced in both names
+			fileName: "what would it be_.jpg",
+			jsonName: "what would it be_.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
