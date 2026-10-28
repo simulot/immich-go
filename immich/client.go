@@ -3,6 +3,7 @@ package immich
 import (
 	"crypto/tls"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -21,12 +22,13 @@ Immich API documentation https://documentation.immich.app/docs/api/introduction
 type ImmichClient struct {
 	client         *http.Client
 	transport      *http.Transport
-	endPoint       string        // Server API url
-	key            string        // User KEY
-	DeviceUUID     string        // Device
-	Retries        int           // Number of attempts on 500 errors
-	RetriesDelay   time.Duration // Duration between retries
-	apiTraceWriter io.Writer     // If not nil, logs API calls to this writer
+	endPoint       string       // Server API url
+	key            string       // User KEY
+	DeviceUUID     string       // Device
+	apiTraceWriter io.Writer    // If not nil, logs API calls to this writer
+	retry          retryPolicy  // How a failed read is tried again (retry.go)
+	reach          reachability // A call gets retries when the server answered after the last give-up before the call started (retry.go)
+	log            *slog.Logger // Where the retries are logged; nil: the global logger
 
 	supportedMediaTypes filetypes.SupportedMedia // Server's list of supported medias
 	dryRun              bool                     //  If true, do not send any data to the server
@@ -121,10 +123,9 @@ func NewImmichClient(endPoint string, key string, options ...clientOption) (*Imm
 			TLSHandshakeTimeout:   30 * time.Second,
 			ResponseHeaderTimeout: 20 * time.Minute,
 		},
-		key:          key,
-		DeviceUUID:   deviceUUID,
-		Retries:      1,
-		RetriesDelay: time.Second * 1,
+		key:        key,
+		DeviceUUID: deviceUUID,
+		retry:      defaultRetryPolicy(),
 	}
 
 	ic.client = &http.Client{
