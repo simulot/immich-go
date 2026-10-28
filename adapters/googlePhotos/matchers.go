@@ -74,10 +74,13 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 //   PXL_20220405_090123740.PORTRAIT.jpg.json
 //   PXL_20220405_090123740.PORTRAIT.jpg
 //   PXL_20220405_090123740.PORTRAIT-modifié.jpg
+//   X-edited(1).jpg with X.jpg.supplemental-metadata(1).json
 // but not DSC_0104.JPG.json with DSC_0104(1).JPG
 
 func matchEditedName(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
-	if _, index := getFileIndex(fileName); index != "" {
+	fileName, fileIndex := getFileIndex(fileName)
+	jsonName, jsonIndex := getFileIndex(jsonName)
+	if fileIndex != jsonIndex {
 		return false
 	}
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))

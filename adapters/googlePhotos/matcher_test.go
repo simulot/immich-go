@@ -333,6 +333,33 @@ func Test_matchers(t *testing.T) {
 			jsonName: "Mail.supplemental-metadata.json",
 			want:     "matchEditedName",
 		},
+
+		// edited copy of a duplicate
+		{
+			fileName: "IMG_20131117_164736-edited(1).jpg",
+			jsonName: "IMG_20131117_164736.jpg.supplemental-metadata(1).json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "IMG_20131117_164736-edited(1).jpg",
+			jsonName: "IMG_20131117_164736.jpg.supplemental-metadata.json",
+			want:     "",
+		},
+		{
+			fileName: "IMG_20131117_164736-edited.jpg",
+			jsonName: "IMG_20131117_164736.jpg.supplemental-metadata(1).json",
+			want:     "",
+		},
+		{
+			fileName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0-edited(1).jpg",
+			jsonName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0.supplemental-metadata(1).json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "DSC_0105-edited(1).JPG",
+			jsonName: "DSC_0105.JPG(1).json",
+			want:     "matchEditedName",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
@@ -399,6 +426,7 @@ func TestMakeAssetMarksTheEditedFileFromTheMatcher(t *testing.T) {
 	}{
 		{"matchEditedName", "X-bearbeitet.jpg", true},
 		{"matchEditedName", "X-edi.jpg", true},
+		{"matchEditedName", "X-edited(1).jpg", true},
 		{"matchNormal", "X(1).jpg", false},
 		{"matchLivePhotoVideo", "X.mp4", false},
 	} {
