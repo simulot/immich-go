@@ -287,8 +287,8 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			return ms[i].id < ms[j].id
 		})
 		if len(ms) < 2 {
-			log.Warn("stack not made: only one of its members is here", "source stack", sid,
-				"members on the source", want, "file", ms[0].file)
+			log.Warn("stack not made: only one of its members is here", "sourceStack", sid,
+				"sourceMembers", want, "file", ms[0].file)
 			r.notMade++
 			continue
 		}
@@ -304,9 +304,9 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 		switch {
 		case p < 0:
 			p = 0
-			log.Warn("the stack's primary is not here: the first member by file name is its primary", "source stack", sid, "primary", ms[0].file)
+			log.Warn("the stack's primary is not here: the first member by file name is its primary", "sourceStack", sid, "primary", ms[0].file)
 		case np > 1:
-			log.Warn("the sidecars name more than one primary: the first by file name is the primary", "source stack", sid, "primary", ms[p].file)
+			log.Warn("the sidecars name more than one primary: the first by file name is the primary", "sourceStack", sid, "primary", ms[p].file)
 		}
 		order := []string{ms[p].id}
 		for i, m := range ms {
@@ -323,7 +323,7 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 		if st, ok := live.alreadyThere(order); ok {
 			same, err := sameStack(ctx, api, st, order)
 			if err != nil {
-				log.Error("stack not made: can't check the stack that is there", "source stack", sid, "stack", st.ID, "err", err)
+				log.Error("stack not made: can't check the stack that is there", "sourceStack", sid, "stack", st.ID, "err", err)
 				r.failed++
 				continue
 			}
@@ -347,8 +347,8 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			}
 		}
 		if len(other) > 0 {
-			log.Warn("stack not made: a member is in another stack, with assets that are not in this one", "source stack", sid,
-				"other stacks", strings.Join(other, ","))
+			log.Warn("stack not made: a member is in another stack, with assets that are not in this one", "sourceStack", sid,
+				"otherStacks", strings.Join(other, ","))
 			r.notMade++
 			continue
 		}
@@ -366,15 +366,15 @@ func rebuildStacks(ctx context.Context, api stackAPI, src *sourceStacks, log *sl
 			return r, nil
 		}
 		if err != nil {
-			log.Error("can't make the stack", "source stack", sid, "err", err)
+			log.Error("can't make the stack", "sourceStack", sid, "err", err)
 			r.failed++
 			continue
 		}
 		live.applyCreate(newID, order)
-		log.Debug("stack made", "source stack", sid, "stack", newID, "primary", ms[p].file, "members", len(order))
+		log.Debug("stack made", "sourceStack", sid, "stack", newID, "primary", ms[p].file, "members", len(order))
 		if want > len(ms) {
-			log.Warn("stack made without its missing members", "source stack", sid,
-				"members here", len(ms), "members on the source", want)
+			log.Warn("stack made without its missing members", "sourceStack", sid,
+				"members", len(ms), "sourceMembers", want)
 		}
 		r.created++
 		recordStacked(ctx, fp, ms)

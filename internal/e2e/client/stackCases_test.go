@@ -206,7 +206,7 @@ func TestStacksPartialRestore(t *testing.T) {
 	uploadLog := filepath.Join(t.TempDir(), "upload.log")
 	uploadFromFolder(t, u2, acc.adm, "--log-file="+uploadLog, "--log-type=JSON", filepath.Join(dir, jan.Format("2006/2006-01")))
 	w := checkOneWarning(t, uploadLog, "stack not made: only one of its members is here")
-	if w["source stack"] != across || w["members on the source"] != float64(2) {
+	if w["sourceStack"] != across || w["sourceMembers"] != float64(2) {
 		t.Errorf("warning %v: want it for the source stack %s, of 2 members", w, across)
 	}
 	want := map[string][]string{acc.checksums["mountains_01.jpg"]: {acc.checksums["mountains_01.jpg"], acc.checksums["mountains_02.jpg"]}}

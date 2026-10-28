@@ -507,7 +507,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 			uc.stacks.add(a, id)
 		} else if a.FromApplication != nil && a.FromApplication.Stack != nil && advice.ServerAsset != nil {
 			uc.app.Log().Warn("stack member not stacked: the server keeps another file with its name and capture time",
-				"file", a.File, "source stack", a.FromApplication.Stack.ID)
+				"file", a.File, "sourceStack", a.FromApplication.Stack.ID)
 		}
 	}()
 
