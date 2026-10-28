@@ -16,6 +16,17 @@ func matchFastTrack(jsonName string, fileName string, _ filetypes.SupportedMedia
 }
 
 func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) bool {
+	return normalMatch(jsonName, fileName, false)
+}
+
+// matchTitleWithoutExtension matches a title without extension: Mail.supplemental-metadata(3).json for Mail(3).jpg.
+// It runs after matchNormal, so 2013-12-14.webp keeps 2013-12-14.webp.supplemental-metadata.json
+// when 2013-12-14.supplemental-metadata.json (the JSON of 2013-12-14.png) is in the same folder.
+func matchTitleWithoutExtension(jsonName string, fileName string, _ filetypes.SupportedMedia) bool {
+	return normalMatch(jsonName, fileName, true)
+}
+
+func normalMatch(jsonName string, fileName string, withoutExtension bool) bool {
 	base, fileIndex := getFileIndex(fileName)
 	jsonName, jsonIndex := getFileIndex(jsonName)
 
@@ -43,17 +54,19 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 
 	// Check if the file name is the same as the JSON name
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
-	stem := strings.TrimSuffix(fileName, path.Ext(fileName))
-	// the title can have no extension: Mail.supplemental-metadata(3).json for Mail(3).jpg
-	if jsonName == fileName || jsonName == stem {
+	name := fileName
+	if withoutExtension {
+		name = strings.TrimSuffix(fileName, path.Ext(fileName))
+	}
+	if jsonName == name {
 		return true
 	}
 	// Google replaces the trailing "." of the title by "_" in the media file name, not in the JSON name
-	if t, ok := strings.CutSuffix(jsonName, "."); ok && (t+"_" == fileName || t+"_" == stem) {
+	if t, ok := strings.CutSuffix(jsonName, "."); ok && t+"_" == name {
 		return true
 	}
 	// the truncation rule would bind X…(1).jpg to the JSON of X….jpg
-	if literal {
+	if literal || withoutExtension {
 		return false
 	}
 

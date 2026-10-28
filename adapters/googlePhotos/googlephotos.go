@@ -296,6 +296,7 @@ var matchers = []struct {
 }{
 	{name: "matchFastTrack", fn: matchFastTrack},
 	{name: "matchNormal", fn: matchNormal},
+	{name: "matchTitleWithoutExtension", fn: matchTitleWithoutExtension},
 	{name: "matchLivePhotoVideo", fn: matchLivePhotoVideo},
 	{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
 	{name: "matchEditedName", fn: matchEditedName},

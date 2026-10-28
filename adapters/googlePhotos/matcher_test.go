@@ -306,7 +306,7 @@ func Test_matchers(t *testing.T) {
 		{
 			fileName: "Mail(3).jpg",
 			jsonName: "Mail.supplemental-metadata(3).json",
-			want:     "matchNormal",
+			want:     "matchTitleWithoutExtension",
 		},
 		{
 			fileName: "Mail(3).jpg",
@@ -316,17 +316,28 @@ func Test_matchers(t *testing.T) {
 		{ // an original, not an edited copy
 			fileName: "Mail.jpg",
 			jsonName: "Mail.supplemental-metadata.json",
-			want:     "matchNormal",
+			want:     "matchTitleWithoutExtension",
 		},
 		{
 			fileName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0(1).jpg",
 			jsonName: "s_361ad37c-5556-4bf2-a107-6b579418d6d7-0.supplemental-metadata(1).json",
-			want:     "matchNormal",
+			want:     "matchTitleWithoutExtension",
 		},
 		{
 			fileName: "image(2).jpg",
 			jsonName: "image(2).supplemental-metadata.json",
+			want:     "matchTitleWithoutExtension",
+		},
+		// the JSON titled with the extension is matched first, by matchNormal
+		{
+			fileName: "2013-12-14.webp",
+			jsonName: "2013-12-14.webp.supplemental-metadata.json",
 			want:     "matchNormal",
+		},
+		{
+			fileName: "2013-12-14.webp",
+			jsonName: "2013-12-14.supplemental-metadata.json",
+			want:     "matchTitleWithoutExtension",
 		},
 		{
 			fileName: "Mail-edited.jpg",
@@ -365,12 +376,12 @@ func Test_matchers(t *testing.T) {
 		{
 			fileName: "In honor of our first employee_.jpg",
 			jsonName: "In honor of our first employee..supplemental-metadata.json",
-			want:     "matchNormal",
+			want:     "matchTitleWithoutExtension",
 		},
 		{
 			fileName: "In honor of our first employee_(1).jpg",
 			jsonName: "In honor of our first employee..supplemental-metadata(1).json",
-			want:     "matchNormal",
+			want:     "matchTitleWithoutExtension",
 		},
 		{
 			fileName: "In honor of our first employee_.jpg",
@@ -380,7 +391,7 @@ func Test_matchers(t *testing.T) {
 		{ // "?" is replaced in both names
 			fileName: "what would it be_.jpg",
 			jsonName: "what would it be_.supplemental-metadata.json",
-			want:     "matchNormal",
+			want:     "matchTitleWithoutExtension",
 		},
 	}
 	for _, tt := range tests {
@@ -392,6 +403,7 @@ func Test_matchers(t *testing.T) {
 			}{
 				{name: "matchFastTrack", fn: matchFastTrack},
 				{name: "matchNormal", fn: matchNormal},
+				{name: "matchTitleWithoutExtension", fn: matchTitleWithoutExtension},
 				{name: "matchLivePhotoVideo", fn: matchLivePhotoVideo},
 				{name: "matchForgottenDuplicates", fn: matchForgottenDuplicates},
 				{name: "matchEditedName", fn: matchEditedName},
