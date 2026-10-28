@@ -291,6 +291,16 @@ func Test_matchers(t *testing.T) {
 			jsonName: "HI (3).jpg.supplemental-metadata.json",
 			want:     "matchEditedName",
 		},
+		{
+			fileName: "image(2).jpg",
+			jsonName: "image(2).jpg.supplemental-metadata.json",
+			want:     "matchNormal",
+		},
+		{ // the literal name must not use the 46-character truncation rule
+			fileName: "Backyard_ceremony_wedding_photography_xxxxxxx_m(1).jpg",
+			jsonName: "Backyard_ceremony_wedding_photography_xxxxxxx_.json",
+			want:     "matchForgottenDuplicates",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {

@@ -16,13 +16,17 @@ func matchFastTrack(jsonName string, fileName string, _ filetypes.SupportedMedia
 }
 
 func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) bool {
-	// Extract the index from the file name
-	fileName, fileIndex := getFileIndex(fileName)
-	// Extract the index from the JSON name
+	base, fileIndex := getFileIndex(fileName)
 	jsonName, jsonIndex := getFileIndex(jsonName)
 
-	// Check if the indexes are the same
-	if fileIndex != jsonIndex {
+	literal := false
+	switch {
+	case fileIndex == jsonIndex:
+		fileName = base
+	case fileIndex != "" && jsonIndex == "":
+		// the "(n)" is part of the original name: image(2).jpg
+		literal = true
+	default:
 		return false
 	}
 
@@ -41,6 +45,10 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 	jsonName = strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	if jsonName == fileName {
 		return true
+	}
+	// the truncation rule would bind X…(1).jpg to the JSON of X….jpg
+	if literal {
+		return false
 	}
 
 	if len(fileName) > 46 {
@@ -123,9 +131,14 @@ func matchLivePhotoVideo(jsonName string, fileName string, sm filetypes.Supporte
 		return false
 	}
 
-	fileName, fileIndex := getFileIndex(fileName)
+	base, fileIndex := getFileIndex(fileName)
 	jsonName, jsonIndex := getFileIndex(jsonName)
-	if fileIndex != jsonIndex {
+	switch {
+	case fileIndex == jsonIndex:
+		fileName = base
+	case fileIndex != "" && jsonIndex == "":
+		// the "(n)" is part of the original name: PXL_20220615_101533000(1).MP4
+	default:
 		return false
 	}
 
