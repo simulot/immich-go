@@ -139,3 +139,58 @@ func TestGroup(t *testing.T) {
 		}
 	}
 }
+
+// A file whose name looks like a scan's but that the grouper does not group (a burst frame, a
+// video) is passed on, never dropped.
+func TestGroupPassesOnWhatItDoesNotGroup(t *testing.T) {
+	ctx := context.Background()
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	t0 := time.Date(2023, 12, 7, 10, 16, 5, 0, time.Local)
+	testAssets := []*assets.Asset{
+		mockAsset(ic, "20231207_101605_001.jpg", t0), // a Samsung burst frame
+		mockAsset(ic, "20231207_101605_002.jpg", t0),
+		mockAsset(ic, "clip_0001.mov", t0),
+		mockAsset(ic, "photo_0001.jpg", t0),
+		mockAsset(ic, "photo_0001_a.jpg", t0),
+	}
+
+	in := make(chan *assets.Asset, len(testAssets))
+	out := make(chan *assets.Asset)
+	gOut := make(chan *assets.Group)
+	go func() {
+		g := &Group{}
+		g.Group(ctx, in, out, gOut)
+		close(out)
+		close(gOut)
+	}()
+	for _, a := range testAssets {
+		in <- a
+	}
+	close(in)
+
+	var passed, grouped []string
+	for out != nil || gOut != nil {
+		select {
+		case a, ok := <-out:
+			if !ok {
+				out = nil
+				continue
+			}
+			passed = append(passed, a.File.Name())
+		case g, ok := <-gOut:
+			if !ok {
+				gOut = nil
+				continue
+			}
+			for _, a := range g.Assets {
+				grouped = append(grouped, a.File.Name())
+			}
+		}
+	}
+	if want := []string{"20231207_101605_001.jpg", "20231207_101605_002.jpg", "clip_0001.mov"}; !reflect.DeepEqual(passed, want) {
+		t.Errorf("passed on %v, want %v", passed, want)
+	}
+	if want := []string{"photo_0001.jpg", "photo_0001_a.jpg"}; !reflect.DeepEqual(grouped, want) {
+		t.Errorf("grouped %v, want %v", grouped, want)
+	}
+}

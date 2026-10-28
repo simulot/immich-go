@@ -66,6 +66,11 @@ type Asset struct {
 	FromSourceFile  *Metadata // Metadata extracted from the file content (embedded metadata)
 	FromApplication *Metadata // Metadata extracted from the application that created the file
 
+	// FromArchive tells the file was restored from an immich-go archive: its .JSON sidecar, written
+	// by immich-go, was read. Its stack comes from that sidecar, so the groupers and the --manage-*
+	// filters never see it (groups.GrouperPipeline sends it alone).
+	FromArchive bool
+
 	// GPS location
 	Latitude  float64 // GPS latitude
 	Longitude float64 // GPS longitude

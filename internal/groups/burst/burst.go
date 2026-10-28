@@ -37,24 +37,27 @@ func Group(ctx context.Context, in <-chan *assets.Asset, out chan<- *assets.Asse
 
 			// exclude movies, edited or burst images
 			// exclude images without a date taken
-			// exclude images taken more than frameInterval ms apart
+			// an excluded asset is passed on alone: it never starts a burst
 			ni := a.NameInfo
-			dontGroupMe := ni.Type != filetypes.TypeImage ||
+			excluded := ni.Type != filetypes.TypeImage ||
 				a.CaptureDate.IsZero() ||
 				ni.Kind == assets.KindBurst ||
-				ni.Kind == assets.KindEdited ||
-				abs(a.CaptureDate.Sub(lastTaken)) > frameInterval
+				ni.Kind == assets.KindEdited
 
-			if dontGroupMe {
-				if len(currentGroup) > 0 {
-					sendBurstGroup(ctx, out, gOut, currentGroup)
-				}
+			if excluded {
+				sendBurstGroup(ctx, out, gOut, currentGroup)
+				sendBurstGroup(ctx, out, gOut, []*assets.Asset{a})
+				currentGroup = nil
+				lastTaken = time.Time{}
+				continue
+			}
+			if abs(a.CaptureDate.Sub(lastTaken)) > frameInterval { // a new burst may start here
+				sendBurstGroup(ctx, out, gOut, currentGroup)
 				currentGroup = []*assets.Asset{a}
-				lastTaken = a.CaptureDate
 			} else {
 				currentGroup = append(currentGroup, a)
-				lastTaken = a.CaptureDate
 			}
+			lastTaken = a.CaptureDate
 		}
 	}
 }

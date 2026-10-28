@@ -139,3 +139,65 @@ func TestGroup(t *testing.T) {
 		}
 	}
 }
+
+// An asset the grouper does not consider (a frame of a burst the camera named, a video, an edited
+// image) is passed on alone and never heads a burst: the frame shot right after it is not stacked
+// with it.
+func TestGroupNeverStacksWhatItDoesNotConsider(t *testing.T) {
+	ctx := context.Background()
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	t0 := time.Date(2023, 12, 7, 10, 16, 5, 0, time.Local)
+	edited := mockAsset(ic, "IMG_100-edited.jpg", t0.Add(2*time.Minute))
+	edited.Kind = assets.KindEdited
+	testAssets := []*assets.Asset{
+		mockAsset(ic, "20231207_101605_002.jpg", t0), // a Samsung burst frame
+		mockAsset(ic, "DSC_0001.JPG", t0.Add(200*time.Millisecond)),
+		mockAsset(ic, "clip_0001.mov", t0.Add(time.Minute)),
+		mockAsset(ic, "DSC_0002.JPG", t0.Add(time.Minute+200*time.Millisecond)),
+		edited,
+		mockAsset(ic, "DSC_0003.JPG", t0.Add(2*time.Minute+200*time.Millisecond)),
+		mockAsset(ic, "DSC_0004.JPG", t0.Add(2*time.Minute+400*time.Millisecond)),
+	}
+
+	in := make(chan *assets.Asset, len(testAssets))
+	out := make(chan *assets.Asset)
+	gOut := make(chan *assets.Group)
+	go func() {
+		Group(ctx, in, out, gOut)
+		close(out)
+		close(gOut)
+	}()
+	for _, a := range testAssets {
+		in <- a
+	}
+	close(in)
+
+	var alone []string
+	var bursts [][]string
+	for out != nil || gOut != nil {
+		select {
+		case a, ok := <-out:
+			if !ok {
+				out = nil
+				continue
+			}
+			alone = append(alone, a.File.Name())
+		case g, ok := <-gOut:
+			if !ok {
+				gOut = nil
+				continue
+			}
+			names := make([]string, 0, len(g.Assets))
+			for _, a := range g.Assets {
+				names = append(names, a.File.Name())
+			}
+			bursts = append(bursts, names)
+		}
+	}
+	if want := [][]string{{"DSC_0003.JPG", "DSC_0004.JPG"}}; !reflect.DeepEqual(bursts, want) {
+		t.Errorf("bursts %v, want %v", bursts, want)
+	}
+	if want := []string{"20231207_101605_002.jpg", "DSC_0001.JPG", "clip_0001.mov", "DSC_0002.JPG", "IMG_100-edited.jpg"}; !reflect.DeepEqual(alone, want) {
+		t.Errorf("alone %v, want %v", alone, want)
+	}
+}

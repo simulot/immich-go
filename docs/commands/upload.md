@@ -102,6 +102,29 @@ immich-go upload from-folder [options] <folder-path>
 | `--manage-heic-jpeg`      | `NoStack`, `KeepHeic`, `KeepJPG`, `StackCoverHeic`, `StackCoverJPG` | [HEIC+JPEG handling](../technical.md#heic-jpeg-management) |
 | `--manage-epson-fastfoto` | `false`                                                             | Handle Epson FastFoto scanned photos                       |
 
+These options group fresh files, such as the content of a camera card or of a phone export. They
+apply to `from-folder`, `from-icloud` and `from-picasa`.
+
+They never apply to a file restored from an immich-go archive, that is a file with the `.JSON`
+file that `archive` wrote for it. Such a file is never grouped with another file or dropped, even
+in a folder that also holds fresh files. Its stack is the one its `.JSON` file records: once every
+file is uploaded, those stacks are made again with the same primary (see
+[archive Stacks](archive.md#stacks)). This needs the `stack.read` and `stack.create` permissions on
+the API key. Without them, the upload logs a warning and the stacks are not made. Any other error
+of the server while the stacks are made fails the upload, once every file is uploaded. Running the
+upload again is safe: it uploads no file twice and makes no stack twice.
+
+One case is not checked, as the Immich API does not show it reliably. When the server already has
+a stack whose primary is a file of a stack being made, and whose other members on the timeline or
+archived are files of it too, Immich merges that stack into the new one. Its other members, those
+that are not files of the new stack, join it when they are hidden or in the locked folder, and
+leave their stack when they are in the trash.
+
+The files of an archive written by an older release of immich-go are never grouped either, but
+their `.JSON` files record no stack (no `stack` field): restoring such an archive makes no stacks.
+To get the source's stacks back, archive the server again with `archive from-immich` of this
+release into a new, empty folder, then restore that archive.
+
 ### Examples
 ```bash
 # Basic folder upload
@@ -240,6 +263,17 @@ immich-go upload from-immich [source-options] [destination-options]
   | `--from-favorite`       | Include only favorite assets |
   | `--from-minimal-rating` | Minimum rating filter        |
 
+### Stacks
+
+The stacks of the source server are made again on the destination, with the same primary, once
+every asset is transferred. The source API key needs the `stack.read` permission, and the
+destination API key the `stack.read` and `stack.create` permissions. Without them, a warning is
+logged and some or all of the stacks are not made. Any other error of the destination server while
+the stacks are made fails the upload, once every asset is transferred. Running the upload again is
+safe: it transfers no asset twice and makes no stack twice. The case `from-folder` does not check
+applies here too: a stack already on the destination that Immich merges into a new stack brings
+along its members that are hidden or in the locked folder, and its members in the trash leave
+their stack (see [File Management](#file-management)).
 
 ### Examples
 ```bash

@@ -7,6 +7,41 @@ import (
 	"github.com/google/uuid"
 )
 
+// Stack is a stack as GET /stacks lists it. Immich lists only its members that are not trashed and
+// are on the timeline or archived.
+type Stack struct {
+	ID             string `json:"id"`
+	PrimaryAssetID string `json:"primaryAssetId"`
+	Assets         []struct {
+		ID string `json:"id"`
+	} `json:"assets"`
+}
+
+// IsInStack tells whether the asset is in a stack: a search for it with withStacked=false (trashed
+// included) finds it only when it is in none. A failed search is no answer: false, with the error.
+func (ic *ImmichClient) IsInStack(ctx context.Context, id string) (bool, error) {
+	if id == "" {
+		return false, errNoAssetID("IsInStack")
+	}
+	unstacked := false
+	q := SearchMetadataQuery{ID: id, WithStacked: new(false), WithDeleted: true}
+	err := ic.callSearchMetadata(ctx, &q, func(a *Asset) error {
+		unstacked = unstacked || a.ID == id
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return !unstacked, nil
+}
+
+// GetAllStacks lists the user's stacks (GET /stacks).
+func (ic *ImmichClient) GetAllStacks(ctx context.Context) ([]Stack, error) {
+	var result []Stack
+	err := ic.newServerCall(ctx, "GetAllStacks").do(getRequest("/stacks", setAcceptJSON()), responseJSON(&result))
+	return result, err
+}
+
 // CreateStack create a stack with the given assets, the 1st asset is the cover, return the stack ID
 func (ic *ImmichClient) CreateStack(ctx context.Context, ids []string) (string, error) {
 	// remove the empty ids

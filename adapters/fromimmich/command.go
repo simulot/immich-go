@@ -2,6 +2,7 @@ package fromimmich
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -373,16 +374,51 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		so.WithPeople(fic.peopleIDs...)
 	}
 
-	return fic.client.Immich.GetFilteredAssetsFn(ctx, so, func(a *immich.Asset) error {
+	// Which assets are in a stack (see stackIndex): GET /stacks, then the same search with
+	// withStacked=false, which lists only the assets in no stack.
+	stacks, err := fic.listStacks(ctx)
+	if err != nil {
+		return err
+	}
+	uso := *so
+	err = fic.client.Immich.GetFilteredAssetsFn(ctx, uso.WithStacked(false), func(a *immich.Asset) error {
+		stacks.noteUnstacked(a.ID)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// A lookup that fails for one asset (its details, its stack, its albums) is an error for that
+	// asset, which is left out: with --on-errors=continue, ProcessError returns nil and the others go
+	// on. It is never sent on with what the failed call left (an asset with no ID, no stack, no
+	// album); the next run archives it.
+	err = fic.client.Immich.GetFilteredAssetsFn(ctx, so, func(item *immich.Asset) error {
 		// filters on data returned by the search API
-		if !fic.IncludePartners && a.OwnerID != fic.client.User.ID {
+		if !fic.IncludePartners && item.OwnerID != fic.client.User.ID {
 			return nil
+		}
+		if item.ID == "" {
+			return fic.app.ProcessError(errors.New("the search listed an asset with no ID"))
 		}
 
 		// Fetch details
-		a, err := fic.client.Immich.GetAssetInfo(ctx, a.ID)
-		if err = fic.app.ProcessError(err); err != nil {
-			return err
+		a, err := fic.client.Immich.GetAssetInfo(ctx, item.ID)
+		if err == nil && a.ID != item.ID {
+			err = fmt.Errorf("GET /assets/%s answered for asset %q", item.ID, a.ID)
+		}
+		if err != nil {
+			return fic.app.ProcessError(err)
+		}
+
+		// The stack, from the source server only, so that upload rebuilds exactly it. A failed lookup
+		// is logged and recorded as a server error here: under --on-errors=N, ProcessError logs
+		// nothing until the limit is passed. The asset is not discovered yet, so it is recorded as an
+		// event only, not in the asset tracker.
+		stack, err := fic.stackOf(ctx, stacks, a)
+		if err != nil {
+			fic.processor.Logger().RecordWithSize(ctx, fileevent.ErrorServerError, fshelper.FSName(fic.ifs, a.ID), a.ExifInfo.FileSizeInByte, "error", err.Error())
+			return fic.app.ProcessError(err)
 		}
 
 		asset := a.AsAsset()
@@ -392,6 +428,7 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			Latitude:    a.ExifInfo.Latitude,
 			Longitude:   a.ExifInfo.Longitude,
 			Description: a.ExifInfo.Description,
+			Stack:       stack,
 			DateTaken:   a.ExifInfo.DateTimeOriginal.Time,
 			Trashed:     a.IsTrashed,
 			Archived:    a.IsArchived,
@@ -407,13 +444,14 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		if a.Type == "VIDEO" {
 			code = fileevent.DiscoveredVideo
 		}
-		fic.processor.RecordAssetDiscovered(ctx, asset.File, int64(asset.FileSize), code)
 
 		// Transfer the album
 		simplifiedA, err := fic.client.Immich.GetAssetAlbums(ctx, a.ID)
-		if err = fic.app.ProcessError(err); err != nil {
-			return err
+		if err != nil {
+			return fic.app.ProcessError(err)
 		}
+		// Recorded once every lookup has answered: an asset left out is not counted as discovered.
+		fic.processor.RecordAssetDiscovered(ctx, asset.File, int64(asset.FileSize), code)
 
 		albums := immich.AlbumsFromAlbumSimplified(simplifiedA)
 		// clear the ID of the album that exists in from server, but not in to server
@@ -436,6 +474,12 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	// The count is complete only now: a search cut short gives none.
+	fic.warnRefused(stacks)
+	return nil
 }
 
 func formatQuotedStrings(ss []string) string {

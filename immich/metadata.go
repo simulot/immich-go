@@ -31,6 +31,7 @@ type searchOptions struct {
 	withOnlyState    string             // got only assets taken in this state
 	withOnlyCity     string             // got only assets taken in this city
 	withOrder        string             // sort order: "asc (oldest first)" or "desc(newest first)"
+	withStacked      *bool              // false: only assets in no stack (Immich's withStacked)
 
 	// following filters are resolved as ID
 	withAlbums []string // album ids
@@ -170,6 +171,12 @@ func (so *searchOptions) WithOnlyCity(city string) *searchOptions {
 	return so
 }
 
+// WithStacked(false) gets only the assets that are in no stack.
+func (so *searchOptions) WithStacked(stacked bool) *searchOptions {
+	so.withStacked = &stacked
+	return so
+}
+
 // to set the sort order
 func (so *searchOptions) WithOrder(order string) *searchOptions {
 	so.withOrder = order
@@ -190,6 +197,7 @@ func (ic *ImmichClient) buildSearchQueries(so *searchOptions) []SearchMetadataQu
 		TagIds:       so.withTags,
 		PersonIds:    so.withPeople,
 		Order:        so.withOrder,
+		WithStacked:  so.withStacked,
 	}
 
 	if !so.takenRange.Before.IsZero() {
@@ -291,6 +299,10 @@ type SearchMetadataQuery struct {
 	Rating           int               `json:"rating,omitzero"`
 	Visibility       assets.Visibility `json:"visibility,omitempty"`
 	Order            string            `json:"order,omitempty"`
+	WithStacked      *bool             `json:"withStacked,omitempty"`
+	// ID is a flat field that Immich v3 deprecates (since v3.2.0): the server rejects it next to
+	// the new filter, orderBy or cursor fields, which this query never sends.
+	ID string `json:"id,omitempty"`
 }
 
 func (ic *ImmichClient) callSearchMetadata(ctx context.Context, query *SearchMetadataQuery, filter func(*Asset) error) error {
