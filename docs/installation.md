@@ -27,6 +27,7 @@ Create an Immich API key for each user account you plan to use with `Immich-Go` 
 - `asset.copy`
 - `asset.delete`
 - `asset.download`
+- `asset.edit.get`: `archive from-immich` needs it to write the edit list of an edited photo. Without it, the photo is archived without its edit list, with one warning per run, and a `.JSON` file already written keeps its list.
 - `album.create`
 - `album.read`
 - `albumAsset.create`

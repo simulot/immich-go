@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -50,6 +51,7 @@ type FromImmichCmd struct {
 	ic        *filenames.InfoCollector
 	app       *app.Application
 	processor *fileprocessor.FileProcessor
+	edits     editLists // what the run knows of the edit lists it reads
 }
 
 func (fic *FromImmichCmd) RegisterFlags(flags *pflag.FlagSet) {
@@ -104,6 +106,7 @@ func (fic *FromImmichCmd) Run(ctx context.Context, cmd *cobra.Command, app *app.
 	fic.processor = app.FileProcessor()
 	fic.ifs = immichfs.NewImmichFS(ctx, fic.client.Server, fic.client.Immich)
 	fic.ic = filenames.NewInfoCollector(time.Local, fic.client.Immich.SupportedMedia())
+	fic.edits.runUnder(cmd)
 
 	// check filters values against immich suggestions
 	if fic.Make != "" {
@@ -308,6 +311,7 @@ func (fic *FromImmichCmd) Browse(ctx context.Context) chan *assets.Group {
 }
 
 func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Group) error {
+	defer fic.warnUnreadEditLists()
 	fic.MinimalRating = min(max(0, fic.MinimalRating), 5)
 
 	so := immich.SearchOptions()
@@ -399,8 +403,32 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			Rating:      byte(a.ExifInfo.Rating),
 			Tags:        asset.Tags,
 		}
+		// The asset's Immich checksum, as its sidecar records it. For a timeline asset it is the
+		// SHA-1 of the original: the archive checks the download against it. An external-library
+		// asset's hashes its path, not its bytes: it is kept apart, and a rerun recognizes the
+		// archived file by it with no download. Either way the sidecar's checksum ends up the SHA-1
+		// of the archived bytes, which the archive computes as it writes them.
+		if a.LibraryID == "" {
+			asset.FromApplication.Checksum = a.Checksum
+		} else {
+			asset.FromApplication.PathChecksum = a.Checksum
+		}
 		asset.UseMetadata(asset.FromApplication)
 		asset.File = fshelper.FSName(fic.ifs, a.ID)
+
+		// An edited photo: Immich keeps the original as it is, and the edits apart. The archive holds
+		// the original, and its sidecar the edit list, asked for only then, and only under archive
+		// (see runUnder). A failed lookup is an error for the asset, which is left out: it is never
+		// archived without its edits. A key without asset.edit.get is not an error (see readEditList).
+		// The failure is logged and recorded as a server error here: under --on-errors=N,
+		// ProcessError logs nothing until the limit is passed. The asset is not discovered yet, so it
+		// is recorded as an event only, not in the asset tracker.
+		if a.IsEdited && !fic.edits.skip {
+			if err := fic.readEditList(ctx, a.ID, asset.FromApplication); err != nil {
+				fic.processor.Logger().RecordWithSize(ctx, fileevent.ErrorServerError, asset.File, int64(asset.FileSize), "error", err.Error())
+				return fic.app.ProcessError(err)
+			}
+		}
 
 		// Record asset discovery
 		code := fileevent.DiscoveredImage
@@ -421,12 +449,26 @@ func (fic *FromImmichCmd) getAssets(ctx context.Context, grpChan chan *assets.Gr
 			albums[i].ID = ""
 		}
 
+		// The .JSON sidecar is written from FromApplication, which was filled before the albums
+		// were known. Give it the albums too (title and description, in a stable order), so that
+		// `upload from-folder` re-creates them when an archive is restored. GET /albums?assetId=
+		// lists every album the user is a member of, owned or shared with them.
+		sort.SliceStable(albums, func(i, j int) bool {
+			if albums[i].Title != albums[j].Title {
+				return albums[i].Title < albums[j].Title
+			}
+			return albums[i].Description < albums[j].Description
+		})
 		asset.Albums = albums
+		asset.FromApplication.Albums = albums
 
-		// Transfer tags
+		// Transfer tags, in a stable order as the albums: the sidecar is rewritten only when they
+		// change, not when the server lists them in another order.
 		for t := range asset.Tags {
 			asset.Tags[t].ID = ""
 		}
+		sort.SliceStable(asset.Tags, func(i, j int) bool { return asset.Tags[i].Value < asset.Tags[j].Value })
+		asset.FromApplication.Tags = asset.Tags
 
 		g := assets.NewGroup(assets.GroupByNone, asset)
 		select {

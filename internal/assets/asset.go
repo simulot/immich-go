@@ -71,7 +71,8 @@ type Asset struct {
 	Longitude float64 // GPS longitude
 
 	// buffer management
-	cacheReader *cachereader.CacheReader
+	cacheReader   *cachereader.CacheReader
+	cacheChecksum string // SHA-1 of the bytes cacheReader copied, base64; "" for a file opened in place
 }
 
 // Kind is the probable type of the image

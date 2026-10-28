@@ -381,7 +381,7 @@ func (ifc *ImportFolderCmd) parseDir(ctx context.Context, fsys fs.FS, dir string
 				}
 				if a.CaptureDate.IsZero() {
 					// no date in XMP, JSON, try reading the metadata
-					f, err := a.OpenFile()
+					f, _, err := a.OpenFile()
 					if err == nil {
 						md, err := exif.GetMetaData(f, a.Ext, ifc.tz)
 						if err != nil {

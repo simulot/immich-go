@@ -57,7 +57,7 @@ func (ic *ImmichClient) uploadAsset(ctx context.Context, la *assets.Asset, endPo
 		return ar, fmt.Errorf("type file not supported: %s", path.Ext(la.OriginalFileName))
 	}
 
-	f, err := la.OpenFile()
+	f, _, err := la.OpenFile()
 	if err != nil {
 		return ar, err
 	}

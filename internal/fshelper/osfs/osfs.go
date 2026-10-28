@@ -22,6 +22,7 @@ var (
 	_ fshelper.FSCanWrite = dirFS("")
 	// _ fshelper.FSCanMkdirAll = dirFS("")
 	_ fshelper.FSCanRemove = dirFS("")
+	_ fshelper.FSCanRename = dirFS("")
 	_ fshelper.FSCanStat   = dirFS("")
 	_ fshelper.FSCanLink   = dirFS("")
 )
@@ -66,6 +67,10 @@ func (dir dirFS) MkSymlink(name, target string) error {
 
 func (dir dirFS) Remove(name string) error {
 	return os.Remove(filepath.Join(string(dir), name))
+}
+
+func (dir dirFS) Rename(oldname, newname string) error {
+	return os.Rename(filepath.Join(string(dir), oldname), filepath.Join(string(dir), newname))
 }
 
 type OSFS interface {
