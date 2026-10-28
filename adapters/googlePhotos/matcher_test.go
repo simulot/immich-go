@@ -274,6 +274,23 @@ func Test_matchers(t *testing.T) {
 			jsonName: "X.jpg.supplemental-metadata.json",
 			want:     "matchEditedName",
 		},
+
+		// "(n)" that is part of the original name, not a duplicate index
+		{
+			fileName: "image(2)-edited.jpg",
+			jsonName: "image(2).jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "(25219)(3)1368646893405-edited.jpg",
+			jsonName: "(25219)(3)1368646893405.jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
+		{
+			fileName: "HI (3)-edited.jpg",
+			jsonName: "HI (3).jpg.supplemental-metadata.json",
+			want:     "matchEditedName",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.fileName, func(t *testing.T) {
@@ -297,6 +314,32 @@ func Test_matchers(t *testing.T) {
 			}
 			if matcher != tt.want {
 				t.Errorf("matcher is '%s', want %v", matcher, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getFileIndex(t *testing.T) {
+	for _, tc := range []struct {
+		name, wantName, wantIndex string
+	}{
+		{"X(1).jpg", "X.jpg", "1"},
+		{"X-edited(1).jpg", "X-edited.jpg", "1"},
+		{"X(12)", "X", "12"},
+		{"X.jpg(1).json", "X.jpg.json", "1"},
+		{"X.jpg.supplemental-metadata(1).json", "X.jpg.supplemental-metadata.json", "1"},
+		{"X.jpg", "X.jpg", ""},
+		{"image(2)-edited.jpg", "image(2)-edited.jpg", ""},
+		{"(25219)(3)1368646893405-edited.jpg", "(25219)(3)1368646893405-edited.jpg", ""},
+		{"X(1).jpg.supplemental-metadata.json", "X(1).jpg.supplemental-metadata.json", ""},
+		{"X(a).jpg", "X(a).jpg", ""},
+		{"X().jpg", "X().jpg", ""},
+		{"X).jpg", "X).jpg", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			name, index := getFileIndex(tc.name)
+			if name != tc.wantName || index != tc.wantIndex {
+				t.Errorf("getFileIndex(%q) = (%q, %q), want (%q, %q)", tc.name, name, index, tc.wantName, tc.wantIndex)
 			}
 		})
 	}

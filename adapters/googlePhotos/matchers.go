@@ -152,17 +152,21 @@ func matchLivePhotoVideo(jsonName string, fileName string, sm filetypes.Supporte
 	return jsonName == fileName
 }
 
+// getFileIndex splits the duplicate index "(n)" that Google appends right before the extension:
+// X(1).jpg, X.jpg.supplemental-metadata(1).json. A "(n)" elsewhere belongs to the original name.
 func getFileIndex(name string) (string, string) {
-	// Extract the index from the file name
-	p1File := strings.LastIndex(name, "(")
-	if p1File >= 0 {
-		p2File := strings.LastIndex(name, ")")
-		if p2File >= 0 && p2File > p1File {
-			fileIndex := name[p1File+1 : p2File]
-			if _, err := strconv.Atoi(fileIndex); err == nil {
-				return name[:p1File] + name[p2File+1:], fileIndex
-			}
-		}
+	ext := path.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	if !strings.HasSuffix(stem, ")") {
+		return name, ""
 	}
-	return name, ""
+	p := strings.LastIndex(stem, "(")
+	if p < 0 {
+		return name, ""
+	}
+	index := stem[p+1 : len(stem)-1]
+	if _, err := strconv.Atoi(index); err != nil {
+		return name, ""
+	}
+	return stem[:p] + ext, index
 }
