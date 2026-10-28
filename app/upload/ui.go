@@ -459,8 +459,10 @@ func (ui *uiPage) createProcessingZone() *tview.Grid {
 	ui.addProcessingCounter(processing, 3, "Tagged", fileevent.ProcessedTagged)
 	// Row 4: Metadata updated
 	ui.addProcessingCounter(processing, 4, "Metadata updated", fileevent.ProcessedMetadataUpdated)
+	// Row 5: Lock skipped
+	ui.addProcessingCounter(processing, 5, "Lock skipped", fileevent.ProcessedLockSkipped)
 
-	processing.SetSize(5, 2, 1, 1).SetColumns(20, 10)
+	processing.SetSize(6, 2, 1, 1).SetColumns(20, 10)
 	return processing
 }
 

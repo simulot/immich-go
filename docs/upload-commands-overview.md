@@ -136,6 +136,7 @@ Once the puzzle is solved, `immich-go` proceeds to the second pass:
     *   `--from-album-name`: To import only a specific album.
     *   `--include-trashed`: To import photos that are in Google's trash.
     *   `--include-archived`: To import photos you had archived in Google Photos.
+    *   `--include-locked`: To import photos from the Google Photos locked folder. They are put in the Immich locked folder. Photos already on the server are moved to the locked folder, unless they belong to an album (Immich removes locked photos from albums).
     *   `--include-partner`: To import photos shared by a partner.
     *   `--include-unmatched`: To import media files that could not be matched with a JSON file (useful for recovering all files, but they will have less metadata).
 

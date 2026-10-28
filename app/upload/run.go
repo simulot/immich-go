@@ -482,6 +482,12 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 		a.Close() // Close and clean resources linked to the local asset
 	}()
 
+	// Immich doesn't accept locked assets in albums, and a rejected batch would hurt the other assets
+	if a.Visibility == assets.VisibilityLocked && len(a.Albums) > 0 {
+		uc.app.Log().Info("locked asset is not added to albums", "file", a.File, "albums", len(a.Albums))
+		a.Albums = nil
+	}
+
 	var siblings []*assets.Asset
 	if g != nil {
 		siblings = g.Assets
@@ -532,6 +538,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 		// Record as processed - duplicate on server
 		uc.app.FileProcessor().RecordNonAsset(ctx, a.File, int64(a.FileSize), fileevent.DiscardedServerDuplicate)
 		uc.app.FileProcessor().RecordAssetProcessed(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated)
+		uc.ensureLocked(ctx, a, advice.ServerAsset)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		uc.manageAssetTags(ctx, a)
 
@@ -539,6 +546,7 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 		a.ID = advice.ServerAsset.ID
 		// Record as discarded - server has better version
 		uc.app.FileProcessor().RecordAssetDiscarded(ctx, a.File, int64(a.FileSize), fileevent.ProcessedMetadataUpdated, advice.Message)
+		uc.ensureLocked(ctx, a, advice.ServerAsset)
 		uc.manageAssetAlbums(ctx, a.File, a.ID, a.Albums)
 		uc.manageAssetTags(ctx, a)
 	case ForceUpload:

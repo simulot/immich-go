@@ -23,6 +23,7 @@ type Metadata struct {
 	Rating      byte               `json:"rating,omitempty"`      // 0 to 5
 	Trashed     bool               `json:"trashed,omitempty"`     // Flag to indicate if the image has been trashed
 	Archived    bool               `json:"archived,omitempty"`    // Flag to indicate if the image has been archived
+	Visibility  Visibility         `json:"visibility,omitempty"`  // Immich visibility, empty when unknown. Locked wins over Archived
 	Favorited   bool               `json:"favorited,omitempty"`   // Flag to indicate if the image has been favorited
 	FromPartner bool               `json:"fromPartner,omitempty"` // Flag to indicate if the image is from a partner
 }
@@ -44,6 +45,7 @@ func (m Metadata) LogValue() slog.Value {
 		slog.Int("rating", int(m.Rating)),
 		slog.Bool("trashed", m.Trashed),
 		slog.Bool("archived", m.Archived),
+		slog.String("visibility", string(m.Visibility)),
 		slog.Bool("favorited", m.Favorited),
 		slog.Bool("fromPartner", m.FromPartner),
 		slog.Any("albums", m.Albums),

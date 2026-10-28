@@ -22,6 +22,7 @@ type GoogleMetaData struct {
 	GeoData            *googGeoData       `json:"geoData"`
 	Trashed            bool               `json:"trashed,omitempty"`
 	Archived           bool               `json:"archived,omitempty"`
+	InLockedFolder     bool               `json:"inLockedFolder,omitempty"`
 	URLPresent         googIsPresent      `json:"url,omitempty"`         // true when the file is an asset metadata
 	Favorited          bool               `json:"favorited,omitempty"`   // true when starred in GP
 	Enrichments        *googleEnrichments `json:"enrichments,omitempty"` // Album enrichments
@@ -70,6 +71,7 @@ func (gmd GoogleMetaData) LogValue() slog.Value {
 		slog.Any("GeoData", gmd.GeoData),
 		slog.Bool("Trashed", gmd.Trashed),
 		slog.Bool("Archived", gmd.Archived),
+		slog.Bool("InLockedFolder", gmd.InLockedFolder),
 		slog.Bool("URLPresent", bool(gmd.URLPresent)),
 		slog.Bool("Favorited", gmd.Favorited),
 		slog.Any("Enrichments", gmd.Enrichments),
@@ -87,6 +89,12 @@ func (gmd GoogleMetaData) AsMetadata(name fshelper.FSAndName, tagPeople bool) *a
 		Archived:    gmd.Archived,
 		Favorited:   gmd.Favorited,
 		FromPartner: gmd.isPartner(),
+	}
+	switch {
+	case gmd.InLockedFolder:
+		md.Visibility = assets.VisibilityLocked
+	case gmd.Archived:
+		md.Visibility = assets.VisibilityArchive
 	}
 	if gmd.GeoDataExif != nil {
 		md.Latitude, md.Longitude = gmd.GeoDataExif.Latitude, gmd.GeoDataExif.Longitude

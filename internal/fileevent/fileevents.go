@@ -72,6 +72,7 @@ const (
 	ProcessedAlbumAdded         // Asset added to album
 	ProcessedTagged             // Asset tagged
 	ProcessedLivePhoto          // Live photo processed
+	ProcessedLockSkipped        // Server asset not moved to the locked folder
 
 	MaxCode
 )
@@ -118,6 +119,7 @@ var _code = map[Code]string{
 	ProcessedAlbumAdded:         "added to album",
 	ProcessedTagged:             "tagged",
 	ProcessedLivePhoto:          "live photo",
+	ProcessedLockSkipped:        "lock skipped",
 }
 
 var _logLevels = map[Code]slog.Level{
@@ -162,6 +164,7 @@ var _logLevels = map[Code]slog.Level{
 	ProcessedAlbumAdded:         slog.LevelInfo,
 	ProcessedTagged:             slog.LevelInfo,
 	ProcessedLivePhoto:          slog.LevelInfo,
+	ProcessedLockSkipped:        slog.LevelWarn,
 }
 
 func (e Code) String() string {
@@ -382,6 +385,7 @@ func (r *Recorder) GenerateEventReport() string {
 		ProcessedAlbumAdded,
 		ProcessedTagged,
 		ProcessedLivePhoto,
+		ProcessedLockSkipped,
 	} {
 		if eventCounts[c] > 0 {
 			hasProcessingEvents = true
@@ -397,6 +401,7 @@ func (r *Recorder) GenerateEventReport() string {
 			ProcessedAlbumAdded,
 			ProcessedTagged,
 			ProcessedLivePhoto,
+			ProcessedLockSkipped,
 		} {
 			if count := eventCounts[c]; count > 0 {
 				fmt.Fprintf(&sb, "  %-35s: %7d\n", c.String(), count)

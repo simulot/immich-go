@@ -69,6 +69,7 @@ type UpCmd struct {
 	app               *app.Application
 	assetIndex        *immichIndex                         // List of assets present on the server
 	localAssets       *syncset.Set[string]                 // List of assets present on the local input by name+size
+	lockedIDs         syncset.Set[string]                  // Server assets moved to the locked folder during this run
 	immichAssetsReady chan struct{}                        // Signal that the asset index is ready
 	deleteServerList  []*immich.Asset                      // List of server assets to remove
 	adapter           adapters.Reader                      // the source of assets

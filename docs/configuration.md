@@ -39,6 +39,7 @@ exclude-extensions = []
 from-album-name = ''
 include-archived = true
 include-extensions = []
+include-locked = true
 include-partner = true
 include-trashed = false
 include-type = ''
@@ -166,6 +167,7 @@ exclude-extensions = []
 from-album-name = ''
 include-archived = true
 include-extensions = []
+include-locked = true
 include-partner = true
 include-trashed = false
 include-type = ''
@@ -267,6 +269,7 @@ archive:
     from-album-name: ""
     include-archived: true
     include-extensions: []
+    include-locked: true
     include-partner: true
     include-trashed: false
     include-type: ""
@@ -384,6 +387,7 @@ upload:
     from-album-name: ""
     include-archived: true
     include-extensions: []
+    include-locked: true
     include-partner: true
     include-trashed: false
     include-type: ""
@@ -493,6 +497,7 @@ upload:
       "from-album-name": "",
       "include-archived": true,
       "include-extensions": null,
+      "include-locked": true,
       "include-partner": true,
       "include-trashed": false,
       "include-type": "",
@@ -617,6 +622,7 @@ upload:
       "from-album-name": "",
       "include-archived": true,
       "include-extensions": null,
+      "include-locked": true,
       "include-partner": true,
       "include-trashed": false,
       "include-type": "",

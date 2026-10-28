@@ -88,6 +88,7 @@ func (ia Asset) AsAsset() *assets.Asset {
 		File:             fshelper.FSName(nil, ia.OriginalFileName),
 		FileSize:         int(ia.ExifInfo.FileSizeInByte),
 		Checksum:         ia.Checksum,
+		Visibility:       assets.Visibility(ia.Visibility),
 	}
 	for _, album := range ia.Albums {
 		a.Albums = append(a.Albums, assets.Album{
@@ -218,6 +219,19 @@ func (ic *ImmichClient) UpdateAssets(ctx context.Context, ids []string,
 		RemoveParent:  removeParent,
 		StackParentID: stackParentID,
 	}
+	return ic.newServerCall(ctx, "updateAssets").do(putRequest("/assets", setJSONBody(param)))
+}
+
+// SetAssetsVisibility changes the visibility of the given assets.
+// updateAsset can't be used to lock an asset: it applies the change, then fails with 400 because it reads back the asset, which is no longer accessible.
+func (ic *ImmichClient) SetAssetsVisibility(ctx context.Context, ids []string, visibility assets.Visibility) error {
+	if ic.dryRun {
+		return nil
+	}
+	param := struct {
+		IDs        []string          `json:"ids"`
+		Visibility assets.Visibility `json:"visibility"`
+	}{IDs: ids, Visibility: visibility}
 	return ic.newServerCall(ctx, "updateAssets").do(putRequest("/assets", setJSONBody(param)))
 }
 
