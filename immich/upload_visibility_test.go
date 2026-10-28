@@ -21,6 +21,7 @@ func TestPrepareCallValuesVisibility(t *testing.T) {
 	}{
 		{name: "default", asset: assets.Asset{}, want: "timeline"},
 		{name: "archived", asset: assets.Asset{Archived: true}, want: "archive"},
+		{name: "archive visibility", asset: assets.Asset{Visibility: assets.VisibilityArchive}, want: "archive"},
 		{name: "locked", asset: assets.Asset{Visibility: assets.VisibilityLocked}, want: "locked"},
 		{name: "locked wins over archived", asset: assets.Asset{Visibility: assets.VisibilityLocked, Archived: true}, want: "locked"},
 		{name: "other visibilities are not propagated", asset: assets.Asset{Visibility: assets.VisibilityHidden}, want: "timeline"},

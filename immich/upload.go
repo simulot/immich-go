@@ -146,9 +146,9 @@ func (ic *ImmichClient) prepareCallValues(la *assets.Asset, s fs.FileInfo, ext, 
 	callValues["duration"] = "0"
 	callValues["isReadOnly"] = "false"
 	switch {
-	case la.Visibility == assets.VisibilityLocked:
-		callValues["visibility"] = string(assets.VisibilityLocked)
-	case la.Archived:
+	case la.Visibility == assets.VisibilityLocked, la.Visibility == assets.VisibilityArchive:
+		callValues["visibility"] = string(la.Visibility)
+	case la.Archived: // sources that don't set Visibility, like from-immich
 		callValues["visibility"] = "archive"
 	default:
 		callValues["visibility"] = "timeline"

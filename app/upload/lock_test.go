@@ -7,6 +7,7 @@ import (
 
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/gen/syncset"
 )
 
 type fakeLockClient struct {
@@ -104,7 +105,8 @@ func TestLockServerAsset(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			got, reason := lockServerAsset(context.Background(), tc.client, tc.input, tc.server)
+			lockedIDs := syncset.New[string]()
+			got, reason := lockServerAsset(context.Background(), tc.client, lockedIDs, tc.input, tc.server)
 			if got != tc.want {
 				t.Fatalf("outcome: got %d, want %d (%s)", got, tc.want, reason)
 			}
@@ -125,8 +127,11 @@ func TestLockServerAsset(t *testing.T) {
 					t.Errorf("updated ID: got %q, want %q", tc.client.updatedIDs[0], tc.server.ID)
 				}
 			}
-			if got == lockApplied && tc.server.Visibility != assets.VisibilityLocked {
-				t.Error("the index entry must reflect the new visibility")
+			if got == lockApplied && !lockedIDs.Contains(tc.server.ID) {
+				t.Error("the locked ID must be remembered")
+			}
+			if got != lockApplied && tc.server != nil && lockedIDs.Contains(tc.server.ID) {
+				t.Error("only a successful lock may be remembered")
 			}
 		})
 	}

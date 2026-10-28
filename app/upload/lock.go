@@ -7,6 +7,7 @@ import (
 	"github.com/simulot/immich-go/immich"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/fileevent"
+	"github.com/simulot/immich-go/internal/gen/syncset"
 )
 
 type lockOutcome int
@@ -26,8 +27,9 @@ type lockClient interface {
 // lockServerAsset moves the server asset to the Immich locked folder when the input asset is locked.
 // Immich removes locked assets from albums, so an asset belonging to albums is left untouched.
 // Albums are read from the server, the cached ones may be incomplete.
-func lockServerAsset(ctx context.Context, c lockClient, input, server *assets.Asset) (lockOutcome, string) {
-	if input.Visibility != assets.VisibilityLocked || server == nil || server.ID == "" || server.Visibility == assets.VisibilityLocked {
+// locked holds the IDs locked during this run: server assets are shared between workers and are never modified.
+func lockServerAsset(ctx context.Context, c lockClient, locked *syncset.Set[string], input, server *assets.Asset) (lockOutcome, string) {
+	if input.Visibility != assets.VisibilityLocked || server == nil || server.ID == "" || server.Visibility == assets.VisibilityLocked || locked.Contains(server.ID) {
 		return lockNotNeeded, ""
 	}
 
@@ -47,13 +49,13 @@ func lockServerAsset(ctx context.Context, c lockClient, input, server *assets.As
 	if err != nil {
 		return lockSkipped, fmt.Sprintf("can't lock the server asset: %s", err)
 	}
-	server.Visibility = assets.VisibilityLocked
+	locked.Add(server.ID)
 	return lockApplied, ""
 }
 
 // ensureLocked locks the server asset matching a locked input asset. It never fails the upload.
 func (uc *UpCmd) ensureLocked(ctx context.Context, a, serverAsset *assets.Asset) {
-	outcome, reason := lockServerAsset(ctx, uc.client.Immich, a, serverAsset)
+	outcome, reason := lockServerAsset(ctx, uc.client.Immich, &uc.lockedIDs, a, serverAsset)
 	switch outcome {
 	case lockApplied:
 		uc.app.Log().Info("server asset moved to the locked folder", "file", a.File, "ID", serverAsset.ID)
