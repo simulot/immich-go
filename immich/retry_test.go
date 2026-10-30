@@ -190,8 +190,10 @@ func TestRetryGatewayErrorsGiveUp(t *testing.T) {
 
 // Any other answer from the server is its answer: never tried again.
 func TestRetryNotOtherStatus(t *testing.T) {
-	for _, status := range []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound,
-		http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusNotImplemented} {
+	for _, status := range []int{
+		http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound,
+		http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusNotImplemented,
+	} {
 		t.Run(strconv.Itoa(status), func(t *testing.T) {
 			var calls atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -115,7 +115,7 @@ func archiveOne(t *testing.T, srv *httptest.Server, dir string) error {
 	return werr
 }
 
-func filesIn(t *testing.T, dir string) []string {
+func filesIn(dir string) []string {
 	var out []string
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() {
@@ -146,7 +146,7 @@ func TestArchiveDownloadCutOnce(t *testing.T) {
 	if err != nil || !bytes.Equal(got, content) {
 		t.Fatalf("archived original: %d bytes, %v; want the %d of the asset", len(got), err, len(content))
 	}
-	if files := filesIn(t, dir); len(files) != 2 || !strings.HasSuffix(files[1], "IMG_0001.JPG.JSON") {
+	if files := filesIn(dir); len(files) != 2 || !strings.HasSuffix(files[1], "IMG_0001.JPG.JSON") {
 		t.Fatalf("files %q, want the original and its sidecar only", files)
 	}
 	if downloads.Load() != 2 {
@@ -164,7 +164,7 @@ func TestArchiveDownloadAlwaysCut(t *testing.T) {
 	if err := archiveOne(t, srv, dir); err == nil {
 		t.Fatal("archive: no error")
 	}
-	if files := filesIn(t, dir); len(files) != 0 {
+	if files := filesIn(dir); len(files) != 0 {
 		t.Fatalf("files %q left, want none", files)
 	}
 	if downloads.Load() != 5 {

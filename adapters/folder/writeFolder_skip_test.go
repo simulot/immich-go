@@ -218,7 +218,8 @@ func unknownSize(t *testing.T, plain bool) {
 	}
 
 	write("z")
-	want := []string{"2021/2021-07/IMG_3.JPG", "2021/2021-07/IMG_3.JPG.JSON"}
+	want := make([]string, 0, 4)
+	want = append(want, "2021/2021-07/IMG_3.JPG", "2021/2021-07/IMG_3.JPG.JSON")
 	if got := listFiles(t, dst); !equal(got, want) {
 		t.Fatalf("run 1 wrote %v, want %v", got, want)
 	}

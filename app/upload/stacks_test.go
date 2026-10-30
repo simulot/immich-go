@@ -50,7 +50,7 @@ func (f *fakeStacks) GetAssetInfo(_ context.Context, id string) (*immich.Asset, 
 }
 
 func (f *fakeStacks) GetAllStacks(context.Context) ([]immich.Stack, error) {
-	var out []immich.Stack
+	out := make([]immich.Stack, 0, len(f.primary))
 	for id, p := range f.primary {
 		s := immich.Stack{ID: id, PrimaryAssetID: p}
 		for a, sid := range f.of {
@@ -432,7 +432,7 @@ func TestSourceStacksForget(t *testing.T) {
 	s.forget("old")
 	s.add(member("IMG_1~1.JPG", "old", &assets.Stack{ID: "S1", Primary: true, AssetCount: 3}))
 	s.add(member("IMG_3.JPG", "c", &assets.Stack{ID: "S1", AssetCount: 3}))
-	var ids []string
+	ids := make([]string, 0, len(s.m["S1"]))
 	for _, x := range s.m["S1"] {
 		ids = append(ids, x.id)
 	}

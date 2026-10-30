@@ -146,7 +146,8 @@ func retryable(err error) bool {
 	if !errors.As(err, &ce) {
 		return transient(err)
 	}
-	if ce.method != http.MethodGet && !(ce.method == http.MethodPost && readOnlyPosts[ce.endPoint]) {
+	read := ce.method == http.MethodGet || (ce.method == http.MethodPost && readOnlyPosts[ce.endPoint])
+	if !read {
 		return false
 	}
 	switch ce.status {
