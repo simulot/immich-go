@@ -23,9 +23,6 @@ import (
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/gen"
 	"github.com/simulot/immich-go/internal/groups"
-	"github.com/simulot/immich-go/internal/groups/burst"
-	"github.com/simulot/immich-go/internal/groups/epsonfastfoto"
-	"github.com/simulot/immich-go/internal/groups/series"
 	"github.com/simulot/immich-go/internal/namematcher"
 	"github.com/simulot/immich-go/internal/worker"
 	"github.com/spf13/cobra"
@@ -85,13 +82,11 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 		ifc.InclusionFlags.DateRange.SetTZ(ifc.tz)
 	}
 
-	if ifc.ManageEpsonFastFoto {
-		ifc.groupers = append(ifc.groupers, epsonfastfoto.Group{}.Group)
-	}
-	if ifc.ManageBurst != filters.BurstNothing {
-		ifc.groupers = append(ifc.groupers, burst.Group)
-	}
-	ifc.groupers = append(ifc.groupers, series.Group)
+	// No groupers: grouping by name and time (series, burst, Epson FastFoto) guessed stacks, and
+	// the --manage-* filters that act on those groups dropped files. Each asset is its own group;
+	// the only stacks an upload makes are the ones the .JSON sidecars of an immich-go archive
+	// record (app/upload/stacks.go).
+	ifc.groupers = nil
 
 	// callback the caller
 	err = runner.Run(cmd, ifc)

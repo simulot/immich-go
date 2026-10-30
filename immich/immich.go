@@ -107,6 +107,10 @@ type ImmichTagInterface interface {
 type ImmichStackInterface interface {
 	// CreateStack create a stack with the given assets, the 1st asset is the cover, return the stack ID
 	CreateStack(ctx context.Context, ids []string) (string, error)
+	// GetAllStacks lists the user's stacks
+	GetAllStacks(ctx context.Context) ([]Stack, error)
+	// IsInStack tells whether the asset is in a stack
+	IsInStack(ctx context.Context, id string) (bool, error)
 }
 
 type ImmichJobInterface interface {

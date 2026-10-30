@@ -1,0 +1,442 @@
+package upload
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"log/slog"
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/simulot/immich-go/adapters/folder"
+	"github.com/simulot/immich-go/app"
+	"github.com/simulot/immich-go/immich"
+	"github.com/simulot/immich-go/internal/assets"
+	"github.com/simulot/immich-go/internal/filters"
+	"github.com/simulot/immich-go/internal/fshelper"
+	"github.com/spf13/cobra"
+)
+
+// fakeStacks keeps stacks the way Immich v3.2.2 does (server/src/repositories/stack.repository.ts,
+// create): a new stack takes over every stack whose primary is among its assets (and all of
+// their members), moves its assets out of any other stack, and its first asset is the primary.
+type fakeStacks struct {
+	next       int
+	primary    map[string]string // stack -> primary asset
+	of         map[string]string // asset -> stack
+	trashed    map[string]bool   // members GET /stacks leaves out
+	unreported map[string]bool   // members GET /assets/{id} shows in no stack
+	infoFails  map[string]bool   // members whose GET /assets/{id} fails
+	creates    int
+}
+
+func newFakeStacks() *fakeStacks {
+	return &fakeStacks{
+		primary: map[string]string{}, of: map[string]string{}, trashed: map[string]bool{},
+		unreported: map[string]bool{}, infoFails: map[string]bool{},
+	}
+}
+
+func (f *fakeStacks) GetAssetInfo(_ context.Context, id string) (*immich.Asset, error) {
+	if f.infoFails[id] {
+		return &immich.Asset{}, fmt.Errorf("GetAssetInfo %s: failed on purpose", id)
+	}
+	a := &immich.Asset{ID: id}
+	if sid, ok := f.of[id]; ok && !f.unreported[id] {
+		a.Stack = &immich.AssetStack{ID: sid, PrimaryAssetID: f.primary[sid]}
+	}
+	return a, nil
+}
+
+func (f *fakeStacks) GetAllStacks(context.Context) ([]immich.Stack, error) {
+	out := make([]immich.Stack, 0, len(f.primary))
+	for id, p := range f.primary {
+		s := immich.Stack{ID: id, PrimaryAssetID: p}
+		for a, sid := range f.of {
+			if sid == id && !f.trashed[a] {
+				s.Assets = append(s.Assets, struct {
+					ID string `json:"id"`
+				}{a})
+			}
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+func (f *fakeStacks) CreateStack(_ context.Context, ids []string) (string, error) {
+	f.creates++
+	all := map[string]bool{}
+	for _, id := range ids {
+		all[id] = true
+	}
+	for sid, p := range f.primary {
+		if all[p] {
+			for a, s := range f.of {
+				if s == sid {
+					all[a] = true
+				}
+			}
+			delete(f.primary, sid)
+		}
+	}
+	f.next++
+	sid := fmt.Sprintf("stack-%d", f.next)
+	f.primary[sid] = ids[0]
+	for a := range all {
+		f.of[a] = sid
+	}
+	return sid, nil
+}
+
+// members of each stack, primary first, then sorted.
+func (f *fakeStacks) snapshot() map[string][]string {
+	out := map[string][]string{}
+	for sid, p := range f.primary {
+		var rest []string
+		for a, s := range f.of {
+			if s == sid && a != p {
+				rest = append(rest, a)
+			}
+		}
+		sort.Strings(rest)
+		out[sid] = append([]string{p}, rest...)
+	}
+	return out
+}
+
+func (f *fakeStacks) byPrimary() map[string][]string {
+	out := map[string][]string{}
+	for _, m := range f.snapshot() {
+		out[m[0]] = m
+	}
+	return out
+}
+
+func member(file, id string, st *assets.Stack) (*assets.Asset, string) {
+	a := &assets.Asset{File: fshelper.FSName(nil, file)}
+	a.FromApplication = &assets.Metadata{Stack: st}
+	return a, id
+}
+
+func collect(pairs ...func() (*assets.Asset, string)) *sourceStacks {
+	s := &sourceStacks{}
+	for _, p := range pairs {
+		s.add(p())
+	}
+	return s
+}
+
+func m(file, id, stack string, primary bool, count int) func() (*assets.Asset, string) {
+	return func() (*assets.Asset, string) {
+		return member(file, id, &assets.Stack{ID: stack, Primary: primary, AssetCount: count})
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestRebuildStacks(t *testing.T) {
+	src := collect(
+		// S1: members in two month folders; the primary is not the first by name.
+		m("2005/2005-01/100_0074.JPG", "a1", "S1", false, 2),
+		m("2006/2006-05/100_0075.JPG", "a2", "S1", true, 2),
+		// S2: 3 of its 4 members are here; the middle one is the primary.
+		m("2006/2006-05/IMG_1.JPG", "b1", "S2", false, 4),
+		m("2006/2006-05/IMG_2.JPG", "b2", "S2", true, 4),
+		m("2006/2006-05/IMG_3.JPG", "b3", "S2", false, 4),
+		// S3: one member here.
+		m("2006/2006-05/IMG_9.JPG", "c1", "S3", true, 2),
+		// S4: its primary is missing.
+		m("2006/2006-05/IMG_5.JPG", "d1", "S4", false, 3),
+		m("2006/2006-05/IMG_4.JPG", "d2", "S4", false, 3),
+		// Not in a stack, or no ID here (not uploaded): ignored.
+		func() (*assets.Asset, string) { return member("2006/2006-05/IMG_7.JPG", "e1", nil) },
+		m("2006/2006-05/IMG_8.JPG", "", "S5", true, 2),
+		// A file whose asset here is one already counted (the same server asset twice).
+		m("2006/2006-05/IMG_2~1.JPG", "b2", "S2", false, 4),
+	)
+	var logBuf bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logBuf, nil))
+	f := newFakeStacks()
+	r, err := rebuildStacks(context.Background(), f, src, log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][]string{
+		"a2": {"a2", "a1"},
+		"b2": {"b2", "b1", "b3"},
+		"d2": {"d2", "d1"}, // no primary here: the first by file name
+	}
+	got := f.byPrimary()
+	if len(got) != len(want) {
+		t.Fatalf("stacks %v, want %v", got, want)
+	}
+	for p, w := range want {
+		if !equalStrings(got[p], w) {
+			t.Fatalf("stacks %v, want %v", got, want)
+		}
+	}
+	if r.created != 3 || r.present != 0 || r.notMade != 1 {
+		t.Fatalf("result %+v", r)
+	}
+	logs := logBuf.String()
+	for _, s := range []string{"S2", "S3", "S4"} {
+		if !strings.Contains(logs, s) {
+			t.Errorf("nothing logged for %s:\n%s", s, logs)
+		}
+	}
+	if strings.Contains(logs, "S1") {
+		t.Errorf("S1 is whole, yet logged:\n%s", logs)
+	}
+
+	// A rerun (or a resume after everything was uploaded) makes nothing.
+	before := f.snapshot()
+	creates := f.creates
+	r, err = rebuildStacks(context.Background(), f, src, log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.creates != creates || r.created != 0 || r.present != 3 {
+		t.Fatalf("rerun: %d creates, result %+v", f.creates-creates, r)
+	}
+	after := f.snapshot()
+	if len(after) != len(before) {
+		t.Fatalf("rerun changed the stacks: %v, then %v", before, after)
+	}
+	for sid, ms := range before {
+		if !equalStrings(after[sid], ms) {
+			t.Fatalf("rerun changed the stacks: %v, then %v", before, after)
+		}
+	}
+}
+
+// A run cut short left a stack of the members uploaded by then (with another primary, since the
+// primary was not uploaded yet). The next run makes it whole, with the right primary: one stack.
+func TestRebuildStacksCompletesAPartialStack(t *testing.T) {
+	f := newFakeStacks()
+	if _, err := f.CreateStack(context.Background(), []string{"b1", "b3"}); err != nil {
+		t.Fatal(err)
+	}
+	src := collect(
+		m("2006/2006-05/IMG_1.JPG", "b1", "S2", false, 3),
+		m("2006/2006-05/IMG_2.JPG", "b2", "S2", true, 3),
+		m("2006/2006-05/IMG_3.JPG", "b3", "S2", false, 3),
+	)
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := f.snapshot()
+	if len(got) != 1 || r.created != 1 {
+		t.Fatalf("stacks %v, result %+v", got, r)
+	}
+	for _, ms := range got {
+		if !equalStrings(ms, []string{"b2", "b1", "b3"}) {
+			t.Fatalf("stack %v, want b2 primary with b1, b3", ms)
+		}
+	}
+}
+
+// A member put in the trash after the restore (as fill does for a trashed one) is not listed by
+// GET /stacks: GET /assets/{id} shows it still in the stack, so a rerun makes nothing. When
+// Immich reports it nowhere, the stack is made again, and Immich merges it: still one stack.
+func TestRebuildStacksRerunWithTrashedMember(t *testing.T) {
+	src := collect(
+		m("IMG_1.JPG", "b1", "S2", false, 3),
+		m("IMG_2.JPG", "b2", "S2", true, 3),
+		m("IMG_3.JPG", "b3", "S2", false, 3),
+	)
+	f := newFakeStacks()
+	log := slog.New(slog.DiscardHandler)
+	if _, err := rebuildStacks(context.Background(), f, src, log); err != nil {
+		t.Fatal(err)
+	}
+	first := f.snapshot()
+	f.trashed["b3"] = true
+	r, err := rebuildStacks(context.Background(), f, src, log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.creates != 1 || r.created != 0 || r.present != 1 {
+		t.Fatalf("rerun with a trashed member: %d creates, result %+v", f.creates, r)
+	}
+	for sid, ms := range f.snapshot() {
+		if !equalStrings(first[sid], ms) {
+			t.Fatalf("rerun changed the stack: %v, then %v", first, f.snapshot())
+		}
+	}
+	f.unreported["b3"] = true
+	if r, err = rebuildStacks(context.Background(), f, src, log); err != nil {
+		t.Fatal(err)
+	}
+	if r.created != 1 || len(f.primary) != 1 {
+		t.Fatalf("a member reported nowhere: result %+v, %d stacks, want it made again as the one stack", r, len(f.primary))
+	}
+}
+
+// A member GET /stacks does not list, whose GET /assets/{id} then fails: the stack that is there
+// cannot be checked, so it is an error for that stack, and nothing is made (a failed lookup is no
+// reason to make the stack again).
+func TestRebuildStacksFailedLookup(t *testing.T) {
+	src := collect(
+		m("IMG_1.JPG", "b1", "S2", false, 3),
+		m("IMG_2.JPG", "b2", "S2", true, 3),
+		m("IMG_3.JPG", "b3", "S2", false, 3),
+	)
+	f := newFakeStacks()
+	if _, err := rebuildStacks(context.Background(), f, src, slog.New(slog.DiscardHandler)); err != nil {
+		t.Fatal(err)
+	}
+	first := f.snapshot()
+	f.trashed["b3"] = true
+	f.infoFails["b3"] = true
+	var logBuf bytes.Buffer
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.creates != 1 || r.created != 0 || r.present != 0 || r.failed != 1 {
+		t.Fatalf("rerun with a failed lookup: %d creates, result %+v; want no create and 1 failed", f.creates, r)
+	}
+	if !strings.Contains(logBuf.String(), "level=ERROR") || !strings.Contains(logBuf.String(), "failed on purpose") {
+		t.Errorf("the failed lookup is not logged as an error:\n%s", logBuf.String())
+	}
+	for sid, ms := range f.snapshot() {
+		if !equalStrings(first[sid], ms) {
+			t.Fatalf("rerun changed the stack: %v, then %v", first, f.snapshot())
+		}
+	}
+}
+
+// A primary put in the trash (or hidden) after the restore: GET /stacks still names it as the
+// stack's primary but lists it as no member. The stack is found by its primary all the same, and
+// a rerun makes nothing.
+func TestRebuildStacksRerunWithTrashedPrimary(t *testing.T) {
+	src := collect(
+		m("IMG_1.JPG", "b1", "S2", false, 3),
+		m("IMG_2.JPG", "b2", "S2", true, 3),
+		m("IMG_3.JPG", "b3", "S2", false, 3),
+	)
+	f := newFakeStacks()
+	log := slog.New(slog.DiscardHandler)
+	if _, err := rebuildStacks(context.Background(), f, src, log); err != nil {
+		t.Fatal(err)
+	}
+	first := f.snapshot()
+	f.trashed["b2"] = true
+	r, err := rebuildStacks(context.Background(), f, src, log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.creates != 1 || r.created != 0 || r.present != 1 {
+		t.Fatalf("rerun with the primary trashed: %d creates, result %+v", f.creates, r)
+	}
+	for sid, ms := range f.snapshot() {
+		if !equalStrings(first[sid], ms) {
+			t.Fatalf("rerun changed the stack: %v, then %v", first, f.snapshot())
+		}
+	}
+}
+
+// A member already in a stack with assets that are not in this source stack: that stack is left
+// as it is, and nothing is made for this one.
+func TestRebuildStacksLeavesOtherStacks(t *testing.T) {
+	f := newFakeStacks()
+	if _, err := f.CreateStack(context.Background(), []string{"x1", "b1"}); err != nil {
+		t.Fatal(err)
+	}
+	src := collect(
+		m("IMG_1.JPG", "b1", "S2", false, 2),
+		m("IMG_2.JPG", "b2", "S2", true, 2),
+	)
+	var logBuf bytes.Buffer
+	r, err := rebuildStacks(context.Background(), f, src, slog.New(slog.NewTextHandler(&logBuf, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := f.snapshot()
+	if f.creates != 1 || r.created != 0 || r.notMade != 1 || len(got) != 1 {
+		t.Fatalf("stacks %v, result %+v", got, r)
+	}
+	for _, ms := range got {
+		if !equalStrings(ms, []string{"x1", "b1"}) {
+			t.Fatalf("the other stack changed: %v", ms)
+		}
+	}
+	if !strings.Contains(logBuf.String(), "S2") {
+		t.Fatalf("not logged:\n%s", logBuf.String())
+	}
+}
+
+// The folder sources group nothing, so the --manage-* options that stacked by name and time or
+// dropped files are refused there, before anything is read or sent.
+func TestFolderUploadRefusesGuessingOptions(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		set  func(*UpCmd)
+	}{
+		{"manage-raw-jpeg", func(u *UpCmd) { u.ManageRawJPG = filters.RawJPGKeepJPG }},
+		{"manage-heic-jpeg", func(u *UpCmd) { u.ManageHEICJPG = filters.HeicJpgKeepHeic }},
+		{"manage-burst", func(u *UpCmd) { u.ManageBurst = filters.BurstStack }},
+		{"manage-epson-fastfoto", func(u *UpCmd) { u.ManageEpsonFastFoto = true }},
+	} {
+		uc := &UpCmd{app: app.New(context.Background(), nil)}
+		tc.set(uc)
+		cmd := &cobra.Command{}
+		cmd.SetContext(context.Background())
+		err := uc.Run(cmd, &folder.ImportFolderCmd{})
+		if err == nil || !strings.Contains(err.Error(), tc.name) {
+			t.Errorf("--%s: err %v, want a refusal naming it", tc.name, err)
+		}
+	}
+}
+
+// A member counts only as the server asset that holds this very file.
+func TestStackMemberID(t *testing.T) {
+	a := func(id, ck string) *assets.Asset { return &assets.Asset{ID: id, Checksum: ck} }
+	for _, tc := range []struct {
+		name string
+		a    *assets.Asset
+		adv  *Advice
+		want string
+	}{
+		{"uploaded", a("new", "ck"), &Advice{Advice: NotOnServer}, "new"},
+		{"upload failed", a("", "ck"), &Advice{Advice: NotOnServer}, ""},
+		{"replaced a smaller file", a("new", "ck"), &Advice{Advice: SmallerOnServer, ServerAsset: a("old", "other")}, "new"},
+		{"same checksum on the server", a("srv", "ck"), &Advice{Advice: SameOnServer, ServerAsset: a("srv", "ck")}, "srv"},
+		{"same name, time and size, other content", a("srv", "ck"), &Advice{Advice: SameOnServer, ServerAsset: a("srv", "other")}, ""},
+		{"a bigger file with its name and time", a("srv", "ck"), &Advice{Advice: BetterOnServer, ServerAsset: a("srv", "other")}, ""},
+		{"the same content from another file", a("", "ck"), &Advice{Advice: AlreadyProcessed, ServerAsset: a("first", "ck")}, "first"},
+	} {
+		if got := stackMemberID(tc.a, tc.adv); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// A server asset deleted during the upload (replaced by a bigger file) is no member, whenever
+// its deletion is noted.
+func TestSourceStacksForget(t *testing.T) {
+	s := collect(m("IMG_1.JPG", "old", "S1", true, 3), m("IMG_2.JPG", "b", "S1", false, 3))
+	s.forget("old")
+	s.add(member("IMG_1~1.JPG", "old", &assets.Stack{ID: "S1", Primary: true, AssetCount: 3}))
+	s.add(member("IMG_3.JPG", "c", &assets.Stack{ID: "S1", AssetCount: 3}))
+	ids := make([]string, 0, len(s.m["S1"]))
+	for _, x := range s.m["S1"] {
+		ids = append(ids, x.id)
+	}
+	if !equalStrings(ids, []string{"b", "c"}) {
+		t.Fatalf("members %v, want b, c", ids)
+	}
+}
