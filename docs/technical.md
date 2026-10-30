@@ -10,7 +10,7 @@ Immich-go supports same formats as Immich supports, among them:
 #### Image Formats
 - **JPEG**: `.jpg`, `.jpeg`
 - **HEIC/HEIF**: `.heic`, `.heif` (Apple formats)
-- **RAW Formats**: `.dng`, `.cr2`, `.cr3`, `.arw`, `.raf`, `.nef`, `.rw2`, `.orf`
+- **RAW Formats**: `.dng`, `.cr2`, `.cr3`, `.arw`, `.raf`, `.nef`, `.nrw`, `.rw2`, `.orf`
 - **Other**: `.png`, `.gif`, `.bmp`, `.tiff`, `.webp`
 
 #### Video Formats
@@ -205,7 +205,7 @@ Example: 00001IMG_00001_BURST1723801037429_COVER.jpg
 
 #### Supported RAW Extensions
 - **Canon**: `.cr2`, `.cr3`
-- **Nikon**: `.nef`
+- **Nikon**: `.nef`, `.nrw`
 - **Sony**: `.arw`
 - **Fujifilm**: `.raf`
 - **Olympus**: `.orf`
@@ -329,18 +329,6 @@ archive-folder/
 - **Location**: System temp or `IMMICHGO_TEMPDIR`
 - **Usage**: Minimal temporary storage needed
 - **Cleanup**: Automatic cleanup on exit
-
-
-## 🔍 API Monitoring
-
-This project includes automated monitoring of the Immich API specifications to ensure compatibility:
-
-- **Automated Alerts**: GitHub Actions workflow monitors daily for API changes
-- **Manual Checking**: Run `./scripts/check-immich-api.sh` to check for updates
-- **Issue Tracking**: Automatic GitHub issues when API changes are detected
-- **Documentation**: See [API Monitoring Guide](.github/immich-api-monitor/README.md) for details
-
-
 
 ## See Also
 

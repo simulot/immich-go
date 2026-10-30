@@ -1,103 +1,75 @@
 #!/bin/bash
-# immich-cleanup.sh
-# Complete cleanup of Immich e2e test instance (including root-owned volumes)
+# Remove the e2e Immich instance and its volumes.
 #
-# Usage: immich-cleanup.sh [INSTALL_DIR]
-#   INSTALL_DIR: Immich installation directory (default: ./e2e-immich)
+# Only the volumes of the e2e compose project are removed. Other containers,
+# images and volumes on the machine are left untouched.
 
 set -euo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+usage() {
+  cat <<'EOF'
+Usage: e2e-cleanup.sh [options]
 
-# Configuration
-INSTALL_DIR="${1:-./internal/e2e/testdata/immich-server}"
-
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  Immich Complete Cleanup${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-
-# Check if installation directory exists
-if [ ! -d "${INSTALL_DIR}" ]; then
-    echo -e "${YELLOW}⚠️  Installation directory not found: ${INSTALL_DIR}${NC}"
-    echo -e "${GREEN}✅ Nothing to clean up${NC}"
-    exit 0
-fi
-
-cd "${INSTALL_DIR}"
-
-# Stop and remove containers
-if [ -f "docker-compose.yml" ]; then
-    echo -e "${YELLOW}🛑 Stopping Immich containers...${NC}"
-    docker compose down --volumes --remove-orphans 2>/dev/null || {
-        echo -e "${YELLOW}⚠️  docker compose down failed, continuing...${NC}"
-    }
-else
-    echo -e "${YELLOW}⚠️  No docker-compose.yml found, skipping container cleanup${NC}"
-fi
-
-# Get volume names that might be created
-VOLUMES=$(docker volume ls --format '{{.Name}}' | grep -E 'immich|e2e' || true)
-
-if [ -n "${VOLUMES}" ]; then
-    echo -e "${YELLOW}🗑️  Removing Docker volumes...${NC}"
-    echo "${VOLUMES}" | while read -r volume; do
-        echo -e "  ${BLUE}•${NC} Removing volume: ${volume}"
-        docker volume rm "${volume}" 2>/dev/null || {
-            echo -e "    ${YELLOW}⚠️  Could not remove ${volume}, may be in use${NC}"
-        }
-    done
-fi
-
-# Prune Docker system
-echo -e "${YELLOW}🧹 Pruning Docker system...${NC}"
-docker system prune -f 2>/dev/null || {
-    echo -e "${YELLOW}⚠️  docker system prune failed, continuing...${NC}"
+Options:
+  --yes               do not ask for confirmation (for scripts)
+  --install-dir DIR   installation directory
+                      (default: internal/e2e/testdata/immich-server)
+  -h, --help          show this help
+EOF
 }
 
-# Remove installation directory
-# Check for files that might be root-owned
-cd ..
-INSTALL_DIR_BASENAME=$(basename "${INSTALL_DIR}")
+yes=false
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --yes) yes=true; shift ;;
+    --install-dir) [ $# -ge 2 ] || e2e_die "--install-dir needs a value"; E2E_INSTALL_DIR="$2"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; e2e_die "unknown argument: $1" ;;
+  esac
+done
+export E2E_INSTALL_DIR
 
-if [ -d "${INSTALL_DIR_BASENAME}" ]; then
-    echo -e "${YELLOW}📁 Removing installation directory...${NC}"
-    
-    # Try normal removal first
-    if rm -rf "${INSTALL_DIR_BASENAME}" 2>/dev/null; then
-        echo -e "${GREEN}✅ Directory removed successfully${NC}"
-    else
-        # If normal removal fails, might need sudo for root-owned files
-        echo -e "${YELLOW}⚠️  Some files are root-owned, attempting with sudo...${NC}"
-        
-        if command -v sudo >/dev/null 2>&1; then
-            if sudo rm -rf "${INSTALL_DIR_BASENAME}"; then
-                echo -e "${GREEN}✅ Directory removed successfully (with sudo)${NC}"
-            else
-                echo -e "${RED}❌ Failed to remove directory even with sudo${NC}"
-                echo -e "${YELLOW}You may need to manually remove: ${INSTALL_DIR_BASENAME}${NC}"
-            fi
-        else
-            echo -e "${RED}❌ sudo not available, cannot remove root-owned files${NC}"
-            echo -e "${YELLOW}You may need to manually remove: ${INSTALL_DIR_BASENAME}${NC}"
-        fi
-    fi
+if [ ! -d "${E2E_INSTALL_DIR}" ]; then
+  e2e_info "nothing to clean up: ${E2E_INSTALL_DIR} does not exist"
+  exit 0
 fi
 
-# Success!
-echo ""
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✅ Immich cleanup complete!${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-echo -e "${YELLOW}Cleaned up:${NC}"
-echo -e "  • ${BLUE}Stopped and removed containers${NC}"
-echo -e "  • ${BLUE}Removed Docker volumes${NC}"
-echo -e "  • ${BLUE}Pruned Docker system${NC}"
-echo -e "  • ${BLUE}Removed installation directory${NC}"
-echo ""
+if [ "${yes}" != true ]; then
+  if [ -t 0 ]; then
+    read -r -p "Remove the e2e instance in ${E2E_INSTALL_DIR} and its volumes? [y/N] " answer
+    case "${answer}" in
+      y|Y|yes|YES) ;;
+      *) e2e_info "aborted"; exit 0 ;;
+    esac
+  else
+    e2e_die "refusing to remove ${E2E_INSTALL_DIR} without --yes"
+  fi
+fi
+
+e2e_require_docker
+
+if [ -f "${E2E_INSTALL_DIR}/docker-compose.yml" ]; then
+  e2e_info "stopping the instance (project ${E2E_PROJECT})"
+  e2e_compose down --volumes --remove-orphans ||
+    e2e_die "docker compose down failed; the directory was not removed"
+fi
+
+# Compose leaves behind named volumes that no service mounts any more (rootless
+# mode replaces the model cache with a bind mount). Remove the volumes of this
+# project only, selected by their compose label, never by name pattern.
+leftovers="$(docker volume ls -q --filter "label=com.docker.compose.project=${E2E_PROJECT}")"
+if [ -n "${leftovers}" ]; then
+  e2e_info "removing the remaining volumes of project ${E2E_PROJECT}"
+  for volume in ${leftovers}; do
+    docker volume rm "${volume}" >/dev/null || true
+  done
+fi
+
+e2e_info "removing ${E2E_INSTALL_DIR}"
+if ! rm -rf "${E2E_INSTALL_DIR}" 2>/dev/null; then
+  e2e_die "could not remove ${E2E_INSTALL_DIR}; the container created some files as root.
+       Run: sudo rm -rf '${E2E_INSTALL_DIR}'"
+fi
+
+e2e_info "done"

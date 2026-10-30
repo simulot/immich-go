@@ -30,6 +30,7 @@ type Asset struct {
 	ID         string `json:"id"`
 	IsArchived bool   `json:"isArchived"`
 	IsFavorite bool   `json:"isFavorite"`
+	IsEdited   bool   `json:"isEdited"`
 	// isOffline
 	IsTrashed        bool   `json:"isTrashed"`
 	LibraryID        string `json:"libraryId,omitempty"`
@@ -49,7 +50,7 @@ type Asset struct {
 	// people
 	Resized bool `json:"resized"`
 	// stack, only in GET /assets/{id}
-	Stack     *AssetStack     `json:"stack"`
+	Stack     *AssetStack     `json:"stack,omitempty"`
 	Tags      []TagSimplified `json:"tags"`
 	Thumbhash string          `json:"thumbhash"`
 	Type      string          `json:"type"`
@@ -137,21 +138,6 @@ const (
 	UploadReplaced  = "replaced"
 	UploadDuplicate = "duplicate"
 )
-
-func formatDuration(duration time.Duration) string {
-	hours := duration / time.Hour
-	duration -= hours * time.Hour
-
-	minutes := duration / time.Minute
-	duration -= minutes * time.Minute
-
-	seconds := duration / time.Second
-	duration -= seconds * time.Second
-
-	milliseconds := duration / time.Millisecond
-
-	return fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, milliseconds)
-}
 
 const (
 	StatusCreated   = "created"
