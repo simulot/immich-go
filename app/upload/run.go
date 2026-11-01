@@ -343,6 +343,7 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 		}
 	}
 	if hasEdit {
+		own := ownChecksums(g)
 		for _, a := range g.Assets {
 			name := path.Base(a.File.Name())
 			if a.Kind == assets.KindEdited {
@@ -351,6 +352,9 @@ func (uc *UpCmd) handleGroup(ctx context.Context, g *assets.Group) error {
 			for _, sa := range uc.assetIndex.nameDateCandidates(a, name) {
 				if groupSet[sa] {
 					continue // uploaded in this run; cannot be in a stack yet
+				}
+				if !mayBeVersionOf(a, sa, own) {
+					continue // another photo of this title
 				}
 				if uc.assetIndex.isAlreadyProcessed(sa.Checksum) {
 					continue // uploaded by this run; its ID can be a dry-run UUID, it is not a server stack
@@ -434,6 +438,7 @@ func stackIDs(g *assets.Group, ii *immichIndex) ([]string, bool) {
 	for _, a := range g.Assets {
 		add(a)
 	}
+	own := ownChecksums(g)
 	blocked := false
 	for _, a := range g.Assets {
 		if a.Kind != assets.KindEdited || ii.replacement(a).ID == "" {
@@ -443,6 +448,9 @@ func stackIDs(g *assets.Group, ii *immichIndex) ([]string, bool) {
 		for _, sa := range ii.editBaseCandidates(a) {
 			if slices.Contains(g.Assets, sa) {
 				continue // the group's own original; already added
+			}
+			if !mayBeVersionOf(a, sa, own) {
+				continue // another photo of the original's title
 			}
 			p, inStack := ii.stackPrimaryByID.Load(sa.ID)
 			if inStack && p != "" {
@@ -474,6 +482,27 @@ func stackIDs(g *assets.Group, ii *immichIndex) ([]string, bool) {
 	return ids, blocked
 }
 
+// ownChecksums returns the checksums of the group's files when one of them has namesakes, nil otherwise.
+func ownChecksums(g *assets.Group) []string {
+	if !slices.ContainsFunc(g.Assets, func(a *assets.Asset) bool { return a.HasNamesake }) {
+		return nil
+	}
+	var own []string
+	for _, a := range g.Assets {
+		if cs, err := a.GetChecksum(); err == nil {
+			own = append(own, cs)
+		}
+	}
+	return own
+}
+
+// mayBeVersionOf tells whether sa, an asset of the title and date of the group's file a, may be a version of it.
+// When either has namesakes (#1473), the title and date are shared with another photo: only the server copy of
+// one of the group's own files, whose checksum is in own, is a version. Otherwise every candidate may be one.
+func mayBeVersionOf(a, sa *assets.Asset, own []string) bool {
+	return (!a.HasNamesake && !sa.HasNamesake) || slices.Contains(own, sa.Checksum)
+}
+
 // handleAsset uploads the asset a, or updates the server's copy of it, as advised by the asset
 // index. g is the group a belongs to; its other assets are never mistaken for server-side variants
 // of a.
@@ -492,6 +521,9 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 	}
 
 	switch advice.Advice {
+	case NamesakeOnServer: // Upload, never replace: the server asset may be the other file of this name
+		uc.app.Log().Warn(advice.Message, "file", a.File, "server asset", advice.ServerAsset.ID)
+		fallthrough
 	case NotOnServer: // Upload and manage albums
 		err = uc.uploadAsset(ctx, a)
 		if err != nil {

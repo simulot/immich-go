@@ -36,6 +36,8 @@ func (a AdviceCode) String() string {
 		return "AlreadyProcessed"
 	case ForceUpload:
 		return "ForceUpload"
+	case NamesakeOnServer:
+		return "NamesakeOnServer"
 	}
 	return fmt.Sprintf("advice(%d)", a)
 }
@@ -48,6 +50,7 @@ const (
 	NotOnServer
 	AlreadyProcessed
 	ForceUpload
+	NamesakeOnServer
 )
 
 type immichIndex struct {
@@ -312,6 +315,14 @@ func (ii *immichIndex) adviceNotOnServer() *Advice {
 	}
 }
 
+func (ii *immichIndex) adviceNamesakeOnServer(sa *assets.Asset) *Advice {
+	return &Advice{
+		Advice:      NamesakeOnServer,
+		Message:     fmt.Sprintf("An asset with the same name:%q and date:%q is on the server or was uploaded in this run, but the input holds several files of this name: upload this one, keep the other.", sa.OriginalFileName, sa.CaptureDate.Format(time.DateTime)),
+		ServerAsset: sa,
+	}
+}
+
 func (ii *immichIndex) adviceForceUpload(sa *assets.Asset) *Advice {
 	return &Advice{
 		Advice:      ForceUpload,
@@ -334,6 +345,11 @@ func (ii *immichIndex) adviceForceUpload(sa *assets.Asset) *Advice {
 // indexed under the title of its sidecar, "X.jpg", with the same capture date as "X.jpg", and would
 // otherwise be reported as a smaller/bigger version of the original when it is uploaded first
 // (issue #877, #1285).
+//
+// An asset marked HasNamesake is one of several different files of one name in the input (two Takeout
+// series, #1473). Name and date cannot tell which server asset is a version of it, so only checksums
+// compare it: a marked local asset never replaces, nor is skipped for, an asset of its name and date,
+// and a marked asset uploaded earlier in the run is never replaced by one.
 func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...*assets.Asset) (*Advice, error) {
 	checksum, err := la.GetChecksum()
 	if err != nil {
@@ -404,6 +420,8 @@ func (ii *immichIndex) ShouldUpload(la *assets.Asset, upCmd *UpCmd, siblings ...
 			compareSize := size - int64(sa.FileSize)
 
 			switch {
+			case compareDate == 0 && (la.HasNamesake || sa.HasNamesake):
+				return ii.adviceNamesakeOnServer(sa), nil
 			case compareDate == 0 && upCmd.Overwrite:
 				return ii.adviceForceUpload(sa), nil
 			case compareDate == 0 && compareSize == 0:

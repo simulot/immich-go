@@ -58,6 +58,7 @@ type TakeoutCmd struct {
 	catalogs       map[string]directoryCatalog                // file catalogs by directory in the set of the all takeout parts
 	albums         map[string]assets.Album                    // track album names by folder
 	fileTracker    *gen.SyncMap[fileKeyTracker, trackingInfo] // map[fileKeyTracker]trackingInfo // key is base name + file size,  value is list of file paths
+	namesakes      map[string]bool                            // names and titles of different files kept under one name, see findNamesakes
 	groupers       []groups.Grouper
 	// filters        []filters.Filter
 }

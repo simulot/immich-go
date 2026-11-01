@@ -58,6 +58,7 @@ type Asset struct {
 	Albums      []Album    // List of albums the asset is in
 	Tags        []Tag      // List of tags the asset is tagged with
 	Visibility  Visibility // Immich visibility
+	HasNamesake bool       // the input holds several different files of this name or title: compare by checksum only
 
 	// Information inferred from the original file name
 	NameInfo
