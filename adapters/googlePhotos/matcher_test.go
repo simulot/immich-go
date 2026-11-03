@@ -329,3 +329,29 @@ func TestMakeAssetMarksTheEditedFileFromTheMatcher(t *testing.T) {
 		})
 	}
 }
+
+// A sidecar with an empty title is still matched: its metadata must be applied and the
+// file keeps its own name.
+func TestMakeAssetAppliesMetadataWhenTitleIsEmpty(t *testing.T) {
+	toc := &TakeoutCmd{infoCollector: filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)}
+	taken := time.Date(2020, 5, 17, 10, 30, 0, 0, time.UTC)
+
+	for _, title := range []string{"", "sample.png"} {
+		t.Run("title="+title, func(t *testing.T) {
+			md := &assets.Metadata{FileName: title, Description: "a description", DateTaken: taken, Favorited: true}
+			a := toc.makeAsset(context.Background(), "", &assetFile{base: "sample.png", matcher: "matchNormal"}, md)
+			if !a.CaptureDate.Equal(taken) {
+				t.Errorf("CaptureDate = %v, want %v", a.CaptureDate, taken)
+			}
+			if a.Description != "a description" {
+				t.Errorf("Description = %q, want %q", a.Description, "a description")
+			}
+			if !a.Favorite {
+				t.Errorf("Favorite = false, want true")
+			}
+			if a.OriginalFileName != "sample.png" {
+				t.Errorf("OriginalFileName = %q, want sample.png", a.OriginalFileName)
+			}
+		})
+	}
+}

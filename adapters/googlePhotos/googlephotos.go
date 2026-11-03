@@ -494,26 +494,28 @@ func (toc *TakeoutCmd) makeAsset(_ context.Context, dir string, f *assetFile, md
 		FileDate:         f.date,
 	}
 
-	// get the original file name from metadata
-	if md != nil && md.FileName != "" {
-		title := md.FileName
-
-		// a.OriginalFileName = md.FileName
-		// title := md.FileName
-
-		// trim superfluous extensions
-		titleExt := path.Ext(title)
-		fileExt := path.Ext(file)
-
-		if titleExt != fileExt {
-			title = strings.TrimSuffix(title, titleExt)
-			titleExt = path.Ext(title)
-			if titleExt != fileExt {
-				title = strings.TrimSuffix(title, titleExt) + fileExt
-			}
-		}
+	if md != nil {
+		// A matched sidecar always supplies the date, description, favorite flag, etc.,
+		// even when its title is empty.
 		a.FromApplication = a.UseMetadata(md)
-		a.OriginalFileName = title
+
+		// get the original file name from metadata, only when the sidecar has a title
+		if md.FileName != "" {
+			title := md.FileName
+
+			// trim superfluous extensions
+			titleExt := path.Ext(title)
+			fileExt := path.Ext(file)
+
+			if titleExt != fileExt {
+				title = strings.TrimSuffix(title, titleExt)
+				titleExt = path.Ext(title)
+				if titleExt != fileExt {
+					title = strings.TrimSuffix(title, titleExt) + fileExt
+				}
+			}
+			a.OriginalFileName = title
+		}
 	}
 	a.SetNameInfo(toc.infoCollector.GetInfo(a.OriginalFileName))
 	// Google Takeout names an edited copy with a localized, possibly truncated suffix
