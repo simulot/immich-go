@@ -126,7 +126,7 @@ func (cm *ConfigurationManager) processFlagSet(cmd *cobra.Command, fs *pflag.Fla
 		if !f.Changed && cm.v.IsSet(key) {
 			val := cm.v.Get(key)
 
-			err = errors.Join(fs.Set(f.Name, fmt.Sprintf("%v", val)))
+			err = errors.Join(err, fs.Set(f.Name, fmt.Sprintf("%v", val)))
 			// Determine origin
 			envKey := "IMMICH_GO_" + strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(key, ".", "_"), "-", "_"))
 			if os.Getenv(envKey) != "" {

@@ -330,3 +330,33 @@ func TestConfigurationManager_ProcessCommand_Idempotent(t *testing.T) {
 	assert.NoError(t, err2)
 	assert.True(t, cm.processed)
 }
+
+// An invalid value in the config file must be reported even when a later flag
+// in the same flag set is valid.
+func TestProcessCommand_InvalidValueNotHiddenByLaterValidFlag(t *testing.T) {
+	tests := []struct {
+		name string
+		toml string
+	}{
+		{"invalid flag first", "a-bool = \"not-a-bool\"\nz-bool = true\n"},
+		{"invalid flag last", "a-bool = true\nz-bool = \"not-a-bool\"\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "immich-go.toml")
+			require.NoError(t, os.WriteFile(file, []byte(tt.toml), 0o644))
+
+			cm := New()
+			require.NoError(t, cm.Init(file))
+
+			cmd := &cobra.Command{Use: "test"}
+			cmd.Flags().Bool("a-bool", false, "first flag")
+			cmd.Flags().Bool("z-bool", false, "second flag")
+
+			err := cm.ProcessCommand(cmd)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "not-a-bool")
+		})
+	}
+}
