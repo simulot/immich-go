@@ -2,7 +2,9 @@ package fshelper
 
 import (
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -174,5 +176,52 @@ func TestFixedPathAndMagic(t *testing.T) {
 				t.Errorf("FixedPathAndMagic() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
+	}
+}
+
+// An empty directory must be listed as empty, not reported as missing: fs.WalkDir stops
+// the whole walk at the first ReadDir error, which silently drops every file after it.
+func Test_VirtualGlobFS_EmptyDirectory(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"Photos from 2019/Photos from 2022", "Photos from 2020"} {
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(d)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, f := range []string{"Photos from 2019/a.jpg", "Photos from 2020/b.jpg"} {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(f)), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	fsys, err := NewVirtualGlobFS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := fs.ReadDir(fsys, "Photos from 2019/Photos from 2022")
+	if err != nil {
+		t.Fatalf("ReadDir on an empty directory: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected no entries in the empty directory, got %d", len(entries))
+	}
+
+	var files []string
+	err = fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			files = append(files, p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("WalkDir: %v", err)
+	}
+	expected := []string{"Photos from 2019/a.jpg", "Photos from 2020/b.jpg"}
+	if !reflect.DeepEqual(files, expected) {
+		t.Errorf("expected %v, got %v", expected, files)
 	}
 }

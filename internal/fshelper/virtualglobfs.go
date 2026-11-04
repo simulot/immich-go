@@ -53,6 +53,14 @@ func NewVirtualGlobFS(pattern string) (fs.FS, error) {
 			return err
 		}
 
+		// Register every directory, even an empty one: ReadDir must list it as empty
+		// rather than return fs.ErrNotExist, which aborts the caller's fs.WalkDir.
+		if d.IsDir() {
+			if _, ok := vfs.dirs[p]; !ok {
+				vfs.dirs[p] = nil
+			}
+		}
+
 		// directories should always be added
 		parentDir := path.Dir(p)
 		if parentDir != p {
