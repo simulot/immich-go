@@ -101,7 +101,9 @@ func (ifc *ImportFolderCmd) run(cmd *cobra.Command, args []string, app *app.Appl
 const icloudMetadataExt = ".csv"
 
 func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
-	gOut := make(chan *assets.Group)
+	// Buffered channel to prevent scanner goroutines from blocking on slow consumers
+	// Buffer size of 10000 allows scanning to complete independently of upload speed
+	gOut := make(chan *assets.Group, 10000)
 	go func() {
 		defer func() {
 			close(gOut)
@@ -126,7 +128,8 @@ func (ifc *ImportFolderCmd) Browse(ctx context.Context) chan *assets.Group {
 func (ifc *ImportFolderCmd) concurrentParseDir(ctx context.Context, fsys fs.FS, dir string, gOut chan *assets.Group) {
 	ifc.wg.Add(1)
 	ctx, cancel := context.WithCancelCause(ctx)
-	go ifc.pool.Submit(func() {
+	// Submit directly - pool.Submit() already handles goroutines internally
+	ifc.pool.Submit(func() {
 		defer ifc.wg.Done()
 		err := ifc.parseDir(ctx, fsys, dir, gOut)
 		if err != nil {

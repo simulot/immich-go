@@ -1,59 +1,53 @@
 package worker
 
-import (
-	"sync"
-)
+// Semaphore limits concurrent execution using a buffered channel.
+// Unlike a worker pool, it allows unlimited goroutines but only N run concurrently.
+// This prevents deadlock in recursive directory scanning scenarios.
+type Semaphore struct {
+	sem chan struct{}
+}
 
-// Task represents a unit of work to be processed by the worker pool.
-type Task func()
+// NewSemaphore creates a new Semaphore with the specified concurrency limit.
+func NewSemaphore(limit int) *Semaphore {
+	return &Semaphore{
+		sem: make(chan struct{}, limit),
+	}
+}
 
-// Pool manages a pool of worker goroutines.
+// Acquire acquires a semaphore slot, blocking if limit is reached.
+func (s *Semaphore) Acquire() {
+	s.sem <- struct{}{}
+}
+
+// Release releases a semaphore slot, allowing another goroutine to proceed.
+func (s *Semaphore) Release() {
+	<-s.sem
+}
+
+// Pool is kept for backward compatibility but now uses Semaphore internally.
 type Pool struct {
-	tasks  chan Task
-	wg     sync.WaitGroup
-	quit   chan struct{}
-	closed bool
+	semaphore *Semaphore
 }
 
-// NewPool creates a new Pool with a specified number of workers.
+// NewPool creates a new Pool that uses a Semaphore for concurrency control.
 func NewPool(numWorkers int) *Pool {
-	pool := &Pool{
-		tasks: make(chan Task),
-		quit:  make(chan struct{}),
-	}
-
-	for i := 0; i < numWorkers; i++ {
-		pool.wg.Add(1)
-		go pool.worker()
-	}
-
-	return pool
-}
-
-// worker is the function that each worker goroutine runs.
-func (p *Pool) worker() {
-	defer p.wg.Done()
-	for {
-		select {
-		case task := <-p.tasks:
-			task()
-		case <-p.quit:
-			return
-		}
+	return &Pool{
+		semaphore: NewSemaphore(numWorkers),
 	}
 }
 
-// Submit adds a task to the worker pool.
-func (p *Pool) Submit(task Task) {
-	p.tasks <- task
+// Submit executes a task with semaphore-based concurrency control.
+// The task runs in its own goroutine but is limited by the semaphore.
+func (p *Pool) Submit(task func()) {
+	go func() {
+		p.semaphore.Acquire()
+		defer p.semaphore.Release()
+		task()
+	}()
 }
 
-// Stop stops all the workers and waits for them to finish.
+// Stop is a no-op for backward compatibility.
+// With semaphore approach, there are no workers to stop.
 func (p *Pool) Stop() {
-	if !p.closed {
-		close(p.quit)
-		p.wg.Wait()
-		close(p.tasks)
-		p.closed = true
-	}
+	// No-op: semaphore doesn't need cleanup
 }
