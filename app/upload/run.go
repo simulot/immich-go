@@ -488,7 +488,10 @@ func (uc *UpCmd) handleAsset(ctx context.Context, a *assets.Asset, g *assets.Gro
 	}
 	advice, err := uc.assetIndex.ShouldUpload(a, uc, siblings...)
 	if err != nil {
-		return err
+		// Record the failure so the asset lands in ERROR state with its
+		// reason instead of silently becoming pending
+		uc.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorFileAccess, err)
+		return fmt.Errorf("evaluating %s: %w", a.OriginalFileName, err)
 	}
 
 	switch advice.Advice {
@@ -582,7 +585,8 @@ func (uc *UpCmd) uploadAsset(ctx context.Context, a *assets.Asset) error {
 	if err != nil {
 		// Record upload error
 		uc.app.FileProcessor().RecordAssetError(ctx, a.File, int64(a.FileSize), fileevent.ErrorServerError, err)
-		return err // Must signal the error to the caller
+		// Must signal the error to the caller
+		return fmt.Errorf("uploading %s: %w", a.OriginalFileName, err)
 	}
 	if ar.Status == immich.UploadDuplicate {
 		originalName := "unknown"
@@ -638,7 +642,8 @@ func (uc *UpCmd) replaceAsset(ctx context.Context, newAsset, oldAsset *assets.As
 	if err != nil {
 		// Record upload error
 		uc.app.FileProcessor().RecordAssetError(ctx, newAsset.File, int64(newAsset.FileSize), fileevent.ErrorServerError, err)
-		return err // Must signal the error to the caller
+		// Must signal the error to the caller
+		return fmt.Errorf("uploading %s: %w", newAsset.OriginalFileName, err)
 	}
 	newAsset.ID = ar.ID
 	if ar.Status == immich.UploadDuplicate {
