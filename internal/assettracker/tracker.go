@@ -329,6 +329,34 @@ func (at *AssetTracker) GenerateReport() string {
 		report += fmt.Sprintf("\n⚠️  WARNING: %d assets did not reach a final state!\n", counters.Pending)
 	}
 
+	// List pending assets (those that never reached a final state) so the
+	// user can identify and recover them
+	at.mu.RLock()
+	var pendingFiles []string
+	var erroredFiles []string
+	for _, record := range at.assets {
+		switch record.State {
+		case StatePending:
+			pendingFiles = append(pendingFiles, record.File.FullName())
+		case StateError:
+			erroredFiles = append(erroredFiles, fmt.Sprintf("%s: %s", record.File.FullName(), record.Reason))
+		}
+	}
+	at.mu.RUnlock()
+
+	if len(pendingFiles) > 0 {
+		report += "\nPending assets (never reached a final state):\n"
+		for _, f := range pendingFiles {
+			report += fmt.Sprintf("  - %s\n", f)
+		}
+	}
+	if len(erroredFiles) > 0 {
+		report += "\nErrored assets:\n"
+		for _, f := range erroredFiles {
+			report += fmt.Sprintf("  - %s\n", f)
+		}
+	}
+
 	return report
 }
 

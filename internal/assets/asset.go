@@ -188,13 +188,13 @@ func (a *Asset) GetChecksum() (string, error) {
 
 	f, err := a.File.Open()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("opening %s for checksum: %w", a.OriginalFileName, err)
 	}
 	defer f.Close()
 
 	sha1Hash, err := hash.Base64Encode(hash.GetSHA1Hash(f))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("computing checksum for %s: %w", a.OriginalFileName, err)
 	}
 	a.Checksum = sha1Hash
 	return a.Checksum, nil
