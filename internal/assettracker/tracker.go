@@ -98,7 +98,7 @@ func (at *AssetTracker) DiscoverAndDiscard(file fshelper.FSAndName, fileSize int
 
 	key := file.FullName()
 	if record, exists := at.assets[key]; exists {
-		// Asset already tracked — transition to discarded if still pending
+		// Asset already tracked: transition to discarded if still pending
 		// so it doesn't stay pending forever (e.g. duplicate discovered
 		// in a later pass).
 		if record.State == StatePending {
