@@ -41,7 +41,7 @@ The tool consults multiple sources for metadata, in the following order of prior
 You have several options for organizing your assets into albums:
 
 *   **`--into-album`**: The simplest option. All assets are placed into a single album you specify.
-*   **`--folder-as-album`**: A powerful feature that creates albums based on your folder structure. You can use the immediate parent folder name (`FOLDER`) or the full relative path (`PATH`) as the album title.
+*   **`--folder-as-album`**: A powerful feature that creates albums based on your folder structure. You can use the immediate parent folder name (`FOLDER`), the full relative path (`PATH`), or the top-level folder name (`TOP`) as the album title. With `TOP`, everything below a top-level folder — however deeply nested — goes into a single album named after that folder.
 *   **Source-Specific Albums**: When importing from Picasa (`--album-picasa`) or iCloud (`--memories`), `immich-go` can automatically create albums based on the metadata from those services.
 
 To avoid creating duplicate albums, `immich-go` first fetches your existing album list from the server. It then batches updates to minimize API calls.

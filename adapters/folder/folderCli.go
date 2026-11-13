@@ -14,6 +14,7 @@ const (
 	FolderModeNone   AlbumFolderMode = "NONE"
 	FolderModeFolder AlbumFolderMode = "FOLDER"
 	FolderModePath   AlbumFolderMode = "PATH"
+	FolderModeTop    AlbumFolderMode = "TOP"
 )
 
 func (m AlbumFolderMode) String() string {
@@ -23,10 +24,10 @@ func (m AlbumFolderMode) String() string {
 func (m *AlbumFolderMode) Set(v string) error {
 	v = strings.TrimSpace(strings.ToUpper(v))
 	switch v {
-	case string(FolderModeFolder), string(FolderModePath), string(FolderModeNone):
+	case string(FolderModeFolder), string(FolderModePath), string(FolderModeTop), string(FolderModeNone):
 		*m = AlbumFolderMode(v)
 	default:
-		return fmt.Errorf("invalid value for folder mode, expected %s, %s or %s", FolderModeFolder, FolderModePath, FolderModeNone)
+		return fmt.Errorf("invalid value for folder mode, expected %s, %s, %s or %s", FolderModeFolder, FolderModePath, FolderModeTop, FolderModeNone)
 	}
 	return nil
 }
