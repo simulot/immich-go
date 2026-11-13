@@ -333,6 +333,10 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 					a := toc.makeAsset(ctx, dir, i, nil)
 					cat.matchedFiles[f] = a
 					delete(cat.unMatchedFiles, f)
+				} else {
+					// Discard the unmatched asset so it reaches a terminal state
+					// instead of staying pending.
+					toc.processor.RecordAssetDiscarded(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), int64(i.length), fileevent.DiscardedFiltered, "no matching metadata")
 				}
 			}
 		}

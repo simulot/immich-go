@@ -97,8 +97,19 @@ func (at *AssetTracker) DiscoverAndDiscard(file fshelper.FSAndName, fileSize int
 	defer at.mu.Unlock()
 
 	key := file.FullName()
-	if _, exists := at.assets[key]; exists {
-		// Asset already tracked
+	if record, exists := at.assets[key]; exists {
+		// Asset already tracked: transition to discarded if still pending
+		// so it doesn't stay pending forever (e.g. duplicate discovered
+		// in a later pass).
+		if record.State == StatePending {
+			record.State = StateDiscarded
+			record.EventCode = eventCode
+			record.Reason = reason
+			record.FinalizedAt = time.Now()
+			at.pending--
+			at.discarded++
+			at.discardedSize += record.FileSize
+		}
 		if at.log != nil {
 			at.log.Warn("Asset already tracked", "file", file, "code", eventCode)
 		}

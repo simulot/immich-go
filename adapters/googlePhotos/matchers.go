@@ -68,9 +68,6 @@ func matchNormal(jsonName string, fileName string, _ filetypes.SupportedMedia) b
 // but not DSC_0104.JPG.json with DSC_0104(1).JPG
 
 func matchEditedName(jsonName string, fileName string, sm filetypes.SupportedMedia) bool {
-	if _, index := getFileIndex(fileName); index != "" {
-		return false
-	}
 	base := strings.TrimSuffix(jsonName, path.Ext(jsonName))
 	p1 := strings.LastIndex(base, ".")
 	if p1 > 1 {
@@ -78,12 +75,23 @@ func matchEditedName(jsonName string, fileName string, sm filetypes.SupportedMed
 			base = jsonName[:p1]
 		}
 	}
-
 	ext := path.Ext(base)
 	if ext != "" && sm.IsMedia(ext) {
 		base = strings.TrimSuffix(base, ext)
-		fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
 	}
+
+	// Strip index from edited variants (e.g. "DSC05577-edited(1).jpg")
+	// but not from plain duplicates (e.g. "DSC_0104(1).JPG"), where
+	// stripping would make a duplicate match its original's sidecar.
+	if stripped, index := getFileIndex(fileName); index != "" {
+		strippedBase := strings.TrimSuffix(stripped, path.Ext(stripped))
+		if len(strippedBase) <= len(base) {
+			return false
+		}
+		fileName = stripped
+	}
+
+	fileName = strings.TrimSuffix(fileName, path.Ext(fileName))
 	return strings.HasPrefix(fileName, base)
 }
 
