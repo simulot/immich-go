@@ -90,7 +90,7 @@ func OptionClientCertificate(certFile, keyFile string) clientOption {
 			return nil
 		}
 		if certFile == "" || keyFile == "" {
-			return errors.New("mTLS requires both --client-cert and --client-key to be set")
+			return errors.New("mTLS requires both a client certificate and a client key (--client-cert and --client-key, or their --from- variants)")
 		}
 		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {

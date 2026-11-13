@@ -61,7 +61,7 @@ func (client *Client) RegisterFlags(flags *pflag.FlagSet, prefix string) {
 	flags.BoolVar(&client.PauseImmichBackgroundJobs, prefix+"pause-immich-jobs", true, "Pause Immich background jobs during upload operations")
 	flags.BoolVar(&client.SkipSSL, prefix+"skip-verify-ssl", false, "Skip SSL verification")
 	flags.StringVar(&client.ClientCert, prefix+"client-cert", client.ClientCert, "Path to a PEM client certificate for mutual TLS (mTLS) authentication")
-	flags.StringVar(&client.ClientKey, prefix+"client-key", client.ClientKey, "Path to the PEM private key matching --client-cert")
+	flags.StringVar(&client.ClientKey, prefix+"client-key", client.ClientKey, "Path to the PEM private key matching --"+prefix+"client-cert")
 	flags.StringVar(&client.CACert, prefix+"ca-cert", client.CACert, "Path to a PEM CA certificate bundle used to verify the server")
 	flags.DurationVar(&client.ClientTimeout, prefix+"client-timeout", 20*time.Minute, "Set server calls timeout")
 	flags.StringVar(&client.DeviceUUID, prefix+"device-uuid", client.DeviceUUID, "Set a device UUID")
