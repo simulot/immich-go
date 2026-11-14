@@ -214,3 +214,27 @@ func TestCoverIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestGroupCoverIsNotAVideo(t *testing.T) {
+	ctx := context.Background()
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	baseTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+
+	in := make(chan *assets.Asset, 3)
+	out := make(chan *assets.Asset, 3)
+	gOut := make(chan *assets.Group, 1)
+	in <- mockAsset(ic, "IMG_030.mp4", baseTime)
+	in <- mockAsset(ic, "IMG_030.jpg", baseTime)
+	in <- mockAsset(ic, "IMG_030.heic", baseTime)
+	close(in)
+	Group(ctx, in, out, gOut)
+	close(gOut)
+
+	g, ok := <-gOut
+	if !ok {
+		t.Fatal("Expected a group")
+	}
+	if cover := g.Assets[g.CoverIndex]; cover.Type != filetypes.TypeImage {
+		t.Errorf("Expected an image as cover, got %s", cover.File.Name())
+	}
+}

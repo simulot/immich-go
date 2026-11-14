@@ -139,3 +139,95 @@ func TestGroup(t *testing.T) {
 		}
 	}
 }
+
+// A video, like the clip of a motion photo, is never part of a burst.
+func TestGroupWithVideos(t *testing.T) {
+	ctx := context.Background()
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	baseTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+
+	tests := []struct {
+		name           string
+		assets         []*assets.Asset
+		expectedGroups [][]string
+		expectedAssets []string
+	}{
+		{
+			name: "motion photo",
+			assets: []*assets.Asset{
+				mockAsset(ic, "IMG_001.MP.mp4", baseTime),
+				mockAsset(ic, "IMG_001.MP.jpg", baseTime.Add(300*time.Millisecond)),
+			},
+			expectedAssets: []string{"IMG_001.MP.mp4", "IMG_001.MP.jpg"},
+		},
+		{
+			name: "burst starting with a motion photo",
+			assets: []*assets.Asset{
+				mockAsset(ic, "IMG_001.MP.mp4", baseTime),
+				mockAsset(ic, "IMG_001.MP.jpg", baseTime.Add(300*time.Millisecond)),
+				mockAsset(ic, "IMG_002.jpg", baseTime.Add(600*time.Millisecond)),
+			},
+			expectedGroups: [][]string{{"IMG_001.MP.jpg", "IMG_002.jpg"}},
+			expectedAssets: []string{"IMG_001.MP.mp4"},
+		},
+		{
+			name: "video between two images",
+			assets: []*assets.Asset{
+				mockAsset(ic, "IMG_001.jpg", baseTime),
+				mockAsset(ic, "IMG_002.mp4", baseTime.Add(100*time.Millisecond)),
+				mockAsset(ic, "IMG_003.jpg", baseTime.Add(200*time.Millisecond)),
+			},
+			expectedAssets: []string{"IMG_001.jpg", "IMG_002.mp4", "IMG_003.jpg"},
+		},
+		{
+			name: "video in a burst",
+			assets: []*assets.Asset{
+				mockAsset(ic, "IMG_001.jpg", baseTime),
+				mockAsset(ic, "IMG_002.jpg", baseTime.Add(200*time.Millisecond)),
+				mockAsset(ic, "IMG_003.mp4", baseTime.Add(300*time.Millisecond)),
+				mockAsset(ic, "IMG_004.jpg", baseTime.Add(400*time.Millisecond)),
+				mockAsset(ic, "IMG_005.jpg", baseTime.Add(600*time.Millisecond)),
+			},
+			expectedGroups: [][]string{{"IMG_001.jpg", "IMG_002.jpg"}, {"IMG_004.jpg", "IMG_005.jpg"}},
+			expectedAssets: []string{"IMG_003.mp4"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := make(chan *assets.Asset, len(tt.assets))
+			out := make(chan *assets.Asset, len(tt.assets))
+			gOut := make(chan *assets.Group, len(tt.assets))
+			for _, a := range tt.assets {
+				in <- a
+			}
+			close(in)
+			Group(ctx, in, out, gOut)
+			close(out)
+			close(gOut)
+
+			gotGroups := [][]string{}
+			for g := range gOut {
+				names := []string{}
+				for _, a := range g.Assets {
+					names = append(names, a.File.Name())
+				}
+				gotGroups = append(gotGroups, names)
+			}
+			gotAssets := []string{}
+			for a := range out {
+				gotAssets = append(gotAssets, a.File.Name())
+			}
+
+			if tt.expectedGroups == nil {
+				tt.expectedGroups = [][]string{}
+			}
+			if !reflect.DeepEqual(gotGroups, tt.expectedGroups) {
+				t.Errorf("Expected groups %v, got %v", tt.expectedGroups, gotGroups)
+			}
+			if !reflect.DeepEqual(gotAssets, tt.expectedAssets) {
+				t.Errorf("Expected assets %v, got %v", tt.expectedAssets, gotAssets)
+			}
+		})
+	}
+}
