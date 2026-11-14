@@ -61,7 +61,7 @@ var defaultVisibility = []assets.Visibility{assets.VisibilityArchive, assets.Vis
 
 // set the queried visibilities in archive, timeline, hidden, locked values
 func (so *searchOptions) WithVisibility(visibilities ...assets.Visibility) *searchOptions {
-	gen.AddOnce(so.visibilities, visibilities...)
+	so.visibilities = gen.AddOnce(so.visibilities, visibilities...)
 	return so
 }
 

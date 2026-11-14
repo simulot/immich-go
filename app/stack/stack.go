@@ -85,7 +85,9 @@ func NewStackCommand(ctx context.Context, a *app.Application) *cobra.Command {
 		}
 		o.groupers = append(o.groupers, series.Group)
 
-		so := immich.SearchOptions().WithExif().WithDateRange(o.DateRange)
+		// leave out hidden assets: the video clips of motion photos
+		so := immich.SearchOptions().WithExif().WithDateRange(o.DateRange).
+			WithVisibility(assets.VisibilityTimeline, assets.VisibilityArchive)
 
 		err = o.client.Immich.GetFilteredAssetsFn(ctx, so,
 			func(a *immich.Asset) error {

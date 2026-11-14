@@ -72,6 +72,12 @@ func sendGroup(ctx context.Context, out chan<- *assets.Asset, outg chan<- *asset
 	gotMOV := false
 
 	cover := 0
+	for i, a := range as {
+		if a.Type == filetypes.TypeImage {
+			cover = i
+			break
+		}
+	}
 	coverIsEdited := false
 	// determine if the group is a burst
 	for i, a := range as {

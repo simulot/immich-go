@@ -3,7 +3,10 @@ package immich
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"testing"
+
+	"github.com/simulot/immich-go/internal/assets"
 )
 
 func Test_searchMetadataRequest(t *testing.T) {
@@ -137,5 +140,13 @@ func Test_searchMetadataRequest(t *testing.T) {
 	}
 	if rest.Assets.NextPage != 2 {
 		t.Errorf("expecting next page, got: %d", rest.Assets.NextPage)
+	}
+}
+
+func TestWithVisibility(t *testing.T) {
+	so := SearchOptions().WithVisibility(assets.VisibilityTimeline, assets.VisibilityArchive)
+	expected := []assets.Visibility{assets.VisibilityTimeline, assets.VisibilityArchive}
+	if !reflect.DeepEqual(so.visibilities, expected) {
+		t.Errorf("Expected visibilities %v, got %v", expected, so.visibilities)
 	}
 }
