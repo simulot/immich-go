@@ -54,7 +54,10 @@ linters:
       - builtin$
       - examples$
       - internal/e2e/testdata/immich-server
-      - "_test\\.go$"
+    rules:
+      - path: '_test\.go$'
+        linters:
+          - goconst
 issues:
   max-issues-per-linter: 100
   max-same-issues: 100

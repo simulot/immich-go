@@ -27,15 +27,15 @@ type ImmichController struct {
 }
 
 func (s *ImmichController) Down(ctx context.Context) error {
-	return s.DockerCompose(ctx, "down")
+	return s.Compose(ctx, "down")
 }
 
 func (s *ImmichController) Up(ctx context.Context) error {
-	return s.DockerCompose(ctx, "up", "-d")
+	return s.Compose(ctx, "up", "-d")
 }
 
 // FactoryReset recreates a fresh install of the immich server
-// - It removes existing docker volumes
+// - It removes existing engine volumes
 // - It removes existing images in
 //		- encoded-video
 //		- library
@@ -46,7 +46,7 @@ func (s *ImmichController) Up(ctx context.Context) error {
 func (s *ImmichController) FactoryReset(ctx context.Context) error {
 	_ = s.Down(ctx)
 
-	err := s.RemoveDockerVolumes(ctx)
+	err := s.RemoveVolumes(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,27 +74,27 @@ func (s *ImmichController) FactoryReset(ctx context.Context) error {
 	return nil
 }
 
-func (s *ImmichController) RemoveDockerVolumes(ctx context.Context) error {
+func (s *ImmichController) RemoveVolumes(ctx context.Context) error {
 	appName := path.Base(s.AppPath)
 
-	volumes, err := s.DockerVolumes(ctx)
+	volumes, err := s.Volumes(ctx)
 	if err != nil {
 		return err
 	}
 	for _, v := range volumes {
 		if strings.HasPrefix(v, appName) {
 			fmt.Println("removing volume", v)
-			o, err := s.DockerRun(ctx, "volume", "rm", v)
+			o, err := s.EngineRun(ctx, "volume", "rm", v)
 			if err != nil {
 				fmt.Println("->", err.Error(), "\n", string(o))
 				return err
 			}
 		}
 	}
-	o, err := s.DockerRun(ctx, "system", "prune", "-f")
+	o, err := s.EngineRun(ctx, "system", "prune", "-f")
 	if err != nil {
 		fmt.Println(string(o))
-		return fmt.Errorf("can't prune docker: %w", err)
+		return fmt.Errorf("can't prune the engine: %w", err)
 	}
 	//	rm := "rm -rf " + strings.Join([]string{"encoded-video", "library", "thumbs", "upload"}, " ")
 	o, err = SudoRun(ctx, "rm", "-rf", "encoded-video", "library", "thumbs", "upload")

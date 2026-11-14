@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/filetypes"
 )
@@ -28,7 +29,6 @@ type ImmichAssetInterface interface {
 	GetAssetInfo(ctx context.Context, id string) (*Asset, error)
 	DownloadAsset(ctx context.Context, id string) (io.ReadCloser, error)
 	UpdateAsset(ctx context.Context, id string, param UpdAssetField) (*Asset, error)
-	ReplaceAsset(ctx context.Context, ID string, la *assets.Asset) (AssetResponse, error) // Deprecated
 	CopyAsset(ctx context.Context, sourceID string, targetID string) error
 	GetAllAssets(ctx context.Context, fn func(*Asset) error) error
 	AddAssetToAlbum(context.Context, string, []string) ([]UpdateAlbumResult, error)
@@ -69,11 +69,13 @@ type ImmichClientInterface interface {
 	GetAssetStatistics(ctx context.Context) (UserStatistics, error)
 	SupportedMedia() filetypes.SupportedMedia
 	GetAboutInfo(ctx context.Context) (AboutInfo, error)
+	Version() *semver.Version
 }
 
 type ImmichAlbumInterface interface {
 	GetAllAlbums(ctx context.Context) ([]AlbumSimplified, error)
 	GetAlbumInfo(ctx context.Context, id string, withoutAssets bool) (AlbumContent, error)
+	GetAlbumAssetIDs(ctx context.Context, albumID string) ([]string, error)
 	CreateAlbum(
 		ctx context.Context,
 		tilte string,

@@ -1,10 +1,9 @@
 package gen
 
 import (
+	"cmp"
 	"sort"
 	"sync"
-
-	"golang.org/x/exp/constraints"
 )
 
 func MapKeys[K comparable, T any](m map[K]T) []K {
@@ -17,7 +16,7 @@ func MapKeys[K comparable, T any](m map[K]T) []K {
 	return r
 }
 
-func MapKeysSorted[K constraints.Ordered, T any](m map[K]T) []K {
+func MapKeysSorted[K cmp.Ordered, T any](m map[K]T) []K {
 	r := make([]K, len(m))
 	i := 0
 	for k := range m {

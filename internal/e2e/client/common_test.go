@@ -184,7 +184,6 @@ var permissions map[string][]string = map[string][]string{
 		`asset.update`,
 		`asset.upload`,
 		`asset.copy`,
-		`asset.replace`,
 		`asset.delete`,
 		`asset.download`,
 		`album.create`,
@@ -196,6 +195,7 @@ var permissions map[string][]string = map[string][]string{
 		`stack.create`,
 		`tag.asset`,
 		`tag.create`,
+		`tag.read`,
 		`user.read`,
 	},
 	"all": {

@@ -34,14 +34,15 @@ func ParsePath(args []string) ([]fs.FS, error) {
 		a = filepath.ToSlash(a)
 		files, err := expandNames(a)
 		if err != nil {
-			return nil, err
+			errs = errors.Join(errs, err)
+			continue
 		}
 
 		for _, f := range files {
 			lowF := strings.ToLower(f)
 			switch {
 			case strings.HasSuffix(lowF, ".tgz") || strings.HasSuffix(lowF, ".tar.gz"):
-				errs = errors.Join(fmt.Errorf("immich-go can't use tgz archives: %s", filepath.Base(a)))
+				errs = errors.Join(errs, fmt.Errorf("immich-go can't use tgz archives: %s", filepath.Base(a)))
 			case strings.HasSuffix(lowF, ".zip"):
 				fsys, err := zipname.OpenReader(f) //   zip.OpenReader(f)
 				if err != nil {

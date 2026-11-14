@@ -50,7 +50,9 @@ func TestGetAllPeople(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("encoding response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -120,7 +122,9 @@ func TestGetAllPeopleWithOptions(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("encoding response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -202,7 +206,9 @@ func TestGetPersonByName(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("encoding response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -273,7 +279,9 @@ func TestGetPeopleByNames(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("encoding response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -403,7 +411,9 @@ func TestGetAllPeopleIterator(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("encoding response: %v", err)
+		}
 	}))
 	defer server.Close()
 

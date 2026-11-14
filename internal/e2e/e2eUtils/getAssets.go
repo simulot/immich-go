@@ -30,6 +30,31 @@ type Asset struct {
 	Visibility       string   `json:"visibility"`
 }
 
+// Stack is a stack of assets as returned by /stacks
+type Stack struct {
+	ID             string   `json:"id"`
+	PrimaryAssetID string   `json:"primaryAssetId"`
+	Assets         []*Asset `json:"assets"`
+}
+
+// GetAllStacks retrieves all stacks of a user
+func GetAllStacks(email, password string) ([]*Stack, error) {
+	token, err := UserLogin(email, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to login: %w", err)
+	}
+	resp, err := get(getAPIURL()+"/stacks", token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stacks: %w", err)
+	}
+	defer resp.Body.Close()
+	var stacks []*Stack
+	if err := json.NewDecoder(resp.Body).Decode(&stacks); err != nil {
+		return nil, fmt.Errorf("failed to decode stacks: %w", err)
+	}
+	return stacks, nil
+}
+
 // SearchMetadataRequest represents the request body for /search/metadata
 type SearchMetadataRequest struct {
 	Page        int  `json:"page"`
@@ -49,15 +74,30 @@ type SearchMetadataResponse struct {
 
 // GetAllAssets retrieves all assets for a user using the search/metadata endpoint
 // It ignores albums, exifInfo, owner, and people fields
-// Returns a map of assets indexed by OriginalFileName
+// Returns a map of assets indexed by OriginalFileName. Assets sharing a name overwrite each other;
+// use GetAllAssetList when that matters.
 func GetAllAssets(email, password string) (map[string]*Asset, error) {
+	list, err := GetAllAssetList(email, password)
+	if err != nil {
+		return nil, err
+	}
+	assetsByName := make(map[string]*Asset, len(list))
+	for _, asset := range list {
+		assetsByName[asset.OriginalFileName] = asset
+	}
+	return assetsByName, nil
+}
+
+// GetAllAssetList retrieves all assets for a user using the search/metadata endpoint, in the
+// server's order.
+func GetAllAssetList(email, password string) ([]*Asset, error) {
 	// Login to get access token
 	token, err := UserLogin(email, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to login: %w", err)
 	}
 
-	assetsByName := make(map[string]*Asset)
+	list := []*Asset{}
 	page := 1
 	pageSize := 1000
 
@@ -81,10 +121,7 @@ func GetAllAssets(email, password string) (map[string]*Asset, error) {
 			return nil, fmt.Errorf("failed to decode search response: %w", err)
 		}
 
-		// Add assets to map indexed by OriginalFileName
-		for _, asset := range searchResp.Assets.Items {
-			assetsByName[asset.OriginalFileName] = asset
-		}
+		list = append(list, searchResp.Assets.Items...)
 
 		// Check if there are more pages
 		if searchResp.Assets.NextPage == 0 {
@@ -93,5 +130,5 @@ func GetAllAssets(email, password string) (map[string]*Asset, error) {
 		page = searchResp.Assets.NextPage
 	}
 
-	return assetsByName, nil
+	return list, nil
 }

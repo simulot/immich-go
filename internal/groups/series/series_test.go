@@ -162,3 +162,55 @@ func TestGroup(t *testing.T) {
 		}
 	}
 }
+
+func coverAsset(ic *filenames.InfoCollector, name string, dateTaken time.Time, kind assets.Kind) *assets.Asset {
+	a := mockAsset(ic, name, dateTaken)
+	a.Kind = kind
+	a.IsCover = true
+	return a
+}
+
+func TestCoverIndex(t *testing.T) {
+	ic := filenames.NewInfoCollector(time.Local, filetypes.DefaultSupportedMedia)
+	baseTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.Local)
+
+	tests := []struct {
+		name string
+		as   []*assets.Asset
+		want int
+	}{
+		{
+			name: "the edited asset wins over a filename-derived cover",
+			as: []*assets.Asset{
+				coverAsset(ic, "IMG_0001.jpg", baseTime, assets.KindNone),
+				coverAsset(ic, "IMG_0001-edited.jpg", baseTime, assets.KindEdited),
+			},
+			want: 1,
+		},
+		{
+			name: "the edited asset wins when the original is listed after it",
+			as: []*assets.Asset{
+				coverAsset(ic, "IMG_0002-edited.jpg", baseTime, assets.KindEdited),
+				coverAsset(ic, "IMG_0002.jpg", baseTime, assets.KindNone),
+			},
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			out := make(chan *assets.Asset, len(tt.as))
+			gOut := make(chan *assets.Group, 1)
+			sendGroup(ctx, out, gOut, tt.as)
+			close(gOut)
+			g := <-gOut
+			if g == nil {
+				t.Fatalf("no group was sent")
+			}
+			if g.CoverIndex != tt.want {
+				t.Errorf("CoverIndex = %d, want %d", g.CoverIndex, tt.want)
+			}
+		})
+	}
+}
