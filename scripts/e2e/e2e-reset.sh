@@ -27,8 +27,9 @@ while [ $# -gt 0 ]; do
 done
 export E2E_INSTALL_DIR
 
-e2e_require_docker
+e2e_require_engine
 e2e_require_cmd curl
+engine="$(e2e_engine)" || exit 1
 
 [ -f "${E2E_INSTALL_DIR}/docker-compose.yml" ] ||
   e2e_die "no e2e instance in ${E2E_INSTALL_DIR}; run scripts/e2e/e2e-provision.sh first"
@@ -55,7 +56,7 @@ e2e_info "stopping the Immich server"
 e2e_compose stop immich-server
 
 e2e_info "resetting the database"
-docker exec -i "${container}" psql --dbname=immich --username=postgres -c "${RESET_SQL}" >/dev/null ||
+"${engine}" exec -i "${container}" psql --dbname=immich --username=postgres -c "${RESET_SQL}" >/dev/null ||
   e2e_die "the database reset failed"
 
 e2e_info "restarting the Immich server"

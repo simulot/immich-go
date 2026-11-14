@@ -47,22 +47,23 @@ if [ "${yes}" != true ]; then
   fi
 fi
 
-e2e_require_docker
+e2e_require_engine
+engine="$(e2e_engine)" || exit 1
 
 if [ -f "${E2E_INSTALL_DIR}/docker-compose.yml" ]; then
   e2e_info "stopping the instance (project ${E2E_PROJECT})"
   e2e_compose down --volumes --remove-orphans ||
-    e2e_die "docker compose down failed; the directory was not removed"
+    e2e_die "'${engine} compose down' failed; the directory was not removed"
 fi
 
 # Compose leaves behind named volumes that no service mounts any more (rootless
 # mode replaces the model cache with a bind mount). Remove the volumes of this
 # project only, selected by their compose label, never by name pattern.
-leftovers="$(docker volume ls -q --filter "label=com.docker.compose.project=${E2E_PROJECT}")"
+leftovers="$("${engine}" volume ls -q --filter "label=com.docker.compose.project=${E2E_PROJECT}")"
 if [ -n "${leftovers}" ]; then
   e2e_info "removing the remaining volumes of project ${E2E_PROJECT}"
   for volume in ${leftovers}; do
-    docker volume rm "${volume}" >/dev/null || true
+    "${engine}" volume rm "${volume}" >/dev/null || true
   done
 fi
 

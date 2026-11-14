@@ -13,10 +13,41 @@ developer, so `e2e-cleanup.sh` does not need `sudo`.
 
 ## Prerequisites
 
-- Docker with Compose v2 (`docker compose version`)
+- Docker with Compose v2, or Podman with a Compose provider
 - `curl`
 - Go, to build the user creation tool
 - Network access to `github.com/immich-app/immich` for the compose file and images
+
+## Container engine
+
+The scripts use Docker by default and switch to Podman when no Docker daemon
+answers. `E2E_ENGINE` forces one engine:
+
+| `E2E_ENGINE` | Behaviour |
+|---|---|
+| unset or `auto` | Docker when `docker info` succeeds, Podman otherwise |
+| `docker` | Docker only |
+| `podman` | Podman only |
+
+The scripts ask the engine (`docker info`, `podman info`), never the client
+version. `docker compose version` succeeds while the daemon is down, so it
+cannot prove that an engine runs.
+
+Podman needs a Compose provider: `podman compose` runs `docker-compose` or
+`podman-compose` found in `PATH`. Podman 5.0 or newer is recommended.
+
+Podman also needs two things on the host, or the stack cannot start:
+
+- Rootless mode with a user id range: the `uidmap` package for `newuidmap`, and
+  an entry for the user in `/etc/subuid` and `/etc/subgid`. Without them Podman
+  falls back to a single-id mapping, and unpacking an image layer fails on a
+  file owned by another uid (`requested 0:42 for /etc/gshadow`).
+- Its API socket, because the Compose provider talks to it:
+  `systemctl --user enable --now podman.socket`, or `podman system service
+  --time=0` when the machine has no systemd user session.
+
+The scripts call `podman compose` directly, so both must be in place before
+`e2e-start.sh` runs.
 
 ## Quick start
 
@@ -49,6 +80,7 @@ passwords or the API keys.
 | `--force` (provision) | | refuse to replace an existing instance |
 | `--no-rootless` (provision) | `E2E_ROOTLESS=false` | containers run as the current uid/gid |
 | | `E2E_UID`, `E2E_GID` | `id -u`, `id -g` |
+| | `E2E_ENGINE` | `auto`: Docker first, then Podman |
 | `--yes` (cleanup) | | ask for confirmation |
 
 `e2e_start.sh` passes its arguments to `e2e-provision.sh`.
@@ -78,7 +110,7 @@ scripts/e2e/e2e-start.sh --version v3.3.3
 - The container names are prefixed with the project name.
 - `e2e-cleanup.sh` removes only the volumes attached to the e2e project, selected
   by their `com.docker.compose.project` label. It does not run
-  `docker system prune` and does not remove volumes by name pattern.
+  `<engine> system prune` and does not remove volumes by name pattern.
 - `e2e-reset.sh` resolves the database container from the e2e project. It has no
   fallback to other Postgres containers.
 - `e2e-provision.sh` refuses to delete an existing instance without `--force`.
@@ -87,6 +119,8 @@ scripts/e2e/e2e-start.sh --version v3.3.3
   prints the `sudo rm -rf` command instead of running `sudo` itself.
 
 ## Troubleshooting
+
+Replace `docker` with `podman` in the commands below when `E2E_ENGINE=podman`.
 
 ```bash
 # Status of the e2e containers

@@ -51,7 +51,7 @@ while [ $# -gt 0 ]; do
 done
 export E2E_PROJECT E2E_INSTALL_DIR E2E_PORT E2E_VERSION E2E_ROOTLESS E2E_UID E2E_GID
 
-e2e_require_docker
+e2e_require_engine
 e2e_require_cmd curl
 e2e_require_cmd go
 

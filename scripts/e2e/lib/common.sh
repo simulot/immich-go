@@ -43,20 +43,48 @@ e2e_require_cmd() {
   command -v "$1" >/dev/null 2>&1 || e2e_die "'$1' is required but was not found in PATH"
 }
 
-e2e_require_docker() {
-  e2e_require_cmd docker
-  docker compose version >/dev/null 2>&1 || e2e_die "'docker compose' (Compose v2) is required"
+# e2e_engine prints the container engine to use: docker or podman.
+# E2E_ENGINE forces one. The default, auto, prefers docker, which CI and most
+# contributors have, and falls back to podman.
+e2e_engine() {
+  case "${E2E_ENGINE:-auto}" in
+    docker|podman) printf '%s\n' "${E2E_ENGINE}" ;;
+    auto)
+      if docker info >/dev/null 2>&1; then
+        printf 'docker\n'
+      elif podman info >/dev/null 2>&1; then
+        printf 'podman\n'
+      else
+        e2e_die "no container engine is reachable: 'docker info' and 'podman info' both failed"
+      fi
+      ;;
+    *) e2e_die "E2E_ENGINE must be auto, docker or podman (got '${E2E_ENGINE}')" ;;
+  esac
 }
 
-# e2e_compose runs docker compose against the e2e instance only.
+# e2e_require_engine checks the engine and its Compose v2 front end.
+# The check asks the engine, not the client: an installed client proves nothing,
+# because 'docker compose version' succeeds while the daemon is down.
+e2e_require_engine() {
+  local engine
+  engine="$(e2e_engine)" || exit 1
+  e2e_require_cmd "${engine}"
+  "${engine}" info >/dev/null 2>&1 ||
+    e2e_die "'${engine} info' failed: the engine is not usable"
+  "${engine}" compose version >/dev/null 2>&1 ||
+    e2e_die "'${engine} compose' (Compose v2) is required"
+}
+
+# e2e_compose runs the engine's Compose v2 front end against the e2e instance only.
 e2e_compose() {
-  local files=(-f "${E2E_INSTALL_DIR}/docker-compose.yml")
+  local engine files=(-f "${E2E_INSTALL_DIR}/docker-compose.yml")
+  engine="$(e2e_engine)" || exit 1
   if [ -f "${E2E_INSTALL_DIR}/docker-compose.e2e.yml" ]; then
     files+=(-f "${E2E_INSTALL_DIR}/docker-compose.e2e.yml")
   fi
   E2E_PROJECT="${E2E_PROJECT}" E2E_PORT="${E2E_PORT}" \
     E2E_UID="${E2E_UID}" E2E_GID="${E2E_GID}" \
-    docker compose --project-directory "${E2E_INSTALL_DIR}" -p "${E2E_PROJECT}" "${files[@]}" "$@"
+    "${engine}" compose --project-directory "${E2E_INSTALL_DIR}" -p "${E2E_PROJECT}" "${files[@]}" "$@"
 }
 
 e2e_immich_url() { printf 'http://localhost:%s' "${E2E_PORT}"; }
