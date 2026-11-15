@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -300,7 +301,7 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 	dirs := gen.MapKeysSorted(toc.catalogs)
 	for _, dir := range dirs {
 		cat := toc.catalogs[dir]
-		jsons := gen.MapKeysSorted(cat.jsons)
+		jsons := longestFirst(gen.MapKeysSorted(cat.jsons))
 		for _, matcher := range matchers {
 			for _, json := range jsons {
 				md := cat.jsons[json]
@@ -338,6 +339,16 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// longestFirst makes the prefix matchers pick the most specific sidecar:
+// IMG_1_1-edited.jpg must match IMG_1_1.jpg's sidecar, not IMG_1.jpg's.
+func longestFirst(names []string) []string {
+	sorted := slices.Clone(names)
+	slices.SortStableFunc(sorted, func(a, b string) int {
+		return len(b) - len(a)
+	})
+	return sorted
 }
 
 // Browse return a channel of assets
