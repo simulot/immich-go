@@ -22,9 +22,14 @@ func getAPIURL() string {
 }
 
 func do(method string, url string, body any, token Token) (*http.Response, error) {
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("can't post %s: %w", url, err)
+	var jsonBody []byte
+	// Don't marshal nil into JSON "null" which some endpoints do not accept
+	if body != nil {
+		var err error
+		jsonBody, err = json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("can't post %s: %w", url, err)
+		}
 	}
 	req, err := http.NewRequest(method, url, bytes.NewReader(jsonBody))
 	if err != nil {
@@ -53,22 +58,7 @@ func do(method string, url string, body any, token Token) (*http.Response, error
 
 // get sends a GET request without a body
 func get(url string, token Token) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("can't get %s: %w", url, err)
-	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+string(token))
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("can't get %s: %w", url, err)
-	}
-	if resp.StatusCode > 299 {
-		defer resp.Body.Close()
-		return nil, fmt.Errorf("can't get %s: %s", url, resp.Status)
-	}
-	return resp, nil
+	return do(http.MethodGet, url, nil, token)
 }
 
 func post(url string, body any, token Token) (*http.Response, error) {
