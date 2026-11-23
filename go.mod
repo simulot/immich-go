@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
+	github.com/deckarep/golang-set/v2 v2.8.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/google/uuid v1.6.0
