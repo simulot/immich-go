@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"time"
 
 	"github.com/simulot/immich-go/internal/assets"
 	"github.com/simulot/immich-go/internal/exif/sidecars/jsonsidecar"
@@ -55,6 +56,7 @@ func (w *LocalAssetWriter) WriteGroup(ctx context.Context, group *assets.Group) 
 	return err
 }
 
+// WriteAsset archives the original and sidecars, preserving their modification time.
 func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) error {
 	base := a.Base
 	dir := w.pathOfAsset(a)
@@ -105,9 +107,25 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 				break
 			}
 
+			mtime := a.CaptureDate
+			if mtime.IsZero() {
+				mtime = a.FileDate
+			}
+			setModTime := func(name string) error {
+				if fsys, ok := w.WriteToFS.(interface {
+					Chtimes(string, time.Time, time.Time) error
+				}); ok && !mtime.IsZero() {
+					// A zero access time leaves the current access time unchanged.
+					return fsys.Chtimes(path.Join(dir, name), time.Time{}, mtime)
+				}
+				return nil
+			}
 			// write the asset
 			err = fshelper.WriteFile(w.WriteToFS, path.Join(dir, base), r)
 			if err != nil {
+				return err
+			}
+			if err := setModTime(base); err != nil {
 				return err
 			}
 			// XMP?
@@ -127,7 +145,12 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 					return err
 				}
 				_, err = io.Copy(scw, scr)
-				scw.Close()
+				if err := errors.Join(err, scw.Close()); err != nil {
+					return err
+				}
+				if err := setModTime(base + ".XMP"); err != nil {
+					return err
+				}
 			}
 
 			// Having metadata from an Application or immich-go JSON?
@@ -138,7 +161,10 @@ func (w *LocalAssetWriter) WriteAsset(ctx context.Context, a *assets.Asset) erro
 					return err
 				}
 				err = jsonsidecar.Write(a.FromApplication, scw)
-				scw.Close()
+				if err := errors.Join(err, scw.Close()); err != nil {
+					return err
+				}
+				return setModTime(base + ".JSON")
 			}
 
 			return err

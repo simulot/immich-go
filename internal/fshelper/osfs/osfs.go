@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/simulot/immich-go/internal/fshelper"
 	"github.com/simulot/immich-go/internal/fshelper/debugfiles"
@@ -62,6 +63,11 @@ func (dir dirFS) Lstat(name string) (fs.FileInfo, error) {
 
 func (dir dirFS) MkSymlink(name, target string) error {
 	return os.Symlink(filepath.Join(string(dir), name), filepath.Join(string(dir), target))
+}
+
+// Chtimes changes the timestamps of a file relative to the filesystem root.
+func (dir dirFS) Chtimes(name string, atime, mtime time.Time) error {
+	return os.Chtimes(filepath.Join(string(dir), name), atime, mtime)
 }
 
 func (dir dirFS) Remove(name string) error {
