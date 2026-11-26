@@ -24,9 +24,11 @@ func newTestUpCmd(t *testing.T) (*UpCmd, map[string][]string) {
 	t.Helper()
 
 	a := app.New(context.Background(), &cobra.Command{})
+	discard := slog.New(slog.NewTextHandler(io.Discard, nil))
+	a.SetLog(&app.Log{Logger: discard})
 	a.SetFileProcessor(fileprocessor.New(
 		assettracker.New(),
-		fileevent.NewRecorder(slog.New(slog.NewTextHandler(io.Discard, nil))),
+		fileevent.NewRecorder(discard),
 	))
 
 	savedAlbums := map[string][]string{}
