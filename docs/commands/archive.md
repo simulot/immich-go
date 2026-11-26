@@ -29,6 +29,8 @@ destination-folder/
     └── 2024-06/
 ```
 
+The original file and its XMP and JSON sidecars use the capture date as their filesystem modification time. If the capture date is unknown, the archive uses the source file date instead. When neither date is known, the modification time is left unchanged.
+
 ## Required Options
 
 | Option | Description |
