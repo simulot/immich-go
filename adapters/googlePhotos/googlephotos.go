@@ -156,6 +156,31 @@ type assetFile struct {
 	md      *assets.Metadata // will point to the associated metadata
 	matcher string           // name of the matcher that associated the file with its metadata
 	sum     []byte           // SHA1 of the content, read by holdsIdenticalFile when a file of the same name and size shows up
+	tracked bool             // an image or a video, recorded in the tracker
+}
+
+// droppedFile is an image or a video pass one dropped as a duplicate, to be booked in the tracker by recordDrops.
+type droppedFile struct {
+	file   fshelper.FSAndName
+	size   int64
+	reason string
+	dir    string  // its directory
+	key    fileKey // its series and name in the directory's catalogue
+}
+
+// duplicateOf tells whether af, of the given series, duplicates a file the directory dir already holds, and why.
+// A series holds a path once, so a file of the same name in this series is the same part given twice — except in
+// parts without a takeout name, which all share one series and can hold different photos at one path (#1473); those
+// are dropped too, a known limit, but their reason says so. A file of another series is a duplicate only when its
+// name, size and content are the same.
+func (cat directoryCatalog) duplicateOf(dir, series string, af *assetFile) (bool, string) {
+	if _, ok := cat.unMatchedFiles[fileKey{series: series, base: af.base}]; ok {
+		if series == "" && !cat.holdsIdenticalFile(dir, af) {
+			return true, "not found identical to the file at this path; parts without a takeout name share one series"
+		}
+		return true, "duplicated in the directory"
+	}
+	return cat.holdsIdenticalFile(dir, af), "duplicated in the directory"
 }
 
 // Implement slog.LogValuer for assetFile
@@ -180,10 +205,12 @@ func (toc *TakeoutCmd) Browse(ctx context.Context) chan *assets.Group {
 		for _, w := range toc.fsyss {
 			err := toc.passOneFsWalk(ctx, w)
 			if err != nil {
+				toc.recordDrops() // their events are logged already
 				cancel(err)
 				return
 			}
 		}
+		toc.recordDrops()
 		err := toc.solvePuzzle(ctx)
 		if err != nil {
 			cancel(err)
@@ -309,6 +336,7 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 			default:
 
 				t := toc.supportedMedia.TypeFromExt(ext)
+				var discovered fileevent.Code // the discovery event of an image or a video; none for other files
 				switch t {
 				case filetypes.TypeUseless:
 					toc.processor.RecordNonAsset(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredUnknown, "reason", "useless file")
@@ -320,11 +348,10 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 					if strings.Contains(name, "Failed Videos") {
 						toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedFiltered, "can't upload failed videos")
 						return nil
-					} else {
-						toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredVideo)
 					}
+					discovered = fileevent.DiscoveredVideo
 				case filetypes.TypeImage:
-					toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscoveredImage)
+					discovered = fileevent.DiscoveredImage
 				}
 
 				key := fileKeyTracker{
@@ -339,17 +366,29 @@ func (toc *TakeoutCmd) passOneFsWalk(ctx context.Context, w fs.FS) error {
 				toc.fileTracker.Store(key, tracking) // to.fileTracker[key] = tracking
 
 				af := &assetFile{
-					fsys:   w,
-					base:   base,
-					length: int(finfo.Size()),
-					date:   finfo.ModTime(),
+					fsys:    w,
+					base:    base,
+					length:  int(finfo.Size()),
+					date:    finfo.ModTime(),
+					tracked: discovered != 0,
 				}
 
 				// A file of the same name in this series, or the same file from another series, is a duplicate.
 				// The same name and size alone is not proof: the content is compared.
-				if _, ok := dirCatalog.unMatchedFiles[fileKey{series: series, base: base}]; ok || dirCatalog.holdsIdenticalFile(dir, af) {
-					toc.processor.RecordAssetDiscardedImmediately(ctx, fshelper.FSName(w, name), finfo.Size(), fileevent.DiscardedLocalDuplicate, "duplicated in the directory")
+				if duplicate, reason := dirCatalog.duplicateOf(dir, series, af); duplicate {
+					// An image or a video is logged now and booked in the tracker by recordDrops once every part is walked.
+					if discovered != 0 {
+						toc.processor.Logger().RecordWithSize(ctx, discovered, fshelper.FSName(w, name), finfo.Size())
+						toc.drops = append(toc.drops, droppedFile{
+							file: fshelper.FSName(w, name), size: finfo.Size(), reason: reason,
+							dir: dir, key: fileKey{series: series, base: base},
+						})
+					}
+					toc.processor.Logger().RecordWithSize(ctx, fileevent.DiscardedLocalDuplicate, fshelper.FSName(w, name), finfo.Size(), "reason", reason)
 					return nil
+				}
+				if discovered != 0 {
+					toc.processor.RecordAssetDiscovered(ctx, fshelper.FSName(w, name), finfo.Size(), discovered)
 				}
 
 				if !slices.Contains(dirCatalog.series, series) {
@@ -463,6 +502,10 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 			for _, f := range sortedFileKeys(cat.unMatchedFiles) {
 				i := cat.unMatchedFiles[f]
 				toc.processor.RecordNonAsset(ctx, fshelper.FSName(i.fsys, path.Join(dir, i.base)), 0, fileevent.ProcessedMissingMetadata)
+				if !toc.KeepJSONLess && i.tracked {
+					// not imported: end its record; the missing metadata event above is its log line
+					toc.processor.Tracker().SetDiscarded(fshelper.FSName(i.fsys, path.Join(dir, i.base)), fileevent.DiscardedFiltered, "no matching JSON")
+				}
 				if toc.KeepJSONLess {
 					a := toc.makeAsset(ctx, dir, i, nil)
 					cat.matchedFiles[f] = a
@@ -472,6 +515,26 @@ func (toc *TakeoutCmd) solvePuzzle(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// recordDrops books in the tracker the files pass one dropped as duplicates, once every part is walked. A dropped
+// file shares its tracker identity (part name and path) with a kept one when a part is given twice, or two parts have
+// one name: that record is the kept file's, and the drop is only logged. Booking the drop as discarded at once would
+// leave it pending, or end the kept file's record.
+func (toc *TakeoutCmd) recordDrops() {
+	booked := map[string]bool{}
+	for _, d := range toc.drops {
+		name := d.file.FullName()
+		// a file of the same tracker identity has the same part name and path, so the same series and catalogue
+		if kept, ok := toc.catalogs[d.dir].unMatchedFiles[d.key]; ok && fshelper.FSName(kept.fsys, path.Join(d.dir, kept.base)).FullName() == name {
+			continue
+		}
+		if !booked[name] {
+			toc.processor.Tracker().DiscoverAndDiscard(d.file, d.size, fileevent.DiscardedLocalDuplicate, d.reason)
+			booked[name] = true
+		}
+	}
+	toc.drops = nil
 }
 
 // findNamesakes collects the names and the titles of the files that a directory keeps in several series. They are

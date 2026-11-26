@@ -2,6 +2,7 @@ package gp
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -55,11 +56,21 @@ func sidecarJSON(title string, taken time.Time) []byte {
 
 func newCollisionTakeoutCmd(t *testing.T, parts ...fs.FS) (*TakeoutCmd, *fileevent.Recorder) {
 	t.Helper()
+	toc, rec, _ := newLoggedTakeoutCmd(t, parts...)
+	return toc, rec
+}
+
+// newLoggedTakeoutCmd is newCollisionTakeoutCmd whose event log and asset tracker write to the
+// returned buffer, to read once Browse is done.
+func newLoggedTakeoutCmd(t *testing.T, parts ...fs.FS) (*TakeoutCmd, *fileevent.Recorder, *bytes.Buffer) {
+	t.Helper()
 	discard := slog.New(slog.NewTextHandler(io.Discard, nil))
-	rec := fileevent.NewRecorder(discard)
+	logs := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logs, nil))
+	rec := fileevent.NewRecorder(logger)
 	a := app.New(context.Background(), &cobra.Command{})
 	a.SetLog(&app.Log{Logger: discard})
-	processor := fileprocessor.New(assettracker.New(), rec)
+	processor := fileprocessor.New(assettracker.NewWithLogger(logger, false), rec)
 	a.SetFileProcessor(processor)
 	return &TakeoutCmd{
 		app:            a,
@@ -73,7 +84,18 @@ func newCollisionTakeoutCmd(t *testing.T, parts ...fs.FS) (*TakeoutCmd, *fileeve
 		fileTracker:    gen.NewSyncMap[fileKeyTracker, trackingInfo](),
 		KeepJSONLess:   true,
 		groupers:       []groups.Grouper{series.Group}, // as in the command's RunE
-	}, rec
+	}, rec, logs
+}
+
+// assertTrackerQuiet fails when the asset tracker logged a refused record: a file booked twice,
+// or a state change on a record that is not the file's.
+func assertTrackerQuiet(t *testing.T, logs *bytes.Buffer) {
+	t.Helper()
+	for _, m := range []string{"Asset already tracked", "not in pending state", "asset not found"} {
+		if strings.Contains(logs.String(), m) {
+			t.Errorf("the tracker logged %q", m)
+		}
+	}
 }
 
 func browseGroups(t *testing.T, toc *TakeoutCmd) []*assets.Group {
@@ -676,6 +698,141 @@ func TestIdenticalFileInTwoTakeoutsIsALocalDuplicate(t *testing.T) {
 	}
 	if n := rec.GetCounts()[fileevent.DiscardedLocalDuplicate]; n != 1 {
 		t.Errorf("%d local duplicate(s), want 1", n)
+	}
+	if n := rec.GetCounts()[fileevent.DiscoveredImage]; n != 2 {
+		t.Errorf("%d image(s) discovered, want 2: the photo and its copy", n)
+	}
+	// The copy is counted as discarded, not left pending ("Asset already tracked" on v0.32.0).
+	if pending := pendingNames(toc); !slices.Equal(pending, []string{kept[0].File.FullName()}) {
+		t.Errorf("pending %q, want only the photo sent on, %q", pending, kept[0].File.FullName())
+	}
+}
+
+func pendingNames(toc *TakeoutCmd) []string {
+	pending := toc.processor.GetPendingAssets()
+	names := make([]string, 0, len(pending))
+	for _, r := range pending {
+		names = append(names, r.File.FullName())
+	}
+	return names
+}
+
+// trackerRecord returns the tracker's record of the file named full (part:path).
+func trackerRecord(t *testing.T, toc *TakeoutCmd, full string) assettracker.AssetRecord {
+	t.Helper()
+	for _, r := range toc.processor.Tracker().GetAllAssets() {
+		if r.File.FullName() == full {
+			return r
+		}
+	}
+	t.Fatalf("no tracker record for %s", full)
+	return assettracker.AssetRecord{}
+}
+
+// The same part passed twice gives both copies one tracker identity (part name and path).
+// The second copy is a duplicate, but the record is the kept photo's: it stays pending, to be
+// processed by the upload, and is not booked as discarded.
+func TestSamePartPassedTwiceKeepsThePhotosRecord(t *testing.T) {
+	taken := time.Date(2020, 5, 1, 8, 0, 0, 0, time.UTC)
+	part := func() namedMapFS {
+		return namedMapFS{name: "takeout-20251016T092000Z-001", MapFS: fstest.MapFS{
+			collisionDir + "/IMG_0001.jpg":                            {Data: []byte(strings.Repeat("a", 100))},
+			collisionDir + "/IMG_0001.jpg.supplemental-metadata.json": {Data: sidecarJSON("IMG_0001.jpg", taken)},
+		}}
+	}
+	toc, _, logs := newLoggedTakeoutCmd(t, part(), part())
+
+	all := browseAll(t, toc)
+
+	assertTrackerQuiet(t, logs)
+	if len(all) != 1 {
+		t.Fatalf("got %d assets, want 1", len(all))
+	}
+	if r := trackerRecord(t, toc, all[0].File.FullName()); r.State != assettracker.StatePending {
+		t.Fatalf("the photo sent on is %s in the tracker, want pending", r.State)
+	}
+	toc.processor.RecordAssetProcessed(t.Context(), all[0].File, int64(all[0].FileSize), fileevent.ProcessedUploadSuccess)
+	if c := toc.processor.GetAssetCounters(); c.Processed != 1 || c.Discarded != 0 || c.Pending != 0 {
+		t.Errorf("tracker: %d processed, %d discarded, %d pending; want 1, 0, 0", c.Processed, c.Discarded, c.Pending)
+	}
+}
+
+// Parts without a takeout name share one series, so a different photo at the same path is
+// still dropped there (a known limit of the fix). It is not left pending, and its reason says
+// what happened, so the loss stays visible in the log.
+func TestDifferentFileDroppedInPartsWithoutTakeoutNamesSaysSo(t *testing.T) {
+	taken := time.Date(2023, 9, 1, 9, 0, 0, 0, time.UTC)
+	part := func(name string, content byte, size int) namedMapFS {
+		return namedMapFS{name: name, MapFS: fstest.MapFS{
+			collisionDir + "/IMG_0001.jpg":                            {Data: []byte(strings.Repeat(string(content), size))},
+			collisionDir + "/IMG_0001.jpg.supplemental-metadata.json": {Data: sidecarJSON("IMG_0001.jpg", taken)},
+		}}
+	}
+	for _, size := range []int{250, 100} { // another size, then the same size: the content is compared
+		toc, _, logs := newLoggedTakeoutCmd(t, part("Takeout", 'a', 100), part("Takeout 2", 'b', size))
+
+		browseAll(t, toc)
+
+		assertTrackerQuiet(t, logs)
+		if !strings.Contains(logs.String(), "without a takeout name") {
+			t.Errorf("%d bytes: the log does not say a different photo was dropped", size)
+		}
+		r := trackerRecord(t, toc, "Takeout 2:"+collisionDir+"/IMG_0001.jpg")
+		if r.State != assettracker.StateDiscarded || !strings.Contains(r.Reason, "without a takeout name") {
+			t.Errorf("%d bytes: the dropped photo is %s, reason %q; want discarded, with a reason naming parts without a takeout name", size, r.State, r.Reason)
+		}
+	}
+}
+
+// Two parts of one name hold one tracker identity per path. Here the copy dropped as identical
+// to another part's photo shares it with a different photo kept from the second "Takeout": the
+// record is the kept photo's, and processing both photos leaves nothing discarded or pending.
+func TestDroppedCopySharingTheKeptPhotosIdentityLeavesItsRecord(t *testing.T) {
+	taken := time.Date(2023, 9, 1, 9, 0, 0, 0, time.UTC)
+	part := func(name string, content byte) namedMapFS {
+		return namedMapFS{name: name, MapFS: fstest.MapFS{
+			collisionDir + "/IMG_0001.jpg":                            {Data: []byte(strings.Repeat(string(content), 100))},
+			collisionDir + "/IMG_0001.jpg.supplemental-metadata.json": {Data: sidecarJSON("IMG_0001.jpg", taken)},
+		}}
+	}
+	toc, _, logs := newLoggedTakeoutCmd(t, part("takeout-20251016T092000Z-001", 'a'), part("Takeout", 'a'), part("Takeout", 'b'))
+
+	all := browseAll(t, toc)
+
+	assertTrackerQuiet(t, logs)
+	if len(all) != 2 {
+		t.Fatalf("got %d assets, want 2", len(all))
+	}
+	for _, a := range all {
+		toc.processor.RecordAssetProcessed(t.Context(), a.File, int64(a.FileSize), fileevent.ProcessedUploadSuccess)
+	}
+	if c := toc.processor.GetAssetCounters(); c.Processed != 2 || c.Discarded != 0 || c.Pending != 0 {
+		t.Errorf("tracker: %d processed, %d discarded, %d pending; want 2, 0, 0", c.Processed, c.Discarded, c.Pending)
+	}
+}
+
+// Without --include-unmatched a photo with no sidecar is not imported: it is discarded, not left
+// pending.
+func TestPhotoWithoutSidecarIsDiscardedWhenUnmatchedAreExcluded(t *testing.T) {
+	s1 := namedMapFS{name: "takeout-20251016T092000Z-1-001", MapFS: fstest.MapFS{
+		collisionDir + "/IMG_0009.jpg":     {Data: []byte(strings.Repeat("n", 100))},
+		collisionDir + "/IMG_0009.jpg.xmp": {Data: []byte("<x:xmpmeta/>")}, // not an asset: no record to end
+	}}
+	toc, rec, logs := newLoggedTakeoutCmd(t, s1)
+	toc.KeepJSONLess = false
+
+	if all := browseAll(t, toc); len(all) != 0 {
+		t.Fatalf("got %d assets, want 0", len(all))
+	}
+	assertTrackerQuiet(t, logs)
+	if c := rec.GetCounts(); c[fileevent.DiscardedFiltered] != 0 {
+		t.Errorf("%d discarded filtered event(s), want 0: the missing metadata event is the log line, as before", c[fileevent.DiscardedFiltered])
+	}
+	if c := toc.processor.GetAssetCounters(); c.Discarded != 1 || c.Pending != 0 {
+		t.Errorf("tracker: %d discarded, %d pending; want 1 and 0", c.Discarded, c.Pending)
+	}
+	if r := trackerRecord(t, toc, s1.name+":"+collisionDir+"/IMG_0009.jpg"); r.State != assettracker.StateDiscarded {
+		t.Errorf("the photo without a sidecar is %s in the tracker, want discarded", r.State)
 	}
 }
 

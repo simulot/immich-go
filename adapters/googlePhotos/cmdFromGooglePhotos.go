@@ -59,6 +59,7 @@ type TakeoutCmd struct {
 	albums         map[string]assets.Album                    // track album names by folder
 	fileTracker    *gen.SyncMap[fileKeyTracker, trackingInfo] // map[fileKeyTracker]trackingInfo // key is base name + file size,  value is list of file paths
 	namesakes      map[string]bool                            // names and titles of different files kept under one name, see findNamesakes
+	drops          []droppedFile                              // files pass one dropped as duplicates, see recordDrops
 	groupers       []groups.Grouper
 	// filters        []filters.Filter
 }
